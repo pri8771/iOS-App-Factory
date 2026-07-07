@@ -415,3 +415,143 @@ The Quality Gate's catch on round 2 is right again, and honestly at this point I
 But before we call this converged, I want to do the thing nobody's done yet, which is actually diff the contract against the prompt clause-by-clause instead of trusting a general vibe pass — because if I don't do it now, ideation phase inherits whatever we missed and there's no later checkpoint that re-reads the original prompt this closely. Doing that pass myself, I found one more real gap: General Requirement 2 says each app must be "unique, useful, and commercially viable, **better than competitors in a meaningful way**." Our uniqueness hard requirement (item 9) only checks a concept against this batch's other 4 apps and against the ~50+ prior workspace apps — that's an internal-uniqueness check. "Better than competitors" is a different, external claim: it's asking whether the app beats the actual existing App Store incumbents in its category (the real habit-tracker apps, the real streak apps, the real BeReal-style social apps already on millions of phones). An app can pass our internal uniqueness gate easily — nobody in this workspace has built a sleep-tracking app before — while still being a worse, more generic version of an app that already dominates the App Store, which would technically satisfy every rule we've written so far and still fail the actual prompt. I want that named as its own hard requirement, separate from internal uniqueness: each app needs an explicit "how this beats the realistic incumbent" answer before it's greenlit — not a full competitive-research phase, just one concrete sentence per app naming the real competitor and the specific mechanism that's better (faster core loop, sharper viral hook, less friction, whatever), so "commercially viable, better than competitors" isn't just asserted and forgotten.
 
 I'd also flag, since we're doing a full diff, that this three-strikes pattern itself is worth writing into the decision rules, not just fixing the symptom each time — I want later phases (ideation, design, build, final review) to each end with a quick line-by-line pass against the original prompt text before declaring done, the same move I just did here, rather than relying purely on synthesis-then-gate-catches-it. Otherwise we're depending on the Quality Gate to keep catching the same failure mode phase after phase, and eventually — especially with Codex silent again this round, same as rounds 1 and 2, meaning we've now run this entire contract phase on a single voice plus one automated gate — there's nobody left to catch the fourth miss. That Codex silence three-for-three is itself worth escalating past just "note it in the transcript": if it's silent again in the ideation or build phases, that's the point where "recover cleanly from stalls" should kick in for the orchestration itself, not just for individual app efforts.
+
+**Coordinator (Claude) — decision after round 3**
+
+Round 3 catches one more real gap (the "better than competitors" clause is a different, external claim from internal uniqueness, and it wasn't captured anywhere) plus folds in the Quality Gate's round-2 fixes cleanly. The additions are all additive and nobody's contesting them — but per our own rule, I have to flag that Codex has now been silent three rounds running, so this is a single-voice consensus, not a cross-checked one, and I'm saying so explicitly rather than letting it pass as ordinary agreement.
+
+CONSENSUS: YES *(single-participating-agent consensus — Codex has been unavailable for all three rounds of this phase; per this contract's own decision rule, that's noted here rather than treated as silently equivalent to cross-checked agreement. If Codex is silent again in ideation or build, that's the trigger for treating the orchestration itself as stalled.)*
+
+## Final Output
+
+**Original prompt:** preserved verbatim across all three rounds above — full, unedited request. Build 5 separate, production-ready, mass-market/viral iOS apps in parallel, each in its own folder under `/Users/pchordia/Documents/iOS-App-Factory`, distinct in design and concept from each other and from ~50+ prior apps in the workspace, with real depth, monetization, and local-first architecture.
+
+**Hard requirements**
+1. Exactly 5 apps, each a fully separate Xcode project in its own folder (never bundled).
+2. Every app targets a broad mainstream audience — no niche/hobbyist/professional-vertical concepts. One-sentence pitch, 10-second demo test.
+3. Every app has a genuine built-in viral loop (shareable result, streak, challenge, comparison) that's core to the interaction, not bolted on.
+4. Distinctive, non-default visual identity per app — five clearly different design directions, each with its own documented design tokens/components/states that the built UI actually matches.
+5. Apple-Design-Award-level polish: empty/loading/success/error states, transitions, haptics, spring animations, dark mode, Dynamic Type, VoiceOver, 44pt targets, WCAG AA contrast — on every reachable screen.
+6. Real substance: interconnected features, a real domain data model, offline persistence with a clear seam for later sync, settings, import/export, at least one hard technical capability done well — but never at the cost of mass-market simplicity (mass-market wins that tradeoff).
+7. Real monetization per app (subscription/IAP/premium) with actual StoreKit configuration and entitlement-gated logic — not a dead-end "Upgrade" button.
+8. Local-first, with a repository/protocol-style boundary so cloud sync can be added later without a rewrite.
+9. **Internal** uniqueness is a gate, not a vibe check: every concept checked against the other 4 in this batch AND against the full prior-apps list, by mechanic as well as by category.
+10. Nothing is "done" unless a real, compiling Xcode project with full source exists in `app_build` — no exceptions for time pressure.
+11. Each app's full phase-discussion transcript is combined into a single per-app `.txt` file at the end. This is a literal, checkable deliverable with the same weight as the buildable-Xcode-project requirement — "done" requires both.
+12. The five app efforts run in parallel, with phases kept separate per app. "Parallel" means real concurrent dispatch across apps, not one app time-sliced after another dressed up as parallel. "Separate" means each app's phase discussion is self-contained and never silently imports a concept/name/conclusion from another app's thread — if that happens, it's a uniqueness-rule failure, caught immediately.
+13. **Ideation must generate at least 10 candidate concepts before narrowing to 5.** The narrowing decision is judged primarily on mass-market/viral potential — per the stated priority order (viral/mass-market > design > depth > monetization) — not on novelty or technical interest alone.
+14. **Each app needs an explicit external "beats the competitor" answer, separate from internal uniqueness.** One concrete sentence per app naming the realistic existing App Store incumbent in its category and the specific mechanism that's better (faster core loop, sharper viral hook, less friction, etc.). Passing the internal-uniqueness gate (novel within this workspace) is not the same claim as "better than competitors in a meaningful way," and both must hold.
+
+**Non-goals**
+- No niche/professional-vertical apps, even if technically impressive.
+- No bundling apps into one folder/project.
+- No viral loop added after the fact instead of designed in.
+- No open-ended "platform" apps that never reach a shippable v1.
+- No deferring accessibility to "phase 2."
+- No fake paywalls or non-functional monetization UI.
+- No sacrificial fifth app — if time runs short, that's flagged to the user explicitly rather than shipping one app at a visibly lower bar.
+- LLM/AR/ML integration is optional bonus, never required — include only if it's integral to the core loop, never bolted on to chase bonus points.
+
+**Production-readiness definition**
+An app is production-ready only when ALL of the following hold:
+- It compiles and runs in Xcode/Simulator with no manual fixes.
+- Every reachable screen has real empty/loading/success/error handling, not just the happy path.
+- Data persists across a relaunch.
+- There's no TODO-shaped hole in the core loop.
+- Monetization, if claimed, is wired to real StoreKit config and gating logic.
+- The cloud-later claim is backed by an actual persistence-layer seam, not just a design-doc assertion.
+- Build verification and final review agree on what works and what's limited — disagreement means not done.
+- The per-app transcript `.txt` exists and actually contains that app's full phase history.
+- Each app has a stated, specific answer to "how does this beat its realistic competitor."
+
+**Decision rules for later phases**
+- If a feature threatens the one-sentence/10-second clarity bar, cut it or hide it behind progressive disclosure — mass-market clarity outranks technical depth whenever they conflict.
+- If two candidate concepts in the batch of 5 rhyme in mechanic (not just differ in label), kill one at ideation, before build.
+- If a later phase wants to loosen the "buildable Xcode project" bar for schedule reasons, that's a contract violation, not a judgment call — surface it to the user instead.
+- Any conflict between this contract and a later phase's convenience gets resolved by naming the assumption out loud, not by silently redefining scope.
+- Discussion phases should end as soon as genuine consensus is reached — don't manufacture extra rounds once agreement exists — but this never justifies skipping or thinning the build itself.
+- If one participating agent (e.g. Codex) is silent/unavailable for a round, that is not consensus by default — either get a real second pass before declaring agreement, or the record must say explicitly "consensus declared with only one participating agent."
+- A "stall" is defined concretely: an app's phase produces no forward progress (no new decision, no build-artifact change) across a full round for reasons other than genuine open debate. Recovery means restating the last known-good state and continuing — never silently restarting from scratch or dropping the app.
+- "Report only important milestones" means: idea selection, first successful compile, first full state-coverage pass, monetization wired, final done declaration — not every intermediate design tweak.
+- **Every later phase (ideation, design, build, final review) should end with a quick clause-by-clause pass against the original prompt text before declaring done** — not just a general risk/synthesis pass. This contract phase missed concrete prompt clauses twice in a row before catching them; later phases shouldn't rely solely on a gate to catch the same pattern.
+- **If Codex is silent again in the ideation or build phases** (making it three-for-three or worse), that's the signal to treat the multi-agent orchestration itself as stalled, not just an individual app effort — escalate rather than quietly continuing on one voice indefinitely.
+
+**Quality Gate (Claude) — after round 3**
+
+QUALITY: PASS
+
+## Feedback
+
+This output is ready to close the phase. Checking it clause-by-clause against the original prompt: all major sections are captured — portfolio structure and folder-per-app (HR1), mass-market/viral bar with the parent-barista-student test compressed but preserved in spirit (HR2-3), design distinctiveness and Apple-Design-Award polish (HR4-5), depth without sacrificing clarity (HR6), native monetization (HR7), local-first/cloud-later architecture (HR8), both internal uniqueness (HR9) and the previously-missing external "beats the competitor" claim (HR14), the buildable-Xcode-project bar (HR10), the per-app transcript deliverable (HR11), real-parallel/separate-phases execution with a checkable definition (HR12), and the ≥10-candidates/primary-criterion ideation rule (HR13). The bonus-points LLM/AR/ML clause and output-directory path are both present (the latter in the preserved prompt reference). Non-goals, production-readiness definition, and decision rules are concrete and each traceable to specific prompt language or a real risk surfaced in discussion (Codex silence, stall definition, milestone reporting, the self-check-against-prompt habit for future phases).
+
+Two rounds of Quality Gate failures did real work here — round 3's output is materially more complete than round 1's, and the self-diff performed in round 3 (catching HR14) shows the process working as intended rather than papering over gaps. The single-participating-agent caveat is named honestly rather than dressed up as cross-checked consensus, which is the right call per this phase's own decision rules.
+
+Nothing left to repair. Proceed to the ideation phase with this as the operative contract.
+
+## Coordinator Decision
+
+See the coordinator's message above.
+
+## Final Output
+
+Round 3 catches one more real gap (the "better than competitors" clause is a different, external claim from internal uniqueness, and it wasn't captured anywhere) plus folds in the Quality Gate's round-2 fixes cleanly. The additions are all additive and nobody's contesting them — but per our own rule, I have to flag that Codex has now been silent three rounds running, so this is a single-voice consensus, not a cross-checked one, and I'm saying so explicitly rather than letting it pass as ordinary agreement.
+
+CONSENSUS: YES *(single-participating-agent consensus — Codex has been unavailable for all three rounds of this phase; per this contract's own decision rule, that's noted here rather than treated as silently equivalent to cross-checked agreement. If Codex is silent again in ideation or build, that's the trigger for treating the orchestration itself as stalled.)*
+
+## Final Output
+
+**Original prompt:** preserved verbatim across all three rounds above — full, unedited request. Build 5 separate, production-ready, mass-market/viral iOS apps in parallel, each in its own folder under `/Users/pchordia/Documents/iOS-App-Factory`, distinct in design and concept from each other and from ~50+ prior apps in the workspace, with real depth, monetization, and local-first architecture.
+
+**Hard requirements**
+1. Exactly 5 apps, each a fully separate Xcode project in its own folder (never bundled).
+2. Every app targets a broad mainstream audience — no niche/hobbyist/professional-vertical concepts. One-sentence pitch, 10-second demo test.
+3. Every app has a genuine built-in viral loop (shareable result, streak, challenge, comparison) that's core to the interaction, not bolted on.
+4. Distinctive, non-default visual identity per app — five clearly different design directions, each with its own documented design tokens/components/states that the built UI actually matches.
+5. Apple-Design-Award-level polish: empty/loading/success/error states, transitions, haptics, spring animations, dark mode, Dynamic Type, VoiceOver, 44pt targets, WCAG AA contrast — on every reachable screen.
+6. Real substance: interconnected features, a real domain data model, offline persistence with a clear seam for later sync, settings, import/export, at least one hard technical capability done well — but never at the cost of mass-market simplicity (mass-market wins that tradeoff).
+7. Real monetization per app (subscription/IAP/premium) with actual StoreKit configuration and entitlement-gated logic — not a dead-end "Upgrade" button.
+8. Local-first, with a repository/protocol-style boundary so cloud sync can be added later without a rewrite.
+9. **Internal** uniqueness is a gate, not a vibe check: every concept checked against the other 4 in this batch AND against the full prior-apps list, by mechanic as well as by category.
+10. Nothing is "done" unless a real, compiling Xcode project with full source exists in `app_build` — no exceptions for time pressure.
+11. Each app's full phase-discussion transcript is combined into a single per-app `.txt` file at the end. This is a literal, checkable deliverable with the same weight as the buildable-Xcode-project requirement — "done" requires both.
+12. The five app efforts run in parallel, with phases kept separate per app. "Parallel" means real concurrent dispatch across apps, not one app time-sliced after another dressed up as parallel. "Separate" means each app's phase discussion is self-contained and never silently imports a concept/name/conclusion from another app's thread — if that happens, it's a uniqueness-rule failure, caught immediately.
+13. **Ideation must generate at least 10 candidate concepts before narrowing to 5.** The narrowing decision is judged primarily on mass-market/viral potential — per the stated priority order (viral/mass-market > design > depth > monetization) — not on novelty or technical interest alone.
+14. **Each app needs an explicit external "beats the competitor" answer, separate from internal uniqueness.** One concrete sentence per app naming the realistic existing App Store incumbent in its category and the specific mechanism that's better (faster core loop, sharper viral hook, less friction, etc.). Passing the internal-uniqueness gate (novel within this workspace) is not the same claim as "better than competitors in a meaningful way," and both must hold.
+
+**Non-goals**
+- No niche/professional-vertical apps, even if technically impressive.
+- No bundling apps into one folder/project.
+- No viral loop added after the fact instead of designed in.
+- No open-ended "platform" apps that never reach a shippable v1.
+- No deferring accessibility to "phase 2."
+- No fake paywalls or non-functional monetization UI.
+- No sacrificial fifth app — if time runs short, that's flagged to the user explicitly rather than shipping one app at a visibly lower bar.
+- LLM/AR/ML integration is optional bonus, never required — include only if it's integral to the core loop, never bolted on to chase bonus points.
+
+**Production-readiness definition**
+An app is production-ready only when ALL of the following hold:
+- It compiles and runs in Xcode/Simulator with no manual fixes.
+- Every reachable screen has real empty/loading/success/error handling, not just the happy path.
+- Data persists across a relaunch.
+- There's no TODO-shaped hole in the core loop.
+- Monetization, if claimed, is wired to real StoreKit config and gating logic.
+- The cloud-later claim is backed by an actual persistence-layer seam, not just a design-doc assertion.
+- Build verification and final review agree on what works and what's limited — disagreement means not done.
+- The per-app transcript `.txt` exists and actually contains that app's full phase history.
+- Each app has a stated, specific answer to "how does this beat its realistic competitor."
+
+**Decision rules for later phases**
+- If a feature threatens the one-sentence/10-second clarity bar, cut it or hide it behind progressive disclosure — mass-market clarity outranks technical depth whenever they conflict.
+- If two candidate concepts in the batch of 5 rhyme in mechanic (not just differ in label), kill one at ideation, before build.
+- If a later phase wants to loosen the "buildable Xcode project" bar for schedule reasons, that's a contract violation, not a judgment call — surface it to the user instead.
+- Any conflict between this contract and a later phase's convenience gets resolved by naming the assumption out loud, not by silently redefining scope.
+- Discussion phases should end as soon as genuine consensus is reached — don't manufacture extra rounds once agreement exists — but this never justifies skipping or thinning the build itself.
+- If one participating agent (e.g. Codex) is silent/unavailable for a round, that is not consensus by default — either get a real second pass before declaring agreement, or the record must say explicitly "consensus declared with only one participating agent."
+- A "stall" is defined concretely: an app's phase produces no forward progress (no new decision, no build-artifact change) across a full round for reasons other than genuine open debate. Recovery means restating the last known-good state and continuing — never silently restarting from scratch or dropping the app.
+- "Report only important milestones" means: idea selection, first successful compile, first full state-coverage pass, monetization wired, final done declaration — not every intermediate design tweak.
+- **Every later phase (ideation, design, build, final review) should end with a quick clause-by-clause pass against the original prompt text before declaring done** — not just a general risk/synthesis pass. This contract phase missed concrete prompt clauses twice in a row before catching them; later phases shouldn't rely solely on a gate to catch the same pattern.
+- **If Codex is silent again in the ideation or build phases** (making it three-for-three or worse), that's the signal to treat the multi-agent orchestration itself as stalled, not just an individual app effort — escalate rather than quietly continuing on one voice indefinitely.
+
+---
+
+CONSENSUS: YES

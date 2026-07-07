@@ -119,3 +119,38 @@ _Parallel build — 2 workers running at once: Codex builds the core data model 
 
 ### Iteration 1
 
+
+**Codex (QA & Risk · Skeptic) — Iteration 1 (skipped: CLI unavailable)**
+
+_Codex returned empty output — refusing to fabricate a response. See logs/._
+
+**Claude (Frontend Engineer · Pragmatist) — Iteration 1 (skipped: CLI unavailable)**
+
+_Claude timed out after 900s_
+
+_No build worker produced output in iteration 1. This can happen if all worker CLIs are unavailable or still starting up. Observed worker stall streak: 1._
+
+### Iteration 2
+
+
+**Codex (QA & Risk · Skeptic) — Iteration 2 (skipped: CLI unavailable)**
+
+_Codex returned empty output — refusing to fabricate a response. See logs/._
+
+**Claude (Frontend Engineer · Pragmatist) — Iteration 2**
+
+All five of my assigned tasks (T-008 through T-012) already exist in `app_build` from a prior build pass, and after a full read-through against the interface contract and acceptance criteria, they hold up — I didn't need to change anything in my lane this round. Here's what I verified:
+
+**T-008 (ThreadTraceController + tests)** — `commitStep`/`clearThread` are pure, stateless, `Sendable` value-in-value-out functions. Tests cover legal extension to full-board solve, non-adjacent rejection, wrong-endpoint rejection, empty-cell-begin rejection, cross-color retraction back to bare endpoints, and backtrack-shortens-thread — all pure logic against `PuzzleBoard` fixtures, zero view code. Matches T-008 acceptance criteria exactly.
+
+**T-009 (PuzzleViewModel/PuzzleScreenState)** — `onAppear()` races generation against a 2s timeout via `withThrowingTaskGroup`, off main via the actor-isolated `PuzzleGeneratorEngine`. `undo()` pops from a `completionOrder` array (not thread storage order) so it's always the most-recently-*completed* thread at full granularity. `beginNextLoom()` guards on `.solved` only. `.failed(fallback:)` is reached on either `GeneratorError` or timeout.
+
+**T-010 (LoomBoardView + parity)** — Canvas paints the grid/threads, a transparent `CellAccessibilityElement` grid carries VoiceOver labels + "extend thread here"/"cancel thread" actions, both the drag gesture and accessibility actions call only `viewModel.beginThread`/`extendThread`, and `DragVoiceOverParityTests` proves both paths reach identical `.solved` boards. All hit targets are `HeddleTheme.minimumHitTarget` (44pt).
+
+**T-011 (Hub)** — `yesterdaySummary == nil` renders the locked first-launch copy ("Your first loom is on the frame now"), Loom Pass teaser always opens the coming-soon sheet, Hub is a sheet with a nested `NavigationStack` into Settings, spool icon is 44×44pt.
+
+**T-012 (Settings)** — `ResetConfirmationView` has an explicit `.confirmingReset`/`.startingFresh` mode split so the same view backs both manual reset and corrupt-store recovery, manual reset requires the confirm sheet before `resetAllData()`, and `ReduceMotionStatusRow` is read-only against `@Environment(\.accessibilityReduceMotion)` with no app-level toggle.
+
+I also cross-checked field-for-field against everything my lane depends on — `Position`, `Direction`, `CellContent`, `Thread`, `PuzzleBoard`, `PuzzleDifficultyTier`, `PuzzleSummary`, `PuzzleGenerating`, `GeneratorError`, `FallbackPuzzleProvider`, `PuzzleGeneratorEngine` — all present and matching the interface contract, so my UI code should compile clean against Codex's model/service layer as-is.
+
+**What's still blocking a real build, flagging for the integrator/Codex:** `HapticsPlaying` and `SwiftDataStoring` are referenced everywhere in my lane (per the interface contract) but have zero concrete conformances anywhere in the tree — `Polish/` and `Persistence/` (beyond the `Entitlement` struct) are empty. There's no `PuzzleRecord` `@Model`, no `SwiftDataStore` actor, no `recoverFromCorruptStore`, no real Core Haptics implementation, and no `@main` App entry point wiring `PuzzleView(viewModel:, store:)` as root — all correctly out of my lane, but the app cannot link without them. Given `Polish`/services_utilities isn't running as a lane this round, someone needs to pick those up or the build stays red regardless of how solid the UI layer is.
