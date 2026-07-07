@@ -1,0 +1,251 @@
+{
+  "" : {
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary.dia",
+    "emit-module-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary-emit-module.dia",
+    "pch" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary.swiftdeps"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/App/ChalklineApp.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineApp.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineApp.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineApp.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/DesignSystem/ChalklineColorTokens.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineColorTokens.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineColorTokens.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineColorTokens.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/DesignSystem/ChalklineSpacing.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineSpacing.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineSpacing.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineSpacing.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/DesignSystem/ChalklineTypography.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineTypography.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineTypography.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineTypography.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Domain/AnalysisProgress.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AnalysisProgress.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AnalysisProgress.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AnalysisProgress.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Domain/ComparisonResolver.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonResolver.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonResolver.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonResolver.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Domain/ComparisonResult.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonResult.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonResult.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonResult.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Domain/PoseAnalysisSerializer.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseAnalysisSerializer.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseAnalysisSerializer.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseAnalysisSerializer.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Domain/PoseSample.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseSample.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseSample.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseSample.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Domain/TraceAccessibility.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceAccessibility.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceAccessibility.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceAccessibility.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Domain/TraceGapDetector.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceGapDetector.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceGapDetector.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceGapDetector.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Models/Attempt.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Attempt.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Attempt.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Attempt.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Models/AttemptEnums.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AttemptEnums.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AttemptEnums.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AttemptEnums.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Models/ChalklineSchema.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineSchema.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineSchema.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineSchema.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Models/Gym.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Gym.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Gym.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Gym.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Models/Route.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Route.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Route.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Route.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Models/Session.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Session.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Session.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Session.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/AnalysisQueue.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AnalysisQueue.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AnalysisQueue.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AnalysisQueue.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/CameraPermissionService.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CameraPermissionService.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CameraPermissionService.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CameraPermissionService.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/CaptureGuardController.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureGuardController.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureGuardController.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureGuardController.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/CaptureSessionController.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureSessionController.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureSessionController.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureSessionController.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/CaptureSupportEnums.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureSupportEnums.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureSupportEnums.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureSupportEnums.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/HapticsCenter.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HapticsCenter.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HapticsCenter.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HapticsCenter.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/ImportCoordinator.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ImportCoordinator.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ImportCoordinator.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ImportCoordinator.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/PersistenceGateway.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PersistenceGateway.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PersistenceGateway.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PersistenceGateway.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/PoseEstimationPipeline.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseEstimationPipeline.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseEstimationPipeline.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseEstimationPipeline.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/Services/VideoStorageService.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/VideoStorageService.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/VideoStorageService.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/VideoStorageService.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Capture/CameraPreviewRepresentable.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CameraPreviewRepresentable.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CameraPreviewRepresentable.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CameraPreviewRepresentable.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Capture/CaptureView.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Capture/CaptureViewModel.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureViewModel.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureViewModel.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/CaptureViewModel.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Capture/VideoLibraryPickerRepresentable.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/VideoLibraryPickerRepresentable.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/VideoLibraryPickerRepresentable.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/VideoLibraryPickerRepresentable.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/AttemptCard.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AttemptCard.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AttemptCard.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/AttemptCard.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/ComparisonInlineRow.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonInlineRow.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonInlineRow.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ComparisonInlineRow.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/ConfidenceBadge.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ConfidenceBadge.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ConfidenceBadge.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ConfidenceBadge.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/DeleteConfirmationAlert.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/DeleteConfirmationAlert.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/DeleteConfirmationAlert.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/DeleteConfirmationAlert.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/PermissionSheet.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PermissionSheet.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PermissionSheet.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PermissionSheet.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/PoseTraceGeometry.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseTraceGeometry.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseTraceGeometry.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/PoseTraceGeometry.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/ProcessingGauge.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingGauge.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingGauge.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingGauge.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/RouteTagFieldInline.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/RouteTagFieldInline.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/RouteTagFieldInline.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/RouteTagFieldInline.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/TraceCanvas.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceCanvas.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceCanvas.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/TraceCanvas.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Home/HomeFeedViewModel.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeFeedViewModel.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeFeedViewModel.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeFeedViewModel.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Home/HomeView.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Navigation/ChalklineRootView.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineRootView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineRootView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ChalklineRootView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Navigation/HomeRoute.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeRoute.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeRoute.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/HomeRoute.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Processing/ProcessingCoordinator.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingCoordinator.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingCoordinator.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingCoordinator.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Processing/ProcessingView.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ProcessingView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Review/ReviewCoordinator.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ReviewCoordinator.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ReviewCoordinator.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ReviewCoordinator.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Review/ReviewView.swift" : {
+    "index-unit-output-path" : "/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ReviewView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ReviewView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/ReviewView.o"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/PermissionSheet.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Camera Access Needed",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 17
+        }
+      },
+      {
+        "comment": "",
+        "key": "Chalkline analyzes movement from video you capture or import — turn on camera access in Settings to film an attempt.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opens the Settings app to enable camera access",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 34
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Settings",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 29
+        }
+      }
+    ]
+  },
+  "version": 1
+}

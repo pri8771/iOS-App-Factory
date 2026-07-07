@@ -1,0 +1,56 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Nearby/UndersongDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Undersong",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lets the author know this undersong reached someone",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Left by %@",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 37
+        }
+      },
+      {
+        "comment": "",
+        "key": "You echoed this",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Leave an echo",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 66
+        }
+      }
+    ]
+  },
+  "version": 1
+}

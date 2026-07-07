@@ -1,0 +1,186 @@
+{
+  "" : {
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cistern-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cistern-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cistern-primary.dia",
+    "emit-module-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cistern-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cistern-primary-emit-module.dia",
+    "pch" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cistern-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cistern-primary.swiftdeps"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/CisternApp.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternApp.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternApp.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternApp.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Engine/RunwayEngine.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RunwayEngine.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RunwayEngine.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RunwayEngine.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Engine/RunwayProjection.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RunwayProjection.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RunwayProjection.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RunwayProjection.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Models/BalanceAnchor.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BalanceAnchor.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BalanceAnchor.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BalanceAnchor.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Models/Bill.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Bill.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Bill.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Bill.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Models/Cadence.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cadence.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cadence.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Cadence.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Models/CisternMigrationPlan.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternMigrationPlan.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternMigrationPlan.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternMigrationPlan.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Models/CisternSchemaV1.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternSchemaV1.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternSchemaV1.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternSchemaV1.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Models/Paycheck.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Paycheck.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Paycheck.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/Paycheck.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Models/RecurringOccurrence.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RecurringOccurrence.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RecurringOccurrence.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/RecurringOccurrence.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Support/AccessibilityAnnouncer.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AccessibilityAnnouncer.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AccessibilityAnnouncer.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AccessibilityAnnouncer.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Support/AmountValidation.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AmountValidation.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AmountValidation.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AmountValidation.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Support/AppGroupIdentifier.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AppGroupIdentifier.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AppGroupIdentifier.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/AppGroupIdentifier.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Support/DesignTokens.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/DesignTokens.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/DesignTokens.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/DesignTokens.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Support/ModelContainerFactory.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/ModelContainerFactory.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/ModelContainerFactory.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/ModelContainerFactory.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Support/PrivacyOverlayWindowController.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PrivacyOverlayWindowController.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PrivacyOverlayWindowController.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PrivacyOverlayWindowController.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Home/BalancePill.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BalancePill.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BalancePill.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BalancePill.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Home/CisternFillView.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternFillView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternFillView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/CisternFillView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Home/ComingNextRow.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/ComingNextRow.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/ComingNextRow.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/ComingNextRow.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Home/HeroRunwayText.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/HeroRunwayText.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/HeroRunwayText.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/HeroRunwayText.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Home/HomeView.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/HomeView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/HomeView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/HomeView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/List/BillsPaychecksListView.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BillsPaychecksListView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BillsPaychecksListView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BillsPaychecksListView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Onboarding/OnboardingFlow.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/OnboardingFlow.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/OnboardingFlow.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/OnboardingFlow.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/QuickAdd/EntryForm.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EntryForm.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EntryForm.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EntryForm.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/QuickAdd/EntryKind.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EntryKind.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EntryKind.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EntryKind.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/QuickAdd/QuickAddButton.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/QuickAddButton.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/QuickAddButton.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/QuickAddButton.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/QuickAdd/QuickAddSheet.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/QuickAddSheet.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/QuickAddSheet.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/QuickAddSheet.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Settings/PremiumFeatureRow.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PremiumFeatureRow.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PremiumFeatureRow.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PremiumFeatureRow.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Settings/PremiumStubView.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PremiumStubView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PremiumStubView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PremiumStubView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Settings/SettingsView.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/SettingsView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/SettingsView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/SettingsView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Shared/BillsOnlyBanner.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BillsOnlyBanner.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BillsOnlyBanner.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/BillsOnlyBanner.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Shared/DataLoadErrorView.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/DataLoadErrorView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/DataLoadErrorView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/DataLoadErrorView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Shared/EmptyStateView.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EmptyStateView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EmptyStateView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/EmptyStateView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Shared/PrivacyCoverView.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PrivacyCoverView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PrivacyCoverView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/PrivacyCoverView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/cistern/app_build/Cistern/Views/Shared/UndoToast.swift" : {
+    "index-unit-output-path" : "/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/UndoToast.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/UndoToast.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/cistern/build/Build/Intermediates.noindex/Cistern.build/Release-iphoneos/Cistern.build/Objects-normal/arm64/UndoToast.o"
+  }
+}

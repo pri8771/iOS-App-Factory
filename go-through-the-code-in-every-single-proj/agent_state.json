@@ -1,0 +1,15 @@
+{
+  "current_phase": null,
+  "current_round": 0,
+  "next_agent": null,
+  "prompt_hash": null,
+  "completed_phases": [],
+  "phase_outputs": {},
+  "last_processed": "2026-07-07 17:36:17",
+  "consensus_status": {},
+  "vote_results": {},
+  "runner_pid": 24095,
+  "done": false,
+  "error": "library_mining needs <app>/target_path.txt with one repo dir per line (the portfolio to analyze for reusable code).",
+  "status": "aborted"
+}

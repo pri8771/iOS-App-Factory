@@ -1,0 +1,56 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/brinekeeper/app_build/Brinekeeper/Views/Livestock/LivestockView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Livestock",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set up a tank first",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "Roster",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 26
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add species",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 37
+        }
+      },
+      {
+        "comment": "",
+        "key": "No livestock yet. Add your first species to start tracking compatibility.",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "Bioload %@ · Aggression tier %lld",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 61
+        }
+      }
+    ]
+  },
+  "version": 1
+}

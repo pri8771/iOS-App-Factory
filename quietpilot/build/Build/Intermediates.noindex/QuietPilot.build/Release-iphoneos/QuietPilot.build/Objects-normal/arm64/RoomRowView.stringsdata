@@ -1,0 +1,16 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/app_build/QuietPilot/Views/RoomList/RoomRowView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Double tap to toggle between waveform and hourly heatmap",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 29
+        }
+      }
+    ]
+  },
+  "version": 1
+}

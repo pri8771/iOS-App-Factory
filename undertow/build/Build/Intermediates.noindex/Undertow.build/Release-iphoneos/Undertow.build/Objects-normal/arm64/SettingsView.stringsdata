@@ -1,0 +1,128 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Settings/SettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notifications",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 34
+        }
+      },
+      {
+        "comment": "",
+        "key": "About",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "Checking permission…",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Asks permission to send occasional reef reminders",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opens the system Settings app to re-enable notifications",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminders On",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quiet Reminders On",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminders On (Temporary)",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 98
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminder status unknown",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 102
+        }
+      },
+      {
+        "comment": "",
+        "key": "Version",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 55
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Reminders",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 75
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminders Off — Open Settings",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 84
+        }
+      }
+    ]
+  },
+  "version": 1
+}

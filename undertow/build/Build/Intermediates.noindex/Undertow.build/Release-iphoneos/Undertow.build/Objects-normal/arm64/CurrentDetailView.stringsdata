@@ -1,0 +1,64 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Currents/CurrentDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Current",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tier %lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 16
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unlock the previous current first",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "Purchased",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Purchase",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 68
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not enough resources yet",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 80
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 86,
+          "startingLine": 80
+        }
+      }
+    ]
+  },
+  "version": 1
+}

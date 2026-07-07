@@ -1,0 +1,32 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Care/CareTimelineView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Care Log",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 45
+        }
+      },
+      {
+        "comment": "",
+        "key": "Log watering, root checks, and repottings from any cutting's detail page.",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 13
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Care Logged Yet",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 11
+        }
+      }
+    ]
+  },
+  "version": 1
+}

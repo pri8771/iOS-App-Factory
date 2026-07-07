@@ -1,0 +1,40 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/DeleteConfirmationAlert.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Delete this attempt?",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 12
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 13
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 14
+        }
+      },
+      {
+        "comment": "",
+        "key": "This removes the video and analysis for this attempt. This can't be undone.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 16
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,48 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Lineage/LineageTreeView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Lineage",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 24
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add an original plant to start tracking who it's propagated to.",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 13
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Lineages Yet",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 11
+        }
+      },
+      {
+        "comment": "",
+        "key": "Collapse %@'s cuttings",
+        "location": {
+          "startingColumn": 54,
+          "startingLine": 52
+        }
+      },
+      {
+        "comment": "",
+        "key": "Expand %@'s cuttings",
+        "location": {
+          "startingColumn": 94,
+          "startingLine": 52
+        }
+      }
+    ]
+  },
+  "version": 1
+}

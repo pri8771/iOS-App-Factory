@@ -1,0 +1,40 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/RouteTagFieldInline.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Route label (optional)",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 17
+        }
+      },
+      {
+        "comment": "",
+        "key": "Route label",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "Optional. Used to group and compare attempts on the same route.",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear route label",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 34
+        }
+      }
+    ]
+  },
+  "version": 1
+}

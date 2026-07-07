@@ -1,0 +1,16 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/ConfidenceBadge.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%@, %lld percent confidence",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 29
+        }
+      }
+    ]
+  },
+  "version": 1
+}

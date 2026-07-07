@@ -1,0 +1,96 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/brinekeeper/app_build/Brinekeeper/Views/TankSetupView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Set up your first tank",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "Brinekeeper needs your net system volume to compute exact doses.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 18
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tank name",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. Living Room Reef",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tank name",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "Net system volume",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 39
+        }
+      },
+      {
+        "comment": "",
+        "key": "0",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "Net system volume",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 49
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unit",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "gal",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 52
+        }
+      },
+      {
+        "comment": "",
+        "key": "L",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 53
+        }
+      }
+    ]
+  },
+  "version": 1
+}

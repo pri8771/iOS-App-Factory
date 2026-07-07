@@ -1,0 +1,24 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Collection/CuttingRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%@, %@, generation %lld, %@",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "Started %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 20
+        }
+      }
+    ]
+  },
+  "version": 1
+}

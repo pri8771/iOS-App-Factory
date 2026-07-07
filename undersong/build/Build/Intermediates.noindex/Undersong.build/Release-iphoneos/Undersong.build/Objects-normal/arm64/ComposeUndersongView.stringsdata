@@ -1,0 +1,80 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Compose/ComposeUndersongView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Drop an Undersong",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "Leave something here for the next person who walks by.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "What do you want this place to remember?",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld/%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 82
+        }
+      },
+      {
+        "comment": "",
+        "key": "How does it feel?",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drop it here",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 105
+        }
+      },
+      {
+        "comment": "",
+        "key": "Left for the next person",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 124
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your undersong is now part of this street. Anyone who walks near here may hear it.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drop Another",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 132
+        }
+      }
+    ]
+  },
+  "version": 1
+}

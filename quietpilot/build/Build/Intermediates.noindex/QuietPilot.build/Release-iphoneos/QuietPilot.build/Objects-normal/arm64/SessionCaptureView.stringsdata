@@ -1,0 +1,104 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/app_build/QuietPilot/Views/SessionCapture/SessionCaptureView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Capture Session",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "In %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "QuietPilot listens for about 20 seconds, turns it into an acoustic fingerprint, then discards the audio. Nothing is recorded or stored.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 75
+        }
+      },
+      {
+        "comment": "",
+        "key": "Activity",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "Activity type",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 73
+        }
+      },
+      {
+        "comment": "",
+        "key": "Listening in %@…",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 101
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld seconds elapsed",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 96
+        }
+      },
+      {
+        "comment": "",
+        "key": "Session Captured",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 119
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ · %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 122
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@'s profile just updated. Check the room to see its refreshed confidence.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 126
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 131
+        }
+      }
+    ]
+  },
+  "version": 1
+}

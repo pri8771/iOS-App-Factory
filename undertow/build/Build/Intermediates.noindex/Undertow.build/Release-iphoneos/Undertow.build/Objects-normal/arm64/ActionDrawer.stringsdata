@@ -1,0 +1,24 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/ActionDrawer.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Collapse actions",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Expand actions",
+        "location": {
+          "startingColumn": 63,
+          "startingLine": 47
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,72 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/brinekeeper/app_build/Brinekeeper/Views/Livestock/AddSpeciesView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Add Species",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search species",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 39
+        }
+      },
+      {
+        "comment": "",
+        "key": "No species in the catalog yet.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 49
+        }
+      },
+      {
+        "comment": "",
+        "key": "Bioload %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 61
+        }
+      },
+      {
+        "comment": "",
+        "key": "High-risk additions are blocked. Remove a conflicting tankmate first.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "Checking compatibility...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose a different species",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 102
+        }
+      }
+    ]
+  },
+  "version": 1
+}

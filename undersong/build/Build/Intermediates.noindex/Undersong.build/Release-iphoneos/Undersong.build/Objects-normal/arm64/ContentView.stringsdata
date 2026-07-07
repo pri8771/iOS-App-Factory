@@ -1,0 +1,32 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Nearby",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drop",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 24
+        }
+      },
+      {
+        "comment": "",
+        "key": "Journal",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 28
+        }
+      }
+    ]
+  },
+  "version": 1
+}

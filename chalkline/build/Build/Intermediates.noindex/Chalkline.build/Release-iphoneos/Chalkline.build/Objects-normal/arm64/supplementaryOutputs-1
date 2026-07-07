@@ -1,0 +1,12 @@
+{
+  "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/App/ChalklineApp.swift" : {
+    "abi-baseline-json" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline.abi.json",
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-primary.dia",
+    "objc-header" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline-Swift.h",
+    "swiftdoc" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline.swiftdoc",
+    "swiftmodule" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline.swiftmodule",
+    "swiftsourceinfo" : "/Users/pchordia/Documents/iOS-App-Factory/chalkline/build/Build/Intermediates.noindex/Chalkline.build/Release-iphoneos/Chalkline.build/Objects-normal/arm64/Chalkline.swiftsourceinfo"
+  }
+}

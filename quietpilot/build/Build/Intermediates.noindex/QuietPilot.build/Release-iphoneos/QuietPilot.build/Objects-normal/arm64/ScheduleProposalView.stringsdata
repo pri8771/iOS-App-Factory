@@ -1,0 +1,48 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/app_build/QuietPilot/Views/SchedulePropose/ScheduleProposalView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Schedule",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 34
+        }
+      },
+      {
+        "comment": "",
+        "key": "Room",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Added to calendar",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add to calendar",
+        "location": {
+          "startingColumn": 65,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min · %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 133
+        }
+      }
+    ]
+  },
+  "version": 1
+}

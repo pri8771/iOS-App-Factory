@@ -1,0 +1,136 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/app_build/QuietPilot/Views/Settings/SettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Upgrade",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "QuietPilot Plus",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "Free",
+        "location": {
+          "startingColumn": 69,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unlimited rooms, scheduling, and export.",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld/%lld room profile used",
+        "location": {
+          "startingColumn": 94,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "Subscription",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quiet Window Notifications",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notifications",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 45
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get notified when a negotiated focus window is about to start.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export Data (CSV)",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share Export",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 68
+        }
+      },
+      {
+        "comment": "",
+        "key": "Data",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Exports room profiles, sessions, and cluster summaries. Raw audio is never captured or stored, so there's nothing to export beyond feature-level data.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "Audio is processed on-device and discarded immediately after feature extraction.",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 82
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,24 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/ProcessingGauge.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Analysis %lld percent complete, %@",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Running confidence %lld%%",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 54
+        }
+      }
+    ]
+  },
+  "version": 1
+}

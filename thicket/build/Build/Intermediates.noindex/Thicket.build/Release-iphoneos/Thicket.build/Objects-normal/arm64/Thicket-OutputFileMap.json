@@ -1,0 +1,91 @@
+{
+  "" : {
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary.dia",
+    "emit-module-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary-emit-module.dia",
+    "pch" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary.swiftdeps"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/App/ThicketApp.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/ThicketApp.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/ThicketApp.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/ThicketApp.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Models/CuttingPlaceholderModel.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingPlaceholderModel.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingPlaceholderModel.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingPlaceholderModel.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/AddEdit/AddCuttingView.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/AddCuttingView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/AddCuttingView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/AddCuttingView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Care/CareTimelineView.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CareTimelineView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CareTimelineView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CareTimelineView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Care/LogCareEventView.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/LogCareEventView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/LogCareEventView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/LogCareEventView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Collection/CollectionView.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CollectionView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CollectionView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CollectionView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Collection/CuttingRow.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingRow.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingRow.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingRow.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/ContentView.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/ContentView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Detail/AncestryBreadcrumb.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/AncestryBreadcrumb.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/AncestryBreadcrumb.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/AncestryBreadcrumb.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Detail/CuttingDetailView.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingDetailView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingDetailView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingDetailView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Lineage/LineageTreeView.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/LineageTreeView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/LineageTreeView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/LineageTreeView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Settings/SettingsView.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/SettingsView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/SettingsView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/SettingsView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Shared/CuttingNavigationDestination.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingNavigationDestination.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingNavigationDestination.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/CuttingNavigationDestination.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Shared/GenerationBadge.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/GenerationBadge.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/GenerationBadge.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/GenerationBadge.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Shared/StatusBadge.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/StatusBadge.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/StatusBadge.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/StatusBadge.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  }
+}

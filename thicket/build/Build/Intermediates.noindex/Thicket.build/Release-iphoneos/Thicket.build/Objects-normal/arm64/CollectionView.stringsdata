@@ -1,0 +1,112 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Views/Collection/CollectionView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Collection",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search by name or species",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 59
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading your collection…",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 26
+        }
+      },
+      {
+        "comment": "",
+        "key": "Couldn't Load Collection",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 34
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Cuttings Yet",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start your first lineage by logging a cutting you took or received.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a Cutting",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Filter by status",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 76
+        }
+      },
+      {
+        "comment": "",
+        "key": "Filtering by %@",
+        "location": {
+          "startingColumn": 80,
+          "startingLine": 76
+        }
+      },
+      {
+        "comment": "",
+        "key": "All",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "Filter",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Cutting",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 82
+        }
+      }
+    ]
+  },
+  "version": 1
+}

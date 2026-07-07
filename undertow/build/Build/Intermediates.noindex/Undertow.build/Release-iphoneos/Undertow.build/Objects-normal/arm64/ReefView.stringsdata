@@ -1,0 +1,16 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/ReefView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Stir the pool",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 49
+        }
+      }
+    ]
+  },
+  "version": 1
+}

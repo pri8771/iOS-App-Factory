@@ -1,0 +1,12 @@
+{
+  "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/app_build/QuietPilot/App/QuietPilotApp.swift" : {
+    "abi-baseline-json" : "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/build/Build/Intermediates.noindex/QuietPilot.build/Release-iphoneos/QuietPilot.build/Objects-normal/arm64/QuietPilot.abi.json",
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/build/Build/Intermediates.noindex/QuietPilot.build/Release-iphoneos/QuietPilot.build/Objects-normal/arm64/QuietPilot-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/build/Build/Intermediates.noindex/QuietPilot.build/Release-iphoneos/QuietPilot.build/Objects-normal/arm64/QuietPilot-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/build/Build/Intermediates.noindex/QuietPilot.build/Release-iphoneos/QuietPilot.build/Objects-normal/arm64/QuietPilot-primary.dia",
+    "objc-header" : "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/build/Build/Intermediates.noindex/QuietPilot.build/Release-iphoneos/QuietPilot.build/Objects-normal/arm64/QuietPilot-Swift.h",
+    "swiftdoc" : "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/build/Build/Intermediates.noindex/QuietPilot.build/Release-iphoneos/QuietPilot.build/Objects-normal/arm64/QuietPilot.swiftdoc",
+    "swiftmodule" : "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/build/Build/Intermediates.noindex/QuietPilot.build/Release-iphoneos/QuietPilot.build/Objects-normal/arm64/QuietPilot.swiftmodule",
+    "swiftsourceinfo" : "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/build/Build/Intermediates.noindex/QuietPilot.build/Release-iphoneos/QuietPilot.build/Objects-normal/arm64/QuietPilot.swiftsourceinfo"
+  }
+}

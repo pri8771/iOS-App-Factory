@@ -1,0 +1,88 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Capture/CaptureView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Something went wrong",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 59
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Camera preview renders here once CaptureSessionController.session is wired by services_utilities.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 80
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recording starts in %lld",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel capture",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "Discard and Retry",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 184
+        }
+      },
+      {
+        "comment": "",
+        "key": "Import a clip from your library",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 204
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop recording",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 235
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start recording",
+        "location": {
+          "startingColumn": 62,
+          "startingLine": 235
+        }
+      }
+    ]
+  },
+  "version": 1
+}

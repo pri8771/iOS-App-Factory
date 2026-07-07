@@ -1,0 +1,32 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/DailyTide/DailyTideView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Daily Tide",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Claim Today's Tide",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Come Back Tomorrow",
+        "location": {
+          "startingColumn": 78,
+          "startingLine": 51
+        }
+      }
+    ]
+  },
+  "version": 1
+}

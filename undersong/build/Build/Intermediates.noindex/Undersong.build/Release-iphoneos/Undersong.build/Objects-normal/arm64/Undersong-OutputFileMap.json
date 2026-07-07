@@ -1,0 +1,91 @@
+{
+  "" : {
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary.dia",
+    "emit-module-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary-emit-module.dia",
+    "pch" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary.swiftdeps"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/Models/Undersong.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/Models/UndersongMood.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongMood.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongMood.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongMood.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/Services/LocationService.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/LocationService.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/LocationService.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/LocationService.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/Services/UndersongStore.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongStore.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongStore.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongStore.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Components/MoodChip.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/MoodChip.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/MoodChip.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/MoodChip.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Components/StateViews.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/StateViews.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/StateViews.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/StateViews.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Compose/ComposeUndersongView.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/ComposeUndersongView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/ComposeUndersongView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/ComposeUndersongView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/ContentView.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/ContentView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/DesignSystem/UndersongTheme.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongTheme.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongTheme.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongTheme.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Journal/JournalView.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/JournalView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/JournalView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/JournalView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Nearby/NearbyFeedView.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/NearbyFeedView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/NearbyFeedView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/NearbyFeedView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Nearby/UndersongCard.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongCard.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongCard.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongCard.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Nearby/UndersongDetailView.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongDetailView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongDetailView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongDetailView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UI/Onboarding/LocationPermissionView.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/LocationPermissionView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/LocationPermissionView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/LocationPermissionView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UndersongApp.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongApp.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongApp.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/UndersongApp.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/app_build/QuietPilot/Views/TrendTimeline/TrendTimelineView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Trends",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "Room",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "Readiness trend over time",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 95
+        }
+      },
+      {
+        "comment": "",
+        "key": "Date",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 80
+        }
+      },
+      {
+        "comment": "",
+        "key": "Readiness",
+        "location": {
+          "startingColumn": 75,
+          "startingLine": 80
+        }
+      },
+      {
+        "comment": "",
+        "key": "Date",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Readiness",
+        "location": {
+          "startingColumn": 76,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Marks today as when you changed something about this room, like moving desks or adding a rug, so trends can compare before and after",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 152
+        }
+      },
+      {
+        "comment": "",
+        "key": "Since %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 111
+        }
+      },
+      {
+        "comment": "",
+        "key": "Log a few more sessions on each side of this date for a real before/after comparison.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 115
+        }
+      },
+      {
+        "comment": "",
+        "key": "Readiness went from %lld percent before to %lld percent after",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 130
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear Marker",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%% → %lld%%",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 123
+        }
+      },
+      {
+        "comment": "",
+        "key": "+%lld pts",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 125
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld pts",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 125
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark a Change Today",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 148
+        }
+      }
+    ]
+  },
+  "version": 1
+}

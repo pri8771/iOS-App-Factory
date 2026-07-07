@@ -1,0 +1,226 @@
+{
+  "" : {
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Undertow-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Undertow-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Undertow-primary.dia",
+    "emit-module-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Undertow-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Undertow-primary-emit-module.dia",
+    "pch" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Undertow-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Undertow-primary.swiftdeps"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/App/UndertowApp.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/UndertowApp.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/UndertowApp.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/UndertowApp.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/AppError.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AppError.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AppError.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AppError.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/Creature.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Creature.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Creature.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Creature.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/CurrentUpgrade.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentUpgrade.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentUpgrade.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentUpgrade.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/Economy.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Economy.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Economy.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Economy.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/Entitlement.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Entitlement.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Entitlement.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/Entitlement.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/GameState.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/GameState.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/GameState.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/GameState.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/IDs.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/IDs.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/IDs.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/IDs.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/PresentedSheet.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PresentedSheet.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PresentedSheet.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PresentedSheet.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/ResourceBundle.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ResourceBundle.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ResourceBundle.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ResourceBundle.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/SpeciesCatalog.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SpeciesCatalog.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SpeciesCatalog.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SpeciesCatalog.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/StreakState.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/StreakState.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/StreakState.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/StreakState.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Domain/WelcomeBackPayload.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/WelcomeBackPayload.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/WelcomeBackPayload.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/WelcomeBackPayload.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/CodableSupport.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CodableSupport.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CodableSupport.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CodableSupport.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/DateProvider.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DateProvider.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DateProvider.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DateProvider.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/NotificationScheduler.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/NotificationScheduler.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/NotificationScheduler.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/NotificationScheduler.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/PersistenceService.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PersistenceService.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PersistenceService.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PersistenceService.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/ReefStore.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefStore.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefStore.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefStore.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/SchemaMigration.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SchemaMigration.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SchemaMigration.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SchemaMigration.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/StoreKitManaging.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/StoreKitManaging.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/StoreKitManaging.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/StoreKitManaging.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Almanac/AlmanacView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AlmanacView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AlmanacView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AlmanacView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Almanac/CreatureCard.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CreatureCard.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CreatureCard.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CreatureCard.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Almanac/CreatureDetailView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CreatureDetailView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CreatureDetailView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CreatureDetailView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/AppTab.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AppTab.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AppTab.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/AppTab.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Currents/CurrentDetailView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentDetailView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentDetailView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentDetailView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Currents/CurrentNode.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentNode.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentNode.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentNode.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Currents/CurrentsView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentsView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentsView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/CurrentsView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/DailyTide/DailyTideView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DailyTideView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DailyTideView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DailyTideView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/DeepCurrent/DeepCurrentView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DeepCurrentView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DeepCurrentView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DeepCurrentView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/DeepCurrent/PassBadge.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PassBadge.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PassBadge.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/PassBadge.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Depths/BiomeDetailView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/BiomeDetailView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/BiomeDetailView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/BiomeDetailView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Depths/BiomeTile.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/BiomeTile.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/BiomeTile.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/BiomeTile.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Depths/DepthsView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DepthsView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DepthsView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/DepthsView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/ActionDrawer.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ActionDrawer.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ActionDrawer.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ActionDrawer.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/FirstLaunchView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/FirstLaunchView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/FirstLaunchView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/FirstLaunchView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/ReefCanvas.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefCanvas.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefCanvas.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefCanvas.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/ReefView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ReefView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/ResourcePill.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ResourcePill.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ResourcePill.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/ResourcePill.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/TideProgressBar.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/TideProgressBar.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/TideProgressBar.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/TideProgressBar.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/RootTabView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/RootTabView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/RootTabView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/RootTabView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Settings/SettingsView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SettingsView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SettingsView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/SettingsView.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Shared/UndertowTheme.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/UndertowTheme.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/UndertowTheme.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/UndertowTheme.o"
+  },
+  "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/WelcomeBack/WelcomeBackView.swift" : {
+    "index-unit-output-path" : "/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/WelcomeBackView.o",
+    "llvm-bc" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/WelcomeBackView.bc",
+    "object" : "/Users/pchordia/Documents/iOS-App-Factory/undertow/build/Build/Intermediates.noindex/Undertow.build/Release-iphoneos/Undertow.build/Objects-normal/arm64/WelcomeBackView.o"
+  }
+}

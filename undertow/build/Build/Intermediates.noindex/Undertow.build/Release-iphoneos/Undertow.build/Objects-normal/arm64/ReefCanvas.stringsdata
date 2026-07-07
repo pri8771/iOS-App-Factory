@@ -1,0 +1,16 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Reef/ReefCanvas.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Your reef",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 45
+        }
+      }
+    ]
+  },
+  "version": 1
+}

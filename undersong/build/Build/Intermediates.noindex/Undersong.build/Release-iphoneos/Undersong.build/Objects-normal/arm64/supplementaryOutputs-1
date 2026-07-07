@@ -1,0 +1,12 @@
+{
+  "/Users/pchordia/Documents/iOS-App-Factory/undersong/app_build/Undersong/UndersongApp.swift" : {
+    "abi-baseline-json" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong.abi.json",
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-primary.dia",
+    "objc-header" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong-Swift.h",
+    "swiftdoc" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong.swiftdoc",
+    "swiftmodule" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong.swiftmodule",
+    "swiftsourceinfo" : "/Users/pchordia/Documents/iOS-App-Factory/undersong/build/Build/Intermediates.noindex/Undersong.build/Release-iphoneos/Undersong.build/Objects-normal/arm64/Undersong.swiftsourceinfo"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/App/ThicketApp.swift" : {
+    "abi-baseline-json" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket.abi.json",
+    "const-values" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary.swiftconstvalues",
+    "dependencies" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary.d",
+    "diagnostics" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-primary.dia",
+    "objc-header" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket-Swift.h",
+    "swiftdoc" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket.swiftdoc",
+    "swiftmodule" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket.swiftmodule",
+    "swiftsourceinfo" : "/Users/pchordia/Documents/iOS-App-Factory/thicket/build/Build/Intermediates.noindex/Thicket.build/Release-iphoneos/Thicket.build/Objects-normal/arm64/Thicket.swiftsourceinfo"
+  }
+}

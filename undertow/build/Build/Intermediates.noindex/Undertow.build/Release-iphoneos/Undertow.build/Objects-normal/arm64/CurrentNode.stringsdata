@@ -1,0 +1,16 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Currents/CurrentNode.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Tier %lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 35
+        }
+      }
+    ]
+  },
+  "version": 1
+}

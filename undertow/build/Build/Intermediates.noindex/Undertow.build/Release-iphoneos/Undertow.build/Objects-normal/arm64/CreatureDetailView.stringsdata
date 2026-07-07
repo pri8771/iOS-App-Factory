@@ -1,0 +1,24 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Almanac/CreatureDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Keep tending your reef — this creature hasn't shown itself yet.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "Level %lld",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 20
+        }
+      }
+    ]
+  },
+  "version": 1
+}

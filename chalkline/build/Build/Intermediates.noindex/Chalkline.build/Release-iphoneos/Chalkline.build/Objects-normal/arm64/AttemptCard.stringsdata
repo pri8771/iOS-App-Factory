@@ -1,0 +1,16 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/chalkline/app_build/Chalkline/Sources/UI/Components/AttemptCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Efficiency %lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 121
+        }
+      }
+    ]
+  },
+  "version": 1
+}

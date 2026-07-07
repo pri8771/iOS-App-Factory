@@ -1,0 +1,48 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/UI/Almanac/AlmanacView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Almanac",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 24
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading Almanac",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nothing discovered yet — tend your reef and creatures will find their way here.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 49
+        }
+      },
+      {
+        "comment": "",
+        "key": "The Almanac is quiet for now",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "Species content hasn't loaded. Check back after your reef settles in.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 110
+        }
+      }
+    ]
+  },
+  "version": 1
+}

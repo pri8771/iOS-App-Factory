@@ -1,0 +1,116 @@
+{
+  "identifier" : "6C2B9C6E-3E7B-4C0B-9F2E-6E7B7C3A1D10",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "20863E6A-6F3C-4B2E-9C2E-4A2C7B6E9A01",
+      "localizations" : [],
+      "name" : "Deep Current Pass",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "3.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "3C1A2B6E-1F4D-4E8A-9B2C-1A2B3C4D5E01",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlock every biome, the full Almanac, and support Undertow's quiet corner of the App Store.",
+              "displayName" : "Deep Current Pass (Monthly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.undertow.deepcurrent.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Deep Current Pass Monthly",
+          "subscriptionGroupID" : "20863E6A-6F3C-4B2E-9C2E-4A2C7B6E9A01",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : []
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "3C1A2B6E-1F4D-4E8A-9B2C-1A2B3C4D5E02",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlock every biome, the full Almanac, and support Undertow's quiet corner of the App Store. Best value.",
+              "displayName" : "Deep Current Pass (Annual)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.undertow.deepcurrent.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Deep Current Pass Annual",
+          "subscriptionGroupID" : "20863E6A-6F3C-4B2E-9C2E-4A2C7B6E9A01",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : []
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 3
+  }
+}

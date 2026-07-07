@@ -1,0 +1,24 @@
+{
+  "source": "/Users/pchordia/Documents/iOS-App-Factory/quietpilot/app_build/QuietPilot/DesignSystem/Components/WaveformView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Hourly readiness heatmap",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recent acoustic activity waveform",
+        "location": {
+          "startingColumn": 71,
+          "startingLine": 81
+        }
+      }
+    ]
+  },
+  "version": 1
+}
