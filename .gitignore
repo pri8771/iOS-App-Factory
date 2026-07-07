@@ -1,0 +1,6 @@
+**/app_build/.git
+**/.git
+*.log
+.DS_Store
+*.swp
+*~
