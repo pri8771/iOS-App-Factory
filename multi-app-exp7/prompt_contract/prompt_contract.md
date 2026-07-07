@@ -331,3 +331,22 @@ An app is production-ready only when ALL of the following hold:
 - **If one participating agent (e.g. Codex) is silent/unavailable for a round, that is not consensus by default.** Either get a real second pass (self-critique, retry) before declaring agreement, or the record must say explicitly "consensus declared with only one participating agent" so nobody downstream mistakes a single opinion for cross-checked agreement.
 - **A "stall" is defined concretely**: an app's phase produces no forward progress (no new decision, no build-artifact change) across a full round for reasons other than genuine open debate. Recovery means restating the last known-good state and continuing — never silently restarting from scratch or dropping the app from the batch.
 - **"Report only important milestones" means:** idea selection, first successful compile, first full state-coverage pass, monetization wired, final done declaration. Not every intermediate design tweak — this keeps "time matters" from becoming either silence or noise.
+
+**Quality Gate (Claude) — after round 2**
+
+QUALITY: FAIL
+
+## Feedback
+
+Everything from round 2's discussion made it into the Final Output faithfully, and requirements 11–12 are now concrete and checkable — good. But one more explicit, checkable process instruction from the original prompt is still missing, and it's the kind of gap this phase has already failed twice for, so the same standard applies here.
+
+**Missing: the "≥10 candidate ideas, judged primarily on mass-market viral potential, narrowed to 5" instruction.** The prompt's closing line is a concrete process requirement for the ideation phase: *"generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5."* This is not currently stated anywhere in Hard requirements or Decision rules. Without it, the ideation phase has no explicit instruction to (a) produce a minimum of 10 candidates before narrowing, or (b) weight mass-market/viral potential as the primary (not sole, not equal-weighted) selection criterion among the four stated priorities. Add it as a hard requirement, e.g.: "Ideation must produce at least 10 candidate concepts before narrowing to 5; the narrowing decision is judged primarily on mass-market/viral potential (per the stated priority order: viral/mass-market > design > depth > monetization), not on novelty or technical interest alone."
+
+**Minor, worth one line: the bonus-points clause is dropped entirely.** The prompt states LLM/AR/ML use is optional bonus "only when integral" — not mentioned anywhere in Non-goals or Decision rules. A later phase could either force one of these into an app to chase bonus points (violating "only when integral") or simply never consider it. A one-line decision rule fixes this: "LLM/AR/ML integration is optional bonus, never required — include only if it's integral to the core loop, never bolted on to earn bonus points."
+
+Repair instructions: add the ≥10-candidates/primary-criterion rule as a new Hard requirement (or fold into an existing one about ideation), and add the one-line bonus-points decision rule. Both are additive — nothing else in the current output needs to change.
+
+_Quality gate requested another round before this phase can close._
+
+### Round 3
+
