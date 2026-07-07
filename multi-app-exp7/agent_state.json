@@ -1,11 +1,11 @@
 {
   "current_phase": "prompt_contract",
   "current_round": 3,
-  "next_agent": "codex+claude",
+  "next_agent": "claude",
   "prompt_hash": "b647461bb03a7f89c1089b64abbd11dc246c9a678d215126c9d3f0b6c58151f5",
   "completed_phases": [],
   "phase_outputs": {},
-  "last_processed": "2026-07-07 18:43:13",
+  "last_processed": "2026-07-07 18:46:11",
   "consensus_status": {},
   "vote_results": {},
   "runner_pid": 28962,

@@ -5,10 +5,10 @@
   "prompt_hash": null,
   "completed_phases": [],
   "phase_outputs": {},
-  "last_processed": "2026-07-07 18:44:29",
+  "last_processed": "2026-07-07 18:46:32",
   "consensus_status": {},
   "vote_results": {},
-  "runner_pid": 32628,
+  "runner_pid": 33312,
   "done": false,
   "error": "library_mining needs <app>/target_path.txt with one repo dir per line (the portfolio to analyze for reusable code).",
   "status": "aborted"

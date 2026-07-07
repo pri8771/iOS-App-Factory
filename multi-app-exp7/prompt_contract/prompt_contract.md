@@ -350,3 +350,68 @@ _Quality gate requested another round before this phase can close._
 
 ### Round 3
 
+
+**Codex — Round 3 (skipped: CLI unavailable)**
+
+_Codex skipped — in cooldown (timeout)._
+
+**Claude (QA & Risk · Skeptic) — Round 3**
+
+Original prompt, verbatim once more per the standing rule:
+
+"Build 5 completely separate, production-ready iOS apps at the same time.
+
+This is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project — one folder per app, never bundled together.
+
+Pick any 5 categories/concepts — no fixed assignment. Choose the 5 strongest MASS-MARKET ideas.
+
+TOP PRIORITY — VIRAL, MASS-MARKET APPEAL (hard requirement):
+- Every app must target a BROAD, mainstream audience. NO niche-community apps (no hobbyist tools, no professional verticals, no special-interest utilities). If your parents, your barista, and a college student wouldn't all instantly get it, it fails.
+- Each app must have a built-in viral loop: something people naturally share, screenshot, send to friends, or compete over (shareable results/cards, streaks, challenges, comparisons, "send this to a friend" moments).
+- The concept must be explainable in one sentence and demo-able in 10 seconds.
+- Think the scale of habit trackers, photo tools, social utilities, everyday life tools, casual self-improvement, money, food, sleep, relationships, entertainment — things with tens of millions of potential users.
+
+SECOND PRIORITY — DESIGN & UI/UX:
+- World-class, distinctive visual identity per app: deliberate color system, type scale, spacing, iconography, motion language — not stock SwiftUI defaults.
+- "Apple Design Award" caliber polish. Every screen considered: empty, loading, error states, transitions, haptics, spring animations.
+- Dark mode, Dynamic Type, accessibility (VoiceOver, 44pt targets, WCAG AA contrast).
+- Each of the 5 apps must look clearly DIFFERENT from the other four — five distinct design directions.
+- Documented design system per app (tokens, components, states); built UI must match it.
+
+THIRD PRIORITY — COMPLEXITY & DEPTH:
+- Genuinely substantial apps — interconnected features, real domain data model, non-trivial logic, offline persistence with sync-later architecture, robust settings, import/export, and at least one hard technical capability done well.
+- Depth that rewards daily use — but never at the expense of instant mass-market clarity.
+
+FOURTH PRIORITY — MONETIZATION:
+- Clear, sustainable revenue path per app (subscription tiers, IAP, premium) that feels native to the product, never punitive. Free tier hooks users; paid tier is compelling.
+
+General Requirements:
+1. Each app goes from 0 to production-ready.
+2. Each app must be unique, useful, and commercially viable, better than competitors in a meaningful way.
+3. Local-first, architected so cloud support can be added later without rewriting.
+
+UNIQUENESS (hard rule, non-negotiable):
+- No app in this batch may be similar to another app in this batch.
+- No app may be similar to anything already built in this workspace: Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, brinekeeper, chalkline, quietpilot, cistern, thicket, undersong, undertow, heddle, marginalia, skyglass, and the ~50 apps of prior batches (aarti-path, afterglow, backtimer, chapterly, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, flinch, heartline, kitbag, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas, and others).
+- Produce differentiated concepts even if a category overlaps.
+
+Bonus points (optional, only when integral): unique use of LLMs, AR, or ML.
+
+Build rules:
+- Run the five app efforts in parallel; keep phases separate per app.
+- TIME MATTERS on this batch: reach consensus quickly in discussion phases (end phases early on agreement), but never skip the build, and never mark an app done unless a real, compiling Xcode project with full source exists in app_build. An app without a buildable Xcode project is a FAILURE.
+- Save all phase discussions; combine each app's transcript into a .txt at the end.
+- Recover cleanly from stalls; report only important milestones.
+
+Output:
+- One folder per app in the output directory — never one folder containing all apps.
+Output directory:
+- /Users/pchordia/Documents/iOS-App-Factory
+
+Now generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX."
+
+The Quality Gate's catch on round 2 is right again, and honestly at this point I think the pattern matters more than any individual miss — this is the third time a concrete, literally-worded process instruction from the prompt got left out of the synthesis while the prose analysis around it looked thorough. That's not bad luck, that's a systemic blind spot: synthesis keeps compressing the prompt's specific checkable clauses into general risk-themed paragraphs, and specific clauses die in that compression. So yes, add the ≥10-candidates-before-narrowing rule and weight mass-market/viral as the primary (not sole) criterion exactly as the Quality Gate wrote it, and add the bonus-points line about LLM/AR/ML being optional-only-when-integral. Both are right and both are cheap fixes.
+
+But before we call this converged, I want to do the thing nobody's done yet, which is actually diff the contract against the prompt clause-by-clause instead of trusting a general vibe pass — because if I don't do it now, ideation phase inherits whatever we missed and there's no later checkpoint that re-reads the original prompt this closely. Doing that pass myself, I found one more real gap: General Requirement 2 says each app must be "unique, useful, and commercially viable, **better than competitors in a meaningful way**." Our uniqueness hard requirement (item 9) only checks a concept against this batch's other 4 apps and against the ~50+ prior workspace apps — that's an internal-uniqueness check. "Better than competitors" is a different, external claim: it's asking whether the app beats the actual existing App Store incumbents in its category (the real habit-tracker apps, the real streak apps, the real BeReal-style social apps already on millions of phones). An app can pass our internal uniqueness gate easily — nobody in this workspace has built a sleep-tracking app before — while still being a worse, more generic version of an app that already dominates the App Store, which would technically satisfy every rule we've written so far and still fail the actual prompt. I want that named as its own hard requirement, separate from internal uniqueness: each app needs an explicit "how this beats the realistic incumbent" answer before it's greenlit — not a full competitive-research phase, just one concrete sentence per app naming the real competitor and the specific mechanism that's better (faster core loop, sharper viral hook, less friction, whatever), so "commercially viable, better than competitors" isn't just asserted and forgotten.
+
+I'd also flag, since we're doing a full diff, that this three-strikes pattern itself is worth writing into the decision rules, not just fixing the symptom each time — I want later phases (ideation, design, build, final review) to each end with a quick line-by-line pass against the original prompt text before declaring done, the same move I just did here, rather than relying purely on synthesis-then-gate-catches-it. Otherwise we're depending on the Quality Gate to keep catching the same failure mode phase after phase, and eventually — especially with Codex silent again this round, same as rounds 1 and 2, meaning we've now run this entire contract phase on a single voice plus one automated gate — there's nobody left to catch the fourth miss. That Codex silence three-for-three is itself worth escalating past just "note it in the transcript": if it's silent again in the ideation or build phases, that's the point where "recover cleanly from stalls" should kick in for the orchestration itself, not just for individual app efforts.
