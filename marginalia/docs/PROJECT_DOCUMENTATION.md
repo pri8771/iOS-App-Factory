@@ -4,13 +4,13 @@ _Generated deterministically from the orchestrator's phase outputs (workflow: `i
 
 ## Contents
 
-- Scope the change
+- Scope the change — _N/A_
 - Build the change
 - Review
 
 ## Scope the change
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+_Not applicable — this phase did not run._
 
 ## Build the change
 

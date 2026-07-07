@@ -1,5 +1,5 @@
 {
-  "iterate_scope": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "iterate_scope": "",
   "build_coordination": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\n**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)",
   "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED"
 }
