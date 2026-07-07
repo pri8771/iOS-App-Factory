@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "parent": "batch-specials",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Pattern Pulse",
+    "slug": "pattern-pulse",
+    "category": "Health/HealthKit",
+    "platform": "iOS",
+    "build": true,
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

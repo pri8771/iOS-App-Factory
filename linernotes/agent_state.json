@@ -1,0 +1,39 @@
+{
+  "current_phase": "final_review",
+  "current_round": 0,
+  "next_agent": null,
+  "prompt_hash": "48d606d891316b333e939bc4e291aeb3f97e6229ab4c4ff69c04be739431d3e2",
+  "completed_phases": [
+    "iterate_scope",
+    "build_coordination",
+    "final_review"
+  ],
+  "phase_outputs": {
+    "iterate_scope": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+    "build_coordination": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\n**Build verification:** still not compiling after 2 repair attempt(s)",
+    "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: FAILED"
+  },
+  "last_processed": "2026-07-07 09:13:38",
+  "consensus_status": {
+    "iterate_scope": false,
+    "build_coordination": true,
+    "final_review": false
+  },
+  "vote_results": {
+    "iterate_scope": {
+      "decided": false,
+      "by": "claude"
+    },
+    "final_review": {
+      "decided": false,
+      "by": "claude"
+    }
+  },
+  "runner_pid": 53057,
+  "done": true,
+  "error": null,
+  "status": "done",
+  "workflow": "iterate",
+  "blocked_conflict": null,
+  "awaiting_approval": null
+}

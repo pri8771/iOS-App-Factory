@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-a2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "docket",
+    "slug": "docket",
+    "category": "News",
+    "promise": "Turns dense local-government agendas/minutes into a plain-language, on-device digest of what changed.",
+    "target_user": "Civically engaged residents with no time to read 80-page PDFs.",
+    "build": true,
+    "one_sentence_promise": "Turns dense local-government agendas/minutes into a plain-language, on-device digest of what changed.",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

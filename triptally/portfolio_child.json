@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b3",
+  "build": true,
+  "build_priority": 5,
+  "app": {
+    "name": "TripTally",
+    "slug": "triptally",
+    "category": "Travel",
+    "one_sentence_promise": "A trip-specific shared expense ledger that handles multiple currencies and settles up without everyone needing the app or being online.",
+    "target_user": "Groups of friends or family splitting costs across a multi-day, multi-currency trip.",
+    "painful_moment": "Generic expense splitters aren't trip-aware \u2014 no day-by-day view, no currency-at-time-of-purchase handling, and everyone must be online with the same app.",
+    "why_different": "A trip-day timeline view of spending with manually-entered, locked-at-time exchange rates (no live FX dependency), letting one organizer log for the whole group and export a settle-up summary via Messages/PDF.",
+    "why_users_pay": "Multiple simultaneous trips, receipt photo OCR, multi-organizer collaborative editing via exchanged trip files, detailed spend-by-category reports.",
+    "subscription_model": "Free: 1 active trip, manual entry only. Paid: unlimited trips, OCR receipts, detailed reports.",
+    "local_first_mvp_scope": "Fully local ledger per trip; sharing/settling via exported summary (share sheet/PDF/text), not live multi-device sync.",
+    "future_backend_roadmap": "Real-time shared ledger via CloudKit sharing so multiple people edit the same trip live.",
+    "core_workflows": [
+      "Create trip and travelers",
+      "Log an expense with currency and split",
+      "View day-by-day spend timeline",
+      "View settle-up summary",
+      "Export/share the summary"
+    ],
+    "ios_native_features": [
+      "Widgets for current trip spend",
+      "Live Activities for active trip-day spend total",
+      "App Intents for quick expense logging"
+    ],
+    "ar_ml_llm_fit": "On-device Vision OCR for receipt photo capture of amount and currency.",
+    "design_direction": "Clean financial-editorial look, currency-forward typography, a trip-day timeline as the visual centerpiece.",
+    "claude_design_prompt": "Design a clean, currency-forward trip-expense app: a day-by-day spend timeline as the hero view, a fast expense-entry sheet with currency picker, and a clear settle-up summary screen suitable for exporting.",
+    "app_store_positioning": "The trip expense ledger built for real multi-currency, multi-day travel \u2014 not a generic bill splitter.",
+    "key_risks": [
+      "Value depends on one diligent organizer logging for the group",
+      "Manually-entered exchange rates must be clearly labeled as user-entered, not live",
+      "Risk of reading as 'just Splitwise for trips' if execution doesn't distinguish it"
+    ],
+    "invalidation_criteria": "If organizers churn mid-trip at a high rate, the single-logger dependency fails and needs a faster, lighter capture flow.",
+    "v1_build_scope": "Trip/traveler setup, expense logging with currency, day timeline, settle-up calculation, export summary.",
+    "build": true,
+    "build_priority": 5
+  }
+}

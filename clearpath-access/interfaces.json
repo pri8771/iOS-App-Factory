@@ -1,0 +1,566 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "RouteEndpoint",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RouteEndpoint: Hashable, Codable, Sendable { let label: String; let coordinate: Coordinate }",
+      "owning_lane": "data_domain",
+      "notes": "Used by Favorite, RecentDestination, and RouteSnapshot origin/destination."
+    },
+    {
+      "name": "EndpointSource",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EndpointSource: String, Codable, Sendable { case currentLocation, searchedPlace, droppedPin, favorite, recent, demo }",
+      "owning_lane": "data_domain",
+      "notes": "Used for analytics-free UI behavior and copy branching."
+    },
+    {
+      "name": "ObstacleType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ObstacleType: String, Codable, CaseIterable, Sendable { case stairsNoRamp, steepGrade, unevenSurface, constructionBlockage, noCurbCut, temporaryHazard }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed six-item vocabulary; scoring understands nothing outside this list."
+    },
+    {
+      "name": "ObstacleSeverity",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ObstacleSeverity: String, Codable, CaseIterable, Sendable { case minor, moderate, severe }",
+      "owning_lane": "data_domain",
+      "notes": "Report sheet exposes as segmented/button group, never a slider."
+    },
+    {
+      "name": "ObstacleProvenance",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ObstacleProvenance: String, Codable, Sendable { case seeded, userEntered }",
+      "owning_lane": "data_domain",
+      "notes": "Separates demo/sample data from user-authored reports."
+    },
+    {
+      "name": "ObstacleReport",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ObstacleReport: Identifiable, Hashable, Codable, Sendable { let id: UUID; var type: ObstacleType; var severity: ObstacleSeverity; var coordinate: Coordinate; var note: String?; var createdAt: Date; var updatedAt: Date; var provenance: ReportProvenance; var supersedes: UUID?; var isClearedReport: Bool; var isActiveForScoring: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "isActiveForScoring false once superseded; row retained for history, excluded from scoring/matching."
+    },
+    {
+      "name": "GeoCoordinate",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct GeoCoordinate: Equatable, Codable, Sendable { var latitude: Double; var longitude: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Framework-neutral coordinate type for tests and persistence mapping."
+    },
+    {
+      "name": "RoutePolylinePoint",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RoutePolylinePoint: Equatable, Codable, Sendable { var latitude: Double; var longitude: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Normalized route geometry point."
+    },
+    {
+      "name": "RouteOption",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RouteOption: Equatable, Codable, Sendable, Identifiable { let id: UUID; var expectedTravelTime: TimeInterval; var distanceMeters: Double; var polyline: [RoutePolylinePoint]; var advisoryNotices: [String] }",
+      "owning_lane": "data_domain",
+      "notes": "Single MapKit route translated into app-owned data."
+    },
+    {
+      "name": "RouteSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RouteSnapshot: Identifiable, Equatable, Codable, Sendable { let id: UUID; var origin: RouteEndpoint; var destination: RouteEndpoint; var fetchedAt: Date; var candidates: [RouteCandidate]; var source: RouteSnapshotSource }",
+      "owning_lane": "data_domain",
+      "notes": "Shared container for one fetched or cached route result; fetchedAt drives stale-cached-route honesty rules."
+    },
+    {
+      "name": "RouteSnapshotSource",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RouteSnapshotSource: String, Codable, Sendable { case live, cached, demo }",
+      "owning_lane": "data_domain",
+      "notes": "demo means the obstacle overlay is seeded, not that the route geometry is fake \u2014 the demo flow still does a real MapKit fetch."
+    },
+    {
+      "name": "MatchedObstacle",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MatchedObstacle: Equatable, Sendable, Identifiable { let id: UUID; var report: ObstacleReport; var minDistanceMeters: Double; var relationship: RouteRelationship; var routeProgress: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Output of matching layer, sorted later into travel order."
+    },
+    {
+      "name": "RouteRelationship",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RouteRelationship: String, Sendable { case onRoute, nearby, ignored }",
+      "owning_lane": "data_domain",
+      "notes": "Implements 10m/20m threshold semantics."
+    },
+    {
+      "name": "ConfidenceLevel",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ConfidenceLevel: String, Codable, Sendable { case low, moderate, high }",
+      "owning_lane": "data_domain",
+      "notes": "Derived from report density/freshness, independent of match count; icon+word, never color-alone."
+    },
+    {
+      "name": "FrictionLevel",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum FrictionLevel: String, Codable, Sendable { case low, moderate, high }",
+      "owning_lane": "data_domain",
+      "notes": "User-facing categorical score, not raw number."
+    },
+    {
+      "name": "RouteExplanation",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RouteExplanation: Equatable, Sendable { var recommendationSentence: String; var whySentence: String; var confidenceDetail: String; var warningChips: [WarningChipModel]; var routeStatusLine: String }",
+      "owning_lane": "polish_resilience",
+      "notes": "Structured deterministic copy, kept over a plain string since map/list/share/VoiceOver each need pieces separately."
+    },
+    {
+      "name": "WarningChipModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WarningChipModel: Identifiable, Equatable, Sendable { let id: UUID; var title: String; var kind: WarningChipKind; var count: Int }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared by map/list/share-preview surfaces."
+    },
+    {
+      "name": "WarningChipKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum WarningChipKind: String, Sendable { case onRoute, nearby, staleData, demoData }",
+      "owning_lane": "polish_resilience",
+      "notes": "Supports trust messaging without overloading color."
+    },
+    {
+      "name": "ScoredRoute",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ScoredRoute: Identifiable, Equatable, Sendable { let id: UUID; var route: RouteCandidate; var matchedObstacles: [ObstacleMatch]; var frictionScore: Double; var frictionCategory: FrictionCategory; var confidence: ConfidenceLevel; var explanation: RouteExplanation; var isRecommended: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Fully converged shape, consumed by Route Result, Saved refresh, and share/export."
+    },
+    {
+      "name": "FavoriteRoute",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct FavoriteRoute: Equatable, Codable, Sendable, Identifiable { let id: UUID; var label: String; var origin: RouteEndpoint; var destination: RouteEndpoint; var createdAt: Date; var lastOpenedAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "Stored favorite without route geometry."
+    },
+    {
+      "name": "RecentPlace",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RecentPlace: Equatable, Codable, Sendable, Identifiable { let id: UUID; var endpoint: RouteEndpoint; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Persistence layer trims to five records."
+    },
+    {
+      "name": "ShareSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ShareSnapshot: Equatable, Codable, Sendable { let destinationLabel: String; let recommendationSentence: String; let confidence: ConfidenceLevel; let generatedAt: Date; let disclaimerText: String }",
+      "owning_lane": "polish_resilience",
+      "notes": "Self-contained payload for ShareLink; no account or network required to open."
+    },
+    {
+      "name": "RoutingFailure",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RoutingFailure: Error, Equatable, Sendable { case noConnectivity; case geocodingFailed(String); case noWalkingRoute; case directionsFailed(String); case cancelled }",
+      "owning_lane": "services_utilities",
+      "notes": "Keeps no-network, geocoding, and no-route states distinct."
+    },
+    {
+      "name": "RouteFetching",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol RouteFetching: Sendable { func fetchRoutes(from origin: RouteEndpoint, to destination: RouteEndpoint) async throws -> RouteSnapshot }",
+      "owning_lane": "services_utilities",
+      "notes": "Live impl wraps MKDirections; throws RouteRequestError, never raw MKError. Tests inject a fake, never touch real MapKit."
+    },
+    {
+      "name": "PlaceSearching",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PlaceSearching: Sendable { func search(query: String, near origin: Coordinate?) async throws -> [RouteEndpoint] }",
+      "owning_lane": "services_utilities",
+      "notes": "Kept separate from RouteFetching so geocoding/search failures stay a distinct code path from routing failures."
+    },
+    {
+      "name": "LocationProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol LocationProviding: AnyObject, Sendable { var authorizationState: LocationAuthorizationState { get }; func requestWhenInUseAuthorization(); func currentLocation() async throws -> Coordinate }",
+      "owning_lane": "services_utilities",
+      "notes": "Observed state, not polled; supports permission-revoked-mid-session."
+    },
+    {
+      "name": "LocationAuthorizationState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LocationAuthorizationState: Equatable, Sendable { case notDetermined, denied, restricted, authorizedApproximate, authorizedPrecise }",
+      "owning_lane": "services_utilities",
+      "notes": "authorizedApproximate can put a pedestrian's origin 100m+ off, on the wrong side of a block \u2014 LocationService/Plan should nudge toward manual pin-drop rather than treat it as equivalent to precise. Not blocking for MVP but named so it isn't silently ignored."
+    },
+    {
+      "name": "ObstacleStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ObstacleStore { func installSeedDataIfNeeded() async throws; func resetSeedData() async throws; func fetchActiveReports() async throws -> [ObstacleReport]; func saveReport(_ report: ObstacleReport) async throws; func supersede(existingID: UUID, with newReport: ObstacleReport) async throws; func supersedeNearby(coordinate: Coordinate, thresholdMeters: Double, with newReport: ObstacleReport) async throws; func fetchHistory(near coordinate: Coordinate, thresholdMeters: Double) async throws -> [ObstacleReport] }",
+      "owning_lane": "services_utilities",
+      "notes": "installSeedDataIfNeeded checks ScoringConstants.currentSeedDataVersion against a persisted installed-version flag so an app update can revise demo content without duplicating rows. resetSeedData backs the locked Settings 'demo-data reset' control."
+    },
+    {
+      "name": "FavoritesStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol FavoritesStore { func all() async throws -> [Favorite]; func add(_ favorite: Favorite) async throws; func remove(id: UUID) async throws; func count() async throws -> Int }",
+      "owning_lane": "services_utilities",
+      "notes": "count() checked before save so the 3rd attempt triggers paywall cleanly, never a half-save."
+    },
+    {
+      "name": "RecentsStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol RecentsStore { func fetchRecents(limit: Int) async throws -> [RecentDestination]; func recordRecent(_ endpoint: RouteEndpoint) async throws; func clearRecents() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs the explicit 'clear recents' Settings control, no hidden movement trail."
+    },
+    {
+      "name": "CachedRouteStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CachedRouteStore { func loadCachedRoute(origin: RouteEndpoint, destination: RouteEndpoint) async throws -> RouteSnapshot?; func saveCachedRoute(_ snapshot: RouteSnapshot) async throws; func deleteExpiredRoutes(olderThan: Date) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "RESOLVED BY COORDINATOR: Codex's round-3 argument to keep deleteExpiredRoutes wins \u2014 cached-route honesty is a locked product requirement and expiry is part of that lifecycle, not just storage housekeeping; naming it means one lane owns it."
+    },
+    {
+      "name": "PurchaseManaging",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PurchaseManaging: AnyObject { var hasProUnlock: Bool { get }; func purchasePro() async throws; func restorePurchases() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Non-consumable product id com.clearpathaccess.pro.lifetime, on-device VerificationResult only, no receipt-validation backend."
+    },
+    {
+      "name": "ReachabilityProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ReachabilityProviding { var isNetworkReachable: Bool { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "NWPathMonitor-backed coarse hint, never sole error-cause truth source."
+    },
+    {
+      "name": "ObstacleMatching",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ObstacleMatching { func matchObstacles(to route: RouteOption, reports: [ObstacleReport]) -> [MatchedObstacle] }",
+      "owning_lane": "data_domain",
+      "notes": "Pure domain logic for 10m/20m thresholds and route progress ordering."
+    },
+    {
+      "name": "RouteScoring",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol RouteScoring { func score(snapshot: RouteSnapshot, reports: [ObstacleReport], now: Date) -> [ScoredRoute] }",
+      "owning_lane": "data_domain",
+      "notes": "Pure domain logic for friction, confidence, recommendation, and tie-break."
+    },
+    {
+      "name": "RouteExplanationBuilding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol RouteExplanationBuilding { func buildExplanation(for scoredRoutes: [ScoredRoute], selectedRouteID: UUID?, snapshot: RouteSnapshot, now: Date) -> RouteExplanation }",
+      "owning_lane": "polish_resilience",
+      "notes": "Separates copy generation from friction math so wording can evolve without destabilizing tests around scoring."
+    },
+    {
+      "name": "makeShareSnapshot",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func makeShareSnapshot(from route: ScoredRoute, destination: RouteEndpoint, generatedAt: Date, disclaimerText: String) -> ShareSnapshot",
+      "owning_lane": "polish_resilience",
+      "notes": "Stable builder used by share preview and ShareLink export."
+    },
+    {
+      "name": "rescoreCurrentSnapshot",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func rescoreCurrentSnapshot(_ snapshot: RouteSnapshot, reports: [ObstacleReport], scorer: RouteScoring, now: Date) -> [ScoredRoute]",
+      "owning_lane": "data_domain",
+      "notes": "Critical local-only update path after report submission."
+    },
+    {
+      "name": "Coordinate",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Coordinate: Hashable, Codable, Sendable { let latitude: Double; let longitude: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Single shared stand-in for CLLocationCoordinate2D across all lanes."
+    },
+    {
+      "name": "ReportProvenance",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ReportProvenance: String, Codable, Sendable { case seeded, userEntered }",
+      "owning_lane": "data_domain",
+      "notes": "Drives DemoBadge/dashed-outline treatment everywhere seeded data renders."
+    },
+    {
+      "name": "RoutePolyline",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RoutePolyline: Hashable, Codable, Sendable { let points: [Coordinate] }",
+      "owning_lane": "data_domain",
+      "notes": "Owned copy of route geometry; never re-derived from a live MKRoute after initial fetch."
+    },
+    {
+      "name": "RouteCandidate",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RouteCandidate: Identifiable, Hashable, Codable, Sendable { let id: UUID; var polyline: RoutePolyline; var distanceMeters: Double; var expectedTravelTimeSeconds: Double; var stepSummaries: [String]; var advisoryNotices: [String] }",
+      "owning_lane": "data_domain",
+      "notes": "Converted immediately from MKRoute at the RouteFetching boundary. advisoryNotices carries MKRoute.advisoryNotices verbatim (empty array when MapKit returns none); optional, low-stakes, no UI consumer required in MVP."
+    },
+    {
+      "name": "ObstacleRelationship",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ObstacleRelationship: String, Codable, Sendable { case onRoute, nearby }",
+      "owning_lane": "data_domain",
+      "notes": "onRoute <=10m, nearby 10-20m. Two cases only: beyond 20m never becomes an ObstacleMatch, so a third 'ignored' case would model an unreachable state."
+    },
+    {
+      "name": "ObstacleMatch",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ObstacleMatch: Identifiable, Hashable, Sendable { var id: UUID { report.id }; let report: ObstacleReport; let distanceMeters: Double; let relationship: ObstacleRelationship; let routeProgress: Double }",
+      "owning_lane": "data_domain",
+      "notes": "routeProgress (0...1) sorts the accessible list view in travel order; comes from the matcher, never recomputed in UI."
+    },
+    {
+      "name": "FrictionCategory",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum FrictionCategory: String, Codable, Sendable { case low, moderate, high }",
+      "owning_lane": "data_domain",
+      "notes": "Categorical label shown to user; raw numeric score never surfaced directly."
+    },
+    {
+      "name": "RouteScore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RouteScore: Hashable { let rawFrictionValue: Double; let frictionCategory: FrictionCategory; let confidence: ConfidenceLevel; let matchedObstacles: [ObstacleMatch]; let explanation: String }",
+      "owning_lane": "data_domain",
+      "notes": "explanation is template-generated plain language from the matched obstacles/confidence inputs, not LLM-generated."
+    },
+    {
+      "name": "RouteRecommendation",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RouteRecommendation: Equatable, Sendable { let scoredCandidates: [ScoredRoute]; let recommendedIndex: Int; let isSingleRouteResult: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "isSingleRouteResult drives honest single-route wording and hides route-switcher chips."
+    },
+    {
+      "name": "ScoringConstants",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum ScoringConstants { static let outerBufferMeters: Double = 20; static let innerBufferMeters: Double = 10; static func recencyMultiplier(daysOld: Int) -> Double; static let typeBaseWeight: [ObstacleType: Double]; static let severityMultiplier: [ObstacleSeverity: Double]; static let highConfidenceMinReports: Int = 3; static let highConfidenceRecentWithinDays: Int = 30; static let currentSeedDataVersion: Int = 1 }",
+      "owning_lane": "data_domain",
+      "notes": "daysOld is Int (whole days) so day 6/8, 30/31, 90/91 boundary tests can't drift on floating-point seconds. Bands: <7d=1.0, 8-30d=0.6, 31-90d=0.3, >90d=0.1. Types: stairsNoRamp 3.0, noCurbCut 2.5, constructionBlockage 2.5, steepGrade 2.0, unevenSurface 1.5, temporaryHazard 1.0. Severity: minor 1.0, moderate 1.75, severe 2.5."
+    },
+    {
+      "name": "RouteScorer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum RouteScorer { static func score(candidate: RouteCandidate, allReports: [ObstacleReport], now: Date) -> ScoredRoute; static func recommend(candidates: [RouteCandidate], allReports: [ObstacleReport], now: Date) -> RouteRecommendation }",
+      "owning_lane": "data_domain",
+      "notes": "Static pure function, not a protocol: one correct algorithm, no legitimate fake. Applies shorter-route tie-break when friction categories tie."
+    },
+    {
+      "name": "ObstacleMatcher",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ObstacleMatcher { static func match(reports: [ObstacleReport], to polyline: RoutePolyline) -> [ObstacleMatch] }",
+      "owning_lane": "data_domain",
+      "notes": "Bounding-box pre-filter by outerBufferMeters before per-segment projection math so cost doesn't grow against the whole obstacle store."
+    },
+    {
+      "name": "RouteRequestError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RouteRequestError: Error, Equatable, Sendable { case noConnectivity; case geocodingFailed(String); case noRouteFound; case directionsFailed(String); case cancelled }",
+      "owning_lane": "services_utilities",
+      "notes": "cancelled needed for search-debounce .task(id:) cancellation. Never collapse into one generic error banner."
+    },
+    {
+      "name": "ObstacleRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ObstacleRepository { func allReports() throws -> [ObstacleReport]; func save(_ report: ObstacleReport) throws; func supersede(existingID: UUID, with newReport: ObstacleReport) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "SwiftDataObstacleRepository is the live impl; mapping to/from ObstacleReportRecord happens only inside this implementation."
+    },
+    {
+      "name": "FavoritesRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol FavoritesRepository { func all() throws -> [Favorite]; func add(_ favorite: Favorite) throws; func remove(id: UUID) throws; var count: Int { get throws } }",
+      "owning_lane": "services_utilities",
+      "notes": "count is checked before save to trigger the paywall on the 3rd attempt (free cap = 2)."
+    },
+    {
+      "name": "Favorite",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Favorite: Identifiable, Hashable, Codable, Sendable { let id: UUID; var label: String; var origin: RouteEndpoint; var destination: RouteEndpoint; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "RESOLVED: lastOpenedAt dropped \u2014 nothing in the locked spec sorts or displays favorites by last-opened time, so the field had no consumer anywhere in the contract."
+    },
+    {
+      "name": "CachedRouteSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CachedRouteSnapshot: Hashable { let favoriteID: UUID; let candidate: RouteCandidate; let fetchedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "staleness threshold ~1 day; past it, UI copy shifts from 'today's suggested route' to 'your last available route, from [day]'."
+    },
+    {
+      "name": "RecentDestination",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecentDestination: Identifiable, Hashable, Codable, Sendable { let id: UUID; var endpoint: RouteEndpoint; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Capped at 5, label+coordinate only, no per-search timestamp trail beyond the entry's own createdAt."
+    },
+    {
+      "name": "PurchaseServicing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PurchaseServicing: AnyObject { var isProUnlocked: Bool { get }; func purchasePro() async throws; func restorePurchases() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2, non-consumable product id com.clearpathaccess.pro.lifetime, on-device VerificationResult only, no receipt-validation backend."
+    },
+    {
+      "name": "ReachabilityMonitoring",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ReachabilityMonitoring { var isConnected: Bool { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "NWPathMonitor-backed; used only to help classify RouteRequestError.noConnectivity, not as sole error-cause truth source."
+    },
+    {
+      "name": "RouteResultInput",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RouteResultInput: Hashable, Sendable { let origin: RouteEndpoint; let destination: RouteEndpoint; let favoriteID: UUID?; let isDemoCorridor: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": "Single navigation payload shared by Plan, Saved, and the demo card. No alternate push models."
+    },
+    {
+      "name": "PlanRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PlanRoute: Hashable { case search; case result(RouteResultInput) }",
+      "owning_lane": "primary_ui",
+      "notes": "NavigationStack path type for the Plan tab."
+    },
+    {
+      "name": "SavedRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SavedRoute: Hashable { case result(RouteResultInput) }",
+      "owning_lane": "primary_ui",
+      "notes": "Independent NavigationStack path for Saved, separate from Plan."
+    },
+    {
+      "name": "RouteResultLoadPhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RouteResultLoadPhase: Equatable { case fetchingRoute; case checkingObstacles; case loaded; case failed(RouteRequestError) }",
+      "owning_lane": "primary_ui",
+      "notes": "checkingObstacles holds a visible 400-600ms minimum even when local scoring is instant."
+    },
+    {
+      "name": "RouteResultViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class RouteResultViewModel { var phase: RouteResultLoadPhase; var recommendation: RouteRecommendation?; var currentSnapshot: RouteSnapshot?; var segment: Segment; func load(_ input: RouteResultInput) async; func rescore() }",
+      "owning_lane": "primary_ui",
+      "notes": "rescore() is the only post-report mutation path, never calls RouteFetching again; report sheet calls ReportSubmission.submit then rescore(). Must recover cleanly from scene-phase backgrounding/process death by reloading, never showing stale/garbage state."
+    },
+    {
+      "name": "FavoriteRowStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum FavoriteRowStatus: Equatable { case idle; case checking; case upToDate; case newIssues(count: Int); case offlineUnavailable(lastKnown: Date?) }",
+      "owning_lane": "primary_ui",
+      "notes": "Per-row Saved state; concurrent checks capped at 2, triggered from row .onAppear, never all at once."
+    },
+    {
+      "name": "hasCompletedFirstRouteSearch",
+      "kind": "function",
+      "language": "swift",
+      "signature": "var hasCompletedFirstRouteSearch: Bool { get set } // UserDefaults-backed flag",
+      "owning_lane": "polish_resilience",
+      "notes": "Persisted one-time flag gating the Plan demo card; never derived from zero-recents/zero-favorites state."
+    },
+    {
+      "name": "RouteExplanationBuilder",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum RouteExplanationBuilder { static func build(for scoredRoutes: [ScoredRoute], selectedRouteID: UUID?, snapshot: RouteSnapshot, now: Date) -> RouteExplanation }",
+      "owning_lane": "polish_resilience",
+      "notes": "RESOLVED as a static pure function, not a protocol: both agents independently converged \u2014 deterministic copy generation from known inputs has no legitimate reason to be faked, same rule as RouteScorer/ObstacleMatcher."
+    },
+    {
+      "name": "ReportDraft",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ReportDraft: Equatable, Sendable { var type: ObstacleType; var severity: ObstacleSeverity; var note: String?; var coordinate: Coordinate; var looksClearNow: Bool; var targetObstacleID: UUID? }",
+      "owning_lane": "data_domain",
+      "notes": "targetObstacleID set only when reporting against an already-flagged item (adds the 'looks clear now' path)."
+    },
+    {
+      "name": "ReportSubmission",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ReportSubmission { static func submit(_ draft: ReportDraft, store: ObstacleStore) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns the decision of which ObstacleStore method to call: supersede(existingID:) if targetObstacleID is set; else supersedeNearby using ScoringConstants.innerBufferMeters (10m \u2014 the same-physical-obstacle check, deliberately not the 20m outer route-relevance buffer, since those are different questions and using 20m risks superseding an unrelated obstacle two doors down); else saveReport. Report sheet's completion handler should only ever call this plus routeResultViewModel.rescore()."
+    },
+    {
+      "name": "AppDependencies",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AppDependencies { let routeFetching: RouteFetching; let placeSearching: PlaceSearching; let locationProviding: LocationProviding; let obstacleStore: ObstacleStore; let favoritesStore: FavoritesStore; let recentsStore: RecentsStore; let cachedRouteStore: CachedRouteStore; let purchaseManaging: PurchaseManaging; let reachabilityProviding: ReachabilityProviding }",
+      "owning_lane": "primary_ui",
+      "notes": "Single composition-root bundle built once in App/ and injected via environment so no build lane wires up ad hoc service instances."
+    },
+    {
+      "name": "Segment",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Segment: String, CaseIterable, Sendable { case map, list }",
+      "owning_lane": "primary_ui",
+      "notes": "Route Result's Map/List segmented control state; fills a real gap where RouteResultViewModel referenced this type without it ever being defined."
+    }
+  ],
+  "errors": []
+}

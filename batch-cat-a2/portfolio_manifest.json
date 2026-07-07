@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "apps": [
+    {
+      "name": "backtimer",
+      "slug": "backtimer",
+      "category": "Food & Drink",
+      "promise": "Merges several recipes' active/passive time into one backward-planned countdown to a single serve time.",
+      "target_user": "Hosts cooking multi-dish meals who need everything to land together.",
+      "build": true,
+      "one_sentence_promise": "Merges several recipes' active/passive time into one backward-planned countdown to a single serve time.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "cleanline",
+      "slug": "cleanline",
+      "category": "Graphics & Design",
+      "promise": "Photographs a hand-drawn sketch and traces it to clean, editable vector paths (SVG/PDF) via on-device Vision.",
+      "target_user": "Illustrators/print-on-demand sellers who sketch on paper but need vector output.",
+      "build": true,
+      "one_sentence_promise": "Photographs a hand-drawn sketch and traces it to clean, editable vector paths (SVG/PDF) via on-device Vision.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "crockwatch",
+      "slug": "crockwatch",
+      "category": "Food & Drink",
+      "promise": "Adaptive fermentation batch tracker with taste-check timers tuned to variable, temp-dependent process time, not a fixed clock.",
+      "target_user": "Home fermentation hobbyists running multiple concurrent ferments.",
+      "build": true,
+      "one_sentence_promise": "Adaptive fermentation batch tracker with taste-check timers tuned to variable, temp-dependent process time, not a fixed clock.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "docket",
+      "slug": "docket",
+      "category": "News",
+      "promise": "Turns dense local-government agendas/minutes into a plain-language, on-device digest of what changed.",
+      "target_user": "Civically engaged residents with no time to read 80-page PDFs.",
+      "build": true,
+      "one_sentence_promise": "Turns dense local-government agendas/minutes into a plain-language, on-device digest of what changed.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "tessella",
+      "slug": "tessella",
+      "category": "Graphics & Design",
+      "promise": "Parametric seamless-pattern designer with a live tiled preview, guaranteed seamless by construction.",
+      "target_user": "Independent textile/surface designers needing print-ready repeats.",
+      "build": true,
+      "one_sentence_promise": "Parametric seamless-pattern designer with a live tiled preview, guaranteed seamless by construction.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "throughline",
+      "slug": "throughline",
+      "category": "News",
+      "promise": "Builds a private, evolving timeline explainer for one ongoing story from articles you feed it via Share Sheet.",
+      "target_user": "Readers following a specific saga who keep losing the thread.",
+      "build": true,
+      "one_sentence_promise": "Builds a private, evolving timeline explainer for one ongoing story from articles you feed it via Share Sheet.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    }
+  ],
+  "parent": "batch-cat-a2"
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-a2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "backtimer",
+    "slug": "backtimer",
+    "category": "Food & Drink",
+    "promise": "Merges several recipes' active/passive time into one backward-planned countdown to a single serve time.",
+    "target_user": "Hosts cooking multi-dish meals who need everything to land together.",
+    "build": true,
+    "one_sentence_promise": "Merges several recipes' active/passive time into one backward-planned countdown to a single serve time.",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

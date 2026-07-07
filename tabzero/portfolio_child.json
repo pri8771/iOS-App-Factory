@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Tab Zero",
+    "slug": "tabzero",
+    "category": "Productivity",
+    "promise": "Photograph a piece of mail and get it auto-filed as bill/todo/archive with the due date pulled out",
+    "targetUser": "People with a physical-mail pile-up and bill-deadline anxiety",
+    "build": true,
+    "risk": "Mechanic (document photo \u2192 extracted structured fields) sits close to the excluded PO-automation tool",
+    "riskMitigation": "Build phase must actively defend the single-envelope, no-vendor-workflow framing rather than treat the distinction as settled",
+    "one_sentence_promise": "Photograph a piece of mail and get it auto-filed as bill/todo/archive with the due date pulled out",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

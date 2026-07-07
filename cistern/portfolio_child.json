@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp6",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Cistern",
+    "slug": "cistern",
+    "category": "finance",
+    "tagline": "Budgeting as cash-flow weather: reservoirs and tide forecasts instead of ledgers, forecasting shortfalls before they hit.",
+    "target_user": "Paycheck-to-paycheck user who avoids their banking app.",
+    "build": true,
+    "open_risks": [
+      "Uniqueness vs. ReturnWise flagged as unverified \u2014 names-only check."
+    ],
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

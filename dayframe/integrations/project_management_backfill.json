@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "dayframe",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b2\nSelected app slug: dayframe\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Dayframe\n\nBuild mode: **MVP build**.\n\n## App Name\n\nDayframe\n\n## Category\n\nPhoto & Video\n\n## One-Sentence Promise\n\nOn-device Vision auto-picks your best daily video moment and assembles a monthly reel\n\n## Claude Design Handoff Prompt\n\n(not supplied yet)\n\n## Parent Portfolio Prompt\n\nBuild 6 completely separate production-ready iOS apps at the same time: exactly 3 Photo & Video apps and 3 Productivity apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 12 candidate ideas, discuss them thoroughly, choose the best 6, and build all 6 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n",
+    "verification": "VERIFIED (compiled cleanly for the iOS Simulator)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "DAYFRAME",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "build_coordination"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "final_review"
+        ]
+      }
+    ],
+    "issues": []
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "dayframe",
+      "Status": "Done",
+      "Source": "Orchestrator",
+      "Workflow Phases": 3
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b2\nSelected app slug: dayframe\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Dayframe\n\nBuild mode: **MVP build**.\n\n## App Name\n\nDayframe\n\n## Category\n\nPhoto & Video\n\n## One-Sentence Promise\n\nOn-device Vision auto-picks your best daily video moment and assembles a monthly reel\n\n## Claude Design Handoff Prompt\n\n(not supplied yet)\n\n## Parent Portfolio Prompt\n\nBuild 6 completely separate production-ready iOS apps at the same time: exactly 3 Photo & Video apps and 3 Productivity apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 12 candidate ideas, discuss them thoroughly, choose the best 6, and build all 6 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [],
+    "interfaces": [
+      {
+        "name": "DayRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class DayRecord { @Attribute(.unique) var dayID: String; var monthID: String; var scanState: DayScanState; var selectedCandidateAssetID: String?; var selectedTrimStartSeconds: Double?; var selectedTrimDurationSeconds: Double?; var candidates: [ScoredCandidate]; var updatedAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "dayID/monthID derived from asset capture-timezone metadata, not device clock. candidates stored newest-scored first, pre-ranked descending by score."
+      },
+      {
+        "name": "MonthRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class MonthRecord { @Attribute(.unique) var monthID: String; var renderCacheKey: String?; var renderedFileRelativePath: String?; var ceremonySeen: Bool; var remoteURL: URL?; var syncState: SyncState; var updatedAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "renderedFileRelativePath is relative to Application Support/Reels/. remoteURL/syncState are dormant fields for future cloud sync; syncState defaults to .localOnly."
+      },
+      {
+        "name": "ScoredCandidate",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ScoredCandidate: Codable { let assetLocalIdentifier: String; let rank: Int; let totalScore: Double; let saliencyScore: Double; let faceBonus: Double; let sharpnessScore: Double; let durationSeconds: Double; let exclusionReason: CandidateExclusionReason? }",
+        "owning_lane": "data_domain",
+        "notes": "Persisted as a Codable blob on DayRecord (SwiftData externally-stored attribute), not a separate @Model, since it's always read/written as a whole ordered array."
+      },
+      {
+        "name": "CandidateExclusionReason",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum CandidateExclusionReason: String, Codable { case corrupted, unsupportedCodec, belowDurationFloor, screenRecordingOrImported }",
+        "owning_lane": "data_domain",
+        "notes": "Excluded candidates are retained in the array (not dropped) so 'why was this skipped' is inspectable in Settings' skip-reason disclosure."
+      },
+      {
+        "name": "DayScanState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum DayScanState: String, Codable { case notScanned, scanning, waitingForICloud, scanned, deferred }",
+        "owning_lane": "data_domain",
+        "notes": "Persisted scan-pipeline state. Distinct from the UI-facing DayCellState, which folds this together with live PHAsset visibility and library-access checks."
+      },
+      {
+        "name": "SyncState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SyncState: String, Codable { case localOnly, pendingUpload, synced }",
+        "owning_lane": "data_domain",
+        "notes": "Unused in MVP beyond .localOnly; exists so a future cloud phase needs no schema migration."
+      },
+      {
+        "name": "SwapAllowanceState",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class SwapAllowanceState { var lastSwapDate: Date?; var swapsUsedSinceReset: Int }",
+        "owning_lane": "data_domain",
+        "notes": "Singleton row. Free tier: 1 swap per rolling real-world day (resets at local midnight), enforced app-wide, not per DayRecord. Named assumption \u2014 not explicitly resolved in earlier phases."
+      },
+      {
+        "name": "DayCellState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum DayCellState: Equatable { case hasPick(thumbnailAssetID: String); case empty; case scanning; case waitingForICloud(progress: Double); case deferred; case limitedLibraryExcluded }",
+        "owning_lane": "primary_ui",
+        "notes": "Pure function output: dayCellState(record: DayRecord?, libraryVisibility: LibraryVisibility) -> DayCellState. Precedence rule: limitedLibraryExcluded always wins over any scanState-derived case."
+      },
+      {
+        "name": "LibraryVisibility",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum LibraryVisibility: Equatable { case fullAccess; case limited(visibleDayIDs: Set<String>); case denied }",
+        "owning_lane": "data_domain",
+        "notes": "Computed from PHPhotoLibrary.authorizationStatus(for:) plus, for .limited, the actual set of dayIDs reachable given the user's selected-photos picker choices."
+      },
+      {
+        "name": "Route",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum Route: Hashable { case dayDetail(dayID: String); case monthReel(monthID: String); case archive; case settings; case exportPreview(monthID: String) }",
+        "owning_lane": "primary_ui",
+        "notes": "Drives a single NavigationStack(path:) rooted at the Home Calendar; no TabView."
+      },
+      {
+        "name": "PaywallTrigger",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PaywallTrigger: Equatable { case swapLimitReached; case lockedArchiveMonth(monthID: String); case cleanExportAttempted(monthID: String) }",
+        "owning_lane": "primary_ui",
+        "notes": "ContextualPaywallSheet is parameterized by this; never a single generic sheet."
+      },
+      {
+        "name": "SubscriptionTier",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SubscriptionTier: Equatable { case free; case subscribed(expiresRenews: Date?) }",
+        "owning_lane": "services_utilities",
+        "notes": "Derived live from StoreKit 2 Transaction.currentEntitlements; never persisted as source of truth."
+      },
+      {
+        "name": "PhotoKitGateway",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol PhotoKitGateway { func authorizationStatus() -> LibraryVisibility; func requestAuthorization() async -> LibraryVisibility; func fetchDayIDs(in monthID: String) async -> [String]; func fetchCandidateAssets(forDayID dayID: String) async -> [CandidateInput]; func requestICloudDownload(assetLocalIdentifier: String) -> AsyncStream<DownloadProgress>; func deleteTemporaryDownload(assetLocalIdentifier: String) async; func assetExists(assetLocalIdentifier: String) async -> Bool }",
+        "owning_lane": "services_utilities",
+        "notes": "assetExists backs the source-deleted graceful-degradation checks in Day Detail and swap."
+      },
+      {
+        "name": "CandidateInput",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct CandidateInput { let assetLocalIdentifier: String; let durationSeconds: Double; let creationDate: Date; let timeZoneIdentifier: String; let sourceType: PHAssetSourceType }",
+        "owning_lane": "data_domain",
+        "notes": "sourceType used to exclude screen recordings / imported (non-camera) assets from candidacy per detailed_discussion."
+      },
+      {
+        "name": "DownloadProgress",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum DownloadProgress { case downloading(fraction: Double); case ready; case timedOut; case failed(Error) }",
+        "owning_lane": "data_domain",
+        "notes": "timedOut maps to DayScanState.deferred, never a silent hang or a hard failure."
+      },
+      {
+        "name": "VisionScorer",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol VisionScorer { func score(candidate: CandidateInput, sampledPixelBuffers: [CVPixelBuffer]) async throws -> ScoredCandidate; func bestTrimWindow(for assetLocalIdentifier: String, durationCapSeconds: Double) async throws -> (start: Double, duration: Double) }",
+        "owning_lane": "services_utilities",
+        "notes": "Saliency via VNGenerateAttentionBasedSaliencyImageRequest, face bonus via VNDetectFaceRectanglesRequest, sharpness hand-computed (Laplacian variance) via Accelerate \u2014 face presence never gates the score."
+      },
+      {
+        "name": "ReelRenderer",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol ReelRenderer { func cacheKey(for plan: MonthRenderPlan) -> String; func render(plan: MonthRenderPlan) async throws -> ReelRenderResult }",
+        "owning_lane": "services_utilities",
+        "notes": "cacheKey is a SHA256 (CryptoKit) hash over ordered (dayID, assetID, trimStart, trimDuration) tuples; render only invoked when key differs from MonthRecord.renderCacheKey."
+      },
+      {
+        "name": "MonthRenderPlan",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct MonthRenderPlan { let monthID: String; let dayPlans: [DayRenderPlan]; let includeWatermark: Bool }",
+        "owning_lane": "data_domain",
+        "notes": "dayPlans ordered chronologically; days with no pick are simply absent from the array."
+      },
+      {
+        "name": "DayRenderPlan",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DayRenderPlan { let dayID: String; let assetLocalIdentifier: String; let trimStartSeconds: Double; let trimDurationSeconds: Double }",
+        "owning_lane": "data_domain",
+        "notes": "Reconstructs CMTimeRange at render time from the two Double fields."
+      },
+      {
+        "name": "ReelRenderResult",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ReelRenderResult { let fileRelativePath: String; let cacheKey: String; let durationSeconds: Double }",
+        "owning_lane": "data_domain",
+        "notes": "fileRelativePath is written into MonthRecord.renderedFileRelativePath on success only; failure never overwrites a prior good file."
+      },
+      {
+        "name": "DayFrameError",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum DayFrameError: Error { case iCloudTimeout; case sourceAssetDeleted; case exportFailed(underlying: Error); case storageInsufficient; case noCandidatesRemaining; case swapLimitReached }",
+        "owning_lane": "data_domain",
+        "notes": "Single shared error vocabulary consumed by all view models so error-state UI text stays consistent across screens."
+      },
+      {
+        "name": "DayFrameStore",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "@MainActor protocol DayFrameStore { func dayCellStates(forMonthID monthID: String) -> [String: DayCellState]; func dayRecord(forDayID dayID: String) -> DayRecord?; func swapToNextCandidate(dayID: String) throws; func monthRecord(monthID: String) -> MonthRecord?; func requestReelRender(monthID: String) async throws -> ReelRenderResult; func markCeremonySeen(monthID: String) }",
+        "owning_lane": "services_utilities",
+        "notes": "Facade every view model reads/writes through; delegates persistence to ScanCoordinator's background ModelActor. View models never import PhotoKit/Vision/AVFoundation directly."
+      },
+      {
+        "name": "ScanCoordinator",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "actor ScanCoordinator { func runBackfill(priorityMonthID: String) async; func resumeInterrupted() async; func handleICloudRetry(dayID: String) async }",
+        "owning_lane": "services_utilities",
+        "notes": "Owns the background ModelActor for all SwiftData writes during scanning; foreground/active-session driven, with BGProcessingTask as opportunistic top-up only, not primary mechanism."
+      },
+      {
+        "name": "EntitlementStore",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class EntitlementStore { private(set) var tier: SubscriptionTier; func refresh() async; func purchase(productID: String) async throws; func restorePurchases() async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "Wraps StoreKit 2 Transaction.currentEntitlements listener; no server component; lapses gate access in UI only, never trigger file deletion."
+      },
+      {
+        "name": "TempFileJanitor",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func cleanOrphanedTempFiles(applicationSupportURL: URL) async",
+        "owning_lane": "polish_resilience",
+        "notes": "Run once on launch before any UI reads render state; deletes anything under Application Support/tmp/ left from a killed export or iCloud fetch."
+      },
+      {
+        "name": "BackgroundBackfillScheduler",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func registerBackgroundTasks(); func scheduleOpportunisticBackfill()",
+        "owning_lane": "polish_resilience",
+        "notes": "BGProcessingTask registration; explicitly best-effort per ios_architecture_review \u2014 must not be relied on for guaranteed overnight completion."
+      },
+      {
+        "name": "ReelReadyNotifier",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func scheduleReelReadyNotification(monthID: String, dayCount: Int) async",
+        "owning_lane": "polish_resilience",
+        "notes": "Local UNUserNotificationCenter notification only; should-have, not blocking must-have activation path."
+      }
+    ]
+  },
+  "phase_outputs": {
+    "iterate_scope": "CONSENSUS: YES\n\nBoth Codex and I are converging on the same read even though we framed it differently: this isn't a \"write a pbxproj\" task, it's \"find out what's actually there, then wire only that.\" Codex's structural plan (single app target, iOS 17 deployment, mirror the sibling apps' project layout) is the right skeleton, and my forensic/inventory-first approach is the right way to fill it in without accidentally papering over missing logic. I'm picking Codex's carpentry plan as the mechanical backbone and folding my audit-and-disclose requirement in as the gate before any pbxproj gets written \u2014 neither is complete without the other, but the plan needs one clear order of operations, and inventory has to come first because it determines whether this is wiring or partial regeneration.\n\nWhere I'm overruling Codex slightly: he leaves open the possibility of \"creating the conventional source layout\" if no sources exist. I don't want that door open in this phase. If app_build turns out to be functionally empty, the correct output of this phase is a scope note saying so \u2014 not silently generating placeholder feature files under a project-wiring banner. That distinction matters for the next phase's build-verification honesty.\n\n## Final Output\n\n**Step 1 \u2014 Inventory before touching any project file.** Search the full Dayframe folder tree (not just `app_build`) for any `.swift` files, asset catalogs, or model/service code from earlier phases. Classify what's found: (a) real feature code, (b) stub/TODO code, (c) nothing. This classification gates everything else and must be stated explicitly in the build-phase output.\n\n**Step 2 \u2014 Generate the minimal Xcode project.** One iOS app target, one scheme, `Dayframe.xcodeproj` with `project.pbxproj` + workspace metadata, iOS 17 deployment target (to match the `@Observable`/SwiftData architecture already decided). No extra targets, no packages. Wire in every recovered source file, the asset catalog, `Info.plist`, and a privacy manifest with usage strings for Photo Library (required \u2014 the core loop reads the user's video library) and any other permission an actually-found source file references (e.g. microphone only if a real file uses it \u2014 don't add speculative entitlements).\n\n**Step 3 \u2014 Compile file-by-file, fix narrowly.** For each compiler error, fix only what's needed to resolve it. Do not rewrite logic, don't \"improve\" a subsystem while touching it. If a whole subsystem turns out to be non-functional (vaporware Vision/scoring pipeline), do not stub it into looking like it works \u2014 flag it as unverified rather than faking a passing state.\n\n**Step 4 \u2014 Preserve the day-state contract.** The calendar/day/reel model and its distinct states (no-video, scanning, iCloud-waiting, deferred, limited-library-excluded) must survive the wiring pass untouched in behavior. If reconciling with real code requires collapsing any of these states, that's a flag for this phase's output, not a silent simplification.\n\n**Step 5 \u2014 Make the empty state actually reachable.** Because the simulator has no real daily video library, the build-verification phase needs either bundled sample video assets or an explicit manual step (add N videos to specific days in the simulator Photos app) so empty/loading/success/error states are demonstrably reachable, not just theoretically present in code.\n\n**Required disclosure at the end of the build phase:** three explicit lists \u2014 sources wired in unchanged, sources trimmed/stubbed to compile (and why), and which core feature(s), if any, remain unverified end-to-end. A green simulator build without this disclosure does not count as \"done\" per the global rule that build verification and final review must agree on what works and what remains limited.",
+    "build_coordination": "CONSENSUS: YES\n\n## Final Output\n\nThe app is now wired as a real Xcode project and compiles for the iOS Simulator with:\n\n```bash\nxcodebuild -project Dayframe.xcodeproj -scheme Dayframe -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dayframe-derived build\n```\n\nI also verified the test target compiles with `build-for-testing`.\n\nWhat exists now:\n- A working app target and test target in `Dayframe.xcodeproj`\n- A runnable `@main` entry point in [DayframeApp.swift](/Users/pchordia/Documents/iOS-App-Factory/dayframe/app_build/Dayframe/App/DayframeApp.swift)\n- All existing UI, domain, renderer, scan, asset, and privacy files wired into the target\n- A compiling shared store layer in [DayFrameStore.swift](/Users/pchordia/Documents/iOS-App-Factory/dayframe/app_build/Dayframe/App/DayFrameStore.swift)\n\nInventory/classification:\n- Real feature code found: app entry point, stores, photo scan coordinator, reel renderer, full UI flow, domain logic, assets, privacy manifest, tests\n- Stub/TODO-quality code found: Vision scoring is still duration-based only, clean export still doesn\u2019t burn/remove a real watermark\n- Not empty: this was a real integration/fix pass, not source regeneration from nothing\n\nSources wired in unchanged:\n- All UI screens/components/navigation files under `Dayframe/UI/`\n- `PhotoLibraryScanCoordinator.swift`\n- `ReelRenderer.swift`\n- Domain logic files under `Sources/DataDomain/Logic/`\n- Assets and `PrivacyInfo.xcprivacy`\n- `Tests/DataDomainTests/DayframeDomainLogicTests.swift`\n- `Dayframe.xcodeproj` remained the project container and now builds cleanly\n\nSources changed narrowly to compile:\n- [DayframeModels.swift](/Users/pchordia/Documents/iOS-App-Factory/dayframe/app_build/Sources/DataDomain/Models/DayframeModels.swift): replaced `@Model` SwiftData macros with plain `Codable` classes\n- [DayFrameSchema.swift](/Users/pchordia/Documents/iOS-App-Factory/dayframe/app_build/Sources/DataDomain/Persistence/DayFrameSchema.swift): repurposed from SwiftData schema to JSON snapshot definition\n- [DayFrameStore.swift](/Users/pchordia/Documents/iOS-App-Factory/dayframe/app_build/Dayframe/App/DayFrameStore.swift): replaced SwiftData persistence with file-backed JSON persistence, preserved store API and day/month behavior\n- [EntitlementStore.swift](/Users/pchordia/Documents/iOS-App-Factory/dayframe/app_build/Dayframe/App/EntitlementStore.swift): replaced `@Observable` with `ObservableObject`\n- [DayframeApp.swift](/Users/pchordia/Documents/iOS-App-Factory/dayframe/app_build/Dayframe/App/DayframeApp.swift): removed SwiftData bootstrap, now initializes the file-backed store\n- SwiftUI views using `@Bindable` were switched to `@ObservedObject` for `EntitlementStore`\n\nCore features still unverified end-to-end:\n- Actual simulator launch was not possible in this sandbox because `CoreSimulatorService` was unavailable, so I could compile but not boot the app here\n- Vision-based \u201cbest moment\u201d scoring is still not real Vision analysis; the current scan coordinator ranks by duration and preserves that disclosure\n- \u201cExport without watermark\u201d is still gated by paywall only; no burned-in watermark compositor was added or removed in this pass\n- Photo-library scan/export flows were not exercised end-to-end here because there was no working simulator runtime or seeded Photos library\n\nHow to verify manually in Xcode:\n1. Open `Dayframe.xcodeproj`.\n2. Run the `Dayframe` scheme on an iOS Simulator.\n3. In the simulator, add a few videos to Photos on different dates, or keep it empty to verify the empty state.\n4. Grant Photo Library access when prompted.\n5. Navigate Home -> Day -> Month Reel -> Export to verify the main flow.\n\nFor reachable states in the simulator:\n- Empty state: run with no videos in Photos\n- Limited/excluded state: grant limited or denied photo access\n- Success state: add videos to the simulator Photos app on a few days\n- Waiting/error states depend on iCloud-backed assets or export permission failures and may be harder to trigger locally\n\nThe main request is satisfied: there is now a complete working project in `app_build`, wired to the existing sources, and it compiles cleanly for the iOS Simulator.\n\n**Build verification:** verified: compiled cleanly for the iOS Simulator",
+    "final_review": "CONSENSUS: YES\n\nBoth reviewers agree on the facts; they differ on emphasis. I'm siding with the narrower, honest framing: **the specific change requested is done \u2014 go. The app as a whole is not production-ready \u2014 no-go for real users.** Those are two different questions and this phase needs to answer both instead of collapsing them into one verdict.\n\n## Final Output\n\n**What changed:** Dayframe went from \"sources with no buildable project\" to a real `Dayframe.xcodeproj` with one app target and one test target, wired to all existing UI, domain, scan, and renderer sources. `xcodebuild ... build` and `build-for-testing` both succeeded for `iphonesimulator`. SwiftData was swapped for file-backed JSON persistence to get there, and `@Observable`/`@Bindable` was swapped for `ObservableObject`/`@ObservedObject` where needed \u2014 both narrow, behavior-preserving changes, not rewrites.\n\n**Verification status:** VERIFIED (xcodebuild) \u2014 compile-verified only. Not boot-verified. `CoreSimulatorService` was unavailable in this environment, so nobody has actually launched the app, tapped through Home \u2192 Day \u2192 Month Reel \u2192 Export, or confirmed the day-states (empty/scanning/iCloud-waiting/deferred/limited-library-excluded) render as coded. Compiling is a real, non-trivial milestone for this app given where it started, but it is a weaker signal here than usual because Photos/Vision/AVFoundation apps routinely have runtime-only failures (authorization flow, `PhotosUI` edge cases, `AVAssetExportSession` errors) that a type-check can't catch.\n\n**Prompt coverage:** The literal change request \u2014 \"generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator\" \u2014 is satisfied. The original app promise \u2014 \"on-device Vision auto-picks your best daily video moment\" \u2014 is not yet real. Confirmed by the build phase's own disclosure: the scan coordinator ranks candidates by clip duration, not by any Vision analysis. That's not a rough draft of the pitched feature, it's a stand-in with a different selection criterion wearing the same name.\n\n**Known limitations (launch blockers, not nice-to-haves):**\n1. No real Vision-based scoring \u2014 duration-only ranking. This is the product's one-sentence promise, unimplemented.\n2. Archive unlock rule is internally contradictory \u2014 a code comment says \"most recent completed month unlocked,\" the actual logic only unlocks the current month. Unresolved, and it directly touches paywall behavior.\n3. The \"export without watermark\" entitlement gates a feature that doesn't exist \u2014 there is no watermark compositor, so free and paid exports are currently identical. The subscription's stated value prop is fictional as implemented.\n4. Simulator boot and the Home\u2192Day\u2192MonthReel\u2192Export flow have never been observed running \u2014 only inferred from source reading.\n\n**Top follow-ups, in forcing order:**\n1. Boot the simulator with a few seeded videos across different days and eyeball all five day-states plus the export flow once \u2014 half a day of work, and it's the only way to know \"compiles\" isn't hiding a launch-time crash.\n2. Replace duration-based ranking with a real Vision signal (even a simple sharpness/face-presence/motion heuristic via built-in Vision requests) before anyone calls the core loop done.\n3. Pick one canonical archive-unlock rule and make the code and the comment agree before it touches paywall copy or a real StoreKit product ID.\n4. Either build a real watermark/clean-export distinction or stop selling \"no watermark\" as the premium benefit until it's real.\n\n**Go/no-go:** Go for the literal scope of this phase \u2014 the project now exists, compiles, and is ready to hand to manual QA in Xcode. No-go for treating this as a finished MVP or exposing it to real users \u2014 the app's namesake feature (Vision-based best-moment picking) isn't implemented, one paywall rule is self-contradictory, and one premium feature gates nothing. Next session should open in Xcode, run it, and work the four follow-ups above in the order listed.\n\nVERIFICATION: VERIFIED"
+  }
+}

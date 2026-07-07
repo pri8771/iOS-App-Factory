@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Overland Nav",
+    "slug": "overland-nav",
+    "category": "Navigation",
+    "promise": "Off-grid overlanding navigation with fuel/water/service-stop range planning and offline vector maps",
+    "targetUser": "Remote road-tripper/overlander planning routes with no cell signal",
+    "mechanic": "vehicle logistics + offline routing",
+    "build": true,
+    "one_sentence_promise": "Off-grid overlanding navigation with fuel/water/service-stop range planning and offline vector maps",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

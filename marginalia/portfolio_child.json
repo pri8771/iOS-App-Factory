@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp6",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Marginalia",
+    "slug": "marginalia",
+    "category": "creative",
+    "tagline": "On-device LLM remixes a user's own journal text into generative typographic poster art.",
+    "target_user": "People who journal but never do anything with it.",
+    "build": true,
+    "open_risks": [
+      "Uniqueness vs. Proof flagged as unverified."
+    ],
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

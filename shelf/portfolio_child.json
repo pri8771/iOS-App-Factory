@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Shelf",
+    "slug": "shelf",
+    "category": "Photo & Video",
+    "promise": "Batch background-removal and consistent cropping for resale listing photos",
+    "targetUser": "Poshmark/Depop/eBay resellers shooting high item volume",
+    "build": true,
+    "one_sentence_promise": "Batch background-removal and consistent cropping for resale listing photos",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

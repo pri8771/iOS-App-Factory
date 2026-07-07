@@ -1,0 +1,408 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffold + CueKeeperEntitlements package + App Group + negative-import gate",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CueKeeper.xcodeproj/project.pbxproj",
+        "CueKeeper/App/CueKeeper.entitlements",
+        "CueKeeperEntitlements/Package.swift",
+        "CueKeeperEntitlements/Sources/CueKeeperEntitlements/.gitkeep"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Single app target + CueKeeperEntitlements local package build clean",
+        "App Group container id defined and attached to the app target's entitlements",
+        "A throwaway 'import CueKeeperEntitlements' added inside a stub UI/LiveRun/ file causes a build failure, then is removed \u2014 proof captured in commit message"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Core: Event + Cue",
+      "owner_lane": "data_domain",
+      "files": [
+        "CueKeeper/Core/Event.swift",
+        "CueKeeper/Core/Cue.swift",
+        "CueKeeperTests/CoreTests/EventCueTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Event and Cue are Sendable, Codable, compile under Swift 6 strict concurrency",
+        "Cue.duration == 0 is valid ('instant' cue)",
+        "backupTargetCueID stored as UUID, never index",
+        "Round-trip Codable test passes via Swift Testing"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Core: ActionLogEntry + EventLog",
+      "owner_lane": "data_domain",
+      "files": [
+        "CueKeeper/Core/ActionLogEntry.swift",
+        "CueKeeper/Core/EventLog.swift",
+        "CueKeeperTests/CoreTests/EventLogTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "ActionLogEntry cases carry both wall-clock Date and monotonic uptime",
+        "EventLog is append-only in design intent (no truncation API exposed)",
+        "Codable round-trip test passes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Core: ClockProviding + SystemClock",
+      "owner_lane": "data_domain",
+      "files": [
+        "CueKeeper/Core/ClockProviding.swift",
+        "CueKeeper/Core/SystemClock.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "ClockProviding protocol has now()/uptime() with no default implementation leaking real time",
+        "SystemClock is the only production conformance; tests use a fake conformance"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Core: LiveRunProjection + LiveRunEngine",
+      "owner_lane": "data_domain",
+      "files": [
+        "CueKeeper/Core/LiveRunProjection.swift",
+        "CueKeeper/Core/LiveRunEngine.swift",
+        "CueKeeperTests/CoreTests/LiveRunEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "LiveRunEngine.project is a pure static function: (Event, EventLog, ClockProviding) -> LiveRunProjection, no side effects",
+        "Swift Testing @Test(arguments:) suite is green for: hold-rebase + drift reset, undo-after-skip, undo-after-jump-to-backup, jump-to-backup pointer relocation (skipped cues stay visible), zero-duration cue handling, clock-jump threshold detection, last-cue terminal states for all four controls, hold-on-last-cue-unresolved staying on-hold",
+        "LiveRunProjection is Equatable"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Core: EventStatus + EventManifest",
+      "owner_lane": "data_domain",
+      "files": [
+        "CueKeeper/Core/EventStatus.swift",
+        "CueKeeper/Core/EventManifest.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "EventStatus is derived, never stored as an independent flag anywhere in Core",
+        "EventManifest.activeLiveEventID is documented as a hint requiring re-projection before trust"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Persistence: EventStore actor, manifest, atomic writes, corruption isolation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CueKeeper/Persistence/EventStoring.swift",
+        "CueKeeper/Persistence/EventStore.swift",
+        "CueKeeper/Persistence/PersistenceError.swift",
+        "CueKeeper/Persistence/AppGroupContainer.swift",
+        "CueKeeperTests/PersistenceTests/EventStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "All writes are temp-file-then-atomic-rename",
+        "resolveActiveLiveEvent() re-projects the log via LiveRunEngine.project before trusting the manifest pointer",
+        "Per-event corruption quarantines one row; manifest corruption is a distinct, worse app-root error path",
+        "Round-trip and corruption tests green",
+        "A test reads back the actual file-protection attribute on disk and asserts .completeUntilFirstUserAuthentication \u2014 not assumed from config"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "ClockJumpDetector",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CueKeeper/Core/ClockJumpDetector.swift",
+        "CueKeeperTests/CoreTests/ClockJumpDetectorTests.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Pure function taking previous/current wall+uptime and a tolerance, returns Bool",
+        "Table-driven Swift Testing cases cover both a real clock jump and normal small drift not falsely flagging"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "NotificationScheduler with windowed scheduling",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CueKeeper/Notifications/NotificationScheduler.swift",
+        "CueKeeperTests/ServicesTests/NotificationSchedulerTests.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Scheduled window capped at next 20 cues or 2-hour lookahead, whichever is smaller",
+        "rescheduleAll cancels and reschedules only that window, not the full remaining tail, on every mutating action",
+        "Requests keyed by eventID+cueID",
+        ".timeSensitive interruption level set on every request",
+        "Test asserts pending-request count stays well under the 64 OS ceiling for a 40-cue event"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "HapticsService + HapticPattern",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CueKeeper/Haptics/HapticPattern.swift",
+        "CueKeeper/Haptics/HapticsService.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "HapticsService explicitly marked @MainActor",
+        "Four distinguishable patterns: advance, hold, skip, contingencyReveal",
+        "Documented call-contract: await any persistence write first, then hop to main to fire the haptic \u2014 never called from off-actor code"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "EntitlementService + EntitlementResult (CueKeeperEntitlements package)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CueKeeperEntitlements/Sources/CueKeeperEntitlements/EntitlementResult.swift",
+        "CueKeeperEntitlements/Sources/CueKeeperEntitlements/EntitlementService.swift",
+        "CueKeeperEntitlements/Tests/CueKeeperEntitlementsTests/EntitlementServiceTests.swift",
+        "CueKeeper/Configuration.storekit"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "checkEntitlement() races Transaction.currentEntitlements against a 2s Task.sleep timeout",
+        "Timeout and any unverifiable state map to .unverifiable, treated identically to .free everywhere downstream",
+        "Cache refreshed via Transaction.updates at launch/foreground",
+        "Local .storekit config drives a test proving fail-open behavior on timeout"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "AccessibilityAnnouncer utility",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "CueKeeper/Polish/AccessibilityAnnouncer.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Thin wrapper around UIAccessibility.post(.announcement:), no dependency on any console-specific type",
+        "Standalone new file only \u2014 does not edit any file owned by another lane",
+        "Available early enough that T-016's undo-banner/clock-warning announcements can call it directly rather than inlining the same logic"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "AppPhase + AppCoordinator root routing",
+      "owner_lane": "primary_ui",
+      "files": [
+        "CueKeeper/App/CueKeeperApp.swift",
+        "CueKeeper/UI/Shared/AppPhase.swift",
+        "CueKeeper/UI/Shared/AppCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Root is a phase switch (.loadingPersistence/.console/.home), never a NavigationStack redirect",
+        "bootstrap() resolves the active live event via EventStore before setting phase \u2014 never renders Home first and redirects",
+        "Force-quit mid-cue + relaunch lands directly in the console with correct projected state",
+        "Attempting a second live run surfaces the resume-or-end conflict rather than silently starting one"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Creation Flow: Home",
+      "owner_lane": "primary_ui",
+      "files": [
+        "CueKeeper/UI/CreationFlow/HomeView.swift",
+        "CueKeeper/UI/CreationFlow/HomeViewModel.swift"
+      ],
+      "depends_on": [
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "True-first-launch-empty, later-zero-events, populated-list, live-event-present, and entitlement-blocked-at-creation states all render distinctly",
+        "Live-event-present state demotes other rows and routes taps to the conflict dialog instead of Builder",
+        "This is the only primary_ui file group allowed to import CueKeeperEntitlements"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Creation Flow: Builder + Cue Edit (including its own accessibility)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "CueKeeper/UI/CreationFlow/BuilderView.swift",
+        "CueKeeper/UI/CreationFlow/CueEditSheet.swift",
+        "CueKeeper/UI/CreationFlow/DurationStepper.swift",
+        "CueKeeper/UI/CreationFlow/BackupTargetPicker.swift"
+      ],
+      "depends_on": [
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Full CRUD: add/edit/delete/duplicate/drag-reorder, seeded-sample and blank-empty states both render via the same empty-state prompt component",
+        "Deleting a cue that is another cue's backup target triggers an explicit confirmation dialog, never a silent orphan or a permanent block",
+        "Negative duration blocked inline as the stepper moves",
+        "Independently-timed (not self-timed) build-to-ready pass measured under two minutes",
+        "Drag-reorder ships explicit VoiceOver 'Move up'/'Move down' custom actions alongside onMove, written as part of this same task \u2014 not a separate later pass on this file",
+        "Layout holds at maximum Dynamic Type without clipping or truncating"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Live Console + Completion (including its own accessibility)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "CueKeeper/UI/LiveRun/LiveConsoleView.swift",
+        "CueKeeper/UI/LiveRun/LiveConsoleViewModel.swift",
+        "CueKeeper/UI/LiveRun/CurrentCueCard.swift",
+        "CueKeeper/UI/LiveRun/TickingNumeral.swift",
+        "CueKeeper/UI/LiveRun/NextCueStrip.swift",
+        "CueKeeper/UI/LiveRun/DriftIndicatorPill.swift",
+        "CueKeeper/UI/LiveRun/ClockWarningBanner.swift",
+        "CueKeeper/UI/LiveRun/ControlBar.swift",
+        "CueKeeper/UI/LiveRun/ContingencyPanel.swift",
+        "CueKeeper/UI/LiveRun/UndoBanner.swift",
+        "CueKeeper/UI/LiveRun/CompletionView.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-005",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "View bodies read only LiveRunProjection, never the raw Event/EventLog",
+        "TickingNumeral takes only the two Dates it needs so its per-second tick never invalidates the control bar's identity",
+        "No file in this task's list imports CueKeeperEntitlements \u2014 build error if attempted, verified structurally not just by review",
+        "Contingency reveal expands in-place from the control bar, never a sheet; auto-collapses on any advance/hold/skip tap",
+        "Completion screen shows a real computed final drift number and completed-vs-skipped summary",
+        "VoiceOver reading order is deliberate: current cue -> elapsed/remaining -> drift/hold -> next cue -> controls, written as part of this same task",
+        "Every control has a consequence-specific label ('Skip to next cue', never 'Button')",
+        "Undo banner does not auto-dismiss on a fixed timer when isVoiceOverRunning is true and announces its appearance via AccessibilityAnnouncer",
+        "Console contrast verified in its fixed-dark state, especially warning/hold, not eyeballed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Interruption surfaces: live-run conflict, notification priming, paywall sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "CueKeeper/UI/Shared/LiveRunConflictDialog.swift",
+        "CueKeeper/UI/Shared/NotificationPrimingPrompt.swift",
+        "CueKeeper/UI/Shared/PaywallSheet.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Notification permission requested contextually at first Start Live tap, never during onboarding; denial never blocks the workflow",
+        "Paywall sheet shows success / fail-open-to-free / brief inline loading (<2s) states, fail-open never looks like an error",
+        "Entitlement gating fires only at the two creation-time boundaries, never mid-run"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "seedSampleEventForUITesting + XCUITest tap-count suite",
+      "owner_lane": "primary_ui",
+      "files": [
+        "CueKeeper/UI/Shared/seedSampleEventForUITesting.swift",
+        "CueKeeperUITests/LiveConsoleTapCountTests.swift",
+        "CueKeeperUITests/ColdLaunchRoutingTests.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "-uiTestSeedSampleEvent launch argument drops the app directly into a known live-console state",
+        "XCUITest actually counts taps and asserts advance/hold/skip/contingency-jump are each <=2 taps from the default running state",
+        "Cold-launch-into-active-run and one-live-run-conflict have explicit UI test coverage"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "SnapshotPrivacyGuard + TemplateExporter (should-have)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "CueKeeper/Polish/SnapshotPrivacyGuard.swift",
+        "CueKeeper/Polish/TemplateExporter.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "SnapshotPrivacyGuard is attempted only after core hardening (T-016/T-018) is solid; if cut for time, FINAL_REPORT.md must state this as an explicit yes/no line, not an open question",
+        "TemplateExporter strips contingencyNote and role free text by default, includeNotes is an explicit opt-in",
+        "This task adds new, standalone files only \u2014 it does not edit any file already owned by primary_ui"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Physical-device verification checklist + final report assembly",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "cuekeeper/VERIFICATION.md",
+        "cuekeeper/FINAL_REPORT.md"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-010",
+        "T-017",
+        "T-018",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Checklist executed on a real device: lock/unlock mid-cue, force-quit+relaunch, full airplane-mode pass across build/run/recover, deliberate clock-change warning, denied-notification run, four haptic patterns confirmed distinct, VoiceOver reorder + undo persistence, max Dynamic Type",
+        "Final report states the enumerated, measured tap counts for advance/hold/skip/contingency-jump, answering the invalidation criterion directly",
+        "Any should-have item cut under time pressure (Live Activities, Widgets, App Intents, snapshot blur, template export) is named explicitly, never silently dropped"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

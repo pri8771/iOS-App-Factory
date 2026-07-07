@@ -1,0 +1,422 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Package scaffold and shared domain types",
+      "owner_lane": "data_domain",
+      "files": [
+        "LongwaveSimulation/Package.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/Coordinate.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/RegionBounds.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/RegionID.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/RelayType.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/Relay.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/DemandZone.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/RegionTopology.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/HealthLevel.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/RelayMetric.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/NetworkDerivedState.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/ClockProviding.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/ElapsedResolution.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/OfflinePolicy.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/OfflineSummary.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/PlacementError.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/PlacementOutcome.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/SimulationEngine.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/MilestoneState.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/HistoryEntry.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/ProHistoryBuffer.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/EntitlementState.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/RegionAccessState.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/GameSnapshot.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/ScreenPosition.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "swift build succeeds with zero warnings treated as errors",
+        "every type/signature matches the frozen tech_specs interfaces-json exactly, including the .engineNotReady PlacementError case",
+        "empty LongwaveSimulationTests target runs",
+        "no SwiftUI/UIKit import anywhere in this package",
+        "no direct Date() calls anywhere in this package",
+        "on completion, post the one-sentence contract: which signatures are now frozen for services_utilities and primary_ui to build against"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Interference, throughput, economy math, and validate()",
+      "owner_lane": "data_domain",
+      "files": [
+        "LongwaveSimulation/Sources/LongwaveSimulation/DefaultSimulationEngine.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/Interference.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/Validate.swift",
+        "LongwaveSimulation/Sources/LongwaveSimulation/SeedContent.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "interference is continuous with a minimum-distance floor: no NaN/Infinity at close range, no step-function cliffs",
+        "identical/near-identical coordinate placement is cleanly rejected via PlacementError, never crashes",
+        "exactly one currency type exists anywhere in the model",
+        "seed content defines the free region's static/finite demand zones at fixed coordinates",
+        "validate(_:) rejects overlapping/out-of-bounds coordinates, negative currency, and unrecognized schemaVersion"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Closed-form offline resolution and clock policy",
+      "owner_lane": "data_domain",
+      "files": [
+        "LongwaveSimulation/Sources/LongwaveSimulation/OfflineResolution.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "resolveOffline implements earnings = steadyStateRate x min(elapsed, cap) exactly, clock always injected via ClockProviding",
+        "two-threshold rule implemented: sub-drift deltas floor silently to zero, deltas beyond the tier cap clamp with wasCapped=true, everything between is plain math",
+        "no iterative tick-by-tick catch-up loop anywhere in this function"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "LongwaveSimulation full deterministic test suite",
+      "owner_lane": "data_domain",
+      "files": [
+        "LongwaveSimulation/Tests/LongwaveSimulationTests/InterferenceTests.swift",
+        "LongwaveSimulation/Tests/LongwaveSimulationTests/OfflineResolutionTests.swift",
+        "LongwaveSimulation/Tests/LongwaveSimulationTests/ValidateTests.swift",
+        "LongwaveSimulation/Tests/LongwaveSimulationTests/FirstSessionFixtureTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "8-hour and 400+ day simulated offline gaps both return finite, formula-matching values via injected fake clock",
+        "clock-drift floor/cap thresholds each have a passing test",
+        "fixture test proves a small relay move produces a small derived-state delta",
+        "fixture test proves placing a second relay near a first visibly degrades health/throughput",
+        "all tests run with zero simulator dependency",
+        "on merge to longwave/integration, post the fixture data and expected outputs services_utilities and primary_ui can build against"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "SnapshotStoring protocol and atomic SnapshotStore",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Longwave/Services/Persistence/SnapshotStoring.swift",
+        "Longwave/Services/Persistence/SnapshotStore.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "writes are temp-file-then-rename, never write-in-place",
+        "lastKnownGood.json promotion is gated by calling validate(_:) first, decode success alone is not sufficient",
+        "corrupted files are preserved under a timestamped quarantine filename before falling back",
+        "load() returns LoadResult carrying a RecoveryNotice whenever recovery occurred, never silently swallowed",
+        "markLastActive(at:) is called from scenePhase-to-background wiring, not only clean termination"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "EntitlementProviding, StoreKitEntitlementService, resolveRegionAccess, privacy manifest",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Longwave/Services/Commerce/EntitlementProviding.swift",
+        "Longwave/Services/Commerce/StoreKitEntitlementService.swift",
+        "Longwave/Services/Commerce/ResolveRegionAccess.swift",
+        "Longwave/Resources/Longwave.storekit",
+        "Longwave/PrivacyInfo.xcprivacy"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "either the lifetime product ID or the subscription satisfies Pro, never hardcoded to just one",
+        "Transaction.updates listener task starts at construction time, not lazily on first refresh()",
+        "entitlement reads only from StoreKit's local transaction cache, never blocks on a live network call",
+        "resolveRegionAccess is the single named function producing RegionAccessState from EntitlementState plus hasLocalRegionTwoData(), with a test matrix covering all four combinations",
+        "restoredButLocallyEmpty is derived from local region-two save presence, never from receipt/entitlement presence alone",
+        "PrivacyInfo.xcprivacy declares required-reason API usage for UserDefaults and file-timestamp access covering both this file's StoreKit caching and T-005's persistence layer"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "HistoryRetentionService",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Longwave/Services/HistoryRetentionService.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "append() enforces retentionLimit as a hard cap regardless of entitlement duration",
+        "history entries are summary-grade (start/end/health/bottlenecks), never raw per-tick data",
+        "buffer is retained (hidden, not deleted) when entitlement lapses"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Services integration test suite",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LongwaveTests/ServiceTests/SnapshotStoreStressTests.swift",
+        "LongwaveTests/ServiceTests/EntitlementMatrixTests.swift",
+        "LongwaveTests/ServiceTests/ResolveRegionAccessTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "20 consecutive save/relaunch cycles including one force-quit mid-placement and one mid-upgrade produce zero corruption/duplication/silent reset, run against a real temp-directory FileManager",
+        "corrupted-save quarantine-then-rollback verified against a real on-disk broken file, not a mock",
+        "all four entitlement states exercised against the real .storekit config, including restore in airplane mode",
+        "on merge to longwave/integration, post which concrete SnapshotStoring/EntitlementProviding implementations and failure-mode fixtures primary_ui can now build against"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Xcode project scaffold, NetworkEngine, and action/presentation contracts",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Longwave.xcodeproj",
+        "Longwave/Engine/NetworkEngine.swift",
+        "Longwave/Engine/NetworkActioning.swift",
+        "Longwave/Engine/PresentedSurface.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "project uses file-system-synchronized groups for the app target, package, and both test targets so lanes never hand-edit project.pbxproj after this task",
+        "project.pbxproj becomes a forbidden-edit zone for every other lane from this point forward; new targets/schemes route through a named request to this lane",
+        "attemptPlace/attemptMove/attemptRetune/attemptUpgrade are fully synchronous end-to-end, no await between validate and mutate",
+        "each attempt* method returns .engineNotReady before bootstrap() completes rather than mutating state or crashing",
+        "milestone flags (firstRelayPlaced, firstInterferenceResolved, third goal) are recomputed automatically and idempotently (latch false-to-true only) after every successful attempt* call",
+        "fixture initializer produces a fully usable NetworkEngine with no real FileManager/StoreKit access, for Previews/XCTest/XCUITest",
+        "primary_ui becomes the standing integrator for all milestone merges from longwave/integration into main from this point forward"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "App entry point and scene-phase lifecycle wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Longwave/App/LongwaveApp.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "bootstrap() runs on launch and never blocks first frame render on a live network call",
+        "handleScenePhaseChange writes lastActiveAt via markLastActive on transition to .background",
+        "no BackgroundTasks / BGTaskScheduler usage anywhere"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Canvas render surface and map hit-testing/accessibility overlay",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Longwave/UI/Rendering/NetworkCanvasModel.swift",
+        "Longwave/UI/Rendering/NetworkCanvas.swift",
+        "Longwave/UI/Rendering/MapInteractionNode.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "the live signal/coverage/interference layer is one Canvas driven by one TimelineView(.animation) fed by plain structs, never a ForEach of individually animated shapes",
+        "MapInteractionNode uses the exact same screenPosition conversion as the Canvas renderer so the visible relay dot and its tap target never drift apart",
+        "renders correctly at at least one small and one large region size without dropped frames in a manual check"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Map screen and build/inspect bottom sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Longwave/UI/Screens/MapScreen.swift",
+        "Longwave/UI/Screens/BuildInspectSheet.swift",
+        "Longwave/UI/Components/HealthMeter.swift",
+        "Longwave/UI/Components/CurrencyChip.swift",
+        "Longwave/UI/Components/DeltaPreviewChip.swift",
+        "Longwave/UI/Components/RelayNodeView.swift",
+        "Longwave/UI/Components/CoverageOverlay.swift",
+        "Longwave/UI/Components/InterferenceOverlay.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "every value shown (health, throughput, currency) is read from NetworkDerivedState, never a second/shadow calculation",
+        "empty, healthy, strained, choking, placement-preview, selected-relay, offline-return, and recovery-banner states are all implemented and reachable",
+        "invalid-placement feedback is persistent, not a flash, and includes a stated reason",
+        "health/interference indicators carry a redundant non-color signal",
+        "insufficient-funds state disables the confirm action with a stated reason rather than a dead tap"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Progression, paywall, and settings screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Longwave/UI/Screens/ProgressionScreen.swift",
+        "Longwave/UI/Screens/PaywallScreen.swift",
+        "Longwave/UI/Screens/SettingsScreen.swift",
+        "Longwave/UI/Components/OfflineSummaryCard.swift",
+        "Longwave/UI/Components/MilestoneChecklistRow.swift",
+        "Longwave/UI/Components/LockedProCard.swift",
+        "Longwave/UI/Components/RestoreStatusBanner.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "progression screen's health value and offline-earnings figure come from the same NetworkDerivedState/OfflineSummary the map uses, verified equal in a test, not a second computation",
+        "all four Pro entitlement UI states (never-purchased, active, restored-but-locally-empty, lapsed-frozen) are each a distinct, implemented visual state",
+        "restore purchases has its own loading/success/error states",
+        "from cold start or resume-with-offline-earnings, the next actionable goal is identifiable without opening a second screen"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Engine and UI integration test suite",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LongwaveTests/EngineTests/AtomicityTests.swift",
+        "LongwaveTests/EngineTests/MilestoneLatchTests.swift",
+        "LongwaveUITests/DerivedStateSourceTests.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-011",
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "10 concurrent attemptPlace/attemptUpgrade calls against a fixture engine produce exactly one currency deduction",
+        "attemptPlace called before bootstrap() resolves returns .engineNotReady, does not crash or mutate state",
+        "resolveRegionAccess(.notOwned, false) renders lockedUpsell end-to-end through the real UI, not just the pure function",
+        "milestone flags flip automatically without a separate explicit call and never un-flip on a later action"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "VoiceOver custom actions for relays and demand zones",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Longwave/Accessibility/AccessibilityRelayActionFactory.swift",
+        "Longwave/Accessibility/VoiceOverDelta.swift"
+      ],
+      "depends_on": [
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "move N/S/E/W, retune up/down, upgrade, and commit/cancel are all exposed as custom actions routed through the same NetworkActioning entry points as drag gestures, never a separate calculation path",
+        "each action speaks the projected health/output delta from the same PlacementOutcome the visual delta chip uses, before commit",
+        "XCUITest asserts the actions exist and route correctly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Recovery messaging wired into map and settings",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Longwave/Accessibility/RecoveryMessage.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "every RecoveryNotice case maps to a calm, plain-language string, never raw technical failure text",
+        "recovery banner appears on the map only when a RecoveryNotice is present, and the same message is available on the settings screen"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Dynamic Type and non-color signaling audit",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LongwaveUITests/AccessibilityAuditTests.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "at largest accessibility Dynamic Type size, the build/inspect sheet and all screens neither clip nor break any control",
+        "no health/interference/error state anywhere conveys meaning by color alone",
+        "any fix required in a primary_ui-owned file is delivered as a named patch reviewed and merged by the primary_ui owner, never a direct commit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Final hardening: stress re-run, atomicity, performance",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LongwaveTests/HardeningTests.swift",
+        "LongwaveUITests/PerformanceTests.swift"
+      ],
+      "depends_on": [
+        "T-014",
+        "T-015",
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "20-cycle save/relaunch stress re-run against the finished app produces zero corruption/duplication/silent reset",
+        "rapid double-tap on upgrade/placement actions never double-spends",
+        "Canvas render surface holds acceptable frame pacing with a full region of relays placed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Scripted first-session walkthrough and ship gate",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LongwaveUITests/FirstSessionWalkthroughTests.swift",
+        "docs/walkthrough_script.md"
+      ],
+      "depends_on": [
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "walkthrough verifies, using must-have features only: first signal flow success, visible self-inflicted interference from a second relay, recovery via a smarter move, and a legible fourth objective",
+        "if the fourth objective doesn't emerge from must-haves alone, the milestone-gated second demand zone is promoted to must-have and T-002's seed content is updated accordingly before ship",
+        "one real manual VoiceOver pass is completed and its result recorded, not just XCUITest action-routing checks"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

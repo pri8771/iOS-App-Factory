@@ -1,0 +1,577 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Tank",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Tank { var id: UUID; var name: String; var netSystemVolume: Double; var volumeUnit: VolumeUnit; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Main-actor model; UUID uniqueness enforced in repository layer."
+    },
+    {
+      "name": "WaterTest",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class WaterTest { var id: UUID; var tank: Tank?; var parameter: WaterParameter; var value: Double; var alkUnit: AlkUnit?; var timestamp: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Raw reading; immutable-ish by convention after save."
+    },
+    {
+      "name": "DosingProduct",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class DosingProduct { var id: UUID; var name: String; var parameter: WaterParameter; var concentration: Double; var concentrationUnitLabel: String; var isSeedDefault: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Editable in recommendation flow; captured in DoseTrace."
+    },
+    {
+      "name": "DoseRecommendationSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class DoseRecommendationSnapshot { var id: UUID; var tankId: UUID; var testId: UUID; var encodedTrace: Data; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted immutable recommendation artifact; never recomputed when shown."
+    },
+    {
+      "name": "AppliedDose",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class AppliedDose { var id: UUID; var tankId: UUID; var parameter: WaterParameter; var recommendationSnapshotId: UUID?; var amount: Double; var productId: UUID; var timestamp: Date; var note: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Explicit user action log; drives same-day suppression."
+    },
+    {
+      "name": "LivestockSpecies",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class LivestockSpecies { var id: UUID; var name: String; var bioloadPoints: Double; var aggressionTier: Int; var allelopathyTier: Int; var isSeed: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Core roster and compatibility graph vertex data."
+    },
+    {
+      "name": "TankRosterEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class TankRosterEntry { var id: UUID; var tank: Tank?; var species: LivestockSpecies?; var dateAdded: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Current tank occupants for live compatibility checks."
+    },
+    {
+      "name": "CompatibilityRuleEdge",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class CompatibilityRuleEdge { var id: UUID; var speciesAId: UUID; var speciesBId: UUID; var mechanism: CompatibilityMechanism; var severityDetail: String }",
+      "owning_lane": "data_domain",
+      "notes": "Seed/seeded pairwise graph edge with mechanism rationale."
+    },
+    {
+      "name": "CompatibilityDecision",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class CompatibilityDecision { var id: UUID; var tankId: UUID; var candidateSpeciesName: String; var rosterNamesSnapshot: [String]; var riskTier: RiskTier; var mechanismSummaries: [String]; var timestamp: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Audit record captured only on explicit add action."
+    },
+    {
+      "name": "ReminderPreference",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ReminderPreference { var id: UUID; var tankId: UUID; var isEnabled: Bool; var cadenceDays: Int; var scheduledNotificationId: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Local reminder settings; no hard dependency on notification grant."
+    },
+    {
+      "name": "WaterParameter",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum WaterParameter: String, Codable, CaseIterable { case calcium, magnesium, alkalinity, nitrate, phosphate }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical parameter identity used across tests, solver, UI status, and charts."
+    },
+    {
+      "name": "AlkUnit",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AlkUnit: String, Codable { case dKH, meqPerL, ppmCaCO3 }",
+      "owning_lane": "data_domain",
+      "notes": "Explicit alkalinity units for user entry and solver conversion."
+    },
+    {
+      "name": "VolumeUnit",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum VolumeUnit: String, Codable { case gallons, liters }",
+      "owning_lane": "data_domain",
+      "notes": "Tank volume unit with deterministic conversion helpers in domain."
+    },
+    {
+      "name": "DoseTrace",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DoseTrace: Codable, Equatable, Sendable, Identifiable { let id: UUID; let parameter: WaterParameter; let currentValue: Double; let targetValue: Double; let delta: Double; let alkUnit: AlkUnit?; let productName: String; let productConcentration: Double; let netSystemVolume: Double; let volumeUnit: VolumeUnit; let computedDoseAmount: Double; let doseUnitLabel: String; let capApplied: Bool; let capReason: String?; let advisories: [AdvisoryItem]; let computedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Frozen immutable recommendation payload persisted to snapshot."
+    },
+    {
+      "name": "AdvisoryItem",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AdvisoryItem: Codable, Equatable, Sendable { case capApplied(reason: String); case alreadyAppliedToday(amount: Double, unitLabel: String); case multiParameterStagger(parameters: [WaterParameter]); case notModeled(parameter: WaterParameter) }",
+      "owning_lane": "data_domain",
+      "notes": "Maps to recommendation advisory rows."
+    },
+    {
+      "name": "DoseComputationResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DoseComputationResult: Equatable, Sendable { case trace(DoseTrace); case notModeled(parameter: WaterParameter) }",
+      "owning_lane": "data_domain",
+      "notes": "Explicitly handles unsupported NO3/PO4 dosing path."
+    },
+    {
+      "name": "DosingSolver",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum DosingSolver { static func computeRecommendation(input: DoseValidationInput, dosesAppliedToday: [AppliedDose], otherParametersFlaggedToday: [WaterParameter]) throws -> DoseComputationResult }",
+      "owning_lane": "data_domain",
+      "notes": "Pure deterministic engine with same-day reconciliation and conservative caps."
+    },
+    {
+      "name": "SpeciesInput",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SpeciesInput: Equatable, Sendable { let id: UUID; let name: String; let bioloadPoints: Double; let aggressionTier: Int; let allelopathyTier: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Pure compatibility evaluation input derived from roster/species models."
+    },
+    {
+      "name": "CompatibilityMechanism",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CompatibilityMechanism: String, Codable { case aggression, allelopathy, bioload }",
+      "owning_lane": "data_domain",
+      "notes": "Named mechanism rows in compatibility reasoning."
+    },
+    {
+      "name": "RiskTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RiskTier: String, Codable { case clean, caution, highRisk }",
+      "owning_lane": "data_domain",
+      "notes": "Compatibility output classification used by UI and decision copy."
+    },
+    {
+      "name": "MechanismFinding",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MechanismFinding: Codable, Equatable, Sendable { let mechanism: CompatibilityMechanism; let triggered: Bool; let detail: String; let involvedSpeciesNames: [String] }",
+      "owning_lane": "data_domain",
+      "notes": "Named mechanism evidence for explainability and audit."
+    },
+    {
+      "name": "CompatibilityResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CompatibilityResult: Codable, Equatable, Sendable { let riskTier: RiskTier; let mechanismFindings: [MechanismFinding] }",
+      "owning_lane": "data_domain",
+      "notes": "Live compatibility result used by UI; persisted separately by decision write."
+    },
+    {
+      "name": "CompatibilityEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum CompatibilityEngine { static func evaluate(candidate: SpeciesInput, currentRoster: [SpeciesInput], pairwiseRules: [CompatibilityRuleEdge], tankVolume: Double, volumeUnit: VolumeUnit) -> CompatibilityResult }",
+      "owning_lane": "data_domain",
+      "notes": "Pure evaluator: pairwise + additive bioload."
+    },
+    {
+      "name": "ParameterStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ParameterStatus { case nominal, flagged, noData; static func evaluate(latestValue: Double?, targetRange: ClosedRange<Double>) -> ParameterStatus }",
+      "owning_lane": "data_domain",
+      "notes": "Dashboard-only O(1) status check; must never call DosingSolver."
+    },
+    {
+      "name": "ReefDefaults",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ReefDefaults { static func targetRange(for parameter: WaterParameter) -> ClosedRange<Double>; static func seedProduct(for parameter: WaterParameter) -> DosingProduct }",
+      "owning_lane": "data_domain",
+      "notes": "Fallback defaults used before user edits target/product."
+    },
+    {
+      "name": "DeletePlan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DeletePlan: Sendable { let dependentWaterTestCount: Int; let dependentDoseSnapshotCount: Int; let dependentAppliedDoseCount: Int; let dependentCompatibilityDecisionCount: Int; let dependentRosterEntryCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Proactive destructive-delete dependency summary."
+    },
+    {
+      "name": "TankRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol TankRepository { func createTank(name: String, volume: Double, unit: VolumeUnit) throws -> Tank; func deletePlan(for tank: Tank) -> DeletePlan; func delete(tank: Tank) throws }",
+      "owning_lane": "data_domain",
+      "notes": "Plan-first deletion contract; main-actor owned models."
+    },
+    {
+      "name": "WaterTestRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol WaterTestRepository { func saveTest(tank: Tank, parameter: WaterParameter, value: Double, alkUnit: AlkUnit?, timestamp: Date) throws -> WaterTest; func latestTest(for tank: Tank, parameter: WaterParameter) throws -> WaterTest?; func tests(for tank: Tank, parameter: WaterParameter) throws -> [WaterTest]; func deletePlan(for test: WaterTest) -> DeletePlan; func delete(test: WaterTest) throws }",
+      "owning_lane": "data_domain",
+      "notes": "Persistence boundary for all test reads/saves."
+    },
+    {
+      "name": "DoseRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol DoseRepository { func computeAndPersistRecommendation(test: WaterTest, tank: Tank, product: DosingProduct) throws -> DoseComputationResult; func logAppliedDose(snapshotId: UUID, amount: Double, product: DosingProduct, timestamp: Date, note: String?) throws -> AppliedDose }",
+      "owning_lane": "data_domain",
+      "notes": "Command facade for solver execution and applied-dose writes."
+    },
+    {
+      "name": "LivestockRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol LivestockRepository { func checkCandidate(_ species: LivestockSpecies, in tank: Tank) throws -> CompatibilityResult; func addToRoster(_ species: LivestockSpecies, tank: Tank, decision: CompatibilityResult) throws -> TankRosterEntry }",
+      "owning_lane": "data_domain",
+      "notes": "Live check + append-only decision audit capture at add-time."
+    },
+    {
+      "name": "ModelContainerManager",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ModelContainerManager { static func makeContainer() -> ContainerOutcome }",
+      "owning_lane": "services_utilities",
+      "notes": "Failure-safe container creation with recovery path."
+    },
+    {
+      "name": "SnapshotService",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor final class SnapshotService { static let appGroupID: String; private let writer: SnapshotWriting; init(writer: SnapshotWriting); func updateSnapshot(for tank: Tank, tests: [WaterTest], nextDoseDate: Date?, nextReminderDate: Date?, riskState: WidgetRiskState); func clearSnapshot() }",
+      "owning_lane": "services_utilities",
+      "notes": "Writes widget DTO only at commit points (test/dose/tank/entitlement change)."
+    },
+    {
+      "name": "WidgetSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WidgetSnapshot: Codable, Sendable { let activeTankId: UUID; let lastTestDate: Date?; let nextDoseDate: Date?; let nextReminderDate: Date?; let widgetRiskState: WidgetRiskState }",
+      "owning_lane": "services_utilities",
+      "notes": "Absolute dates only; widget computes freshness at render time."
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementStore { var isSubscribed: Bool { get } func refresh() async; func canAddTank(currentCount: Int) -> Bool; func compatibilityLibraryLimit() -> Int?; func trendHistoryWindowDays() -> Int? }",
+      "owning_lane": "services_utilities",
+      "notes": "Feature gates; free/paid policy logic, no live App Store dependency required in v1."
+    },
+    {
+      "name": "MockEntitlementStore",
+      "kind": "class",
+      "language": "swift",
+      "signature": "final class MockEntitlementStore: EntitlementStore { init(isSubscribed: Bool); var isSubscribedOverride: Bool; var isSubscribed: Bool { get }; func refresh() async; func canAddTank(currentCount: Int) -> Bool; func compatibilityLibraryLimit() -> Int?; func trendHistoryWindowDays() -> Int? }",
+      "owning_lane": "services_utilities",
+      "notes": "Test harness toggling paid state both directions."
+    },
+    {
+      "name": "StoreKitEntitlementStore",
+      "kind": "class",
+      "language": "swift",
+      "signature": "final class StoreKitEntitlementStore: EntitlementStore { init(productIDs: [String]) }",
+      "owning_lane": "services_utilities",
+      "notes": "Local StoreKit-backed entitlement verifier for simulator testing."
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol NotificationScheduler: Sendable { func requestAuthorization() async -> Bool; func authorizationStatus() async -> UNAuthorizationStatus; func scheduleTestReminder(tankId: UUID, dueDate: Date); func cancelReminder(tankId: UUID) }",
+      "owning_lane": "services_utilities",
+      "notes": "Contextual reminder scheduling; denial is non-fatal to core flow."
+    },
+    {
+      "name": "NavigationCoordinator",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class NavigationCoordinator { var selectedTab: AppTab; var dashboardPath: NavigationPath; var testsPath: NavigationPath; var livestockPath: NavigationPath; var settingsPath: NavigationPath; func jumpToDoseContext(parameter: WaterParameter, tankId: UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "Cross-tab navigation control for flagged-card\u2192dose flow."
+    },
+    {
+      "name": "AppTab",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppTab { case dashboard, tests, livestock, settings }",
+      "owning_lane": "primary_ui",
+      "notes": "Four-tab shell after first tank exists."
+    },
+    {
+      "name": "DesignTokens",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum DesignTokens { static let background: Color; static let tealSolid: Color; static let tealGlow: Color; static let coralSolid: Color; static let coralGlow: Color; static let violetSolid: Color; static let violetGlow: Color }",
+      "owning_lane": "primary_ui",
+      "notes": "Two-tier semantic color palette; coral reserved for status only."
+    },
+    {
+      "name": "ContrastValidator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ContrastValidator { static func contrastRatio(foreground: Color, background: Color) -> Double; static func meetsWCAGAA(foreground: Color, background: Color, isLargeText: Bool) -> Bool }",
+      "owning_lane": "polish_resilience",
+      "notes": "Automated token contrast regression."
+    },
+    {
+      "name": "ImportExportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ImportExportService { func exportAllData() throws -> Data; func importData(_ data: Data) throws -> ImportSummary }",
+      "owning_lane": "polish_resilience",
+      "notes": "Local JSON safety-net; strict schema enforcement."
+    },
+    {
+      "name": "ImportSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ImportSummary { let tanksImported: Int; let testsImported: Int; let dosesImported: Int; let rosterEntriesImported: Int; let warnings: [String] }",
+      "owning_lane": "polish_resilience",
+      "notes": "Expose recoverable import outcomes explicitly."
+    },
+    {
+      "name": "AppRootViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor final class AppRootViewModel { var hasTanks: Bool { get }; var loadState: LoadState; var containerOutcome: ContainerOutcome; func bootstrap() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Implements root gate: setup screen first, then tabs, with recovery branch on container failure."
+    },
+    {
+      "name": "LoadState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LoadState: Equatable { case idle, loading(String?), empty(String), success, error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Uniform UI state machine for all core screens."
+    },
+    {
+      "name": "TrendCalculator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TrendCalculator { func trendSlope(_ points: [WaterTest]) -> Double; func noTrendMessage(_ count: Int) -> String }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure chart helper, never used in solver control logic."
+    },
+    {
+      "name": "ContainerOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ContainerOutcome { case ready(ModelContainer); case recoveryNeeded(underlying: Error) }",
+      "owning_lane": "services_utilities",
+      "notes": "Bootstrap contract replacing launch-time force-try."
+    },
+    {
+      "name": "HousekeepingTaskScheduler",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol HousekeepingTaskScheduler: Sendable { func register(); func scheduleIfNeeded(); func handleTask(_ task: BGTask) }",
+      "owning_lane": "services_utilities",
+      "notes": "BGTask as opportunistic precompute only, never correctness source."
+    },
+    {
+      "name": "SnapshotWriting",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SnapshotWriting: Sendable { func write(_ snapshot: WidgetSnapshot) throws; func clear() throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Abstraction for app-group shared widget storage."
+    },
+    {
+      "name": "BrinekeeperApp",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@main struct BrinekeeperApp: App { let containerOutcome: ContainerOutcome }",
+      "owning_lane": "primary_ui",
+      "notes": "Bootstrap into recovery or root flow with container outcome."
+    },
+    {
+      "name": "RootView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RootView: View { @Query private var tanks: [Tank] }",
+      "owning_lane": "primary_ui",
+      "notes": "Root gate: setup when empty, main tabs when seeded."
+    },
+    {
+      "name": "WidgetRiskState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum WidgetRiskState: String, Codable, CaseIterable { case ok, warning, blocked }",
+      "owning_lane": "services_utilities",
+      "notes": "Compact widget aggregate status derived from active tank state."
+    },
+    {
+      "name": "RecoveryView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecoveryView: View { let error: Error; var onStartFresh: () -> Void; var onExport: () -> Void }",
+      "owning_lane": "primary_ui",
+      "notes": "Shows export/restart actions after container failure."
+    },
+    {
+      "name": "DoseValidationInput",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DoseValidationInput { let parameter: WaterParameter; let currentValue: Double; let currentUnit: AlkUnit?; let targetValue: Double; let tankVolume: Double; let volumeUnit: VolumeUnit; let product: DosingProduct }",
+      "owning_lane": "data_domain",
+      "notes": "Normalization point before solver execution."
+    },
+    {
+      "name": "DoseComputationError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DoseComputationError: Error { case invalidValue(String); case missingTarget; case invalidUnits; case unsafeToCompute }",
+      "owning_lane": "data_domain",
+      "notes": "Deterministic solver failure surface; each maps to correction messaging."
+    },
+    {
+      "name": "SeedCatalogRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SeedCatalogRepository { func fetchSeedSpecies() throws -> [LivestockSpecies]; func fetchCompatibilityEdges() throws -> [CompatibilityRuleEdge] }",
+      "owning_lane": "data_domain",
+      "notes": "Static catalog source for initial seed set."
+    },
+    {
+      "name": "ImportExportError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ImportExportError: Error { case invalidFormat; case unsupportedSchemaVersion; case corruptPayload; case partialFailure(details: [String]) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Typed import/export failure contract."
+    },
+    {
+      "name": "AccessibilityAuditService",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum AccessibilityAuditService { static func dynamicTypeContrastPasses() -> Bool }",
+      "owning_lane": "polish_resilience",
+      "notes": "Smoke test guardrail for AA contrast at standard and large text."
+    },
+    {
+      "name": "TankSetupView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TankSetupView: View { @Bindable var coordinator: TankSetupCoordinator }",
+      "owning_lane": "primary_ui",
+      "notes": "Root-gate onboarding; no extra wizard steps."
+    },
+    {
+      "name": "DashboardView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DashboardView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Five-parameter cards using ParameterStatus only."
+    },
+    {
+      "name": "TestsView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TestsView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Log values and push recommendation destination."
+    },
+    {
+      "name": "DoseRecommendationView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DoseRecommendationView: View { let trace: DoseTrace; let readonly: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": "Consumes frozen trace and advisory payload only."
+    },
+    {
+      "name": "ApplyDoseSheet",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ApplyDoseSheet: View { let prefilledAmount: Double; let snapshotId: UUID }",
+      "owning_lane": "primary_ui",
+      "notes": "Explicit save action to create AppliedDose."
+    },
+    {
+      "name": "LivestockView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LivestockView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Roster and candidate-check flow."
+    },
+    {
+      "name": "CompatibilityResultView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CompatibilityResultView: View { let result: CompatibilityResult }",
+      "owning_lane": "primary_ui",
+      "notes": "Displays tier and mechanism rows."
+    },
+    {
+      "name": "SettingsView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SettingsView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Single sectioned settings for tanks, reminders, data, subscription."
+    },
+    {
+      "name": "DestructiveConfirmationSheet",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DestructiveConfirmationSheet: View { let plan: DeletePlan; let onConfirm: () -> Void; let onCancel: () -> Void }",
+      "owning_lane": "primary_ui",
+      "notes": "Render exact dependent counts before confirm."
+    },
+    {
+      "name": "TankSetupCoordinator",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor final class TankSetupCoordinator { var tankName: String; var volumeInput: String; var selectedVolumeUnit: VolumeUnit; func canContinue() -> Bool; func saveTank() async throws }",
+      "owning_lane": "primary_ui",
+      "notes": "Blocking first-run setup with only name and net volume."
+    },
+    {
+      "name": "TrendLineChart",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TrendLineChart: View { let points: [WaterTest]; let parameter: WaterParameter }",
+      "owning_lane": "primary_ui",
+      "notes": "Swift Charts wrapper with reduced-motion fallback."
+    },
+    {
+      "name": "ValidationCorrectionBanner",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ValidationCorrectionBanner: View { let message: String; let field: String }",
+      "owning_lane": "primary_ui",
+      "notes": "Correction-oriented validation messaging."
+    },
+    {
+      "name": "PrimaryButton",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PrimaryButton: View { let title: String; let isEnabled: Bool; let action: () -> Void }",
+      "owning_lane": "primary_ui",
+      "notes": "Consistent 44pt+ hit target button style."
+    }
+  ],
+  "errors": [
+    "block #1 in `interfaces-json` failed JSON parse: Extra data: line 1 column 14024 (char 14023)",
+    "block #10 in `interfaces-json` has no closing fence"
+  ]
+}

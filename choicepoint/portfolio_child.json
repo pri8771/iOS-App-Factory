@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b3",
+  "build": true,
+  "build_priority": 7,
+  "app": {
+    "name": "Choicepoint",
+    "slug": "choicepoint",
+    "category": "Utilities",
+    "one_sentence_promise": "Captures your reasoning and prediction at the moment of a real decision, then reminds you to check whether you were right.",
+    "target_user": "People making recurring, consequential personal or professional decisions who want to improve their judgment over time.",
+    "painful_moment": "Making an important decision, forgetting the reasoning within weeks, and never learning if it was actually a good call.",
+    "why_different": "A judgment-improvement tool, not a habit tracker: timestamped decision-and-prediction capture paired with a scheduled future revisit that surfaces your own past reasoning for calibration.",
+    "why_users_pay": "Unlimited decisions tracked, calibration analytics (how often predictions were right), custom revisit schedules, export for professional reflection.",
+    "subscription_model": "Free: 5 active decisions tracked. Paid: unlimited plus analytics and export.",
+    "local_first_mvp_scope": "Fully on-device decision log with local-notification-based revisit prompts.",
+    "future_backend_roadmap": "Optional cloud sync/backup; potential shared decision journals for co-founders or partners deciding together.",
+    "core_workflows": [
+      "Log a decision (context, options, prediction, confidence)",
+      "Set a revisit date",
+      "Get reminded to revisit and record the actual outcome",
+      "View calibration stats over time"
+    ],
+    "ios_native_features": [
+      "Local notifications for revisit prompts",
+      "Widgets showing upcoming revisits",
+      "App Intents/Siri for quick decision capture"
+    ],
+    "ar_ml_llm_fit": "Optional on-device LLM to structure a rambling voice note into a clean decision record.",
+    "design_direction": "Calm, restrained, ledger-like typography with no gamification or badges \u2014 feels serious and premium.",
+    "claude_design_prompt": "Design a calm, ledger-inspired decision journal: a fast decision-capture form, a quiet upcoming-revisits list, and a restrained calibration-stats view with no game mechanics.",
+    "app_store_positioning": "A journal for your decisions \u2014 not your habits. See if your judgment actually improves.",
+    "key_risks": [
+      "Logging a decision in the moment must be fast or it won't happen",
+      "Low revisit completion would undermine the entire calibration promise"
+    ],
+    "invalidation_criteria": "If revisit completion stays low after onboarding tuning, drop the calibration claim and pivot to pure decision-logging.",
+    "v1_build_scope": "Decision capture, revisit scheduling/notifications, outcome logging, basic calibration stats.",
+    "build": true,
+    "build_priority": 7
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp4",
+  "build": true,
+  "build_priority": 7,
+  "app": {
+    "name": "CueKeeper",
+    "slug": "cuekeeper",
+    "category": "event-operations",
+    "one_sentence_promise": "Run a live event from your iPhone without losing the sequence, timing, or backup plan.",
+    "target_user": "Wedding planners, stage managers, DJs, MCs, and small production operators running events without expensive show-control software.",
+    "painful_moment": "The event is live, timing is slipping, and someone needs a reliable run-of-show tool that still works offline.",
+    "why_different": "Designed for live execution under pressure, not static planning or generic to-do lists.",
+    "why_users_pay": "A single avoided live-event mistake is worth the subscription for professionals and serious operators.",
+    "subscription_model": "Free for simple single-event runs; premium for unlimited events, cue templates, contingency plans, advanced timing features.",
+    "local_first_mvp_scope": "Event timelines, cue lists, role assignments, timing controls, contingency notes, offline run mode on-device \u2014 scoped to a single operator, not a synced team.",
+    "future_backend_roadmap": "Team sync, remote cue sharing, client-facing run sheets, multi-device coordination \u2014 explicitly deferred, not required for v1 value.",
+    "core_workflows": [
+      "Build a run-of-show",
+      "Run cues in live mode with timing support",
+      "Adjust and recover when the plan shifts"
+    ],
+    "ios_native_features": [
+      "Live Activities",
+      "Notifications",
+      "Haptics",
+      "Widgets for event countdowns",
+      "App Intents for quick event start"
+    ],
+    "ar_ml_llm_fit": "No LLM, AR, or ML required; the product wins on execution reliability.",
+    "design_direction": "High-contrast operational UI that stays elegant but favors legibility and fast recovery under pressure.",
+    "claude_design_prompt": "Design a premium live event operations app with clock-aware run mode, strong cue hierarchy, big-touch controls, graceful contingency handling.",
+    "app_store_positioning": "An offline-first run-of-show app for people who cannot afford chaos during live events.",
+    "key_risks": [
+      "Must feel faster and more trustworthy than a printed run sheet",
+      "Live mode interaction design has to be extremely clear",
+      "Must stay genuinely useful as a single-operator tool, not silently assume multi-device coordination"
+    ],
+    "invalidation_criteria": "If the live run mode is not obviously better than Notes or a PDF schedule, the app should be cut.",
+    "v1_build_scope": "Single-user event runner with timeline builder, cue execution mode, timers, contingency notes, templates, onboarding, paywall, accessibility, offline verification.",
+    "build": true,
+    "build_priority": 7
+  }
+}

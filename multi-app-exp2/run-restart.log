@@ -1,0 +1,49 @@
+[run.sh] Launching orchestrator with: --resume multi-app-exp2
+[2026-07-06 15:39:35] Orchestrator starting. Root=/Users/pchordia/Documents/iOS-App-Factory
+[2026-07-06 15:39:35] === DOCTOR: environment preflight ===
+[2026-07-06 15:39:35] Root: /Users/pchordia/Documents/iOS-App-Factory (exists=True)
+[2026-07-06 15:39:35] Git repo initialized at root: False
+[2026-07-06 15:39:35] CLI codex    : /Users/pchordia/.local/bin/codex
+[2026-07-06 15:39:35] CLI claude   : /Users/pchordia/.local/bin/claude
+[2026-07-06 15:39:35] CLI agy      : /opt/homebrew/bin/agy
+[2026-07-06 15:39:35] CLI gemini   : /Users/pchordia/.volta/bin/gemini
+[2026-07-06 15:39:35] CLI ollama   : /opt/homebrew/bin/ollama
+[2026-07-06 15:39:35] CLI git      : /Users/pchordia/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/git
+[2026-07-06 15:39:35] CLI python3  : /opt/homebrew/bin/python3
+[2026-07-06 15:39:35] Ollama server running: False
+[2026-07-06 15:39:35] Local model selected: qwen2.5vl:3b (installed=False)
+[2026-07-06 15:39:35] Local model qwen3-coder:30b     : not pulled (ollama pull qwen3-coder:30b)
+[2026-07-06 15:39:35] Local model glm-5.2:latest      : not pulled (ollama pull glm-5.2:latest)
+[2026-07-06 15:39:35] Local model qwen3-max:latest    : not pulled (ollama pull qwen3-max:latest)
+[2026-07-06 15:39:35] Local model kimi-k2-thinking:latest: not pulled (ollama pull kimi-k2-thinking:latest)
+[2026-07-06 15:39:35] Local model kimi-k2.6:latest    : not pulled (ollama pull kimi-k2.6:latest)
+[2026-07-06 15:39:35] Local model qwen3.7:latest      : not pulled (ollama pull qwen3.7:latest)
+[2026-07-06 15:39:35] Local model qwen2.5-coder:7b    : not pulled (ollama pull qwen2.5-coder:7b)
+[2026-07-06 15:39:35] Local model devstral:24b        : not pulled (ollama pull devstral:24b)
+[2026-07-06 15:39:35] Local model deepseek-r1:8b      : not pulled (ollama pull deepseek-r1:8b)
+[2026-07-06 15:39:35] Local model deepseek-r1:14b     : not pulled (ollama pull deepseek-r1:14b)
+[2026-07-06 15:39:35] Local model deepseek-v4-pro:latest: not pulled (ollama pull deepseek-v4-pro:latest)
+[2026-07-06 15:39:35] Local model mistral:7b          : not pulled (ollama pull mistral:7b)
+[2026-07-06 15:39:35] No pay-as-you-go API key env vars detected. Good.
+[2026-07-06 15:39:35] Resolved models: {"claude_model": "claude-sonnet-5", "codex_model": "gpt-5.4", "gemini_model": "gemini-3.5-flash", "ollama_model": "qwen2.5vl:3b", "ollama_roster": ["qwen2.5vl:3b", "qwen3-coder:30b", "glm-5.2:latest", "qwen3.7:latest", "qwen3-max:latest", "kimi-k2-thinking:latest", "kimi-k2.6:latest", "deepseek-v4-pro:latest"]}
+[2026-07-06 15:39:35] Apps discovered: countertop, fieldquote, multi-app-exp, multi-app-exp2
+[2026-07-06 15:39:35] Workflows available: app_build, answer_question, app_spec, audit, iterate, library_mining, productionize, research, sprint, vslice
+[2026-07-06 15:39:35] Sub-agent roles: Product Strategist, Design Lead, Frontend Engineer, Backend / Systems Engineer, QA & Risk, Delivery Lead, Security Engineer
+[2026-07-06 15:39:35] Personalities (rotate per phase): Visionary, Skeptic, Pragmatist, User Advocate, Systems Thinker, Closer
+[2026-07-06 15:39:35] Knowledge domains: backend, ios, web
+[2026-07-06 15:39:35] === DOCTOR complete ===
+[2026-07-06 15:39:35] WARN runtime.require_git_repo=true but /Users/pchordia/Documents/iOS-App-Factory is not a git repo — run.sh will skip its commit/push step (run `git init` there to fix).
+[2026-07-06 15:39:35] App 'multi-app-exp2': reclaiming orphaned lock (age 20s): pid=1590 host=Apple-M5-Pro-14.local started=2026-07-06 15:14:14
+[2026-07-06 15:39:35] App 'multi-app-exp2': resuming from incomplete pipeline.
+[2026-07-06 15:39:35] App 'multi-app-exp2': workflow 'app_build' (21 phases, target=app).
+[2026-07-06 15:39:35] Personas — Codex: QA & Risk · User Advocate; Claude: Frontend Engineer · Systems Thinker; Gemini: Backend / Systems Engineer · Closer
+[2026-07-06 15:39:35] Injected phase playbook into phase 'build_coordination'.
+[2026-07-06 15:39:35] Injected ios knowledge (6083 chars) into phase 'build_coordination'.
+[2026-07-06 15:39:35] BUILD phase: agents may write files in /Users/pchordia/Documents/iOS-App-Factory/multi-app-exp2/app_build
+[2026-07-06 15:39:35] === Phase 'build_coordination' for multi-app-exp2 — up to 9 iteration(s); agents=codex,claude,gemini; coordinator=claude ===
+[2026-07-06 15:39:35] Injecting build contracts: 24 task(s), 61 interface(s).
+[2026-07-06 15:39:35] PARALLEL build: 3 worker(s) [Codex, Claude, Gemini]; integrator=Claude
+[2026-07-06 15:39:35] Build repo ready (git) at /Users/pchordia/Documents/iOS-App-Factory/multi-app-exp2/app_build
+[2026-07-06 15:39:35] Starting Codex for multi-app-exp2 / build_coordination round 1.codex
+[2026-07-06 15:39:35] Starting Claude for multi-app-exp2 / build_coordination round 1.claude
+[2026-07-06 15:39:35] Starting Gemini for multi-app-exp2 / build_coordination round 1.gemini

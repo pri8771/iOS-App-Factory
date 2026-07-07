@@ -1,0 +1,68 @@
+# returnwise — Project Documentation
+
+_Generated deterministically from the orchestrator's phase outputs (workflow: `iterate`). Non-AI render — nothing here is fabricated; empty phases are marked N/A._
+
+## Contents
+
+- Scope the change
+- Build the change
+- Review
+
+## Scope the change
+
+Since I don't have filesystem access to `app_build` from this sandbox (only `.agent_cwd`, which is empty), I can't personally re-verify the file inventory Claude's round-1 argument called for — but that argument is the right one to build on, so I'll finalize based on it plus what's necessary to make "compiles cleanly" an honest claim rather than a technically-true one.
+
+The core call: go with Claude's position. Codex and Gemini didn't produce usable input this round, so there's nothing to reconcile against — but Claude's reasoning stands on its own and matches the phase rules ("smaller finished app over larger half-built," "don't declare done until build verification and review agree"). The key risk it identifies is real and specific to this app: five semi-independent native capabilities (OCR, doc scanner, notifications, widget, share extension) each imply their own target/entitlement/Info.plist surface, and a lazy single-target project would compile while quietly deleting three of them. That's worse than the current state because it's not visibly broken.
+
+The one thing I'd add to close the loop: this phase needs to end with an actual inventory action, not just a principle. The next phase can't "decide what to preserve" without first listing what's on disk. So the concrete handoff is: enumerate `app_build`'s Swift sources and group by apparent target (main app vs. widget extension vs. share extension vs. tests) before writing a single line of `.pbxproj`, and treat anything that doesn't cleanly compile into its intended target as a named, reported gap rather than a silent drop.
+
+CONSENSUS: YES
+
+## Final Output
+
+Generate one `.xcodeproj` (a workspace is not warranted — extensions live as additional targets in the same project, not separate projects) with these targets, added only for source groups that actually exist on disk after inventory:
+
+1. **Main app target** — all core Swift sources (models, views, OCR/Vision pipeline, deadline engine, reminder scheduling, paywall, onboarding). Bundle ID `com.iosappfactory.returnwise`, deployment target iOS 17, Swift 5.9+/Swift 6 mode matching the pitfalls doc baseline.
+2. **Widget extension target** — only if widget source files exist in the tree; needs its own Info.plist, `WidgetKit`/`SwiftUI` linkage, and an App Group entitlement shared with the main app for deadline data.
+3. **Share extension target** — only if share-extension sources exist; needs `NSExtension` activation-rule Info.plist and its own bundle ID suffix.
+4. **Test target(s)** — only if test files exist; wire them against the main app target, don't fabricate empty test scaffolding to satisfy "tests" from the v1 scope if no test sources were ever written.
+
+Non-negotiables for whoever executes this:
+- Every existing `.swift` file must land in the target it was clearly written for — zero orphaned sources outside any target. That's the exact defect being fixed.
+- No behavior changes: no renames, no refactors, no "cleanup" — only the project-level plumbing (target membership, build settings, entitlements, Info.plist keys like `NSCameraUsageDescription`, notification permission usage) required to compile.
+- If inventory shows the widget extension, share extension, or test sources were never actually written (only claimed in the spec), do not stub them out to fake completeness — get the main app target compiling and report the absence by name as a known limitation for the next phase.
+- Done means `xcodebuild -scheme Returnwise -destination 'platform=iOS Simulator,name=iPhone 16' build` (or equivalent current simulator) returns `BUILD SUCCEEDED`, and the phase report states explicitly which of the five native capabilities got real targets vs. which were found missing.
+
+## Build the change
+
+_No build worker produced output in iteration 1. This can happen if all worker CLIs are unavailable or still starting up. Observed worker stall streak: 1._
+
+**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)
+
+## Review
+
+Both build attempts stalled — every worker CLI was unavailable or timed out, so the requested Xcode project was never actually written. The state is unchanged from before this change request: no `.xcodeproj`, nothing for a user to open. The iterate_scope phase produced a sound plan (target inventory, entitlements, non-negotiables) but a plan isn't a deliverable, and this review shouldn't credit it as progress. Going with Claude's round-1 read since it's the only real input this round and it matches the verification data directly.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Go/No-Go: NO-GO.** The app cannot be built or run. This is not a partial success with rough edges — it is the identical unbuildable state the change request started from.
+
+**What was built:** Nothing new. Two consecutive execution phases (`iterate_scope` → `build_coordination`) ran, but every build worker (Codex, Claude, Gemini) either was unavailable or timed out in both phases. No `.pbxproj`, `.xcodeproj`, or `.xcworkspace` was produced. The only real output from this cycle is a planning document (target list: main app, widget extension, share extension, test target — each conditional on source files actually existing on disk) that was never executed.
+
+**Verification status:** UNVERIFIED — `xcodebuild` reports no `.xcodeproj`/`.xcworkspace` found. Same result before and after this change request. There is no build to point at as evidence of anything.
+
+**Prompt coverage:** 0% of the requested change ("generate a complete, working Xcode project... make it compile cleanly for the iOS Simulator") was delivered. The underlying Swift sources from the original app_build are presumably still on disk and untouched (no evidence they were damaged), but that was never re-verified in this sandbox either, since this environment only had access to an empty `.agent_cwd`.
+
+**Known limitations:**
+- No Xcode project file exists at all — the app cannot be opened, built, or run by anyone.
+- The five native capabilities (Vision OCR, document scanner, notifications, widget, share extension) remain unassessed for whether their source files even exist — the inventory step called for in iterate_scope never happened.
+- Root cause of the stall was infrastructure (build worker CLIs unavailable/timing out), not a technical or design disagreement — so this isn't a case of conflicting approaches needing reconciliation, it's a case of the work simply not running.
+
+**Top follow-ups (in order):**
+1. **Owner action required:** re-run the build phase with working CLI/agent access, or fall back to a single agent directly hand-authoring the `.pbxproj` against the iterate_scope target spec (main app target at minimum; widget/share/test targets only if their sources are confirmed present). Two consecutive all-workers-failed runs means a third automated retry without changing something is not a credible plan.
+2. Before writing any project file, do the inventory step iterate_scope specified but that never ran: enumerate every `.swift` file in `app_build` and assign it to a target (main app / widget extension / share extension / tests), and report by name anything claimed in the spec but missing from disk.
+3. Once a project file exists, the actual bar is `xcodebuild -scheme Returnwise -destination 'platform=iOS Simulator,name=iPhone 16' build` returning `BUILD SUCCEEDED` — no phase should claim completion again without that concrete evidence.
+
+VERIFICATION: UNVERIFIED

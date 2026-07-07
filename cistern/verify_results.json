@@ -1,0 +1,19 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 14:42:31",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "a3ec746add527614c7b4d1222a2a7e23cc473a9cfc3ba70aafa53bc5271b36f4",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Cistern",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "rollcall",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b3\nSelected app slug: rollcall\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Rollcall\n\nBuild mode: **MVP build**.\nBuild priority: **9**.\n\n## App Name\n\nRollcall\n\n## Category\n\nUtilities\n\n## One-Sentence Promise\n\nA shooting log and on-device light meter for film photographers, so every roll comes back matched to the settings you actually used.\n\n## Target User\n\nFilm photography hobbyists shooting manual cameras with no metadata, who struggle to remember settings per frame.\n\n## Painful Moment Solved\n\nGetting a developed roll back weeks later with no idea what aperture/shutter/ISO combo was used on which frame, losing the chance to learn from it.\n\n## Why It Is Different\n\nCombines a fast per-frame logging flow with an on-device camera-based incident light meter using Vision/Core Image luminance analysis \u2014 a distinct hobbyist workflow, not a general measurement or object-history tool.\n\n## Why Users Would Pay\n\nUnlimited rolls/cameras tracked, advanced spot/incident metering presets per film stock, scan-matching to attach developed negatives later, shooting analytics.\n\n## Subscription Model\n\nFree: 2 active rolls, basic light meter. Paid: unlimited rolls, advanced metering, scan matching, analytics.\n\n## Local-First MVP Scope\n\nEntirely on-device roll/frame log and camera-based light meter computation.\n\n## Future Backend Roadmap\n\nOptional cloud backup/sync across devices; potential future community film-stock preset database.\n\n## AR / Local ML / Local LLM Fit\n\nOn-device Vision/Core Image luminance analysis for the light meter \u2014 the clean, non-forced ML fit for this batch.\n\n## Design Direction\n\nTactile, analog-inspired premium design \u2014 film-stock color swatches, dial/gauge-style meter UI, feels like a well-made physical accessory.\n\n## App Store Positioning\n\nThe shooting log made for film \u2014 meter your light, log your frame, never lose a setting again.\n\n## Invalidation Criteria\n\nIf the light-meter feature is rarely used and manual logging alone doesn't retain users, refocus purely on fast logging plus scan-matching.\n\n## v1 Build Scope\n\nRoll/frame logging flow, on-device light meter, roll history browsing.\n\n## Core Workflows\n\n- Start a roll (camera, lens, film stock)\n- Log a frame with meter-assisted settings and a note\n- Close out a roll\n- Browse past rolls/frames\n- Attach scanned negatives to matched frames later\n\n## iOS-Native Features\n\n- Camera/Vision framework for on-device light metering\n- Widgets showing current roll progress\n- App Intents/Siri for quick frame logging\n\n## Key Risks\n\n- Niche audience caps broad virality; growth must lean on niche-community channels\n- On-device light-meter accuracy must be credible to a technically knowledgeable audience\n\n## Claude Design Handoff Prompt\n\nDesign a tactile, analog-camera-inspired app: a dial-style on-device light-meter screen, a fast per-frame logging form, and a film-stock-swatched roll history view.\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n",
+    "verification": "UNVERIFIED (no .xcodeproj/.xcworkspace found.)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "ROLLCALL",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "build_coordination"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "final_review"
+        ]
+      }
+    ],
+    "issues": []
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "rollcall",
+      "Status": "Needs review",
+      "Source": "Orchestrator",
+      "Workflow Phases": 3
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b3\nSelected app slug: rollcall\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Rollcall\n\nBuild mode: **MVP build**.\nBuild priority: **9**.\n\n## App Name\n\nRollcall\n\n## Category\n\nUtilities\n\n## One-Sentence Promise\n\nA shooting log and on-device light meter for film photographers, so every roll comes back matched to the settings you actually used.\n\n## Target User\n\nFilm photography hobbyists shooting manual cameras with no metadata, who struggle to remember settings per frame.\n\n## Painful Moment Solved\n\nGetting a developed roll back weeks later with no idea what aperture/shutter/ISO combo was used on which frame, losing the chance to learn from it.\n\n## Why It Is Different\n\nCombines a fast per-frame logging flow with an on-device camera-based incident light meter using Vision/Core Image luminance analysis \u2014 a distinct hobbyist workflow, not a general measurement or object-history tool.\n\n## Why Users Would Pay\n\nUnlimited rolls/cameras tracked, advanced spot/incident metering presets per film stock, scan-matching to attach developed negatives later, shooting analytics.\n\n## Subscription Model\n\nFree: 2 active rolls, basic light meter. Paid: unlimited rolls, advanced metering, scan matching, analytics.\n\n## Local-First MVP Scope\n\nEntirely on-device roll/frame log and camera-based light meter computation.\n\n## Future Backend Roadmap\n\nOptional cloud backup/sync across devices; potential future community film-stock preset database.\n\n## AR / Local ML / Local LLM Fit\n\nOn-device Vision/Core Image luminance analysis for the light meter \u2014 the clean, non-forced ML fit for this batch.\n\n## Design Direction\n\nTactile, analog-inspired premium design \u2014 film-stock color swatches, dial/gauge-style meter UI, feels like a well-made physical accessory.\n\n## App Store Positioning\n\nThe shooting log made for film \u2014 meter your light, log your frame, never lose a setting again.\n\n## Invalidation Criteria\n\nIf the light-meter feature is rarely used and manual logging alone doesn't retain users, refocus purely on fast logging plus scan-matching.\n\n## v1 Build Scope\n\nRoll/frame logging flow, on-device light meter, roll history browsing.\n\n## Core Workflows\n\n- Start a roll (camera, lens, film stock)\n- Log a frame with meter-assisted settings and a note\n- Close out a roll\n- Browse past rolls/frames\n- Attach scanned negatives to matched frames later\n\n## iOS-Native Features\n\n- Camera/Vision framework for on-device light metering\n- Widgets showing current roll progress\n- App Intents/Siri for quick frame logging\n\n## Key Risks\n\n- Niche audience caps broad virality; growth must lean on niche-community channels\n- On-device light-meter accuracy must be credible to a technically knowledgeable audience\n\n## Claude Design Handoff Prompt\n\nDesign a tactile, analog-camera-inspired app: a dial-style on-device light-meter screen, a fast per-frame logging form, and a film-stock-swatched roll history view.\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [],
+    "interfaces": []
+  },
+  "phase_outputs": {
+    "iterate_scope": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+    "build_coordination": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\n**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)",
+    "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED"
+  }
+}

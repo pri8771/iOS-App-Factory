@@ -1,0 +1,391 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Platform scaffolding: Xcode project, App Group entitlement, target signing, placeholder shared views",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Cistern.xcodeproj/project.pbxproj",
+        "Cistern/Cistern.entitlements",
+        "Cistern/Info.plist",
+        "Cistern/PrivacyInfo.xcprivacy",
+        "Cistern/Views/Shared/PrivacyCoverView.swift",
+        "Cistern/Views/Shared/DataLoadErrorView.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Project builds and runs an empty root view on a clean simulator install",
+        "App Group entitlement present with identifier group.com.cistern.shared, matching what AppGroupIdentifier.value will assert in T-007",
+        "PrivacyInfo.xcprivacy declares zero collected data types plus the UserDefaults required-reason API entry",
+        "PrivacyCoverView and DataLoadErrorView exist with the exact signatures locked in tech_specs and compile with placeholder bodies, so primary_ui can build against them before polish_resilience finishes them"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Core data models: Cadence, Bill, Paycheck, BalanceAnchor",
+      "owner_lane": "data_domain",
+      "files": [
+        "Cistern/Models/Cadence.swift",
+        "Cistern/Models/Bill.swift",
+        "Cistern/Models/Paycheck.swift",
+        "Cistern/Models/BalanceAnchor.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "All three @Model classes and the Cadence enum compile matching tech_specs signatures exactly",
+        "amount is Decimal on every entity, never Double",
+        "Bill and Paycheck carry deletedAt: Date? and secondAnchorDate: Date? for semimonthly",
+        "BalanceAnchor is amount + asOf + createdAt with no in-place mutation assumed anywhere",
+        "Zero validation or business logic inside the model files themselves"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Versioned schema and migration plan",
+      "owner_lane": "data_domain",
+      "files": [
+        "Cistern/Persistence/CisternSchemaV1.swift",
+        "Cistern/Persistence/CisternMigrationPlan.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "CisternSchemaV1 lists BalanceAnchor, Bill, Paycheck",
+        "CisternMigrationPlan compiles with a single schema and an empty stages array",
+        "No invented migration test scenario added for this single-version schema"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "RunwayEngine core: occurrence generator and sweep-merge projection",
+      "owner_lane": "data_domain",
+      "files": [
+        "Cistern/Engine/RunwayEngine.swift",
+        "Cistern/Engine/RunwayProjection.swift",
+        "Cistern/Engine/DailyBalancePoint.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "project(bills:paychecks:anchor:now:calendar:) never touches ModelContext or performs a fetch",
+        "All date math uses Calendar.date(byAdding:to:) exclusively, zero TimeInterval/epoch arithmetic anywhere",
+        "Occurrence generation hard-stops at the 2-year horizon regardless of cadence",
+        "Same-day bills are treated as already subtracted",
+        "Bills-only input (no paychecks) returns billsOnly status and never assumes income",
+        "31st-of-month clamping is applied to both Bill and Paycheck occurrence generation, not just bills"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "RunwayEngine edge-case test suite (checkpoint gate)",
+      "owner_lane": "data_domain",
+      "files": [
+        "CisternTests/RunwayEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "One named XCTestCase method per edge case: semimonthly-on-weekend, feb-29-30-31, biweekly-horizon-cap, bill-31st-clamping, paycheck-31st-clamping, same-day-bias, bills-only-honesty, sweep-empty-bill-stream, sweep-empty-paycheck-stream, sweep-same-date-tie-break",
+        "Tests construct bare @Model instances outside any ModelContainer, no separate DTO layer introduced",
+        "If any case fails, RunwayEngine.swift is rewritten to the day-by-day fallback algorithm and the full suite re-run to green before this task is closed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Amount validation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Cistern/Support/AmountValidation.swift",
+        "CisternTests/AmountValidationTests.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "validateAmount(_:) rejects negative and zero as .rejected",
+        "Implausibly large amounts return .needsConfirmation, dismissible, not a hard block",
+        "Pure function, zero SwiftData or SwiftUI import",
+        "Covered by unit tests for the negative, zero, large, and normal-value cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "App Group identifier and ModelContainer factory",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Cistern/Persistence/AppGroupIdentifier.swift",
+        "Cistern/Persistence/ModelContainerFactory.swift",
+        "CisternTests/PersistenceTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "AppGroupIdentifier.value equals group.com.cistern.shared, matching the entitlements file from T-001 exactly",
+        "makeContainer(inMemory:) builds from CisternMigrationPlan with cloudKitDatabase set to .none",
+        "In-memory test proves #Predicate soft-delete exclusion actually filters deletedAt != nil rows at a live fetch, not just on a manually filtered Swift array",
+        "makeContainer(inMemory: false) successfully creates the App Group-backed container on a clean simulator install"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Accessibility announcement helper",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Cistern/Support/AccessibilityAnnouncer.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "requestAccessibilityAnnouncement(_:) wraps UIAccessibility.post(notification:.announcement)",
+        "Callable from any view with no dependency on models, engine, or persistence"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Design tokens",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Cistern/Support/DesignTokens.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Single source of truth for dark/light base colors, the warm-to-cool fill gradient stops, hero/body/caption type sizes, the 4pt spacing scale, and corner radii from design_handoff",
+        "No downstream view file hardcodes a hex value, point size, or spacing constant that exists here"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "App entry point and root wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Cistern/CisternApp.swift"
+      ],
+      "depends_on": [
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Injects ModelContainerFactory.makeContainer() via .modelContainer at the root Scene",
+        "Tracks scenePhase and overlays PrivacyCoverView above the entire presentation stack including any open sheet, not scoped to HomeView",
+        "Routes ModelContainer construction failure to DataLoadErrorView instead of crashing or falling through to a silently empty Home",
+        "Only wires the two shared views in by reference; does not implement their internal content"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Onboarding flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Cistern/Views/Onboarding/OnboardingFlow.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Full-screen cover shown only at first launch",
+        "Sequence is welcome -> paycheck quick-add -> bill quick-add -> optional balance step",
+        "Skip and Continue are equally visually weighted at every optional step",
+        "Finishing or skipping lands directly on a fully computed HomeView with no congratulations interstitial"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Quick-add / edit sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Cistern/Views/QuickAdd/QuickAddSheet.swift",
+        "Cistern/Views/QuickAdd/QuickAddButton.swift",
+        "Cistern/Views/QuickAdd/EntryKind.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "One parameterized sheet handles add and edit for bill, paycheck, and balance via EntryKind",
+        "Inline validation-error and soft-confirmation states are driven by validateAmount, not a locally reimplemented rule",
+        "Cadence picker covers weekly/biweekly/semimonthly/monthly with sane defaults",
+        "Bill/paycheck add completes in 3 taps or fewer; balance update completes in 1 tap plus number entry",
+        "Presented at medium detent, never full screen"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Home screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Cistern/Views/Home/HomeView.swift",
+        "Cistern/Views/Home/HeroRunwayText.swift",
+        "Cistern/Views/Home/CisternFillView.swift",
+        "Cistern/Views/Home/BalancePill.swift",
+        "Cistern/Views/Home/ComingNextRow.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-008",
+        "T-009",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "ScrollView-based layout, never a fixed VStack, so max Dynamic Type sizes scroll instead of clipping",
+        "HeroRunwayText is a single coherent VoiceOver element and triggers requestAccessibilityAnnouncement on every recompute, sequenced after VoiceOver focus settles",
+        "CisternFillView cross-fades instead of animating when accessibilityReduceMotion is on",
+        "Recompute animation is keyed on the derived RunwayProjection value, not raw query results, using the locked spring parameters",
+        "No red/green traffic-light coloring anywhere on this screen"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Bills & paychecks list",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Cistern/Views/List/BillsPaychecksListView.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "@Query is #Predicate-filtered to exclude deletedAt != nil",
+        "Tapping a row opens QuickAddSheet in edit mode for that entity",
+        "Deleting sets deletedAt (soft-delete) with no blocking confirm-alert anywhere in the path"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Settings and Premium stub",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Cistern/Views/Settings/SettingsView.swift",
+        "Cistern/Views/Settings/PremiumStubView.swift",
+        "Cistern/Views/Settings/PremiumFeatureRow.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "SettingsView offers appearance override, an app-lock toggle placeholder, about/version, and an entry point to PremiumStubView",
+        "PremiumStubView lists exactly three PremiumFeatureRow entries: saved what-if scenarios, variable-income averaging, widget",
+        "Zero StoreKit import and no functional purchase button anywhere in these three files"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Privacy cover, finished implementation",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Cistern/Views/Shared/PrivacyCoverView.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Replaces the T-001 placeholder body with the calm branded fill-motif-only placeholder, no text, no live financial data",
+        "Manually verified that an open QuickAddSheet showing a live dollar amount is fully hidden the instant the app backgrounds mid-edit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Data load error view, finished implementation",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Cistern/Views/Shared/DataLoadErrorView.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Replaces the T-001 placeholder with calm copy explaining data failed to open, plus a retry action",
+        "Verified via a debug harness that forces ModelContainer construction to fail, confirming this view renders instead of a crash or a silently empty Home"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Undo toast and soft-delete wiring",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Cistern/Views/Shared/UndoToast.swift"
+      ],
+      "depends_on": [
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Appears on every bill/paycheck soft-delete with an undo action that nils deletedAt back",
+        "Auto-dismisses after several seconds with no user action required",
+        "Slides up with a fade per the locked motion spec"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Empty and bills-only states",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Cistern/Views/Shared/EmptyStateView.swift",
+        "Cistern/Views/Shared/BillsOnlyBanner.swift"
+      ],
+      "depends_on": [
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "EmptyStateView reads as an invitation with the paycheck CTA visually emphasized over the bill CTA, never renders a numeric runway",
+        "BillsOnlyBanner appears on Home only when bills exist with zero scheduled paychecks and states plainly that no income is assumed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Final verification pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "VERIFICATION.md"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-007",
+        "T-011",
+        "T-013",
+        "T-014",
+        "T-016",
+        "T-017",
+        "T-018",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Documents pass/fail for the eight-point next_steps_small checklist",
+        "Documents pass/fail for the App Group clean-install gate and the forced data-load-failure check",
+        "Documents the manual VoiceOver focus-then-announcement pass, since it is not unit-testable",
+        "Documents dark mode, Dynamic Type at accessibility sizes, 44pt tap targets, and WCAG AA contrast per fill-state",
+        "App is not marked done in this file unless every item is checked or logged as a known limitation matching an already-agreed non-goal"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

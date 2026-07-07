@@ -1,0 +1,559 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "SwiftData schema, domain models, enums, VersionedSchema + v1->v2 migration dry-run",
+      "owner_lane": "data_domain",
+      "files": [
+        "Truescale/Domain/Models/Project.swift",
+        "Truescale/Domain/Models/Area.swift",
+        "Truescale/Domain/Models/Issue.swift",
+        "Truescale/Domain/Models/Measurement.swift",
+        "Truescale/Domain/Models/Enums.swift",
+        "Truescale/Domain/Models/BusinessProfile.swift",
+        "Truescale/Domain/Models/AppSettings.swift",
+        "Truescale/Data/Schema/SchemaV1.swift",
+        "Truescale/Data/Schema/SchemaV2Dryrun.swift",
+        "Truescale/Data/Schema/MigrationPlan.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "In-memory ModelContainer creates/queries all model types",
+        "Migration dry-run test moves a throwaway field v1->v2 with zero data loss",
+        "Issue.photoState models pending/ready/missingOrCorrupted explicitly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Repository protocols + SwiftData implementations, ProjectPolicy, IssueFilter",
+      "owner_lane": "data_domain",
+      "files": [
+        "Truescale/Data/Repositories/ProjectRepository.swift",
+        "Truescale/Data/Repositories/AreaRepository.swift",
+        "Truescale/Data/Repositories/IssueRepository.swift",
+        "Truescale/Data/Repositories/SwiftDataProjectRepository.swift",
+        "Truescale/Data/Repositories/SwiftDataAreaRepository.swift",
+        "Truescale/Data/Repositories/SwiftDataIssueRepository.swift",
+        "Truescale/Domain/Policy/ProjectPolicy.swift",
+        "Truescale/Domain/Policy/IssueFilter.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Unit tests cover cap enforcement and downgrade-lock selection",
+        "Archive rules enforced: no hard delete on a non-empty area, duplicate area names allowed",
+        "Filter predicates return correct sets against a seeded in-memory store"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Protocol shapes for camera/AR/photo/entitlement/report services + fake implementations for seeded-demo build (no real hardware/AR code yet)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Truescale/Services/Protocols/CameraCapturing.swift",
+        "Truescale/Services/Protocols/MeasurementProviding.swift",
+        "Truescale/Services/Protocols/PhotoAssetStore.swift",
+        "Truescale/Services/Protocols/StorageHealthService.swift",
+        "Truescale/Services/Protocols/EntitlementServicing.swift",
+        "Truescale/Services/Protocols/ReportRendering.swift",
+        "Truescale/Services/Fakes/FakeCameraService.swift",
+        "Truescale/Services/Fakes/FakeMeasurementProvider.swift",
+        "Truescale/Services/Fakes/FakeEntitlementService.swift",
+        "Truescale/Services/Fakes/FakePhotoAssetStore.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Fakes compile against the exact protocol signatures from tech_specs interfaces-json",
+        "Fakes can produce a seeded fake Issue with photo end-to-end with no real hardware",
+        "No ARKit or AVFoundation concrete implementation exists yet in this task"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "App shell, DI container, design tokens, root navigation skeleton",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/App/TruescaleApp.swift",
+        "Truescale/App/DIContainer.swift",
+        "Truescale/UI/DesignSystem/Tokens.swift",
+        "Truescale/UI/DesignSystem/Typography.swift",
+        "Truescale/UI/RootNavigation.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "App launches to Library using fake services",
+        "Seeded fake Issue visible in a placeholder list with zero adapter glue",
+        "Truescale/App/TruescaleApp.swift and Truescale/App/DIContainer.swift changes require sign-off from all three other lanes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Seed data harness + M0 exit-criterion verification test",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Truescale/Support/SeedFixtures.swift",
+        "TruescaleTests/M0FoundationTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Automated test proves a seeded fake Issue flows through query, detail, thumbnail, and report-snapshot generation with no adapter glue",
+        "Migration dry-run test wired into the same test target and passing"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Interruption-safe Issue write path: pending creation + incremental field persistence",
+      "owner_lane": "data_domain",
+      "files": [
+        "Truescale/Data/Repositories/SwiftDataIssueRepository.swift",
+        "Truescale/Domain/Models/Issue.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "createPendingIssue persists immediately on shutter success",
+        "Severity/status/measurement writes are immediate; note writes debounce ~400ms",
+        "Integration test proves all fields persist across a simulated relaunch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Real CameraService (AVCaptureSession) + CameraAvailability states + storage preflight",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Truescale/Services/CameraService.swift",
+        "Truescale/Services/StorageHealthService.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "ready/permissionDenied/temporarilyUnavailable/lowStorage all independently testable via protocol injection",
+        "Permission-denied and temporarily-unavailable are visually distinct and neither blocks issue-record creation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "PhotoAssetStore: temp-write, off-main compress/downsample, EXIF-GPS strip, atomic move, pending->ready patch (feeds Checkpoint A)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Truescale/Services/PhotoAssetStore.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Checkpoint A: simulated kill mid-capture then relaunch-equivalent recovers record+photo intact through the full pending->ready transition",
+        "Failed writes patch to missingOrCorrupted with a typed reason, never silently"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Manual-only MeasurementProviding implementation wired into unified Measurement schema",
+      "owner_lane": "data_domain",
+      "files": [
+        "Truescale/Domain/Models/Measurement.swift",
+        "Truescale/Services/ManualMeasurementProvider.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Manual measurement path proven end to end into the same schema slot AR will use later",
+        "No separate manual/AR record types exist anywhere"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Library screen: active/archived lifecycle, first-run flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/UI/Library/LibraryView.swift",
+        "Truescale/UI/Library/FirstRunView.swift",
+        "Truescale/UI/Library/LibraryViewModel.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Create project -> relaunch-equivalent -> correct lifecycle state persists",
+        "Archive/unarchive is one tap and non-destructive",
+        "First launch skips an empty library entirely"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Workspace screen: Areas/Issues segmented control, inline area creation",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/UI/Workspace/WorkspaceView.swift",
+        "Truescale/UI/Workspace/AreaCard.swift",
+        "Truescale/UI/Workspace/AddAreaSheet.swift",
+        "Truescale/UI/Workspace/WorkspaceViewModel.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Area created/selected without leaving capture context",
+        "Duplicate area names allowed",
+        "Segment always resets to Areas on fresh entry into Workspace"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Capture screen: live camera, chips, MeasurementField, autosave-visible checkmark (buildable against fakes on day one)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/UI/Capture/CaptureView.swift",
+        "Truescale/UI/Capture/CaptureViewModel.swift",
+        "Truescale/UI/Capture/SeverityChip.swift",
+        "Truescale/UI/Capture/StatusChip.swift",
+        "Truescale/UI/Shared/MeasurementField.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Builds and is demoable against Fakes from T-003 before real services land",
+        "Checkpoint A UI-level test: kill mid-capture after shutter, relaunch, issue+photo recovered correctly",
+        "Camera permission-denied/unavailable states each shown distinctly with retry/Settings path"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-000",
+      "title": "Scaffold Xcode project at /Users/pchordia/Documents/GitHub/truescale using Xcode's default nested-target layout (Truescale/ source folder, TruescaleTests/, TruescaleUITests/)",
+      "owner_lane": "data_domain",
+      "files": [
+        "Truescale.xcodeproj",
+        ".gitignore"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Empty SwiftUI app builds and runs in Simulator",
+        "All three targets exist and are wired using Xcode's default nested folder convention",
+        "Committed as the literal first commit before any feature branch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Shared PhotoThumbnailView (three states) + shared empty/permission-denied state views",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Truescale/UI/Shared/PhotoThumbnailView.swift",
+        "Truescale/UI/Shared/EmptyStateView.swift",
+        "Truescale/UI/Shared/PermissionDeniedStateView.swift",
+        "Truescale/UI/Shared/CameraUnavailableStateView.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "pending-processing renders distinctly from missing/corrupted, no false-negative flash during normal capture",
+        "Used identically by Capture, IssueDetail, and Export call sites"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Checkpoint B: full experiential golden-path scenario test",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "TruescaleTests/M1GoldenPathTests.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-008",
+        "T-009",
+        "T-010",
+        "T-011",
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "First launch -> create project -> two areas -> five issues offline -> kill/relaunch mid-capture -> recover -> review by area, scripted end to end against real repositories/services with only camera/AR faked"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "IssueFilter performance validation at low-hundreds-of-issues scale",
+      "owner_lane": "data_domain",
+      "files": [
+        "Truescale/Domain/Policy/IssueFilter.swift",
+        "TruescaleTests/IssueFilterPerformanceTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Filters return correct sets against a seeded low-hundreds-of-issues dataset within a defined responsiveness bound"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Issues segment UI: filter sheet, list, empty-filtered-result state",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/UI/Workspace/IssuesListView.swift",
+        "Truescale/UI/Workspace/IssueRow.swift",
+        "Truescale/UI/Workspace/FiltersSheet.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Filters apply live against persisted data",
+        "Empty-filtered-result state has a one-tap clear-filters action",
+        "Issue rows visibly show measurement source"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Issue Detail screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/UI/IssueDetail/IssueDetailView.swift",
+        "Truescale/UI/IssueDetail/IssueDetailViewModel.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Edits write immediately per field",
+        "Delete uses native .confirmationDialog",
+        "Photo-state rendering matches Capture exactly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "ReportSnapshotBuilder + Sendable report snapshot structs (pure data, no PDFKit)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Truescale/Domain/Reporting/ReportSnapshotBuilder.swift",
+        "Truescale/Domain/Reporting/ReportIssueSnapshot.swift",
+        "Truescale/Domain/Reporting/ReportDocumentSnapshot.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Snapshot never carries a SwiftData model reference off-main",
+        "Missing/corrupted photo produces placeholder metadata, never a build failure",
+        "Zero-issue section handled without crashing export"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "PDF report rendering (PDFKit/Core Graphics) \u2014 concrete adapter, stays in services_utilities per tech_specs interfaces-json",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Truescale/Services/ReportRenderer.swift"
+      ],
+      "depends_on": [
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Renders from snapshot + entitlement only, never queries StoreKit internally",
+        "Rendered sample PDF passes an explicit human send-to-a-client review before this task is called done"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Export/Report Preview screen + share sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/UI/Export/ExportView.swift",
+        "Truescale/UI/Export/ExportViewModel.swift"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "generating/preview-ready/partial-degradation/failure states all present",
+        "Share sheet exports a real file fully offline"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "EntitlementService (StoreKit 2, Transaction.updates, scenePhase recheck, restore) \u2014 built before any paywall UI consumes it",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Truescale/Services/EntitlementService.swift",
+        "Truescale/Configuration/StoreKitConfig.storekit"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Entitlement snapshot refreshed only at foreground/launch, never mid-session",
+        "Restore verified against local StoreKit config file, explicitly not live App Store"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Project-creation cap enforcement + non-destructive downgrade lock",
+      "owner_lane": "data_domain",
+      "files": [
+        "Truescale/Domain/Policy/ProjectPolicy.swift",
+        "Truescale/Domain/Reporting/verifyProjectCreationAllowed.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Cap enforced only at project-creation checkpoint",
+        "Over-cap projects go read-only, never deleted",
+        "Verified across simulated foreground transitions with stale vs refreshed entitlement"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Paywall/Upgrade screen, Settings entitlement display, locked-project badge (built after real cap enforcement exists, never before)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/UI/Paywall/PaywallView.swift",
+        "Truescale/UI/Settings/SettingsView.swift",
+        "Truescale/UI/Shared/LockedProjectBadge.swift"
+      ],
+      "depends_on": [
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Paywall triggers only at cap-hit or from Settings",
+        "Locked projects show the badge and disable edit/export while remaining viewable"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Real ARMeasurementService with three-state gating (unsupported/unstable/ready) + green/amber exit decision \u2014 late, additive, only after the full golden path is proven",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Truescale/Services/ARMeasurementService.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "All three states verified via protocol injection with zero physical hardware",
+        "Field-accuracy is explicitly never claimed",
+        "Green/amber exit decision documented in the task's closing note before this task can be marked done"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "MeasurementField AR-branching content + AR labeling",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Truescale/UI/Shared/MeasurementField.swift"
+      ],
+      "depends_on": [
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "One sheet, internally branching manual/AR content, never two sheet types",
+        "AR source labeled distinctly from manual in UI, IssueRow, and Export"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Accessibility pass across all screens",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Truescale/UI/Library/LibraryView.swift",
+        "Truescale/UI/Workspace/WorkspaceView.swift",
+        "Truescale/UI/Capture/CaptureView.swift",
+        "Truescale/UI/Workspace/IssuesListView.swift",
+        "Truescale/UI/IssueDetail/IssueDetailView.swift",
+        "Truescale/UI/Export/ExportView.swift",
+        "Truescale/UI/Paywall/PaywallView.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-011",
+        "T-012",
+        "T-016",
+        "T-017",
+        "T-020",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Dynamic Type never truncates chip labels",
+        "Full VoiceOver labels present",
+        "AA contrast verified against the locked dark palette",
+        "No state communicated by color alone"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Job-volume scenario test + final build verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "TruescaleTests/M5JobVolumeTests.swift",
+        "BUILD_VERIFICATION.md"
+      ],
+      "depends_on": [
+        "T-025",
+        "T-026",
+        "T-020",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "One project, dozen-plus areas, low-hundreds issues, mixed photo/measurement states stays responsive",
+        "Every screen's empty/loading/success/error states verified present",
+        "BUILD_VERIFICATION.md states plainly what AR did or didn't achieve, signed off by all four lanes"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

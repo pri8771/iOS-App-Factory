@@ -1,0 +1,543 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Scaffold Xcode project, package skeletons, shared schemes, StoreKit shell, entitlements, git init, and App Group signing decision",
+      "owner_lane": "services_utilities",
+      "files": [
+        "nurture-ios/.gitignore",
+        "nurture-ios/Nurture.xcodeproj/project.pbxproj",
+        "nurture-ios/Nurture.xcodeproj/xcshareddata/xcschemes/Nurture.xcscheme",
+        "nurture-ios/Nurture.xcodeproj/xcshareddata/xctestplans/NurtureStoreKit.xctestplan",
+        "nurture-ios/NurtureDomain/Package.swift",
+        "nurture-ios/NurtureData/Package.swift",
+        "nurture-ios/Nurture/Nurture.storekit",
+        "nurture-ios/Nurture/Resources/Info.plist",
+        "nurture-ios/Nurture/Nurture.entitlements"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "git init has run and an initial commit containing the empty package skeletons and .gitignore exists on main before any task branch is cut",
+        "empty NurtureDomain and NurtureData packages build successfully",
+        "team-less simulator build of the app target succeeds",
+        "App Group capability is attempted immediately; if it breaks team-less signing it is dropped for this pass and Application Support becomes the live path, with an empty or App-Group-free entitlements file committed either way so the decision is visible in the repo",
+        "Info.plist contains no Contacts usage entry and no iCloud capability is enabled",
+        "the main Nurture app target is configured as an Xcode file-system-synchronized group so later files under Nurture/ do not require project.pbxproj edits",
+        "the .storekit file and xctestplan created here are minimal build-provable placeholders only; T-006 is the sole subsequent editor of those two files once this task has merged to main"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "NurtureDomain pure models and DTOs",
+      "owner_lane": "data_domain",
+      "files": [
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/PersonID.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/CadenceTier.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/WarmthState.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/ResolutionStatus.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/PersonSnapshot.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/NoteSnapshot.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/WarmthAssessment.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/QueueEntry.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/VisibleQueue.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/RitualSessionSnapshot.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/RitualSessionItemSnapshot.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/Entitlement.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "package contains zero imports of SwiftData, SwiftUI, or UIKit",
+        "CadenceTier.days returns 14, 42, and 180 for close, regular, and occasional",
+        "all types conform to the interfaces contract, including Sendable and Codable or Equatable where specified",
+        "Entitlement is available to pure domain logic and UI without depending on service implementations"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "WarmthCalculator, AttentionQueueBuilder, RitualSessionFactory, and pure unit tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Logic/WarmthCalculator.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Logic/AttentionQueueBuilder.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Logic/RitualSessionFactory.swift",
+        "nurture-ios/NurtureDomain/Tests/NurtureDomainTests/WarmthCalculatorTests.swift",
+        "nurture-ios/NurtureDomain/Tests/NurtureDomainTests/AttentionQueueBuilderTests.swift",
+        "nurture-ios/NurtureDomain/Tests/NurtureDomainTests/RitualSessionFactoryTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "swift test --package-path NurtureDomain passes",
+        "fixed-clock tests prove ratio boundaries at exactly 1.0 and 1.5, day-zero anchoring at creation, and DST-safe day counting via Calendar",
+        "tests prove snooze does not reset the clock",
+        "tests prove the exact 3-versus-4 teaser boundary and the queue cap at 10",
+        "no file in this task imports SwiftData"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "SchemaV1 and SwiftData record types with enum round-trip coverage",
+      "owner_lane": "data_domain",
+      "files": [
+        "nurture-ios/NurtureData/Sources/NurtureData/Schema/SchemaV1.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Schema/PersonRecord.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Schema/NoteRecord.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Schema/RitualSessionRecord.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Schema/RitualSessionItemRecord.swift",
+        "nurture-ios/NurtureData/Tests/NurtureDataTests/SchemaRoundTripTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "SchemaV1 is versioned from the first commit and uses no CloudKit-backed ModelConfiguration",
+        "named tests round-trip every ResolutionStatus case, including snoozed(until:) and loggedOutreach(noteID:), through the persisted fields and assert equality",
+        "RitualSessionItemRecord.orderIndex exists and is documented as the only trusted ordering source across relaunch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "DateProvider and AuthenticationService protocols plus LocalAuthentication concrete implementation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/DateProvider.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/AuthenticationService.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Services/SystemDateProvider.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Services/LocalAuthenticationService.swift",
+        "nurture-ios/NurtureData/Tests/NurtureDataTests/AuthenticationServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "authenticate(reason:) returns Result<Void, NurtureError> and distinguishes cancellation from failure",
+        "biometricsOrPasscodeEnrolled correctly reports the unenrolled state used by the simulator warning flow",
+        "this service is available before any screen work starts and is not deferred to a later polish milestone"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "EntitlementService, product identifier constants, StoreKit test wiring, and live entitlement checks",
+      "owner_lane": "services_utilities",
+      "files": [
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/EntitlementService.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Services/StoreKitEntitlementService.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Services/ProductIdentifiers.swift",
+        "nurture-ios/NurtureData/Tests/NurtureDataTests/StoreKitEntitlementTests.swift",
+        "nurture-ios/Nurture.xcodeproj/xcshareddata/xctestplans/NurtureStoreKit.xctestplan",
+        "nurture-ios/Nurture/Nurture.storekit"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "current entitlement is computed live from Transaction.currentEntitlements and is never cached as a stored boolean",
+        "a named test parses the .storekit config file product identifier strings at test time and asserts they exactly equal the ProductIdentifiers Swift constants",
+        "headless SKTestSession tests pass purchase, expire, and restore scenarios",
+        "transaction observation runs as an in-process Task at launch with no Background Modes capability",
+        "this task rebases on main after T-001 merges before editing the .storekit/xctestplan files, and is the sole subsequent editor of those two files"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "StorageDirectoryProviding, RelationshipRepository protocol, and SwiftData concrete repository",
+      "owner_lane": "services_utilities",
+      "files": [
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/StorageDirectoryProviding.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/RelationshipRepository.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Services/AppGroupStorageDirectoryProvider.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Repository/SwiftDataRelationshipRepository.swift",
+        "nurture-ios/NurtureData/Tests/NurtureDataTests/RepositoryIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "repository methods are operation-specific and never collapse into generic CRUD",
+        "required first note, lastInteractionAt bumping, duplicate-name checks, archive semantics, and atomic deleteAllData live inside repository methods only",
+        "fetchMostRecentNoteByPerson uses one grouped fetch sorted by createdAt and never N per-person queries",
+        "in-memory container round-trip tests pass and the App Group fallback to Application Support is exercised",
+        "deleteAllData is proven not to orphan RitualSession data"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Ritual-session persistence backend gate: create, resolve, terminate, and rehydrate",
+      "owner_lane": "services_utilities",
+      "files": [
+        "nurture-ios/NurtureData/Tests/NurtureDataTests/RitualSessionPersistenceTests.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-003",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "tests create a ritual session, tear down and recreate the container, reload it, and assert identical ordered items by orderIndex",
+        "tests prove explanation text stays frozen at entry even if the underlying person data changes later",
+        "tests prove entitlement-driven reveal-in-place works on the frozen queue without rebuilding membership or order",
+        "no ritual UI work starts until this task is green"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "ExportDocumentV1, ExportService, NotificationScheduler, and concrete export and notification services",
+      "owner_lane": "services_utilities",
+      "files": [
+        "[REDACTED:high_entropy].swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/ExportService.swift",
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/NotificationScheduler.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Services/JSONExportService.swift",
+        "nurture-ios/NurtureData/Sources/NurtureData/Services/UserNotificationScheduler.swift",
+        "nurture-ios/NurtureData/Tests/NurtureDataTests/ExportServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "ExportDocumentV1 serializes snapshots only and never raw SwiftData models",
+        "export service builds a versioned plaintext payload suitable for fileExporter or ShareLink",
+        "notification authorization denial is handled cleanly with no crash and no hard dependency on notifications being enabled"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "AppDependencies composition root",
+      "owner_lane": "services_utilities",
+      "files": [
+        "nurture-ios/Nurture/App/AppDependencies.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-006",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "a single struct exposes repository, date provider, auth service, entitlement service, notification scheduler, and export service",
+        "no view or view model constructs a concrete service directly; they all flow through this root"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "AppRouter, Route, PaywallSource, and AttentionCardActions",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/App/AppRouter.swift",
+        "nurture-ios/Nurture/App/Route.swift",
+        "nurture-ios/Nurture/App/PaywallSource.swift",
+        "nurture-ios/Nurture/App/AttentionCardActions.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "AppRouter is the only owner of push and modal presentation state",
+        "PaywallSource is the single source of truth for paywall entry point and copy variant",
+        "Route covers person detail, settings, and archived people without leaking persistence identifiers into UI"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Launch, Lock, and Onboarding screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/Views/Launch/LockView.swift",
+        "nurture-ios/Nurture/Components/LockShieldView.swift",
+        "nurture-ios/Nurture/Views/Onboarding/OnboardingView.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "all three lock states are reachable in simulator: authenticating, unlocked-with-warning, and failed-with-passcode-retry",
+        "onboarding states plainly that the app works without Contacts and no Contacts permission is requested",
+        "lock and warning copy remains legible at accessibility XXL"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Add Person flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/Views/AddPerson/AddPersonView.swift",
+        "nurture-ios/Nurture/Components/DisclosureField.swift",
+        "nurture-ios/Nurture/Components/InlineDuplicateWarning.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "a person and first note can be added in five taps or fewer",
+        "default cadence is Regular",
+        "duplicate-name warning is inline and non-blocking",
+        "key fact and open loop fields stay behind a closed-by-default disclosure and are fully skippable"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Dashboard screen and shared attention-card components",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/Views/Dashboard/DashboardView.swift",
+        "nurture-ios/Nurture/Components/AttentionCard.swift",
+        "nurture-ios/Nurture/Components/WarmthIndicator.swift",
+        "nurture-ios/Nurture/Components/EmptyStateView.swift",
+        "nurture-ios/Nurture/Components/GoodShapeSuccessView.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-006",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "zero-people, good-shape, active-queue, and free-tier-truncated states are all reachable",
+        "each attention card exposes its why-now sentence as a single combined VoiceOver element",
+        "warmth is always derived live at render time and is never read from a stored cache field"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Person Detail screen with archive and permanent delete",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/Views/PersonDetail/PersonDetailView.swift",
+        "nurture-ios/Nurture/Components/DestructiveConfirmationSheet.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-005",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "archive is reversible and easy to reach while permanent delete requires a fresh biometric or passcode challenge immediately before execution",
+        "successful re-auth permanently deletes and remains deleted after relaunch, while cancelled or failed re-auth leaves all data untouched after relaunch",
+        "the why-now explanation references actual last-note content rather than a bare day count"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Ritual UI with capped session, three actions, progress, and completion state",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/Views/Ritual/RitualView.swift",
+        "nurture-ios/Nurture/Views/Ritual/CompletionView.swift",
+        "nurture-ios/Nurture/Components/RitualProgressChip.swift",
+        "nurture-ios/Nurture/Components/RitualActionBar.swift",
+        "nurture-ios/Nurture/Components/CompletionSummaryView.swift",
+        "nurture-ios/Nurture/Components/SnoozeDatePicker.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "ritual enters as a full-screen modal and caps visible work at 10 with an overflow message beyond the cap",
+        "each person has exactly three actions: log outreach, snooze to a validated future date, and archive",
+        "completion names the actions taken in that session and is exposed as one announced accessibility element",
+        "progress exposes an explicit n-of-total accessible value",
+        "an interrupted ritual resumes the exact same frozen queue on relaunch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Paywall screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/Views/Paywall/PaywallView.swift",
+        "nurture-ios/Nurture/Components/PaywallCard.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "the paywall is reached only from the dashboard teaser or ritual overflow and never appears as a floating upsell",
+        "loading, error, success, and restore states are all implemented while the free app remains usable if StoreKit is unavailable",
+        "Restore Purchases checks live current entitlements rather than a cached boolean"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Settings and Archived People screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/Views/Settings/SettingsView.swift",
+        "nurture-ios/Nurture/Views/ArchivedPeople/ArchivedPeopleView.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-006",
+        "T-007",
+        "T-005",
+        "T-011",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Settings shows export, privacy or lock status, subscription status, and full reset using the already-built services",
+        "export shows the unencrypted-file warning before the auth prompt and a cancelled auth leaves nothing changed",
+        "Archived People is the sole owner for Route.archivedPeople and supports unarchive without reaching into SwiftData directly",
+        "debug-only panels are wired from Settings in debug builds only"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "PrivacyShieldState app-switcher mask",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "nurture-ios/Nurture/App/PrivacyShieldState.swift",
+        "nurture-ios/Nurture/Tests/NurtureAppTests/PrivacyShieldStateTests.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "the privacy shield is root-level and testable via scenePhase transitions rather than screenshot inspection",
+        "the approximately two-minute relock grace window is implemented against the injected DateProvider and is covered by tests"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "DebugClock and DEBUG-only time-travel and auth-bypass panels",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "nurture-ios/Nurture/Debug/DebugClock.swift",
+        "nurture-ios/Nurture/Debug/DebugTimeTravelView.swift",
+        "nurture-ios/Nurture/Debug/DebugSecurityOverridesView.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "time travel offers discrete jumps only and no scrubber",
+        "debug panels are wrapped in #if DEBUG at the file or view level and compile out of Release",
+        "the debug clock cleanly satisfies DateProvider so UI and services do not special-case time travel"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "NurtureError unified error surface",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "nurture-ios/NurtureDomain/Sources/NurtureDomain/Errors/NurtureError.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "all locked error cases are present",
+        "the type is safe to use across services and UI without leaking raw platform errors into screen state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Release hardening script: archive plus strings and nm verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "nurture-ios/Scripts/verify_release.sh"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-017",
+        "T-018",
+        "T-019",
+        "T-020",
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "xcodebuild archive succeeds from the script",
+        "the script fails if the archived binary contains DebugClock, auth-bypass symbols, CNContactStore references, or iCloud capability footprint",
+        "the QA checklist cites this script output rather than a manual eyeball pass"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Documentation deliverables written from verified behavior",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "nurture-ios/README.md",
+        "nurture-ios/product_brief.md",
+        "nurture-ios/monetization_strategy.md",
+        "nurture-ios/technical_architecture_notes.md",
+        "nurture-ios/qa_checklist.md",
+        "nurture-ios/app_store_readiness_notes.md",
+        "nurture-ios/SETUP.md",
+        "nurture-ios/claude_design_prompt.md",
+        "nurture-ios/task_assignments.md"
+      ],
+      "depends_on": [
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "every document distinguishes verified behavior from documented intent",
+        "qa_checklist.md enumerates the named states and edge cases from T-012 through T-018 and the release audit from T-022",
+        "setup instructions match the actual project structure and test commands in the repo",
+        "task_assignments.md matches the locked lane ownership, forbidden edit zones, branch/merge protocol, and worktree-isolation guidance"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "App shell integration in NurtureApp.swift",
+      "owner_lane": "primary_ui",
+      "files": [
+        "nurture-ios/Nurture/NurtureApp.swift",
+        "nurture-ios/Nurture/App/AppRootView.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-014",
+        "T-015",
+        "T-016",
+        "T-017",
+        "T-018",
+        "T-019",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "NurtureApp.swift has a single owner and is the only file that wires AppDependencies, AppRouter, and PrivacyShieldState into the scene",
+        "the root NavigationStack, sheets, and fullScreenCovers are driven only by AppRouter",
+        "the privacy shield is applied at the shell level and the app launches into a real end-to-end root flow rather than placeholder screens"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

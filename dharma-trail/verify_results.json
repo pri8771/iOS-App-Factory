@@ -1,0 +1,53 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 05:19:43",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "195f7aaea8c2dad05b9d81f23f0e5b08bac5ce8b3308d79fd5ebeed02983aec6",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": false,
+    "ok": false,
+    "status": "unverified",
+    "tool": "xcodebuild",
+    "scheme": null,
+    "summary": "no .xcodeproj/.xcworkspace found.",
+    "errors": "",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 07:47:08",
+    "phase": "build_coordination",
+    "workflow": "iterate",
+    "prompt_hash": "92492dd0e9ebebd6b05de775f6d086ffc3c773009155293da126b51eabca0117",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "DharmaTrail",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "Failed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/dharma-trail/app_build/DharmaTrail/Views/Components/PathNodeButton.swift:16:81: error: member 'white' in 'HierarchicalShapeStyle' produces result of type 'Color', but context expects 'HierarchicalShapeStyle'\n/Users/pchordia/Documents/iOS-App-Factory/dharma-trail/app_build/DharmaTrail/Views/Components/PathNodeButton.swift:16:81: error: static property 'white' requires the types 'HierarchicalShapeStyle' and 'Color' be equivalent\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 07:47:23",
+    "phase": "build_coordination",
+    "workflow": "iterate",
+    "prompt_hash": "92492dd0e9ebebd6b05de775f6d086ffc3c773009155293da126b51eabca0117",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "DharmaTrail",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

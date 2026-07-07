@@ -1,0 +1,149 @@
+PORTFOLIO_CHILD_PROJECT: true
+Parent portfolio: multi-app-exp4
+Selected app slug: returnwise
+
+Build this app as a working local-first SwiftUI MVP.
+
+## Selected App Spec
+
+# Returnwise
+
+Build mode: **MVP build**.
+Build priority: **5**.
+
+## App Name
+
+Returnwise
+
+## Category
+
+shopping-admin
+
+## One-Sentence Promise
+
+Never lose money to missed return windows or forgotten warranties again.
+
+## Target User
+
+Frequent online and in-store shoppers who buy enough that return deadlines and warranty terms become easy to miss.
+
+## Painful Moment Solved
+
+The user realizes an item is wrong or broken and cannot quickly tell whether they can still return or claim it.
+
+## Why It Is Different
+
+Focuses on deadline leverage and proof readiness, not generic receipt storage or expense tracking.
+
+## Why Users Would Pay
+
+Directly saves money by surfacing deadlines, documents, and next actions before options expire.
+
+## Subscription Model
+
+Free tier for a small number of tracked purchases; premium for unlimited tracking, smart reminders, warranty folders, and return evidence exports.
+
+## Local-First MVP Scope
+
+Receipt scan/import, purchase records, deadline calculations, reminder schedules, warranty docs, exportable return packets on-device.
+
+## Future Backend Roadmap
+
+Email receipt sync, merchant integrations, household sharing, optional cross-device sync.
+
+## AR / Local ML / Local LLM Fit
+
+ML/OCR is integral for extracting merchant, date, and totals from receipts; no LLM dependency required.
+
+## Design Direction
+
+Sharp, deadline-aware interface with strong calendar cues and clear status labeling.
+
+## App Store Positioning
+
+A premium receipt and warranty app built around action, not archiving.
+
+## Invalidation Criteria
+
+If users still need to manually read every receipt to know what to do, the product isn't differentiated enough.
+
+## v1 Build Scope
+
+Local purchase tracking with receipt scan/import, editable extracted fields, deadline engine, reminder center, exportable proof bundle, onboarding, paywall, tests.
+
+## Core Workflows
+
+- Scan or import a receipt
+- Track return and warranty deadlines
+- Assemble a merchant-ready return packet
+
+## iOS-Native Features
+
+- Vision text extraction
+- Document scanner
+- Notifications
+- Widgets for upcoming deadlines
+- Share extension for imported receipts
+
+## Key Risks
+
+- OCR quality and correction UX must be strong enough for trust
+- Could slide toward generic expense tracking if return actions are weak
+
+## Claude Design Handoff Prompt
+
+Design a polished iPhone utility that turns receipts into deadline-driven action cards with calm but urgent timeline cues and clean document handling.
+
+## Parent Portfolio Prompt
+
+Build 7 completely separate iOS apps at the same time.
+
+Requirements:
+1. Each app must go from 0 to production-ready, not just a few features.
+2. Each app must be unique, useful, and commercially viable.
+3. Each app must be beautifully designed and feel premium.
+4. Each app must provide real end-user value.
+5. Each app should have a realistic path to monetization, with a subscription or paid offering that offers genuine value.
+6. Each app should have viral potential in general or within a niche, but virality must not come at the expense of usefulness.
+7. Each app should be better than its competitors in a meaningful way.
+8. Each app should be local-first, but architected so cloud support could be added later without rewriting everything.
+9. The seven apps must not be similar to each other.
+10. No app can be similar to anything I have already built before — including the apps already in this workspace (e.g. Waylay and TrueScale, currently in progress).
+11. Do not reuse prior concepts, themes, or mechanics from earlier apps unless there is a strong, clearly justified reason.
+
+Bonus points:
+- Unique use of LLMs
+- Unique use of AR
+- Unique use of ML
+
+Important:
+- Bonus points are optional. Do not force them in if they would weaken the app.
+- If an LLM, AR, or ML feature is used, it must provide real value and be integral to the product.
+- Do not bias the ideas toward bonus points.
+- Do not make the app around novelty alone.
+- The final result for each app must be a full production-ready app, not a prototype.
+
+Build rules:
+- Run the seven app efforts in parallel.
+- Keep the discussion and design phases separate for each app.
+- Each app should get its own full product direction, design direction, architecture, implementation plan, and build output.
+- Save all prompt discussion, phase discussion, and final decisions for each app.
+- At the end, combine the full transcript for each app into a .txt file.
+- If an app is liked, also prepare a Jira board and Notion project for it separately, including epics, tasks, fields, and all the implementation structure needed for backfilling later.
+- If the system supports multiple rounds per phase, use enough rounds to get high-quality discussion, but allow a phase to end early if consensus is reached.
+- Make the orchestrator resilient: if a phase stalls, recover cleanly instead of looping.
+- Report only important milestones, not every tiny step.
+
+Output:
+- Create one folder per app in the output directory.
+- There must be one folder per app, not one folder containing all apps.
+- Keep the outputs clearly separated and organized.
+
+Output directory:
+- /Users/pchordia/Documents/iOS-App-Factory
+
+Now generate candidate app ideas (at least 10), discuss them thoroughly, choose the best 7, and build all seven to production quality.
+
+
+## Change requested
+The build produced Swift sources but NO .xcodeproj/.xcworkspace — the app cannot be built. Generate a complete, working Xcode project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.

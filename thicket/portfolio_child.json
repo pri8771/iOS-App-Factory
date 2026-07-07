@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp6",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Thicket",
+    "slug": "thicket",
+    "category": "utility",
+    "tagline": "Plant propagation lineage tracker (parent\u2192cutting graph) with on-device CV leaf-health diagnosis.",
+    "target_user": "Someone who propagates/trades cuttings and wants lineage memory, not generic watering reminders.",
+    "build": true,
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

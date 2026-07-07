@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 01:31:09",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "7aea2895bd037b4fb10f8bf47bf75756f90ff987666b23fa874ab7fb65bfd191",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "AartiPath",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "/Users/pchordia/Documents/iOS-App-Factory/aarti-path/app_build/AartiPath/Services/ProgressService.swift:20:30: warning: conformance of 'ProgressService' to protocol 'ProgressServicing' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode\n/Users/pchordia/Documents/iOS-App-Factory/aarti-path/app_build/AartiPath/Services/StreakService.swift:23:28: warning: conformance of 'StreakService' to protocol 'StreakServicing' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode\n/Users/pchordia/Documents/iOS-App-Factory/aarti-path/app_build/AartiPath/Services/SubscriptionManager.swift:39:34: warning: conformance of 'SubscriptionManager' to protocol 'SubscriptionManaging' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode\nFailed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/aarti-path/app_build/AartiPath/Services/SubscriptionManager.swift:39:34: warning: conformance of 'SubscriptionManager' to protocol 'SubscriptionManaging' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode\n/Users/pchordia/Documents/iOS-App-Factory/aarti-path/app_build/AartiPath/Services/SubscriptionManager.swift:60:9: error: main actor-isolated property 'transactionListenerTask' can not be referenced from a nonisolated context\n/Users/pchordia/Documents/iOS-App-Factory/aarti-path/app_build/AartiPath/Services/ProgressService.swift:20:30: warning: conformance of 'ProgressService' to protocol 'ProgressServicing' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode\n/Users/pchordia/Documents/iOS-App-Factory/aarti-path/app_build/AartiPath/Services/StreakService.swift:23:28: warning: conformance of 'StreakService' to protocol 'StreakServicing' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 01:31:51",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "7aea2895bd037b4fb10f8bf47bf75756f90ff987666b23fa874ab7fb65bfd191",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "AartiPath",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

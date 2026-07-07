@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp3",
+  "build": true,
+  "build_priority": 1,
+  "app": {
+    "name": "Waylay",
+    "slug": "waylay",
+    "category": "personal utility / location-based recall",
+    "one_sentence_promise": "Tap once when something catches your eye out in the world, and Waylay quietly reminds you the next time you're actually standing near it.",
+    "target_user": "Everyday iPhone users who constantly get real-world recommendations (from friends, storefronts, social media, conversations) and lose track of them because saving something somewhere doesn't equal remembering it at the moment it matters.",
+    "painful_moment": "You walk right past a restaurant three friends recommended, but you don't remember until you're home; or you save it to Notes or Maps and that list never gets opened again.",
+    "why_different": "Apple Reminders technically supports location-triggered reminders but the capture flow is buried and slow to use in the moment; Google/Apple Maps saved lists never proactively resurface anything. Waylay is built around exactly one loop \u2014 sub-3-second capture, automatic proactive resurfacing when nearby.",
+    "why_users_pay": "Free tier caps the number of actively monitored places (bounded further by iOS's real 20-region-per-app monitoring limit); paid tier unlocks the full saved-places library with an intelligent rotation engine, richer capture (photo/voice notes), and widgets.",
+    "subscription_model": "$3.99/mo or $24.99/yr Pro: unlimited saved places with smart region rotation, photo/voice notes, home screen widgets. Free tier: ~8 actively monitored places.",
+    "local_first_mvp_scope": "Sub-3-second capture (share sheet, camera, manual pin), CoreLocation region monitoring with priority-based rotation across the 20-region system cap, local persistent store, place library browser, proactive resurfacing notifications, snooze/dismiss/mark-visited.",
+    "future_backend_roadmap": "CloudKit-based multi-device sync; optional shared/collaborative lists later, added carefully so it doesn't become a network-effect dependency for the core single-player loop.",
+    "core_workflows": [
+      "capture a place in under 3 seconds from anywhere",
+      "automatic proactive notification when physically near a saved place",
+      "browse and manage the saved places library",
+      "snooze, dismiss, or mark a place visited"
+    ],
+    "ios_native_features": [
+      "CoreLocation region monitoring",
+      "home screen widgets",
+      "share sheet extension",
+      "App Intents/Siri shortcuts"
+    ],
+    "ar_ml_llm_fit": "Not required for the core loop. Optional on-device Vision OCR to pull a name off a photographed sign is a nice-to-have, cut without hesitation if it adds friction.",
+    "design_direction": "Warm, tactile, 'little discoveries' feel \u2014 resurfacing a memory, not managing a system.",
+    "claude_design_prompt": "Design a warm, low-friction location-memory app whose entire emotional register is 'oh right, that place!' \u2014 not a task manager. Capture must feel instant; resurfacing must feel like a delightful nudge, never a chore.",
+    "app_store_positioning": "The place-memory app for things you'll walk past again.",
+    "key_risks": [
+      "iOS hard-caps monitored regions at 20 per app \u2014 rotation/prioritization is core architecture, not an edge case",
+      "if capture isn't faster than opening Notes, the loop is dead",
+      "risk of feeling like 'just another list app' if resurfacing isn't reliable and well-timed"
+    ],
+    "invalidation_criteria": "Kill if people don't reliably capture in the moment, or resurfacing feels inaccurate/spammy rather than delightful.",
+    "v1_build_scope": "Capture flow, geofenced resurfacing with rotation logic, place library, notifications, widgets, subscription paywall with free-tier cap, restore flow.",
+    "build": true,
+    "build_priority": 1
+  }
+}

@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "SQLAlchemy models + Pydantic schemas for all nine tables",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/app/models/documents.py",
+        "backend/app/models/pages.py",
+        "backend/app/models/ocr_results.py",
+        "backend/app/models/extraction_results.py",
+        "backend/app/models/corrected_results.py",
+        "backend/app/models/line_items.py",
+        "backend/app/models/ship_to_catalog.py",
+        "backend/app/models/prompt_configs.py",
+        "backend/app/models/audit_log.py",
+        "backend/app/schemas/*.py",
+        "backend/app/core/config.py"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "create_all bootstrap against SQLite produces all nine tables",
+        "Pydantic schemas (ExtractionField, PoHeaderFields, LineItem, DocumentDetail, ShipToRecord, PromptConfig) match tech_specs signatures field-for-field",
+        "no other lane's files are touched"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Swappable OCREngine + LLMExtractor protocols, real and fake implementations",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/app/services/ocr_service.py",
+        "backend/app/services/extraction_service.py",
+        "backend/app/fakes/fake_ocr.py",
+        "backend/app/fakes/fake_llm.py",
+        "backend/tests/fixtures/"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "fake LLMExtractor simulates the invalid-JSON-then-repair path via a force_repair fixture flag",
+        "real and fake implementations both satisfy the same protocol and pass identical interface-conformance tests"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Pipeline services wired end-to-end (pdf, validation, orchestration)",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/app/services/pdf_service.py",
+        "backend/app/services/validation_service.py",
+        "backend/app/services/pipeline_orchestrator.py"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "fixture PDF run through the fake pipeline produces a DocumentDetail with correct shape and correct needs_review flags",
+        "OCR/LLM calls run via run_in_executor/thread pool so the event loop isn't blocked"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Ship To fuzzy matching + prompt inheritance service",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/app/services/matching_service.py",
+        "backend/app/services/prompt_service.py"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "adversarial near-duplicate ship-to catalog fixtures prove tie-breaking behaves sensibly, not just happy-path",
+        "per-customer prompt override correctly supplements/overrides the global prompt with a computable diff"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "API routes with audit logging built into each mutating endpoint",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/api/routes/upload.py",
+        "backend/app/api/routes/documents.py",
+        "backend/app/api/routes/catalog.py",
+        "backend/app/api/routes/prompts.py",
+        "backend/app/api/routes/dashboard.py",
+        "backend/app/api/routes/export.py",
+        "backend/app/services/export_service.py",
+        "backend/app/services/audit_service.py",
+        "backend/app/main.py"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "approveDocument returns 422 when needs_review fields remain and override is false",
+        "reprocessDocument rejects clobbering unsynced client edits without an explicit force flag",
+        "every mutating endpoint's test asserts exactly one new audit_log row of the correct action type, not just the returned payload"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Frontend scaffold, typed API client, and documentReview reducer/context",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/package.json",
+        "frontend/vite.config.ts",
+        "frontend/src/api/client.ts",
+        "frontend/src/api/types.ts",
+        "frontend/src/features/documentReview/reducer.ts",
+        "frontend/src/features/documentReview/context.tsx",
+        "frontend/src/features/documentReview/types.ts",
+        "frontend/src/App.tsx"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "reducer unit tests pass for every action (FIELD_EDITED, LINE_ITEM_EDITED, LINE_ITEM_ADDED, LINE_ITEM_DELETED, SHIP_TO_SELECTED, REPROCESS_REQUESTED, APPROVE_REQUESTED, RESET_FROM_SERVER) including derived hasUnsavedChanges",
+        "api client types are a byte-for-byte mirror of the Pydantic schemas from T-001, never edited independently of them",
+        "app builds and runs against static fixture JSON with no live backend required"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Shared accessible UI components",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "frontend/src/components/shared/ConfidenceBadge.tsx",
+        "frontend/src/components/shared/StatusPill.tsx",
+        "frontend/src/components/shared/PipelineStepper.tsx",
+        "frontend/src/components/shared/DataTable.tsx"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "ConfidenceBadge always renders a numeric percentage plus an icon, never color-only",
+        "PipelineStepper renders a red dot, inline error reason, and stage-scoped retry on failure",
+        "components are keyboard-operable and used identically across Dashboard/Upload/Review rather than reimplemented per screen"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Dashboard and Upload screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/pages/Dashboard.tsx",
+        "frontend/src/pages/Upload.tsx"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Dashboard shows KPI tiles + status-pill document table with empty/loading/success/error states",
+        "Upload supports drag-and-drop multi-file batch with a 4-dot per-file pipeline stepper and stage-scoped retry on failure"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Document Review screen (core screen)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/pages/DocumentReview.tsx",
+        "frontend/src/features/documentReview/PdfViewer.tsx",
+        "frontend/src/features/documentReview/DataPanel.tsx",
+        "frontend/src/features/documentReview/ShipToMatchCard.tsx"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "side-by-side PDF (~55%) + tabbed panel (Extracted Data/Line Items/Raw OCR/Raw JSON) all wired to the reducer from T-006",
+        "three field visual states (unreviewed-low-confidence, user-edited, confirmed) all render correctly and never rely on color alone",
+        "clicking a field jumps/highlights the matching PDF page; sticky action bar enforces the reprocess-unsaved-edits warning and the approve-override gate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Ship To Catalog, Prompt Configuration, and Settings screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/pages/ShipToCatalog.tsx",
+        "frontend/src/pages/PromptConfig.tsx",
+        "frontend/src/pages/Settings.tsx"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "catalog is a searchable table + slide-over editor with an aliases chip-input",
+        "prompt config shows global vs per-customer inherited/diff view and a confirm-gated re-run-affected-documents action",
+        "Settings shows API-key/env status without exposing secret values"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Docker, docker-compose, README, sample PDFs, env wiring",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docker-compose.yml",
+        "backend/Dockerfile",
+        "frontend/Dockerfile",
+        "README.md",
+        ".env.example",
+        "sample_pdfs/"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "docker compose up on a clean checkout brings up backend+frontend with no manual steps beyond copying .env.example",
+        "no hardcoded secrets anywhere in the images or compose file",
+        "README documents the ~10-concurrent-file untested ceiling and the Poppler/GPL dependency note"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Final integration smoke test and scripted MVP-success run-through",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "backend/tests/integration/test_smoke.py",
+        "docs/transcripts/fastlane-po.txt"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-007",
+        "T-008",
+        "T-009",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "upload -> OCR -> extract -> edit a low-confidence field -> Ship To match/override -> approve -> export JSON and CSV runs end to end against the real (non-fake) stack",
+        "audit_log has a row for every step of that run-through",
+        "combined phase-discussion transcript is written to docs/transcripts/fastlane-po.txt per the portfolio build rules"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

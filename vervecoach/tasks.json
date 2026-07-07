@@ -1,0 +1,395 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Xcode project scaffold: app target, widget extension target, App Group entitlement",
+      "owner_lane": "data_domain",
+      "files": [
+        "VerveCoach.xcodeproj/project.pbxproj",
+        "VerveCoach/VerveCoachApp.swift",
+        "VerveCoach/Info.plist",
+        "VerveCoach/VerveCoach.entitlements",
+        "VerveCoachWidgetExtension/Info.plist",
+        "VerveCoachWidgetExtension/VerveCoachWidgetExtension.entitlements",
+        "VerveCoach/Shared/AppGroupConstants.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "App target and widget extension target both build empty",
+        "App Group group.com.vervecoach.shared entitlement present in both targets",
+        "VerveCoachApp.swift is an empty SwiftUI App shell with no business logic yet"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "SwiftData schema: Scenario, PromptCard, RehearsalSession, RehearsalTurnRecord, ReflectionNote, CritiqueResult",
+      "owner_lane": "data_domain",
+      "files": [
+        "VerveCoach/Models/ConversationRole.swift",
+        "VerveCoach/Models/Scenario.swift",
+        "VerveCoach/Models/PromptCard.swift",
+        "VerveCoach/Models/RehearsalSession.swift",
+        "VerveCoach/Models/RehearsalTurnRecord.swift",
+        "VerveCoach/Models/ReflectionNote.swift",
+        "VerveCoach/Models/CritiqueResult.swift",
+        "VerveCoach/Models/CritiqueSource.swift",
+        "VerveCoach/Models/VerveCoachSchema.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "A fake Scenario with cards and a session round-trips through an in-memory ModelContainer in a unit test",
+        "Deleting a Scenario cascades to its PromptCards, RehearsalSessions, and their TurnRecords/ReflectionNotes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Cross-lane protocol contracts and RehearsalPhase state machine",
+      "owner_lane": "data_domain",
+      "files": [
+        "VerveCoach/Contracts/ScenarioStore.swift",
+        "VerveCoach/Contracts/CritiqueProviding.swift",
+        "VerveCoach/Contracts/SpeechRecognitionService.swift",
+        "VerveCoach/Contracts/AudioRecordingService.swift",
+        "VerveCoach/Contracts/EntitlementStore.swift",
+        "VerveCoach/Contracts/NotificationScheduler.swift",
+        "VerveCoach/Contracts/RehearsalPhase.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "All protocols compile referencing Models types with no concrete implementation",
+        "RehearsalPhase includes explicit permission-denied case(s) and a terminal failure case, not just the happy-path cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "App Group snapshot contract and writer",
+      "owner_lane": "data_domain",
+      "files": [
+        "VerveCoach/Models/UpcomingScenarioSnapshot.swift",
+        "VerveCoach/Services/ScenarioSnapshotWriter.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "UpcomingScenarioSnapshot is Codable and contains only what the widget needs (title, counterpartName, scheduledFor, scenarioID)",
+        "Writer function has a documented call contract: invoked on Scenario create/edit/delete/reschedule"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "ScenarioStore concrete implementation over ModelContext",
+      "owner_lane": "services_utilities",
+      "files": [
+        "VerveCoach/Services/ScenarioStore.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "save/fetchAll/delete work against a real ModelContext",
+        "Every save/delete call triggers ScenarioSnapshotWriter with correct data",
+        "Session-cap check (see T-008) is enforced inside save(), not left to callers"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "AudioRecordingService concrete implementation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "VerveCoach/Services/AudioRecordingService.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        ".m4a files are written to Application Support, not stored as blobs",
+        "startRecording/stopRecording/currentDuration behave correctly across a full record cycle in a unit test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "SpeechRecognitionService concrete implementation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "VerveCoach/Services/SpeechRecognitionService.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Authorization denial surfaces as a typed result/error, never a crash",
+        "AsyncStream<String> yields incremental transcript updates in a mocked recognizer test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "EntitlementStore concrete implementation and shared session-cap policy",
+      "owner_lane": "services_utilities",
+      "files": [
+        "VerveCoach/Services/EntitlementStore.swift",
+        "VerveCoach/Services/RehearsalCapPolicy.swift",
+        "VerveCoach/Configuration/VerveCoach.storekit"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "isPremium reflects StoreKit 2 Transaction.currentEntitlements",
+        "RehearsalCapPolicy is the single function both manual UI and StartRehearsalIntent call to check free-tier limits",
+        "Local StoreKit configuration file exists and loads in a debug scheme"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "RuleBasedCritiqueProvider",
+      "owner_lane": "services_utilities",
+      "files": [
+        "VerveCoach/Services/RuleBasedCritiqueProvider.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Detects filler words, hedging language, and response length vs. expectedResponseHint",
+        "Always returns a CritiqueResult with source == .ruleBased, never throws"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "OnDeviceLLMCritiqueProvider with availability gating",
+      "owner_lane": "services_utilities",
+      "files": [
+        "VerveCoach/Services/OnDeviceLLMCritiqueProvider.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "isAvailable correctly reflects on-device model eligibility",
+        "Test suite's primary case is isAvailable == false and confirms callers fall back to RuleBasedCritiqueProvider",
+        "Never invoked as the sole critique path anywhere in the codebase"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Onboarding flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "VerveCoach/Features/Onboarding/OnboardingView.swift",
+        "VerveCoach/Features/Onboarding/OnboardingViewModel.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Empty/loading/success/error states all present where reachable",
+        "Onboarding requests mic and speech permission with clear rationale before Rehearsal flow ever needs them"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "ScenarioSetup flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "VerveCoach/Features/ScenarioSetup/ScenarioSetupView.swift",
+        "VerveCoach/Features/ScenarioSetup/ScenarioSetupViewModel.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Builds and is navigable against a fake ScenarioStore before the real one exists",
+        "addCard/save work against the protocol; free-tier cap rejection surfaces a clear error state, not a silent failure"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Rehearsal flow (state machine UI)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "VerveCoach/Features/Rehearsal/RehearsalSessionView.swift",
+        "VerveCoach/Features/Rehearsal/RehearsalSessionViewModel.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Every RehearsalPhase case, including permission-denied and failure, has a corresponding UI state",
+        "Backgrounding or denying a permission mid-recording never leaves the UI in an inconsistent state (no half-recorded limbo)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Review flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "VerveCoach/Features/Review/ReviewView.swift",
+        "VerveCoach/Features/Review/ReviewViewModel.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Session history lists past RehearsalSessions with reflection notes",
+        "addReflectionNote persists and appears without requiring app restart"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Paywall flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "VerveCoach/Features/Paywall/PaywallView.swift",
+        "VerveCoach/Features/Paywall/PaywallViewModel.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Presents when RehearsalCapPolicy rejects an action, from any entry point",
+        "Purchase/restore flows against EntitlementStore protocol, testable with a fake"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "NotificationScheduler concrete implementation",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "VerveCoach/Notifications/NotificationScheduler.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "scheduleReminder/cancelReminder work against UNUserNotificationCenter in a unit test with a mock center",
+        "Denied notification permission degrades gracefully, no crash"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "UpcomingSessionWidget",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "VerveCoachWidgetExtension/UpcomingSessionWidget.swift",
+        "VerveCoachWidgetExtension/SnapshotReader.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Reads only UpcomingScenarioSnapshot from the App Group container, never opens SwiftData directly",
+        "Widget reflects a newly created Scenario after a timeline reload, not stale placeholder data"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "StartRehearsalIntent",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "VerveCoach/AppIntents/StartRehearsalIntent.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Calls the same RehearsalCapPolicy check as manual UI before starting a session",
+        "A free user at their cap is blocked via Siri exactly as they would be via the app UI"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Full rehearsal loop integration test",
+      "owner_lane": "services_utilities",
+      "files": [
+        "VerveCoachTests/RehearsalLoopIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-006",
+        "T-007",
+        "T-009",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Record -> transcribe -> rule-based critique -> save runs end-to-end against real (non-mock) services in a test target",
+        "Resulting RehearsalTurnRecord round-trips through ScenarioStore with correct audioFilename and critique"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Pre-ship checklist verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "VerveCoachTests/PreShipChecklistTests.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-008",
+        "T-017",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Mic/speech/notification permission-denial states verified in UI, not just unit tests",
+        "StoreKit sandbox purchase and restore both verified against VerveCoach.storekit",
+        "Widget shows a real just-created Scenario end-to-end, not stubbed data"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Root app assembly and dependency wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "VerveCoach/VerveCoachApp.swift",
+        "VerveCoach/RootView.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-008",
+        "T-009",
+        "T-010",
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-014",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "VerveCoachApp.swift injects concrete ScenarioStore, EntitlementStore, and both critique providers into the environment",
+        "RootView composes Onboarding -> ScenarioSetup/Rehearsal/Review/Paywall navigation without any lane's fake/stub types remaining in the shipped build"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

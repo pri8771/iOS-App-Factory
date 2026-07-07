@@ -1,0 +1,238 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "ExtractionField",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface ExtractionField<T> { value: T; confidence: number; source_text: string; page_number: number; needs_review: boolean; }",
+      "owning_lane": "data_domain",
+      "notes": "Generic wrapper reused for every header field and every line-item field; mirrors the Pydantic ExtractionField schema exactly."
+    },
+    {
+      "name": "DocumentStatus",
+      "kind": "enum",
+      "language": "typescript",
+      "signature": "type DocumentStatus = 'uploaded' | 'ocr_running' | 'extracting' | 'needs_review' | 'approved' | 'failed'",
+      "owning_lane": "data_domain",
+      "notes": "Drives status pills on Dashboard and per-file stepper on Upload."
+    },
+    {
+      "name": "PipelineStage",
+      "kind": "enum",
+      "language": "typescript",
+      "signature": "type PipelineStage = 'upload' | 'ocr' | 'extract' | 'ready'",
+      "owning_lane": "data_domain",
+      "notes": "4-dot stepper stage; failure state carries {stage: PipelineStage, reason: string}."
+    },
+    {
+      "name": "LineItem",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface LineItem { id: string; line_no: number; material_code: ExtractionField<string>; description: ExtractionField<string>; qty: ExtractionField<number>; uom: ExtractionField<string>; unit_price: ExtractionField<number>; line_total: ExtractionField<number>; requested_delivery_date: ExtractionField<string | null>; is_user_added: boolean; is_deleted: boolean; }",
+      "owning_lane": "data_domain",
+      "notes": "Line items are independently add/delete-able; is_deleted is a soft-delete flag, not a splice, so audit trail is preserved."
+    },
+    {
+      "name": "PoHeaderFields",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface PoHeaderFields { po_number: ExtractionField<string>; po_date: ExtractionField<string>; customer: ExtractionField<string>; buyer: ExtractionField<string>; payer: ExtractionField<string>; bill_to: ExtractionField<{ name: string; address: string }>; ship_to: ExtractionField<{ name: string; address: string }>; ship_to_id: ExtractionField<string | null>; currency: ExtractionField<string>; subtotal: ExtractionField<number>; tax: ExtractionField<number>; total: ExtractionField<number>; }",
+      "owning_lane": "data_domain",
+      "notes": "Maps 1:1 to required header fields in the original spec."
+    },
+    {
+      "name": "ShipToRecord",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface ShipToRecord { id: string; customer_id: string; address_line1: string; address_line2: string | null; city: string; region: string; postal_code: string; country: string; aliases: string[]; }",
+      "owning_lane": "data_domain",
+      "notes": "Row shape for ship_to_catalog table and catalog CRUD screen."
+    },
+    {
+      "name": "ShipToMatch",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface ShipToMatch { best_match: { ship_to_id: string; confidence: number; reason: string } | null; alternates: Array<{ ship_to_id: string; confidence: number; reason: string }>; }",
+      "owning_lane": "data_domain",
+      "notes": "Computed by matching_service at extraction/reprocess time, surfaced as the Ship To match card."
+    },
+    {
+      "name": "DocumentDetail",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface DocumentDetail { id: string; filename: string; status: DocumentStatus; pages: Array<{ page_number: number; image_url: string; width: number; height: number }>; header: PoHeaderFields; line_items: LineItem[]; ship_to_match: ShipToMatch; raw_ocr_text: string; raw_json_pre_repair: string | null; raw_json_final: string; repaired: boolean; error_stage: PipelineStage | null; error_message: string | null; }",
+      "owning_lane": "data_domain",
+      "notes": "Full payload for GET /api/documents/{id}, the single source of truth the reducer initializes from."
+    },
+    {
+      "name": "DocumentListItem",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface DocumentListItem { id: string; filename: string; status: DocumentStatus; uploaded_at: string; confidence_avg: number | null; customer: string | null; }",
+      "owning_lane": "data_domain",
+      "notes": "Row shape for Dashboard recent-documents table."
+    },
+    {
+      "name": "DashboardSummary",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface DashboardSummary { total_uploaded: number; total_processed: number; needing_review: number; average_confidence: number; success_rate: number; }",
+      "owning_lane": "data_domain",
+      "notes": "GET /api/dashboard/summary."
+    },
+    {
+      "name": "PromptConfig",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface PromptConfig { id: string; scope: 'global' | 'customer'; customer_id: string | null; prompt_text: string; version: number; is_active: boolean; }",
+      "owning_lane": "data_domain",
+      "notes": "Per-customer rows override/supplement the global row at extraction time."
+    },
+    {
+      "name": "AuditAction",
+      "kind": "enum",
+      "language": "typescript",
+      "signature": "type AuditAction = 'UPLOADED' | 'OCR_COMPLETED' | 'EXTRACTED' | 'FIELD_EDITED' | 'LINE_ITEM_EDITED' | 'SHIP_TO_SELECTED' | 'REPROCESSED' | 'APPROVED' | 'EXPORTED'",
+      "owning_lane": "data_domain",
+      "notes": "Written to audit_log on every persisted (not every keystroke) reducer action."
+    },
+    {
+      "name": "DocumentReviewState",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface DocumentReviewState { document: DocumentDetail; editedHeader: Partial<PoHeaderFields>; editedLineItems: Record<string, Partial<LineItem>>; selectedShipToId: string | null; activeTab: 'extracted' | 'line_items' | 'raw_ocr' | 'raw_json'; jumpToPage: number | null; hasUnsavedChanges: boolean; isReprocessing: boolean; }",
+      "owning_lane": "primary_ui",
+      "notes": "Owned by a single reducer+Context per open document, per design_handoff decision. hasUnsavedChanges gates REPROCESS_REQUESTED."
+    },
+    {
+      "name": "DocumentReviewAction",
+      "kind": "enum",
+      "language": "typescript",
+      "signature": "type DocumentReviewAction = { type: 'FIELD_EDITED'; field: keyof PoHeaderFields; value: unknown } | { type: 'LINE_ITEM_EDITED'; id: string; patch: Partial<LineItem> } | { type: 'LINE_ITEM_ADDED' } | { type: 'LINE_ITEM_DELETED'; id: string } | { type: 'SHIP_TO_SELECTED'; shipToId: string } | { type: 'FIELD_JUMP_REQUESTED'; pageNumber: number } | { type: 'REPROCESS_REQUESTED' } | { type: 'APPROVE_REQUESTED'; override: boolean } | { type: 'RESET_FROM_SERVER'; document: DocumentDetail }",
+      "owning_lane": "primary_ui",
+      "notes": "Discriminated union consumed by documentReviewReducer(state, action): DocumentReviewState."
+    },
+    {
+      "name": "uploadDocuments",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/documents/upload (multipart/form-data, files[]) -> { document_ids: string[] }",
+      "owning_lane": "services_utilities",
+      "notes": "Kicks off async pipeline per file; client polls or subscribes for status."
+    },
+    {
+      "name": "listDocuments",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "GET /api/documents?status=&customer=  -> DocumentListItem[]",
+      "owning_lane": "services_utilities",
+      "notes": "Backs Dashboard table."
+    },
+    {
+      "name": "getDocument",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "GET /api/documents/{id} -> DocumentDetail",
+      "owning_lane": "services_utilities",
+      "notes": "Backs Document Review screen load."
+    },
+    {
+      "name": "patchDocumentFields",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "PATCH /api/documents/{id}/fields (body: Partial<PoHeaderFields>) -> DocumentDetail",
+      "owning_lane": "services_utilities",
+      "notes": "Persists edited header fields into corrected_results; writes FIELD_EDITED audit rows."
+    },
+    {
+      "name": "patchLineItems",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "PATCH /api/documents/{id}/line-items (body: { upserts: LineItem[]; deletedIds: string[] }) -> LineItem[]",
+      "owning_lane": "services_utilities",
+      "notes": "Batch upsert/soft-delete."
+    },
+    {
+      "name": "selectShipTo",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/documents/{id}/ship-to (body: { ship_to_id: string }) -> ShipToMatch",
+      "owning_lane": "services_utilities",
+      "notes": "Manual override of the auto-match."
+    },
+    {
+      "name": "reprocessDocument",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/documents/{id}/reprocess -> DocumentDetail",
+      "owning_lane": "services_utilities",
+      "notes": "Re-runs OCR+extraction; server rejects if it would silently clobber unsynced client edits without an explicit force flag."
+    },
+    {
+      "name": "approveDocument",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/documents/{id}/approve (body: { override: boolean }) -> DocumentDetail",
+      "owning_lane": "services_utilities",
+      "notes": "Blocks (422) if needs_review fields remain and override is false."
+    },
+    {
+      "name": "exportDocument",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "GET /api/documents/{id}/export?format=json|csv -> file download",
+      "owning_lane": "services_utilities",
+      "notes": ""
+    },
+    {
+      "name": "searchShipToCatalog",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "GET /api/ship-to-catalog/search?q= -> ShipToRecord[]",
+      "owning_lane": "services_utilities",
+      "notes": "Manual fallback search in the Ship To match card."
+    },
+    {
+      "name": "OCREngine",
+      "kind": "protocol",
+      "language": "python",
+      "signature": "class OCREngine(Protocol): def run(self, image_path: str) -> OcrResult: ...",
+      "owning_lane": "data_domain",
+      "notes": "Swappable interface (Tesseract now, cloud OCR later) per ios_architecture_review decision."
+    },
+    {
+      "name": "LLMExtractor",
+      "kind": "protocol",
+      "language": "python",
+      "signature": "class LLMExtractor(Protocol): def extract(self, ocr_text: str, prompt: str) -> ExtractionResult: def repair(self, invalid_output: str, prompt: str) -> ExtractionResult: ...",
+      "owning_lane": "data_domain",
+      "notes": "extract() failure triggers exactly one repair() retry per spec; both raise on second failure, which sets document.status='failed' with error_stage='extract'."
+    },
+    {
+      "name": "documentReviewReducer",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function documentReviewReducer(state: DocumentReviewState, action: DocumentReviewAction): DocumentReviewState",
+      "owning_lane": "primary_ui",
+      "notes": "Single reducer per open document; unit-test target for every action listed in DocumentReviewAction."
+    },
+    {
+      "name": "ConfidenceBadge",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function ConfidenceBadge(props: { confidence: number; needsReview: boolean }): JSX.Element",
+      "owning_lane": "polish_resilience",
+      "notes": "Never color-only: always renders numeric percentage + icon per accessibility rule from design_handoff."
+    },
+    {
+      "name": "PipelineStepper",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function PipelineStepper(props: { stage: PipelineStage; failedAt: PipelineStage | null; errorReason: string | null }): JSX.Element",
+      "owning_lane": "polish_resilience",
+      "notes": "4-dot stepper on Upload screen; red dot + inline reason + stage-scoped retry on failure."
+    }
+  ],
+  "errors": []
+}

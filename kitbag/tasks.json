@@ -1,0 +1,570 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Xcode project scaffolding: targets, App Group, StoreKit config, git init, synchronized folder groups",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Kitbag.xcodeproj/*",
+        "Kitbag/App/KitbagApp.swift",
+        "Kitbag/Kitbag.entitlements",
+        "KitbagWidget/KitbagWidget.entitlements",
+        "Kitbag/Kitbag.storekit",
+        ".gitignore",
+        "README.md"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Kitbag.xcodeproj opens and builds an empty shell via xcodebuild",
+        "main app target, KitbagWidget extension target, KitbagTests (Swift Testing) and KitbagUITests (XCUITest) targets all exist and compile",
+        "App Group container is provably readable and writable from both the main app target and the widget extension target via a throwaway smoke test committed to the repo",
+        "Kitbag.storekit contains real product identifiers for monthly/annual premium",
+        "git repository initialized with lane branches cut from main after this task lands",
+        "Sources/DataDomain, Sources/ServicesUtilities, Sources/PrimaryUI, Sources/PolishResilience folders exist as synchronized groups mapped to correct target membership so later file adds never require pbxproj edits"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Three-tab navigation shell and design tokens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Kitbag/Sources/PrimaryUI/Navigation/TabRoute.swift",
+        "Kitbag/Sources/PrimaryUI/Navigation/AppRootView.swift",
+        "Kitbag/Sources/PrimaryUI/Design/DesignTokens.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "App launches into Trips/Insights/Settings tabs each with an independent NavigationStack",
+        "a real kill-and-relaunch resets every tab to its root, no persisted deep-stack restoration",
+        "spacing/corner-radius/color-story token values match the locked design_handoff values"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "SwiftData models and VersionedSchema",
+      "owner_lane": "data_domain",
+      "files": [
+        "Kitbag/Sources/DataDomain/Models/Trip.swift",
+        "Kitbag/Sources/DataDomain/Models/PackingItem.swift",
+        "Kitbag/Sources/DataDomain/Models/Review.swift",
+        "Kitbag/Sources/DataDomain/Models/ReviewItemOutcome.swift",
+        "Kitbag/Sources/DataDomain/Models/TripType.swift",
+        "Kitbag/Sources/DataDomain/Models/PackingCategory.swift",
+        "Kitbag/Sources/DataDomain/Models/SuggestionReasonKind.swift",
+        "[REDACTED:high_entropy].swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "ModelContainer builds successfully from SchemaV1",
+        "a unit test creates a Trip with items and a review and confirms cascade-delete removes both when the trip is deleted",
+        "didHappen defaults to true and is the only persisted lifecycle fact on Trip"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Schema migration mechanism regression test",
+      "owner_lane": "data_domain",
+      "files": [
+        "Kitbag/Tests/DataDomainTests/SchemaMigrationSmokeTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "a standalone test-only two-version schema pair (not SchemaV1) proves ModelContainer migration works on this SDK/Xcode version",
+        "test is kept permanently as a regression guard, not deleted after passing once"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Bundled climate dataset and ClimateCatalog",
+      "owner_lane": "data_domain",
+      "files": [
+        "Kitbag/Resources/ClimateData/climate_normals.json",
+        "Kitbag/Sources/DataDomain/Climate/ClimateNormal.swift",
+        "Kitbag/Sources/DataDomain/Climate/PrecipitationBand.swift",
+        "Kitbag/Sources/DataDomain/Climate/ClimateCatalog.swift",
+        "Kitbag/Sources/DataDomain/Climate/RegionCatalogEntry.swift",
+        "Kitbag/Sources/DataDomain/Climate/ClimateZoneFallbackEntry.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "30-40 bundled regions plus fallback climate zones each have all 12 months present",
+        "a plausibility-bounds test rejects unrealistic temperature/precipitation values, not just checking coverage",
+        "ClimateCatalog loads once in-memory at launch with no per-lookup file IO"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Pure derivation functions: tripPhase, monthOfMajorityDays, isWithinFreeRetentionWindow",
+      "owner_lane": "data_domain",
+      "files": [
+        "Kitbag/Sources/DataDomain/Derivations/TripPhase.swift",
+        "Kitbag/Sources/DataDomain/Derivations/monthOfMajorityDays.swift",
+        "Kitbag/Sources/DataDomain/Derivations/isWithinFreeRetentionWindow.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "month-boundary tie-break rule is deterministic and unit-tested with a trip that spans exactly two months",
+        "isWithinFreeRetentionWindow is relationship-free (takes only ids/dates/counts, never a SwiftData relationship traversal) and unit-tested at the exact 3rd/4th trip boundary",
+        "tripPhase is never persisted and is recomputed correctly for every TripPhase case including didNotHappen"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Pure GenerationEngine and the learning go/no-go test",
+      "owner_lane": "data_domain",
+      "files": [
+        "Kitbag/Sources/DataDomain/Generation/GenerationInput.swift",
+        "Kitbag/Sources/DataDomain/Generation/GenerationResult.swift",
+        "Kitbag/Sources/DataDomain/Generation/SuggestionReason.swift",
+        "Kitbag/Sources/DataDomain/Generation/GenerationEngine.swift",
+        "Kitbag/Sources/DataDomain/Learning/LearningHistorySnapshot.swift",
+        "Kitbag/Tests/DataDomainTests/GenerationEngineGoNoGoTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "generate(input:) is synchronous, non-async, non-actor-isolated",
+        "reviewing trip A with an item marked unused, then generating a same-type-or-region trip B, produces that item visibly demoted with a reason string naming trip A",
+        "a single data point never shifts a suggestion; the minimumEvidenceCount=2 rule is explicitly tested",
+        "zero-history input still produces a non-empty, sensible list from trip type + climate alone"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "applyGenerationResult and SwiftData-backed LearningHistoryReader",
+      "owner_lane": "data_domain",
+      "files": [
+        "Kitbag/Sources/DataDomain/Generation/applyGenerationResult.swift",
+        "Kitbag/Sources/DataDomain/Learning/LearningHistoryReader.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "applying a regenerated result preserves isCustom rows and preserves checked state on unchanged suggested rows",
+        "isRecentlyChanged is set only on rows whose reason actually changed from the prior frozen snapshot",
+        "LearningHistoryReader recomputes fresh from raw ReviewItemOutcome rows every call, never an incremental cache, and only reads trips where didHappen == true"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Trip/GeneratedList/Review repositories",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Kitbag/Sources/ServicesUtilities/Repositories/TripRepository.swift",
+        "Kitbag/Sources/ServicesUtilities/Repositories/GeneratedListRepository.swift",
+        "Kitbag/Sources/ServicesUtilities/Repositories/ReviewRepository.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "checked state, custom items, and a saved review all survive a real kill-and-relaunch in an integration test",
+        "deleting a trip cascade-deletes items and review; markTripDidNotHappen only flips didHappen and never deletes",
+        "toggleChecked performs a single targeted field write, verified by asserting only one row changes, not a full-list re-save",
+        "saveReview is full-overwrite so re-editing a review is deterministic, never incremental patching"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "PackingCoordinator: the only bridge between SwiftData and the pure engine",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Kitbag/Sources/ServicesUtilities/Coordinator/PackingCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-008",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "createTripAndGenerate, regenerateList, submitReview, and rebuildAllDerivedState are all integration-tested against real repositories",
+        "generation always runs synchronously on the main actor with no real suspension point; a test asserts no spinner is needed on the golden path",
+        "rebuildAllDerivedState correctly repairs a deliberately corrupted derived-state fixture in a test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Trip creation and edit flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Kitbag/Sources/PrimaryUI/Screens/TripCreateEditView.swift",
+        "Kitbag/Sources/PrimaryUI/Stores/TripCreateEditStore.swift",
+        "Kitbag/Sources/PrimaryUI/Components/DestinationSearchRow.swift",
+        "Kitbag/Sources/PrimaryUI/Components/TripTypeChip.swift",
+        "Kitbag/Sources/PrimaryUI/Components/RegenerationBanner.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "a brand-new user with zero history creates a trip fully offline and gets a non-empty, reason-stringed list in the same session",
+        "destination search shows the climate-zone fallback the instant results are empty, with no debounce/async/loading state",
+        "editing a trip's dates/destination regenerates suggested items but preserves custom items and checked state, showing the RegenerationBanner only when the diff actually affects generation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Trip list and trip detail/checklist screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Kitbag/Sources/PrimaryUI/Screens/TripListView.swift",
+        "Kitbag/Sources/PrimaryUI/Screens/TripDetailView.swift",
+        "Kitbag/Sources/PrimaryUI/Stores/TripListStore.swift",
+        "Kitbag/Sources/PrimaryUI/Stores/TripDetailStore.swift",
+        "Kitbag/Sources/PrimaryUI/Components/TripCard.swift",
+        "Kitbag/Sources/PrimaryUI/Components/ColorStoryHeaderView.swift",
+        "Kitbag/Sources/PrimaryUI/Components/ProgressRingView.swift",
+        "Kitbag/Sources/PrimaryUI/Components/ChecklistRow.swift",
+        "Kitbag/Sources/PrimaryUI/Components/CustomItemRow.swift",
+        "Kitbag/Sources/PrimaryUI/Components/ReasonSheet.swift",
+        "Kitbag/Sources/PrimaryUI/Design/ColorStory.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "empty/loading/success/error states all present on both screens, plus a distinct 'generating' state on trip detail separate from ordinary loading",
+        "checked state and custom items survive a real kill-and-relaunch",
+        "every suggested item's reason sheet shows a real, specific reason string, never generic 'smart suggestion' copy",
+        "locked (beyond-free-tier) trip cards render instantly using isWithinFreeRetentionWindow with no fetch into items/review"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Post-trip review flow including didn't-happen exit",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Kitbag/Sources/PrimaryUI/Screens/PostTripReviewView.swift",
+        "Kitbag/Sources/PrimaryUI/Stores/ReviewStore.swift",
+        "Kitbag/Sources/PrimaryUI/Components/ReviewExceptionRow.swift",
+        "Kitbag/Sources/PrimaryUI/Components/ConfirmationDialog.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "a zero-exception review completes in 3 taps or fewer, measured by an XCUITest, not eyeballed",
+        "the 'this trip didn't happen' exit is visually and semantically distinct from a normal review and requires its own confirmation",
+        "a completed review is reopenable and editable, and downstream aggregates recompute deterministically from full history, not incrementally"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Changed-item badge and first-time toast for the review-driven regeneration moment",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Kitbag/Sources/PrimaryUI/Components/ChangedItemBadge.swift",
+        "Kitbag/Sources/PrimaryUI/Components/ToastCenter.swift",
+        "Kitbag/Sources/PrimaryUI/Components/ToastMessage.swift"
+      ],
+      "depends_on": [
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "after a review-driven regeneration, affected items show a persistent inline badge",
+        "exactly one banner/toast ever fires for this moment across the app's lifetime, gated by a single permanent flag that never resets",
+        "the badge clears when its item is checked off"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "EntitlementStore and StoreKit 2 wiring",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Kitbag/Sources/ServicesUtilities/Entitlements/EntitlementState.swift",
+        "Kitbag/Sources/ServicesUtilities/Entitlements/EntitlementStore.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "a long-lived Transaction.updates listener drives entitlement state, never just a launch-time check",
+        "a simulated purchase and a simulated expiration/renewal-failure are both exercised against the local .storekit config",
+        "an offline grace window biases toward preserving already-unlocked access rather than flapping locked/unlocked",
+        "trip creation and the core packing flow never block on entitlement checks"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Paywall and Settings screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Kitbag/Sources/PrimaryUI/Screens/PaywallView.swift",
+        "Kitbag/Sources/PrimaryUI/Screens/SettingsView.swift",
+        "Kitbag/Sources/PrimaryUI/Stores/PaywallStore.swift",
+        "Kitbag/Sources/PrimaryUI/Components/PaywallSheet.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "paywall reflects real transaction state and includes a working restore-purchases action",
+        "settings states on-device privacy as a stated feature, shows climate data provenance copy, and gates export/share behind the real entitlement",
+        "every destructive action (delete trip, clear history) requires confirmation before proceeding"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Insights screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Kitbag/Sources/PrimaryUI/Screens/InsightsView.swift",
+        "Kitbag/Sources/PrimaryUI/Stores/InsightsStore.swift",
+        "Kitbag/Sources/PrimaryUI/Components/InsightCard.swift",
+        "Kitbag/Sources/PrimaryUI/Components/EmptyStateView.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "an honest empty state shows before any review exists, with no fabricated sample data",
+        "populated state shows only real, attributable behavior patterns from review history",
+        "beyond the free-tier window, a blurred-but-visible teaser is shown rather than an empty lock screen"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Export/share with reasoning stripped",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Kitbag/Sources/ServicesUtilities/Export/PackingItemSnapshot.swift",
+        "Kitbag/Sources/ServicesUtilities/Export/ExportingPackingList.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "exported plain-text list contains item names/quantities only, with all reason/analytic commentary stripped, verified by a test asserting the reason strings never appear in export output"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "AppError and PersistenceBootstrap full-bleed error handling",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Kitbag/Sources/PolishResilience/Errors/AppError.swift",
+        "Kitbag/Sources/PolishResilience/Persistence/PersistenceBootstrap.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "a simulated ModelContainer init failure renders a full-bleed error state in a test/preview, never a crash",
+        "every AppError case maps to a reachable, distinct UI error state somewhere in the app"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Accessibility header collapse adapter",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Kitbag/Sources/PolishResilience/Accessibility/HeaderLayoutVariant.swift",
+        "Kitbag/Sources/PolishResilience/Accessibility/HeaderRenderStyle.swift",
+        "Kitbag/Sources/PolishResilience/Accessibility/AccessibilityCollapseAdapter.swift"
+      ],
+      "depends_on": [
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "all four legitimate combinations (full+gradient, full+flat, collapsed+gradient, collapsed+flat) are unit-tested since Dynamic-Type-XXL layout collapse and Increase-Contrast/Reduce-Transparency color flattening are independent and can both be active at once",
+        "ColorStoryHeaderView visibly degrades correctly under Dynamic Type XXL and under Increase Contrast/Reduce Transparency"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "WidgetSnapshot, publisher, and KitbagWidget extension",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Kitbag/Sources/ServicesUtilities/Widgets/WidgetSnapshot.swift",
+        "Kitbag/Sources/ServicesUtilities/Widgets/WidgetSnapshotPublisher.swift",
+        "KitbagWidget/KitbagWidgetBundle.swift",
+        "KitbagWidget/PackingProgressTimelineProvider.swift",
+        "KitbagWidget/PackingProgressWidgetView.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "WidgetSnapshot structurally never contains destination text, verified by a test inspecting its Codable field set",
+        "publish is debounced over roughly 1-2 seconds of inactivity before calling WidgetCenter.shared.reloadTimelines",
+        "timeline provider output is unit-tested; on-device rendering is explicitly flagged unverifiable in this headless environment via BuildVerificationChecklist, never claimed as working"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Live Activity for an active packing session",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Kitbag/Sources/ServicesUtilities/Widgets/PackingSessionActivityAttributes.swift",
+        "KitbagWidget/PackingSessionLiveActivity.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "start/update/end logic is unit-tested against the ActivityKit attributes/content-state shape",
+        "on-device rendering is flagged unverifiable in this headless environment, not asserted as working",
+        "this is the first feature cut if schedule is squeezed, per the standing cut order"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "AddPackingItemIntent and NotificationScheduler",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Kitbag/Sources/ServicesUtilities/Intents/AddPackingItemIntent.swift",
+        "Kitbag/Sources/ServicesUtilities/Notifications/NotificationScheduler.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "the intent targets the most imminent upcoming trip and has a clean spoken failure path at zero trips, unit-tested",
+        "a test proves the core packing flow works identically whether notification permission is granted or denied",
+        "notification copy is generic and never contains destination text"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "DeepLinkRouter and resolution logic",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Kitbag/Sources/ServicesUtilities/Navigation/DeepLinkRouter.swift",
+        "Kitbag/Sources/ServicesUtilities/Navigation/DeepLinkResolution.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "resolve() returns .tripNotFound for a deleted or didn't-happen trip id instead of crashing or silently no-opping",
+        "a single resolution point prevents simultaneous notification/widget/Siri triggers from racing each other"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Wire deep-link intents and toast fallback into the app root",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Kitbag/Sources/PrimaryUI/Navigation/PendingNavigationIntent.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-021",
+        "T-023",
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "tapping a stale notification/widget/Siri deep link lands safely on Trip List with the shared toast reading that the trip is no longer available",
+        "AppRootView.swift (owned by T-002) is only modified here to add intent resolution, not restructured"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Accessibility and empty/loading/error-state audit",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Kitbag/Tests/PrimaryUITests/AccessibilityAuditTests.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "VoiceOver reads item name, checked state, suggested-vs-custom, and reason/changed status in a sensible order on every screen that has them",
+        "no screen distinguishes suggested/custom/locked/review-exception by color alone",
+        "delete-trip and mark-didn't-happen confirmations have distinctly different VoiceOver labels and copy weight"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Checklist interaction performance verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Kitbag/Tests/ServicesUtilitiesTests/ChecklistPerformanceTests.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "toggling a single item in a 100+ item checklist is measured to trigger exactly one targeted write, not a full-list re-fetch or re-save"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Final BuildVerificationChecklist sweep",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Kitbag/Sources/PolishResilience/Verification/BuildVerificationChecklist.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-014",
+        "T-020",
+        "T-022",
+        "T-025",
+        "T-026",
+        "T-027"
+      ],
+      "acceptance_criteria": [
+        "verifiedCoreFlows lists every core workflow that actually has a passing automated test, by name",
+        "unverifiableInHeadless lists widget/Live Activity/Siri on-device rendering and live StoreKit purchases explicitly, never marked as working",
+        "knownLimitations is populated from whatever this sweep actually finds, not left empty by default"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

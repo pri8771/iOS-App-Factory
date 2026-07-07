@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Cadence",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Cadence: String, Codable, CaseIterable { case weekly, biweekly, semimonthly, monthly }",
+      "owning_lane": "data_domain",
+      "notes": "Shared by Bill and Paycheck. Semimonthly requires a second reference date on the owning entity, not derived arithmetically."
+    },
+    {
+      "name": "Bill",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Bill { var id: UUID; var name: String; var amount: Decimal; var cadence: Cadence; var anchorDate: Date; var secondAnchorDate: Date?; var createdAt: Date; var deletedAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "amount is Decimal, never Double. deletedAt drives #Predicate exclusion at fetch layer, never filtered post-fetch. Negative/zero amount rejected via validateAmount at input layer, not here."
+    },
+    {
+      "name": "Paycheck",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Paycheck { var id: UUID; var amount: Decimal; var cadence: Cadence; var anchorDate: Date; var secondAnchorDate: Date?; var createdAt: Date; var deletedAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "Same shape as Bill for cadence/date handling. Reference date(s) clamp into shorter months per locked month-end rule."
+    },
+    {
+      "name": "BalanceAnchor",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class BalanceAnchor { var id: UUID; var amount: Decimal; var asOf: Date; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Appended, not mutated in place; freshness and the projection's starting point are computed from the most recent asOf, not createdAt."
+    },
+    {
+      "name": "RunwayProjection",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RunwayProjection { enum Status { case zeroData, billsOnly, fresh, stale }; var status: Status; var runwayEndDate: Date?; var daysRemaining: Int?; var fullness: Double; var freshnessDays: Int; var narrativeSentence: String; var dailyBalances: [DailyBalancePoint] }",
+      "owning_lane": "data_domain",
+      "notes": "dailyBalances is a byproduct of the sweep-merge engine; kept even though current UI only reads fullness/narrativeSentence, because it's the substrate for the future what-if/premium feature and the fill visual."
+    },
+    {
+      "name": "DailyBalancePoint",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DailyBalancePoint { var date: Date; var balance: Decimal }",
+      "owning_lane": "data_domain",
+      "notes": "One point per cash-event date, not one per calendar day \u2014 sparse, not dense, for performance."
+    },
+    {
+      "name": "RunwayEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum RunwayEngine { static let horizonYears: Int = 2; static func project(bills: [Bill], paychecks: [Paycheck], anchor: BalanceAnchor?, now: Date, calendar: Calendar = .autoupdatingCurrent) -> RunwayProjection }",
+      "owning_lane": "data_domain",
+      "notes": "Pure, SwiftData-free, SwiftUI-free. Must use Calendar.date(byAdding:to:) exclusively, never TimeInterval/epoch arithmetic. Same-day bills treated as already subtracted. Bills-only state (no paychecks) renders honest billsOnly status, never assumes a paycheck. Fallback to a day-by-day loop is pre-approved if sweep-merge test coverage is at risk."
+    },
+    {
+      "name": "occurrences(for:anchorDate:secondAnchorDate:from:horizon:calendar:)",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func occurrences(for cadence: Cadence, anchorDate: Date, secondAnchorDate: Date?, from: Date, horizon: Date, calendar: Calendar) -> [Date]",
+      "owning_lane": "data_domain",
+      "notes": "Generates capped, month-end-clamped occurrence dates for one entity. Hard-stops at horizon regardless of cadence to prevent unbounded generation from a bad anchor date."
+    },
+    {
+      "name": "ModelContainerFactory",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ModelContainerFactory { static func makeContainer(inMemory: Bool = false) -> ModelContainer }",
+      "owning_lane": "services_utilities",
+      "notes": "Single shared factory targeting the App Group ModelConfiguration (AppGroupIdentifier.value), cloudKitDatabase: .none, built from CisternMigrationPlan. Future widget target must call this identical factory."
+    },
+    {
+      "name": "CisternSchemaV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum CisternSchemaV1: VersionedSchema { static var versionIdentifier: Schema.Version; static var models: [any PersistentModel.Type] { [BalanceAnchor.self, Bill.self, Paycheck.self] } }",
+      "owning_lane": "data_domain",
+      "notes": "First versioned schema, trivial single-version migration plan from day one per architecture review."
+    },
+    {
+      "name": "CisternMigrationPlan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum CisternMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [CisternSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+      "owning_lane": "data_domain",
+      "notes": "Empty stages array acceptable for a single-version schema; the shape exists so a real migration can be added later without restructuring."
+    },
+    {
+      "name": "EntryKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EntryKind { case bill(Bill?), paycheck(Paycheck?), balance(BalanceAnchor?) }",
+      "owning_lane": "primary_ui",
+      "notes": "Associated value nil means add-new; non-nil means editing that entity. Backs the single parameterized QuickAddSheet."
+    },
+    {
+      "name": "QuickAddSheet",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct QuickAddSheet: View { let kind: EntryKind; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Handles add and edit for all three entity types. Uses validateAmount for inline validation-error and soft-confirmation states."
+    },
+    {
+      "name": "HomeView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct HomeView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "ScrollView-based (not fixed VStack) so max Dynamic Type sizes scroll instead of clip. Wraps @Query results, derives RunwayProjection, composes HeroRunwayText/CisternFillView/BalancePill/ComingNextRow/BillsOnlyBanner."
+    },
+    {
+      "name": "HeroRunwayText",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct HeroRunwayText: View { let projection: RunwayProjection; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Single coherent accessibility element; posts an accessibility announcement on recompute after VoiceOver focus settles."
+    },
+    {
+      "name": "CisternFillView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CisternFillView: View { let fullness: Double; let isStale: Bool; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Continuous warm/cool gradient driven by fullness; cross-fades instead of animating under accessibilityReduceMotion."
+    },
+    {
+      "name": "BillsPaychecksListView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct BillsPaychecksListView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "NavigationLink push from ComingNextRow. #Predicate-filtered @Query excluding deletedAt != nil."
+    },
+    {
+      "name": "OnboardingFlow",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct OnboardingFlow: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Full-screen cover at first launch. Welcome -> paycheck quick-add -> bill quick-add -> optional balance step, all but welcome skippable with equal visual weight."
+    },
+    {
+      "name": "PrivacyCoverView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PrivacyCoverView: View { var body: some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Applied at window/root Scene level driven by scenePhase, above the entire presentation stack including open sheets \u2014 not scoped to HomeView."
+    },
+    {
+      "name": "UndoToast",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct UndoToast: View { let message: String; let onUndo: () -> Void; var body: some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Backs soft-delete-with-undo for Bill/Paycheck via deletedAt nil-back."
+    },
+    {
+      "name": "DataLoadErrorView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DataLoadErrorView: View { let retry: () -> Void; var body: some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shown if ModelContainer construction/fetch fails at launch; never falls through to a silently empty Home."
+    },
+    {
+      "name": "EmptyStateView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EmptyStateView: View { var body: some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Zero-data invitation state, paycheck CTA emphasized over bill CTA."
+    },
+    {
+      "name": "requestAccessibilityAnnouncement(_:)",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func requestAccessibilityAnnouncement(_ text: String)",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps UIAccessibility.post(notification:.announcement) sequenced after VoiceOver focus settles post-sheet-dismissal."
+    },
+    {
+      "name": "AmountValidation",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AmountValidation: Equatable { case valid; case rejected(reason: String); case needsConfirmation(reason: String) }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs QuickAddSheet's inline validation. Negative/zero -> rejected; implausibly large -> needsConfirmation (soft, dismissible); otherwise valid."
+    },
+    {
+      "name": "validateAmount(_:)",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func validateAmount(_ amount: Decimal) -> AmountValidation",
+      "owning_lane": "services_utilities",
+      "notes": "Single shared validation entry point used by all three QuickAddSheet entity kinds so the rule can't drift between bill/paycheck/balance forms."
+    },
+    {
+      "name": "AppGroupIdentifier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppGroupIdentifier { static let value: String = \"group.com.cistern.shared\" }",
+      "owning_lane": "services_utilities",
+      "notes": "Single literal source of truth referenced by ModelContainerFactory; a future widget target must reference the same constant."
+    },
+    {
+      "name": "QuickAddButton",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct QuickAddButton: View { let kind: EntryKind; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Docked entry point on Home for bill/paycheck; 44pt minimum tap target."
+    },
+    {
+      "name": "BalancePill",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct BalancePill: View { let anchor: BalanceAnchor?; let onTap: () -> Void; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Persistent, always-visible, tappable from anywhere on Home; opens the balance QuickAddSheet."
+    },
+    {
+      "name": "ComingNextRow",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ComingNextRow: View { let summaryText: String; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Single-line summary (e.g. '2 bills before your next paycheck'); full-row 44pt tap target pushes to BillsPaychecksListView."
+    },
+    {
+      "name": "SettingsView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SettingsView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Near-empty: appearance override, optional app-lock toggle (should-have), about/version, entry point to PremiumStubView."
+    },
+    {
+      "name": "PremiumStubView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PremiumStubView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Static list of PremiumFeatureRow entries (saved what-if scenarios, variable-income averaging, widget). No StoreKit import, no functional purchase button."
+    },
+    {
+      "name": "PremiumFeatureRow",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PremiumFeatureRow: View { let title: String; let detail: String; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "One row per paid capability listed on PremiumStubView."
+    },
+    {
+      "name": "BillsOnlyBanner",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct BillsOnlyBanner: View { var body: some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shown on Home when bills exist but no paycheck is scheduled; states plainly that no income is assumed."
+    }
+  ],
+  "errors": []
+}

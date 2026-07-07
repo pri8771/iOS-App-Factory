@@ -1,0 +1,374 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "FermentFamily",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum FermentFamily: String, Codable, CaseIterable, Sendable { case krautKimchi, sourdough, kombucha, genericCustom }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: concrete ferment set for v1 plus generic lower-confidence fallback."
+    },
+    {
+      "name": "BatchLocationTag",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum BatchLocationTag: String, Codable, Sendable { case kitchen, cellar, counter, pantry, other }",
+      "owning_lane": "data_domain",
+      "notes": "Optional fixed vocabulary location tag for future learned-profile grouping."
+    },
+    {
+      "name": "TasteCheckOutcome",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TasteCheckOutcome: String, Codable, Sendable { case tooEarly, close, inTheZone, pastIdeal }",
+      "owning_lane": "data_domain",
+      "notes": "Constrained taste outcomes that the engine can reason over."
+    },
+    {
+      "name": "ConfidenceLevel",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ConfidenceLevel: String, Codable, Sendable { case high, moderate, low }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: never shown as a percentage."
+    },
+    {
+      "name": "BatchLifecycleState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum BatchLifecycleState: String, Codable, Sendable { case active, completed, archived }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED."
+    },
+    {
+      "name": "NotificationCapability",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum NotificationCapability: String, Codable, Sendable { case scheduled, manualWatch, denied, unsupportedDueToCapacity }",
+      "owning_lane": "services_utilities",
+      "notes": "Derived capability shown in UI and used by scheduler."
+    },
+    {
+      "name": "BatchRecord",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct BatchRecord: Identifiable, Codable, Sendable { let id: UUID; var name: String; var family: FermentFamily; var locationTag: BatchLocationTag?; var createdAt: Date; var lifecycleState: BatchLifecycleState; var archivedReason: String?; var completedAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "Plain value type used everywhere outside SwiftData mapping."
+    },
+    {
+      "name": "BatchEventKind",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum BatchEventKind: Sendable { case created(startTemperatureF: Double?); case ambientTemperatureLogged(tempF: Double); case tasteCheckLogged(outcome: TasteCheckOutcome); case manualWatchSet(Bool); case completed; case archived(reason: String); case notificationEligibilityChanged(NotificationCapability) }",
+      "owning_lane": "data_domain",
+      "notes": "Append-only fact model; payloads captured in associated values."
+    },
+    {
+      "name": "BatchEventRecord",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct BatchEventRecord: Identifiable, Codable, Sendable { let id: UUID; let batchID: UUID; let occurredAt: Date; let kind: BatchEventKind }",
+      "owning_lane": "data_domain",
+      "notes": "Immutable timestamped event; engine input and history source of truth."
+    },
+    {
+      "name": "DerivedBatchStatus",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct DerivedBatchStatus: Sendable { let batchID: UUID; let engineVersion: Int; let statePhrase: String; let reasoning: String; let confidence: ConfidenceLevel; let notificationCapability: NotificationCapability; let likelyWindowStart: Date?; let likelyWindowEnd: Date?; let isOverdue: Bool; let lastObservationAt: Date?; let sparklineTrendSummary: String }",
+      "owning_lane": "data_domain",
+      "notes": "Pure engine output consumed by UI and scheduler; not authoritative persisted truth."
+    },
+    {
+      "name": "EntitlementState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EntitlementState: Sendable { case free; case premium(activeProductID: String, expirationDate: Date?) }",
+      "owning_lane": "services_utilities",
+      "notes": "Single source of truth for gating decisions."
+    },
+    {
+      "name": "PlanCapabilities",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlanCapabilities: Sendable { let maxActiveBatches: Int?; let editableHistoryDays: Int?; let allowsUnlimitedStoredHistory: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED."
+    },
+    {
+      "name": "deriveBatchStatus",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func deriveBatchStatus(batch: BatchRecord, events: [BatchEventRecord], now: Date) -> DerivedBatchStatus",
+      "owning_lane": "data_domain",
+      "notes": "Pure pacing engine entry point. No Date() calls inside."
+    },
+    {
+      "name": "rankActiveBatches",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func rankActiveBatches(_ batches: [Batch], statuses: [UUID: DerivedStatus], now: Date) -> [Batch]",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: isolates home-screen urgency ordering from re-rank animation diffing (diff on id+rank position only)."
+    },
+    {
+      "name": "BatchRepository",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class BatchRepository { func fetchAllBatches() async throws -> [Batch]; func fetchEvents(for batchID: UUID) async throws -> [ObservationEvent]; func createBatch(_ batch: Batch, initialEvents: [ObservationEvent]) async throws; func appendEvent(_ event: ObservationEvent) async throws; func updateLifecycleState(batchID: UUID, state: BatchLifecycleState, reason: ArchiveReason?) async throws; func deleteBatch(id: UUID) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: concrete class (not protocol), matching ios_architecture_review's no-repository-ceremony call. Backed internally by a ModelActor-conforming executor so writes happen off the main actor."
+    },
+    {
+      "name": "HistoryRepository",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class HistoryRepository { func fetchCompletedBatches(offset: Int, limit: Int) async throws -> [Batch]; func fetchArchivedBatches(offset: Int, limit: Int) async throws -> [Batch] }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: explicit pagination params so nobody fetch-all-then-slices in memory."
+    },
+    {
+      "name": "NotificationScheduling",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol NotificationScheduling { func refreshNotification(for batch: BatchRecord, status: DerivedBatchStatus) async; func removeNotification(forBatchID batchID: UUID) async; func currentAuthorizationState() async -> NotificationCapability }",
+      "owning_lane": "services_utilities",
+      "notes": "One pending local notification per batch UUID; generic durable content only."
+    },
+    {
+      "name": "EntitlementProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol EntitlementProviding { func currentEntitlement() async -> EntitlementState; func capabilities(for entitlement: EntitlementState) -> PlanCapabilities; func beginTransactionUpdatesListener() async; func purchasePremiumMonthly() async throws; func purchasePremiumAnnual() async throws; func restorePurchases() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2 wrapper; views do not talk to StoreKit directly."
+    },
+    {
+      "name": "BatchStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class BatchStore { private(set) var activeBatches: [Batch]; private(set) var derivedStatuses: [UUID: DerivedStatus]; var rankedActiveBatches: [Batch] { get }; var canCreateAdditionalActiveBatch: Bool { get }; func loadActiveBatches(now: Date) async throws; func createBatch(name: String, fermentFamily: FermentFamily, locationTag: LocationTag?, startDate: Date, initialTemperatureCelsius: Double?, now: Date) async throws -> Batch; func logTemperature(batchID: UUID, celsius: Double, at: Date) async throws; func logTasteCheck(batchID: UUID, outcome: TasteOutcome, at: Date) async throws; func manualOverrideCheck(batchID: UUID, at: Date) async throws; func completeBatch(batchID: UUID, at: Date) async throws; func deleteBatch(batchID: UUID) async throws; func recomputeStale(now: Date) async }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED: persist-then-derive, no optimistic/rollback UI. Repository write is kicked off on submit and runs concurrently with the already-locked sheet-dismiss/recalculation transition (masking budget, not hope); only falls back to the existing rare-persistence-error/retry state if the write outlasts that transition. Swipe actions and detail buttons call these same methods, never duplicate logic. recomputeStale reassigns notification eligibility via CapEnforcement.notificationEligibleBatchIDs and reconciles NotificationScheduler.scheduleOrUpdate/cancelNotification as part of the same authoritative pass \u2014 not just staleness decay."
+    },
+    {
+      "name": "HistoryStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class HistoryStore { func loadCompleted(offset: Int, limit: Int) async throws -> [Batch]; func loadArchived(offset: Int, limit: Int) async throws -> [Batch] }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED: thin wrapper over HistoryRepository's paginated fetches."
+    },
+    {
+      "name": "CreateBatchInput",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CreateBatchInput: Sendable { var name: String; var family: FermentFamily; var locationTag: BatchLocationTag?; var startAt: Date; var startingTemperatureF: Double? }",
+      "owning_lane": "primary_ui",
+      "notes": "Shared creation payload across form UI and batch creation logic."
+    },
+    {
+      "name": "LogObservationInput",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct LogObservationInput: Sendable { let batchID: UUID; let occurredAt: Date; let payload: ObservationPayload }",
+      "owning_lane": "primary_ui",
+      "notes": "Bottom-sheet submission contract."
+    },
+    {
+      "name": "ObservationPayload",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ObservationPayload: Sendable { case ambientTemperature(tempF: Double); case tasteCheck(TasteCheckOutcome) }",
+      "owning_lane": "primary_ui",
+      "notes": "Only two observation types allowed in v1."
+    },
+    {
+      "name": "createBatch",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func createBatch(from input: CreateBatchInput, now: Date) throws -> (BatchRecord, [BatchEventRecord])",
+      "owning_lane": "data_domain",
+      "notes": "Deterministic constructor for new batch and initial event set."
+    },
+    {
+      "name": "makeObservationEvent",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func makeObservationEvent(from input: LogObservationInput) -> BatchEventRecord",
+      "owning_lane": "data_domain",
+      "notes": "Centralizes event creation so UI and persistence do not invent variants."
+    },
+    {
+      "name": "AppFailure",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppFailure: Error, Sendable { case persistenceFailed; case invalidInput(String); case notificationsDenied; case purchaseFailed; case restoreFailed }",
+      "owning_lane": "polish_resilience",
+      "notes": "Codex's broader narrow-error-vocabulary type; overlaps with BatchStoreError \u2014 round 2 should confirm whether both are needed or one subsumes the other."
+    },
+    {
+      "name": "ReleaseChecklistProbe",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ReleaseChecklistProbe { func verifyNotificationSchedulingRealDevice() async -> Bool; func verifyTimezoneChangeBehavior() async -> Bool }",
+      "owning_lane": "polish_resilience",
+      "notes": "OPEN: Claude argues this should be removed entirely from the machine contract (nothing can genuinely automate it, so a protocol here is a stub; belongs in a plain manual release-checklist doc instead). Codex's round-2 message still includes it, written before seeing this argument \u2014 needs his direct response in round 3."
+    },
+    {
+      "name": "Batch",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Batch: Identifiable, Equatable, Sendable { let id: UUID; var name: String; var fermentFamily: FermentFamily; var locationTag: LocationTag?; var startDate: Date; var initialTemperatureCelsius: Double?; var lifecycleState: BatchLifecycleState; var archivedReason: ArchiveReason?; let createdAt: Date; var completedAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED canonical cross-lane batch value type."
+    },
+    {
+      "name": "LocationTag",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LocationTag: String, Codable, CaseIterable, Sendable { case kitchen, cellar, counter, pantry, other }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: semantic label only, never device location; backfills learned-profile precondition from detailed_discussion."
+    },
+    {
+      "name": "TasteOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TasteOutcome: String, Codable, CaseIterable, Sendable { case tooEarly, close, inTheZone, pastIdeal }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: constrained taste outcomes feeding the pacing engine."
+    },
+    {
+      "name": "ObservationEventKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ObservationEventKind: Equatable, Sendable { case created(startTemperatureCelsius: Double?); case temperatureLogged(celsius: Double, isBackdated: Bool); case tasteChecked(outcome: TasteOutcome); case manualWatchSet(Bool); case notificationEligibilityChanged(eligible: Bool, reason: NotificationIneligibilityReason?); case archived(reason: ArchiveReason); case completed }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: append-only fact model; persisted truth is facts, never a cached countdown."
+    },
+    {
+      "name": "ObservationEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ObservationEvent: Identifiable, Equatable, Sendable { let id: UUID; let batchID: UUID; let at: Date; let kind: ObservationEventKind }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: absolute Date only, never calendar-day math."
+    },
+    {
+      "name": "NotificationIneligibilityReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum NotificationIneligibilityReason: String, Codable, Sendable { case permissionDenied, capacityExceeded, batchArchived, batchCompleted, manualWatchRequested }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: capacityExceeded covers the 64-pending-notification ceiling fallback from ios_architecture_review."
+    },
+    {
+      "name": "ArchiveReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ArchiveReason: String, Codable, Sendable { case planLimitDowngrade, userInitiated }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED."
+    },
+    {
+      "name": "StatePhrase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum StatePhrase: String, Codable, Sendable { case checkToday, hold, overdue, manualWatch }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: fixed vocabulary from design_handoff, UI never invents freeform phrases."
+    },
+    {
+      "name": "DerivedStatus",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DerivedStatus: Equatable, Sendable { let batchID: UUID; let engineVersion: Int; let statePhrase: StatePhrase; let reasoningSentence: String; let confidence: ConfidenceLevel; let confidenceExplanation: String; let windowStart: Date?; let windowEnd: Date?; let isOverdue: Bool; let lastObservationAt: Date?; let notificationEligible: Bool; let notificationIneligibilityReason: NotificationIneligibilityReason?; let sparklineTrendSummary: String; let computedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: pure engine output, never hand-edited by UI or persistence."
+    },
+    {
+      "name": "PacingEngine.deriveStatus",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum PacingEngine { static let currentEngineVersion: Int; static func deriveStatus(batch: Batch, events: [ObservationEvent], now: Date) -> DerivedStatus }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: pure function, now always injected, no Date() inside. Core acceptance-test target for DST/timezone/off-schedule guarantees."
+    },
+    {
+      "name": "CapEnforcement",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum CapEnforcement { static func canCreateActiveBatch(currentActiveCount: Int, tier: SubscriptionTier) -> Bool; static func batchesToArchiveOnDowngrade(activeBatches: [Batch], historyCutoff: Date, tier: SubscriptionTier) -> [UUID]; static func notificationEligibleBatchIDs(rankedActiveBatches: [Batch], safetyCeiling: Int) -> Set<UUID> }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: pure, testable, never deletes data. notificationEligibleBatchIDs drives capacity reshuffling as batches complete/are created, adopted unopposed across rounds 2-3."
+    },
+    {
+      "name": "AppForegroundCoordinator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class AppForegroundCoordinator { private(set) var notificationAuthorizationStatus: UNAuthorizationStatus; func handleDidBecomeActive(now: Date) async }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED: single owner of foreground re-entry (permission recheck, stale/eligibility recompute, entitlement refresh); confirmed load-bearing by Codex round 2."
+    },
+    {
+      "name": "BatchStoreError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum BatchStoreError: Error, Sendable { case persistenceFailed(underlying: Error); case batchNotFound(UUID); case activeCapReached }",
+      "owning_lane": "polish_resilience",
+      "notes": "LOCKED as the only shared store-facing error type; no generic app-wide AppFailure bus. activeCapReached should rarely surface since canCreateAdditionalActiveBatch is checked pre-sheet."
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "actor NotificationScheduler { func scheduleOrUpdate(for batch: Batch, status: DerivedStatus) async; func cancelNotification(for batchID: UUID) async; func currentAuthorizationStatus() async -> UNAuthorizationStatus; func requestAuthorization() async throws -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: upsert-by-identifier via add(); explicit cancel only on eligibility exit. Body copy generic/durable only, never confidence/reasoning text."
+    },
+    {
+      "name": "EntitlementManager",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class EntitlementManager { private(set) var tier: SubscriptionTier; var capabilities: PlanCapabilities { get }; func refreshEntitlements() async; func beginTransactionUpdatesListener() async; func purchase(_ product: Product) async throws; func restorePurchases() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: trusts Transaction.currentEntitlements only; purchase/restore failures mapped locally from StoreKit's own error types, no shared AppFailure."
+    },
+    {
+      "name": "SubscriptionTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SubscriptionTier: String, Sendable { case free, premium }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: premium means unlimited stored data/history, never unlimited simultaneous scheduled reminders."
+    },
+    {
+      "name": "SparklineGenerator.generate",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct SparklinePoint: Sendable { let at: Date; let celsius: Double }; enum SparklineTrend: String, Sendable { case rising, falling, stable, insufficientData }; struct SparklineData: Sendable { let points: [SparklinePoint]; let trend: SparklineTrend; let accessibilitySummary: String }; enum SparklineGenerator { static func generate(from temperatureEvents: [ObservationEvent]) -> SparklineData }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: one function feeds both Canvas drawing and VoiceOver string so a visual tweak can't silently desync from the spoken summary."
+    },
+    {
+      "name": "BatchModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class BatchModel { /* private to Persistence module; mirrors Batch, relates to ObservationEventModel; VersionedSchema + SchemaMigrationPlan applied here */ }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: never imported outside the Persistence module."
+    },
+    {
+      "name": "ObservationEventModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ObservationEventModel { /* private to Persistence module; mirrors ObservationEvent, kind stored as encoded payload; append-only, never mutated post-insert */ }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED."
+    }
+  ],
+  "errors": []
+}

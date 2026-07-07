@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp4",
+  "build": true,
+  "build_priority": 5,
+  "app": {
+    "name": "Returnwise",
+    "slug": "returnwise",
+    "category": "shopping-admin",
+    "one_sentence_promise": "Never lose money to missed return windows or forgotten warranties again.",
+    "target_user": "Frequent online and in-store shoppers who buy enough that return deadlines and warranty terms become easy to miss.",
+    "painful_moment": "The user realizes an item is wrong or broken and cannot quickly tell whether they can still return or claim it.",
+    "why_different": "Focuses on deadline leverage and proof readiness, not generic receipt storage or expense tracking.",
+    "why_users_pay": "Directly saves money by surfacing deadlines, documents, and next actions before options expire.",
+    "subscription_model": "Free tier for a small number of tracked purchases; premium for unlimited tracking, smart reminders, warranty folders, and return evidence exports.",
+    "local_first_mvp_scope": "Receipt scan/import, purchase records, deadline calculations, reminder schedules, warranty docs, exportable return packets on-device.",
+    "future_backend_roadmap": "Email receipt sync, merchant integrations, household sharing, optional cross-device sync.",
+    "core_workflows": [
+      "Scan or import a receipt",
+      "Track return and warranty deadlines",
+      "Assemble a merchant-ready return packet"
+    ],
+    "ios_native_features": [
+      "Vision text extraction",
+      "Document scanner",
+      "Notifications",
+      "Widgets for upcoming deadlines",
+      "Share extension for imported receipts"
+    ],
+    "ar_ml_llm_fit": "ML/OCR is integral for extracting merchant, date, and totals from receipts; no LLM dependency required.",
+    "design_direction": "Sharp, deadline-aware interface with strong calendar cues and clear status labeling.",
+    "claude_design_prompt": "Design a polished iPhone utility that turns receipts into deadline-driven action cards with calm but urgent timeline cues and clean document handling.",
+    "app_store_positioning": "A premium receipt and warranty app built around action, not archiving.",
+    "key_risks": [
+      "OCR quality and correction UX must be strong enough for trust",
+      "Could slide toward generic expense tracking if return actions are weak"
+    ],
+    "invalidation_criteria": "If users still need to manually read every receipt to know what to do, the product isn't differentiated enough.",
+    "v1_build_scope": "Local purchase tracking with receipt scan/import, editable extracted fields, deadline engine, reminder center, exportable proof bundle, onboarding, paywall, tests.",
+    "build": true,
+    "build_priority": 5
+  }
+}

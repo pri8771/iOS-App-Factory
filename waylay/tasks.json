@@ -1,0 +1,613 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "WaylayCore package skeleton + locked domain value types",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/WaylayCore/Package.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/PlaceID.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/CaptureSource.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/LocationAuthLevel.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/NotificationAuthLevel.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/PausedSubReason.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/MonitoringDisposition.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/PlaceDerivedState.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/UserActionEvent.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/NotificationEpisode.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/MonitoringDecisionRecord.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/PlaceRecord.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "swift build succeeds standalone with zero SwiftUI/CoreLocation/StoreKit/UIKit imports in this folder",
+        "every type's signature matches tech_specs verbatim including Sendable/Codable conformances"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Core Data model + App Group PersistenceController",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Persistence/Waylay.xcdatamodeld",
+        "Packages/WaylayCore/Sources/WaylayCore/Persistence/PersistenceController.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "NSPersistentContainer loads from the App Group container identifier, not the default location",
+        "NSPersistentHistoryTrackingKey and NSPersistentStoreRemoteChangeNotificationPostOptionKey both true",
+        "unit test round-trips a Place entity insert+fetch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "PlaceRepository (Core Data-backed) with inline MonitoringDecisionRecord pruning",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Persistence/PlaceRepositoryProtocol.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Persistence/CoreDataPlaceRepository.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "saveCapture commits synchronously/durably before returning CaptureResult",
+        "appendMonitoringDecision prunes past 20-records-or-30-days per place in the same write transaction",
+        "unit tests cover the prune boundary and confirm no data loss for the retained window"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "PlaceStateResolver pure function + fixture unit tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Domain/PlaceStateResolver.swift",
+        "Packages/WaylayCoreTests/PlaceStateResolverTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "resolves all 6 locked PlaceDerivedState cases from fixture timestamps",
+        "zero I/O, no CoreLocation/UserNotifications import anywhere in the file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Xcode multi-target project skeleton, signing, App Group entitlements",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Waylay.xcodeproj/project.pbxproj",
+        "Waylay.xcodeproj/xcshareddata/xcschemes/Waylay.xcscheme",
+        "Waylay/Info.plist",
+        "Waylay/Waylay.entitlements",
+        "WaylayShare/Info.plist",
+        "WaylayShare/WaylayShare.entitlements",
+        "WaylayWidget/Info.plist",
+        "WaylayWidget/WaylayWidget.entitlements"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "xcodebuild succeeds for all three targets with -allowProvisioningUpdates against a real team ID",
+        "app installs and launches on a physical iPhone",
+        "App Group container identifier matches exactly across all three entitlements files"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Stub extension cross-process Core Data merge proof",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaylayShare/StubReadWriteView.swift",
+        "WaylayWidget/StubReadView.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "a Place written from the main app is observably read by the share-extension stub via NSPersistentStoreRemoteChange on a real device",
+        "before/after counts logged to console as the exit artifact"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "App Store Connect product creation + local .storekit config",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Waylay/Configuration.storekit",
+        "docs/storekit-config-notes.md"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "monthly and yearly subscription product IDs exist in App Store Connect",
+        "product IDs mirrored in the local .storekit config and recorded in docs/storekit-config-notes.md"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "AppCapabilitySnapshot + LocationProviding protocol and fake",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/AppCapabilitySnapshot.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/LocationProviding.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/LocationProvidingDelegate.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/FakeLocationProvider.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "fake provider deterministically simulates region entry/exit/authorization-change in XCTest",
+        "no real CoreLocation import outside the future adapter file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Real CLLocationManager-backed LocationProviding adapter",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/CoreLocationProvider.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "compiles against real CLLocationManager",
+        "is the only file besides the protocol that imports CoreLocation directly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "MonitoringEngine (pure) + MonitoringReconciler with hard 20-region clamp",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/MonitoringEngine.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/MonitoringReconciler.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/RegionChangeSet.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-003",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "unit suite green including the >8-place contention fixture at both free-cap and Pro-cap",
+        "requiresManualReactivation path covered",
+        "reconciler never emits toStartMonitoring beyond 20 regardless of engine output, proven against an adversarial 50-place fixture"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "EntitlementService on StoreKit 2 live entitlements",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Entitlements/EntitlementSnapshot.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Entitlements/EntitlementServiceProtocol.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Entitlements/StoreKitEntitlementService.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "effectiveMonitoringCap correctly reflects free (~8) vs Pro (up to 20) against the local .storekit config in tests",
+        "entitlement is recomputed from Transaction.currentEntitlements every read, never cached across a launch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "capturePlace use case + NotificationHandling boundary",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Capture/CapturePlaceUseCase.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Notifications/NotificationHandling.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "capturePlace commits synchronously then returns success with a degraded displayState if monitoring/notification setup fails afterward, never a false error",
+        "UNNotificationCategory registers snooze/dismiss/mark-visited actions"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "MonitoringCoordinator: recompute/reconcile orchestration incl. force-quit/reboot detection",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Monitoring/MonitoringCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "authorizationDidChange triggers immediate recompute in a fake-provider unit test, not deferred to next launch",
+        "force-quit and reboot produce distinct, testable AppCapabilitySnapshot flags"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Design tokens and shared visual primitives",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waylay/DesignSystem/Colors.swift",
+        "Waylay/DesignSystem/Spacing.swift",
+        "Waylay/DesignSystem/Radius.swift",
+        "Waylay/DesignSystem/Typography.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "matches the locked design_handoff palette/spacing/radius/type tokens exactly",
+        "verified against largest Dynamic Type accessibility size in previews"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "AppRouter + two-tab navigation shell",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waylay/App/AppRouter.swift",
+        "Waylay/App/AppTab.swift",
+        "Waylay/WaylayApp.swift",
+        "Waylay/App/RootView.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "exactly Home/Library tabs, each with its own NavigationStack",
+        "a deep link mid-navigation appends to libraryPath via onChange, never resets the path (covered by a UI test)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Onboarding screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waylay/Onboarding/OnboardingView.swift"
+      ],
+      "depends_on": [
+        "T-014",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "single screen, one CTA, no permission ask/cap explanation/premium pitch",
+        "serif type used only here and in Home's empty state, nowhere else"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Home screen, CaptureButton, ReceiptToast",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waylay/Home/HomeView.swift",
+        "Waylay/Home/HomeViewModel.swift",
+        "Waylay/Home/CaptureButton.swift",
+        "Waylay/Home/ReceiptToast.swift",
+        "Waylay/Home/RecentCaptureCard.swift",
+        "Waylay/Home/StatusLine.swift",
+        "Waylay/Models/HomeViewState.swift",
+        "Waylay/Models/CaptureButtonPhase.swift",
+        "Waylay/Models/PlaceDraft.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "all 4 locked HomeViewState cases render correctly from fixtures",
+        "capture-to-persisted measured under 3 seconds in a UI test against the real repository",
+        "receipt toast never auto-dismisses under VoiceOver/Switch Control"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Library screen: 5 always-visible sections",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waylay/Library/LibraryView.swift",
+        "Waylay/Library/LibraryViewModel.swift",
+        "Waylay/Library/LibraryRow.swift",
+        "Waylay/Library/LibrarySectionHeader.swift",
+        "Waylay/Models/LibrarySection.swift",
+        "Waylay/Library/StateBadge.swift",
+        "Waylay/Library/StateReasonBlock.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "all 5 sections always visible, never behind a filter tap",
+        "every row pairs icon+text for state, never color alone",
+        "VoiceOver announces name then state then reason then action, in that order"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Place Detail: 6 state variants + manual-promote/reactivate",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waylay/Library/PlaceDetailView.swift",
+        "Waylay/Library/PlaceDetailActionBar.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "only actions valid for the current state are shown",
+        "reactivate/manualPromote append a UserActionEvent and clear requiresManualReactivation on the next repository read"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Permission upgrade sheet (Always + notifications, earned context)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waylay/Permissions/PermissionUpgradeSheet.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "appears immediately after the first successful save, not before",
+        "declined path surfaces honestly downstream in Home/Library, never a silent dead end"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "DiagnosticsService + Settings/Diagnostics UI",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Diagnostics/DiagnosticsServiceProtocol.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Diagnostics/DiagnosticsPlaceSnapshot.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Diagnostics/DiagnosticsSummaryTier.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Diagnostics/DiagnosticsService.swift",
+        "Waylay/Settings/SettingsView.swift",
+        "Waylay/Settings/DiagnosticsView.swift",
+        "Waylay/Settings/DiagnosticsSummaryCard.swift",
+        "Waylay/Settings/DiagnosticsRow.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "3-tier summary plus full per-place sub-reason list rendered",
+        "occupiesSystemRegionSlot matches CLLocationManager.monitoredRegions on a real device",
+        "force-quit vs reboot are visibly distinct after relaunch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "RecoveryLink shared component + degraded-state wiring",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Waylay/Permissions/RecoveryLink.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "every degraded/paused surface (Home, Library, Diagnostics) reuses this single component",
+        "deep-links correctly to the relevant Settings app page"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Paywall UI + PaywallViewState",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Waylay/Paywall/PaywallView.swift",
+        "Waylay/Paywall/PaywallViewState.swift",
+        "Waylay/Paywall/PaywallPlanCard.swift",
+        "Waylay/Paywall/RestoreLink.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "pitch/purchasing/restored/failed states all render correctly",
+        "Restore Purchases always visible above the fold in every state",
+        "a real purchase and a real restore succeed against StoreKit sandbox on a fresh install"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Widget extension (WidgetRefreshService + timeline provider)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Widgets/WidgetRefreshServiceProtocol.swift",
+        "Packages/WaylayCore/Sources/WaylayCore/Widgets/WidgetRefreshService.swift",
+        "WaylayWidget/WaylayWidgetBundle.swift",
+        "WaylayWidget/WaylayWidget.swift",
+        "WaylayWidget/Provider.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "reloads are coalesced/debounced plus one on foreground/background transition, never fired per mutation",
+        "widget shows status line + recent-captures strip consistent with Home"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Share Extension (real capture facade)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "WaylayShare/ShareView.swift",
+        "WaylayShare/ShareViewController.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "save-then-toast only, no mini-form",
+        "calls the identical capturePlace use case Home uses",
+        "a share-captured place appears in the main app immediately via cross-process merge"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "App Intents / Siri shortcuts",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Waylay/Intents/CapturePlaceIntent.swift"
+      ],
+      "depends_on": [
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "a Siri shortcut triggers the same capturePlace path as Home",
+        "CaptureSource.siriIntent is recorded correctly on the resulting place"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Duplicate/near-duplicate silent auto-merge heuristic",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Packages/WaylayCore/Sources/WaylayCore/Capture/DuplicateMergeHeuristic.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "a capture within a small radius of an existing unresolved/active place auto-merges silently",
+        "a dismissible after-the-fact note is surfaced, never a mid-capture prompt"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Privacy strings + PrivacyInfo.xcprivacy manifest",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Waylay/Info.plist",
+        "Waylay/PrivacyInfo.xcprivacy"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Always-usage-description string explicitly names the background reminder benefit in plain language",
+        "PrivacyInfo.xcprivacy present and valid for submission"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-029",
+      "title": "VoiceOver/accessibility audit across Home, Library, Place Detail",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docs/accessibility-audit.md"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-018",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "documented pass confirming the locked name-state-reason-action announcement order",
+        "any failures filed as findings for primary_ui to fix in their own files, never edited directly by this lane"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-030",
+      "title": "Real-device hardening pass: walking/GPX tests, reinstall/restore, capture-latency measurement",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docs/device-test-log.md"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-021",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "recorded device log of real region entry producing exactly one notification per resolution path (snoozed, dismissed, visited), no double-firing",
+        "reinstall + restore-purchases verified on a fresh install",
+        "on-device capture-commit latency XCTest performance number recorded"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-031",
+      "title": "Checkpoint A: on-device region registration correctness",
+      "owner_lane": "services_utilities",
+      "files": [
+        "docs/checkpoint-a-device-log.md"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-013",
+        "T-021",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "documented device log showing the reconciler's desired active set matches CLLocationManager.monitoredRegions under the cap",
+        "Diagnostics' occupiesSystemRegionSlot confirmed correct against that same log"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-032",
+      "title": "Checkpoint B: one-shot notification delivery + resolution semantics",
+      "owner_lane": "services_utilities",
+      "files": [
+        "docs/checkpoint-b-device-log.md"
+      ],
+      "depends_on": [
+        "T-031",
+        "T-012",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "one real region entry produces exactly one notification episode",
+        "snooze/dismiss/mark-visited each correctly mutate persisted state across relaunch",
+        "no double-fire confirmed across all three resolution paths"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

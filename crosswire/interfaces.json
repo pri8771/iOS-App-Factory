@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Player",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Player: Codable, Identifiable, Hashable { let id: UUID; var displayName: String; var isHost: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "id generated once at name-entry, persisted in UserDefaults, stable across reconnects; displayName never defaults to device name"
+    },
+    {
+      "name": "ConnectionState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ConnectionState: Codable, Equatable { case connected; case reconnecting(gracePeriodEndsAt: Date); case lost }",
+      "owning_lane": "data_domain",
+      "notes": "drives RosterRow and ResilienceBanner rendering"
+    },
+    {
+      "name": "RosterEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RosterEntry: Codable, Identifiable { var id: UUID { player.id }; var player: Player; var connectionState: ConnectionState }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "ScenarioGenre",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ScenarioGenre: String, Codable, CaseIterable { case heist, missingPersons, sabotage }",
+      "owning_lane": "data_domain",
+      "notes": "maps 1:1 to accent-color design token"
+    },
+    {
+      "name": "ClueTokenType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ClueTokenType: String, Codable { case person, location, time, object, relationship }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "FragmentFact",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct FragmentFact: Codable, Identifiable, Hashable { let id: String; let tokenType: ClueTokenType; let value: String }",
+      "owning_lane": "data_domain",
+      "notes": "atomic unit a player's fragment is built from; TokenComposer may only reference facts the local player owns"
+    },
+    {
+      "name": "Fragment",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Fragment: Codable, Identifiable { let id: String; let ownerRole: String; let facts: [FragmentFact] }",
+      "owning_lane": "data_domain",
+      "notes": "one dealt per player per round"
+    },
+    {
+      "name": "ClueTokenTemplate",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ClueTokenTemplate: Codable { let type: ClueTokenType; let template: String }",
+      "owning_lane": "data_domain",
+      "notes": "constrains TokenComposer's allowed phrasing so a clue can never be freetext"
+    },
+    {
+      "name": "SolutionKey",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SolutionKey: Codable { let answerText: String; let requiredFactIDs: [String] }",
+      "owning_lane": "data_domain",
+      "notes": "used by SolvabilityChecker"
+    },
+    {
+      "name": "ScenarioPack",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ScenarioPack: Codable, Identifiable { let id: String; let schemaVersion: Int; let title: String; let genre: ScenarioGenre; let premise: String; let centralQuestion: String; let minPlayers: Int; let maxPlayers: Int; let fragmentSets: [Int: [Fragment]]; let solution: SolutionKey; let allowedTokenVocabulary: [ClueTokenTemplate]; let isFree: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "fragmentSets keyed by exact player count 6...12; bundled as versioned JSON, loaded by CrosswirePersistence"
+    },
+    {
+      "name": "Clue",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Clue: Codable, Identifiable { let id: UUID; let authorID: UUID; let authorName: String; let tokens: [FragmentFact]; let renderedText: String; let postedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "board is [Clue] ordered array, ForEach keys off id, never index"
+    },
+    {
+      "name": "SolutionProposalStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SolutionProposalStatus: Codable { case pending, confirmed, declined }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "SolutionProposal",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SolutionProposal: Codable, Identifiable { let id: UUID; let proposedByID: UUID; let answerText: String; var tally: [UUID: SolutionProposalStatus] }",
+      "owning_lane": "data_domain",
+      "notes": "a decline discards this proposal entirely; a new propose creates a fresh id and fresh tally, never reuses"
+    },
+    {
+      "name": "RoundOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RoundOutcome: Codable { case solved, unsolved, compromised(missingFragmentID: String) }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "RoundPhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RoundPhase: Codable { case briefing, clueExchange, solutionConfirm, resolved(RoundOutcome) }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "RoundSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RoundSnapshot: Codable { let schemaVersion: Int; let sessionID: UUID; let scenarioPackID: String; var phase: RoundPhase; var roster: [RosterEntry]; var board: [Clue]; let localPlayerID: UUID; let localFragment: Fragment; var remainingSeconds: Int; var activeProposal: SolutionProposal?; var savedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "restore eligibility = phase is non-terminal AND now - savedAt <= graceWindow(60...90s); anything else deleted silently on launch"
+    },
+    {
+      "name": "RulesEngine",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol RulesEngine { func dealFragments(pack: ScenarioPack, playerCount: Int) -> [Fragment]; func validateClue(tokens: [FragmentFact], against fragment: Fragment) -> Bool; func evaluateSolvability(pack: ScenarioPack, playerCount: Int) -> Bool; func resolveProposal(_ proposal: SolutionProposal, roster: [RosterEntry]) -> SolutionProposalStatus }",
+      "owning_lane": "data_domain",
+      "notes": "pure, synchronous, non-isolated; zero imports beyond CrosswireModels; testable without any transport"
+    },
+    {
+      "name": "PeerID",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PeerID: Hashable, Codable { let rawValue: String }",
+      "owning_lane": "services_utilities",
+      "notes": "opaque wrapper so nothing above transport touches MCPeerID directly"
+    },
+    {
+      "name": "GameMessage",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum GameMessage: Codable { case roster(RosterEntry); case missionStart(ScenarioPack); case fragmentDeal(Fragment); case clue(Clue); case timerCorrection(remainingSeconds: Int); case solutionProposed(SolutionProposal); case solutionTallyUpdate(SolutionProposal); case roundResolved(RoundOutcome); case hostDisconnect }",
+      "owning_lane": "services_utilities",
+      "notes": "wire format sent over GameTransport.send/broadcast"
+    },
+    {
+      "name": "TransportEvent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TransportEvent { case peerDiscovered(PeerID, name: String); case peerConnected(PeerID); case peerReconnecting(PeerID, gracePeriodEndsAt: Date); case peerLost(PeerID); case messageReceived(GameMessage, from: PeerID); case localNetworkPermissionDenied; case sendFailed(GameMessage, to: PeerID) }",
+      "owning_lane": "services_utilities",
+      "notes": "emitted only on the main actor; MultipeerGameTransport hops internally before yielding"
+    },
+    {
+      "name": "GameTransport",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol GameTransport { var events: AsyncStream<TransportEvent> { get }; func startAdvertising(sessionName: String, packID: String); func startBrowsing(); func stopAll(); func send(_ message: GameMessage, to peers: [PeerID]) async throws; func broadcast(_ message: GameMessage) async throws; func disconnect(peer: PeerID) }",
+      "owning_lane": "services_utilities",
+      "notes": "MultipeerGameTransport and MockGameTransport are the only two conformances; nothing above this protocol imports MultipeerConnectivity"
+    },
+    {
+      "name": "MockGameTransport",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class MockGameTransport: GameTransport { func simulate(peerCount: Int, latencyMs: ClosedRange<Int>, dropRate: Double) }",
+      "owning_lane": "services_utilities",
+      "notes": "used by RulesEngine and MissionViewModel test suites for deterministic N-peer/latency/drop/reconnect coverage"
+    },
+    {
+      "name": "RoundSnapshotWriter",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor RoundSnapshotWriter { func save(_ snapshot: RoundSnapshot) async; func loadIfRestorable(graceWindowSeconds: Int) async -> RoundSnapshot?; func delete() async }",
+      "owning_lane": "services_utilities",
+      "notes": "atomic Data.write with .atomic option; coalesces bursty writes, flushes immediately on phase transition and on scenePhase .background"
+    },
+    {
+      "name": "ScenarioPackLoader",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct ScenarioPackLoader { func loadBundled() -> [ScenarioPack] }",
+      "owning_lane": "services_utilities",
+      "notes": "reads bundled versioned JSON; a build-time test runs evaluateSolvability across player counts 6...12 for every pack"
+    },
+    {
+      "name": "SettingsStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct SettingsStore { var displayName: String; var hasSeenRFTip: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "thin UserDefaults wrapper"
+    },
+    {
+      "name": "PurchaseManager",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor final class PurchaseManager { func products() async throws -> [Product]; func currentEntitlements() async -> Set<String>; func restore() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2 async APIs; entitlement check is local-only via Transaction.currentEntitlements, no backend"
+    },
+    {
+      "name": "MissionViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class MissionViewModel { var roster: [RosterEntry]; var board: [Clue]; var localFragment: Fragment; var phase: RoundPhase; var remainingSeconds: Int; var activeProposal: SolutionProposal?; var activeSheet: MissionSheet?; func handle(_ event: TransportEvent) }",
+      "owning_lane": "primary_ui",
+      "notes": "sole owner of active-round mutable state; every sheet reads this directly, none holds a duplicate copy"
+    },
+    {
+      "name": "MissionSheet",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MissionSheet: Identifiable { case fragmentTray, composer, solutionConfirm }",
+      "owning_lane": "primary_ui",
+      "notes": "presented via medium/partial detent so the countdown stays visible"
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Hashable { case nameEntry, home, permissionPrimer, packPicker, lobby(sessionID: UUID), lateJoinBlocked, settings }",
+      "owning_lane": "primary_ui",
+      "notes": "drives the pre-session NavigationStack path; replaced wholesale (not pushed) by the Mission root once a round starts"
+    },
+    {
+      "name": "AppRootCoordinator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class AppRootCoordinator { var path: [AppRoute]; var activeMission: MissionViewModel?; func restoreIfEligible() async }",
+      "owning_lane": "primary_ui",
+      "notes": "on launch calls RoundSnapshotWriter.loadIfRestorable before deciding between onboarding and the bounded Restoring-mission transition"
+    },
+    {
+      "name": "AppLifecycleObserver",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor final class AppLifecycleObserver { func sessionDidStart(); func sessionDidEnd(); func scenePhaseChanged(_ phase: ScenePhase) }",
+      "owning_lane": "polish_resilience",
+      "notes": "toggles UIApplication.shared.isIdleTimerDisabled for session duration only; on .background triggers fragment auto-hide and a flush write"
+    },
+    {
+      "name": "ResilienceBannerSeverity",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ResilienceBannerSeverity: Codable { case info, warning, terminal }",
+      "owning_lane": "polish_resilience",
+      "notes": "severity conveyed in accessibility label text, never color alone"
+    },
+    {
+      "name": "ResilienceState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ResilienceState: Equatable { case none; case peerReconnecting(playerName: String, secondsRemaining: Int); case missionCompromised(missingFragmentOwner: String); case hostDisconnected; case restoringMission }",
+      "owning_lane": "polish_resilience",
+      "notes": "drives which ResilienceBanner variant renders on the Mission canvas"
+    }
+  ],
+  "errors": []
+}

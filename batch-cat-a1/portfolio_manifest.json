@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "apps": [
+    {
+      "name": "Availability Concierge",
+      "slug": "availability-concierge",
+      "category": "Business",
+      "build": true,
+      "description": "Reactive triage of informal inbound scheduling asks into a trackable pipeline.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Irregular Income Planner",
+      "slug": "irregular-income-planner",
+      "category": "Finance",
+      "build": true,
+      "description": "Safe-to-spend draw computed from your own logged, lumpy income history.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Night Sky Logbook",
+      "slug": "night-sky-logbook",
+      "category": "Reference",
+      "build": true,
+      "description": "Nightly recomputed, location-scored sky visibility plus an observation log; AR sky-pointing deliberately deferred to v1.1 rather than risking a fragile v1 centerpiece.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Referral Loop",
+      "slug": "referral-loop",
+      "category": "Business",
+      "build": true,
+      "description": "Narrow referral-chain tracker: who referred whom, did it convert, was the loop closed.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Scenario Ledger",
+      "slug": "scenario-ledger",
+      "category": "Finance",
+      "build": true,
+      "description": "Manually-modeled, side-by-side life-decision what-if scenarios, no bank linking.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Wordsmith Atlas",
+      "slug": "wordsmith-atlas",
+      "category": "Reference",
+      "build": true,
+      "description": "Personal word-relationship graph with proactive resurfacing of forgotten connections, not a static dictionary.",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    }
+  ],
+  "parent": "batch-cat-a1"
+}

@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Position",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Position: Hashable, Codable, Sendable { let row: Int; let column: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Zero-indexed grid coordinate; used by board, threads, and gesture/tap adapters alike."
+    },
+    {
+      "name": "ThreadColor",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ThreadColor: String, CaseIterable, Codable, Sendable { case madderRed, indigo, walnutBrown, sage, ochre; var capShape: CapShape }",
+      "owning_lane": "data_domain",
+      "notes": "Max 5 per puzzle. capShape gives the fixed colorblind-safe shape mapping from design_handoff (circle/diamond/square/triangle/hexagon)."
+    },
+    {
+      "name": "CapShape",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CapShape: String, Codable, Sendable { case circle, diamond, square, triangle, hexagon }",
+      "owning_lane": "data_domain",
+      "notes": "Secondary non-color identity channel, rendered on thread endpoints and used in VoiceOver labels."
+    },
+    {
+      "name": "Direction",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Direction: String, Codable, Sendable { case up, down, left, right }",
+      "owning_lane": "data_domain",
+      "notes": "Used to describe segment entry/exit for rendering and for adjacency legality checks."
+    },
+    {
+      "name": "CellContent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CellContent: Codable, Sendable { case empty; case threadEnd(color: ThreadColor); case threadSegment(color: ThreadColor, from: Direction, to: Direction) }",
+      "owning_lane": "data_domain",
+      "notes": "One value per board cell; drives both Canvas rendering and the CellAccessibilityElement label text."
+    },
+    {
+      "name": "Thread",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Thread: Identifiable, Codable, Sendable { let id: UUID; let color: ThreadColor; var path: [Position]; var isComplete: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "path holds only committed cells, per the cell-boundary-commit rule; nothing mid-gesture is ever stored here."
+    },
+    {
+      "name": "PuzzleDifficultyTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PuzzleDifficultyTier: String, CaseIterable, Codable, Sendable { case gentle, standard; var dimensions: Int }",
+      "owning_lane": "data_domain",
+      "notes": "gentle.dimensions == 5, standard.dimensions == 7, per the 44pt-hit-target grid math locked in design_handoff."
+    },
+    {
+      "name": "PuzzleBoard",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PuzzleBoard: Codable, Sendable, Identifiable { let id: UUID; let tier: PuzzleDifficultyTier; var cells: [[CellContent]]; var threads: [Thread]; let seed: UInt64; var isFallback: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "The materialized puzzle; seed is provenance-only metadata, never used to reconstruct state on resume, per detailed_discussion."
+    },
+    {
+      "name": "PuzzleSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PuzzleSummary: Codable, Sendable { let solvedAt: Date; let moveCount: Int; let tier: PuzzleDifficultyTier }",
+      "owning_lane": "data_domain",
+      "notes": "Backs Hub's 'yesterday's loom' row; nil means the first-launch empty-state copy is shown."
+    },
+    {
+      "name": "PuzzleRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PuzzleRecord { var id: UUID; var tierRaw: String; var createdAt: Date; var solvedAt: Date?; var moveCount: Int; var boardData: Data; var isCurrent: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "boardData is a versioned-encoded PuzzleBoard blob. No unique constraints, all optional/defaulted fields, per the CloudKit-compatibility tax locked in ios_architecture_review."
+    },
+    {
+      "name": "Entitlement",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Entitlement { var hasLoomPass: Bool; var updatedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "Local-only in this slice; shaped so a future StoreKit 2 Transaction.currentEntitlements listener can set it without restructuring."
+    },
+    {
+      "name": "PuzzleGenerating",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PuzzleGenerating: Sendable { func generate(tier: PuzzleDifficultyTier) async throws -> PuzzleBoard }",
+      "owning_lane": "services_utilities",
+      "notes": "Protocol boundary exists specifically so the 500-run-per-tier solvability test and the future custom-generator panel both target this, not a concrete type."
+    },
+    {
+      "name": "PuzzleGeneratorEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "actor PuzzleGeneratorEngine: PuzzleGenerating { func generate(tier: PuzzleDifficultyTier) async throws -> PuzzleBoard }",
+      "owning_lane": "services_utilities",
+      "notes": "Solve-path-first then strip-to-endpoints. Actor-isolated so calling it from a @MainActor view model via Task { await } genuinely hops off main, per ios_architecture_review."
+    },
+    {
+      "name": "GeneratorError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum GeneratorError: Error, Sendable { case timedOut, unableToConverge }",
+      "owning_lane": "services_utilities",
+      "notes": "Only checked error in the app's domain logic; caught by PuzzleViewModel to transition into .failed(fallback:)."
+    },
+    {
+      "name": "FallbackPuzzleProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct FallbackPuzzleProvider { static func bundledFallback(tier: PuzzleDifficultyTier) -> PuzzleBoard }",
+      "owning_lane": "polish_resilience",
+      "notes": "One precomputed, solvability-verified backup board per tier, bundled at build time; never throws."
+    },
+    {
+      "name": "SwiftDataStoring",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SwiftDataStoring: Sendable { func loadCurrentPuzzle() async -> PuzzleBoard?; func saveCurrentPuzzle(_ board: PuzzleBoard) async; func flushPendingWrites() async; func markSolved(moveCount: Int) async; func loadYesterdaySummary() async -> PuzzleSummary?; func loadEntitlement() async -> Entitlement; func resetAllData() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Backed by a @ModelActor implementation; coalesces writes with a short debounce and flushes unconditionally on scenePhase backgrounding."
+    },
+    {
+      "name": "ThreadTraceController",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ThreadTraceController: Sendable { func commitStep(activeColor: ThreadColor?, from: Position?, to candidate: Position, on board: PuzzleBoard) -> StepResult }",
+      "owning_lane": "primary_ui",
+      "notes": "The single funnel both DragGesture translation and VoiceOver 'extend thread here' custom actions call into; guarantees the two input modalities can never diverge in legality/retraction behavior."
+    },
+    {
+      "name": "StepResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum StepResult: Sendable { case committed(board: PuzzleBoard); case retracted(otherColor: ThreadColor, board: PuzzleBoard); case rejected }",
+      "owning_lane": "primary_ui",
+      "notes": "rejected means the gesture continues with no crash and no state change, per the never-block requirement."
+    },
+    {
+      "name": "PuzzleScreenState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PuzzleScreenState: Sendable { case generating; case ready(PuzzleBoard); case solved(PuzzleBoard); case failed(fallback: PuzzleBoard) }",
+      "owning_lane": "primary_ui",
+      "notes": "The four locked puzzle-screen states; active-trace-in-progress is represented as .ready with a non-empty in-flight thread, not a fifth case."
+    },
+    {
+      "name": "PuzzleViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class PuzzleViewModel { var state: PuzzleScreenState; func onAppear() async; func beginThread(at: Position); func extendThread(to: Position); func cancelActiveThread(); func undo(); func beginNextLoom() async }",
+      "owning_lane": "primary_ui",
+      "notes": "undo() removes the most recently completed thread in full (thread granularity, not cell or drag-frame), per app_features."
+    },
+    {
+      "name": "HubViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class HubViewModel { var yesterdaySummary: PuzzleSummary?; var loomPassComingSoonPresented: Bool; func onAppear() async; func loomPassTeaserTapped() }",
+      "owning_lane": "primary_ui",
+      "notes": "yesterdaySummary == nil renders the first-launch 'your first loom is on the frame now' copy locked in design_handoff, never an omitted row."
+    },
+    {
+      "name": "SettingsViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class SettingsViewModel { var isResetConfirmationPresented: Bool; func requestReset(); func confirmReset() async }",
+      "owning_lane": "primary_ui",
+      "notes": "confirmReset() drives the same ResetConfirmationView instance reused for corrupted-store recovery at launch."
+    },
+    {
+      "name": "HapticsPlaying",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol HapticsPlaying: Sendable { func playThreadCommit(); func playSolveBloom() }",
+      "owning_lane": "polish_resilience",
+      "notes": "Protocol so tests can inject a no-op fake; the Core Haptics-backed implementation is only verifiable on a physical device."
+    },
+    {
+      "name": "recoverFromCorruptStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func recoverFromCorruptStore(at url: URL) throws -> ModelContainer",
+      "owning_lane": "polish_resilience",
+      "notes": "Called if ModelContainer init throws at launch; deletes the unreadable store and returns a fresh empty container, surfaced via the shared reset/starting-fresh screen."
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,1 @@
+Design a climbing technique app called Chalkline with a bold gym-signage graphic visual identity: chalk-dust textures, high-contrast route-color-coded UI, energetic display type, and kinetic transitions tied to haptics. It should feel like climbing-gym wayfinding brought to life, not a fitness-tracker template.

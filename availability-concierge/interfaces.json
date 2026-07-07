@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "RootRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RootRoute: Equatable { case priming; case checkingAuth; case denied; case noCalendars; case slots([DaySlotGroup]); case fullyBooked(untilDate: Date); case tooLateToday(nextAvailableStart: Date) }",
+      "owning_lane": "data_domain",
+      "notes": "Single source of truth for root switch; UI lane renders on this, view model lane produces it. Do not add an 8th case without updating design_handoff's locked state model."
+    },
+    {
+      "name": "CalendarAuthorizationState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CalendarAuthorizationState { case notDetermined; case authorized; case deniedOrRestricted }",
+      "owning_lane": "data_domain",
+      "notes": "Wraps EKAuthorizationStatus so UI/view-model lanes never need `import EventKit`; restricted and writeOnly both fold into deniedOrRestricted per design_handoff."
+    },
+    {
+      "name": "RulesPersona",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RulesPersona: Codable, Identifiable, Equatable { let id: UUID; let schemaVersion: Int; var name: String; var workingHoursStart: DateComponents; var workingHoursEnd: DateComponents; var bufferMinutes: Int; var minimumNoticeMinutes: Int; var defaultDurationMinutes: Int; var excludedCalendarIdentifiers: Set<String>; static let `default`: RulesPersona }",
+      "owning_lane": "data_domain",
+      "notes": "Real typed record from day one even though unpersisted this slice \u2014 additive-only shape so future SwiftData persona layer never requires a migration."
+    },
+    {
+      "name": "CalendarSourceInfo",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CalendarSourceInfo: Identifiable, Equatable { let id: String; let title: String; let sourceTitle: String; let isAutoExcludedByType: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Forward-compatible with the deferred calendar-source picker; isAutoExcludedByType reflects the birthday/subscription heuristic, named as a heuristic not a solved filter."
+    },
+    {
+      "name": "BusyInterval",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct BusyInterval: Equatable { let start: Date; let end: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Neutral type with zero EventKit dependency; CalendarGateway converts EKEvent occurrences into these before handing off to SlotComputationEngine."
+    },
+    {
+      "name": "SlotOffer",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SlotOffer: Identifiable, Equatable { let id: UUID; let start: Date; let end: Date; var isIncluded: Bool; var duration: TimeInterval { end.timeIntervalSince(start) } }",
+      "owning_lane": "data_domain",
+      "notes": "View-facing slot with the deselect toggle; distinct from ShareableSlot which strips isIncluded/id before formatting."
+    },
+    {
+      "name": "ShareableSlot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ShareableSlot: Equatable { let start: Date; let end: Date }",
+      "owning_lane": "data_domain",
+      "notes": "The only type ShareTextFormatter accepts. Structurally cannot carry a title/location/notes field \u2014 this is the compiler-enforced half of the privacy invariant."
+    },
+    {
+      "name": "DaySlotGroup",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DaySlotGroup: Identifiable, Equatable { let id: Date; let day: Date; let relativeLabel: String; var slots: [SlotOffer] }",
+      "owning_lane": "data_domain",
+      "notes": "id is the normalized day start; relativeLabel is precomputed (\"Today\"/\"Tomorrow\"/weekday) so the UI lane does no date-math itself."
+    },
+    {
+      "name": "SlotComputationResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SlotComputationResult: Equatable { case success([DaySlotGroup]); case fullyBookedThisWeek(untilDate: Date); case tooLateToday(nextAvailableStart: Date) }",
+      "owning_lane": "data_domain",
+      "notes": "no-calendars case is intentionally absent here \u2014 that state is decided before computation runs, per design_handoff's ordering requirement."
+    },
+    {
+      "name": "CalendarProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CalendarProviding: Sendable { func authorizationStatus() async -> CalendarAuthorizationState; func requestFullAccess() async -> CalendarAuthorizationState; func availableCalendars() async -> [CalendarSourceInfo]; func computeSlots(for persona: RulesPersona, referenceDate: Date) async -> SlotComputationResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Fake-conformance seam for view-model-level tests; the real recurrence-correctness proof still requires the concrete CalendarGateway against a real EKEventStore."
+    },
+    {
+      "name": "CalendarGateway",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "actor CalendarGateway: CalendarProviding { init(eventStore: EKEventStore = EKEventStore()) }",
+      "owning_lane": "services_utilities",
+      "notes": "Only file in the app allowed to `import EventKit`. Internally fans out per-calendar enumeration via TaskGroup, then converts to [BusyInterval] before calling SlotComputationEngine \u2014 all serialized through this actor's isolation, never a second store instance."
+    },
+    {
+      "name": "SlotComputationEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SlotComputationEngine { static func computeSlots(busyIntervals: [BusyInterval], allDayBlockedDays: Set<DateComponents>, persona: RulesPersona, referenceDate: Date, calendar: Calendar) -> SlotComputationResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure, synchronous, zero EventKit dependency. This is where the bulk of fixture-based correctness tests live (buffer math, all-day blocking, minimum notice, the three-way empty-state split)."
+    },
+    {
+      "name": "ShareTextFormatter",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ShareTextFormatter { static func format(_ slots: [ShareableSlot], calendar: Calendar) -> String }",
+      "owning_lane": "services_utilities",
+      "notes": "Only accepts ShareableSlot, never SlotOffer or EKEvent \u2014 title-free output is structural, not a formatter-internals promise."
+    },
+    {
+      "name": "PrimingSeenStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PrimingSeenStore { var hasSeenPriming: Bool { get nonmutating set } }",
+      "owning_lane": "services_utilities",
+      "notes": "Thin UserDefaults wrapper; the only persisted state in this slice."
+    },
+    {
+      "name": "SafeLog",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SafeLog { static func info(_ message: StaticString, _ metadata: [String: any CustomStringConvertible] = [:]) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Message must be StaticString so interpolating a live event field into the log text is a compile error, not a review catch; metadata values are for non-sensitive counters/durations only."
+    },
+    {
+      "name": "AvailabilityViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AvailabilityViewModel { var route: RootRoute; init(gateway: any CalendarProviding, primingStore: PrimingSeenStore); func onAppear() async; func onScenePhaseActive() async; func requestAccessAndProceed() async; func toggleSlotInclusion(id: UUID); func shareText() -> String }",
+      "owning_lane": "primary_ui",
+      "notes": "Single owner of RootRoute transitions; toggleSlotInclusion mutates in place inside .slots/.tooLateToday without recomputing from CalendarGateway, preserving deselections across share-sheet cancel."
+    },
+    {
+      "name": "RootRouterView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RootRouterView: View { var viewModel: AvailabilityViewModel }",
+      "owning_lane": "primary_ui",
+      "notes": "Switches on viewModel.route with plain crossfade transitions; must not keep two branches simultaneously focusable mid-crossfade per the VoiceOver requirement from design_handoff."
+    },
+    {
+      "name": "ShareSheetPresenter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ShareSheetPresenter: UIViewControllerRepresentable { let activityItems: [String] }",
+      "owning_lane": "polish_resilience",
+      "notes": "Wraps UIActivityViewController; fed only by AvailabilityViewModel.shareText(), never given a reference back to any calendar type."
+    }
+  ],
+  "errors": []
+}

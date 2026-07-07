@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp4",
+  "build": true,
+  "build_priority": 4,
+  "app": {
+    "name": "Proof",
+    "slug": "proof",
+    "category": "Maker & Small-Batch Business Tools",
+    "one_sentence_promise": "Log what a batch actually costs you in materials and time, and know the price that keeps you from secretly losing money.",
+    "target_user": "Side-hustle makers and small-batch sellers who price intuitively and have never calculated true per-unit cost including their own labor time.",
+    "painful_moment": "Finishing a batch of product and having no real answer to 'am I actually making money on this.'",
+    "why_different": "Calculates true landed cost per unit including labor at a user-set rate, and derives a defensible minimum price.",
+    "why_users_pay": "Unlimited products, a reusable material cost library, and profit-trend reporting versus a single-product free tier.",
+    "subscription_model": "Free: 1 tracked product. Paid (~$5.99/mo or $44/yr): unlimited products, shared material cost library, batch profit-trend history.",
+    "local_first_mvp_scope": "Local product/recipe records, reusable material cost entries, labor time entry with user-set hourly rate, per-batch true-cost calculation, suggested pricing, local profit-history tracking.",
+    "future_backend_roadmap": "Repository protocol boundary now; later, optional cloud backup/sync and a marketplace sales-import point behind the same interface.",
+    "core_workflows": [
+      "define a product/recipe with materials and quantities",
+      "log labor time per batch",
+      "calculate true per-unit cost",
+      "get a suggested minimum price for a target margin",
+      "track profit trend across batches"
+    ],
+    "ios_native_features": [
+      "Local persistence via SwiftData",
+      "Widgets showing last batch's margin",
+      "Share sheet export of a priced product card",
+      "Dynamic Type/VoiceOver accessible data-entry forms"
+    ],
+    "ar_ml_llm_fit": "None \u2014 deliberately no bonus tech; the value is disciplined cost accounting done well.",
+    "design_direction": "Warm, craft-market aesthetic with honest, ledger-like data presentation.",
+    "claude_design_prompt": "Design a premium iOS small-batch-business costing app called Proof. Warm craft-market aesthetic, ledger-like clarity, product/recipe list, materials-and-labor entry screen, suggested-pricing result with profit-trend chart. Include empty state and a state where labor rate hasn't been set yet.",
+    "app_store_positioning": "The true cost of what you make, finally in plain numbers.",
+    "key_risks": [
+      "Users may resist entering honest labor time, undermining the core calculation",
+      "Material entry could feel tedious for makers with many small inputs"
+    ],
+    "invalidation_criteria": "If users stop logging labor time within the first few batches, the promise collapses to materials-only and needs repositioning.",
+    "v1_build_scope": "Single-user local product/recipe and cost tracking, labor-time entry, true-cost calculation with suggested pricing, profit-trend history, full state coverage, StoreKit 2 paywall.",
+    "build": true,
+    "build_priority": 4
+  }
+}

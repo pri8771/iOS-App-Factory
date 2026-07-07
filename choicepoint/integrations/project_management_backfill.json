@@ -1,0 +1,1969 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "choicepoint",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b3\nSelected app slug: choicepoint\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Choicepoint\n\nBuild mode: **MVP build**.\nBuild priority: **7**.\n\n## App Name\n\nChoicepoint\n\n## Category\n\nUtilities\n\n## One-Sentence Promise\n\nCaptures your reasoning and prediction at the moment of a real decision, then reminds you to check whether you were right.\n\n## Target User\n\nPeople making recurring, consequential personal or professional decisions who want to improve their judgment over time.\n\n## Painful Moment Solved\n\nMaking an important decision, forgetting the reasoning within weeks, and never learning if it was actually a good call.\n\n## Why It Is Different\n\nA judgment-improvement tool, not a habit tracker: timestamped decision-and-prediction capture paired with a scheduled future revisit that surfaces your own past reasoning for calibration.\n\n## Why Users Would Pay\n\nUnlimited decisions tracked, calibration analytics (how often predictions were right), custom revisit schedules, export for professional reflection.\n\n## Subscription Model\n\nFree: 5 active decisions tracked. Paid: unlimited plus analytics and export.\n\n## Local-First MVP Scope\n\nFully on-device decision log with local-notification-based revisit prompts.\n\n## Future Backend Roadmap\n\nOptional cloud sync/backup; potential shared decision journals for co-founders or partners deciding together.\n\n## AR / Local ML / Local LLM Fit\n\nOptional on-device LLM to structure a rambling voice note into a clean decision record.\n\n## Design Direction\n\nCalm, restrained, ledger-like typography with no gamification or badges \u2014 feels serious and premium.\n\n## App Store Positioning\n\nA journal for your decisions \u2014 not your habits. See if your judgment actually improves.\n\n## Invalidation Criteria\n\nIf revisit completion stays low after onboarding tuning, drop the calibration claim and pivot to pure decision-logging.\n\n## v1 Build Scope\n\nDecision capture, revisit scheduling/notifications, outcome logging, basic calibration stats.\n\n## Core Workflows\n\n- Log a decision (context, options, prediction, confidence)\n- Set a revisit date\n- Get reminded to revisit and record the actual outcome\n- View calibration stats over time\n\n## iOS-Native Features\n\n- Local notifications for revisit prompts\n- Widgets showing upcoming revisits\n- App Intents/Siri for quick decision capture\n\n## Key Risks\n\n- Logging a decision in the moment must be fast or it won't happen\n- Low revisit completion would undermine the entire calibration promise\n\n## Claude Design Handoff Prompt\n\nDesign a calm, ledger-inspired decision journal: a fast decision-capture form, a quiet upcoming-revisits list, and a restrained calibration-stats view with no game mechanics.\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n",
+    "verification": "UNVERIFIED (no .xcodeproj/.xcworkspace found.)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "CHOICEPOIN",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "build_coordination"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "final_review"
+        ]
+      }
+    ],
+    "issues": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Scaffold Xcode project, 4 targets, App Group, synchronized-group file layout",
+        "description": "Generated from orchestrator task `T-001` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/Choicepoint.xcodeproj, Choicepoint/Choicepoint/App.entitlements, Choicepoint/ChoicepointWidget/Info.plist, Choicepoint/ChoicepointIntents/Info.plist, Choicepoint/ChoicepointCore/Package.swift\n\nAcceptance criteria:\n- Project builds empty targets for Choicepoint, ChoicepointWidget, ChoicepointIntents with ChoicepointCore linked into all three\n- App Group capability present and identical across all targets\n- Uses file-system-synchronized groups so new files added on disk appear in the target without manual pbxproj edits\n- project.pbxproj, Package.swift, entitlements, Info.plists, and target membership remain integrator-owned by services_utilities for the rest of the build",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/Choicepoint.xcodeproj",
+            "Choicepoint/Choicepoint/App.entitlements",
+            "Choicepoint/ChoicepointWidget/Info.plist",
+            "Choicepoint/ChoicepointIntents/Info.plist",
+            "Choicepoint/ChoicepointCore/Package.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Project builds empty targets for Choicepoint, ChoicepointWidget, ChoicepointIntents with ChoicepointCore linked into all three",
+            "App Group capability present and identical across all targets",
+            "Uses file-system-synchronized groups so new files added on disk appear in the target without manual pbxproj edits",
+            "project.pbxproj, Package.swift, entitlements, Info.plists, and target membership remain integrator-owned by services_utilities for the rest of the build"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "ChoicepointCore Models + DecisionPolicy + adversarial policy test suite",
+        "description": "Generated from orchestrator task `T-002` for `choicepoint`.\n\nOwner lane: `data_domain`\nFiles: Choicepoint/ChoicepointCore/Sources/Models/*.swift, Choicepoint/ChoicepointCore/Sources/Policy/*.swift, Choicepoint/ChoicepointCore/Tests/PolicyTests/*.swift\n\nAcceptance criteria:\n- All locked data types from tech_specs (DecisionRecord, OutcomeRecord, DecisionDraft, OutcomeDraft, RevisitSchedule, DecisionStats, PendingRevisitSummary, NotificationPlan/Item, DecisionWriteError, enums) compile with zero SwiftData/Core Data imports\n- DecisionPolicy implementation takes Calendar/TimeZone as injected parameters, never .current\n- Unit tests cover cap math across all DecisionSurface values, active/resolved counting, DST-safe scheduling, notification rolling-window selection, low-sample stats threshold \u2014 all green\n- Package builds and tests standalone via swift test, with zero ModelContainer/NSPersistentStoreCoordinator dependency, and with no dependency on the Xcode project existing yet",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Models/*.swift",
+            "Choicepoint/ChoicepointCore/Sources/Policy/*.swift",
+            "Choicepoint/ChoicepointCore/Tests/PolicyTests/*.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "All locked data types from tech_specs (DecisionRecord, OutcomeRecord, DecisionDraft, OutcomeDraft, RevisitSchedule, DecisionStats, PendingRevisitSummary, NotificationPlan/Item, DecisionWriteError, enums) compile with zero SwiftData/Core Data imports",
+            "DecisionPolicy implementation takes Calendar/TimeZone as injected parameters, never .current",
+            "Unit tests cover cap math across all DecisionSurface values, active/resolved counting, DST-safe scheduling, notification rolling-window selection, low-sample stats threshold \u2014 all green",
+            "Package builds and tests standalone via swift test, with zero ModelContainer/NSPersistentStoreCoordinator dependency, and with no dependency on the Xcode project existing yet"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "Persistence spike: SwiftData-vs-Core Data go/no-go",
+        "description": "Generated from orchestrator task `T-003` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Persistence/Spike/*.swift, Choicepoint/SpikeTargets/*, Choicepoint/docs/persistence-verdict.md\n\nAcceptance criteria:\n- Three trivial targets share one ModelContainer/store against the real App Group container URL (not simulator default)\n- Concurrent write-hammering test (~50 rapid writes across two processes, read-after-write-across-processes, delete/resolve/reschedule churn) produces zero crashes, zero corruption, zero stale reads\n- docs/persistence-verdict.md explicitly names SwiftData or Core Data as the chosen engine with the test results that justify it\n- Spike targets are removed or clearly isolated from shipping code once the verdict lands",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Persistence/Spike/*.swift",
+            "Choicepoint/SpikeTargets/*",
+            "Choicepoint/docs/persistence-verdict.md"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Three trivial targets share one ModelContainer/store against the real App Group container URL (not simulator default)",
+            "Concurrent write-hammering test (~50 rapid writes across two processes, read-after-write-across-processes, delete/resolve/reschedule churn) produces zero crashes, zero corruption, zero stale reads",
+            "docs/persistence-verdict.md explicitly names SwiftData or Core Data as the chosen engine with the test results that justify it",
+            "Spike targets are removed or clearly isolated from shipping code once the verdict lands"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "Concrete DecisionRepository + App Group round-trip checkpoint",
+        "description": "Generated from orchestrator task `T-004` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Persistence/DecisionRepository*.swift, Choicepoint/ChoicepointCore/Tests/PersistenceTests/*.swift, Choicepoint/docs/app-group-roundtrip.md\n\nAcceptance criteria:\n- Implements DecisionRepository per tech_specs using the engine T-003 selected, with zero policy logic leaking in\n- No pagination added \u2014 deliberate non-goal per locked decision\n- docs/app-group-roundtrip.md records a real write from one target read back from a second target and asserted equal, not assumed from correct-looking entitlements\n- fetchActive/fetchResolved/activeCount/nextEntryNumber/fetchOutcome all covered by tests against the real App Group container",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Persistence/DecisionRepository*.swift",
+            "Choicepoint/ChoicepointCore/Tests/PersistenceTests/*.swift",
+            "Choicepoint/docs/app-group-roundtrip.md"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "Implements DecisionRepository per tech_specs using the engine T-003 selected, with zero policy logic leaking in",
+            "No pagination added \u2014 deliberate non-goal per locked decision",
+            "docs/app-group-roundtrip.md records a real write from one target read back from a second target and asserted equal, not assumed from correct-looking entitlements",
+            "fetchActive/fetchResolved/activeCount/nextEntryNumber/fetchOutcome all covered by tests against the real App Group container"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "EntitlementSnapshot/EntitlementStore + StoreKit 2 + eager fresh-install default",
+        "description": "Generated from orchestrator task `T-005` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Entitlements/*.swift, Choicepoint/Choicepoint/StoreKitConfig.storekit\n\nAcceptance criteria:\n- Main app writes EntitlementSnapshot(access: .free, refreshedAt: now) to the App Group eagerly at first successful launch, before any StoreKit fetch completes\n- refreshFromStoreKit reads Transaction.currentEntitlements only, no custom grace-period/TTL logic layered on top\n- Snapshot refreshed on every foreground\n- Extensions only ever read the cached snapshot, never call StoreKit directly",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Entitlements/*.swift",
+            "Choicepoint/Choicepoint/StoreKitConfig.storekit"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Main app writes EntitlementSnapshot(access: .free, refreshedAt: now) to the App Group eagerly at first successful launch, before any StoreKit fetch completes",
+            "refreshFromStoreKit reads Transaction.currentEntitlements only, no custom grace-period/TTL logic layered on top",
+            "Snapshot refreshed on every foreground",
+            "Extensions only ever read the cached snapshot, never call StoreKit directly"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "NotificationScheduling implementation (rolling window, recompute-and-diff)",
+        "description": "Generated from orchestrator task `T-006` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Notifications/NotificationScheduling.swift, Choicepoint/ChoicepointCore/Sources/Notifications/NotificationPlan.swift, Choicepoint/ChoicepointCore/Tests/NotificationTests/*.swift\n\nAcceptance criteria:\n- Schedules real UNNotificationRequests for the nearest 30 active decisions using calendar-day-plus-local-time semantics\n- recomputeAndApply diffs against currently-pending requests and is callable from mutation and from app launch\n- authorizationStatus/requestAuthorization implemented against UNUserNotificationCenter\n- Notification title/body never contain decision content, count/due-ness copy only",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Notifications/NotificationScheduling.swift",
+            "Choicepoint/ChoicepointCore/Sources/Notifications/NotificationPlan.swift",
+            "Choicepoint/ChoicepointCore/Tests/NotificationTests/*.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Schedules real UNNotificationRequests for the nearest 30 active decisions using calendar-day-plus-local-time semantics",
+            "recomputeAndApply diffs against currently-pending requests and is callable from mutation and from app launch",
+            "authorizationStatus/requestAuthorization implemented against UNUserNotificationCenter",
+            "Notification title/body never contain decision content, count/due-ness copy only"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "WidgetRefreshing wrapper",
+        "description": "Generated from orchestrator task `T-007` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Notifications/WidgetRefreshing.swift\n\nAcceptance criteria:\n- Thin wrapper over WidgetCenter.shared.reloadTimelines(ofKind:)\n- Mockable in tests, no direct WidgetKit dependency leaking into DecisionMutationService callers",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Notifications/WidgetRefreshing.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Thin wrapper over WidgetCenter.shared.reloadTimelines(ofKind:)",
+            "Mockable in tests, no direct WidgetKit dependency leaking into DecisionMutationService callers"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "DecisionMutationService (single write boundary, partial-failure rule)",
+        "description": "Generated from orchestrator task `T-008` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Persistence/DecisionMutationService.swift, Choicepoint/ChoicepointCore/Tests/MutationServiceTests/*.swift\n\nAcceptance criteria:\n- createDecision/resolveDecision/rescheduleDecision/updateDecision each compose policy validation + repository persist + notification recompute + widget reload as one operation\n- If persist succeeds and notification-apply or widget-reload subsequently throws, the save is never rolled back \u2014 verified by an explicit test that forces the notification step to fail after a successful persist and asserts the record still reads back\n- activeDecisionCapReached is enforced identically regardless of which DecisionSurface calls it\n- entryNumber assigned only inside createDecision via repository.nextEntryNumber(), never client-supplied",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Persistence/DecisionMutationService.swift",
+            "Choicepoint/ChoicepointCore/Tests/MutationServiceTests/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-006",
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "createDecision/resolveDecision/rescheduleDecision/updateDecision each compose policy validation + repository persist + notification recompute + widget reload as one operation",
+            "If persist succeeds and notification-apply or widget-reload subsequently throws, the save is never rolled back \u2014 verified by an explicit test that forces the notification step to fail after a successful persist and asserts the record still reads back",
+            "activeDecisionCapReached is enforced identically regardless of which DecisionSurface calls it",
+            "entryNumber assigned only inside createDecision via repository.nextEntryNumber(), never client-supplied"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "WidgetDeepLink codec + CaptureDecisionIntent (Siri/App Intent)",
+        "description": "Generated from orchestrator task `T-009` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Notifications/WidgetDeepLink.swift, Choicepoint/ChoicepointIntents/CaptureDecisionIntent.swift, Choicepoint/ChoicepointIntents/AppShortcutsProvider.swift\n\nAcceptance criteria:\n- WidgetDeepLink.url(for:)/decisionID(from:) is the only place the custom URL scheme is encoded or decoded\n- CaptureDecisionIntent builds a DecisionDraft and calls DecisionMutationService.createDecision(surface: .appIntent), surfacing DecisionWriteError.activeDecisionCapReached identically to the in-app form\n- A 6th-decision attempt via the intent is blocked exactly like the in-app form",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Notifications/WidgetDeepLink.swift",
+            "Choicepoint/ChoicepointIntents/CaptureDecisionIntent.swift",
+            "Choicepoint/ChoicepointIntents/AppShortcutsProvider.swift"
+          ],
+          "depends_on": [
+            "T-008"
+          ],
+          "acceptance_criteria": [
+            "WidgetDeepLink.url(for:)/decisionID(from:) is the only place the custom URL scheme is encoded or decoded",
+            "CaptureDecisionIntent builds a DecisionDraft and calls DecisionMutationService.createDecision(surface: .appIntent), surfacing DecisionWriteError.activeDecisionCapReached identically to the in-app form",
+            "A 6th-decision attempt via the intent is blocked exactly like the in-app form"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "ExportService",
+        "description": "Generated from orchestrator task `T-010` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Entitlements/ExportService.swift\n\nAcceptance criteria:\n- Produces a local file URL from decisions+outcomes, user-initiated only, no automatic or background export path exists",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Entitlements/ExportService.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Produces a local file URL from decisions+outcomes, user-initiated only, no automatic or background export path exists"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "AppRouter, tab/sheet/route types, root TabView, deep-link wiring",
+        "description": "Generated from orchestrator task `T-011` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/App/AppRouter.swift, Choicepoint/Choicepoint/App/AppTab.swift, Choicepoint/Choicepoint/App/SheetRoute.swift, Choicepoint/Choicepoint/App/PaywallTrigger.swift, Choicepoint/Choicepoint/App/DeepLinkTarget.swift, Choicepoint/Choicepoint/App/RootTabView.swift, Choicepoint/Choicepoint/App/ChoicepointApp.swift\n\nAcceptance criteria:\n- AppRouter is a concrete @MainActor @Observable final class, not a protocol\n- routeToDecision(_:) is the single atomic entry point, sequencing sheet-dismiss -> tab-switch -> path-push in that order, with last-write-wins on pendingDestination\n- onOpenURL, the notification delegate, and AppIntent completion all funnel into routeToDecision identically\n- Unit test asserts the exact ordering and last-write-wins behavior under a simulated double deep-link",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/App/AppRouter.swift",
+            "Choicepoint/Choicepoint/App/AppTab.swift",
+            "Choicepoint/Choicepoint/App/SheetRoute.swift",
+            "Choicepoint/Choicepoint/App/PaywallTrigger.swift",
+            "Choicepoint/Choicepoint/App/DeepLinkTarget.swift",
+            "Choicepoint/Choicepoint/App/RootTabView.swift",
+            "Choicepoint/Choicepoint/App/ChoicepointApp.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "AppRouter is a concrete @MainActor @Observable final class, not a protocol",
+            "routeToDecision(_:) is the single atomic entry point, sequencing sheet-dismiss -> tab-switch -> path-push in that order, with last-write-wins on pendingDestination",
+            "onOpenURL, the notification delegate, and AppIntent completion all funnel into routeToDecision identically",
+            "Unit test asserts the exact ordering and last-write-wins behavior under a simulated double deep-link"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Onboarding + notification permission flow",
+        "description": "Generated from orchestrator task `T-012` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Onboarding/*.swift\n\nAcceptance criteria:\n- One honest explanation card precedes the system permission prompt, no swipeable tour\n- Denied state at onboarding shows an explicit in-app fallback, not a silent failure",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Onboarding/*.swift"
+          ],
+          "depends_on": [
+            "T-006",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "One honest explanation card precedes the system permission prompt, no swipeable tour",
+            "Denied state at onboarding shows an explicit in-app fallback, not a silent failure"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Capture feature (two-speed form)",
+        "description": "Generated from orchestrator task `T-013` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Capture/*.swift\n\nAcceptance criteria:\n- Save enabled the instant decision text, prediction, and revisit date are present; context/options/confidence/what-would-change-my-mind behind an Add Detail disclosure\n- capBlocked checked synchronously on sheet appear and re-validated atomically inside createDecision\n- Empty-state-to-saved-record achievable in well under 20 seconds",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Capture/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-008",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Save enabled the instant decision text, prediction, and revisit date are present; context/options/confidence/what-would-change-my-mind behind an Add Detail disclosure",
+            "capBlocked checked synchronously on sheet appear and re-validated atomically inside createDecision",
+            "Empty-state-to-saved-record achievable in well under 20 seconds"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "Ledger feature",
+        "description": "Generated from orchestrator task `T-014` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Ledger/*.swift\n\nAcceptance criteria:\n- Overdue/Due Soon/Upcoming grouping with a resolved filter, overdue never disappears\n- refreshOnForeground() wired to scenePhase so a backgrounded Siri/widget write appears without manual refresh\n- Real empty state when there are zero active decisions",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Ledger/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Overdue/Due Soon/Upcoming grouping with a resolved filter, overdue never disappears",
+            "refreshOnForeground() wired to scenePhase so a backgrounded Siri/widget write appears without manual refresh",
+            "Real empty state when there are zero active decisions"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Decision Detail feature",
+        "description": "Generated from orchestrator task `T-015` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/DecisionDetail/*.swift\n\nAcceptance criteria:\n- Active mode shows original record plus edit/revisit-now/reschedule actions; resolved mode is read-only\n- A stale notification pointing at an already-resolved decision lands here in read-only mode, never a broken/duplicate outcome form",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/DecisionDetail/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Active mode shows original record plus edit/revisit-now/reschedule actions; resolved mode is read-only",
+            "A stale notification pointing at an already-resolved decision lands here in read-only mode, never a broken/duplicate outcome form"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "Revisit/Resolve feature",
+        "description": "Generated from orchestrator task `T-016` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Revisit/*.swift\n\nAcceptance criteria:\n- Opens directly onto the stamped Before block, fully visible, no gate or reveal tap\n- resolve(as:) and notYet(newSchedule:) are separate methods/actions, never a shared toggle\n- Held/Missed/Mixed resolve and free a cap slot; Not Yet only pushes the date forward and stays active",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Revisit/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-008",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Opens directly onto the stamped Before block, fully visible, no gate or reveal tap",
+            "resolve(as:) and notYet(newSchedule:) are separate methods/actions, never a shared toggle",
+            "Held/Missed/Mixed resolve and free a cap slot; Not Yet only pushes the date forward and stays active"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-016"
+        }
+      },
+      {
+        "external_id": "T-017",
+        "issue_type": "Task",
+        "summary": "Calibration feature (incl. locked confidence teaser)",
+        "description": "Generated from orchestrator task `T-017` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Calibration/*.swift\n\nAcceptance criteria:\n- Computed fresh from resolved records only, honest empty state at zero resolved decisions\n- Raw fraction always shown alongside any percentage; headline percentage suppressed below the low-sample threshold\n- Confidence-weighted analytics locked behind an honest teaser card for free users, unlocked for paid via EntitlementStore",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Calibration/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "Computed fresh from resolved records only, honest empty state at zero resolved decisions",
+            "Raw fraction always shown alongside any percentage; headline percentage suppressed below the low-sample threshold",
+            "Confidence-weighted analytics locked behind an honest teaser card for free users, unlocked for paid via EntitlementStore"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-017"
+        }
+      },
+      {
+        "external_id": "T-018",
+        "issue_type": "Task",
+        "summary": "Paywall sheet + Settings screen",
+        "description": "Generated from orchestrator task `T-018` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Paywall/*.swift, Choicepoint/Choicepoint/Features/Settings/*.swift\n\nAcceptance criteria:\n- Paywall only ever reached contextually (capCeiling or lockedAnalytics trigger), never as a standalone destination\n- Settings shows live notification permission status (including revoked-since-grant), subscription state, export action, privacy copy\n- Downgrade never hides/deletes/force-resolves existing decisions above the cap \u2014 only new creation is blocked",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Paywall/*.swift",
+            "Choicepoint/Choicepoint/Features/Settings/*.swift"
+          ],
+          "depends_on": [
+            "T-005",
+            "T-010",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Paywall only ever reached contextually (capCeiling or lockedAnalytics trigger), never as a standalone destination",
+            "Settings shows live notification permission status (including revoked-since-grant), subscription state, export action, privacy copy",
+            "Downgrade never hides/deletes/force-resolves existing decisions above the cap \u2014 only new creation is blocked"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-018"
+        }
+      },
+      {
+        "external_id": "T-019",
+        "issue_type": "Task",
+        "summary": "Widget UI (ChoicepointWidget target)",
+        "description": "Generated from orchestrator task `T-019` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/ChoicepointWidget/*.swift\n\nAcceptance criteria:\n- Small/medium families show counts/nearest-due-date only, never decision content\n- Single tap target per widget deep-links via WidgetDeepLink into the same Revisit/Resolve screen\n- Timeline reloads correctly after WidgetRefreshing.reloadRevisitWidgets is invoked from a mutation",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/ChoicepointWidget/*.swift"
+          ],
+          "depends_on": [
+            "T-004",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "Small/medium families show counts/nearest-due-date only, never decision content",
+            "Single tap target per widget deep-links via WidgetDeepLink into the same Revisit/Resolve screen",
+            "Timeline reloads correctly after WidgetRefreshing.reloadRevisitWidgets is invoked from a mutation"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-019"
+        }
+      },
+      {
+        "external_id": "T-020",
+        "issue_type": "Task",
+        "summary": "Shared DesignSystem module",
+        "description": "Generated from orchestrator task `T-020` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/Choicepoint/DesignSystem/*.swift\n\nAcceptance criteria:\n- Light and dark paper-and-ink tokens, serif user-authored text style, monospacedDigit numeral style, single sparse accent color, defined once and reused everywhere\n- LoadState-driven empty/loading/error view components and PermissionBannerState banner component exist and are ready for feature screens to adopt as stable token names/lightweight placeholders early, hardened later\n- assembledAccessibilityLabel helper produces one combined VoiceOver sentence per ledger row",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/Choicepoint/DesignSystem/*.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Light and dark paper-and-ink tokens, serif user-authored text style, monospacedDigit numeral style, single sparse accent color, defined once and reused everywhere",
+            "LoadState-driven empty/loading/error view components and PermissionBannerState banner component exist and are ready for feature screens to adopt as stable token names/lightweight placeholders early, hardened later",
+            "assembledAccessibilityLabel helper produces one combined VoiceOver sentence per ledger row"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-020"
+        }
+      },
+      {
+        "external_id": "T-021",
+        "issue_type": "Task",
+        "summary": "Accessibility, dark mode, and empty/error/loading hardening pass",
+        "description": "Generated from orchestrator task `T-021` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/Choicepoint/Features/Ledger/*.swift, Choicepoint/Choicepoint/Features/DecisionDetail/*.swift, Choicepoint/Choicepoint/Features/Revisit/*.swift, Choicepoint/Choicepoint/Features/Calibration/*.swift, Choicepoint/Choicepoint/Features/Capture/*.swift, Choicepoint/Choicepoint/Features/Settings/*.swift\n\nAcceptance criteria:\n- Dynamic Type reflows every ledger row and the Before block at accessibility sizes with no truncation, verified before sign-off\n- Every reachable screen wired to LoadState with real empty/loading/error states, no placeholders\n- Held/Missed/Mixed/overdue/permission states never rely on hue alone\n- Full dark mode parity verified on every screen touched here\n- This task is the sole editor of these files during its window \u2014 primary_ui lane treats them as handed off once this task starts",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Ledger/*.swift",
+            "Choicepoint/Choicepoint/Features/DecisionDetail/*.swift",
+            "Choicepoint/Choicepoint/Features/Revisit/*.swift",
+            "Choicepoint/Choicepoint/Features/Calibration/*.swift",
+            "Choicepoint/Choicepoint/Features/Capture/*.swift",
+            "Choicepoint/Choicepoint/Features/Settings/*.swift"
+          ],
+          "depends_on": [
+            "T-020",
+            "T-013",
+            "T-014",
+            "T-015",
+            "T-016",
+            "T-017",
+            "T-018"
+          ],
+          "acceptance_criteria": [
+            "Dynamic Type reflows every ledger row and the Before block at accessibility sizes with no truncation, verified before sign-off",
+            "Every reachable screen wired to LoadState with real empty/loading/error states, no placeholders",
+            "Held/Missed/Mixed/overdue/permission states never rely on hue alone",
+            "Full dark mode parity verified on every screen touched here",
+            "This task is the sole editor of these files during its window \u2014 primary_ui lane treats them as handed off once this task starts"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-021"
+        }
+      },
+      {
+        "external_id": "T-022",
+        "issue_type": "Task",
+        "summary": "Cross-surface cap-enforcement adversarial test + integration report",
+        "description": "Generated from orchestrator task `T-022` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/ChoicepointCoreTests/CrossSurfaceCapTests.swift, Choicepoint/docs/cross-surface-integration-report.md\n\nAcceptance criteria:\n- Attempting a 6th active decision through the in-app form, the widget path, and the Siri intent independently all produce the identical activeDecisionCapReached error, run against the real shared App Group container, not mocks\n- A stale notification/widget deep link is verified to open the safe resolved/missing-state path, never a broken form\n- docs/cross-surface-integration-report.md records that a backgrounded Siri/widget write is honestly reflected in Ledger and Calibration on next normal foreground, no manual refresh",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/ChoicepointCoreTests/CrossSurfaceCapTests.swift",
+            "Choicepoint/docs/cross-surface-integration-report.md"
+          ],
+          "depends_on": [
+            "T-008",
+            "T-009",
+            "T-019"
+          ],
+          "acceptance_criteria": [
+            "Attempting a 6th active decision through the in-app form, the widget path, and the Siri intent independently all produce the identical activeDecisionCapReached error, run against the real shared App Group container, not mocks",
+            "A stale notification/widget deep link is verified to open the safe resolved/missing-state path, never a broken form",
+            "docs/cross-surface-integration-report.md records that a backgrounded Siri/widget write is honestly reflected in Ledger and Calibration on next normal foreground, no manual refresh"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-022"
+        }
+      },
+      {
+        "external_id": "T-023",
+        "issue_type": "Task",
+        "summary": "XCUITest: fast capture + cold-launch deep-link routing",
+        "description": "Generated from orchestrator task `T-023` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/ChoicepointUITests/CaptureFlowTests.swift, Choicepoint/ChoicepointUITests/DeepLinkRoutingTests.swift\n\nAcceptance criteria:\n- Automated test proves empty-state-to-saved-record path\n- Automated test proves a notification tap after a simulated cold launch lands on the exact target decision's Revisit screen\n- Stale-notification-to-already-resolved fallback verified to open read-only Decision Detail, not a broken form",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/ChoicepointUITests/CaptureFlowTests.swift",
+            "Choicepoint/ChoicepointUITests/DeepLinkRoutingTests.swift"
+          ],
+          "depends_on": [
+            "T-011",
+            "T-013",
+            "T-016"
+          ],
+          "acceptance_criteria": [
+            "Automated test proves empty-state-to-saved-record path",
+            "Automated test proves a notification tap after a simulated cold launch lands on the exact target decision's Revisit screen",
+            "Stale-notification-to-already-resolved fallback verified to open read-only Decision Detail, not a broken form"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-023"
+        }
+      },
+      {
+        "external_id": "T-024",
+        "issue_type": "Task",
+        "summary": "Real-device manual QA checklist",
+        "description": "Generated from orchestrator task `T-024` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/QA/manual-release-checklist.md\n\nAcceptance criteria:\n- Force-quit-then-notification-fires verified on a physical device\n- Permission-revoked-while-backgrounded verified to surface the in-app banner on next foreground\n- Downgrade-with-decisions-above-cap verified to block only new creation, never hide/delete existing records\n- Results recorded with pass/fail per item, not just a checklist template",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/QA/manual-release-checklist.md"
+          ],
+          "depends_on": [
+            "T-022",
+            "T-023",
+            "T-006",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "Force-quit-then-notification-fires verified on a physical device",
+            "Permission-revoked-while-backgrounded verified to surface the in-app banner on next foreground",
+            "Downgrade-with-decisions-above-cap verified to block only new creation, never hide/delete existing records",
+            "Results recorded with pass/fail per item, not just a checklist template"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-024"
+        }
+      }
+    ]
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "choicepoint",
+      "Status": "Needs review",
+      "Source": "Orchestrator",
+      "Workflow Phases": 3
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b3\nSelected app slug: choicepoint\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Choicepoint\n\nBuild mode: **MVP build**.\nBuild priority: **7**.\n\n## App Name\n\nChoicepoint\n\n## Category\n\nUtilities\n\n## One-Sentence Promise\n\nCaptures your reasoning and prediction at the moment of a real decision, then reminds you to check whether you were right.\n\n## Target User\n\nPeople making recurring, consequential personal or professional decisions who want to improve their judgment over time.\n\n## Painful Moment Solved\n\nMaking an important decision, forgetting the reasoning within weeks, and never learning if it was actually a good call.\n\n## Why It Is Different\n\nA judgment-improvement tool, not a habit tracker: timestamped decision-and-prediction capture paired with a scheduled future revisit that surfaces your own past reasoning for calibration.\n\n## Why Users Would Pay\n\nUnlimited decisions tracked, calibration analytics (how often predictions were right), custom revisit schedules, export for professional reflection.\n\n## Subscription Model\n\nFree: 5 active decisions tracked. Paid: unlimited plus analytics and export.\n\n## Local-First MVP Scope\n\nFully on-device decision log with local-notification-based revisit prompts.\n\n## Future Backend Roadmap\n\nOptional cloud sync/backup; potential shared decision journals for co-founders or partners deciding together.\n\n## AR / Local ML / Local LLM Fit\n\nOptional on-device LLM to structure a rambling voice note into a clean decision record.\n\n## Design Direction\n\nCalm, restrained, ledger-like typography with no gamification or badges \u2014 feels serious and premium.\n\n## App Store Positioning\n\nA journal for your decisions \u2014 not your habits. See if your judgment actually improves.\n\n## Invalidation Criteria\n\nIf revisit completion stays low after onboarding tuning, drop the calibration claim and pivot to pure decision-logging.\n\n## v1 Build Scope\n\nDecision capture, revisit scheduling/notifications, outcome logging, basic calibration stats.\n\n## Core Workflows\n\n- Log a decision (context, options, prediction, confidence)\n- Set a revisit date\n- Get reminded to revisit and record the actual outcome\n- View calibration stats over time\n\n## iOS-Native Features\n\n- Local notifications for revisit prompts\n- Widgets showing upcoming revisits\n- App Intents/Siri for quick decision capture\n\n## Key Risks\n\n- Logging a decision in the moment must be fast or it won't happen\n- Low revisit completion would undermine the entire calibration promise\n\n## Claude Design Handoff Prompt\n\nDesign a calm, ledger-inspired decision journal: a fast decision-capture form, a quiet upcoming-revisits list, and a restrained calibration-stats view with no game mechanics.\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Scaffold Xcode project, 4 targets, App Group, synchronized-group file layout",
+        "description": "Generated from orchestrator task `T-001` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/Choicepoint.xcodeproj, Choicepoint/Choicepoint/App.entitlements, Choicepoint/ChoicepointWidget/Info.plist, Choicepoint/ChoicepointIntents/Info.plist, Choicepoint/ChoicepointCore/Package.swift\n\nAcceptance criteria:\n- Project builds empty targets for Choicepoint, ChoicepointWidget, ChoicepointIntents with ChoicepointCore linked into all three\n- App Group capability present and identical across all targets\n- Uses file-system-synchronized groups so new files added on disk appear in the target without manual pbxproj edits\n- project.pbxproj, Package.swift, entitlements, Info.plists, and target membership remain integrator-owned by services_utilities for the rest of the build",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/Choicepoint.xcodeproj",
+            "Choicepoint/Choicepoint/App.entitlements",
+            "Choicepoint/ChoicepointWidget/Info.plist",
+            "Choicepoint/ChoicepointIntents/Info.plist",
+            "Choicepoint/ChoicepointCore/Package.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Project builds empty targets for Choicepoint, ChoicepointWidget, ChoicepointIntents with ChoicepointCore linked into all three",
+            "App Group capability present and identical across all targets",
+            "Uses file-system-synchronized groups so new files added on disk appear in the target without manual pbxproj edits",
+            "project.pbxproj, Package.swift, entitlements, Info.plists, and target membership remain integrator-owned by services_utilities for the rest of the build"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "ChoicepointCore Models + DecisionPolicy + adversarial policy test suite",
+        "description": "Generated from orchestrator task `T-002` for `choicepoint`.\n\nOwner lane: `data_domain`\nFiles: Choicepoint/ChoicepointCore/Sources/Models/*.swift, Choicepoint/ChoicepointCore/Sources/Policy/*.swift, Choicepoint/ChoicepointCore/Tests/PolicyTests/*.swift\n\nAcceptance criteria:\n- All locked data types from tech_specs (DecisionRecord, OutcomeRecord, DecisionDraft, OutcomeDraft, RevisitSchedule, DecisionStats, PendingRevisitSummary, NotificationPlan/Item, DecisionWriteError, enums) compile with zero SwiftData/Core Data imports\n- DecisionPolicy implementation takes Calendar/TimeZone as injected parameters, never .current\n- Unit tests cover cap math across all DecisionSurface values, active/resolved counting, DST-safe scheduling, notification rolling-window selection, low-sample stats threshold \u2014 all green\n- Package builds and tests standalone via swift test, with zero ModelContainer/NSPersistentStoreCoordinator dependency, and with no dependency on the Xcode project existing yet",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Models/*.swift",
+            "Choicepoint/ChoicepointCore/Sources/Policy/*.swift",
+            "Choicepoint/ChoicepointCore/Tests/PolicyTests/*.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "All locked data types from tech_specs (DecisionRecord, OutcomeRecord, DecisionDraft, OutcomeDraft, RevisitSchedule, DecisionStats, PendingRevisitSummary, NotificationPlan/Item, DecisionWriteError, enums) compile with zero SwiftData/Core Data imports",
+            "DecisionPolicy implementation takes Calendar/TimeZone as injected parameters, never .current",
+            "Unit tests cover cap math across all DecisionSurface values, active/resolved counting, DST-safe scheduling, notification rolling-window selection, low-sample stats threshold \u2014 all green",
+            "Package builds and tests standalone via swift test, with zero ModelContainer/NSPersistentStoreCoordinator dependency, and with no dependency on the Xcode project existing yet"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "Persistence spike: SwiftData-vs-Core Data go/no-go",
+        "description": "Generated from orchestrator task `T-003` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Persistence/Spike/*.swift, Choicepoint/SpikeTargets/*, Choicepoint/docs/persistence-verdict.md\n\nAcceptance criteria:\n- Three trivial targets share one ModelContainer/store against the real App Group container URL (not simulator default)\n- Concurrent write-hammering test (~50 rapid writes across two processes, read-after-write-across-processes, delete/resolve/reschedule churn) produces zero crashes, zero corruption, zero stale reads\n- docs/persistence-verdict.md explicitly names SwiftData or Core Data as the chosen engine with the test results that justify it\n- Spike targets are removed or clearly isolated from shipping code once the verdict lands",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Persistence/Spike/*.swift",
+            "Choicepoint/SpikeTargets/*",
+            "Choicepoint/docs/persistence-verdict.md"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Three trivial targets share one ModelContainer/store against the real App Group container URL (not simulator default)",
+            "Concurrent write-hammering test (~50 rapid writes across two processes, read-after-write-across-processes, delete/resolve/reschedule churn) produces zero crashes, zero corruption, zero stale reads",
+            "docs/persistence-verdict.md explicitly names SwiftData or Core Data as the chosen engine with the test results that justify it",
+            "Spike targets are removed or clearly isolated from shipping code once the verdict lands"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "Concrete DecisionRepository + App Group round-trip checkpoint",
+        "description": "Generated from orchestrator task `T-004` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Persistence/DecisionRepository*.swift, Choicepoint/ChoicepointCore/Tests/PersistenceTests/*.swift, Choicepoint/docs/app-group-roundtrip.md\n\nAcceptance criteria:\n- Implements DecisionRepository per tech_specs using the engine T-003 selected, with zero policy logic leaking in\n- No pagination added \u2014 deliberate non-goal per locked decision\n- docs/app-group-roundtrip.md records a real write from one target read back from a second target and asserted equal, not assumed from correct-looking entitlements\n- fetchActive/fetchResolved/activeCount/nextEntryNumber/fetchOutcome all covered by tests against the real App Group container",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Persistence/DecisionRepository*.swift",
+            "Choicepoint/ChoicepointCore/Tests/PersistenceTests/*.swift",
+            "Choicepoint/docs/app-group-roundtrip.md"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "Implements DecisionRepository per tech_specs using the engine T-003 selected, with zero policy logic leaking in",
+            "No pagination added \u2014 deliberate non-goal per locked decision",
+            "docs/app-group-roundtrip.md records a real write from one target read back from a second target and asserted equal, not assumed from correct-looking entitlements",
+            "fetchActive/fetchResolved/activeCount/nextEntryNumber/fetchOutcome all covered by tests against the real App Group container"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "EntitlementSnapshot/EntitlementStore + StoreKit 2 + eager fresh-install default",
+        "description": "Generated from orchestrator task `T-005` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Entitlements/*.swift, Choicepoint/Choicepoint/StoreKitConfig.storekit\n\nAcceptance criteria:\n- Main app writes EntitlementSnapshot(access: .free, refreshedAt: now) to the App Group eagerly at first successful launch, before any StoreKit fetch completes\n- refreshFromStoreKit reads Transaction.currentEntitlements only, no custom grace-period/TTL logic layered on top\n- Snapshot refreshed on every foreground\n- Extensions only ever read the cached snapshot, never call StoreKit directly",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Entitlements/*.swift",
+            "Choicepoint/Choicepoint/StoreKitConfig.storekit"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Main app writes EntitlementSnapshot(access: .free, refreshedAt: now) to the App Group eagerly at first successful launch, before any StoreKit fetch completes",
+            "refreshFromStoreKit reads Transaction.currentEntitlements only, no custom grace-period/TTL logic layered on top",
+            "Snapshot refreshed on every foreground",
+            "Extensions only ever read the cached snapshot, never call StoreKit directly"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "NotificationScheduling implementation (rolling window, recompute-and-diff)",
+        "description": "Generated from orchestrator task `T-006` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Notifications/NotificationScheduling.swift, Choicepoint/ChoicepointCore/Sources/Notifications/NotificationPlan.swift, Choicepoint/ChoicepointCore/Tests/NotificationTests/*.swift\n\nAcceptance criteria:\n- Schedules real UNNotificationRequests for the nearest 30 active decisions using calendar-day-plus-local-time semantics\n- recomputeAndApply diffs against currently-pending requests and is callable from mutation and from app launch\n- authorizationStatus/requestAuthorization implemented against UNUserNotificationCenter\n- Notification title/body never contain decision content, count/due-ness copy only",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Notifications/NotificationScheduling.swift",
+            "Choicepoint/ChoicepointCore/Sources/Notifications/NotificationPlan.swift",
+            "Choicepoint/ChoicepointCore/Tests/NotificationTests/*.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Schedules real UNNotificationRequests for the nearest 30 active decisions using calendar-day-plus-local-time semantics",
+            "recomputeAndApply diffs against currently-pending requests and is callable from mutation and from app launch",
+            "authorizationStatus/requestAuthorization implemented against UNUserNotificationCenter",
+            "Notification title/body never contain decision content, count/due-ness copy only"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "WidgetRefreshing wrapper",
+        "description": "Generated from orchestrator task `T-007` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Notifications/WidgetRefreshing.swift\n\nAcceptance criteria:\n- Thin wrapper over WidgetCenter.shared.reloadTimelines(ofKind:)\n- Mockable in tests, no direct WidgetKit dependency leaking into DecisionMutationService callers",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Notifications/WidgetRefreshing.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Thin wrapper over WidgetCenter.shared.reloadTimelines(ofKind:)",
+            "Mockable in tests, no direct WidgetKit dependency leaking into DecisionMutationService callers"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "DecisionMutationService (single write boundary, partial-failure rule)",
+        "description": "Generated from orchestrator task `T-008` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Persistence/DecisionMutationService.swift, Choicepoint/ChoicepointCore/Tests/MutationServiceTests/*.swift\n\nAcceptance criteria:\n- createDecision/resolveDecision/rescheduleDecision/updateDecision each compose policy validation + repository persist + notification recompute + widget reload as one operation\n- If persist succeeds and notification-apply or widget-reload subsequently throws, the save is never rolled back \u2014 verified by an explicit test that forces the notification step to fail after a successful persist and asserts the record still reads back\n- activeDecisionCapReached is enforced identically regardless of which DecisionSurface calls it\n- entryNumber assigned only inside createDecision via repository.nextEntryNumber(), never client-supplied",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Persistence/DecisionMutationService.swift",
+            "Choicepoint/ChoicepointCore/Tests/MutationServiceTests/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-006",
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "createDecision/resolveDecision/rescheduleDecision/updateDecision each compose policy validation + repository persist + notification recompute + widget reload as one operation",
+            "If persist succeeds and notification-apply or widget-reload subsequently throws, the save is never rolled back \u2014 verified by an explicit test that forces the notification step to fail after a successful persist and asserts the record still reads back",
+            "activeDecisionCapReached is enforced identically regardless of which DecisionSurface calls it",
+            "entryNumber assigned only inside createDecision via repository.nextEntryNumber(), never client-supplied"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "WidgetDeepLink codec + CaptureDecisionIntent (Siri/App Intent)",
+        "description": "Generated from orchestrator task `T-009` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Notifications/WidgetDeepLink.swift, Choicepoint/ChoicepointIntents/CaptureDecisionIntent.swift, Choicepoint/ChoicepointIntents/AppShortcutsProvider.swift\n\nAcceptance criteria:\n- WidgetDeepLink.url(for:)/decisionID(from:) is the only place the custom URL scheme is encoded or decoded\n- CaptureDecisionIntent builds a DecisionDraft and calls DecisionMutationService.createDecision(surface: .appIntent), surfacing DecisionWriteError.activeDecisionCapReached identically to the in-app form\n- A 6th-decision attempt via the intent is blocked exactly like the in-app form",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Notifications/WidgetDeepLink.swift",
+            "Choicepoint/ChoicepointIntents/CaptureDecisionIntent.swift",
+            "Choicepoint/ChoicepointIntents/AppShortcutsProvider.swift"
+          ],
+          "depends_on": [
+            "T-008"
+          ],
+          "acceptance_criteria": [
+            "WidgetDeepLink.url(for:)/decisionID(from:) is the only place the custom URL scheme is encoded or decoded",
+            "CaptureDecisionIntent builds a DecisionDraft and calls DecisionMutationService.createDecision(surface: .appIntent), surfacing DecisionWriteError.activeDecisionCapReached identically to the in-app form",
+            "A 6th-decision attempt via the intent is blocked exactly like the in-app form"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "ExportService",
+        "description": "Generated from orchestrator task `T-010` for `choicepoint`.\n\nOwner lane: `services_utilities`\nFiles: Choicepoint/ChoicepointCore/Sources/Entitlements/ExportService.swift\n\nAcceptance criteria:\n- Produces a local file URL from decisions+outcomes, user-initiated only, no automatic or background export path exists",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Choicepoint/ChoicepointCore/Sources/Entitlements/ExportService.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Produces a local file URL from decisions+outcomes, user-initiated only, no automatic or background export path exists"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "AppRouter, tab/sheet/route types, root TabView, deep-link wiring",
+        "description": "Generated from orchestrator task `T-011` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/App/AppRouter.swift, Choicepoint/Choicepoint/App/AppTab.swift, Choicepoint/Choicepoint/App/SheetRoute.swift, Choicepoint/Choicepoint/App/PaywallTrigger.swift, Choicepoint/Choicepoint/App/DeepLinkTarget.swift, Choicepoint/Choicepoint/App/RootTabView.swift, Choicepoint/Choicepoint/App/ChoicepointApp.swift\n\nAcceptance criteria:\n- AppRouter is a concrete @MainActor @Observable final class, not a protocol\n- routeToDecision(_:) is the single atomic entry point, sequencing sheet-dismiss -> tab-switch -> path-push in that order, with last-write-wins on pendingDestination\n- onOpenURL, the notification delegate, and AppIntent completion all funnel into routeToDecision identically\n- Unit test asserts the exact ordering and last-write-wins behavior under a simulated double deep-link",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/App/AppRouter.swift",
+            "Choicepoint/Choicepoint/App/AppTab.swift",
+            "Choicepoint/Choicepoint/App/SheetRoute.swift",
+            "Choicepoint/Choicepoint/App/PaywallTrigger.swift",
+            "Choicepoint/Choicepoint/App/DeepLinkTarget.swift",
+            "Choicepoint/Choicepoint/App/RootTabView.swift",
+            "Choicepoint/Choicepoint/App/ChoicepointApp.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "AppRouter is a concrete @MainActor @Observable final class, not a protocol",
+            "routeToDecision(_:) is the single atomic entry point, sequencing sheet-dismiss -> tab-switch -> path-push in that order, with last-write-wins on pendingDestination",
+            "onOpenURL, the notification delegate, and AppIntent completion all funnel into routeToDecision identically",
+            "Unit test asserts the exact ordering and last-write-wins behavior under a simulated double deep-link"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Onboarding + notification permission flow",
+        "description": "Generated from orchestrator task `T-012` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Onboarding/*.swift\n\nAcceptance criteria:\n- One honest explanation card precedes the system permission prompt, no swipeable tour\n- Denied state at onboarding shows an explicit in-app fallback, not a silent failure",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Onboarding/*.swift"
+          ],
+          "depends_on": [
+            "T-006",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "One honest explanation card precedes the system permission prompt, no swipeable tour",
+            "Denied state at onboarding shows an explicit in-app fallback, not a silent failure"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Capture feature (two-speed form)",
+        "description": "Generated from orchestrator task `T-013` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Capture/*.swift\n\nAcceptance criteria:\n- Save enabled the instant decision text, prediction, and revisit date are present; context/options/confidence/what-would-change-my-mind behind an Add Detail disclosure\n- capBlocked checked synchronously on sheet appear and re-validated atomically inside createDecision\n- Empty-state-to-saved-record achievable in well under 20 seconds",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Capture/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-008",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Save enabled the instant decision text, prediction, and revisit date are present; context/options/confidence/what-would-change-my-mind behind an Add Detail disclosure",
+            "capBlocked checked synchronously on sheet appear and re-validated atomically inside createDecision",
+            "Empty-state-to-saved-record achievable in well under 20 seconds"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "Ledger feature",
+        "description": "Generated from orchestrator task `T-014` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Ledger/*.swift\n\nAcceptance criteria:\n- Overdue/Due Soon/Upcoming grouping with a resolved filter, overdue never disappears\n- refreshOnForeground() wired to scenePhase so a backgrounded Siri/widget write appears without manual refresh\n- Real empty state when there are zero active decisions",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Ledger/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Overdue/Due Soon/Upcoming grouping with a resolved filter, overdue never disappears",
+            "refreshOnForeground() wired to scenePhase so a backgrounded Siri/widget write appears without manual refresh",
+            "Real empty state when there are zero active decisions"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Decision Detail feature",
+        "description": "Generated from orchestrator task `T-015` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/DecisionDetail/*.swift\n\nAcceptance criteria:\n- Active mode shows original record plus edit/revisit-now/reschedule actions; resolved mode is read-only\n- A stale notification pointing at an already-resolved decision lands here in read-only mode, never a broken/duplicate outcome form",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/DecisionDetail/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Active mode shows original record plus edit/revisit-now/reschedule actions; resolved mode is read-only",
+            "A stale notification pointing at an already-resolved decision lands here in read-only mode, never a broken/duplicate outcome form"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "Revisit/Resolve feature",
+        "description": "Generated from orchestrator task `T-016` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Revisit/*.swift\n\nAcceptance criteria:\n- Opens directly onto the stamped Before block, fully visible, no gate or reveal tap\n- resolve(as:) and notYet(newSchedule:) are separate methods/actions, never a shared toggle\n- Held/Missed/Mixed resolve and free a cap slot; Not Yet only pushes the date forward and stays active",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Revisit/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-008",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Opens directly onto the stamped Before block, fully visible, no gate or reveal tap",
+            "resolve(as:) and notYet(newSchedule:) are separate methods/actions, never a shared toggle",
+            "Held/Missed/Mixed resolve and free a cap slot; Not Yet only pushes the date forward and stays active"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-016"
+        }
+      },
+      {
+        "external_id": "T-017",
+        "issue_type": "Task",
+        "summary": "Calibration feature (incl. locked confidence teaser)",
+        "description": "Generated from orchestrator task `T-017` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Calibration/*.swift\n\nAcceptance criteria:\n- Computed fresh from resolved records only, honest empty state at zero resolved decisions\n- Raw fraction always shown alongside any percentage; headline percentage suppressed below the low-sample threshold\n- Confidence-weighted analytics locked behind an honest teaser card for free users, unlocked for paid via EntitlementStore",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Calibration/*.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "Computed fresh from resolved records only, honest empty state at zero resolved decisions",
+            "Raw fraction always shown alongside any percentage; headline percentage suppressed below the low-sample threshold",
+            "Confidence-weighted analytics locked behind an honest teaser card for free users, unlocked for paid via EntitlementStore"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-017"
+        }
+      },
+      {
+        "external_id": "T-018",
+        "issue_type": "Task",
+        "summary": "Paywall sheet + Settings screen",
+        "description": "Generated from orchestrator task `T-018` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/Choicepoint/Features/Paywall/*.swift, Choicepoint/Choicepoint/Features/Settings/*.swift\n\nAcceptance criteria:\n- Paywall only ever reached contextually (capCeiling or lockedAnalytics trigger), never as a standalone destination\n- Settings shows live notification permission status (including revoked-since-grant), subscription state, export action, privacy copy\n- Downgrade never hides/deletes/force-resolves existing decisions above the cap \u2014 only new creation is blocked",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Paywall/*.swift",
+            "Choicepoint/Choicepoint/Features/Settings/*.swift"
+          ],
+          "depends_on": [
+            "T-005",
+            "T-010",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Paywall only ever reached contextually (capCeiling or lockedAnalytics trigger), never as a standalone destination",
+            "Settings shows live notification permission status (including revoked-since-grant), subscription state, export action, privacy copy",
+            "Downgrade never hides/deletes/force-resolves existing decisions above the cap \u2014 only new creation is blocked"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-018"
+        }
+      },
+      {
+        "external_id": "T-019",
+        "issue_type": "Task",
+        "summary": "Widget UI (ChoicepointWidget target)",
+        "description": "Generated from orchestrator task `T-019` for `choicepoint`.\n\nOwner lane: `primary_ui`\nFiles: Choicepoint/ChoicepointWidget/*.swift\n\nAcceptance criteria:\n- Small/medium families show counts/nearest-due-date only, never decision content\n- Single tap target per widget deep-links via WidgetDeepLink into the same Revisit/Resolve screen\n- Timeline reloads correctly after WidgetRefreshing.reloadRevisitWidgets is invoked from a mutation",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Choicepoint/ChoicepointWidget/*.swift"
+          ],
+          "depends_on": [
+            "T-004",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "Small/medium families show counts/nearest-due-date only, never decision content",
+            "Single tap target per widget deep-links via WidgetDeepLink into the same Revisit/Resolve screen",
+            "Timeline reloads correctly after WidgetRefreshing.reloadRevisitWidgets is invoked from a mutation"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-019"
+        }
+      },
+      {
+        "external_id": "T-020",
+        "issue_type": "Task",
+        "summary": "Shared DesignSystem module",
+        "description": "Generated from orchestrator task `T-020` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/Choicepoint/DesignSystem/*.swift\n\nAcceptance criteria:\n- Light and dark paper-and-ink tokens, serif user-authored text style, monospacedDigit numeral style, single sparse accent color, defined once and reused everywhere\n- LoadState-driven empty/loading/error view components and PermissionBannerState banner component exist and are ready for feature screens to adopt as stable token names/lightweight placeholders early, hardened later\n- assembledAccessibilityLabel helper produces one combined VoiceOver sentence per ledger row",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/Choicepoint/DesignSystem/*.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Light and dark paper-and-ink tokens, serif user-authored text style, monospacedDigit numeral style, single sparse accent color, defined once and reused everywhere",
+            "LoadState-driven empty/loading/error view components and PermissionBannerState banner component exist and are ready for feature screens to adopt as stable token names/lightweight placeholders early, hardened later",
+            "assembledAccessibilityLabel helper produces one combined VoiceOver sentence per ledger row"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-020"
+        }
+      },
+      {
+        "external_id": "T-021",
+        "issue_type": "Task",
+        "summary": "Accessibility, dark mode, and empty/error/loading hardening pass",
+        "description": "Generated from orchestrator task `T-021` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/Choicepoint/Features/Ledger/*.swift, Choicepoint/Choicepoint/Features/DecisionDetail/*.swift, Choicepoint/Choicepoint/Features/Revisit/*.swift, Choicepoint/Choicepoint/Features/Calibration/*.swift, Choicepoint/Choicepoint/Features/Capture/*.swift, Choicepoint/Choicepoint/Features/Settings/*.swift\n\nAcceptance criteria:\n- Dynamic Type reflows every ledger row and the Before block at accessibility sizes with no truncation, verified before sign-off\n- Every reachable screen wired to LoadState with real empty/loading/error states, no placeholders\n- Held/Missed/Mixed/overdue/permission states never rely on hue alone\n- Full dark mode parity verified on every screen touched here\n- This task is the sole editor of these files during its window \u2014 primary_ui lane treats them as handed off once this task starts",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/Choicepoint/Features/Ledger/*.swift",
+            "Choicepoint/Choicepoint/Features/DecisionDetail/*.swift",
+            "Choicepoint/Choicepoint/Features/Revisit/*.swift",
+            "Choicepoint/Choicepoint/Features/Calibration/*.swift",
+            "Choicepoint/Choicepoint/Features/Capture/*.swift",
+            "Choicepoint/Choicepoint/Features/Settings/*.swift"
+          ],
+          "depends_on": [
+            "T-020",
+            "T-013",
+            "T-014",
+            "T-015",
+            "T-016",
+            "T-017",
+            "T-018"
+          ],
+          "acceptance_criteria": [
+            "Dynamic Type reflows every ledger row and the Before block at accessibility sizes with no truncation, verified before sign-off",
+            "Every reachable screen wired to LoadState with real empty/loading/error states, no placeholders",
+            "Held/Missed/Mixed/overdue/permission states never rely on hue alone",
+            "Full dark mode parity verified on every screen touched here",
+            "This task is the sole editor of these files during its window \u2014 primary_ui lane treats them as handed off once this task starts"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-021"
+        }
+      },
+      {
+        "external_id": "T-022",
+        "issue_type": "Task",
+        "summary": "Cross-surface cap-enforcement adversarial test + integration report",
+        "description": "Generated from orchestrator task `T-022` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/ChoicepointCoreTests/CrossSurfaceCapTests.swift, Choicepoint/docs/cross-surface-integration-report.md\n\nAcceptance criteria:\n- Attempting a 6th active decision through the in-app form, the widget path, and the Siri intent independently all produce the identical activeDecisionCapReached error, run against the real shared App Group container, not mocks\n- A stale notification/widget deep link is verified to open the safe resolved/missing-state path, never a broken form\n- docs/cross-surface-integration-report.md records that a backgrounded Siri/widget write is honestly reflected in Ledger and Calibration on next normal foreground, no manual refresh",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/ChoicepointCoreTests/CrossSurfaceCapTests.swift",
+            "Choicepoint/docs/cross-surface-integration-report.md"
+          ],
+          "depends_on": [
+            "T-008",
+            "T-009",
+            "T-019"
+          ],
+          "acceptance_criteria": [
+            "Attempting a 6th active decision through the in-app form, the widget path, and the Siri intent independently all produce the identical activeDecisionCapReached error, run against the real shared App Group container, not mocks",
+            "A stale notification/widget deep link is verified to open the safe resolved/missing-state path, never a broken form",
+            "docs/cross-surface-integration-report.md records that a backgrounded Siri/widget write is honestly reflected in Ledger and Calibration on next normal foreground, no manual refresh"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-022"
+        }
+      },
+      {
+        "external_id": "T-023",
+        "issue_type": "Task",
+        "summary": "XCUITest: fast capture + cold-launch deep-link routing",
+        "description": "Generated from orchestrator task `T-023` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/ChoicepointUITests/CaptureFlowTests.swift, Choicepoint/ChoicepointUITests/DeepLinkRoutingTests.swift\n\nAcceptance criteria:\n- Automated test proves empty-state-to-saved-record path\n- Automated test proves a notification tap after a simulated cold launch lands on the exact target decision's Revisit screen\n- Stale-notification-to-already-resolved fallback verified to open read-only Decision Detail, not a broken form",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/ChoicepointUITests/CaptureFlowTests.swift",
+            "Choicepoint/ChoicepointUITests/DeepLinkRoutingTests.swift"
+          ],
+          "depends_on": [
+            "T-011",
+            "T-013",
+            "T-016"
+          ],
+          "acceptance_criteria": [
+            "Automated test proves empty-state-to-saved-record path",
+            "Automated test proves a notification tap after a simulated cold launch lands on the exact target decision's Revisit screen",
+            "Stale-notification-to-already-resolved fallback verified to open read-only Decision Detail, not a broken form"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-023"
+        }
+      },
+      {
+        "external_id": "T-024",
+        "issue_type": "Task",
+        "summary": "Real-device manual QA checklist",
+        "description": "Generated from orchestrator task `T-024` for `choicepoint`.\n\nOwner lane: `polish_resilience`\nFiles: Choicepoint/QA/manual-release-checklist.md\n\nAcceptance criteria:\n- Force-quit-then-notification-fires verified on a physical device\n- Permission-revoked-while-backgrounded verified to surface the in-app banner on next foreground\n- Downgrade-with-decisions-above-cap verified to block only new creation, never hide/delete existing records\n- Results recorded with pass/fail per item, not just a checklist template",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Choicepoint/QA/manual-release-checklist.md"
+          ],
+          "depends_on": [
+            "T-022",
+            "T-023",
+            "T-006",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "Force-quit-then-notification-fires verified on a physical device",
+            "Permission-revoked-while-backgrounded verified to surface the in-app banner on next foreground",
+            "Downgrade-with-decisions-above-cap verified to block only new creation, never hide/delete existing records",
+            "Results recorded with pass/fail per item, not just a checklist template"
+          ],
+          "source_project": "choicepoint",
+          "source_task_id": "T-024"
+        }
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "DecisionStatus",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum DecisionStatus: String, Codable, Sendable { case active, resolved }",
+        "owning_lane": "data_domain",
+        "notes": "Active counts toward free-tier cap; resolved frees a slot immediately."
+      },
+      {
+        "name": "OutcomeClassification",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum OutcomeClassification: String, Codable, Sendable { case held, missed, mixed }",
+        "owning_lane": "data_domain",
+        "notes": "Resolving outcomes only; 'not yet' is a separate non-resolving reschedule action, never a case here."
+      },
+      {
+        "name": "DecisionSurface",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum DecisionSurface: String, Codable, Sendable { case app, widget, appIntent }",
+        "owning_lane": "data_domain",
+        "notes": "Tagged on every DecisionMutationService write call, enabling one parametrized cap-enforcement test across all three surfaces."
+      },
+      {
+        "name": "SubscriptionAccess",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SubscriptionAccess: String, Codable, Sendable { case free, paid }",
+        "owning_lane": "data_domain",
+        "notes": "Normalized entitlement state cached for extensions."
+      },
+      {
+        "name": "RevisitSchedule",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct RevisitSchedule: Codable, Sendable, Equatable { var dayComponents: DateComponents; var reminderHour: Int; var reminderMinute: Int; var timeZoneIdentifier: String }",
+        "owning_lane": "data_domain",
+        "notes": "Calendar-day-plus-local-time intent; never store an absolute fire Date as product truth."
+      },
+      {
+        "name": "DecisionOption",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DecisionOption: Codable, Sendable, Equatable, Identifiable { var id: UUID; var text: String }",
+        "owning_lane": "data_domain",
+        "notes": "Optional captured alternative, editable after save."
+      },
+      {
+        "name": "DecisionRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DecisionRecord: Codable, Sendable, Identifiable, Equatable { let id: UUID; var entryNumber: Int; let createdAt: Date; var updatedAt: Date; var decisionText: String; var prediction: String; var context: String?; var options: [DecisionOption]; var confidence: Int?; var whatWouldChangeMyMind: String?; var schedule: RevisitSchedule; var status: DecisionStatus; var outcomeID: UUID? }",
+        "owning_lane": "data_domain",
+        "notes": "entryNumber assigned atomically inside DecisionMutationService.createDecision via repository.nextEntryNumber(), never requested separately by UI, never client-generated."
+      },
+      {
+        "name": "OutcomeRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct OutcomeRecord: Codable, Sendable, Identifiable, Equatable { let id: UUID; let decisionID: UUID; var classification: OutcomeClassification; var narrative: String; let resolvedAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "Created only via DecisionPolicy.resolve, invoked from DecisionMutationService, never constructed directly by UI."
+      },
+      {
+        "name": "DecisionDraft",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DecisionDraft: Sendable, Equatable { var decisionText: String = \"\"; var prediction: String = \"\"; var schedule: RevisitSchedule?; var context: String = \"\"; var options: [DecisionOption] = []; var confidence: Int? = nil; var whatWouldChangeMyMind: String = \"\"; var isValid: Bool { get } }",
+        "owning_lane": "data_domain",
+        "notes": "Local working state for Capture and the App Intent; never persisted until DecisionMutationService.createDecision succeeds, so cancel/force-quit leaves no phantom record."
+      },
+      {
+        "name": "OutcomeDraft",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct OutcomeDraft: Sendable, Equatable { var narrative: String; var classification: OutcomeClassification }",
+        "owning_lane": "data_domain",
+        "notes": "Narrative stays local until resolve() succeeds; never incrementally mutates the stored decision. 'Not yet' bypasses this entirely and calls rescheduleDecision instead."
+      },
+      {
+        "name": "DecisionStats",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DecisionStats: Sendable, Equatable { var heldCount: Int; var missedCount: Int; var mixedCount: Int; var totalResolved: Int { get }; var rawFractionText: String { get }; var headlineAccuracy: Double? }",
+        "owning_lane": "data_domain",
+        "notes": "Computed fresh from resolved records every time, never a stored counter. headlineAccuracy nil below the low-sample threshold."
+      },
+      {
+        "name": "PendingRevisitSummary",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PendingRevisitSummary: Sendable, Equatable { var overdueCount: Int; var dueSoonCount: Int; var upcomingCount: Int; var mostUrgentDecisionID: UUID?; var mostUrgentIsOverdue: Bool }",
+        "owning_lane": "data_domain",
+        "notes": "Widget-safe summary \u2014 counts/due-ness only, never decision content. mostUrgentDecisionID drives the single tap target on both widget sizes."
+      },
+      {
+        "name": "DecisionPolicyError",
+        "kind": "enum",
+        "language": "Swift",
+        "signature": "enum DecisionPolicyError: Error, Sendable { case requiredFieldsMissing; case activeDecisionCapReached(limit: Int); case decisionAlreadyResolved; case decisionNotFound; case notificationPermissionDenied; case entitlementUnavailable }",
+        "owning_lane": "data_domain",
+        "notes": "Typed domain errors for consistent UI handling across surfaces."
+      },
+      {
+        "name": "NotificationPlanItem",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct NotificationPlanItem: Sendable, Equatable, Identifiable { var id: String; var decisionID: UUID; var fireDateComponents: DateComponents; var title: String; var body: String }",
+        "owning_lane": "data_domain",
+        "notes": "Plain-data request generated by policy; title/body stay privacy-safe (counts/due-ness only), snapshot-testable without touching UNUserNotificationCenter."
+      },
+      {
+        "name": "NotificationPlan",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct NotificationPlan: Sendable, Equatable { var items: [NotificationPlanItem] }",
+        "owning_lane": "data_domain",
+        "notes": "Rolling window over the nearest 30 active decisions."
+      },
+      {
+        "name": "DecisionPolicy",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol DecisionPolicy: Sendable { func canCreateActiveDecision(activeCount: Int, access: SubscriptionAccess) -> Bool; func nextEntryNumber(existingMax: Int) -> Int; func makeDecisionRecord(from draft: DecisionDraft, entryNumber: Int, now: Date) -> DecisionRecord; func resolve(decision: DecisionRecord, draft: OutcomeDraft, now: Date) throws -> OutcomeRecord; func reschedule(decision: DecisionRecord, to schedule: RevisitSchedule, now: Date) throws -> DecisionRecord; func revisitFireDate(for schedule: RevisitSchedule, calendar: Calendar) -> Date; func notificationWindow(activeDecisions: [DecisionRecord], limit: Int, now: Date) -> NotificationPlan; func makePendingSummary(activeDecisions: [DecisionRecord], now: Date) -> PendingRevisitSummary; func computeStats(resolved: [DecisionRecord], outcomes: [OutcomeRecord]) -> DecisionStats; func lowSampleThreshold() -> Int }",
+        "owning_lane": "data_domain",
+        "notes": "Pure rule engine; Calendar/TimeZone always injected by the implementation, never .current, so DST/timezone behavior is deterministically testable."
+      },
+      {
+        "name": "DecisionRepository",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol DecisionRepository: Sendable { func fetchActive() async throws -> [DecisionRecord]; func fetchResolved() async throws -> [DecisionRecord]; func fetch(id: UUID) async throws -> DecisionRecord?; func fetchOutcome(decisionID: UUID) async throws -> OutcomeRecord?; func activeCount() async throws -> Int; func nextEntryNumber() async throws -> Int; func persist(_ decision: DecisionRecord) async throws; func persist(_ outcome: OutcomeRecord, for decisionID: UUID) async throws; func delete(id: UUID) async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "Pure storage boundary only \u2014 no policy, no notification/widget side effects, no pagination (deliberate non-goal given realistic record volumes). Backed by SwiftData or Core Data depending on the earlier spike outcome. DecisionMutationService is the only caller for writes."
+      },
+      {
+        "name": "DecisionMutationService",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol DecisionMutationService: Sendable { func createDecision(from draft: DecisionDraft, access: SubscriptionAccess, surface: DecisionSurface) async throws -> DecisionRecord; func resolveDecision(id: UUID, draft: OutcomeDraft, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func rescheduleDecision(id: UUID, schedule: RevisitSchedule, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func updateDecision(id: UUID, draft: DecisionDraft, surface: DecisionSurface) async throws -> DecisionRecord }",
+        "owning_lane": "services_utilities",
+        "notes": "The single serialized write boundary. Every method composes DecisionPolicy validation + DecisionRepository.persist + NotificationScheduling.recomputeAndApply + WidgetRefreshing.reloadRevisitWidgets as one operation. ViewModels and CaptureDecisionIntent call only this for writes, never DecisionRepository directly."
+      },
+      {
+        "name": "NotificationScheduling",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol NotificationScheduling: Sendable { func authorizationStatus() async -> UNAuthorizationStatus; func requestAuthorization() async throws -> Bool; func apply(plan: NotificationPlan) async throws; func removeNotifications(for decisionID: UUID) async throws; func recomputeAndApply(activeDecisions: [DecisionRecord], policy: DecisionPolicy, now: Date) async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "Diffs NotificationPlan against UNUserNotificationCenter; recomputeAndApply is invoked from DecisionMutationService on every mutation and separately on app launch as the safety net."
+      },
+      {
+        "name": "EntitlementSnapshot",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct EntitlementSnapshot: Codable, Sendable, Equatable { var access: SubscriptionAccess; var refreshedAt: Date }",
+        "owning_lane": "services_utilities",
+        "notes": "Written to App Group by the main app on every StoreKit transaction update and every foreground; extensions only ever read it."
+      },
+      {
+        "name": "EntitlementStore",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol EntitlementStore: Sendable { func currentSnapshot() async throws -> EntitlementSnapshot; func refreshFromStoreKit() async throws -> EntitlementSnapshot }",
+        "owning_lane": "services_utilities",
+        "notes": "No custom grace-period/TTL logic \u2014 trust StoreKit 2's JWS-verifiable transaction state as-is."
+      },
+      {
+        "name": "ExportService",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol ExportService: Sendable { func exportDecisions(decisions: [DecisionRecord], outcomes: [OutcomeRecord]) async throws -> URL }",
+        "owning_lane": "services_utilities",
+        "notes": "User-initiated, local-only."
+      },
+      {
+        "name": "DeepLinkTarget",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum DeepLinkTarget: Sendable, Equatable { case revisit(decisionID: UUID); case resolvedDetail(decisionID: UUID); case missingDecision }",
+        "owning_lane": "primary_ui",
+        "notes": "Resolved navigation outcome fed identically by onOpenURL, the notification delegate, and AppIntent completion. missingDecision covers a stale notification/widget link pointing at a deleted record."
+      },
+      {
+        "name": "AppRouter",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class AppRouter { var selectedTab: AppTab; var ledgerPath: NavigationPath; var presentedSheet: SheetRoute?; private(set) var pendingDestination: DeepLinkTarget?; func routeToDecision(_ target: DeepLinkTarget) }",
+        "owning_lane": "primary_ui",
+        "notes": "Locked as a concrete final class, not a protocol: @Observable cannot attach to a protocol, and TabView/NavigationStack bindings need a concrete Bindable type, so a protocol here would need an identical concrete implementation underneath while adding no real benefit for something with exactly one implementation. routeToDecision is a single atomic call (no separate enqueue/process steps a caller could invoke out of order) that internally sequences sheet-dismiss -> tab-switch -> path-push in that order, never simultaneous mutations in one state update. Only one pending destination is retained \u2014 last write wins if a second target arrives before the first resolves. Must behave identically on cold launch and warm foreground."
+      },
+      {
+        "name": "PermissionBannerState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PermissionBannerState: Sendable, Equatable { case hidden, denied, revoked }",
+        "owning_lane": "polish_resilience",
+        "notes": "Driven by an active authorizationStatus recheck on every foreground, not just first-launch denial."
+      },
+      {
+        "name": "LoadState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum LoadState<Value>: Sendable where Value: Sendable { case idle, loading, loaded(Value), empty, failed(String) }",
+        "owning_lane": "polish_resilience",
+        "notes": "Shared UI-state pattern for every screen needing explicit empty/loading/error handling."
+      },
+      {
+        "name": "SubscriptionTier",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SubscriptionTier: String, Sendable { case free, paid }",
+        "owning_lane": "data_domain",
+        "notes": ""
+      },
+      {
+        "name": "DecisionWriteError",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum DecisionWriteError: Error, Sendable { case requiredFieldsMissing; case activeDecisionCapReached(limit: Int); case decisionAlreadyResolved; case decisionNotFound; case notificationPermissionDenied; case entitlementUnavailable; case persistenceFailure }",
+        "owning_lane": "data_domain",
+        "notes": "Every DecisionMutationService caller (form, widget, Siri) must render activeDecisionCapReached identically."
+      },
+      {
+        "name": "CalibrationStats",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct CalibrationStats: Sendable { let heldCount: Int; let missedCount: Int; let mixedCount: Int; var totalResolved: Int { get }; var rawFractionText: String { get }; var percentageText: String? { get } }",
+        "owning_lane": "data_domain",
+        "notes": "Computed fresh from fetchResolved() every time \u2014 never stored as a denormalized counter. percentageText is nil below DecisionPolicy.lowSampleThreshold()."
+      },
+      {
+        "name": "WidgetSummary",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct WidgetSummary: Sendable { let overdueCount: Int; let dueSoonCount: Int; let mostUrgentDecisionID: UUID?; let mostUrgentIsOverdue: Bool }",
+        "owning_lane": "services_utilities",
+        "notes": "Widget's only data shape \u2014 counts/due-ness only, never decision text. mostUrgentDecisionID drives the single tap target on both small and medium sizes."
+      },
+      {
+        "name": "AppTab",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AppTab: Sendable { case ledger, calibration }",
+        "owning_lane": "primary_ui",
+        "notes": "Only two tabs in v1."
+      },
+      {
+        "name": "SheetRoute",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SheetRoute: Identifiable, Sendable { case capture; case paywall(PaywallTrigger) }",
+        "owning_lane": "primary_ui",
+        "notes": "An open Capture draft is intentionally discarded if a deep-link interrupts it \u2014 stated tradeoff, not an accident."
+      },
+      {
+        "name": "RouteMode",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RouteMode: Sendable { case revisit, detailReadOnly }",
+        "owning_lane": "primary_ui",
+        "notes": "detailReadOnly is used when a stale notification points at an already-resolved decision."
+      },
+      {
+        "name": "LedgerViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class LedgerViewModel { private(set) var state: LoadState<[DecisionRecord]>; func load() async; func refreshOnForeground() async; func resolvedFilterToggled(_ on: Bool) }",
+        "owning_lane": "primary_ui",
+        "notes": "refreshOnForeground wired to root scenePhase observation, confirmed by both participants \u2014 a Siri- or widget-triggered write made while backgrounded must surface without a manual pull-to-refresh."
+      },
+      {
+        "name": "CaptureViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class CaptureViewModel { var draft: DecisionDraft; private(set) var capBlocked: Bool; func refreshCapStatus() async; func save() async throws -> DecisionRecord }",
+        "owning_lane": "primary_ui",
+        "notes": "capBlocked checked synchronously on sheet appear (before typing starts), then re-validated atomically inside DecisionMutationService.createDecision."
+      },
+      {
+        "name": "RevisitViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class RevisitViewModel { let decision: DecisionRecord; var narrative: String; func resolve(as classification: OutcomeClassification) async throws; func notYet(newSchedule: RevisitSchedule) async throws }",
+        "owning_lane": "primary_ui",
+        "notes": "resolve() and notYet() are separate methods, never a shared toggle, keeping the non-resolving action structurally distinct."
+      },
+      {
+        "name": "assembledAccessibilityLabel",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func assembledAccessibilityLabel(for decision: DecisionRecord, now: Date, calendar: Calendar) -> String",
+        "owning_lane": "polish_resilience",
+        "notes": "Single combined VoiceOver sentence for a ledger row, e.g. 'Entry 14. Should we hire the contractor. Due in 6 days.'"
+      },
+      {
+        "name": "CaptureDecisionIntent",
+        "kind": "function",
+        "language": "swift",
+        "signature": "struct CaptureDecisionIntent: AppIntent { @Parameter var decisionText: String; @Parameter var prediction: String; @Parameter var revisitInDays: Int; func perform() async throws -> some IntentResult }",
+        "owning_lane": "services_utilities",
+        "notes": "Builds a DecisionDraft and calls DecisionMutationService.createDecision(from:access:surface: .appIntent) \u2014 same path, same DecisionWriteError.activeDecisionCapReached as the in-app form."
+      },
+      {
+        "name": "PaywallTrigger",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PaywallTrigger: Sendable, Equatable { case capCeiling; case lockedAnalytics }",
+        "owning_lane": "primary_ui",
+        "notes": "Paywall is always contextual, never a standalone destination."
+      },
+      {
+        "name": "DecisionCommandService",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol DecisionCommandService: Sendable { func create(draft: DecisionDraft, access: SubscriptionAccess, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func update(_ decision: DecisionRecord, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func resolve(id: UUID, draft: OutcomeDraft, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func reschedule(id: UUID, schedule: RevisitSchedule, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func delete(id: UUID, surface: DecisionSurface) async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "Single write boundary. Owns transactional writes plus required side effects: notification recompute and widget timeline reload after every mutation."
+      },
+      {
+        "name": "WidgetRefreshing",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol WidgetRefreshing: Sendable { func reloadRevisitWidgets() }",
+        "owning_lane": "services_utilities",
+        "notes": "Thin wrapper over WidgetCenter.shared.reloadTimelines(ofKind:) so DecisionMutationService is unit-testable with a mock instead of touching WidgetKit directly."
+      },
+      {
+        "name": "WidgetDeepLink",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum WidgetDeepLink { static func url(for decisionID: UUID) -> URL; static func decisionID(from url: URL) -> UUID? }",
+        "owning_lane": "services_utilities",
+        "notes": "Single shared implementation, confirmed by both participants, so the widget's widgetURL(_:) and the app's onOpenURL parser structurally cannot diverge."
+      },
+      {
+        "name": "CalibrationViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class CalibrationViewModel { private(set) var state: LoadState<DecisionStats>; func load() async; func refreshOnForeground() async }",
+        "owning_lane": "primary_ui",
+        "notes": "Same cross-process staleness reasoning as LedgerViewModel."
+      }
+    ]
+  },
+  "phase_outputs": {
+    "iterate_scope": "Looking at this, the discussion converged pretty cleanly even without the other two models weighing in \u2014 the single Claude round already did the real work: diagnose the failure as packaging (not scope), and refuse to let \"make it compile\" become a backdoor for building the widget/Siri/LLM features that were never actually laid down. I agree with that framing and I'm making it the decision for this phase.\n\nThe one thing I'd add on top of round 1: before generating the project file, someone (the next phase) needs to actually open app_build and check for the \"cracked foundation\" risk flagged at the end \u2014 duplicate types, conflicting persistence layers, orphaned widget/intent stub files with no home. That's a 5-minute check that prevents wiring garbage into a project and calling it done. So the decision includes that as a required first step, not an afterthought.\n\nCONSENSUS: YES\n\n## Final Output\n\nScope for this phase: **fix packaging only, single-target app, no new features.**\n\n1. **Audit before wiring.** Open every file currently in app_build. Confirm there's one coherent data model and one persistence approach for decisions/predictions/outcomes. If duplicate/conflicting types exist (e.g. from separate incomplete attempts), reconcile to the most complete version \u2014 do not wire both in and let the compiler pick a winner via last-file-wins. Do not rename existing types/files while doing this; reconcile by deleting the clearly-inferior duplicate, not by merging renames across the tree.\n\n2. **Generate one Xcode project, one app target** (\"Choicepoint\"), covering:\n   - All existing SwiftUI views, view models, and data/model files for decision capture, revisit scheduling, outcome logging, and calibration stats \u2014 added to the target's Compile Sources.\n   - A proper `@main App` entry point and root `Scene`/`WindowGroup` if one doesn't already exist in the sources (write the minimal glue, don't invent new screens).\n   - A minimal but correct Info.plist: app display name, bundle id (e.g. `com.choicepoint.app` placeholder), required device orientations, and \u2014 only if the source actually calls Speech/AVAudioSession/microphone APIs for the voice-note feature \u2014 `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription`. Do not add these keys speculatively if no source touches those APIs.\n   - Local notification authorization request (`UNUserNotificationCenter.requestAuthorization`) wired into the existing revisit-scheduling code path if that code already assumes notifications but never requests permission \u2014 this is a one- or two-line addition to existing flow, not a new feature.\n\n3. **Explicitly descope, don't fake-compile:** any widget extension code, App Intents/Siri code, or on-device LLM voice-structuring code that exists as source but has no corresponding extension target, App Group, or entitlements already set up. Exclude those files from the app target's Compile Sources (keep the files on disk, just uncheck target membership) and note them as descoped for a future phase. Do not strip their functionality to force a fake compile, and do not build out the missing target/entitlement infrastructure in this pass.\n\n4. **Success bar:** `xcodebuild -scheme Choicepoint -destination 'platform=iOS Simulator,name=iPhone 16' build` exits 0, AND the app actually launches in the simulator and renders the decision-capture screen without crashing (catches missing scene setup or bad Info.plist that a clean compile wouldn't).\n\n5. **No renames, no reorganization, no scope additions** beyond what's needed to satisfy items 2\u20134.",
+    "build_coordination": "_No build integrator was available this iteration (attempted: Claude, Gemini). The observer recorded this as integrationless iteration 1._\n\n**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)",
+    "final_review": "VERIFICATION: UNVERIFIED"
+  }
+}

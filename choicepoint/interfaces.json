@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "DecisionStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DecisionStatus: String, Codable, Sendable { case active, resolved }",
+      "owning_lane": "data_domain",
+      "notes": "Active counts toward free-tier cap; resolved frees a slot immediately."
+    },
+    {
+      "name": "OutcomeClassification",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum OutcomeClassification: String, Codable, Sendable { case held, missed, mixed }",
+      "owning_lane": "data_domain",
+      "notes": "Resolving outcomes only; 'not yet' is a separate non-resolving reschedule action, never a case here."
+    },
+    {
+      "name": "DecisionSurface",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DecisionSurface: String, Codable, Sendable { case app, widget, appIntent }",
+      "owning_lane": "data_domain",
+      "notes": "Tagged on every DecisionMutationService write call, enabling one parametrized cap-enforcement test across all three surfaces."
+    },
+    {
+      "name": "SubscriptionAccess",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SubscriptionAccess: String, Codable, Sendable { case free, paid }",
+      "owning_lane": "data_domain",
+      "notes": "Normalized entitlement state cached for extensions."
+    },
+    {
+      "name": "RevisitSchedule",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RevisitSchedule: Codable, Sendable, Equatable { var dayComponents: DateComponents; var reminderHour: Int; var reminderMinute: Int; var timeZoneIdentifier: String }",
+      "owning_lane": "data_domain",
+      "notes": "Calendar-day-plus-local-time intent; never store an absolute fire Date as product truth."
+    },
+    {
+      "name": "DecisionOption",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DecisionOption: Codable, Sendable, Equatable, Identifiable { var id: UUID; var text: String }",
+      "owning_lane": "data_domain",
+      "notes": "Optional captured alternative, editable after save."
+    },
+    {
+      "name": "DecisionRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DecisionRecord: Codable, Sendable, Identifiable, Equatable { let id: UUID; var entryNumber: Int; let createdAt: Date; var updatedAt: Date; var decisionText: String; var prediction: String; var context: String?; var options: [DecisionOption]; var confidence: Int?; var whatWouldChangeMyMind: String?; var schedule: RevisitSchedule; var status: DecisionStatus; var outcomeID: UUID? }",
+      "owning_lane": "data_domain",
+      "notes": "entryNumber assigned atomically inside DecisionMutationService.createDecision via repository.nextEntryNumber(), never requested separately by UI, never client-generated."
+    },
+    {
+      "name": "OutcomeRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct OutcomeRecord: Codable, Sendable, Identifiable, Equatable { let id: UUID; let decisionID: UUID; var classification: OutcomeClassification; var narrative: String; let resolvedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Created only via DecisionPolicy.resolve, invoked from DecisionMutationService, never constructed directly by UI."
+    },
+    {
+      "name": "DecisionDraft",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DecisionDraft: Sendable, Equatable { var decisionText: String = \"\"; var prediction: String = \"\"; var schedule: RevisitSchedule?; var context: String = \"\"; var options: [DecisionOption] = []; var confidence: Int? = nil; var whatWouldChangeMyMind: String = \"\"; var isValid: Bool { get } }",
+      "owning_lane": "data_domain",
+      "notes": "Local working state for Capture and the App Intent; never persisted until DecisionMutationService.createDecision succeeds, so cancel/force-quit leaves no phantom record."
+    },
+    {
+      "name": "OutcomeDraft",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct OutcomeDraft: Sendable, Equatable { var narrative: String; var classification: OutcomeClassification }",
+      "owning_lane": "data_domain",
+      "notes": "Narrative stays local until resolve() succeeds; never incrementally mutates the stored decision. 'Not yet' bypasses this entirely and calls rescheduleDecision instead."
+    },
+    {
+      "name": "DecisionStats",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DecisionStats: Sendable, Equatable { var heldCount: Int; var missedCount: Int; var mixedCount: Int; var totalResolved: Int { get }; var rawFractionText: String { get }; var headlineAccuracy: Double? }",
+      "owning_lane": "data_domain",
+      "notes": "Computed fresh from resolved records every time, never a stored counter. headlineAccuracy nil below the low-sample threshold."
+    },
+    {
+      "name": "PendingRevisitSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PendingRevisitSummary: Sendable, Equatable { var overdueCount: Int; var dueSoonCount: Int; var upcomingCount: Int; var mostUrgentDecisionID: UUID?; var mostUrgentIsOverdue: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Widget-safe summary \u2014 counts/due-ness only, never decision content. mostUrgentDecisionID drives the single tap target on both widget sizes."
+    },
+    {
+      "name": "DecisionPolicyError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum DecisionPolicyError: Error, Sendable { case requiredFieldsMissing; case activeDecisionCapReached(limit: Int); case decisionAlreadyResolved; case decisionNotFound; case notificationPermissionDenied; case entitlementUnavailable }",
+      "owning_lane": "data_domain",
+      "notes": "Typed domain errors for consistent UI handling across surfaces."
+    },
+    {
+      "name": "NotificationPlanItem",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NotificationPlanItem: Sendable, Equatable, Identifiable { var id: String; var decisionID: UUID; var fireDateComponents: DateComponents; var title: String; var body: String }",
+      "owning_lane": "data_domain",
+      "notes": "Plain-data request generated by policy; title/body stay privacy-safe (counts/due-ness only), snapshot-testable without touching UNUserNotificationCenter."
+    },
+    {
+      "name": "NotificationPlan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NotificationPlan: Sendable, Equatable { var items: [NotificationPlanItem] }",
+      "owning_lane": "data_domain",
+      "notes": "Rolling window over the nearest 30 active decisions."
+    },
+    {
+      "name": "DecisionPolicy",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol DecisionPolicy: Sendable { func canCreateActiveDecision(activeCount: Int, access: SubscriptionAccess) -> Bool; func nextEntryNumber(existingMax: Int) -> Int; func makeDecisionRecord(from draft: DecisionDraft, entryNumber: Int, now: Date) -> DecisionRecord; func resolve(decision: DecisionRecord, draft: OutcomeDraft, now: Date) throws -> OutcomeRecord; func reschedule(decision: DecisionRecord, to schedule: RevisitSchedule, now: Date) throws -> DecisionRecord; func revisitFireDate(for schedule: RevisitSchedule, calendar: Calendar) -> Date; func notificationWindow(activeDecisions: [DecisionRecord], limit: Int, now: Date) -> NotificationPlan; func makePendingSummary(activeDecisions: [DecisionRecord], now: Date) -> PendingRevisitSummary; func computeStats(resolved: [DecisionRecord], outcomes: [OutcomeRecord]) -> DecisionStats; func lowSampleThreshold() -> Int }",
+      "owning_lane": "data_domain",
+      "notes": "Pure rule engine; Calendar/TimeZone always injected by the implementation, never .current, so DST/timezone behavior is deterministically testable."
+    },
+    {
+      "name": "DecisionRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol DecisionRepository: Sendable { func fetchActive() async throws -> [DecisionRecord]; func fetchResolved() async throws -> [DecisionRecord]; func fetch(id: UUID) async throws -> DecisionRecord?; func fetchOutcome(decisionID: UUID) async throws -> OutcomeRecord?; func activeCount() async throws -> Int; func nextEntryNumber() async throws -> Int; func persist(_ decision: DecisionRecord) async throws; func persist(_ outcome: OutcomeRecord, for decisionID: UUID) async throws; func delete(id: UUID) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure storage boundary only \u2014 no policy, no notification/widget side effects, no pagination (deliberate non-goal given realistic record volumes). Backed by SwiftData or Core Data depending on the earlier spike outcome. DecisionMutationService is the only caller for writes."
+    },
+    {
+      "name": "DecisionMutationService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol DecisionMutationService: Sendable { func createDecision(from draft: DecisionDraft, access: SubscriptionAccess, surface: DecisionSurface) async throws -> DecisionRecord; func resolveDecision(id: UUID, draft: OutcomeDraft, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func rescheduleDecision(id: UUID, schedule: RevisitSchedule, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func updateDecision(id: UUID, draft: DecisionDraft, surface: DecisionSurface) async throws -> DecisionRecord }",
+      "owning_lane": "services_utilities",
+      "notes": "The single serialized write boundary. Every method composes DecisionPolicy validation + DecisionRepository.persist + NotificationScheduling.recomputeAndApply + WidgetRefreshing.reloadRevisitWidgets as one operation. ViewModels and CaptureDecisionIntent call only this for writes, never DecisionRepository directly."
+    },
+    {
+      "name": "NotificationScheduling",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol NotificationScheduling: Sendable { func authorizationStatus() async -> UNAuthorizationStatus; func requestAuthorization() async throws -> Bool; func apply(plan: NotificationPlan) async throws; func removeNotifications(for decisionID: UUID) async throws; func recomputeAndApply(activeDecisions: [DecisionRecord], policy: DecisionPolicy, now: Date) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Diffs NotificationPlan against UNUserNotificationCenter; recomputeAndApply is invoked from DecisionMutationService on every mutation and separately on app launch as the safety net."
+    },
+    {
+      "name": "EntitlementSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EntitlementSnapshot: Codable, Sendable, Equatable { var access: SubscriptionAccess; var refreshedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "Written to App Group by the main app on every StoreKit transaction update and every foreground; extensions only ever read it."
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementStore: Sendable { func currentSnapshot() async throws -> EntitlementSnapshot; func refreshFromStoreKit() async throws -> EntitlementSnapshot }",
+      "owning_lane": "services_utilities",
+      "notes": "No custom grace-period/TTL logic \u2014 trust StoreKit 2's JWS-verifiable transaction state as-is."
+    },
+    {
+      "name": "ExportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ExportService: Sendable { func exportDecisions(decisions: [DecisionRecord], outcomes: [OutcomeRecord]) async throws -> URL }",
+      "owning_lane": "services_utilities",
+      "notes": "User-initiated, local-only."
+    },
+    {
+      "name": "DeepLinkTarget",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DeepLinkTarget: Sendable, Equatable { case revisit(decisionID: UUID); case resolvedDetail(decisionID: UUID); case missingDecision }",
+      "owning_lane": "primary_ui",
+      "notes": "Resolved navigation outcome fed identically by onOpenURL, the notification delegate, and AppIntent completion. missingDecision covers a stale notification/widget link pointing at a deleted record."
+    },
+    {
+      "name": "AppRouter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AppRouter { var selectedTab: AppTab; var ledgerPath: NavigationPath; var presentedSheet: SheetRoute?; private(set) var pendingDestination: DeepLinkTarget?; func routeToDecision(_ target: DeepLinkTarget) }",
+      "owning_lane": "primary_ui",
+      "notes": "Locked as a concrete final class, not a protocol: @Observable cannot attach to a protocol, and TabView/NavigationStack bindings need a concrete Bindable type, so a protocol here would need an identical concrete implementation underneath while adding no real benefit for something with exactly one implementation. routeToDecision is a single atomic call (no separate enqueue/process steps a caller could invoke out of order) that internally sequences sheet-dismiss -> tab-switch -> path-push in that order, never simultaneous mutations in one state update. Only one pending destination is retained \u2014 last write wins if a second target arrives before the first resolves. Must behave identically on cold launch and warm foreground."
+    },
+    {
+      "name": "PermissionBannerState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PermissionBannerState: Sendable, Equatable { case hidden, denied, revoked }",
+      "owning_lane": "polish_resilience",
+      "notes": "Driven by an active authorizationStatus recheck on every foreground, not just first-launch denial."
+    },
+    {
+      "name": "LoadState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LoadState<Value>: Sendable where Value: Sendable { case idle, loading, loaded(Value), empty, failed(String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared UI-state pattern for every screen needing explicit empty/loading/error handling."
+    },
+    {
+      "name": "SubscriptionTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SubscriptionTier: String, Sendable { case free, paid }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "DecisionWriteError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DecisionWriteError: Error, Sendable { case requiredFieldsMissing; case activeDecisionCapReached(limit: Int); case decisionAlreadyResolved; case decisionNotFound; case notificationPermissionDenied; case entitlementUnavailable; case persistenceFailure }",
+      "owning_lane": "data_domain",
+      "notes": "Every DecisionMutationService caller (form, widget, Siri) must render activeDecisionCapReached identically."
+    },
+    {
+      "name": "CalibrationStats",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CalibrationStats: Sendable { let heldCount: Int; let missedCount: Int; let mixedCount: Int; var totalResolved: Int { get }; var rawFractionText: String { get }; var percentageText: String? { get } }",
+      "owning_lane": "data_domain",
+      "notes": "Computed fresh from fetchResolved() every time \u2014 never stored as a denormalized counter. percentageText is nil below DecisionPolicy.lowSampleThreshold()."
+    },
+    {
+      "name": "WidgetSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WidgetSummary: Sendable { let overdueCount: Int; let dueSoonCount: Int; let mostUrgentDecisionID: UUID?; let mostUrgentIsOverdue: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Widget's only data shape \u2014 counts/due-ness only, never decision text. mostUrgentDecisionID drives the single tap target on both small and medium sizes."
+    },
+    {
+      "name": "AppTab",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppTab: Sendable { case ledger, calibration }",
+      "owning_lane": "primary_ui",
+      "notes": "Only two tabs in v1."
+    },
+    {
+      "name": "SheetRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SheetRoute: Identifiable, Sendable { case capture; case paywall(PaywallTrigger) }",
+      "owning_lane": "primary_ui",
+      "notes": "An open Capture draft is intentionally discarded if a deep-link interrupts it \u2014 stated tradeoff, not an accident."
+    },
+    {
+      "name": "RouteMode",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RouteMode: Sendable { case revisit, detailReadOnly }",
+      "owning_lane": "primary_ui",
+      "notes": "detailReadOnly is used when a stale notification points at an already-resolved decision."
+    },
+    {
+      "name": "LedgerViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class LedgerViewModel { private(set) var state: LoadState<[DecisionRecord]>; func load() async; func refreshOnForeground() async; func resolvedFilterToggled(_ on: Bool) }",
+      "owning_lane": "primary_ui",
+      "notes": "refreshOnForeground wired to root scenePhase observation, confirmed by both participants \u2014 a Siri- or widget-triggered write made while backgrounded must surface without a manual pull-to-refresh."
+    },
+    {
+      "name": "CaptureViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class CaptureViewModel { var draft: DecisionDraft; private(set) var capBlocked: Bool; func refreshCapStatus() async; func save() async throws -> DecisionRecord }",
+      "owning_lane": "primary_ui",
+      "notes": "capBlocked checked synchronously on sheet appear (before typing starts), then re-validated atomically inside DecisionMutationService.createDecision."
+    },
+    {
+      "name": "RevisitViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class RevisitViewModel { let decision: DecisionRecord; var narrative: String; func resolve(as classification: OutcomeClassification) async throws; func notYet(newSchedule: RevisitSchedule) async throws }",
+      "owning_lane": "primary_ui",
+      "notes": "resolve() and notYet() are separate methods, never a shared toggle, keeping the non-resolving action structurally distinct."
+    },
+    {
+      "name": "assembledAccessibilityLabel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func assembledAccessibilityLabel(for decision: DecisionRecord, now: Date, calendar: Calendar) -> String",
+      "owning_lane": "polish_resilience",
+      "notes": "Single combined VoiceOver sentence for a ledger row, e.g. 'Entry 14. Should we hire the contractor. Due in 6 days.'"
+    },
+    {
+      "name": "CaptureDecisionIntent",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct CaptureDecisionIntent: AppIntent { @Parameter var decisionText: String; @Parameter var prediction: String; @Parameter var revisitInDays: Int; func perform() async throws -> some IntentResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Builds a DecisionDraft and calls DecisionMutationService.createDecision(from:access:surface: .appIntent) \u2014 same path, same DecisionWriteError.activeDecisionCapReached as the in-app form."
+    },
+    {
+      "name": "PaywallTrigger",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PaywallTrigger: Sendable, Equatable { case capCeiling; case lockedAnalytics }",
+      "owning_lane": "primary_ui",
+      "notes": "Paywall is always contextual, never a standalone destination."
+    },
+    {
+      "name": "DecisionCommandService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol DecisionCommandService: Sendable { func create(draft: DecisionDraft, access: SubscriptionAccess, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func update(_ decision: DecisionRecord, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func resolve(id: UUID, draft: OutcomeDraft, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func reschedule(id: UUID, schedule: RevisitSchedule, surface: DecisionSurface, now: Date) async throws -> DecisionRecord; func delete(id: UUID, surface: DecisionSurface) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Single write boundary. Owns transactional writes plus required side effects: notification recompute and widget timeline reload after every mutation."
+    },
+    {
+      "name": "WidgetRefreshing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol WidgetRefreshing: Sendable { func reloadRevisitWidgets() }",
+      "owning_lane": "services_utilities",
+      "notes": "Thin wrapper over WidgetCenter.shared.reloadTimelines(ofKind:) so DecisionMutationService is unit-testable with a mock instead of touching WidgetKit directly."
+    },
+    {
+      "name": "WidgetDeepLink",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum WidgetDeepLink { static func url(for decisionID: UUID) -> URL; static func decisionID(from url: URL) -> UUID? }",
+      "owning_lane": "services_utilities",
+      "notes": "Single shared implementation, confirmed by both participants, so the widget's widgetURL(_:) and the app's onOpenURL parser structurally cannot diverge."
+    },
+    {
+      "name": "CalibrationViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class CalibrationViewModel { private(set) var state: LoadState<DecisionStats>; func load() async; func refreshOnForeground() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Same cross-process staleness reasoning as LedgerViewModel."
+    }
+  ],
+  "errors": []
+}

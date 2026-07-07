@@ -1,0 +1,338 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project skeleton: Xcode target, bundle id, empty Info.plist, locked folder structure, libsqlite3 linked, green xcodebuild build",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LooseEnds.xcodeproj/project.pbxproj",
+        "LooseEnds/Info.plist",
+        "LooseEnds/App/LooseEndsApp.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "xcodebuild build succeeds with zero source files beyond a placeholder root view",
+        "Info.plist has no usage-description keys",
+        "Domain/Persistence/Store/Entitlements/DesignSystem/Features folders exist and are correctly target-membership-included",
+        "folder layout matches the locked architecture doc exactly",
+        "libsqlite3 is linked and a trivial sqlite3_libversion() call compiles and runs, so T-003 never discovers a linker problem after the fact"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Domain types + RitualEngine (pure, dependency-free)",
+      "owner_lane": "data_domain",
+      "files": [
+        "LooseEnds/Domain/Project.swift",
+        "LooseEnds/Domain/DecisionLogEntry.swift",
+        "LooseEnds/Domain/AppMetadata.swift",
+        "LooseEnds/Domain/SnoozeInterval.swift",
+        "LooseEnds/Domain/ThreadStatus.swift",
+        "LooseEnds/Domain/StoreSnapshot.swift",
+        "LooseEnds/Domain/AppError.swift",
+        "LooseEnds/Domain/ProjectDraft.swift",
+        "LooseEnds/Domain/RepositoryMutationPlan.swift",
+        "LooseEnds/Domain/ViewData.swift",
+        "LooseEnds/Domain/RitualEngine.swift",
+        "LooseEndsTests/RitualEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "RitualEngine never calls Date() directly, takes now: Date everywhere",
+        "unit tests cover 14-day dormancy boundary, 7-day pacing, cold-start exception, tiebreak chain (oldest lastTouchedAt -> oldest createdAt -> UUID), negative-duration clock anomalies always resolving not-eligible, edit never resets lastTouchedAt or status",
+        "act/snooze/release each throw a typed error if projectID does not match snapshot.metadata.surfacedProjectID, with a named test proving this",
+        "ProjectStatus has exactly two cases, active and released; no other status is ever stored",
+        "no import of SwiftUI or UIKit anywhere in this folder, including in ViewData.swift, since that's what justifies these types living here instead of in primary_ui's folder"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "SQLite persistence: libsqlite3 wrapper + SQLiteProjectRepository",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LooseEnds/Persistence/SQLiteWrapper.swift",
+        "LooseEnds/Persistence/SQLiteProjectRepository.swift",
+        "LooseEnds/Persistence/ProjectRepository.swift",
+        "LooseEndsTests/SQLiteProjectRepositoryTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "WAL journal mode with synchronous = FULL",
+        "every mutation (act/snooze/release/delete-of-surfaced) is one atomic transaction covering projects, decisions, and metadata tables",
+        "corruption tests cover exactly two scenarios: surfacedProjectID pointing at a deleted project, and surfacedProjectID pointing at a .released project \u2014 no test asserts nil-surfaced is corruption",
+        "a perf test asserts a full mutation transaction against a database pre-loaded with several hundred history rows completes under 10ms",
+        "zero third-party SQL wrapper libraries; libsqlite3 only"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "ClockProviding + EntitlementProviding boundaries",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LooseEnds/Persistence/ClockProviding.swift",
+        "LooseEnds/Entitlements/EntitlementProviding.swift",
+        "LooseEnds/Entitlements/FreeTierEntitlements.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "SystemClock is the only production ClockProviding implementation and is the sole source of now for AppStore and the repository",
+        "FreeTierEntitlements.maxFreeActiveProjects = 7 exists as an unenforced constant only, read nowhere inside RitualEngine.createProject"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "AppStore: synchronous glue between RitualEngine and ProjectRepository",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LooseEnds/Store/AppStore.swift",
+        "LooseEnds/App/LooseEndsApp.swift",
+        "LooseEndsTests/AppStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "every AppStore method is fully synchronous, no Task{} wrapping anywhere in the call chain",
+        "full bootstrap -> mutate -> simulated-relaunch round trip test passes, including which project is surfaced",
+        "didRecoverFromCorruptionOnLastLoad is exposed as plain state, separate from AppError",
+        "a single named regression test proves creating an 8th, 9th, and 10th project through AppStore.createProject all still succeed and are never blocked by FreeTierEntitlements",
+        "AppStore is composed exactly once, in LooseEndsApp.swift, and that file is the only place other lanes may request changes to rather than edit directly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Design tokens + atomic components (ThreadGlyph, DateChip)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LooseEnds/DesignSystem/Tokens.swift",
+        "LooseEnds/DesignSystem/ThreadGlyph.swift",
+        "LooseEnds/DesignSystem/DateChip.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "ThreadGlyph renders all four ThreadStatus cases as bounded 28x28pt Path shapes (or the named SF Symbols fallback) with no per-project variation or particle effects",
+        "ThreadGlyph.accessibilityLabel and its visual tier are both derived from the same daysUntouched/date associated value",
+        "color tokens include no status-meaning color, only accentInteractive/Pressed/Subtle for tappable affordances",
+        "Dynamic Type scaling verified on DateChip at largest accessibility size"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Composite components: SurfacedCard, RitualEmptyState, ProjectRecordForm, ProjectRow, HistoryRow, SecondaryNavMenu",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LooseEnds/DesignSystem/SurfacedCard.swift",
+        "LooseEnds/DesignSystem/RitualEmptyState.swift",
+        "LooseEnds/DesignSystem/ProjectRecordForm.swift",
+        "LooseEnds/DesignSystem/ProjectRow.swift",
+        "LooseEnds/DesignSystem/HistoryRow.swift",
+        "LooseEnds/DesignSystem/SecondaryNavMenu.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-006",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "SurfacedCard renders all five co-equal sections (what it is / why it mattered / why it stalled / smallest next step / why it surfaced now) with no truncation and no internal scroll region",
+        "not marked complete until integrated against real AppStore output, not mock fixtures",
+        "Release is never color-coded differently from Act/Snooze as a failure state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Home screen (six states)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LooseEnds/Features/Home/HomeView.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "all six HomeState cases render distinctly: loading, surfaced, noProjectsYet, noneEligibleYet(reason, date), allReleased, storeFailure",
+        "each state expresses its one-sentence plain-language explanation",
+        "never shows more than one surfaced project"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Project Record screen (create + edit modes)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LooseEnds/Features/ProjectRecord/ProjectRecordView.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "future-dated lastTouchedAt shows a visible validation error, not silent clamping, at entry time",
+        "edit mode supports direct snooze-until correction with no separate undo control",
+        "delete confirmation copy forks explicitly when the target is the currently-surfaced project"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Resolution sheets: Act, Snooze, Release",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LooseEnds/Features/ResolutionSheets/ActSheet.swift",
+        "LooseEnds/Features/ResolutionSheets/SnoozeSheet.swift",
+        "LooseEnds/Features/ResolutionSheets/ReleaseSheet.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Snooze shows only the three fixed intervals plus current snooze count and exact resulting next-eligible date before confirming",
+        "swipe-to-dismiss or tap-away on any sheet is a silent cancel that writes nothing",
+        "sheets never auto-advance to another surfaced project"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Your Projects + History screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LooseEnds/Features/YourProjects/YourProjectsView.swift",
+        "LooseEnds/Features/History/HistoryView.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Your Projects has no filter/sort/badge affordance implying pick-what-surfaces-next",
+        "History renders correctly at zero, one, and hundreds of entries with no pagination bugs and fully static rows",
+        "History glyphs are restricted to taut/coiled/knotted only"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Onboarding + Settings screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LooseEnds/Features/Onboarding/OnboardingView.swift",
+        "LooseEnds/Features/Settings/SettingsView.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "onboarding is a single screen, three plain sentences, zero permission prompts, ends by opening Project Record in create mode",
+        "Settings contains exactly one non-blocking premium-intent line with no tappable affordance and no dead end"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Resilience utilities: BackupExclusionChecker, RedactedLogger, ThreadGlyphAccessibilityLabel",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LooseEnds/Support/BackupExclusionChecker.swift",
+        "LooseEnds/Support/RedactedLogger.swift",
+        "LooseEnds/Support/ThreadGlyphAccessibilityLabel.swift",
+        "LooseEndsTests/BackupExclusionTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "automated test asserts the live SQLite file's isExcludedFromBackup is always false",
+        "RedactedLogger's function signature makes it impossible to pass user free-text content, only static event names and opaque UUIDs",
+        "ThreadGlyphAccessibilityLabel and ThreadGlyph consume the exact same ThreadStatus value so they cannot drift"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Accessibility audit + narrow XCUITest flows",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LooseEndsUITests/ResolutionFlowUITests.swift",
+        "LooseEndsUITests/HomeStateUITests.swift",
+        "LooseEndsUITests/AccessibilityAuditUITests.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-009",
+        "T-010",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "XCUIApplication().performAccessibilityAudit() passes against the Home surfaced-card state at a large accessibility content size",
+        "full resolve-and-reappear cycle covered for each of Act/Snooze/Release",
+        "delete-the-surfaced-project warning copy path is covered",
+        "44pt minimum tap targets verified at largest Dynamic Type"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Final integration checkpoint: full app smoke, App icon, launch screen, build verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LooseEnds/Assets.xcassets",
+        "LooseEnds/App/LooseEndsApp.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "xcodebuild build and full test suite green on a clean checkout",
+        "manual pass confirms zero network calls fire anywhere in the core loop",
+        "force-quit/relaunch preserves exact prior state including which project is surfaced",
+        "app does not ship until this checklist and the four-lane acceptance criteria above all agree on what works"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Continuous privacy/compile gate: no-network-call scan, run against every lane's PR from day one",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Scripts/verify_no_network_calls.sh",
+        "LooseEndsTests/NoNetworkCallsTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "scans the entire LooseEnds/ tree for URLSession, Network, or CFNetwork symbols and fails if any are found outside an explicitly allow-listed file",
+        "runs on every PR from every lane starting immediately after T-001 merges, not held until T-015",
+        "a failing scan blocks merge for whichever lane's PR triggered it, without polish_resilience needing write access to that lane's files"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

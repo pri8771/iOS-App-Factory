@@ -1,0 +1,502 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "GameSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct GameSnapshot: Codable, Sendable { var schemaVersion: Int; var saveSequence: Int; var savedAtWallClock: Date; var lastActiveAt: Date; var regions: [RegionID: RegionTopology]; var currency: Decimal; var milestones: MilestoneState; var proHistory: ProHistoryBuffer; var lastOfflineResolution: OfflineSummary? }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical persisted document only; no derived throughput/health fields ever stored."
+    },
+    {
+      "name": "RegionState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RegionState: Codable, Sendable, Identifiable { var id: RegionID; var definitionID: RegionDefinitionID; var demandZones: [DemandZone]; var relays: [Relay]; var unlockedMilestones: Set<MilestoneID>; var accessState: RegionAccessState }",
+      "owning_lane": "data_domain",
+      "notes": "Holds mutable per-region topology and entitlement-driven freeze state."
+    },
+    {
+      "name": "Relay",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Relay: Identifiable, Codable, Sendable { let id: UUID; var type: RelayType; var position: Coordinate; var tuningLevel: Int; var upgradeLevel: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Single bounded Int tuning lever (LOCKED), matching the single 'retune up/down' accessibility action \u2014 a two-axis continuous tuning space would be reachable by drag but not by one VoiceOver stepper."
+    },
+    {
+      "name": "DemandZone",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct DemandZone: Identifiable, Codable, Sendable { let id: UUID; var position: Coordinate; var demandWeight: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Static/finite per region; count changes only via milestone unlock."
+    },
+    {
+      "name": "RelayType",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RelayType: String, Codable, CaseIterable, Sendable { case broad, focused, stabilizer }",
+      "owning_lane": "data_domain",
+      "notes": "Exactly three MVP types; a fourth Pro type, if built, is additive."
+    },
+    {
+      "name": "RelayTuning",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RelayTuning: Codable, Sendable { var powerBias: Double; var channelOffset: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Bounded tuning inputs used for deterministic preview and commit flows."
+    },
+    {
+      "name": "NetworkDerivedState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct NetworkDerivedState: Sendable { var healthLevel: HealthLevel; var healthScore: Double; var totalThroughput: Double; var steadyStateCreditsPerSecond: Decimal; var relayMetrics: [RelayMetric]; var bottleneckRelayIDs: [UUID] }",
+      "owning_lane": "data_domain",
+      "notes": "The single contract read by map meter, progression screen, VoiceOver deltas, and Pro history; never duplicated or cached elsewhere."
+    },
+    {
+      "name": "NetworkHealth",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum NetworkHealth: String, Sendable { case healthy; case strained; case choking }",
+      "owning_lane": "data_domain",
+      "notes": "One authoritative health state used everywhere user-visible."
+    },
+    {
+      "name": "OfflineResolutionSummary",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct OfflineResolutionSummary: Codable, Sendable { var elapsedSeconds: TimeInterval; var clampedSeconds: TimeInterval; var creditedAmount: Decimal; var wasCapped: Bool; var note: OfflineNote? }",
+      "owning_lane": "data_domain",
+      "notes": "Persist latest resume result for progression screen and return overlay."
+    },
+    {
+      "name": "GoalProgress",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct GoalProgress: Codable, Sendable { var placedFirstRelay: Bool; var resolvedFirstInterference: Bool; var reachedThirdObjective: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Compact checklist state only, not a generic quest system."
+    },
+    {
+      "name": "ProHistoryBuffer",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ProHistoryBuffer: Codable, Sendable { var entries: [HistoryEntry]; var retentionLimit: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Capped ring-buffer semantics; retained independent of entitlement state (hidden not deleted on lapse)."
+    },
+    {
+      "name": "HistoryEntry",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct HistoryEntry: Codable, Sendable, Identifiable { var id: UUID; var startedAt: Date; var endedAt: Date; var averageHealth: HealthLevel; var bottleneckRelayIDs: [UUID]; var summaryText: String }",
+      "owning_lane": "data_domain",
+      "notes": "Summary-grade diagnostics, not raw frame capture."
+    },
+    {
+      "name": "RegionAccessState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RegionAccessState: Codable, Sendable { case unlockedEditable, lockedUpsell, restoredEmpty, frozenReadOnly }",
+      "owning_lane": "data_domain",
+      "notes": "Per-region UI-facing state, produced only by resolveRegionAccess (LOCKED) \u2014 not an ad hoc reduction any lane reinvents."
+    },
+    {
+      "name": "SimulationEngine",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol SimulationEngine: Sendable { func derive(_ topology: RegionTopology) -> NetworkDerivedState; func previewPlace(type: RelayType, at: Coordinate, in topology: RegionTopology, credits: Decimal) -> Result<PlacementOutcome, PlacementError>; func previewMove(relayID: UUID, to: Coordinate, in topology: RegionTopology) -> Result<PlacementOutcome, PlacementError>; func previewRetune(relayID: UUID, delta: Int, in topology: RegionTopology) -> Result<PlacementOutcome, PlacementError>; func previewUpgrade(relayID: UUID, in topology: RegionTopology, credits: Decimal) -> Result<PlacementOutcome, PlacementError>; func commitPlace(type: RelayType, at: Coordinate, in topology: inout RegionTopology, credits: inout Decimal) -> Result<PlacementOutcome, PlacementError>; func commitMove(relayID: UUID, to: Coordinate, in topology: inout RegionTopology) -> Result<PlacementOutcome, PlacementError>; func commitRetune(relayID: UUID, delta: Int, in topology: inout RegionTopology) -> Result<PlacementOutcome, PlacementError>; func commitUpgrade(relayID: UUID, in topology: inout RegionTopology, credits: inout Decimal) -> Result<PlacementOutcome, PlacementError>; func resolveOffline(topology: RegionTopology, lastActive: Date, now: Date, policy: OfflinePolicy) -> OfflineSummary }",
+      "owning_lane": "data_domain",
+      "notes": "Foundation-only, zero SwiftUI/UIKit imports, never calls Date() internally. Preview covers all four action kinds. This protocol wraps something genuinely worth swapping (deterministic vs. stub math), which is why it \u2014 unlike NetworkEngine \u2014 earns a protocol."
+    },
+    {
+      "name": "NetworkMutationAction",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum NetworkMutationAction: Sendable { case placeRelay(regionID: RegionID, type: RelayType, position: CGPointCodable); case moveRelay(regionID: RegionID, relayID: RelayID, position: CGPointCodable); case retuneRelay(regionID: RegionID, relayID: RelayID, tuning: RelayTuning); case upgradeRelay(regionID: RegionID, relayID: RelayID) }",
+      "owning_lane": "data_domain",
+      "notes": "Single action surface for touch and accessibility paths."
+    },
+    {
+      "name": "MutationResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MutationResult: Sendable { var snapshot: GameSnapshot; var derived: NetworkDerivedState; var outcome: MutationOutcome }",
+      "owning_lane": "data_domain",
+      "notes": "Returned synchronously by engine-facing mutation entrypoints."
+    },
+    {
+      "name": "PlacementPreview",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PlacementPreview: Sendable { var isValid: Bool; var invalidReason: String?; var projectedCreditsDelta: Decimal; var projectedDerived: NetworkDerivedState }",
+      "owning_lane": "data_domain",
+      "notes": "Used by ghost placement UI and VoiceOver preview copy."
+    },
+    {
+      "name": "MovePreview",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MovePreview: Sendable { var isValid: Bool; var invalidReason: String?; var projectedDerived: NetworkDerivedState }",
+      "owning_lane": "data_domain",
+      "notes": "Same projection contract for drag moves and stepped accessibility actions."
+    },
+    {
+      "name": "OfflinePolicy",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct OfflinePolicy: Sendable { var driftFloorSeconds: TimeInterval; var capSecondsFree: TimeInterval; var capSecondsPro: TimeInterval }",
+      "owning_lane": "data_domain",
+      "notes": "Explicit injected policy object so 8h/400d tests are deterministic."
+    },
+    {
+      "name": "SnapshotStore",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol SnapshotStore { func load() throws -> LoadedSnapshot; func save(_ snapshot: GameSnapshot) throws; func markLastActive(at date: Date) throws; func recoverFromCorruption() throws -> LoadedSnapshot }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns atomic writes, backup rotation, and broken-file quarantine."
+    },
+    {
+      "name": "LoadedSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct LoadedSnapshot: Sendable { var snapshot: GameSnapshot; var recoveryMessage: String? }",
+      "owning_lane": "services_utilities",
+      "notes": "Lets UI show humane recovery banner when needed."
+    },
+    {
+      "name": "EntitlementService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol EntitlementService { func currentProStatus() async -> ProStatus; func restorePurchases() async throws -> ProStatus }",
+      "owning_lane": "services_utilities",
+      "notes": "Only service that touches StoreKit. Gameplay consumes reduced ProStatus only."
+    },
+    {
+      "name": "ProStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ProStatus: Sendable { case notOwned; case active(source: ProSource); case restoredButNoLocalRegionData(source: ProSource); case lapsedFrozen }",
+      "owning_lane": "services_utilities",
+      "notes": "Reduced entitlement state after combining StoreKit and local region-two presence."
+    },
+    {
+      "name": "Clock",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol Clock { var now: Date { get } var monotonicUptime: TimeInterval { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Injectable time source for offline math and save timestamps."
+    },
+    {
+      "name": "GameEngine",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@MainActor @Observable final class GameEngine: NetworkActioning { private(set) var snapshot: GameSnapshot; private(set) var derived: NetworkDerivedState; private(set) var entitlement: EntitlementState; private(set) var regionAccess: [RegionID: RegionAccessState]; private(set) var isReady: Bool; var presentedSurface: PresentedSurface?; var mapOverlay: MapOverlay?; func bootstrap() async; func handleScenePhaseChange(_ phase: ScenePhase) async; func attemptPlace(type: RelayType, at: Coordinate) -> Result<PlacementOutcome, PlacementError>; func attemptMove(relayID: UUID, to: Coordinate) -> Result<PlacementOutcome, PlacementError>; func attemptRetune(relayID: UUID, delta: Int) -> Result<PlacementOutcome, PlacementError>; func attemptUpgrade(relayID: UUID) -> Result<PlacementOutcome, PlacementError>; func present(_ surface: PresentedSurface?); func restorePurchases() async }",
+      "owning_lane": "primary_ui",
+      "notes": "MUST be a final class, not a struct \u2014 settled in round 2. @Observable's single-shared-instance guarantee across map/sheet/progression/paywall/settings requires reference semantics for @Environment(GameEngine.self) injection; a mutating-struct engine would let a sheet read a stale copy of health/entitlement. attempt* methods are fully synchronous end-to-end, no await between validate and mutate."
+    },
+    {
+      "name": "PresentedSurface",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PresentedSurface: Identifiable, Equatable { case buildSheet(BuildSheetMode); case progression; case paywall; case settings }",
+      "owning_lane": "primary_ui",
+      "notes": "Keeps map + bottom sheet as one continuous decision surface; has a slot for progression that an earlier 4-case draft lacked."
+    },
+    {
+      "name": "NetworkCanvasModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct NetworkCanvasModel: Sendable { var topology: RegionTopology; var derived: NetworkDerivedState; var preview: PlacementOutcome?; var animationDate: Date }",
+      "owning_lane": "primary_ui",
+      "notes": "Plain data input to the single Canvas + TimelineView(.animation) render surface; never a ForEach of individually animated shapes."
+    },
+    {
+      "name": "HistoryRetentionService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol HistoryRetentionService: Sendable { func append(_ entry: HistoryEntry, to buffer: ProHistoryBuffer) -> ProHistoryBuffer }",
+      "owning_lane": "services_utilities",
+      "notes": "Keeps Pro diagnostics bounded regardless of entitlement duration."
+    },
+    {
+      "name": "SaveRecoveryBannerModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct SaveRecoveryBannerModel: Sendable { var message: String; var severity: RecoverySeverity }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared recovery UX payload from storage to UI."
+    },
+    {
+      "name": "AccessibilityRelayActionFactory",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func makeRelayAccessibilityActions(relayID: UUID, engine: any NetworkActioning) -> [UIAccessibilityCustomAction]",
+      "owning_lane": "polish_resilience",
+      "notes": "Must route through the same attempt*/preview engine entry points as the drag path, never duplicate placement/interference math."
+    },
+    {
+      "name": "Coordinate",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Coordinate: Codable, Hashable, Sendable { var x: Int; var y: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Discrete tile-grid position; the only authoritative position type in RegionTopology/GameSnapshot. Continuous on-screen motion during an in-flight drag is view-local only, snapping to a tile on release before calling attemptMove once."
+    },
+    {
+      "name": "RegionBounds",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RegionBounds: Codable, Sendable { var width: Int; var height: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed per region; no pan/zoom camera in MVP."
+    },
+    {
+      "name": "RegionID",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RegionID: String, Codable, Sendable { case primary, secondary }",
+      "owning_lane": "data_domain",
+      "notes": "secondary is the Pro-gated region."
+    },
+    {
+      "name": "RegionTopology",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RegionTopology: Codable, Sendable { var regionID: RegionID; var bounds: RegionBounds; var relays: [Relay]; var demandZones: [DemandZone]; var unlockedMilestones: Set<String> }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical per-region topology; health/throughput always recomputed from this, never persisted."
+    },
+    {
+      "name": "HealthLevel",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum HealthLevel: String, Codable, Sendable { case healthy, strained, choking }",
+      "owning_lane": "data_domain",
+      "notes": "Always paired with icon/text; never color-only."
+    },
+    {
+      "name": "NetworkHealthSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NetworkHealthSnapshot: Sendable { var level: HealthLevel; var score: Double; var bottleneckRelayIDs: [UUID] }",
+      "owning_lane": "data_domain",
+      "notes": "The single computed model read by map meter, progression screen, and VoiceOver delta previews \u2014 never cached separately."
+    },
+    {
+      "name": "ClockProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ClockProviding: Sendable { func now() -> Date; func monotonicUptime() -> TimeInterval }",
+      "owning_lane": "data_domain",
+      "notes": "Injected everywhere; simulation and engine never call Date() directly."
+    },
+    {
+      "name": "ElapsedResolution",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ElapsedResolution: Sendable { var effectiveSeconds: TimeInterval; var wasFloored: Bool; var wasCapped: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Encodes the two-threshold clock rule."
+    },
+    {
+      "name": "SimulationCore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SimulationCore { static func computeHealth(_ topology: RegionTopology) -> NetworkHealthSnapshot; static func pairwiseInterference(distance: Double, relayRadius: Double) -> Double; static func resolveElapsed(lastActive: Date, now: Date, floorThreshold: TimeInterval, cap: TimeInterval) -> ElapsedResolution; static func offlineEarnings(steadyStateRate: Double, resolution: ElapsedResolution) -> Decimal }",
+      "owning_lane": "data_domain",
+      "notes": "Pure, framework-free, lives in the LongwaveSimulation package (Foundation-only dependency)."
+    },
+    {
+      "name": "PlacementError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PlacementError: Error, Sendable { case tooClose, occupiedByDemandZone, insufficientFunds, outOfBounds, unknownRelay }",
+      "owning_lane": "data_domain",
+      "notes": "Every case maps to a persistent, spoken (not flash) reason string, wired in polish_resilience."
+    },
+    {
+      "name": "PlacementOutcome",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PlacementOutcome: Sendable { var before: NetworkDerivedState; var after: NetworkDerivedState; var currencyDelta: Decimal }",
+      "owning_lane": "data_domain",
+      "notes": "Feeds the visual before/after delta chip and the spoken VoiceOver delta preview from one value, never two calculations."
+    },
+    {
+      "name": "NetworkActioning",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol NetworkActioning: AnyObject { func attemptPlace(type: RelayType, at: Coordinate) -> Result<PlacementOutcome, PlacementError>; func attemptMove(relayID: UUID, to: Coordinate) -> Result<PlacementOutcome, PlacementError>; func attemptRetune(relayID: UUID, delta: Int) -> Result<PlacementOutcome, PlacementError>; func attemptUpgrade(relayID: UUID) -> Result<PlacementOutcome, PlacementError>; func preview(_ action: PendingAction) -> Result<PlacementOutcome, PlacementError> }",
+      "owning_lane": "primary_ui",
+      "notes": "Drag, tap, confirm sheet, and VoiceOver custom actions are all thin callers into the same conforming NetworkEngine instance."
+    },
+    {
+      "name": "MilestoneState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MilestoneState: Codable, Sendable { var firstRelayPlaced: Bool; var firstInterferenceResolved: Bool; var thirdGoalUnlocked: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Backs the progression screen's checklist rows."
+    },
+    {
+      "name": "HistoryEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct HistoryEvent: Codable, Sendable { var timestamp: Date; var kind: String; var healthDelta: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Capped ring buffer, retained independent of entitlement state (hidden not deleted on lapse)."
+    },
+    {
+      "name": "OfflineSummary",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct OfflineSummary: Sendable { var elapsed: ElapsedResolution; var earnings: Decimal; var configurationChangedDuringGap: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "configurationChangedDuringGap=false collapses the Pro history view to one flat entry."
+    },
+    {
+      "name": "EntitlementState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EntitlementState: Equatable, Sendable { case notOwned, active, restoredButLocallyEmpty, lapsedFrozen }",
+      "owning_lane": "data_domain",
+      "notes": "Global StoreKit-derived Pro status. restoredButLocallyEmpty derived from local region-two save presence, not receipt presence alone."
+    },
+    {
+      "name": "NetworkEngine",
+      "kind": "class",
+      "language": "Swift",
+      "signature": "@MainActor @Observable final class NetworkEngine: NetworkActioning { private(set) var snapshot: GameSnapshot; private(set) var derived: NetworkDerivedState; private(set) var entitlement: EntitlementState; private(set) var regionAccess: [RegionID: RegionAccessState]; private(set) var isReady: Bool; var presentedSurface: PresentedSurface?; var mapOverlay: MapOverlay?; init(simulation: SimulationEngine, storage: SnapshotStoring, entitlementService: EntitlementProviding, clock: ClockProviding); init(fixtureSnapshot: GameSnapshot, fixtureDerived: NetworkDerivedState, fixtureEntitlement: EntitlementState, fixtureRegionAccess: [RegionID: RegionAccessState], simulation: SimulationEngine, storage: SnapshotStoring, entitlementService: EntitlementProviding, clock: ClockProviding); func bootstrap() async; func handleScenePhaseChange(_ phase: ScenePhase) async; func attemptPlace(type: RelayType, at: Coordinate) -> Result<PlacementOutcome, PlacementError>; func attemptMove(relayID: UUID, to: Coordinate) -> Result<PlacementOutcome, PlacementError>; func attemptRetune(relayID: UUID, delta: Int) -> Result<PlacementOutcome, PlacementError>; func attemptUpgrade(relayID: UUID) -> Result<PlacementOutcome, PlacementError>; func preview(_ action: PendingAction) -> Result<PlacementOutcome, PlacementError>; func present(_ surface: PresentedSurface?); func showOverlay(_ overlay: MapOverlay?); func restorePurchases() async }",
+      "owning_lane": "primary_ui",
+      "notes": "FINAL DECISION: single concrete final class, no separate protocol/LiveNetworkEngine split. Every real system boundary (StoreKit, FileManager, clock) is already abstracted one level down via SimulationEngine/SnapshotStoring/EntitlementProviding/ClockProviding, so there's nothing on NetworkEngine's own boundary worth protocol-swapping. The fixture initializer gives Previews/XCTest/XCUITest fixture data directly without risking @Observable's fine-grained view-update tracking through a protocol existential. Injected everywhere via @Environment(NetworkEngine.self) \u2014 the concrete type, always. attempt* methods fully synchronous end-to-end, no await between validate and mutate; async bootstrap/scenePhase/restorePurchases never interleave with an in-flight synchronous mutation."
+    },
+    {
+      "name": "BuildSheetMode",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum BuildSheetMode: Equatable { case build(Coordinate); case inspect(UUID); case confirm(PendingAction) }",
+      "owning_lane": "primary_ui",
+      "notes": "Nested inside PresentedSurface.buildSheet."
+    },
+    {
+      "name": "PendingAction",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PendingAction: Equatable { case place(RelayType, Coordinate); case move(UUID, Coordinate); case retune(UUID, Int); case upgrade(UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "retune's Int matches Relay.tuningLevel's single-lever shape."
+    },
+    {
+      "name": "MapOverlay",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum MapOverlay: Equatable { case offlineReturn(OfflineSummary); case recoveryBanner(RecoveryMessage) }",
+      "owning_lane": "primary_ui",
+      "notes": "Deliberately separate from PresentedSurface \u2014 non-blocking overlays must never be dismissible by opening a sheet."
+    },
+    {
+      "name": "SnapshotStoring",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol SnapshotStoring: Sendable { func load() throws -> LoadResult; func save(_ snapshot: GameSnapshot) throws; func markLastActive(at date: Date) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns atomic temp-file-then-rename writes against current.json, backup rotation to lastKnownGood.json, and broken-file quarantine under a timestamped filename."
+    },
+    {
+      "name": "LoadResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct LoadResult: Sendable { var snapshot: GameSnapshot; var recoveryNotice: RecoveryNotice? }",
+      "owning_lane": "services_utilities",
+      "notes": "Forces the caller to handle recovery presentation rather than silently swallowing it."
+    },
+    {
+      "name": "RecoveryNotice",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RecoveryNotice: Sendable { case rolledBackToLastKnownGood(preservedFilename: String); case rolledBackToCleanNetwork(preservedFilename: String) }",
+      "owning_lane": "services_utilities",
+      "notes": "Corrupted file always preserved under a timestamped filename before fallback."
+    },
+    {
+      "name": "EntitlementProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol EntitlementProviding: Sendable { var state: EntitlementState { get }; func refresh() async; func restore() async throws; func hasLocalRegionTwoData() -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Only service touching StoreKit; checks both lifetime and subscription product IDs so either satisfies Pro; local transaction cache only, never blocks on network."
+    },
+    {
+      "name": "RecoveryMessage",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RecoveryMessage: Equatable, Sendable { var plainLanguageText: String; var notice: RecoveryNotice }",
+      "owning_lane": "polish_resilience",
+      "notes": "UI-facing calm-language translation of RecoveryNotice for the map banner and settings screen."
+    },
+    {
+      "name": "VoiceOverDelta",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct VoiceOverDelta: Sendable { var outcome: PlacementOutcome; var announcement: String }",
+      "owning_lane": "polish_resilience",
+      "notes": "Spoken form of PlacementOutcome generated from the same value the visual delta chip uses \u2014 never a separate calculation."
+    },
+    {
+      "name": "MilestoneChecklistItem",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MilestoneChecklistItem: Identifiable { var id: String; var title: String; var isComplete: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": "Derived view of MilestoneState for the progression screen."
+    },
+    {
+      "name": "RelayMetric",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RelayMetric: Sendable { var relayID: UUID; var localThroughput: Double; var interferenceContribution: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Per-relay breakdown feeding map labels and Pro bottleneck history."
+    },
+    {
+      "name": "MapInteractionNode",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MapInteractionNode: Identifiable, Sendable { var id: UUID; var coordinate: Coordinate; var kind: String }",
+      "owning_lane": "primary_ui",
+      "notes": "Invisible SwiftUI hit-testing/accessibility layer, one per relay/demand-zone, positioned via screenPosition."
+    },
+    {
+      "name": "screenPosition",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func screenPosition(for coordinate: Coordinate, bounds: RegionBounds, viewportSize: CGSize) -> CGPoint",
+      "owning_lane": "data_domain",
+      "notes": "Single shared grid-to-screen conversion used by the Canvas renderer AND MapInteractionNode's hit-testing/accessibility layer, so the visible relay dot and its tap target can never drift apart on any screen size."
+    },
+    {
+      "name": "LiveNetworkEngine",
+      "kind": "class",
+      "language": "Swift",
+      "signature": "@MainActor @Observable final class LiveNetworkEngine: NetworkEngine { private(set) var snapshot: GameSnapshot; private(set) var derived: NetworkDerivedState; private(set) var entitlement: EntitlementState; private(set) var regionAccess: [RegionID: RegionAccessState]; private(set) var isReady: Bool; var presentedSurface: PresentedSurface?; var mapOverlay: MapOverlay?; func bootstrap() async; func handleScenePhaseChange(_ phase: ScenePhase) async; func attemptPlace(type: RelayType, at: Coordinate) -> Result<PlacementOutcome, PlacementError>; func attemptMove(relayID: UUID, to: Coordinate) -> Result<PlacementOutcome, PlacementError>; func attemptRetune(relayID: UUID, delta: Int) -> Result<PlacementOutcome, PlacementError>; func attemptUpgrade(relayID: UUID) -> Result<PlacementOutcome, PlacementError>; func preview(_ action: PendingAction) -> Result<PlacementOutcome, PlacementError>; func present(_ surface: PresentedSurface?); func showOverlay(_ overlay: MapOverlay?); func restorePurchases() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Concrete final observable engine injected into every SwiftUI view via `@Environment(LiveNetworkEngine.self)`. `attempt*` methods are fully synchronous end-to-end, with no await between validation and mutation, and must not interleave concurrent state mutation from bootstrap, scene-phase, or restore flows."
+    },
+    {
+      "name": "resolveRegionAccess",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func resolveRegionAccess(entitlement: EntitlementState, hasLocalData: Bool) -> RegionAccessState",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: the single named reduction from global EntitlementState + per-device hasLocalRegionTwoData() into the per-region RegionAccessState the Pro screen and region-two map render. First test to write against the final contract: a restore-state matrix proving all entitlement \u00d7 local-data combinations map correctly."
+    }
+  ],
+  "errors": []
+}

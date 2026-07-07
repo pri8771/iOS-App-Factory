@@ -1,0 +1,1 @@
+Design a premium iOS field documentation app for solo site professionals. Prioritize speed, clarity, and confidence in bright outdoor conditions. Capture should minimize taps and work identically well with manual or AR measurement. Report output must look credible enough to hand directly to a client.

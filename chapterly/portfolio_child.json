@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b3",
+  "build": true,
+  "build_priority": 1,
+  "app": {
+    "name": "Chapterly",
+    "slug": "chapterly",
+    "category": "Social Networking",
+    "one_sentence_promise": "A personal reading journal that turns solitary reading into shared discussion with the two or three people who actually finish books with you.",
+    "target_user": "Adults who read regularly and want deeper engagement than a library app, without a public Goodreads-style feed.",
+    "painful_moment": "Finishing a book with a strong reaction and having nowhere specific to put it \u2014 group chats bury book talk, public feeds feel performative.",
+    "why_different": "Solo-first private journal and quote capture with page-synced private circles of 2-6 people invited via Contacts/Messages, not a public algorithmic feed.",
+    "why_users_pay": "Unlimited circles/books, OCR quote capture from physical pages, yearly reading wrap-up exports, on-device discussion prompts.",
+    "subscription_model": "Free: 1 circle, manual quotes. Paid monthly/annual: unlimited circles, OCR capture, advanced stats/export.",
+    "local_first_mvp_scope": "On-device journal and circle data; circle exchange for v1 happens via Messages/share-sheet delivery of entries, no server.",
+    "future_backend_roadmap": "CloudKit/private server sync for real-time circle discussion threads.",
+    "core_workflows": [
+      "Log a book",
+      "Capture a quote (manual or OCR)",
+      "Rate and reflect",
+      "Invite a circle via Messages",
+      "View personal reading timeline/stats"
+    ],
+    "ios_native_features": [
+      "Vision OCR for quote capture",
+      "Share Sheet/Messages extension for invites",
+      "Widgets for currently-reading and streak",
+      "App Intents/Siri for logging a quote"
+    ],
+    "ar_ml_llm_fit": "On-device Vision OCR for photographed quotes; optional on-device LLM to generate discussion questions from a synopsis.",
+    "design_direction": "Warm, literary, editorial \u2014 serif headlines, paper textures, generous whitespace; feels like a nice notebook, not a feed.",
+    "claude_design_prompt": "Design a warm, editorial reading-journal app: a paper-textured home timeline of books and quotes, a distraction-free quote-capture camera view with OCR crop confirmation, and a small private circle view that reads like shared marginalia rather than a chat app.",
+    "app_store_positioning": "The private, beautiful way to talk about the books you actually finish \u2014 not another public feed.",
+    "key_risks": [
+      "Circles need a second person to show full value; solo users may never invite anyone",
+      "On-device OCR accuracy on varied print/lighting",
+      "Competing with generic notes apps for the same journaling habit"
+    ],
+    "invalidation_criteria": "If solo retention alone doesn't hold at 4 weeks and few users ever invite a second person, rethink circles as an optional export rather than a core loop.",
+    "v1_build_scope": "Personal reading log, manual+OCR quote capture, one circle via Messages share, personal stats.",
+    "build": true,
+    "build_priority": 1
+  }
+}

@@ -1,0 +1,678 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "TripContextSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TripContextSnapshot { let tripID: UUID; let destinationKey: String; let fallbackClimateZoneKey: String?; let startDate: Date; let endDate: Date; let resolvedMonth: Int; let tripType: TripType; let modifiers: TripModifiers; let status: TripStatus }",
+      "owning_lane": "data_domain",
+      "notes": "Pure value snapshot used as input to generation; no SwiftData types allowed."
+    },
+    {
+      "name": "TripType",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TripType: String, Codable, CaseIterable { case business, cityWeekend, beachWarm, coldWinter, outdoorHiking, familyKids }",
+      "owning_lane": "data_domain",
+      "notes": "Closed six-item taxonomy."
+    },
+    {
+      "name": "TripStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TripStatus: String, Codable, CaseIterable { case planned, completed, didNotHappen }",
+      "owning_lane": "data_domain",
+      "notes": "Preferred over bare didHappen Bool because it closes invalid future migrations and keeps the cancellation path explicit."
+    },
+    {
+      "name": "TripModifiers",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TripModifiers: Equatable { let carryOnOnly: Bool; let laundryAccess: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": "Small stable input surface for generation rules."
+    },
+    {
+      "name": "ClimateSummary",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ClimateSummary: Codable, Equatable { let regionKey: String; let month: Int; let averageHighC: Double; let averageLowC: Double; let precipitationBand: PrecipitationBand; let copyLabel: String }",
+      "owning_lane": "data_domain",
+      "notes": "Historical average only; copyLabel should already contain compliant wording basis."
+    },
+    {
+      "name": "PrecipitationBand",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PrecipitationBand: String, Codable { case dry, moderate, wet }",
+      "owning_lane": "data_domain",
+      "notes": "Derived, not stored \u2014 computed from raw ClimateNormal for the engine's coarse decision rules."
+    },
+    {
+      "name": "HistorySignalSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct HistorySignalSnapshot: Codable, Equatable { let itemKey: String; let tripType: TripType?; let climateZoneKey: String?; let usageCount: Int; let unusedCount: Int; let manualAddCount: Int; let missingCount: Int; let lastReviewedAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "Derived from reviewed trips only; input to weighting engine."
+    },
+    {
+      "name": "PackingListArtifact",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PackingListArtifact: Codable, Equatable { let tripID: UUID; let generatedAt: Date; let algorithmVersion: String; let sections: [PackingSectionArtifact]; let climateSummary: ClimateSummary; let isHistoryInfluenced: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Frozen generated snapshot persisted and rendered directly by UI."
+    },
+    {
+      "name": "PackingSectionArtifact",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PackingSectionArtifact: Codable, Equatable, Identifiable { let id: UUID; let title: String; let items: [PackingItemArtifact] }",
+      "owning_lane": "data_domain",
+      "notes": "Section grouping for checklist UI and export."
+    },
+    {
+      "name": "PackingItemArtifact",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PackingItemArtifact: Codable, Equatable, Identifiable { let id: UUID; let stableItemKey: String; let displayName: String; let quantity: Int; let source: PackingItemSource; let isChecked: Bool; let reason: SuggestionReason; let isChangedFromPreviousGeneration: Bool; let sortOrder: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Reason and changed flag are frozen at generation/regeneration time."
+    },
+    {
+      "name": "PackingItemSource",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PackingItemSource: String, Codable { case suggested, custom }",
+      "owning_lane": "data_domain",
+      "notes": "Used for accessibility and UI distinction."
+    },
+    {
+      "name": "SuggestionReason",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct SuggestionReason: Codable, Equatable { let kind: SuggestionReasonKind; let message: String; let evidenceCount: Int? }",
+      "owning_lane": "data_domain",
+      "notes": "Value-type shape produced by GenerationEngine, mapped onto PackingItem's reason fields at write time."
+    },
+    {
+      "name": "SuggestionReasonKind",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum SuggestionReasonKind: String, Codable { case tripTypeDefault, climateDefault, repeatedManualAdd, reviewedHistoryPromoted, reviewedHistorySuppressed, quantityAdjusted }",
+      "owning_lane": "data_domain",
+      "notes": "Lets tests pin on reason category independent of exact wording."
+    },
+    {
+      "name": "ReviewDraft",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ReviewDraft: Equatable { let tripID: UUID; var unusedItemKeys: Set<String>; var missingFreeText: String; var markedDidNotHappen: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": "UI-facing mutable draft before submission."
+    },
+    {
+      "name": "ReviewOutcomeSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ReviewOutcomeSnapshot: Codable, Equatable { let tripID: UUID; let reviewedAt: Date; let itemOutcomes: [ReviewedItemOutcome]; let missingFreeText: String; let didNotHappen: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical submitted review payload used to rebuild learning history."
+    },
+    {
+      "name": "ReviewedItemOutcome",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ReviewedItemOutcome: Codable, Equatable { let stableItemKey: String; let outcome: ItemUsageOutcome }",
+      "owning_lane": "data_domain",
+      "notes": "Explicit review signal only; checklist checks are not usage truth."
+    },
+    {
+      "name": "ItemUsageOutcome",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ItemUsageOutcome: String, Codable { case used, unused, wishedPacked }",
+      "owning_lane": "data_domain",
+      "notes": "Supports future insight summaries without schema change."
+    },
+    {
+      "name": "PackingListGenerating",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PackingListGenerating { func generate(trip: TripContextSnapshot, climate: ClimateSummary, history: [HistorySignalSnapshot], previous: PackingListArtifact?) -> PackingListArtifact }",
+      "owning_lane": "data_domain",
+      "notes": "Pure deterministic engine; no persistence or UI dependencies."
+    },
+    {
+      "name": "LearningHistoryBuilding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol LearningHistoryBuilding { func buildHistorySignals(from reviews: [ReviewOutcomeSnapshot]) -> [HistorySignalSnapshot] }",
+      "owning_lane": "data_domain",
+      "notes": "Must support full deterministic recomputation after review edits."
+    },
+    {
+      "name": "ClimateLookupProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ClimateLookupProviding { func climateSummary(for destinationKey: String, fallbackClimateZoneKey: String?, startDate: Date, endDate: Date) throws -> ClimateSummary }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns majority-month resolution and fallback behavior."
+    },
+    {
+      "name": "TripRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol TripRepository { func fetchSummaries() throws -> [TripSummary]; func fetchTrip(id: UUID) throws -> Trip; func upsert(_ draft: TripDraft) throws -> UUID; func deleteTrip(tripID: UUID) throws; func markTripDidNotHappen(tripID: UUID) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "SwiftData-backed storage boundary for trip lifecycle. markTripDidNotHappen sets didHappen=false, never deletes."
+    },
+    {
+      "name": "TripDraft",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TripDraft: Equatable { let tripID: UUID?; let destinationKey: String; let fallbackClimateZoneKey: String?; let startDate: Date; let endDate: Date; let tripType: TripType; let modifiers: TripModifiers }",
+      "owning_lane": "primary_ui",
+      "notes": "Shared create/edit form payload."
+    },
+    {
+      "name": "TripSummary",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TripSummary: Identifiable, Equatable { let id: UUID; let destinationDisplayName: String; let dateRangeText: String; let tripType: TripType; let progress: Double; let isLockedByFreeTier: Bool; let phase: TripPhase }",
+      "owning_lane": "primary_ui",
+      "notes": "Cheap list-facing projection; TripCard reads only this shape, never trip.items/trip.review."
+    },
+    {
+      "name": "GeneratedListRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol GeneratedListRepository { func loadItems(tripID: UUID) throws -> [PackingItem]; func replaceSuggestedItems(tripID: UUID, items: [PackingItem]) throws; func toggleChecked(tripID: UUID, itemID: UUID, isChecked: Bool) throws; func upsertCustomItem(tripID: UUID, name: String, quantity: Int, category: PackingCategory) throws; func removeItem(tripID: UUID, itemID: UUID) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Works against canonical PackingItem rows directly. toggleChecked must be a single targeted field write, not a full-list re-save \u2014 this is the perf-critical path during packing."
+    },
+    {
+      "name": "CustomItemDraft",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CustomItemDraft: Equatable { let itemID: UUID?; let displayName: String; let quantity: Int; let sectionTitle: String }",
+      "owning_lane": "primary_ui",
+      "notes": "Flat custom item model only; no taxonomy expansion."
+    },
+    {
+      "name": "ReviewRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ReviewRepository { func loadReview(tripID: UUID) throws -> Review?; func saveReview(tripID: UUID, outcomes: [ReviewItemOutcome], wishIPacked: String?) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Full-overwrite save semantics so review edits stay deterministic (never incremental patching)."
+    },
+    {
+      "name": "PackingCoordinator",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PackingCoordinator { func createTripAndGenerate(_ draft: TripDraft) async throws -> UUID; func regenerateList(for tripID: UUID) async throws; func submitReview(tripID: UUID, outcomes: [ReviewItemOutcome], wishIPacked: String?) async throws; func rebuildAllDerivedState() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Only cross-lane bridge between SwiftData models and the pure generator. async is call-site convenience only \u2014 internally these call the synchronous GenerationEngine.generate()/applyGenerationResult() on the main actor with no real suspension point. Never move generation to a background actor; the golden path must never show a spinner. rebuildAllDerivedState is required for edit recovery, migration repair, and QA verification."
+    },
+    {
+      "name": "EntitlementSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct EntitlementSnapshot: Equatable { let isPremiumActive: Bool; let activeProductID: String?; let lastVerifiedAt: Date?; let graceWindowEndsAt: Date? }",
+      "owning_lane": "services_utilities",
+      "notes": "Single entitlement state surface for gating and offline grace behavior."
+    },
+    {
+      "name": "EntitlementStoreProtocol",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "@MainActor protocol EntitlementStoreProtocol: AnyObject { var current: EntitlementSnapshot { get } func start() async; func refresh() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Long-lived StoreKit observer listening to Transaction.updates, never a one-shot launch check."
+    },
+    {
+      "name": "HistoryAccessPolicy",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func isTripAccessibleInFreeTier(sortedTrips: [TripSummary], tripID: UUID, entitlement: EntitlementSnapshot) -> Bool",
+      "owning_lane": "data_domain",
+      "notes": "Pure retained-window policy used by list and navigation gating."
+    },
+    {
+      "name": "WidgetSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct WidgetSnapshot: Codable, Equatable { let stableTripId: UUID?; let daysUntilTrip: Int?; let percentComplete: Double?; let hasPendingReview: Bool; let updatedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "One file, dual target membership (main app + widget extension). Never contains destination text by construction."
+    },
+    {
+      "name": "WidgetSnapshotPublishing",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol WidgetSnapshotPublishing { func publish(_ snapshot: WidgetSnapshot) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Agreed by both."
+    },
+    {
+      "name": "PendingNavigationIntent",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PendingNavigationIntent: Equatable { case openTrip(UUID); case openReview(UUID); case openSettings; case openPaywall; case none }",
+      "owning_lane": "primary_ui",
+      "notes": "Single app-root value resolved once per external trigger via DeepLinkRouter."
+    },
+    {
+      "name": "ExportingPackingList",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ExportingPackingList { func exportPlainTextList(for tripID: UUID) throws -> URL }",
+      "owning_lane": "services_utilities",
+      "notes": "Builds PackingItemSnapshot values on demand and strips all reasoning before writing the export file."
+    },
+    {
+      "name": "AppError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AppError: Error, Equatable { case persistenceFailure(String); case climateDataMissing(String); case generationFailed; case entitlementUnavailable; case tripNotFound; case invalidTripDates; case notificationDenied }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared typed errors for reachable error states across UI and services."
+    },
+    {
+      "name": "BuildVerificationChecklist",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct BuildVerificationChecklist { let verifiedCoreFlows: [String]; let unverifiableInHeadless: [String]; let knownLimitations: [String] }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared vocabulary for build verification and final review to report the same truth about what's actually working vs. flagged as a limitation."
+    },
+    {
+      "name": "Trip",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Trip { var id: UUID; var destinationDisplayName: String; var regionOrZoneId: String?; var climateZoneFallbackId: String?; var startDate: Date; var endDate: Date; var tripType: TripType; var carryOnOnly: Bool; var laundryAccess: Bool; var didHappen: Bool; var createdAt: Date; var lastGeneratedAt: Date?; var generationAlgorithmVersion: Int?; @Relationship(deleteRule: .cascade) var items: [PackingItem]; @Relationship(deleteRule: .cascade) var review: Review? }",
+      "owning_lane": "data_domain",
+      "notes": "didHappen is the sole persisted lifecycle fact, default true, flipped only by the explicit 'didn't happen' action, never by the clock. No persisted TripStatus/planned/completed enum."
+    },
+    {
+      "name": "PackingItem",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class PackingItem { var id: UUID; var trip: Trip?; var name: String; var category: PackingCategory; var isCustom: Bool; var isChecked: Bool; var quantity: Int; var reasonKind: SuggestionReasonKind?; var reasonMessage: String?; var reasonEvidenceCount: Int?; var isRecentlyChanged: Bool; var sortOrder: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Reason fields + isRecentlyChanged frozen at generation/regeneration time, applied in one write, never live-recomputed. isCustom rows never touched by regeneration diffing."
+    },
+    {
+      "name": "Review",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Review { var id: UUID; var trip: Trip?; var completedAt: Date; var wishIPacked: String?; @Relationship(deleteRule: .cascade) var itemOutcomes: [ReviewItemOutcome] }",
+      "owning_lane": "data_domain",
+      "notes": "wishIPacked is a single free-text field disconnected from item identity \u2014 covers items never on the list at all."
+    },
+    {
+      "name": "ReviewItemOutcome",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class ReviewItemOutcome { var id: UUID; var review: Review?; var itemName: String; var category: PackingCategory; var wasUsed: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Plain Bool, not a 3-case enum. Only source of learning signal; packing checkmarks never write here."
+    },
+    {
+      "name": "PackingCategory",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PackingCategory: String, Codable, CaseIterable { case clothing, toiletries, electronics, documents, health, gear }",
+      "owning_lane": "data_domain",
+      "notes": "Closed checklist grouping set."
+    },
+    {
+      "name": "ClimateNormal",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ClimateNormal: Codable, Equatable { let regionOrZoneId: String; let month: Int; let averageHighC: Double; let averageLowC: Double; let averagePrecipitationMM: Double; let notes: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Raw bundled data for climate-card display copy, always 'historical average', never forecast language."
+    },
+    {
+      "name": "ClimateCatalog",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ClimateCatalog { func normal(for regionOrZoneId: String, month: Int) -> ClimateNormal?; func allRegions() -> [RegionCatalogEntry]; func allFallbackZones() -> [ClimateZoneFallbackEntry] }",
+      "owning_lane": "data_domain",
+      "notes": "Loaded once in-memory at launch; CI test asserts full 12-month coverage per region/fallback zone."
+    },
+    {
+      "name": "RegionCatalogEntry",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RegionCatalogEntry: Codable, Identifiable, Equatable { let id: String; let displayName: String; let climateZoneFallbackId: String }",
+      "owning_lane": "data_domain",
+      "notes": "~30-40 bundled destinations."
+    },
+    {
+      "name": "ClimateZoneFallbackEntry",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ClimateZoneFallbackEntry: Codable, Identifiable, Equatable { let id: String; let displayName: String }",
+      "owning_lane": "data_domain",
+      "notes": "Inline fallback shown the instant destination search returns zero matches. Search itself is synchronous in-memory filtering \u2014 no debounce, no async, no loading state."
+    },
+    {
+      "name": "monthOfMajorityDays",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func monthOfMajorityDays(start: Date, end: Date, calendar: Calendar) -> Int",
+      "owning_lane": "data_domain",
+      "notes": "Deterministic month-boundary resolution for climate lookup."
+    },
+    {
+      "name": "GenerationInput",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct GenerationInput: Equatable { let tripType: TripType; let month: Int; let regionOrZoneId: String; let tripLengthDays: Int; let carryOnOnly: Bool; let laundryAccess: Bool; let climate: [ClimateNormal]; let learningHistory: LearningHistorySnapshot }",
+      "owning_lane": "data_domain",
+      "notes": "Fully snapshotted value type; nothing here is a live SwiftData reference."
+    },
+    {
+      "name": "GenerationResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct GenerationResult: Equatable { struct SuggestedItem: Equatable { let name: String; let category: PackingCategory; let quantity: Int; let reason: SuggestionReason }; let items: [SuggestedItem]; let algorithmVersion: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Pure output; never persisted as its own artifact table \u2014 applyGenerationResult maps it directly onto PackingItem rows."
+    },
+    {
+      "name": "GenerationEngine",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol GenerationEngine { func generate(input: GenerationInput) -> GenerationResult }",
+      "owning_lane": "data_domain",
+      "notes": "MUST stay synchronous, non-async, non-actor-isolated. This is the rule that keeps trip creation/regeneration feeling instant \u2014 never wrap it in Task or move it to a background actor."
+    },
+    {
+      "name": "LearningHistorySnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct LearningHistorySnapshot: Equatable { struct ItemEvidence: Equatable { let itemName: String; let category: PackingCategory; let usedCount: Int; let unusedCount: Int; let lastSeenDate: Date }; let evidenceByItem: [ItemEvidence]; let minimumEvidenceCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "minimumEvidenceCount = 2 same-type-or-region data points before a suggestion visibly shifts."
+    },
+    {
+      "name": "LearningHistoryReader",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol LearningHistoryReader { func snapshot(for tripType: TripType, regionOrZoneId: String, context: ModelContext) throws -> LearningHistorySnapshot }",
+      "owning_lane": "data_domain",
+      "notes": "Always recomputes fresh from raw ReviewItemOutcome rows on trips where didHappen == true; never an incremental cache."
+    },
+    {
+      "name": "isWithinFreeRetentionWindow",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func isWithinFreeRetentionWindow(tripId: UUID, tripDate: Date, allTripDatesById: [UUID: Date], isPaidEntitled: Bool) -> Bool",
+      "owning_lane": "data_domain",
+      "notes": "Relationship-free free-tier lock check; must be callable from TripCard's body with zero perceptible cost."
+    },
+    {
+      "name": "TabRoute",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TabRoute: Hashable { case tripList, tripDetail(UUID), review(UUID), insights, settings, paywall }",
+      "owning_lane": "primary_ui",
+      "notes": "Independent NavigationPath per tab, reset to root on cold relaunch."
+    },
+    {
+      "name": "DeepLinkRouter",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol DeepLinkRouter { func resolve(_ intent: PendingNavigationIntent, context: ModelContext) -> DeepLinkResolution }",
+      "owning_lane": "services_utilities",
+      "notes": "Prevents racing entry points (notification, widget, Siri) from independently mutating navigation state."
+    },
+    {
+      "name": "ToastCenter",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Observable final class ToastCenter { func show(_ message: ToastMessage) }",
+      "owning_lane": "primary_ui",
+      "notes": "One implementation, used for both the changed-list moment and the trip-not-found fallback, different copy only."
+    },
+    {
+      "name": "ColorStory",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ColorStory: CaseIterable { case hotArid, tropicalHumid, temperateMild, coldContinental, alpine, mediterranean; func hexPair() -> (primary: String, secondary: String); func textColor(onLuminance: Double) -> Color }",
+      "owning_lane": "primary_ui",
+      "notes": "Pure function of climate zone + season; formula-driven contrast per design_discussion's locked hex values."
+    },
+    {
+      "name": "WidgetSnapshotPublisher",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol WidgetSnapshotPublisher { func publish(_ snapshot: WidgetSnapshot) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Debounced ~1-2s over inactivity, then WidgetCenter.shared.reloadTimelines."
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "@MainActor protocol EntitlementStore: AnyObject { var current: EntitlementState { get }; func start() async; func refresh() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Long-lived StoreKit 2 Transaction.updates listener, never a one-shot launch check. Offline grace window biases toward preserving unlocked access."
+    },
+    {
+      "name": "AddPackingItemIntent",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct AddPackingItemIntent: AppIntent { @Parameter var itemName: String; func perform() async throws -> some IntentResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Lives in main app target only, calls domain services directly, targets most imminent upcoming trip, clean spoken failure at zero trips."
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol NotificationScheduler { func scheduleReviewNudge(for tripId: UUID, at date: Date) }",
+      "owning_lane": "services_utilities",
+      "notes": "Best-effort only, generic copy, permission denial never blocks core flow."
+    },
+    {
+      "name": "regenerateSuggestedItems",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func regenerateSuggestedItems(existing: [PackingItem], result: GenerationResult) -> [PackingItem]",
+      "owning_lane": "data_domain",
+      "notes": "Rewrites suggested rows only. Keeps checked state when name and reason are unchanged; never touches custom rows."
+    },
+    {
+      "name": "AccessibilityCollapseAdapter",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func collapsedHeaderStyle(colorStory: ColorStory, dynamicTypeSize: DynamicTypeSize, increaseContrast: Bool, reduceTransparency: Bool) -> HeaderRenderStyle",
+      "owning_lane": "polish_resilience",
+      "notes": "One shared 'collapse to flat/simple' mechanism reused across Dynamic Type XXL, Increase Contrast, and Reduce Transparency. layout and backgroundColors are set independently based on which trigger(s) are active."
+    },
+    {
+      "name": "PersistenceBootstrap",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func makeModelContainer() throws -> ModelContainer",
+      "owning_lane": "polish_resilience",
+      "notes": "Builds VersionedSchema (SchemaV1)-backed container from first commit. Failure surfaces a full-bleed persistence-error state, never a crash."
+    },
+    {
+      "name": "TripStatus/didHappen",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "OPEN: Codex proposes `enum TripStatus { planned, completed, didNotHappen }` on a value-type trip snapshot; Claude proposes `var didHappen: Bool` directly on the @Model Trip. Pick one.",
+      "owning_lane": "data_domain",
+      "notes": "Both agree the semantics (soft-exclude, structurally filtered out of learning queries, never a delete) \u2014 only the representation differs. Must resolve next round."
+    },
+    {
+      "name": "PackingItem/PackingItemArtifact",
+      "kind": "struct|class",
+      "language": "Swift",
+      "signature": "OPEN: Codex's `PackingItemArtifact` (value type, part of a persisted PackingListArtifact) vs Claude's `PackingItem` (@Model class with suggestionReason/isRecentlyChanged fields directly on the row). Pick one.",
+      "owning_lane": "data_domain",
+      "notes": "Both agree reason+changed-flag must be frozen at generation/regeneration time and never live-recomputed; only where that frozen data physically lives differs."
+    },
+    {
+      "name": "ReviewOutcome shape",
+      "kind": "struct|class",
+      "language": "Swift",
+      "signature": "OPEN: Codex's ReviewOutcomeSnapshot/ReviewedItemOutcome + ItemUsageOutcome enum (used/unused/wishedPacked) vs Claude's Review/ReviewItemOutcome (@Model, wasUsed: Bool) + separate wishIPacked: String? field on Review. Pick one.",
+      "owning_lane": "data_domain",
+      "notes": "Functionally equivalent; needs one canonical shape so review UI and learning-history builder agree on a type."
+    },
+    {
+      "name": "GenerationEngine contract",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "OPEN: Codex's `PackingListGenerating.generate(trip:climate:history:previous:) -> PackingListArtifact` vs Claude's `GenerationEngine.generate(input: GenerationInput) -> GenerationResult`. Both agree: pure, synchronous, non-async, zero SwiftData/UI dependency, zero LLM.",
+      "owning_lane": "data_domain",
+      "notes": "Naming/shape must converge; the 'must stay synchronous' rule is already locked and non-negotiable."
+    },
+    {
+      "name": "ClimateNormal/ClimateSummary",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "OPEN: Codex's ClimateSummary (regionKey, month, averageHighC/LowC, PrecipitationBand, copyLabel) vs Claude's ClimateNormal (regionOrZoneId, month, averageHighC/LowC, averagePrecipitationMM, notes) + ClimateCatalog protocol. Similar shape, different field names/precision.",
+      "owning_lane": "data_domain",
+      "notes": "Both agree: bundled JSON, loaded once in-memory, CI test asserts 12-month completeness per region/fallback zone, UI copy always 'historical average' never forecast."
+    },
+    {
+      "name": "isWithinFreeRetentionWindow / HistoryAccessPolicy",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func isWithinFreeRetentionWindow(tripId: UUID, tripDate: Date, allTripDatesById: [UUID: Date], isPaidEntitled: Bool) -> Bool",
+      "owning_lane": "data_domain",
+      "notes": "Both agree this must be relationship-free and take only id+date projections plus entitlement state, never fault in items/review."
+    },
+    {
+      "name": "PendingNavigationIntent / DeepLinkRouter",
+      "kind": "enum|protocol",
+      "language": "Swift",
+      "signature": "enum PendingNavigationIntent { case openTrip(UUID); case openReview(UUID); case openSettings/openPaywall; case none }; protocol DeepLinkRouter { func resolve(_ intent: PendingNavigationIntent, context: ModelContext) -> DeepLinkResolution }; enum DeepLinkResolution { case route(TabRoute); case tripNotFound }",
+      "owning_lane": "primary_ui",
+      "notes": "Agreed by both: single app-root value, tripNotFound drives the same ToastCenter used for the changed-list moment."
+    },
+    {
+      "name": "NotificationScheduler/NotificationScheduling",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol NotificationScheduler { func scheduleReviewNudge(for tripId: UUID, at date: Date) }",
+      "owning_lane": "services_utilities",
+      "notes": "Agreed: best-effort only, generic copy, permission denial never blocks core flow."
+    },
+    {
+      "name": "DeepLinkResolution",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum DeepLinkResolution: Equatable { case route(TabRoute); case tripNotFound }",
+      "owning_lane": "services_utilities",
+      "notes": "Stale/deleted-trip deep links fail safely to Trip List and reuse the existing toast system, never crash/no-op."
+    },
+    {
+      "name": "ToastMessage",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ToastMessage: Equatable { let text: String; let style: ToastStyle }",
+      "owning_lane": "primary_ui",
+      "notes": "Shared toast payload."
+    },
+    {
+      "name": "ToastStyle",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ToastStyle: Equatable { case info, success, warning }",
+      "owning_lane": "primary_ui",
+      "notes": "Minimal shared toast style set."
+    },
+    {
+      "name": "TripPhase",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TripPhase { case upcoming, inProgressOrAwaitingReturn, awaitingReview, reviewed, didNotHappen }",
+      "owning_lane": "data_domain",
+      "notes": "Never persisted. Computed fresh every read via tripPhase(trip:now:), so it cannot go stale."
+    },
+    {
+      "name": "tripPhase",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func tripPhase(trip: Trip, now: Date) -> TripPhase",
+      "owning_lane": "data_domain",
+      "notes": "Pure, cheap; called wherever UI needs lifecycle state (trip card badge, detail header)."
+    },
+    {
+      "name": "precipitationBand",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func precipitationBand(for normal: ClimateNormal) -> PrecipitationBand",
+      "owning_lane": "data_domain",
+      "notes": "Pure derivation, called by GenerationEngine, never persisted."
+    },
+    {
+      "name": "applyGenerationResult",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func applyGenerationResult(_ result: GenerationResult, to trip: Trip, context: ModelContext) -> [PackingItem]",
+      "owning_lane": "data_domain",
+      "notes": "Single write path for frozen suggestion facts. Matches suggested rows by name; unchanged reason keeps checked state and isRecentlyChanged=false; never touches isCustom rows."
+    },
+    {
+      "name": "PackingItemSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PackingItemSnapshot: Codable, Equatable { let name: String; let category: PackingCategory; let quantity: Int; let isCustom: Bool; let reason: SuggestionReason? }",
+      "owning_lane": "services_utilities",
+      "notes": "Derived on demand from PackingItem rows for export/share only, never separately persisted. Export strips reason entirely per standing privacy rule."
+    },
+    {
+      "name": "EntitlementState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct EntitlementState: Equatable { let isPremiumActive: Bool; let lastVerifiedAt: Date?; let graceWindowEndsAt: Date? }",
+      "owning_lane": "services_utilities",
+      "notes": "Single entitlement gating snapshot."
+    },
+    {
+      "name": "TripStatus (Codex's variant, OPEN)",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TripStatus: String, Codable, CaseIterable { case planned, completed, didNotHappen }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted on Trip.statusRaw in Codex's round-2 model. Contested by Claude \u2014 see TripPhase alternative below."
+    },
+    {
+      "name": "TripPhase (Claude's variant, OPEN)",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TripPhase { case upcoming, inProgressOrAwaitingReturn, awaitingReview, reviewed, didNotHappen }",
+      "owning_lane": "data_domain",
+      "notes": "Never persisted; computed via tripPhase(trip:now:) from endDate + review presence + didHappen, so it can't go stale. This is the alternative to Codex's persisted TripStatus \u2014 pick one next round."
+    },
+    {
+      "name": "HeaderRenderStyle",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct HeaderRenderStyle: Equatable { let layout: HeaderLayoutVariant; let backgroundColors: [Color]; let textColor: Color }",
+      "owning_lane": "polish_resilience",
+      "notes": "RESOLVED (was the round-3 gate failure \u2014 undefined return type). backgroundColors has 2 elements for the normal gradient pair, or 1 when Increase Contrast/Reduce Transparency has flattened it to a single anchor color. Modeled as independent fields rather than a 3-case enum specifically because layout collapse and color flattening are separate accessibility settings that can both be active at once \u2014 a mutually-exclusive enum would force dropping one."
+    },
+    {
+      "name": "HeaderLayoutVariant",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum HeaderLayoutVariant: Equatable { case full, collapsedBand }",
+      "owning_lane": "polish_resilience",
+      "notes": "Driven independently by Dynamic Type size (XXL collapses to a slim band with text moved below onto plain background). Independent axis from color flattening \u2014 the two settings can be on simultaneously."
+    }
+  ],
+  "errors": []
+}

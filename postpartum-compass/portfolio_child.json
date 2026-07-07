@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Postpartum Compass",
+    "slug": "postpartum-compass",
+    "category": "Medical",
+    "promise": "EPDS-style perinatal mood risk screening with ongoing check-ins and real local resource connections",
+    "targetUser": "Pregnant or postpartum parent worried about their mood, afraid of being judged or reported",
+    "mechanic": "validated mood screen + longitudinal check-ins + resource connector",
+    "build": true,
+    "one_sentence_promise": "EPDS-style perinatal mood risk screening with ongoing check-ins and real local resource connections",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

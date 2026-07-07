@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Quietroute",
+    "slug": "quietroute",
+    "category": "Navigation",
+    "promise": "Sensory-friendly, predictable step-by-step wayfinding and transit companion",
+    "targetUser": "Neurodivergent or anxiety-prone traveler for whom unpredictable reroutes derail the trip",
+    "mechanic": "cognitive/sensory-accessibility-constrained routing",
+    "build": true,
+    "one_sentence_promise": "Sensory-friendly, predictable step-by-step wayfinding and transit companion",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

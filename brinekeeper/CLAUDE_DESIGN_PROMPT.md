@@ -1,0 +1,1 @@
+Design a reef-aquarium chemistry app called Brinekeeper with a bioluminescent deep-water visual identity: near-black backgrounds, glowing coral/teal/violet accent gradients, glass-morphism cards for water-test data, and luminous animated trend graphs. It must feel like a precision scientific instrument, not a generic tracker.

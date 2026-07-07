@@ -1,0 +1,478 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Book",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Book { var id: UUID; var title: String; var author: String; var coverImageData: Data?; var isbn: String?; var genre: String?; var status: ReadingStatus; var startedDate: Date?; var finishedDate: Date?; var createdAt: Date; @Relationship(deleteRule: .cascade) var entries: [Entry] }",
+      "owning_lane": "data_domain",
+      "notes": "title/author only required; cover stored as downsampled thumbnail only, never full-res"
+    },
+    {
+      "name": "ReadingStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ReadingStatus: String, Codable, Sendable { case wantToRead, currentlyReading, finished, didNotFinish }",
+      "owning_lane": "data_domain",
+      "notes": "never inferred from entry count"
+    },
+    {
+      "name": "Entry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Entry { var id: UUID; @Relationship var book: Book?; var quoteText: String; var pageLocation: String?; var rating: Int?; var reflection: String?; var source: EntrySource; var createdAt: Date; var updatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "the one canonical writable record; book optional for quote-first capture; TimelineItem is derived from this and never written back to it"
+    },
+    {
+      "name": "EntrySource",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EntrySource: String, Codable, Sendable { case manual, ocr }",
+      "owning_lane": "data_domain",
+      "notes": "no siriIntent case; Siri/App Intent capture is a manual entry point, not a distinct persisted domain source"
+    },
+    {
+      "name": "Circle",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Circle { var id: UUID; var name: String; var createdAt: Date; @Relationship(deleteRule: .cascade) var members: [CircleMember] }",
+      "owning_lane": "data_domain",
+      "notes": "data model supports many circles; UI caps free tier at one"
+    },
+    {
+      "name": "CircleMember",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class CircleMember { var id: UUID; var displayName: String; var contactIdentifier: String?; var phoneNumber: String?; var email: String?; var addedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "contactIdentifier from CNContactPickerViewController; phone/email from manual fallback"
+    },
+    {
+      "name": "ShareEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ShareEvent { var id: UUID; var entryID: UUID; var circleID: UUID?; var bookTitleSnapshot: String; var authorSnapshot: String; var quoteTextSnapshot: String; var pageLocationSnapshot: String?; var reflectionSnapshot: String?; var ratingSnapshot: Int?; var recipientNamesSnapshot: [String]; var sharedAt: Date; var channel: ShareChannel }",
+      "owning_lane": "data_domain",
+      "notes": "immutable denormalized snapshot; no recipientMemberIDs \u2014 circleID plus name snapshot satisfy every locked history requirement without a speculative field"
+    },
+    {
+      "name": "ShareChannel",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ShareChannel: String, Codable, Sendable { case messagesCompose, activitySheetFallback }",
+      "owning_lane": "data_domain",
+      "notes": "cases map 1:1 onto ShareComposePresentation for deterministic tests"
+    },
+    {
+      "name": "AppSettings",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class AppSettings { var id: UUID; var appLockEnabled: Bool; var appLockGracePeriodSeconds: Int; var onboardingCompleted: Bool; var hasSeenSinglePageScanTip: Bool; var subscriptionTier: SubscriptionTier }",
+      "owning_lane": "data_domain",
+      "notes": "single row; local feature flag only, no StoreKit wiring in v1"
+    },
+    {
+      "name": "TimelineItem",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TimelineItem: Identifiable, Sendable { let id: UUID; let bookID: UUID?; let bookTitle: String?; let author: String?; let quoteText: String; let pageLocation: String?; let rating: Int?; let source: EntrySource; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "dedicated read-only Timeline projection with no relationship to fault; bookTitle/author optional to render an honest 'unfiled quote' row; never independently mutated or saved"
+    },
+    {
+      "name": "StatsSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StatsSnapshot: Sendable { let booksFinished: Int; let quotesSaved: Int; let currentStreakDays: Int; let favoriteAuthors: [String]; let currentlyReadingCount: Int }",
+      "owning_lane": "services_utilities",
+      "notes": "shared output for stats screen, widgets, and wrap-up teaser"
+    },
+    {
+      "name": "BookRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol BookRepository: Sendable { func fetchAll() async throws -> [Book]; func fetch(id: UUID) async throws -> Book?; func save(_ book: Book) async throws; func delete(id: UUID) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "book count assumed small, unbounded fetch acceptable"
+    },
+    {
+      "name": "EntryRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntryRepository: Sendable { func fetchTimeline(limit: Int, offset: Int) async throws -> [TimelineItem]; func fetch(bookID: UUID) async throws -> [Entry]; func fetch(id: UUID) async throws -> Entry?; func save(_ entry: Entry) async throws; func delete(id: UUID) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "fetchTimeline is the only timeline-loading method and the only paginated one; fetch(bookID:) returns canonical Entry since per-book counts are small; no duplicate raw-Entry timeline method"
+    },
+    {
+      "name": "CircleRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CircleRepository: Sendable { func fetchPrimaryCircle() async throws -> Circle?; func createCircle(name: String) async throws -> Circle; func addMember(_ member: CircleMember, to circle: Circle) async throws; func removeMember(id: UUID) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "removeMember must not cascade to ShareEvent history"
+    },
+    {
+      "name": "ShareEventRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ShareEventRepository: Sendable { func recordShare(_ event: ShareEvent) async throws; func fetchHistory(entryID: UUID) async throws -> [ShareEvent]; func fetchHistory(circleID: UUID) async throws -> [ShareEvent] }",
+      "owning_lane": "data_domain",
+      "notes": "supports both entry-level and circle-level share history surfaces"
+    },
+    {
+      "name": "SettingsRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SettingsRepository: Sendable { func loadSettings() async throws -> AppSettings; func saveSettings(_ settings: AppSettings) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "app lock and onboarding settings live here"
+    },
+    {
+      "name": "StatsService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol StatsService: Sendable { func loadStats(now: Date) async throws -> StatsSnapshot }",
+      "owning_lane": "services_utilities",
+      "notes": "centralizes deterministic stats logic; caller injects now"
+    },
+    {
+      "name": "DocumentScanService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol DocumentScanService: Sendable { func scanSinglePage() async throws -> ScannedPage }",
+      "owning_lane": "services_utilities",
+      "notes": "wraps VNDocumentCameraViewController; production + fake implementations required"
+    },
+    {
+      "name": "ScannedPage",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ScannedPage: Sendable { let image: CGImage; let capturedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "single normalized image payload"
+    },
+    {
+      "name": "OCRService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol OCRService: Sendable { func recognizeText(in image: CGImage) async throws -> RecognizedTextResult }",
+      "owning_lane": "services_utilities",
+      "notes": "wraps VNRecognizeTextRequest; fixture-testable independent of scanner lifecycle"
+    },
+    {
+      "name": "OCRResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct OCRResult: Sendable { let recognizedText: String; let confidence: Float?; let hadNoText: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "hadNoText distinguishes normal no-text state from thrown failures."
+    },
+    {
+      "name": "ShareComposerService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ShareComposerService: Sendable { func makeSharePayload(entry: Entry, book: Book, recipients: [CircleMember]) async throws -> SharePayload; func canSendMessages() -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Builds the exact share content and selects Messages vs share-sheet path."
+    },
+    {
+      "name": "SharePayload",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct SharePayload: Sendable { let messageBody: String; let recipientHandles: [String] }",
+      "owning_lane": "services_utilities",
+      "notes": "Used by UI bridge to MessageUI or activity sheet."
+    },
+    {
+      "name": "AppLockService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol AppLockService: Sendable { func evaluateUnlock() async -> Bool; func shouldRelock(afterBackgroundAt: Date?, now: Date, gracePeriod: Int) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Biometric/passcode gate plus grace-window logic."
+    },
+    {
+      "name": "DateProvider",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol DateProvider: Sendable { var now: Date { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Shared determinism seam for stats, streaks, and app-lock timing."
+    },
+    {
+      "name": "TimelineModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class TimelineModel { var items: [TimelineItem]; var loadState: LoadState; func load() async; func loadMore() async; func deleteEntry(id: UUID) async }",
+      "owning_lane": "primary_ui",
+      "notes": "backed by TimelineItem only, via EntryRepository.fetchTimeline; never a full-table fetch"
+    },
+    {
+      "name": "EntryComposeModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class EntryComposeModel { var draft: EntryDraft; var state: SaveState; func applyOCRResult(_ result: RecognizedTextResult); func save() async }",
+      "owning_lane": "primary_ui",
+      "notes": "manual, OCR-prefilled, and Siri-prefilled paths all converge here"
+    },
+    {
+      "name": "EntryDraft",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EntryDraft: Sendable { var bookID: UUID?; var quoteText: String; var pageLocation: String?; var rating: Int?; var reflection: String?; var source: EntrySource }",
+      "owning_lane": "primary_ui",
+      "notes": "shuttles data through capture flow before Entry persists"
+    },
+    {
+      "name": "OCRReviewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class OCRReviewModel { var recognizedText: String; var state: LoadState; func continueToCompose() -> EntryDraft; func resetToManual() -> EntryDraft }",
+      "owning_lane": "primary_ui",
+      "notes": "the dedicated confirm-and-edit moment before compose"
+    },
+    {
+      "name": "CircleModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class CircleModel { var circle: Circle?; var members: [CircleMember]; var shareHistory: [ShareEvent]; var state: LoadState; func load() async; func addMember(_ contact: PickedContact) async throws; func removeMember(id: UUID) async; func share(entry: Entry, to members: [CircleMember]) async throws }",
+      "owning_lane": "primary_ui",
+      "notes": "supports empty/configured/limit-reached states; outbound-only sharing"
+    },
+    {
+      "name": "StatsModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class StatsModel { var snapshot: StatsSnapshot?; var state: LoadState; func load() async }",
+      "owning_lane": "primary_ui",
+      "notes": "consumes StatsService output only; no inline date math in views"
+    },
+    {
+      "name": "LoadState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LoadState: Sendable { case idle, loading, loaded, empty, error(String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "shared across Timeline/Stats/Circle for reachable empty/loading/error states"
+    },
+    {
+      "name": "SaveState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SaveState: Sendable { case idle, saving, saved, validationError(String), error(String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "local save should be near-instant; a stuck spinner is a bug"
+    },
+    {
+      "name": "buildSharedModelContainer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func buildSharedModelContainer(appGroupID: String) throws -> ModelContainer",
+      "owning_lane": "data_domain",
+      "notes": "single construction path for app and widget targets; no separate intents extension target exists"
+    },
+    {
+      "name": "migrateIfNeeded",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func migrateIfNeeded(container: ModelContainer) throws",
+      "owning_lane": "data_domain",
+      "notes": "schema migration entry point, invoked during app bootstrap"
+    },
+    {
+      "name": "EntrySourceType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EntrySourceType: String, Codable, Sendable { case manual, ocr }",
+      "owning_lane": "data_domain",
+      "notes": "Do not persist transport-specific cases like siriIntent; App Intent capture still resolves to manual at the domain layer."
+    },
+    {
+      "name": "ShareDeliveryMethod",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ShareDeliveryMethod: String, Codable, Sendable { case messagesCompose, activitySheetFallback }",
+      "owning_lane": "data_domain",
+      "notes": "Persist the actual delivery path used after canSendText fallback resolution."
+    },
+    {
+      "name": "SubscriptionTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SubscriptionTier: String, Codable, Sendable { case free, paid }",
+      "owning_lane": "data_domain",
+      "notes": "gates OCR entry point and second circle in UI only"
+    },
+    {
+      "name": "SchemaV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum SchemaV1: VersionedSchema { static var versionIdentifier: Schema.Version; static var models: [any PersistentModel.Type] }",
+      "owning_lane": "data_domain",
+      "notes": "first schema version, wired into SchemaMigrationPlan from commit one"
+    },
+    {
+      "name": "ChapterlyMigrationPlan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum ChapterlyMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type]; static var stages: [MigrationStage] }",
+      "owning_lane": "data_domain",
+      "notes": "empty stages today; the seam that prevents a destructive first migration"
+    },
+    {
+      "name": "DocumentScanError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DocumentScanError: Error { case cancelled, cameraUnavailable, permissionDenied, multiplePagesReturned }",
+      "owning_lane": "services_utilities",
+      "notes": "multiple pages rejected explicitly, never silently truncated to page 0"
+    },
+    {
+      "name": "RecognizedTextResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecognizedTextResult: Sendable { let text: String; let hasDetectedText: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "no-text-detected is a normal terminal state, never an exceptional path"
+    },
+    {
+      "name": "MessageComposerService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol MessageComposerService: Sendable { func canSendText() -> Bool; func composePresentation(for payload: ShareComposePayload) -> ShareComposePresentation }",
+      "owning_lane": "services_utilities",
+      "notes": "Messages-vs-fallback decision lives here, not in the view"
+    },
+    {
+      "name": "ShareComposePayload",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ShareComposePayload: Sendable { let recipients: [CircleMember]; let messageText: String }",
+      "owning_lane": "services_utilities",
+      "notes": "outbound share construction input"
+    },
+    {
+      "name": "ShareComposePresentation",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ShareComposePresentation { case messages(recipients: [String], body: String); case activityFallback(items: [Any]) }",
+      "owning_lane": "services_utilities",
+      "notes": "case names correspond 1:1 with ShareChannel"
+    },
+    {
+      "name": "ContactPickerService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ContactPickerService: Sendable { func pickContact() async -> PickedContact? }",
+      "owning_lane": "services_utilities",
+      "notes": "wraps CNContactPickerViewController; no Contacts entitlement required"
+    },
+    {
+      "name": "PickedContact",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PickedContact: Sendable { let name: String; let phoneNumber: String?; let email: String?; let contactIdentifier: String? }",
+      "owning_lane": "services_utilities",
+      "notes": "manual fallback remains available for non-picker recipients"
+    },
+    {
+      "name": "Clock",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol Clock: Sendable { func now() -> Date }",
+      "owning_lane": "services_utilities",
+      "notes": "injected everywhere date math happens; never Date() directly in feature models"
+    },
+    {
+      "name": "StreakCalculator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum StreakCalculator { static func currentStreak(entryDates: [Date], calendar: Calendar, now: Date) -> Int }",
+      "owning_lane": "services_utilities",
+      "notes": "pure function; tested across midnight/timezone/DST edge cases"
+    },
+    {
+      "name": "ShareTextFormatter",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ShareTextFormatter { static func formatShareText(bookTitle: String, author: String, quote: String, pageLocation: String?, reflection: String?, rating: Int?) -> String }",
+      "owning_lane": "services_utilities",
+      "notes": "produces the real content sent via Messages; never placeholder text"
+    },
+    {
+      "name": "BiometricAuthService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol BiometricAuthService: Sendable { func canEvaluatePolicy() -> Bool; func authenticate(reason: String) async -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "requires NSFaceIDUsageDescription; passcode fallback handled by LAContext itself"
+    },
+    {
+      "name": "AppRouter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class AppRouter { var path: NavigationPath; func push(_ route: Route); func popToRoot() }",
+      "owning_lane": "primary_ui",
+      "notes": "single stack rooted at Timeline; Stats/Circle pushed via nav-bar icons, never tabs"
+    },
+    {
+      "name": "Route",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Route: Hashable { case bookDetail(UUID); case entryDetail(UUID); case stats; case circle }",
+      "owning_lane": "primary_ui",
+      "notes": "minimum deployment target iOS 18; entryDetail push uses .navigationTransition(.zoom(sourceID:in:)) as the sole implementation, no matchedGeometryEffect fallback anywhere in the codebase"
+    },
+    {
+      "name": "CaptureCoordinator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class CaptureCoordinator { var step: CaptureStep; func chooseManual(); func chooseScan() async; func retake() async; func typeInstead(); func continueToCompose(with text: String) }",
+      "owning_lane": "primary_ui",
+      "notes": "self-contained modal flow, own back-stack, never touches AppRouter"
+    },
+    {
+      "name": "CaptureStep",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CaptureStep { case chooser; case scanning; case ocrReview(RecognizedTextResult); case compose(EntryDraft); case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "ocrReview always offers Retake/Type instead/Continue exactly as locked in design phase"
+    },
+    {
+      "name": "AppLockController",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class AppLockController { var isLocked: Bool; func handleScenePhaseChange(_ phase: ScenePhase) }",
+      "owning_lane": "polish_resilience",
+      "notes": "gates on .background with a grace window, not .inactive"
+    },
+    {
+      "name": "CurrentlyReadingWidgetProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CurrentlyReadingWidgetProvider: TimelineProvider { func placeholder(in: Context) -> CurrentlyReadingEntry; func getSnapshot(in: Context, completion: (CurrentlyReadingEntry) -> Void); func getTimeline(in: Context, completion: (Timeline<CurrentlyReadingEntry>) -> Void) }",
+      "owning_lane": "polish_resilience",
+      "notes": "reads App Group ModelContainer via buildSharedModelContainer with its own fresh ModelContext"
+    },
+    {
+      "name": "StreakWidgetProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StreakWidgetProvider: TimelineProvider { func placeholder(in: Context) -> StreakEntry; func getSnapshot(in: Context, completion: (StreakEntry) -> Void); func getTimeline(in: Context, completion: (Timeline<StreakEntry>) -> Void) }",
+      "owning_lane": "polish_resilience",
+      "notes": "own fresh ModelContext against the same App Group store URL"
+    },
+    {
+      "name": "LogQuoteIntent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LogQuoteIntent: AppIntent { static var title: LocalizedStringResource; @Parameter var quoteText: String; func perform() async throws -> some IntentResult & ProvidesDialog }",
+      "owning_lane": "polish_resilience",
+      "notes": "lives in the main app target, no separate intents extension; always confirms book attachment before save"
+    }
+  ],
+  "errors": []
+}

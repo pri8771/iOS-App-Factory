@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "apps": [
+    {
+      "name": "Countertop",
+      "slug": "countertop",
+      "category": "Food & Drink",
+      "one_sentence_promise": "A private cooking system that sequences every dish in your meal so everything finishes together, and gets sharper the more you cook.",
+      "target_user": "Home cooks who cook multiple times per week, save recipes from many places, and want calm, repeatable execution instead of more recipe discovery.",
+      "painful_moment": "You're making three components for one dinner and juggling tabs, timers, and guesswork about when to start the rice so it's not cold by the time the chicken's done.",
+      "why_different": "Not a recipe library or discovery app like Paprika \u2014 its core mechanic is a multi-dish sequenced cook mode that interleaves timing across everything you're making for one meal, showing a unified timeline instead of isolated recipe steps.",
+      "why_users_pay": "A private recipe library with corrected ingredients, personal timing notes, and meal history that compounds every week, plus a cook-mode sequencing engine that gets more useful the more real dinners you run through it.",
+      "subscription_model": "Freemium with a capped recipe library and single-recipe cook mode; subscription unlocks unlimited recipes, multi-dish sequenced cook mode, weekly planning, and grocery extraction.",
+      "local_first_mvp_scope": "SwiftData recipe store with structured ingredients/steps, share-extension and OCR import, multi-dish sequencing engine with interleaved timers, weekly planner, grocery list generation, cook history with personal notes, StoreKit paywall.",
+      "future_backend_roadmap": "Optional cross-device sync and shared household meal plans later, without changing the local domain model.",
+      "core_workflows": [
+        "Import a recipe via paste, share extension, or photographed page and clean it into structured ingredients/steps",
+        "Select 2-3 recipes for one meal and let the app compute a single interleaved timeline across all of them",
+        "Cook with step-by-step guidance, concurrent timers, and substitution notes",
+        "Plan a week of meals and generate one grouped grocery list",
+        "Review cook history and adjust timing/ingredients for next time"
+      ],
+      "ios_native_features": [
+        "SwiftData local persistence",
+        "Share extension for recipe import",
+        "On-device Vision OCR for photographed recipe pages",
+        "Live Activities for multi-dish concurrent timers",
+        "Interactive widgets for tonight's plan",
+        "App Intents/Shortcuts for quick plan/cook actions"
+      ],
+      "ar_ml_llm_fit": "On-device Vision OCR for recipe capture is optional and justified; no LLM or AR required in v1.",
+      "design_direction": "Warm, editorial, tactile \u2014 generous typography, calm kitchen-safe contrast, a timeline view for multi-dish sequencing that reads clearly at arm's length while hands are messy.",
+      "claude_design_prompt": "Design a premium iPhone cooking app called Countertop. The signature screen is a multi-dish cook-mode timeline that interleaves steps and timers across 2-3 recipes being cooked together for one meal, so the user always knows what to start next to make everything finish at once. Warm neutral palette, food-safe accent color, large legible typography readable at arm's length, one-handed touch targets, calm and editorial rather than social or gamified. Secondary screens: a structured recipe library, a weekly planner, and a grouped grocery list.",
+      "app_store_positioning": "The cooking system for people who already save recipes everywhere but want real weekly execution \u2014 especially the moment of cooking more than one dish at once.",
+      "key_risks": [
+        "If the sequencing engine's timing estimates are wrong, it actively makes dinner worse, not better \u2014 this must be conservative and editable",
+        "Import cleanup is still brittle for messy sources and must fail gracefully rather than silently produce a bad recipe",
+        "Risks reverting to 'Paprika but nicer' if the sequenced cook mode isn't kept as the centerpiece of every core flow"
+      ],
+      "invalidation_criteria": "If cooking two or three dishes for one meal in Countertop isn't demonstrably calmer and better-timed than just eyeballing separate recipes, the core mechanic has failed and the app has no reason to exist.",
+      "v1_build_scope": "Recipe library with import/edit, multi-dish sequenced cook mode with concurrent timers, weekly planner, grocery list, cook history/notes, settings/paywall, full empty/loading/success/error coverage.",
+      "build": true,
+      "build_priority": 1
+    },
+    {
+      "name": "FieldQuote",
+      "slug": "fieldquote",
+      "category": "Business",
+      "one_sentence_promise": "Create clean, client-ready estimates from templates, measurements, and photos before you leave the job site.",
+      "target_user": "Solo contractors and home-service operators who scope jobs in person and need to turn a walkthrough into a professional estimate fast.",
+      "painful_moment": "You finish a walkthrough, drive away with half-remembered details, and lose the job or the margin because the estimate is late or misses line items.",
+      "why_different": "Not a CRM, invoicing tool, or project manager \u2014 a focused jobsite quoting tool built around room-level notes, reusable scopes, measurements, tiered options, and immediate client-ready output on the spot.",
+      "why_users_pay": "Faster turnaround and fewer missed line items pay for the subscription on the very first job; a durable local library of templates and past quotes makes every future estimate faster than the last.",
+      "subscription_model": "Freemium with limited active jobs/templates; subscription unlocks unlimited quotes, branded PDF export, template libraries, tiered options, and full history.",
+      "local_first_mvp_scope": "Local client/job records, room notes with photos and measurements, reusable line-item templates, quote builder with good-better-best options, branded PDF export/share, follow-up reminders, settings/paywall.",
+      "future_backend_roadmap": "Optional device sync, team handoff, shared pricing libraries, and accounting/invoicing integrations later.",
+      "core_workflows": [
+        "Start a job record during or right before a site visit",
+        "Capture room notes, measurements, and photos locally",
+        "Assemble an estimate from reusable templates and editable line items",
+        "Offer tiered options on the spot",
+        "Export and share a branded PDF estimate before leaving"
+      ],
+      "ios_native_features": [
+        "SwiftData local persistence",
+        "Camera capture for room/issue photos",
+        "PDFKit export and share sheet",
+        "App Intents for quick new-quote actions",
+        "Interactive widgets for pending follow-ups",
+        "Local notifications for quote follow-up"
+      ],
+      "ar_ml_llm_fit": "No LLM or AR required in v1; on-device OCR for model numbers/handwritten notes is a possible later addition only if it clearly saves time.",
+      "design_direction": "Confident, precise, field-ready \u2014 high-contrast hierarchy, fast one-handed entry, crisp pricing tables, restrained industrial accents that look credible in front of a client.",
+      "claude_design_prompt": "Design a premium iPhone business app called FieldQuote for solo contractors and home-service pros. It must feel trustworthy, fast, and jobsite-ready, not corporate or bloated. Optimize for one-handed data entry during a walkthrough, quick assembly of reusable line-item scopes, clear tiered pricing breakdowns, and a polished client-facing PDF output screen. Strong hierarchy, practical spacing, durable typography, a restrained visual system that reads as a serious tool a pro would confidently hand to a customer.",
+      "app_store_positioning": "A premium offline quoting tool for independent pros who need to turn a site visit into a professional estimate before they leave the driveway.",
+      "key_risks": [
+        "Scope creep into a full CRM or invoicing suite would dilute the core promise",
+        "Weak PDF output undermines credibility at the exact moment monetization depends on it",
+        "Some users will expect team sync or accounting integration sooner than v1 supports"
+      ],
+      "invalidation_criteria": "If producing a presentable estimate on-site takes longer than jotting numbers in Notes and texting the client later, the app has no reason to exist.",
+      "v1_build_scope": "Job list, client/job detail, room capture, templates and line items, quote builder with tiered options, PDF preview/export/share, reminders, settings/paywall, full empty/loading/success/error coverage.",
+      "build": true,
+      "build_priority": 2
+    }
+  ],
+  "parent": "multi-app-exp"
+}

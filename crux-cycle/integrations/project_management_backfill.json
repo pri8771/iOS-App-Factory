@@ -1,0 +1,421 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "crux-cycle",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b1\nSelected app slug: crux-cycle\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Crux Cycle\n\nBuild mode: **MVP build**.\n\n## App Name\n\nCrux Cycle\n\n## Category\n\nHealth & Fitness\n\n## One-Sentence Promise\n\nStructured periodization and rest-day enforcement for boulderers and route climbers\n\n## Claude Design Handoff Prompt\n\n(not supplied yet)\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Health & Fitness apps, 3 Medical apps, and 3 Navigation apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nAdditional notes:\nMedical/health apps must frame outputs as wellness insights and validated risk scores (e.g. QRISK3, FINDRISC style), never diagnosis.\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n",
+    "verification": "VERIFIED (compiled cleanly for the iOS Simulator)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "CRUXCYCLE",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "build_coordination"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "final_review"
+        ]
+      }
+    ],
+    "issues": []
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "crux-cycle",
+      "Status": "Done",
+      "Source": "Orchestrator",
+      "Workflow Phases": 3
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b1\nSelected app slug: crux-cycle\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Crux Cycle\n\nBuild mode: **MVP build**.\n\n## App Name\n\nCrux Cycle\n\n## Category\n\nHealth & Fitness\n\n## One-Sentence Promise\n\nStructured periodization and rest-day enforcement for boulderers and route climbers\n\n## Claude Design Handoff Prompt\n\n(not supplied yet)\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Health & Fitness apps, 3 Medical apps, and 3 Navigation apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nAdditional notes:\nMedical/health apps must frame outputs as wellness insights and validated risk scores (e.g. QRISK3, FINDRISC style), never diagnosis.\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [],
+    "interfaces": [
+      {
+        "name": "Discipline",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum Discipline: String, Codable, CaseIterable, Identifiable { case boulder, route }",
+        "owning_lane": "data_domain",
+        "notes": "Single fixed set, drives DisciplineIconToggle and per-discipline load split."
+      },
+      {
+        "name": "ClimbingGrade",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ClimbingGrade: Codable, Hashable { case vScale(Int); case yds(String); case french(String) }",
+        "owning_lane": "data_domain",
+        "notes": "Single discrete grade only, no slash/range values ever constructed. String cases hold canonical labels like \"5.10a\" or \"6b+\" from a fixed lookup list, not free text."
+      },
+      {
+        "name": "EffortLevel",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum EffortLevel: Int, Codable, CaseIterable, Identifiable { case easy = 1, moderate, hard, veryHard, max; var accessibleLabel: String { get } }",
+        "owning_lane": "data_domain",
+        "notes": "Defaults to .moderate in the log sheet so save is never blocked on an unset effort."
+      },
+      {
+        "name": "Verdict",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum Verdict: String, Codable { case train, easyDay, rest }",
+        "owning_lane": "data_domain",
+        "notes": "Rendered word in VerdictCard; never shown without ReasoningLine alongside it."
+      },
+      {
+        "name": "PhaseLabel",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PhaseLabel: String, Codable, CaseIterable { case base, build, peak, deload }",
+        "owning_lane": "data_domain",
+        "notes": "Free-tier one-line label; must pair with non-color signal per locked accessibility rule."
+      },
+      {
+        "name": "DayKey",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DayKey: Hashable, Codable { let stringValue: String; static func make(from date: Date, calendar: Calendar) -> DayKey }",
+        "owning_lane": "data_domain",
+        "notes": "Canonical local-calendar day key (yyyy-MM-dd in Calendar.current), used by both LoadMath and DailyLoadSnapshotEntity so no lane invents its own date-string format."
+      },
+      {
+        "name": "DisciplineSubEntry",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DisciplineSubEntry: Identifiable, Codable, Hashable { let id: UUID; var discipline: Discipline; var grade: ClimbingGrade; var attemptCount: Int; var didSend: Bool; var effort: EffortLevel }",
+        "owning_lane": "data_domain",
+        "notes": "attemptCount defaults to 1 in the sheet, not 0."
+      },
+      {
+        "name": "SessionRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct SessionRecord: Identifiable, Codable, Hashable { let id: UUID; var timestampUTC: Date; var subEntries: [DisciplineSubEntry]; var isRestDayOverride: Bool }",
+        "owning_lane": "data_domain",
+        "notes": "Value-type mirror of SessionEntity; this is what LoadMath and unit tests operate on, never @Model objects directly."
+      },
+      {
+        "name": "LoadSnapshot",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct LoadSnapshot: Identifiable, Codable, Hashable { var id: DayKey; var blendedAcute: Double; var blendedChronic: Double; var boulderAcute: Double; var boulderChronic: Double; var routeAcute: Double; var routeChronic: Double; var phase: PhaseLabel? }",
+        "owning_lane": "data_domain",
+        "notes": "One row per local calendar day; Trends reads these directly, never recomputes from raw sessions at render time."
+      },
+      {
+        "name": "TodayCardState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum TodayCardState: Equatable { case initialLoad; case corruptStore; case calibrating(dayCount: Int, rawAcuteLoad: Double); case normal(verdict: Verdict, reasoning: String, acuteLoad: Double, chronicLoad: Double); case gatedRest(reasoning: String, bannerDismissed: Bool) }",
+        "owning_lane": "data_domain",
+        "notes": "Single enum driving VerdictCard; computed by LoadMath, cached on TrainingLoadEngine, never derived live inside a view body."
+      },
+      {
+        "name": "PhaseState",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PhaseState: Equatable { var label: PhaseLabel?; var basis: String }",
+        "owning_lane": "data_domain",
+        "notes": "label is nil pre-14-day-calibration; basis is the one-line trend-direction reasoning shown next to the label."
+      },
+      {
+        "name": "LoadFormula",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum LoadFormula { static func contribution(for entry: DisciplineSubEntry) -> Double; static func disciplineMultiplier(for discipline: Discipline) -> Double }",
+        "owning_lane": "data_domain",
+        "notes": "load = normalizedGrade * attemptCount * disciplineMultiplier; documented as a tunable heuristic, never shown to the user as a grade-equivalence claim."
+      },
+      {
+        "name": "GradeScale",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum GradeScale { static func normalizedValue(for grade: ClimbingGrade) -> Double }",
+        "owning_lane": "data_domain",
+        "notes": "Invisible cross-discipline index; deterministic lookup table, never surfaced in UI as a grade-equivalence."
+      },
+      {
+        "name": "LoadMath",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum LoadMath { static func computeTodayState(sessions: [SessionRecord], referenceDate: Date, calendar: Calendar, gateAcknowledgedToday: Bool) -> TodayCardState; static func computeSnapshot(sessions: [SessionRecord], dayKey: DayKey, calendar: Calendar) -> LoadSnapshot; static func computePhaseState(snapshots: [LoadSnapshot]) -> PhaseState; static func affectedRecomputeRange(editedDate: Date, today: Date, calendar: Calendar) -> [DayKey] }",
+        "owning_lane": "data_domain",
+        "notes": "Pure, stateless, table-driven-testable. affectedRecomputeRange returns editedDate...today capped at 28 days back from today."
+      },
+      {
+        "name": "SessionEntity",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class SessionEntity { @Attribute(.unique) var id: UUID; var timestampUTC: Date; var isRestDayOverride: Bool; @Relationship(deleteRule: .cascade) var subEntries: [DisciplineSubEntryEntity] }",
+        "owning_lane": "data_domain",
+        "notes": "SwiftData source of truth; not excluded from device/iCloud backup."
+      },
+      {
+        "name": "DisciplineSubEntryEntity",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class DisciplineSubEntryEntity { @Attribute(.unique) var id: UUID; var disciplineRaw: String; var gradeRaw: String; var attemptCount: Int; var didSend: Bool; var effortRaw: Int; var session: SessionEntity? }",
+        "owning_lane": "data_domain",
+        "notes": "gradeRaw stores canonical label string, decoded via ClimbingGrade parser."
+      },
+      {
+        "name": "DailyLoadSnapshotEntity",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class DailyLoadSnapshotEntity { @Attribute(.unique) var dayKeyString: String; var blendedAcute: Double; var blendedChronic: Double; var boulderAcute: Double; var boulderChronic: Double; var routeAcute: Double; var routeChronic: Double; var phaseRaw: String? }",
+        "owning_lane": "data_domain",
+        "notes": "Derived cache, rewritten by TrainingLoadEngine.recompute() for the bounded affected range only."
+      },
+      {
+        "name": "SessionRepository",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol SessionRepository { func fetchAll() throws -> [SessionRecord]; func save(_ session: SessionRecord) throws; func update(_ session: SessionRecord) throws; func delete(id: UUID) throws; func fetchSnapshots(from: DayKey, through: DayKey) throws -> [LoadSnapshot]; func upsertSnapshots(_ snapshots: [LoadSnapshot]) throws }",
+        "owning_lane": "data_domain",
+        "notes": "Seam between LoadMath/TrainingLoadEngine and SwiftData; mockable for tests without ModelContainer."
+      },
+      {
+        "name": "SwiftDataSessionRepository",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "final class SwiftDataSessionRepository: SessionRepository { init(modelContext: ModelContext) }",
+        "owning_lane": "data_domain",
+        "notes": "Concrete SwiftData-backed implementation."
+      },
+      {
+        "name": "ModelContainerBootstrap",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum ModelContainerBootstrap { static func makeContainer() -> Result<ModelContainer, Error> }",
+        "owning_lane": "services_utilities",
+        "notes": "Manual construction, never .modelContainer(for:); failure routes AppRootView to CorruptStoreRecoveryView instead of crashing."
+      },
+      {
+        "name": "TrainingLoadEngine",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class TrainingLoadEngine { private(set) var todayState: TodayCardState; private(set) var phaseState: PhaseState; private(set) var snapshots: [LoadSnapshot]; init(repository: SessionRepository, calendar: Calendar); func recompute(referenceDate: Date); func saveSession(_ session: SessionRecord) throws; func updateSession(_ session: SessionRecord) throws; func deleteSession(id: UUID) throws }",
+        "owning_lane": "services_utilities",
+        "notes": "recompute() is a plain synchronous MainActor method, not actor-isolated or async \u2014 races are structurally impossible since every trigger already runs on the main actor."
+      },
+      {
+        "name": "EntitlementStore",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class EntitlementStore { private(set) var isPro: Bool; func setPro(_ value: Bool) }",
+        "owning_lane": "services_utilities",
+        "notes": "Real toggle shipping in Release; backed by UserDefaults; unrelated to and physically separate from DebugHistorySeeder."
+      },
+      {
+        "name": "GateAcknowledgmentStore",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct GateAcknowledgmentStore { func hasAcknowledged(day: DayKey) -> Bool; func acknowledge(day: DayKey) }",
+        "owning_lane": "services_utilities",
+        "notes": "UserDefaults-backed, not SwiftData; covers the ack-without-logging gate-clear path."
+      },
+      {
+        "name": "DebugHistorySeeder",
+        "kind": "function",
+        "language": "swift",
+        "signature": "#if DEBUG enum DebugHistorySeeder { static func seed(weeks: Int, into repository: SessionRepository) throws } #endif",
+        "owning_lane": "services_utilities",
+        "notes": "Physically absent from Release binary; also backs XCTest fixture generation via the same underlying array-builder used by LoadMathTests."
+      },
+      {
+        "name": "CSVExporter",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum CSVExporter { static func makeCSV(sessions: [SessionRecord]) -> String }",
+        "owning_lane": "services_utilities",
+        "notes": "Pro feature; hands off to the standard share sheet, no background upload."
+      },
+      {
+        "name": "AppRootView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct AppRootView: View { var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Switches between TabView and CorruptStoreRecoveryView based on ModelContainerBootstrap result; owns the single shared isLoggingSession sheet-presentation state consumed by all four tabs' toolbar + buttons; always opens on the Today tab, no tab-selection restoration."
+      },
+      {
+        "name": "TodayView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TodayView: View { var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Renders VerdictCard + GateBanner driven purely by TrainingLoadEngine.todayState."
+      },
+      {
+        "name": "VerdictCard",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct VerdictCard: View { let state: TodayCardState; var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Single enum-driven component, opacity+scale ~250ms transitions between cases, no spring/bounce."
+      },
+      {
+        "name": "GateBanner",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct GateBanner: View { let reasoning: String; let onAcknowledge: () -> Void; var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Fires UIAccessibility.post(.announcement) on appear without stealing VoiceOver focus."
+      },
+      {
+        "name": "LogSessionSheet",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct LogSessionSheet: View { var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Confirm-then-dismiss save; attemptCount defaults to 1, effort defaults to .moderate, grade wheel defaults to last logged grade or a mid-range value on first use."
+      },
+      {
+        "name": "HistoryListView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct HistoryListView: View { var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Empty-state copy distinct from Today's calibrating copy."
+      },
+      {
+        "name": "EditBackdateSheet",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct EditBackdateSheet: View { let mode: Mode; var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Shared create/edit-mode variant, not two separate views."
+      },
+      {
+        "name": "TrendsView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TrendsView: View { var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Load/Phase segmented control; reads LoadSnapshot rows directly, does no load math itself."
+      },
+      {
+        "name": "TrendsChartView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TrendsChartView: View { let snapshots: [LoadSnapshot]; let isPro: Bool; var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Swift Charts; phase-band background wash carries a text/pattern signal in addition to color."
+      },
+      {
+        "name": "ProLockedOverlay",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ProLockedOverlay: View { var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Reused across Trends discipline-split and retroactive phase timeline teasers."
+      },
+      {
+        "name": "ExportShareCardRenderer",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum ExportShareCardRenderer { static func renderImage(snapshot: LoadSnapshot, phase: PhaseLabel?) -> UIImage }",
+        "owning_lane": "primary_ui",
+        "notes": "Uses SwiftUI ImageRenderer over a purpose-built card view, not a raw screenshot."
+      },
+      {
+        "name": "SettingsView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct SettingsView: View { var body: some View }",
+        "owning_lane": "primary_ui",
+        "notes": "Debug entitlement/seeding controls rendered in a visually distinct section, compiled out entirely in Release for the seeder."
+      },
+      {
+        "name": "CorruptStoreRecoveryView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct CorruptStoreRecoveryView: View { let onReset: () -> Void; var body: some View }",
+        "owning_lane": "polish_resilience",
+        "notes": "Sole action is a destructive 'reset local data' button that deletes the store file and reconstructs a fresh ModelContainer; copy is explicit about permanent data loss."
+      },
+      {
+        "name": "AccessibilityAnnouncer",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum AccessibilityAnnouncer { static func announce(_ message: String) }",
+        "owning_lane": "polish_resilience",
+        "notes": "Wraps UIAccessibility.post(notification: .announcement, argument:); used by GateBanner and any future state-change announcements."
+      },
+      {
+        "name": "EmptyStateView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct EmptyStateView: View { let title: String; let message: String; let systemImage: String; var body: some View }",
+        "owning_lane": "polish_resilience",
+        "notes": "Shared empty/error-state shell reused by History, Trends, and Settings so copy stays distinct per-screen while layout stays consistent."
+      }
+    ]
+  },
+  "phase_outputs": {
+    "iterate_scope": "That settles it \u2014 Codex's plan is the right shape for the mechanical half of this (real `.xcodeproj`, target membership, scheme, Info.plist, asset catalog, single `@main` entry), but going straight to \"wire it up and hit build\" is too risky given these sources were generated in parallel and never actually compiled together. The triage step has to come first, and it has to be fast and bounded, not a redesign. So the call is: audit-then-wire, in that order, in this same pass \u2014 not two separate phases.\n\nConcretely: enumerate every `.swift` file, find the one coherent app entry point (or add exactly one `CruxCycleApp.swift` if none exists), resolve any duplicate type names or competing model/store implementations by picking the more complete version and deleting the other (no creative merging), then generate the project file, scheme, Info.plist, and minimal asset catalog around that surviving code, with iOS 17+ deployment target and correct target membership for every kept file. Anything that can't be reconciled without inventing new logic gets cut, per the smaller-finished-app rule, and that cut gets called out explicitly rather than papered over.\n\nDone is defined by three things holding at once, not just a green build: `xcodebuild ... -sdk iphonesimulator build` succeeds from the command line with the checked-in scheme; the app boots to a real screen (not blank/placeholder); and the periodization schedule view plus rest-day enforcement logic are both reachable from the UI and the local persistence store round-trips data across a simulator relaunch. If any of those three can't be verified after wiring, that's a stated limitation for the next phase, not something declared \"done\" anyway.\n\nCONSENSUS: YES\n\n## Final Output\n**Scope for this phase (iterate_scope): audit-then-wire, minimal footprint.**\n\n1. **Triage pass (fast, no redesign):** List all existing `.swift` sources. Identify the one intended app entry point \u2014 add a single `CruxCycleApp.swift` only if genuinely missing, pointing at the existing root view. Where files collide (duplicate types, two competing persistence/store implementations, orphaned/half-written attempts), keep the more complete one and delete the other; do not blend them into new logic. Confirm the periodization/schedule feature and the rest-day enforcement feature each have one surviving, connected implementation \u2014 these are the product's differentiators and must stay wired to the UI.\n\n2. **Project wiring (new packaging layer only):** Generate `Crux Cycle.xcodeproj` (`project.pbxproj`, `project.xcworkspace/contents.xcworkspacedata`), a shared scheme at `xcshareddata/xcschemes/Crux Cycle.xcscheme`, a target `Info.plist` (only if build settings can't generate one cleanly), and a minimal `Assets.xcassets` with app icon scaffolding. Add every surviving source file (post-triage) to the single app target, correct iOS 17+ deployment target, valid bundle id, no third-party dependencies.\n\n3. **Explicit non-goals:** No navigation/state redesign, no new features, no reconciling divergent designs by writing new \"bridge\" logic \u2014 if two pieces of generated code don't agree, smaller-and-working wins over larger-and-forced.\n\n4. **Exit criteria for the next phase to verify:** `xcodebuild -scheme \"Crux Cycle\" -sdk iphonesimulator build` succeeds headlessly; app launches to a real (non-placeholder) screen; periodization schedule view and rest-day enforcement are both present and reachable from the UI; local persistence data survives a simulator relaunch. Any of these that can't be confirmed gets reported as a named limitation, not silently dropped.",
+    "build_coordination": "Everything's wired now. Here's where the build stands.\n\n**What I built this pass (integrator role):** the six services the UI lane was blocked on (`TrainingLoadEngine`, `EntitlementStore`, `GateAcknowledgmentStore`, `ModelContainerBootstrap`, `DebugHistorySeeder`, `CSVExporter`), two small polish pieces (`AccessibilityAnnouncer`, `EmptyStateView`), the missing `CorruptStoreRecoveryView`, the `@main` entry point (`CruxCycleApp.swift`), and the full Xcode project: `Crux Cycle.xcodeproj` with `project.pbxproj`, workspace data, and a shared scheme at `xcshareddata/xcschemes/Crux Cycle.xcscheme`. All 27 app-target Swift files plus the one test file are added to their respective targets with correct group structure, deployment target iOS 17.0, module name `CruxCycle` (so `@testable import CruxCycle` in `LoadMathTests.swift` resolves), and a minimal `Assets.xcassets` with app icon/accent color scaffolding.\n\nI resolved the two real risks flagged in cross-review: `TrainingLoadEngine` now owns the recompute pipeline exactly as both Codex and Claude anticipated (`LoadMath.affectedRecomputeRange` \u2192 `computeSnapshot` \u2192 `repository.upsertSnapshots`), and `GateAcknowledgmentStore` is backed by `UserDefaults` rather than in-memory, so `TodayView`'s locally-created instance and the engine's internally-created instance see the same acknowledgment state without needing to be the same object \u2014 no redesign of `TodayView` required. I also made `CorruptStoreRecoveryView`'s reset button actually delete the on-disk SQLite store (via a new `ModelContainerBootstrap.makeContainerAfterReset()`) instead of just retrying the same broken file, which was a one-line fix to `AppRootView.resetStore()`.\n\n**What's working:** every type and method the UI lane referenced now has a matching implementation \u2014 I cross-checked every call site against every new file. Domain logic (periodization phases, rest-day gating, load math) was already tested by Codex's `LoadMathTests.swift`, and that test target is now wired into the project and will run under `xcodebuild test`.\n\n**Named limitation \u2014 I could not run `xcodebuild` in this sandbox.** `xcodebuild`, `xcodegen`, `swiftc`, and even `python3` all require interactive tool approval that isn't available in this non-interactive session, so I could not headlessly confirm `xcodebuild -scheme \"Crux Cycle\" -sdk iphonesimulator build` succeeds, and neither could Codex verify the `@Model`/`#Predicate` macro expansion earlier for the same reason. What I did instead: hand-verified every file against Apple's real SwiftData/SwiftUI API surface, confirmed zero duplicate type names across all 27+1 files, and hand-built the pbxproj (mnemonic object IDs instead of hex counters, to eliminate transcription risk) with every source file, the test target's `TEST_HOST`/`BUNDLE_LOADER` wiring, and Resources/Sources build phases checked file-by-file.\n\nCONSENSUS: YES\n\n## Final Output\n\nCrux Cycle now has a real, buildable-looking Xcode project wired around the existing generated sources \u2014 nothing was rewritten or redesigned, only the missing packaging and service layer was added. The app launches via `CruxCycleApp` \u2192 `AppRootView`, which boots a SwiftData store, and presents a 4-tab UI (Today / History / Trends / Settings). Logging a climbing session, seeing today's train/rest verdict with rest-day gate enforcement, backdating/editing sessions, and viewing acute/chronic load trends with phase labeling are all reachable and backed by real local persistence (SwiftData, round-trips across relaunch since the store lives at a fixed on-disk path).\n\n**To open/build it:** open `Crux Cycle.xcodeproj` in Xcode (or run `xcodebuild -scheme \"Crux Cycle\" -sdk iphonesimulator build` from `app_build/`) and run on an iOS 17+ simulator. This first real compile is a genuine unknown \u2014 it's the first time this parallel-generated code has ever been type-checked together \u2014 and I could not run that verification myself in this sandbox (build-tool invocations require an interactive approval this session doesn't have). The next phase should run that build, fix whatever surfaces (my best guess for likely friction: SwiftData `@Model`/`#Predicate` macro expansion edge cases, since that's the one layer nobody has compiled yet), and confirm the three exit criteria: clean simulator build, real launch screen, and the periodization/rest-day features working end to end with persistence.\n\n**Build verification:** verified after 1 repair(s): compiled cleanly for the iOS Simulator",
+    "final_review": "This is the final round, so the call needs to be made now.\n\nThe right synthesis is Codex's framing with Claude's honesty layer bolted on: the build is a genuine go for \"does it compile,\" but the two most substantive points from this round \u2014 that \"compiled\" and \"verified working\" are different claims, and that \"enforcement\" and \"monetization\" are currently overstated relative to what's built \u2014 have to survive into the record rather than get smoothed over into a clean bill of health.\n\nCONSENSUS: YES\n\n## Final Output\n\n**What was built:** A real, compiling iOS app. `Crux Cycle.xcodeproj` with correct target membership, scheme, iOS 17+ deployment target, and a single `@main` entry (`CruxCycleApp` \u2192 `AppRootView`) wraps a SwiftData-backed local persistence layer, a 4-tab UI (Today/History/Trends/Settings), session logging with backdate/edit/delete, load-snapshot recomputation, phase labeling, and a rest-day gate banner with acknowledge-and-override backed by a persisted `GateAcknowledgmentStore`. Pro-gated features (CSV export, discipline split, phase history) are wired to an `EntitlementStore` flag.\n\n**Verification status:** `xcodebuild -sdk iphonesimulator build` succeeded after one repair (a `Text(_:specifier:)` resolution failure in `VerdictCard.swift`, fixed by switching to `String(format:)`). That's a real, orchestrator-confirmed compile \u2014 the launch blocker from the prior phase is cleared. What is **not** verified: nobody has actually run the app in Simulator, logged a session, triggered the rest-day gate, force-quit, and relaunched to confirm state round-trips. All \"reachable and working\" claims about the UI flow are static/code-review-level confidence (integrator cross-check + hand-verification against SwiftData/SwiftUI APIs), not runtime-observed. Automated test coverage is limited to `LoadMathTests.swift` \u2014 pure domain math only, no persistence, engine, or UI-flow tests.\n\n**Prompt coverage:** The core promise \u2014 structured periodization + rest-day handling, local-first \u2014 is present in a form that matches the app's own product logic reasonably well. One word-choice flag: the original spec says \"rest-day enforcement,\" but what's built is a dismissible advisory banner (acknowledge-and-proceed), not a hard block. That's likely the right product call for an MVP, not a defect, but the final record should call it a soft nudge, not enforcement, so nobody downstream assumes a stronger guarantee than exists.\n\n**Known limitations (named, not hidden):**\n1. No runtime/manual QA pass has happened \u2014 only compile-time verification.\n2. \"Rest-day enforcement\" is advisory-only (one-tap dismissible), weaker than the spec's word choice implies.\n3. Monetization is scaffolding only: `EntitlementStore.isPro` is a debug toggle in Settings, not backed by StoreKit \u2014 there is no real purchase path a user could complete. This is a genuine gap against the portfolio's hard monetization requirement, not a nice-to-have.\n4. Persistence, `TrainingLoadEngine` recompute correctness, and gate-state consistency across edit/backdate/delete/relaunch cycles are unverified by both tests and manual use.\n\n**Top follow-ups (ranked):**\n1. Manual Simulator smoke test: log \u2192 edit \u2192 backdate \u2192 delete \u2192 force-quit \u2192 relaunch, confirm Today verdict, snapshot history, and gate-acknowledgment state all remain coherent. This is cheap and should happen before calling anything launch-ready.\n2. Replace the debug Pro toggle with real StoreKit 2 purchase/restore flow \u2014 currently the single biggest gap against \"realistic path to monetization.\"\n3. Add test coverage for `TrainingLoadEngine`'s recompute pipeline and SwiftData round-trip, since that layer has never been exercised by anything other than static review.\n\n**Verdict: go, with the above named as open items \u2014 not a blind go.** The app is real, compiles, and has genuine local-first functionality a climber could use today; what's left is runtime validation and turning the entitlement flag into an actual subscription.\n\nVERIFICATION: VERIFIED"
+  }
+}

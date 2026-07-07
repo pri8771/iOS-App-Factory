@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b3",
+  "build": true,
+  "build_priority": 6,
+  "app": {
+    "name": "Afterglow",
+    "slug": "afterglow",
+    "category": "Travel",
+    "one_sentence_promise": "Turns your trip's photos and notes into a beautiful, automatically organized travel journal you'll actually finish.",
+    "target_user": "People who take many trip photos but never organize them into anything meaningful afterward.",
+    "painful_moment": "Coming home with hundreds of photos, meaning to make something of them, and never doing it \u2014 the memory fades into an unsorted camera roll.",
+    "why_different": "On-device clustering of Photos-framework metadata into a day-by-day trip story the user captions, producing a polished exportable journal entirely offline, with no cloud photo processing.",
+    "why_users_pay": "Premium layout themes, unlimited archived trips, printable photo-book export, richer on-device narrative generation from captions/voice notes.",
+    "subscription_model": "Free: 1 trip journal, basic themes. Paid: unlimited trips, premium themes, print export, narrative generation.",
+    "local_first_mvp_scope": "Entirely on-device \u2014 reads Photos metadata with permission, clusters by day/location, exports as PDF/shareable images.",
+    "future_backend_roadmap": "Optional cloud backup of finished journals; potential shared collaborative journal for co-travelers who also have the app.",
+    "core_workflows": [
+      "Select a trip's date range/photos",
+      "Review auto-generated day clusters",
+      "Add captions or voice notes",
+      "Choose a layout theme",
+      "Export/share the finished journal"
+    ],
+    "ios_native_features": [
+      "Photos framework + on-device Vision for clustering",
+      "Widgets showing last trip's cover photo",
+      "Share Sheet export"
+    ],
+    "ar_ml_llm_fit": "On-device Vision for clustering and highlight-photo selection; optional on-device LLM to draft short narrative captions strictly from the user's own notes.",
+    "design_direction": "Premium photo-book aesthetic \u2014 full-bleed imagery, elegant serif captions, a designed keepsake rather than a generic gallery.",
+    "claude_design_prompt": "Design a premium photo-book travel-journal app: full-bleed day-cluster spreads, a light-touch caption/voice-note editor, and a theme picker that feels like choosing a real photo-book cover.",
+    "app_store_positioning": "The travel journal that makes itself \u2014 from your own photos, entirely on your phone.",
+    "key_risks": [
+      "Photos permission friction requires transparent handling",
+      "Clustering quality degrades with sparse location metadata",
+      "On-device narrative generation must never invent details the user didn't note"
+    ],
+    "invalidation_criteria": "If most users abandon the caption step after auto-clustering, ship a faster no-caption default output instead of assuming the concept fails.",
+    "v1_build_scope": "Photo selection, auto day-clustering, captions/voice notes, one layout theme, export.",
+    "build": true,
+    "build_priority": 6
+  }
+}

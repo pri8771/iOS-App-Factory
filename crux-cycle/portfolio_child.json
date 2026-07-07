@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Crux Cycle",
+    "slug": "crux-cycle",
+    "category": "Health & Fitness",
+    "promise": "Structured periodization and rest-day enforcement for boulderers and route climbers",
+    "targetUser": "Climber managing finger-tendon load across training blocks",
+    "mechanic": "periodization planner",
+    "build": true,
+    "one_sentence_promise": "Structured periodization and rest-day enforcement for boulderers and route climbers",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

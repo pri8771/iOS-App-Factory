@@ -1,0 +1,496 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffold: XcodeGen project.yml (app + widget extension + unit/UI test bundle targets), folder skeleton matching lane ownership \u2014 pbxproj is generated only, never hand-edited",
+      "owner_lane": "data_domain",
+      "files": [
+        "project.yml",
+        "Provenance.xcodeproj",
+        "Domain/",
+        "Data/",
+        "Services/",
+        "Features/",
+        "Polish/",
+        "Widget/",
+        "Tests/"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "xcodegen generate produces a project that builds an empty app + empty widget target",
+        "Folder skeleton matches the four-lane ownership map exactly, no stray top-level files",
+        "project.pbxproj is generated from project.yml; no lane hand-edits it directly",
+        "Domain/, Services/, Data/, Features/, Polish/, Widget/ created as empty directory skeletons only \u2014 this task does not claim content ownership of files placed inside them by other tasks"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Domain models and fixed enums (Item, ConditionEntry, ValueEntry, AppSettings, Category, ItemStatus, ConditionGrade, ValueType, PhotoAssetRef, PurchaseFacts)",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/Models/Item.swift",
+        "Domain/Models/ConditionEntry.swift",
+        "Domain/Models/ValueEntry.swift",
+        "Domain/Models/AppSettings.swift",
+        "Domain/Models/Enums.swift",
+        "Domain/Models/PhotoAssetRef.swift",
+        "Domain/Models/PurchaseFacts.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "All @Model types compile under Swift 6 strict concurrency",
+        "creationSequence exists as the mandatory active-25 tiebreak",
+        "amount/purchaseAmount fields are Decimal, never Double or Int",
+        "Category/ItemStatus/ConditionGrade/ValueType match the locked fixed enum cases exactly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Pure display-state and partition functions with exhaustive unit tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/DisplayState/ItemDisplayState.swift",
+        "Domain/DisplayState/ComputeDisplayState.swift",
+        "Domain/DisplayState/PartitionActiveAndLocked.swift",
+        "Domain/CollectionSummary.swift",
+        "Domain/ExportMode.swift",
+        "Tests/DomainTests/DisplayStateTests.swift",
+        "Tests/DomainTests/PartitionTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "computeDisplayState precedence verified: deleted > locked > incomplete > normal",
+        "partitionActiveAndLocked is O(n), tested with tied creationSequence values",
+        "restore-at-cap and delete-of-locked-item-promotes-next-oldest covered by parametrized tests",
+        "zero UI or SwiftData dependency in these files"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Concrete SwiftData-backed ItemRepository (full method set) + App Group ModelContainer factory, tested against real in-memory persistence",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/Protocols/ItemRepository.swift",
+        "Data/SwiftDataItemRepository.swift",
+        "Data/ModelContainerFactory.swift",
+        "Tests/DataTests/ItemRepositoryTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "loadActiveAndLocked delegates to partitionActiveAndLocked, never reimplements the split",
+        "All ItemRepository methods from interfaces-json implemented and tested against ModelConfiguration(isStoredInMemoryOnly: true)",
+        "softDelete/restore/purgeExpiredDeletedItems verified with injected dates, not wall-clock waiting",
+        "ModelContainerFactory builds the container at the App Group path from the full model schema, confirmed via a write-then-read-from-widget-target smoke test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Disk-backed PhotoStore protocol + implementation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Domain/Protocols/PhotoStore.swift",
+        "Services/DiskPhotoStore.swift",
+        "Tests/ServiceTests/PhotoStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "All paths relative to App Group container root",
+        "Thumbnails generated off-main via byPreparingThumbnail",
+        "Returns PhotoAssetRef with real pixel dimensions, never a bare path string",
+        "removeAssets tested for both item-level and entry-level cleanup"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "AppLockService (LocalAuthentication) \u2014 rough, unstyled gate",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Domain/Protocols/AppLockService.swift",
+        "Services/LocalAuthenticationAppLockService.swift",
+        "Tests/ServiceTests/AppLockServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "deviceAuthenticationAvailable() returns false and access is allowed (never trapped) when no device passcode is set",
+        "authenticate() tested via a fake for both success and failure paths"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "App Group entitlements, PrivacyInfo.xcprivacy, PrivacyOverlayModifier, widget target skeleton, App-Group write/read smoke test",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Provenance.entitlements",
+        "ProvenanceWidget.entitlements",
+        "PrivacyInfo.xcprivacy",
+        "Polish/PrivacyOverlayModifier.swift",
+        "Widget/ProvenanceWidgetBundle.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "App writes to the shared App Group container and the widget target reads the same data in a smoke test",
+        "PrivacyOverlayModifier swaps in on scenePhase background transition, verified in isolation",
+        "Required-reason API usage declared in the privacy manifest"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "App entry point + RootView composing lock gate and privacy overlay",
+      "owner_lane": "primary_ui",
+      "files": [
+        "App/ProvenanceApp.swift",
+        "App/RootView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Cold launch and return-from-background show the lock screen only when device auth is available",
+        "PrivacyOverlayModifier applied at root, not per-screen",
+        "ModelContainer bootstrapped once via ModelContainerFactory and injected via environment"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Vision classification service + label-to-Category mapping fixture harness (open-ended investigation)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Domain/Protocols/ClassificationService.swift",
+        "Services/VisionClassificationService.swift",
+        "Services/VisionCategoryMappingTable.swift",
+        "Tests/ServiceTests/Fixtures/",
+        "Tests/ServiceTests/ClassificationServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Fixture set covers all six categories with expected-category assertions, not just smoke tests",
+        "Returns nil below the confidence floor rather than a low-confidence guess",
+        "Mapping table is a reviewed lookup artifact, not an inline switch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Capture vertical slice: CaptureState machine, camera + library fallback, draft creation at photo-capture time, Quick Log save",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Capture/CaptureView.swift",
+        "Features/Capture/CaptureViewModel.swift",
+        "Features/Capture/QuickLogView.swift",
+        "Features/Shared/CategoryChip.swift",
+        "Features/Shared/PhotoCard.swift",
+        "Tests/FeatureUITests/CaptureSmokeUITests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-008",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Photo capture persists a real Item row (draft) before the sheet finishes presenting",
+        "Save works with only photo+title+category, in well under a minute",
+        "Vision suggestion highlights a chip silently, never blocks or delays Save",
+        "Backgrounding/force-quit mid-capture resumes the same draft on relaunch",
+        "Basic smoke UI test confirms capture-to-list happy path"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Catalog Home: active list, Preserved/Locked shelf, empty/loading/success/error states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Catalog/CatalogView.swift",
+        "Features/Catalog/CatalogViewModel.swift",
+        "Features/Shared/EffectiveStateBadge.swift",
+        "Features/Shared/EmptyStateView.swift",
+        "Tests/FeatureUITests/CatalogSmokeUITests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "All four states reachable and visually distinct",
+        "Preserved/Locked section always visible, never interleaved as dimmed rows",
+        "Every card's badge driven by ItemDisplayState, no ad hoc per-screen state checks"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Capture-to-save timing + interrupted-capture integration test (with app-lock foreground-return interaction)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/IntegrationTests/CaptureFlowIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Automated timing assertion: tap-Add to saved-item well under 60s",
+        "Backgrounded/force-quit capture verified resumable, tested specifically alongside the app-lock foreground-return interaction"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Item Detail trust layer: purchase facts, condition/provenance timeline, value ledger, locked teaser, near-empty states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/ItemDetail/ItemDetailView.swift",
+        "Features/ItemDetail/ItemDetailViewModel.swift",
+        "Features/ItemDetail/PurchaseFactsEditorView.swift",
+        "Features/ItemDetail/ConditionEntrySheet.swift",
+        "Features/ItemDetail/ValueEntrySheet.swift",
+        "Features/Shared/TimelineEntryRow.swift",
+        "Features/Shared/LockedTeaserCard.swift",
+        "Tests/FeatureUITests/ItemDetailSmokeUITests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Three modules render as visually separate, never merged into one feed",
+        "Cover photo distinct from timeline-entry photos",
+        "Value module renders locked-teaser vs live vs read-only-preserved correctly per subscription/downgrade state",
+        "Full VoiceOver pass across the module stack"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Recently Deleted + Preserved/Locked read-only list + undo toast",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Catalog/RecentlyDeletedView.swift",
+        "Features/Catalog/PreservedLockedListView.swift",
+        "Features/Shared/UndoToast.swift",
+        "Tests/FeatureUITests/RecentlyDeletedSmokeUITests.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Delete fires an inline Undo toast immediately, independent of navigating to Recently Deleted",
+        "Recently Deleted reached via overflow/toolbar affordance, not a home-screen scroll section",
+        "Attempted edit on a locked item shows the upgrade prompt, never the repair flow"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "RecoveryPurgeScheduler + downgrade/restore-at-cap/promotion scenario integration tests",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Polish/RecoveryPurgeScheduler.swift",
+        "Tests/IntegrationTests/SafetyIntegrityIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Purge runs only at launch/foreground with an injected now, never a background task scheduler",
+        "Downgrade-with->25-items, restore-at-cap, and delete-of-locked-item-promotes-next-oldest all verified end to end"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "ExportService: main-actor document snapshot mapping, off-main PDF rendering, native paged preview generation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Domain/Protocols/ExportService.swift",
+        "Services/PDFExportService.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "buildDocumentModel completes all SwiftData reads/mapping on the main actor before handing off to the background renderer",
+        "renderPDF never touches PDFView; preview pages generated as rasterized images with explicit page-position metadata",
+        "Concurrency-safety test: mutate a value entry mid-render, exported document reflects the pre-mutation snapshot"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Export Preview screen: mode toggle, paged accessible preview, all named states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Export/ExportPreviewView.swift",
+        "Features/Export/ExportPreviewViewModel.swift",
+        "Features/Shared/ExportPagePlaceholder.swift",
+        "Tests/FeatureUITests/ExportPreviewSmokeUITests.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "TabView(.page) preview announces Page N of M correctly to VoiceOver",
+        "Zero-item collection export renders a real sparse page, never blank",
+        "Generating/failed/locked-upsell states all reachable"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "EntitlementProvider (StoreKit 2): CachedEntitlement, EntitlementState, isSubscriptionActive, transaction listener",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Domain/Protocols/EntitlementProvider.swift",
+        "Services/StoreKitEntitlementProvider.swift",
+        "Tests/ServiceTests/EntitlementProviderTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "isSubscriptionActive is the only conversion point from EntitlementState to Bool, verified no other lane inlines its own switch",
+        "unknownOffline never silently collapses to free by omission",
+        "Listener task started once at launch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Paywall screen with real redacted export mock built from the actual export pipeline",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Paywall/PaywallView.swift",
+        "Features/Paywall/PaywallViewModel.swift",
+        "Features/Shared/PaywallPreviewCard.swift",
+        "Tests/FeatureUITests/PaywallSmokeUITests.swift"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Redacted mock uses real section headers/photo placement/typography from ExportDocumentModel, never a placeholder image",
+        "StoreKit product-fetch failure shows a retry state, never a silently broken paywall",
+        "Restore-purchases link present and functional against EntitlementProvider"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Full export verification matrix + VoiceOver page-position integration test",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/IntegrationTests/ExportVerificationIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "0/1-sparse/1-dense/many-photo item counts all verified structurally correct",
+        "Temp export files confirmed cleaned up after share-sheet completion or dismissal"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "CollectionSummaryProvider + WidgetReloadCoordinator",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Polish/CollectionSummaryProvider.swift",
+        "Polish/WidgetReloadCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Single source of truth for widget and any in-app aggregate value display, never computed twice independently",
+        "Widget reload debounced/coalesced on local write events, not fired per-save"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Widget UI: free (item count) vs paid (collection value) states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Widget/ProvenanceWidget.swift",
+        "Widget/WidgetViews.swift",
+        "Widget/WidgetTimelineProvider.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Free tier shows item count, paid tier shows collection value, no other content",
+        "Tap-to-open only, no deep-linking or in-widget actions",
+        "Respects the same privacy-overlay discipline as the rest of the app"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "StoreKit SKTestSession scenario suite: purchase/restore/downgrade/offline-startup",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/IntegrationTests/StoreKitScenarioIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Offline-startup unknownOffline verified to never silently collapse to free",
+        "Downgrade preserves data (hides, never deletes) and resubscribe restores full access with no migration step"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Final end-to-end regression pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/IntegrationTests/FullRegressionIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-015",
+        "T-020",
+        "T-022",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Relaunch persistence, interrupted capture, full VoiceOver core loop, PDF correctness at 0/1/many items, and purge scheduler all verified together in one pass",
+        "No regression in any earlier milestone's verified behavior"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

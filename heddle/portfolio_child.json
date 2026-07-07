@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp6",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Heddle",
+    "slug": "heddle",
+    "category": "puzzle_game",
+    "tagline": "Thread-routing/weaving puzzle with a solvability-verified procedural generator; solved puzzles become woven pattern art.",
+    "target_user": "Casual puzzle player wanting something warm and tactile, not match-3.",
+    "build": true,
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

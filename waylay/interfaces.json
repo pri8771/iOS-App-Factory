@@ -1,0 +1,438 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "PlaceID",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlaceID: Hashable, Codable, Sendable { let rawValue: UUID }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. Replaces bare UUID at all cross-entity boundaries to prevent id mixups."
+    },
+    {
+      "name": "CaptureSource",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CaptureSource: String, Codable, Sendable { case manualPin, shareExtension, camera, siriIntent }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. No 'widget' case \u2014 a widget tap opens Home, it doesn't itself originate a capture; the resulting save is manualPin."
+    },
+    {
+      "name": "PlaceRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlaceRecord: Identifiable, Codable, Sendable { let id: PlaceID; var title: String; var latitude: Double; var longitude: Double; var radiusMeters: Double; var captureSource: CaptureSource; var capturedAt: Date; var updatedAt: Date; var noteText: String?; var photoAssetIdentifier: String?; var voiceNoteURL: URL?; var manuallyPromotedUntil: Date?; var snoozedUntil: Date?; var dismissedAt: Date?; var visitedAt: Date?; var lastNotificationAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. Durable facts only, never a stored 'currentState'. Plain Sendable struct \u2014 NSManagedObject never crosses out of the persistence layer."
+    },
+    {
+      "name": "UserActionKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum UserActionKind: String, Codable, Sendable { case save, rename, snooze, dismiss, markVisited, reactivate, manualPromote, undoSave, mergeAccepted, separateDuplicate }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. reactivate/manualPromote are the actions that clear requiresManualReactivation on the latest MonitoringDecisionRecord for a place."
+    },
+    {
+      "name": "UserActionEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct UserActionEvent: Identifiable, Codable, Sendable { let id: UUID; let placeID: PlaceID; let action: UserActionKind; let timestamp: Date; let sourceSurface: String; let metadata: [String: String] }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. Append-only audit log entry; feeds Diagnostics and the PlaceTimelineEvent narrative."
+    },
+    {
+      "name": "NotificationResolution",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum NotificationResolution: String, Codable, Sendable { case snoozed, dismissed, visited, opened, ignored, autoSoftPaused }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. autoSoftPaused marks the episode that, after ~a day unresolved, causes MonitoringEngine to write a .queue disposition with requiresManualReactivation: true."
+    },
+    {
+      "name": "NotificationEpisode",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NotificationEpisode: Identifiable, Codable, Sendable { let id: UUID; let placeID: PlaceID; let notificationID: String; let firedAt: Date; var resolvedAt: Date?; var resolution: NotificationResolution? }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. One row per one-shot-per-episode notification; unresolved age (via the notificationEpisodes evaluate() parameter) is what drives soft-pause."
+    },
+    {
+      "name": "PausedReason",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PausedReason: String, Codable, Sendable { case permissionRevoked, notificationsDisabled, forceQuitAwaitingReopen, rebootReregistering, preciseLocationReduced, noFreshLocation, softPausedAfterNoResponse }",
+      "owning_lane": "data_domain",
+      "notes": "User-visible degraded-state reasons."
+    },
+    {
+      "name": "PlaceDisplayState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PlaceDisplayState: Equatable, Sendable { case active(reason: String), queued(reason: String), paused(reason: PausedReason, message: String), snoozed(until: Date, message: String), visited(message: String), dismissed(message: String) }",
+      "owning_lane": "data_domain",
+      "notes": "Derived state consumed by UI. UI must not derive this itself."
+    },
+    {
+      "name": "MonitoringDisposition",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MonitoringDisposition: String, Codable, Sendable { case monitor, queue, pause }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL, locked at exactly 3 cases. Soft-pause-after-no-response is disposition .queue plus MonitoringDecisionRecord.requiresManualReactivation = true, not a 4th disposition."
+    },
+    {
+      "name": "MonitoringDecision",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MonitoringDecision: Identifiable, Codable, Sendable { let id: UUID; let placeID: PlaceID; let evaluatedAt: Date; let score: Double; let disposition: MonitoringDisposition; let reasonCode: String; let reasonText: String; let consumedRegionSlot: Bool; let rankingInputs: [String: String] }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted audit trail and current diagnostics basis."
+    },
+    {
+      "name": "AppCapabilitySnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AppCapabilitySnapshot: Equatable, Codable, Sendable { var locationAuthorization: LocationAuthLevel; var isPreciseLocation: Bool; var notificationAuthorization: NotificationAuthLevel; var isForceQuitAwaitingReopen: Bool; var isReregisteringAfterReboot: Bool; var monitoredRegionCount: Int; var effectiveMonitoringCap: Int; var lastSyncAt: Date? }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. Single capability truth, computed by one service, read by Home/Library/Diagnostics. isPreciseLocation:false surfaces via DiagnosticsSummaryTier.capabilityReduced and Home's degraded copy, never as a per-place paused reason."
+    },
+    {
+      "name": "CaptureRequest",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CaptureRequest: Sendable { var title: String?; var coordinate: (latitude: Double, longitude: Double)?; var source: CaptureSource; var noteText: String?; var photoAssetID: String?; var voiceMemoURL: URL?; var capturedAt: Date }",
+      "owning_lane": "primary_ui",
+      "notes": "Cross-surface capture API used by app and extensions."
+    },
+    {
+      "name": "CaptureResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CaptureResult: Sendable { let placeID: PlaceID; let persistedTitle: String; let displayState: PlaceDerivedState; let confirmationMessage: String }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. Returned only after persistence succeeds; drives the receipt toast for both Home and Share Extension."
+    },
+    {
+      "name": "PlaceRepositoryProtocol",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PlaceRepositoryProtocol: Sendable { func saveCapture(_ draft: PlaceDraft) async throws -> CaptureResult; func fetchAllPlaces() async throws -> [PlaceRecord]; func fetchPlace(id: PlaceID) async throws -> PlaceRecord?; func updatePlace(_ place: PlaceRecord) async throws; func appendUserAction(_ event: UserActionEvent) async throws; func appendNotificationEpisode(_ episode: NotificationEpisode) async throws; func appendMonitoringDecision(_ decision: MonitoringDecisionRecord) async throws; func fetchLatestDecision(for placeID: PlaceID) async throws -> MonitoringDecisionRecord?; func timeline(for placeID: PlaceID) async throws -> [PlaceTimelineEvent] }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. saveCapture returns CaptureResult, not bare PlaceRecord. Commit is synchronous/durable before success is surfaced. If commit succeeds but monitoring/notification-category setup fails afterward, still returns success with a degraded displayState and honest confirmation copy \u2014 never an error implying the save itself failed."
+    },
+    {
+      "name": "PlaceStateDeriver",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PlaceStateDeriver: Sendable { func deriveState(for place: PlaceRecord, latestDecision: MonitoringDecision?, capability: AppCapabilitySnapshot, now: Date) -> PlaceDisplayState }",
+      "owning_lane": "data_domain",
+      "notes": "Pure derivation contract."
+    },
+    {
+      "name": "MonitoringEngineProtocol",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol MonitoringEngineProtocol: Sendable { func evaluate(places: [PlaceRecord], capability: AppCapabilitySnapshot, effectiveMonitoringCap: Int, recentActions: [UserActionEvent], notificationEpisodes: [NotificationEpisode], now: Date) -> [MonitoringDecisionRecord] }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. notificationEpisodes is explicit input \u2014 the engine can't detect a day-scale unresolved episode from recentActions alone. Pure function; never touches CoreLocation or StoreKit directly."
+    },
+    {
+      "name": "LocationProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol LocationProviding: AnyObject, Sendable { var delegate: LocationProvidingDelegate? { get set }; var monitoredRegions: Set<CLRegion> { get }; func requestWhenInUseAuthorization(); func requestAlwaysAuthorization(); func requestTemporaryFullAccuracyAuthorization() async; func startMonitoring(for region: CLCircularRegion); func stopMonitoring(for region: CLCircularRegion); func currentAuthorizationSnapshot() async -> AppCapabilitySnapshot; func lastKnownCoordinate() async -> (latitude: Double, longitude: Double)? }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. The one place CoreLocation types are allowed to appear directly. Fake implementation simulates region entry/exit/auth-change deterministically for unit tests."
+    },
+    {
+      "name": "MonitoringCoordinatorProtocol",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol MonitoringCoordinatorProtocol: Sendable { func recomputeAndReconcile(now: Date) async throws; func handleAuthorizationChanged() async; func handleAppDidBecomeActive() async; func handleAppWillEnterForeground() async }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. Only service allowed to reconcile desired state against OS-monitored regions."
+    },
+    {
+      "name": "NotificationHandling",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol NotificationHandling: Sendable { func registerCategories() async; func scheduleResurfaceNotification(for place: PlaceRecord, episodeID: UUID, body: String) async throws; func recordDeliveredNotification(placeID: PlaceID, notificationID: String, at: Date) async throws; func handleNotificationAction(placeID: PlaceID, actionIdentifier: String, at: Date) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. Central notification boundary; snooze/dismiss/mark-visited actions attached at the category level."
+    },
+    {
+      "name": "EntitlementSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EntitlementSnapshot: Equatable, Sendable { let hasPro: Bool; let effectiveMonitoringCap: Int; let widgetsEnabled: Bool; let richMediaEnabled: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. StoreKit output normalized for domain use; effectiveMonitoringCap = tier cap \u00d7 real 20-region OS ceiling."
+    },
+    {
+      "name": "EntitlementServiceProtocol",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementServiceProtocol: Sendable { func refreshSnapshot() async throws -> EntitlementSnapshot; func currentSnapshot() async -> EntitlementSnapshot; func purchaseProMonthly() async throws -> EntitlementSnapshot; func purchaseProYearly() async throws -> EntitlementSnapshot; func restorePurchases() async throws -> EntitlementSnapshot }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. Live-computed from Transaction.currentEntitlements, never a cached launch-time bool."
+    },
+    {
+      "name": "DiagnosticsPlaceSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DiagnosticsPlaceSnapshot: Identifiable, Sendable { let id: PlaceID; let title: String; let displayState: PlaceDerivedState; let lastDecision: MonitoringDecisionRecord?; let lastNotificationAt: Date?; let occupiesSystemRegionSlot: Bool }",
+      "owning_lane": "polish_resilience",
+      "notes": "LOCKED. lastDecision.requiresManualReactivation powers the 'tap to bring it back' affordance on both the queued Library row and this Diagnostics row."
+    },
+    {
+      "name": "DiagnosticsServiceProtocol",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol DiagnosticsServiceProtocol: Sendable { func appCapabilitySnapshot() async -> AppCapabilitySnapshot; func placeSnapshots() async throws -> [DiagnosticsPlaceSnapshot] }",
+      "owning_lane": "polish_resilience",
+      "notes": "LOCKED. Feeds Settings/Diagnostics UI."
+    },
+    {
+      "name": "WidgetRefreshServiceProtocol",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol WidgetRefreshServiceProtocol: Sendable { func scheduleCoalescedReload(reason: String) async; func performForegroundBackgroundReloadIfNeeded() async }",
+      "owning_lane": "polish_resilience",
+      "notes": "LOCKED. Debounced/batched WidgetKit reloads plus one on foreground/background transition."
+    },
+    {
+      "name": "AppRouterProtocol",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol AppRouterProtocol: ObservableObject { func openPlaceDetail(_ placeID: PlaceID); func presentPaywall(source: String); func presentSettings(); }",
+      "owning_lane": "primary_ui",
+      "notes": "Deep links append into Library path; UI never hardcodes cross-tab navigation."
+    },
+    {
+      "name": "capturePlace",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func capturePlace(_ draft: PlaceDraft) async throws -> CaptureResult",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. Single capture use-case entry point shared by Home's capture button and the Share Extension facade."
+    },
+    {
+      "name": "ActionEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ActionEvent: Identifiable, Sendable, Codable { let id: UUID; let placeID: UUID; let kind: ActionKind; let occurredAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Append-only mirror of UserActionEvent."
+    },
+    {
+      "name": "ActionKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ActionKind: String, Codable, Sendable { case captured, snoozed, dismissed, visited, manuallyPromoted, reactivated, merged }",
+      "owning_lane": "data_domain",
+      "notes": "Drives both PlaceStateResolver and the PlaceTimelineEvent narrative feed."
+    },
+    {
+      "name": "MonitoringDecisionRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MonitoringDecisionRecord: Identifiable, Codable, Sendable { let id: UUID; let placeID: PlaceID; let evaluatedAt: Date; let score: Double; let disposition: MonitoringDisposition; let reasonCode: String; let reasonText: String; let consumedRegionSlot: Bool; let rankingInputs: [String: Double]; let requiresManualReactivation: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL. requiresManualReactivation is the type-safe distinction between a genuinely cap-queued place (auto-recontests when a slot frees) and a soft-paused one (stays queued until a .reactivate/.manualPromote UserActionEvent postdates this decision) \u2014 lives entirely in the persisted audit trail, never inferred from reasonText, never exposed as a new UI-facing case."
+    },
+    {
+      "name": "PlaceDerivedState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PlaceDerivedState: Equatable, Sendable { case active(reason: String), queued(reason: String), paused(reason: PausedSubReason, message: String), snoozed(until: Date, message: String), visited(message: String), dismissed(message: String) }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL, exactly the 6 locked Place Detail variants. Soft-pause renders as queued(reason:) with copy like 'didn't seem useful last time \u2014 tap to bring it back'; MonitoringDecisionRecord.requiresManualReactivation (not this enum) is what actually stops the engine from silently re-arming it."
+    },
+    {
+      "name": "PausedSubReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PausedSubReason: String, Codable, Sendable { case permissionRevoked, notificationsDisabled, forceQuitAwaitingReopen, deviceRebootReregistering }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED at exactly the 4 cases from design_discussion/design_handoff. preciseLocationReduced lives in AppCapabilitySnapshot/Diagnostics; noFreshLocation lives in HomeViewState; soft-pause lives in MonitoringDecisionRecord.requiresManualReactivation. None expand this enum."
+    },
+    {
+      "name": "PlaceStateResolver",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum PlaceStateResolver { static func resolve(place: PlaceRecord, latestDecision: MonitoringDecisionRecord?, capability: AppCapabilitySnapshot, occupiesSystemSlot: Bool, now: Date) -> PlaceDerivedState }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. Pure, zero I/O; unit-tested with fixture timestamps. No CoreLocation/UserNotifications import anywhere in this file."
+    },
+    {
+      "name": "MonitoringEngine",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol MonitoringEngine: Sendable { func evaluate(places: [PlaceRecord], capability: AppCapabilitySnapshot, effectiveMonitoringCap: Int, recentActions: [UserActionEvent], now: Date) -> [MonitoringDecisionRecord] }",
+      "owning_lane": "data_domain",
+      "notes": "Pure ranking function. Never talks to CoreLocation or StoreKit."
+    },
+    {
+      "name": "MonitoringReconciler",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol MonitoringReconciler: Sendable { func reconcile(desired: [MonitoringDecisionRecord], observedRegionIdentifiers: Set<String>) -> RegionChangeSet }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. Hard-coded clamp \u2014 never calls startMonitoring past 20 regardless of engine output."
+    },
+    {
+      "name": "RegionChangeSet",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RegionChangeSet: Sendable { let toStartMonitoring: [PlaceRecord]; let toStopMonitoring: [String] }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. Output of the reconciler diff."
+    },
+    {
+      "name": "LocationProvidingDelegate",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol LocationProvidingDelegate: AnyObject { func didEnterRegion(identifier: String); func didExitRegion(identifier: String); func authorizationDidChange(_ level: LocationAuthLevel) }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED. authorizationDidChange must trigger immediate capability recompute + engine re-evaluation, not wait for next launch."
+    },
+    {
+      "name": "EntitlementService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementService: Sendable { func refreshSnapshot() async throws -> EntitlementSnapshot; func currentSnapshot() async -> EntitlementSnapshot; func purchaseProMonthly() async throws -> EntitlementSnapshot; func purchaseProYearly() async throws -> EntitlementSnapshot; func restorePurchases() async throws -> EntitlementSnapshot }",
+      "owning_lane": "services_utilities",
+      "notes": "Backed by StoreKit 2 Transaction.currentEntitlements and AppStore.sync(). Never use a launch-time cached bool."
+    },
+    {
+      "name": "SubscriptionTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SubscriptionTier: Sendable, Codable { case free, pro }",
+      "owning_lane": "services_utilities",
+      "notes": "Free caps monitored places around 8; Pro caps only at the real iOS region limit."
+    },
+    {
+      "name": "PlaceRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PlaceRepository: Sendable { func saveCapture(_ draft: PlaceDraft) async throws -> PlaceRecord; func fetchAllPlaces() async throws -> [PlaceRecord]; func fetchPlace(id: PlaceID) async throws -> PlaceRecord?; func updatePlace(_ place: PlaceRecord) async throws; func appendUserAction(_ event: UserActionEvent) async throws; func appendNotificationEpisode(_ episode: NotificationEpisode) async throws; func appendMonitoringDecision(_ decision: MonitoringDecisionRecord) async throws; func fetchLatestDecision(for placeID: PlaceID) async throws -> MonitoringDecisionRecord?; func timeline(for placeID: PlaceID) async throws -> [PlaceTimelineEvent] }",
+      "owning_lane": "data_domain",
+      "notes": "Single persistence boundary shared by app and extensions. saveCapture must synchronously durably commit before success is surfaced."
+    },
+    {
+      "name": "PlaceDraft",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlaceDraft: Sendable { var latitude: Double; var longitude: Double; var title: String; var source: CaptureSource; var noteText: String?; var photoAssetIdentifier: String?; var voiceNoteURL: URL?; var capturedAt: Date }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED. Input to saveCapture; title is an editable auto-generated default, never a required typed field."
+    },
+    {
+      "name": "PlaceTimelineEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlaceTimelineEvent: Identifiable, Sendable { let id: UUID; let occurredAt: Date; let narrative: String; let icon: String }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED, additive. Merges MonitoringDecisionRecord + NotificationEpisode + UserActionEvent into a plain-language per-place story for Diagnostics. First to cut under time pressure."
+    },
+    {
+      "name": "AppRouter",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@Observable final class AppRouter { var selectedTab: AppTab; var libraryPath: NavigationPath; var pendingDeepLinkPlaceID: PlaceID?; func handleDeepLink(placeID: PlaceID); func consumePendingDeepLinkIfNeeded() }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED: @Observable, not ObservableObject, project-wide. handleDeepLink appends to libraryPath, never resets it. Root view drives consumePendingDeepLinkIfNeeded() via .onChange(of: pendingDeepLinkPlaceID), not an imperative scenePhase check, so a cold launch from a notification tap can't double-fire or drop the append."
+    },
+    {
+      "name": "AppTab",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppTab: Sendable { case home, library }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED. Exactly two tabs; Settings/Paywall are always sheets."
+    },
+    {
+      "name": "HomeViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum HomeViewState: Sendable { case firstRunEmpty, watchful(monitoredCount: Int), degraded(reason: String), locationTemporarilyUnavailable }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED. The four locked Home states."
+    },
+    {
+      "name": "CaptureButtonPhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CaptureButtonPhase: Sendable { case idle, pressed, resolving, committed }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED. Drives visual state and the accessibility label."
+    },
+    {
+      "name": "LibrarySection",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LibrarySection: CaseIterable, Sendable { case activeAndQueued, snoozed, paused, visited, dismissed }",
+      "owning_lane": "primary_ui",
+      "notes": "FINAL, locked at exactly 5 sections. No separate softPaused section \u2014 soft-paused places render inside activeAndQueued using queued's existing row treatment."
+    },
+    {
+      "name": "PaywallViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PaywallViewState: Sendable { case pitch, purchasing, restored, failed(String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "LOCKED. Restore Purchases button always visible in every state."
+    },
+    {
+      "name": "DiagnosticsSummaryTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DiagnosticsSummaryTier: Sendable { case allSystemsGo, capabilityReduced, monitoringUnavailable }",
+      "owning_lane": "polish_resilience",
+      "notes": "LOCKED. capabilityReduced is where reduced-precision-location surfaces, not as a per-place paused reason."
+    },
+    {
+      "name": "WidgetRefreshCoordinator",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol WidgetRefreshCoordinator: Sendable { func scheduleCoalescedReload(reason: String) async; func performForegroundBackgroundReloadIfNeeded() async }",
+      "owning_lane": "polish_resilience",
+      "notes": "Debounces WidgetKit reloads to stay within daily budget."
+    },
+    {
+      "name": "PersistenceController",
+      "kind": "class",
+      "language": "swift",
+      "signature": "final class PersistenceController { static let shared: PersistenceController; let container: NSPersistentContainer; func newBackgroundContext() -> NSManagedObjectContext }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. Lives in the shared WaylayCore package linked by app/widget/share-extension. NSPersistentHistoryTrackingKey and NSPersistentStoreRemoteChangeNotificationPostOptionKey both true so all three processes merge each other's writes via .NSPersistentStoreRemoteChange."
+    },
+    {
+      "name": "DiagnosticsService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol DiagnosticsService: Sendable { func appCapabilitySnapshot() async -> AppCapabilitySnapshot; func placeSnapshots() async throws -> [DiagnosticsPlaceSnapshot] }",
+      "owning_lane": "polish_resilience",
+      "notes": "Feeds Settings diagnostics UI."
+    },
+    {
+      "name": "LocationAuthLevel",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LocationAuthLevel: String, Codable, Sendable, Equatable { case notDetermined, whenInUse, always, denied, restricted }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. Domain-owned replacement for raw CLAuthorizationStatus, mapped at the LocationService boundary so data_domain never imports CoreLocation."
+    },
+    {
+      "name": "NotificationAuthLevel",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum NotificationAuthLevel: String, Codable, Sendable, Equatable { case notDetermined, denied, authorized, provisional, ephemeral }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED. Domain-owned replacement for raw UNAuthorizationStatus, mapped at the NotificationService boundary."
+    }
+  ],
+  "errors": []
+}

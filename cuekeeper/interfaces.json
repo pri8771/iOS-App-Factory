@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Event",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Event: Identifiable, Codable, Sendable { let id: UUID; var title: String; var cues: [Cue]; var createdAt: Date; var schemaVersion: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Lives in app target's Core/ folder, not a package. One JSON file per event. cues order is authoritative sequence order."
+    },
+    {
+      "name": "Cue",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Cue: Identifiable, Codable, Sendable, Equatable { let id: UUID; var title: String; var duration: TimeInterval; var role: String?; var contingencyNote: String?; var backupTargetCueID: UUID? }",
+      "owning_lane": "data_domain",
+      "notes": "duration == 0 is a valid 'instant' cue. backupTargetCueID references another Cue.id, never an index."
+    },
+    {
+      "name": "ActionLogEntry",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ActionLogEntry: Codable, Sendable { case start(at: Date, uptime: TimeInterval); case advance(at: Date, uptime: TimeInterval, toCueID: UUID); case skip(at: Date, uptime: TimeInterval, toCueID: UUID); case holdStarted(at: Date, uptime: TimeInterval); case holdEnded(at: Date, uptime: TimeInterval); case jumpToBackup(at: Date, uptime: TimeInterval, toCueID: UUID); case undoLastAction(at: Date, uptime: TimeInterval); case complete(at: Date, uptime: TimeInterval) }",
+      "owning_lane": "data_domain",
+      "notes": "Append-only. Every entry carries both wall-clock and monotonic uptime so LiveRunEngine can do clock-jump detection without a separate log."
+    },
+    {
+      "name": "EventLog",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct EventLog: Codable, Sendable { let eventID: UUID; var entries: [ActionLogEntry] }",
+      "owning_lane": "data_domain",
+      "notes": "One JSON file per event, alongside the Event file. Never truncated, even by undo."
+    },
+    {
+      "name": "LiveRunProjection",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct LiveRunProjection: Sendable, Equatable { var currentCueID: UUID?; var isLive: Bool; var isOnHold: Bool; var isComplete: Bool; var elapsedInCurrentCue: TimeInterval; var driftFromPlanned: TimeInterval; var completedCueIDs: [UUID]; var skippedCueIDs: [UUID]; var canUndo: Bool; var clockJumpWarning: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "The ONLY type LiveConsoleView's body should read. Equatable so SwiftUI can skip re-renders when nothing meaningful changed."
+    },
+    {
+      "name": "ClockProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ClockProviding: Sendable { func now() -> Date; func uptime() -> TimeInterval }",
+      "owning_lane": "data_domain",
+      "notes": "Injected everywhere; no direct Date()/ProcessInfo calls inside LiveRunEngine or view models."
+    },
+    {
+      "name": "SystemClock",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct SystemClock: ClockProviding { func now() -> Date; func uptime() -> TimeInterval }",
+      "owning_lane": "data_domain",
+      "notes": "Production implementation. Tests supply a fake ClockProviding instead."
+    },
+    {
+      "name": "LiveRunEngine",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "enum LiveRunEngine { static func project(event: Event, log: EventLog, clock: ClockProviding) -> LiveRunProjection }",
+      "owning_lane": "data_domain",
+      "notes": "Pure, static, no side effects. undoLastAction skips the immediately-preceding entry during replay, never truncates the log. Tested with Swift Testing @Test(arguments:), not XCTest."
+    },
+    {
+      "name": "EventStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EventStatus: String, Codable, Sendable { case draft, ready, live, onHold, completed }",
+      "owning_lane": "data_domain",
+      "notes": "Derived for display from LiveRunProjection + cue count, never stored as an independent flag."
+    },
+    {
+      "name": "EventManifestEntry",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct EventManifestEntry: Codable, Sendable { let id: UUID; var title: String; var status: EventStatus; var cueCount: Int; var finalDriftSummary: String? }",
+      "owning_lane": "data_domain",
+      "notes": "finalDriftSummary populated only for .completed rows, shown as muted text on Home."
+    },
+    {
+      "name": "EventManifest",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct EventManifest: Codable, Sendable { var activeLiveEventID: UUID?; var entries: [EventManifestEntry] }",
+      "owning_lane": "data_domain",
+      "notes": "activeLiveEventID is a hint only \u2014 cold-launch routing must load that event's log and reconfirm isLive via LiveRunEngine.project before trusting it."
+    },
+    {
+      "name": "EventStoring",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol EventStoring: Sendable { func loadManifest() async throws -> EventManifest; func loadEvent(id: UUID) async throws -> Event; func saveEvent(_ event: Event) async throws; func loadLog(eventID: UUID) async throws -> EventLog; func appendLogEntry(_ entry: ActionLogEntry, eventID: UUID) async throws; func deleteEvent(id: UUID) async throws; func resolveActiveLiveEvent() async -> UUID? }",
+      "owning_lane": "services_utilities",
+      "notes": "This protocol boundary IS the answer to the portfolio's 'cloud-ready without rewriting' requirement: a future CloudKit-backed store is a second conformance, zero call-site changes. EventStore is the only production conformance today."
+    },
+    {
+      "name": "EventStore",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "actor EventStore: EventStoring { init(containerURL: URL) }",
+      "owning_lane": "services_utilities",
+      "notes": "Lives in app target's Persistence/ folder, not a separate package. Backs onto App Group container. All writes are temp-file-then-atomic-rename. resolveActiveLiveEvent() re-projects the log before trusting the manifest pointer."
+    },
+    {
+      "name": "PersistenceError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PersistenceError: Error, Sendable { case corruptEvent(UUID); case corruptManifest; case notFound(UUID); case writeFailed(underlying: String) }",
+      "owning_lane": "services_utilities",
+      "notes": "corruptEvent quarantines one Home row; corruptManifest triggers the app-root persistence-error phase, a strictly worse case."
+    },
+    {
+      "name": "AppGroupContainer",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "enum AppGroupContainer { static let identifier: String; static var containerURL: URL? }",
+      "owning_lane": "services_utilities",
+      "notes": "Single source of the App Group id used by EventStore and any future widget/Live Activity extension."
+    },
+    {
+      "name": "EntitlementResult",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EntitlementResult: Sendable, Equatable { case entitled; case free; case unverifiable }",
+      "owning_lane": "services_utilities",
+      "notes": "unverifiable is treated identically to free everywhere \u2014 fail open, no separate error UI."
+    },
+    {
+      "name": "EntitlementService",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "actor EntitlementService { func checkEntitlement() async -> EntitlementResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Lives in its own local Swift Package, CueKeeperEntitlements \u2014 the ONE package boundary in this project, because it's the one place a forbidden import actually matters. Only app target's UI/CreationFlow/ files link this package; UI/LiveRun/ and LiveRunEngine cannot import it \u2014 a compile error, not a convention. Races Transaction.currentEntitlements against a 2s Task.sleep timeout; caches via Transaction.updates at launch/foreground."
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "struct NotificationScheduler { func rescheduleAll(for event: Event, log: EventLog, clock: ClockProviding) async }",
+      "owning_lane": "services_utilities",
+      "notes": "App target's Notifications/ folder. Full cancel-and-reschedule of every remaining request on every mutating action, keyed by eventID+cueID. .timeSensitive interruption level."
+    },
+    {
+      "name": "HapticPattern",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum HapticPattern: Sendable { case advance, hold, skip, contingencyReveal }",
+      "owning_lane": "services_utilities",
+      "notes": "Maps to four distinguishable feedback-generator patterns, verified distinct on physical device."
+    },
+    {
+      "name": "HapticsService",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "struct HapticsService { func play(_ pattern: HapticPattern) }",
+      "owning_lane": "services_utilities",
+      "notes": "App target's Haptics/ folder. Thin wrapper over UIKit feedback generators."
+    },
+    {
+      "name": "ClockJumpDetector",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "enum ClockJumpDetector { static func isAnomalous(previousWall: Date, previousUptime: TimeInterval, currentWall: Date, currentUptime: TimeInterval, tolerance: TimeInterval) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure function; feeds LiveRunProjection.clockJumpWarning. Called on every foreground/appear. Tested with Swift Testing."
+    },
+    {
+      "name": "AppPhase",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AppPhase: Equatable { case loadingPersistence; case console(UUID); case home }",
+      "owning_lane": "primary_ui",
+      "notes": "Root switch, not a NavigationStack. WindowGroup renders directly off this."
+    },
+    {
+      "name": "AppCoordinator",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Observable @MainActor final class AppCoordinator { var phase: AppPhase; func bootstrap() async; func startLiveRun(eventID: UUID) async; func returnToHome() }",
+      "owning_lane": "primary_ui",
+      "notes": "bootstrap() reads the manifest, resolves the active event via EventStore.resolveActiveLiveEvent(), and only then sets phase \u2014 never renders Home first and redirects."
+    },
+    {
+      "name": "LiveConsoleViewModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Observable @MainActor final class LiveConsoleViewModel { var projection: LiveRunProjection; var isContingencyRevealed: Bool; var undoBannerVisible: Bool; func advance() async; func hold() async; func skip() async; func jumpToBackup() async; func undo() async; func revealContingency() }",
+      "owning_lane": "primary_ui",
+      "notes": "Lives in UI/LiveRun/. Body-relevant state is exactly `projection` plus transient UI flags. Cannot import CueKeeperEntitlements \u2014 that package isn't linked from UI/LiveRun/, so it's a build error, not a review catch."
+    },
+    {
+      "name": "seedSampleEventForUITesting",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func seedSampleEventForUITesting(store: EventStoring) async",
+      "owning_lane": "primary_ui",
+      "notes": "Invoked when launch argument -uiTestSeedSampleEvent is present; drops app directly into a known live-console state for XCUITest tap-count assertions."
+    },
+    {
+      "name": "AccessibilityAnnouncer",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "enum AccessibilityAnnouncer { static func announce(_ message: String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Wraps UIAccessibility.post(.announcement:); used for undo-banner appearance and clock-jump warnings."
+    },
+    {
+      "name": "SnapshotPrivacyGuard",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "struct SnapshotPrivacyGuard: ViewModifier { func body(content: Content) -> some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Should-have blur-on-background for the live console; first cut under time pressure, must be named explicitly in the final report if cut."
+    },
+    {
+      "name": "TemplateExporter",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "struct TemplateExporter { func export(_ event: Event, includeNotes: Bool) -> Data }",
+      "owning_lane": "polish_resilience",
+      "notes": "Should-have. Strips contingencyNote and role free text by default; includeNotes is an explicit opt-in."
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b3",
+  "build": true,
+  "build_priority": 4,
+  "app": {
+    "name": "Kitbag",
+    "slug": "kitbag",
+    "category": "Travel",
+    "one_sentence_promise": "A packing list that learns from your own trip history instead of handing you a generic template.",
+    "target_user": "Frequent travelers who over- or under-pack and want a personal system rather than a one-size-fits-all checklist.",
+    "painful_moment": "Staring at a blank generic packing checklist the night before a trip and forgetting the same things every time.",
+    "why_different": "Builds lists from your own packing/usage history captured via a quick post-trip review, and uses bundled offline climate-normal data by month and region instead of a live weather feed.",
+    "why_users_pay": "Unlimited trip history, deeper post-trip analytics, list export/share to travel companions, premium curated templates for niche trip types.",
+    "subscription_model": "Free: 3 trips of history, basic list. Paid: unlimited history/analytics/premium templates.",
+    "local_first_mvp_scope": "Entirely on-device trip and packing history, with a bundled offline climate-normal reference table.",
+    "future_backend_roadmap": "Optional cloud backup/sync of trip history; potential live-weather enhancement layered on later, never required.",
+    "core_workflows": [
+      "Create a trip (destination, dates, type)",
+      "Generate a smart packing list",
+      "Check off items while packing",
+      "Post-trip review of what went unused",
+      "Browse personal packing insights over time"
+    ],
+    "ios_native_features": [
+      "Widgets for days-until-trip and packing progress",
+      "Live Activities for an active packing session",
+      "App Intents/Siri to add items by voice"
+    ],
+    "ar_ml_llm_fit": "On-device weighting of list suggestions from personal packing history; optional on-device LLM phrasing of suggestions.",
+    "design_direction": "Crisp, modern travel-editorial look with destination-photo headers \u2014 a boutique travel planner, not a generic checklist app.",
+    "claude_design_prompt": "Design a boutique travel-editorial packing app: a destination-photo-driven trip header, a clean smart-checklist view, and a lightweight post-trip review screen that feels quick, not like homework.",
+    "app_store_positioning": "The packing list that actually learns from you \u2014 not a generic template.",
+    "key_risks": [
+      "First trip has no history to learn from, so v1 must be useful with zero history via smart defaults",
+      "Climate-normal data must be clearly labeled as historical averages, not a forecast"
+    ],
+    "invalidation_criteria": "If post-trip review completion stays very low, the self-improving loop can't function and the app should be redesigned around a faster review prompt.",
+    "v1_build_scope": "Trip creation, smart default list by type/region, checklist UI, post-trip review, personal insights.",
+    "build": true,
+    "build_priority": 4
+  }
+}

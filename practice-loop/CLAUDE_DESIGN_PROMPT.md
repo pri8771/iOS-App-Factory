@@ -1,0 +1,1 @@
+Design a premium iOS music-practice app called Practice Loop. Calm studio aesthetic, live waveform and pitch-accuracy visualization during recording, per-piece progress history, session summary screen. Include empty state and a low-signal/no-input error state.

@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 15:14:23",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "795f8db88884050761d936ab6196d06028cacfc21c6f37ffdbb57708e70b1954",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": false,
+    "ok": false,
+    "status": "unverified",
+    "tool": "xcodebuild",
+    "scheme": null,
+    "summary": "no .xcodeproj/.xcworkspace found.",
+    "errors": "",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 15:34:31",
+    "phase": "build_coordination",
+    "workflow": "iterate",
+    "prompt_hash": "147540e41b89e09286e1d7e7af8cd615803c52fed94a7887ff40ab0d65717652",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": false,
+    "ok": false,
+    "status": "unverified",
+    "tool": "xcodebuild",
+    "scheme": null,
+    "summary": "no .xcodeproj/.xcworkspace found.",
+    "errors": "",
+    "tests": null
+  }
+]

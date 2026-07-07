@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Tradition",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Tradition: String, Codable, CaseIterable { case hindu, jain, universal }",
+      "owning_lane": "data_domain",
+      "notes": "Tags Practice and LearningPath content"
+    },
+    {
+      "name": "PracticeType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PracticeType: String, Codable { case aarti, meditation, mantra, journaling }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "Practice",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Practice: Identifiable, Codable { let id: String; let title: String; let tradition: Tradition; let type: PracticeType; let durationSeconds: Int; let audioAssetName: String?; let textContent: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Bundled static content, decoded from JSON catalog"
+    },
+    {
+      "name": "LearningPath",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LearningPath: Identifiable, Codable { let id: String; let title: String; let tradition: Tradition; let modules: [LearningModule] }",
+      "owning_lane": "data_domain",
+      "notes": "Bundled static content"
+    },
+    {
+      "name": "LearningModule",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LearningModule: Identifiable, Codable { let id: String; let title: String; let order: Int; let lessons: [Lesson] }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "Lesson",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Lesson: Identifiable, Codable { let id: String; let title: String; let content: String; let linkedPracticeID: String? }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "PracticeSessionRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PracticeSessionRecord { var id: UUID; var practiceID: String; var date: Date; var durationCompleted: Int; var completed: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData model, mutable user log"
+    },
+    {
+      "name": "StreakRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class StreakRecord { var currentStreak: Int; var longestStreak: Int; var lastPracticeDate: Date?; var freezesAvailable: Int }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData, singleton row per user"
+    },
+    {
+      "name": "UserProfile",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class UserProfile { var selectedTradition: Tradition; var dailyGoalMinutes: Int; var reminderTime: Date?; var subscriptionActive: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData, singleton row per user"
+    },
+    {
+      "name": "JournalEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class JournalEntry { var id: UUID; var date: Date; var text: String; var moodTag: String? }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData"
+    },
+    {
+      "name": "LessonProgressRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class LessonProgressRecord { var lessonID: String; var unlocked: Bool; var completed: Bool; var completedDate: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData join table between static Lesson content and user progress"
+    },
+    {
+      "name": "ContentCatalogLoading",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ContentCatalogLoading { func loadPractices() throws -> [Practice]; func loadLearningPaths() throws -> [LearningPath] }",
+      "owning_lane": "data_domain",
+      "notes": "Decodes bundled JSON; throws on malformed content for error-state UI"
+    },
+    {
+      "name": "StreakServicing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol StreakServicing { func recordPractice(on date: Date) async; func currentStreak() -> Int; func useFreeze() -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs StreakRecord; freeze/reset edge cases are the core unit-test target"
+    },
+    {
+      "name": "ProgressServicing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ProgressServicing { func isUnlocked(lessonID: String) -> Bool; func completeLesson(lessonID: String) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Enforces sequential lesson unlock ordering"
+    },
+    {
+      "name": "AudioPlaybackServicing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AudioPlaybackServicing { func play(assetName: String) async throws; func stop() }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps AVAudioPlayer, off-main prep"
+    },
+    {
+      "name": "NotificationScheduling",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol NotificationScheduling { func scheduleDailyReminder(at time: Date) async throws; func cancelReminder() }",
+      "owning_lane": "services_utilities",
+      "notes": "UNUserNotificationCenter, local only"
+    },
+    {
+      "name": "SubscriptionManaging",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SubscriptionManaging { var isSubscribed: Bool { get }; func purchase(productID: String) async throws; func restorePurchases() async }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2, product ids aartipath.premium.monthly / .annual"
+    },
+    {
+      "name": "HomeViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class HomeViewModel { var todaysPractice: Practice?; var streak: Int; var loadState: LoadState<Void> }",
+      "owning_lane": "primary_ui",
+      "notes": ""
+    },
+    {
+      "name": "PracticeSessionViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class PracticeSessionViewModel { var practice: Practice; var isPlaying: Bool; func start() async; func complete() async }",
+      "owning_lane": "primary_ui",
+      "notes": ""
+    },
+    {
+      "name": "LearningPathViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class LearningPathViewModel { var path: LearningPath; var lessonProgress: [String: LessonProgressRecord] }",
+      "owning_lane": "primary_ui",
+      "notes": ""
+    },
+    {
+      "name": "ProfileViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ProfileViewModel { var profile: UserProfile; func updateReminder(_ time: Date) async }",
+      "owning_lane": "primary_ui",
+      "notes": ""
+    },
+    {
+      "name": "LoadState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LoadState<T> { case idle, loading, loaded(T), failed(Error) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Generic state used by every screen for empty/loading/success/error"
+    },
+    {
+      "name": "AppError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppError: Error, LocalizedError { case contentLoadFailed, audioUnavailable, notificationDenied, purchaseFailed }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared error type surfaced in error-state views"
+    }
+  ],
+  "errors": []
+}

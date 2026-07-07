@@ -1,0 +1,20 @@
+{
+  "prompt_contract": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "initial_discussion": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "per_app_product_brief": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "detailed_discussion": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "app_features": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "design_discussion": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "design_handoff": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "ios_architecture_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "tech_specs": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "project_plan": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "task_assignments": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "implementation_readiness_gate": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "build_coordination": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+  "build_verification": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\n**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)\n\nVERIFICATION: UNVERIFIED",
+  "human_qa_checklist": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED",
+  "app_store_readiness": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED",
+  "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED",
+  "portfolio_audit": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED"
+}

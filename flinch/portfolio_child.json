@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "parent": "batch-games",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Flinch",
+    "slug": "flinch",
+    "category": "party, pass-one-phone",
+    "promise": "Fast reflex/elimination game, opposite tempo from Parlor",
+    "monetization": "Paid challenge \"seasons\"",
+    "alcohol_stake_default": "non-alcohol via settings toggle",
+    "build": true,
+    "priority": 6,
+    "one_sentence_promise": "Fast reflex/elimination game, opposite tempo from Parlor",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

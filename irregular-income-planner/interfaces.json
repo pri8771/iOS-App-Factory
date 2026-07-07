@@ -1,0 +1,414 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "IncomeEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct IncomeEntry: Identifiable, Codable, Hashable, Sendable { let id: UUID; var amount: Decimal; var receivedOn: Date; var note: String?; let createdAt: Date; var isCorrection: Bool { amount < 0 } }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL. No updatedAt. receivedOn chosen over bare date for legibility against createdAt. isCorrection computed from sign, never stored. Same-date duplicates always distinct records, never merged."
+    },
+    {
+      "name": "ObligationCadence",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ObligationCadence: String, Codable, CaseIterable, Sendable { case weekly, monthly, quarterly, annual, oneOff }",
+      "owning_lane": "data_domain",
+      "notes": "Agreed across all rounds."
+    },
+    {
+      "name": "Obligation",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Obligation: Identifiable, Codable, Hashable, Sendable { let id: UUID; var name: String; var amount: Decimal; var cadence: ObligationCadence; var dueDate: Date; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL. No updatedAt/endDate/isActive. A one-off obligation past its dueDate simply stops producing occurrences in cadence expansion; stays visible until deleted. Amount always manual, engine never estimates it."
+    },
+    {
+      "name": "ReserveSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ReserveSnapshot: Codable, Hashable, Sendable { var amount: Decimal; var lastUpdated: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Single current value, never a ledger."
+    },
+    {
+      "name": "BaselineStrategy",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum BaselineStrategy: Codable, Hashable, Sendable { case trailingLowPercentile(percentile: Int); case manualLowMonthEstimate }",
+      "owning_lane": "data_domain",
+      "notes": "Uncontested if PlanningConfig survives round 2."
+    },
+    {
+      "name": "PlanningConfig",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlanningConfig: Codable, Hashable, Sendable { var lookbackMonths: Int; var lowConfidenceEntryThreshold: Int; var fullyComputedEntryThreshold: Int; var riskWindowDays: Int; var baselinePercentile: Int; var currencyCode: String?; static let standard = PlanningConfig(lookbackMonths: 12, lowConfidenceEntryThreshold: 2, fullyComputedEntryThreshold: 6, riskWindowDays: 14, baselinePercentile: 10, currencyCode: nil) }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL. No BaselineStrategy enum. Compiled-in constants, never user-editable, never persisted."
+    },
+    {
+      "name": "ConfidenceTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ConfidenceTier: Codable, Hashable, Sendable { case insufficientData(manualFallback: Decimal?); case lowConfidenceComputed; case fullyComputed }",
+      "owning_lane": "data_domain",
+      "notes": "Screens switch on this directly. manualFallback now durably sourced from FinancialDocument.manualFallbackEstimate via PlanningEngine.evaluate's manualFallbackEstimate parameter."
+    },
+    {
+      "name": "RiskWindowStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RiskWindowStatus: Codable, Hashable, Sendable { case clear; case upcomingObligation(daysUntilDue: Int, obligationIDs: [UUID]) }",
+      "owning_lane": "data_domain",
+      "notes": "14-day threshold applied via PlanningConfig."
+    },
+    {
+      "name": "RunwayStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RunwayStatus: Codable, Hashable, Sendable { case unavailable; case available(days: Int) }",
+      "owning_lane": "data_domain",
+      "notes": "Unavailable when reserve snapshot is missing."
+    },
+    {
+      "name": "ExplanationLineItem",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExplanationLineItem: Identifiable, Codable, Hashable, Sendable { let id: UUID; var label: String; var amount: Decimal; var emphasis: ExplanationEmphasis }",
+      "owning_lane": "data_domain",
+      "notes": "Uncontested since round 1."
+    },
+    {
+      "name": "ExplanationEmphasis",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ExplanationEmphasis: String, Codable, Sendable { case normal, caution, result }",
+      "owning_lane": "data_domain",
+      "notes": "Uncontested."
+    },
+    {
+      "name": "RibbonPoint",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RibbonPoint: Codable, Hashable, Sendable { var monthStart: Date; var incomeTotal: Decimal }",
+      "owning_lane": "data_domain",
+      "notes": "Monthly bucket points for dashboard ribbon; zero-income months included explicitly."
+    },
+    {
+      "name": "PlanningResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlanningResult: Codable, Hashable, Sendable { var asOf: Date; var safeToSpend: Decimal; var confidenceTier: ConfidenceTier; var baseline: Decimal; var obligationsDueThisCycle: Decimal; var runway: RunwayResult?; var riskWindowFlags: [RiskWindowFlag]; var monthlyIncomeBuckets: [MonthlyBucket]; var explanation: [ExplanationLineItem] }",
+      "owning_lane": "data_domain",
+      "notes": "Never floored at zero, never persisted."
+    },
+    {
+      "name": "PlanningEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum PlanningEngine { static func evaluate(income: [IncomeEntry], obligations: [Obligation], reserve: ReserveSnapshot?, manualFallbackEstimate: Decimal?, asOf: Date, config: PlanningConfig = .standard) -> PlanningResult }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL. Concrete namespace, non-throwing, asOf always caller-supplied. manualFallbackEstimate parameter unchanged by the round-4 fix \u2014 the fix gave it a durable upstream source, not a new consumption shape."
+    },
+    {
+      "name": "FinancialDocument",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct FinancialDocument: Codable, Sendable { var schemaVersion: Int; var incomeEntries: [IncomeEntry]; var obligations: [Obligation]; var reserve: ReserveSnapshot?; var manualFallbackEstimate: Decimal? }",
+      "owning_lane": "services_utilities",
+      "notes": "FIXED per quality gate in round 4: manualFallbackEstimate now lives here (not AppSettings), since it's user-entered financial data that should survive relaunch and travel with export/import, same as reserve. The only thing export/import touches."
+    },
+    {
+      "name": "AppSettings",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AppSettings: Codable, Sendable { var schemaVersion: Int; var onboardingCompleted: Bool; var lockEnabled: Bool; var entitlementActive: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Never touched by import/export; corruption resets silently to defaults. Deliberately excludes manualFallbackEstimate."
+    },
+    {
+      "name": "FinancialDocumentStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol FinancialDocumentStore { func load() async throws -> FinancialDocument; func save(_ document: FinancialDocument) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Persistence-layer protocol, fakeable for tests. Atomic writes off the main actor."
+    },
+    {
+      "name": "SettingsStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SettingsStore { func load() async throws -> AppSettings; func save(_ settings: AppSettings) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Decode failure treated by the caller as AppSettings defaults, never launch-blocking."
+    },
+    {
+      "name": "ImportValidationError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ImportValidationError: Error, Sendable { case malformedJSON; case unsupportedSchemaVersion(found: Int); case invalidRecord(reason: String) }",
+      "owning_lane": "services_utilities",
+      "notes": "Any case must leave the on-disk document byte-identical to its pre-import state. invalidRecord now also covers a negative manualFallbackEstimate."
+    },
+    {
+      "name": "ImportExportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ImportExportService { func exportData(_ document: FinancialDocument) throws -> Data; func validateImport(_ data: Data) throws -> FinancialDocument }",
+      "owning_lane": "services_utilities",
+      "notes": "Data-based for in-memory-fixture testability. Zero disk writes or store mutation inside this call. manualFallbackEstimate now round-trips correctly since it's part of FinancialDocument."
+    },
+    {
+      "name": "AuthenticationOutcome",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AuthenticationOutcome: Sendable { case success; case failedRetryable; case passcodeFallbackRequired; case unavailable }",
+      "owning_lane": "services_utilities",
+      "notes": "Supports lock gate state machine without binding UI to LAContext."
+    },
+    {
+      "name": "Authenticator",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol Authenticator { func availability() -> AuthAvailability; func authenticate(reason: String) async -> AuthResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Canonical name aligned to the earlier architecture review; wraps LAContext for testability."
+    },
+    {
+      "name": "EntitlementService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementService { var isEntitled: Bool { get }; func setEntitled(_ value: Bool) }",
+      "owning_lane": "services_utilities",
+      "notes": "Reads/writes AppSettingsStore.settings.entitlementActive; LockedFeatureRow binds only to this."
+    },
+    {
+      "name": "CurrencyFormatting",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CurrencyFormatting { func string(from amount: Decimal, currencyCode: String?, locale: Locale) -> String }",
+      "owning_lane": "services_utilities",
+      "notes": "Single formatting path, currencyCode nil defers to locale's currency."
+    },
+    {
+      "name": "AppRootState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRootState: Sendable { case launching; case onboarding; case locked; case unlocked }",
+      "owning_lane": "primary_ui",
+      "notes": "No root-level recoverable-error case \u2014 corrupted storage handled after unlock via financialStoreLoadError."
+    },
+    {
+      "name": "DashboardViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DashboardViewState: Sendable { case loading; case insufficientData(PlanningResult); case ready(PlanningResult); case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "From Codex's proposal, uncontested so far."
+    },
+    {
+      "name": "MoneyInputsViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MoneyInputsViewState: Sendable { case loading; case ready(document: FinancialDocument); case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Contingent on the FinancialStore-vs-per-screen-state resolution \u2014 may need reshaping to read from the shared store instead of a raw document if that model wins."
+    },
+    {
+      "name": "ExplanationHistoryViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ExplanationHistoryViewState: Sendable { case loading; case empty; case ready(PlanningResult, FinancialDocument); case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Uncontested so far."
+    },
+    {
+      "name": "SettingsViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SettingsViewState: Sendable { case loading; case ready(AppSettings); case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Uncontested so far."
+    },
+    {
+      "name": "recomputePlanningResult",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func recomputePlanningResult(document: FinancialDocument, manualFallbackEstimate: Decimal?, asOf: Date, config: PlanningConfig) -> PlanningResult",
+      "owning_lane": "polish_resilience",
+      "notes": "Single helper path into PlanningEngine.evaluate. manualFallbackEstimate now consistently sourced from document.manualFallbackEstimate."
+    },
+    {
+      "name": "validateFinancialDocument",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func validateFinancialDocument(_ document: FinancialDocument) throws",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared domain validation for import and post-decode load checks. Now also rejects a negative manualFallbackEstimate as ImportValidationError.invalidRecord \u2014 unlike IncomeEntry.amount, a negative value here has no sensible meaning."
+    },
+    {
+      "name": "MonthlyBucket",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MonthlyBucket: Codable, Hashable, Sendable { var monthStart: Date; var totalIncome: Decimal }",
+      "owning_lane": "data_domain",
+      "notes": "Zero-income months present with totalIncome == 0, never omitted."
+    },
+    {
+      "name": "RiskWindowFlag",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RiskWindowFlag: Identifiable, Codable, Hashable, Sendable { var id: UUID { obligationID }; var obligationID: UUID; var obligationName: String; var amount: Decimal; var dueInDays: Int }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL. Array-of-flags \u2014 multiple simultaneous obligations stay distinguishable. Empty array = clear."
+    },
+    {
+      "name": "RunwayResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RunwayResult: Codable, Hashable, Sendable { var monthsOfRunway: Decimal; var basedOnReserveAmount: Decimal; var reserveLastUpdated: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Nil on PlanningResult when reserve is missing."
+    },
+    {
+      "name": "PlanningEngine.evaluate",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum PlanningEngine { static func evaluate(income: [IncomeEntry], obligations: [Obligation], reserve: ReserveSnapshot?, asOf: Date) -> PlanningResult }",
+      "owning_lane": "data_domain",
+      "notes": "pure, synchronous, zero side effects, asOf always explicit \u2014 never defaults to Date(). Risk window threshold is a fixed 14-day constant inside this function."
+    },
+    {
+      "name": "FinancialStore",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class FinancialStore { private(set) var incomeEntries: [IncomeEntry]; private(set) var obligations: [Obligation]; private(set) var reserve: ReserveSnapshot?; private(set) var manualFallbackEstimate: Decimal?; private(set) var planningResult: PlanningResult; init(document: FinancialDocument, config: PlanningConfig = .standard, asOf: Date); func addIncome(_ entry: IncomeEntry, asOf: Date); func updateIncome(_ entry: IncomeEntry, asOf: Date); func deleteIncome(id: UUID, asOf: Date); func addObligation(_ o: Obligation, asOf: Date); func updateObligation(_ o: Obligation, asOf: Date); func deleteObligation(id: UUID, asOf: Date); func updateReserve(amount: Decimal, asOf: Date); func updateManualFallbackEstimate(_ value: Decimal?, asOf: Date); func replaceAll(with document: FinancialDocument, asOf: Date); func snapshotDocument() -> FinancialDocument }",
+      "owning_lane": "data_domain",
+      "notes": "FIXED: init hydrates manualFallbackEstimate from document.manualFallbackEstimate instead of defaulting to nil every launch; snapshotDocument() must include the current value in its returned FinancialDocument or export/import reintroduces the same data-loss bug through a different door. Concrete class, not protocol (only one real implementation; protocol existentials risk degrading @Observable's fine-grained tracking; @Environment(Type.self) is documented against concrete types). Explicit per-call asOf on every mutator. Single shared instance owned by AppRootCoordinator, injected via environment only once fully populated \u2014 no per-screen copies of these arrays."
+    },
+    {
+      "name": "AppSettingsStore",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AppSettingsStore { private(set) var settings: AppSettings; func setLockEnabled(_ v: Bool); func setEntitlementActive(_ v: Bool); func setOnboardingCompleted(_ v: Bool) }",
+      "owning_lane": "data_domain",
+      "notes": "Loaded before FinancialStore since root-phase determination depends on it."
+    },
+    {
+      "name": "FinancialDocumentStoring",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol FinancialDocumentStoring { func load() async throws -> FinancialDocument; func save(_ document: FinancialDocument) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Concrete implementation performs atomic temp-write-then-replace off the main actor."
+    },
+    {
+      "name": "AppSettingsStoring",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AppSettingsStoring { func load() async throws -> AppSettings; func save(_ settings: AppSettings) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Decode failure is handled by caller as AppSettings.default, not surfaced as fatal launch failure."
+    },
+    {
+      "name": "AuthenticatorProtocol",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AuthenticatorProtocol { func availability() -> AuthAvailability; func authenticate(reason: String) async -> AuthResult }",
+      "owning_lane": "services_utilities",
+      "notes": "FINAL name, matching the ios_architecture_review lock. Wraps LAContext for testability without hardware."
+    },
+    {
+      "name": "AuthAvailability",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AuthAvailability: Sendable { case biometric; case passcodeOnly; case unavailable }",
+      "owning_lane": "services_utilities",
+      "notes": ".unavailable falls through to unlocked-with-notice, never a dead end."
+    },
+    {
+      "name": "AuthResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AuthResult: Sendable { case success; case failure(retryable: Bool); case userCancelled }",
+      "owning_lane": "services_utilities",
+      "notes": "Agreed."
+    },
+    {
+      "name": "EntitlementServicing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementServicing { var isEntitled: Bool { get }; func setEntitled(_ value: Bool) }",
+      "owning_lane": "services_utilities",
+      "notes": "Backed by AppSettingsStore entitlementActive for MVP. Premium UI binds only through this abstraction."
+    },
+    {
+      "name": "ImportExportServicing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ImportExportServicing { func exportData(_ document: FinancialDocument) throws -> Data; func validateImport(_ data: Data) throws -> FinancialDocument }",
+      "owning_lane": "services_utilities",
+      "notes": "Validation is in-memory only. Caller confirms replace with the user, then persists the validated document separately."
+    },
+    {
+      "name": "AppRootCoordinator",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AppRootCoordinator { private(set) var phase: AppRootState; private(set) var financialStore: FinancialStore?; private(set) var settingsStore: AppSettingsStore?; private(set) var financialStoreLoadError: Error?; func bootstrap() async; func beginUnlock() async; func handleScenePhaseChange(_ newPhase: ScenePhase) }",
+      "owning_lane": "primary_ui",
+      "notes": "financialStore stays nil/undecoded until authentication succeeds. Document load starts only once unlock is user-initiated, concurrently with authenticate(); discarded if auth fails/cancelled. Corrupted document sets financialStoreLoadError, phase still becomes .unlocked."
+    },
+    {
+      "name": "SnapshotRedactionModifier",
+      "kind": "function",
+      "language": "swift",
+      "signature": "extension View { func redactedOnInactive(_ isInactive: Bool) -> some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Swaps to a branded placeholder on scenePhase == .inactive before the system app-switcher snapshot; manual QA checklist item, not an automated test."
+    },
+    {
+      "name": "DashboardViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol DashboardViewModel: AnyObject { var isQuickAddPresented: Bool { get set }; func presentQuickAdd(); func dismissQuickAdd() }",
+      "owning_lane": "primary_ui",
+      "notes": "Presentation state only \u2014 reads live planning data from the shared FinancialStore."
+    },
+    {
+      "name": "MoneyInputsViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol MoneyInputsViewModel: AnyObject { var editingIncomeID: UUID? { get set }; var editingObligationID: UUID? { get set }; var isReserveEditorPresented: Bool { get set } }",
+      "owning_lane": "primary_ui",
+      "notes": "Presentation state only. The manual-fallback-estimate editor also writes through FinancialStore.updateManualFallbackEstimate, never a local copy."
+    },
+    {
+      "name": "ExplanationHistoryViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol ExplanationHistoryViewModel: AnyObject { var selectedHistoryFilter: String? { get set } }",
+      "owning_lane": "primary_ui",
+      "notes": "Presentation state only; data read from PlanningResult and FinancialStore directly."
+    },
+    {
+      "name": "SettingsViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol SettingsViewModel: AnyObject { var importErrorMessage: String? { get set }; var exportSucceeded: Bool { get set } }",
+      "owning_lane": "primary_ui",
+      "notes": "Presentation state only; persisted values remain in shared stores/services."
+    },
+    {
+      "name": "ImportFlowState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ImportFlowState: Sendable { case idle; case validating; case confirmingReplace(FinancialDocument); case success; case failure(ImportValidationError) }",
+      "owning_lane": "primary_ui",
+      "notes": "Sole surviving screen-state enum, scoped to Settings' import feature."
+    }
+  ],
+  "errors": []
+}

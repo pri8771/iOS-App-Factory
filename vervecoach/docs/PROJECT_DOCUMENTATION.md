@@ -1,0 +1,484 @@
+# vervecoach — Project Documentation
+
+_Generated deterministically from the orchestrator's phase outputs (workflow: `app_build_child`). Non-AI render — nothing here is fabricated; empty phases are marked N/A._
+
+## Contents
+
+- Prompt Contract
+- Initial Discussion
+- Per App Product Brief
+- Detailed Discussion
+- App Features
+- Design Discussion
+- Design Handoff
+- Ios Architecture Review
+- Tech Specs
+- Project Plan
+- Task Assignments
+- Implementation Readiness Gate
+- Build Coordination
+- Build Verification
+- Human Qa Checklist
+- App Store Readiness
+- Final Review
+- Portfolio Audit
+
+## Prompt Contract
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+## Initial Discussion
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+## Per App Product Brief
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+## Detailed Discussion
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+## App Features
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+## Design Discussion
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+## Design Handoff
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+## Ios Architecture Review
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+## Tech Specs
+
+Good — round 9 finally got real content on the table after the spend-limit outage cleared enough for one contributor to work. Since Codex and Gemini never showed up across all nine rounds, and this is the forced final round, I'm calling it: Claude's proposal is the decision. It's the only concrete, coherent architecture anyone put forward, it directly answers every gap the Quality Gate flagged (SwiftData persistence with a clear justification, module layout, full data model set, a rule-based-first critique strategy that avoids the device-eligibility trap the original prompt explicitly warned about, and a state-machine-driven rehearsal flow instead of boolean-flag navigation), and it satisfies the phase's required output list end to end.
+
+The one thing worth flagging forward rather than re-litigating here: nobody adversarially challenged the SwiftData-vs-hand-rolled-store call or the two-provider critique split, since no second voice ever arrived. That's a reasonable risk to accept given the alternative is stalling the phase a tenth time — the choices are conservative, Apple-framework-first, and testable, which is what the playbook actually asks for.
+
+CONSENSUS: YES
+
+## Final Output
+
+VerveCoach's architecture is settled as follows:
+
+**Persistence:** SwiftData (not a hand-rolled JSON store) — gives free relationships between Scenario → RehearsalSession → RehearsalTurnRecord, free lightweight migration, and satisfies the "Apple frameworks first, no third-party dependency" rule. Audio recordings are **not** stored as blobs in SwiftData — they're written as `.m4a` files to the app's Application Support directory, referenced by filename from `RehearsalTurnRecord`. This keeps queries fast and keeps the door open for CloudKit sync later without a rewrite.
+
+**Module layout:**
+- `Models/` — the SwiftData schema (data_domain): `Scenario`, `PromptCard`, `RehearsalSession`, `RehearsalTurnRecord`, `ReflectionNote`, `CritiqueResult`.
+- `Services/` — hardware- and work-facing services (services_utilities): `SpeechRecognitionService` (wraps `SFSpeechRecognizer`), `AudioRecordingService` (wraps `AVAudioRecorder`), `ScenarioStore` (thin wrapper over `ModelContext` so view models stay testable), `EntitlementStore` (StoreKit 2-backed paywall/entitlement check), and the critique split below.
+- `Features/` — one folder per workflow (primary_ui): Onboarding, ScenarioSetup, Rehearsal, Review, Paywall, each with its own `@Observable` view model.
+- `Widgets/` and `AppIntents/` — separate targets (polish_resilience) so quick-start intents, the upcoming-session widget, and notifications never block the core rehearsal loop from building and testing independently.
+
+**Critique strategy (the device-eligibility-trap fix):** a `CritiqueProviding` protocol with two implementations. `RuleBasedCritiqueProvider` ships to 100% of users and does real analysis — filler-word detection, hedging-language detection, pacing against the card's expected response — and is the tested default path, not a fallback bolted on later. `OnDeviceLLMCritiqueProvider` only activates behind a runtime `isAvailable` check against on-device model eligibility, and is treated purely as an enhancement layer, never the sole critique path. Every `CritiqueResult` records its `source` so the UI can be honest with users about which engine produced it.
+
+**Rehearsal flow:** driven by a single deterministic `RehearsalPhase` enum (`.presentingCard`, `.recording`, `.reviewingResponse`, `.critiquing`, `.complete`) owned by `RehearsalSessionViewModel` — no tangle of `NavigationLink`s and boolean flags, which avoids the "back button leaves you mid-recording" bug class.
+
+**Testing:** `ScenarioStore` and `CritiqueProviding` are protocols specifically so view models can be unit-tested against fakes, covering rehearsal-flow state transitions and session persistence at minimum.
+
+This is the contract the parallel build lanes (data_domain, primary_ui, services_utilities, polish_resilience) code against going forward.
+
+```interfaces-json
+{"interfaces": [
+  {"name": "ConversationRole", "kind": "enum", "language": "swift", "signature": "enum ConversationRole: String, Codable { case user, counterpart }", "owning_lane": "data_domain", "notes": "Who speaks a given PromptCard turn."},
+  {"name": "Scenario", "kind": "struct", "language": "swift", "signature": "@Model final class Scenario { var id: UUID; var title: String; var conversationKind: String; var counterpartName: String; var context: String; var scheduledFor: Date?; var createdAt: Date; var cards: [PromptCard]; var sessions: [RehearsalSession] }", "owning_lane": "data_domain", "notes": "Root entity for a defined upcoming conversation. conversationKind is a free string tag (e.g. 'salary_negotiation') not a closed enum, so users/rule engine can extend it."},
+  {"name": "PromptCard", "kind": "struct", "language": "swift", "signature": "@Model final class PromptCard { var id: UUID; var scenarioID: UUID; var order: Int; var role: ConversationRole; var promptText: String; var expectedResponseHint: String? }", "owning_lane": "data_domain", "notes": "One likely turn in the conversation, ordered within a Scenario."},
+  {"name": "RehearsalSession", "kind": "struct", "language": "swift", "signature": "@Model final class RehearsalSession { var id: UUID; var scenarioID: UUID; var startedAt: Date; var endedAt: Date?; var turnRecords: [RehearsalTurnRecord]; var reflectionNotes: [ReflectionNote] }", "owning_lane": "data_domain", "notes": "One full run-through of a Scenario's cards."},
+  {"name": "RehearsalTurnRecord", "kind": "struct", "language": "swift", "signature": "@Model final class RehearsalTurnRecord { var id: UUID; var sessionID: UUID; var cardID: UUID; var transcript: String; var audioFilename: String?; var durationSeconds: Double; var critique: CritiqueResult? }", "owning_lane": "data_domain", "notes": "audioFilename references a file in Application Support, never stored as blob data."},
+  {"name": "ReflectionNote", "kind": "struct", "language": "swift", "signature": "@Model final class ReflectionNote { var id: UUID; var sessionID: UUID; var text: String; var createdAt: Date }", "owning_lane": "data_domain", "notes": "Free-text weak-spot / next-best-phrasing note attached to a session."},
+  {"name": "CritiqueResult", "kind": "struct", "language": "swift", "signature": "struct CritiqueResult: Codable { var strengths: [String]; var weakSpots: [String]; var suggestedPhrasing: [String]; var source: CritiqueSource; var generatedAt: Date }", "owning_lane": "data_domain", "notes": "Embedded/codable value, not its own @Model, since it's owned 1:1 by a RehearsalTurnRecord."},
+  {"name": "CritiqueSource", "kind": "enum", "language": "swift", "signature": "enum CritiqueSource: String, Codable { case ruleBased, onDeviceModel }", "owning_lane": "data_domain", "notes": "UI must always show which engine produced a critique so users trust the rule-based default and aren't confused by quality variance."},
+  {"name": "CritiqueProviding", "kind": "protocol", "language": "swift", "signature": "protocol CritiqueProviding: Sendable { func critique(response: String, forCard card: PromptCard) async -> CritiqueResult }", "owning_lane": "services_utilities", "notes": "RuleBasedCritiqueProvider always available; OnDeviceLLMCritiqueProvider checked via isAvailable before use, never assumed."},
+  {"name": "RuleBasedCritiqueProvider", "kind": "struct", "language": "swift", "signature": "struct RuleBasedCritiqueProvider: CritiqueProviding { func critique(response: String, forCard card: PromptCard) async -> CritiqueResult }", "owning_lane": "services_utilities", "notes": "Ships to 100% of devices; detects filler words, hedging language, response length vs. expectedResponseHint."},
+  {"name": "OnDeviceLLMCritiqueProvider", "kind": "struct", "language": "swift", "signature": "struct OnDeviceLLMCritiqueProvider: CritiqueProviding { static var isAvailable: Bool { get }; func critique(response: String, forCard card: PromptCard) async -> CritiqueResult }", "owning_lane": "services_utilities", "notes": "isAvailable gates on device/OS Foundation Models eligibility; never the sole critique path, purely additive enhancement."},
+  {"name": "SpeechRecognitionService", "kind": "protocol", "language": "swift", "signature": "protocol SpeechRecognitionService: Sendable { func startTranscribing() async throws -> AsyncStream<String>; func stop() }", "owning_lane": "services_utilities", "notes": "Wraps SFSpeechRecognizer; must handle authorization denial as a first-class state, not a crash."},
+  {"name": "AudioRecordingService", "kind": "protocol", "language": "swift", "signature": "protocol AudioRecordingService: Sendable { func startRecording() throws -> URL; func stopRecording() -> URL; var currentDuration: Double { get } }", "owning_lane": "services_utilities", "notes": "Wraps AVAudioRecorder, writes .m4a to Application Support, returns filename for RehearsalTurnRecord.audioFilename."},
+  {"name": "ScenarioStore", "kind": "protocol", "language": "swift", "signature": "protocol ScenarioStore: Sendable { func save(_ scenario: Scenario) throws; func fetchAll() throws -> [Scenario]; func delete(_ scenario: Scenario) throws }", "owning_lane": "services_utilities", "notes": "Thin wrapper over ModelContext so view models never touch SwiftData directly, keeping them testable with a fake store."},
+  {"name": "EntitlementStore", "kind": "protocol", "language": "swift", "signature": "protocol EntitlementStore: Sendable { var isPremium: Bool { get }; func refresh() async }", "owning_lane": "services_utilities", "notes": "Backed by StoreKit 2 Transaction.currentEntitlements; free tier caps active Scenarios and RehearsalSessions per month."},
+  {"name": "RehearsalPhase", "kind": "enum", "language": "swift", "signature": "enum RehearsalPhase: Equatable { case presentingCard(PromptCard); case recording(PromptCard); case reviewingResponse(PromptCard, transcript: String); case critiquing(PromptCard); case complete }", "owning_lane": "primary_ui", "notes": "Single source of truth driving RehearsalSessionViewModel navigation; no boolean-flag navigation."},
+  {"name": "RehearsalSessionViewModel", "kind": "struct", "language": "swift", "signature": "@Observable @MainActor final class RehearsalSessionViewModel { var phase: RehearsalPhase; func advance() async; func retakeCurrentTurn() }", "owning_lane": "primary_ui", "notes": "Owns the state machine for one live rehearsal run; consumes SpeechRecognitionService, AudioRecordingService, CritiqueProviding."},
+  {"name": "ScenarioSetupViewModel", "kind": "struct", "language": "swift", "signature": "@Observable @MainActor final class ScenarioSetupViewModel { var draft: Scenario; func addCard(role: ConversationRole, text: String); func save() throws }", "owning_lane": "primary_ui", "notes": "Backs the manual scenario/card setup flow."},
+  {"name": "ReviewViewModel", "kind": "struct", "language": "swift", "signature": "@Observable @MainActor final class ReviewViewModel { var sessions: [RehearsalSession]; func addReflectionNote(_ text: String, to session: RehearsalSession) throws }", "owning_lane": "primary_ui", "notes": "Backs session history / weak-spot review screen."},
+  {"name": "StartRehearsalIntent", "kind": "struct", "language": "swift", "signature": "struct StartRehearsalIntent: AppIntent { static var title: LocalizedStringResource; func perform() async throws -> some IntentResult }", "owning_lane": "polish_resilience", "notes": "App Intent for Siri/Shortcuts quick rehearsal start on a given Scenario."},
+  {"name": "UpcomingSessionWidget", "kind": "struct", "language": "swift", "signature": "struct UpcomingSessionWidget: Widget { var body: some WidgetConfiguration }", "owning_lane": "polish_resilience", "notes": "WidgetKit surface showing next scheduled Scenario; reads via App Group shared container, not direct SwiftData access."},
+  {"name": "NotificationScheduler", "kind": "protocol", "language": "swift", "signature": "protocol NotificationScheduler: Sendable { func scheduleReminder(for scenario: Scenario) throws; func cancelReminder(for scenario: Scenario) }", "owning_lane": "polish_resilience", "notes": "Wraps UNUserNotificationCenter for pre-conversation rehearsal reminders."}
+]}
+```
+
+## Project Plan
+
+Round 2 was really just Claude stress-testing its own round-1 plan since Codex and Gemini stayed dark again, and it found two real gaps worth closing rather than just restating the plan:
+
+1. The widget/App-Group sync isn't just an "owner needed later" item — the actual snapshot contract (an `UpcomingScenarioSnapshot`-style Codable struct and its write/read shape) needs to be nailed down *during* the foundation milestone, since it's a contract between data_domain and polish_resilience. Leaving it loose invites a shape mismatch that only surfaces at pre-ship time.
+
+2. A new one: the free-tier session cap can't just live inside the manual scenario-setup UI. `StartRehearsalIntent` (the Siri/Shortcuts quick-start) is a second entry point into starting rehearsals, and if entitlement checks aren't pushed down into the service/store layer, a free user could bypass the paywall entirely via Siri. Fix is cheap now — check entitlement once in the shared layer, not per-UI-entry-point.
+
+Claude's own call: given Codex/Gemini have now missed two full rounds (echoing exactly what happened in tech_specs for nine rounds before anyone else contributed), it's arguing we shouldn't hold the phase open hoping for a third voice — lock in this plan now.
+
+I agree with that read. The plan is concrete, self-corrected once already, and covers everything the phase playbook requires (milestones, dependencies, risk mitigations, verification plan) without leaving testing or integration as vague end-of-project polish. No one has raised a substantive objection to any part of it.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Milestone 1 — Foundation (blocking, must land before any lane parallelizes):**
+- Real Xcode project with actual target membership: main app target, widget extension target, App Intents extension, App Group entitlement wired into both the app and widget targets from day one.
+- SwiftData schema (`Scenario`, `PromptCard`, `RehearsalSession`, `RehearsalTurnRecord`, `ReflectionNote`, `CritiqueResult`/`CritiqueSource`) and `ScenarioStore` sitting in front of it — no other lane codes against a fake/in-memory store.
+- The App Group snapshot contract: a small Codable struct (e.g. `UpcomingScenarioSnapshot`) plus the write/read rules for when it gets written (create/edit/delete/reschedule of a Scenario) — decided now even though the widget UI itself is built later.
+
+**Milestone 2 — Three parallel lanes (unblocked once foundation lands):**
+- **services_utilities:** `AudioRecordingService`, `SpeechRecognitionService`, `EntitlementStore`, and both critique providers (`RuleBasedCritiqueProvider` and `OnDeviceLLMCritiqueProvider`) built together in the same milestone — the LLM path is never a staggered "if time allows" add-on, since that's exactly how it would ship unsafely gated. Entitlement/session-cap enforcement lives here, in the store/service layer, so every entry point (manual UI and App Intents) respects the same cap.
+- **primary_ui:** ScenarioSetup, Rehearsal, and Review flows built against protocols/fakes so they're not blocked on real service implementations. `RehearsalPhase` needs its permission-denial states (mic/speech denied) designed in before the flow is built, not patched in after.
+- **polish_resilience:** `NotificationScheduler`, the widget (consuming the snapshot contract from Milestone 1 — never reading SwiftData directly), and `StartRehearsalIntent` — built against the shared entitlement check from services_utilities, not a separate gate.
+
+**Dependencies called out explicitly (not left implicit):**
+- Widget → App Group snapshot contract (owned across data_domain/polish_resilience, defined in Milestone 1).
+- StartRehearsalIntent → EntitlementStore/ScenarioStore's shared cap check (not a separate paywall gate).
+- Rehearsal flow → permission-denial states designed into `RehearsalPhase` before the flow is implemented.
+- StoreKit sandbox testing → local StoreKit configuration file must exist before EntitlementStore is exercised by UI.
+
+**Risk mitigations:**
+- Device-eligibility trap: rule-based and on-device-LLM critique providers built in the same milestone, tested with `isAvailable == false` as the primary case (since that's what most real devices/simulators report), not the happy path.
+- Paywall bypass: entitlement checks centralized in the service/store layer so Siri/Shortcuts quick-start can't walk around the free-tier cap.
+- Widget staleness/fake-data risk: snapshot contract defined upfront so the widget lane never has to stub data it later forgets to replace.
+
+**Verification plan (three checkpoints, not one end-of-project pass):**
+1. After foundation: smoke test that the app and widget targets both build, and a fake Scenario round-trips through `ScenarioStore`.
+2. As soon as the minimum pieces exist (don't wait for "integration week"): a full end-to-end rehearsal session — record → transcribe → critique (rule-based) → save — since every other feature depends on this path being solid.
+3. Pre-ship: permission-denial states, StoreKit sandbox purchase/restore, and the widget/App Group sync reflecting a real newly-created scenario rather than stale or stubbed data.
+
+## Task Assignments
+
+Here's where this landed: for the eleventh phase running, Codex and Gemini never showed up (still hitting the same CLI/auth/rate-limit walls), so this is Claude's proposal standing alone — but unlike some earlier phases, it's not a thin placeholder. It's a genuinely complete backlog: 21 tasks, each owned by exactly one of the four lanes, files scoped per task, dependencies laid out so the three build lanes (services_utilities, primary_ui, polish_resilience) can all start the moment the data_domain foundation (T-001 through T-004) lands. It carries forward every decision from the earlier phases without re-litigating them — SwiftData schema, the two-provider critique split with rule-based as default, the App Group snapshot contract, the shared entitlement/cap check reused by both the manual UI and `StartRehearsalIntent`, and permission-denial states baked into `RehearsalPhase` from the start rather than patched in later.
+
+The one new call made this round: `StartRehearsalIntent` lives inside the main app target rather than a separate App Intents extension, to cut down on `.pbxproj` target-membership risk — a reasonable, low-risk simplification nobody contests. Forbidden zones are named explicitly (`Models/`/`Contracts/` are data_domain-only after T-003 lands, no lane implements another lane's protocol), and there's exactly one sanctioned shared file (`VerveCoachApp.swift`, opened empty by data_domain in T-001, finished by primary_ui in T-021) — everything else has single ownership. Branch strategy, merge order, and testing responsibility (each lane tests its own files, services_utilities owns the full rehearsal-loop integration test, polish_resilience owns the pre-ship checklist) are all spelled out, plus a conflict-prevention rule: contract changes get filed as new tasks against data_domain, never drive-by edited by whoever hits the problem.
+
+I checked the acceptance criteria for this phase directly: no task is ownerless, the dependency graph is acyclic (foundation → three parallel lanes → two integration tasks at the end), and the three parallel lanes can start immediately once T-003 lands. Given this is the same pattern that resolved tech_specs and project_plan — one substantive voice, no objection raised, and every required output present — I don't think holding this open for a twelfth round buys anything real.
+
+CONSENSUS: YES
+
+## Final Output
+
+VerveCoach's build is organized into 4 lanes over a blocking foundation followed by 3 parallel lanes and 2 closing integration tasks:
+
+**Foundation (data_domain, blocking — nobody else starts until this lands):** Xcode project scaffold with app + widget extension targets and the App Group entitlement wired in from commit one; the SwiftData schema (`Scenario`, `PromptCard`, `RehearsalSession`, `RehearsalTurnRecord`, `ReflectionNote`, `CritiqueResult`/`CritiqueSource`); all cross-lane protocols and the `RehearsalPhase` state machine (with permission-denied and terminal-failure cases included from the start, not bolted on later); and the `UpcomingScenarioSnapshot` App Group contract plus its writer.
+
+**Three parallel lanes, unblocked once the foundation lands:**
+- **services_utilities** — concrete `ScenarioStore` (enforcing the snapshot write and the session cap), `AudioRecordingService`, `SpeechRecognitionService`, `EntitlementStore` with a single shared `RehearsalCapPolicy` used by every entry point, and both critique providers built together (rule-based as the tested default, on-device LLM strictly additive behind `isAvailable`).
+- **primary_ui** — Onboarding, ScenarioSetup, Rehearsal, Review, and Paywall flows, each coded against protocols/fakes so none of it waits on real service implementations; also owns final app assembly wiring real dependencies into `VerveCoachApp.swift`.
+- **polish_resilience** — `NotificationScheduler`, the widget (reading only the App Group snapshot, never SwiftData directly), and `StartRehearsalIntent` (calling the same shared cap check as manual UI — no separate gate).
+
+**Closing tasks:** a full record→transcribe→critique→save integration test (services_utilities), then a pre-ship checklist covering permission-denial states, StoreKit sandbox purchase/restore, and real (non-stale) widget data (polish_resilience).
+
+**Conflict prevention:** strict single-lane file ownership, one explicitly named shared-file exception (`VerveCoachApp.swift`), and any mid-build contract change gets filed as a new task against data_domain rather than edited in place by whichever lane hits the problem.
+
+```tasks-json
+{"tasks": [
+  {"id": "T-001", "title": "Xcode project scaffold: app target, widget extension target, App Group entitlement", "owner_lane": "data_domain", "files": ["VerveCoach.xcodeproj/project.pbxproj", "VerveCoach/VerveCoachApp.swift", "VerveCoach/Info.plist", "VerveCoach/VerveCoach.entitlements", "VerveCoachWidgetExtension/Info.plist", "VerveCoachWidgetExtension/VerveCoachWidgetExtension.entitlements", "VerveCoach/Shared/AppGroupConstants.swift"], "depends_on": [], "acceptance_criteria": ["App target and widget extension target both build empty", "App Group group.com.vervecoach.shared entitlement present in both targets", "VerveCoachApp.swift is an empty SwiftUI App shell with no business logic yet"], "status": "pending"},
+  {"id": "T-002", "title": "SwiftData schema: Scenario, PromptCard, RehearsalSession, RehearsalTurnRecord, ReflectionNote, CritiqueResult", "owner_lane": "data_domain", "files": ["VerveCoach/Models/ConversationRole.swift", "VerveCoach/Models/Scenario.swift", "VerveCoach/Models/PromptCard.swift", "VerveCoach/Models/RehearsalSession.swift", "VerveCoach/Models/RehearsalTurnRecord.swift", "VerveCoach/Models/ReflectionNote.swift", "VerveCoach/Models/CritiqueResult.swift", "VerveCoach/Models/CritiqueSource.swift", "VerveCoach/Models/VerveCoachSchema.swift"], "depends_on": ["T-001"], "acceptance_criteria": ["A fake Scenario with cards and a session round-trips through an in-memory ModelContainer in a unit test", "Deleting a Scenario cascades to its PromptCards, RehearsalSessions, and their TurnRecords/ReflectionNotes"], "status": "pending"},
+  {"id": "T-003", "title": "Cross-lane protocol contracts and RehearsalPhase state machine", "owner_lane": "data_domain", "files": ["VerveCoach/Contracts/ScenarioStore.swift", "VerveCoach/Contracts/CritiqueProviding.swift", "VerveCoach/Contracts/SpeechRecognitionService.swift", "VerveCoach/Contracts/AudioRecordingService.swift", "VerveCoach/Contracts/EntitlementStore.swift", "VerveCoach/Contracts/NotificationScheduler.swift", "VerveCoach/Contracts/RehearsalPhase.swift"], "depends_on": ["T-002"], "acceptance_criteria": ["All protocols compile referencing Models types with no concrete implementation", "RehearsalPhase includes explicit permission-denied case(s) and a terminal failure case, not just the happy-path cases"], "status": "pending"},
+  {"id": "T-004", "title": "App Group snapshot contract and writer", "owner_lane": "data_domain", "files": ["VerveCoach/Models/UpcomingScenarioSnapshot.swift", "VerveCoach/Services/ScenarioSnapshotWriter.swift"], "depends_on": ["T-001", "T-002"], "acceptance_criteria": ["UpcomingScenarioSnapshot is Codable and contains only what the widget needs (title, counterpartName, scheduledFor, scenarioID)", "Writer function has a documented call contract: invoked on Scenario create/edit/delete/reschedule"], "status": "pending"},
+  {"id": "T-005", "title": "ScenarioStore concrete implementation over ModelContext", "owner_lane": "services_utilities", "files": ["VerveCoach/Services/ScenarioStore.swift"], "depends_on": ["T-003", "T-004"], "acceptance_criteria": ["save/fetchAll/delete work against a real ModelContext", "Every save/delete call triggers ScenarioSnapshotWriter with correct data", "Session-cap check (see T-008) is enforced inside save(), not left to callers"], "status": "pending"},
+  {"id": "T-006", "title": "AudioRecordingService concrete implementation", "owner_lane": "services_utilities", "files": ["VerveCoach/Services/AudioRecordingService.swift"], "depends_on": ["T-003"], "acceptance_criteria": [".m4a files are written to Application Support, not stored as blobs", "startRecording/stopRecording/currentDuration behave correctly across a full record cycle in a unit test"], "status": "pending"},
+  {"id": "T-007", "title": "SpeechRecognitionService concrete implementation", "owner_lane": "services_utilities", "files": ["VerveCoach/Services/SpeechRecognitionService.swift"], "depends_on": ["T-003"], "acceptance_criteria": ["Authorization denial surfaces as a typed result/error, never a crash", "AsyncStream<String> yields incremental transcript updates in a mocked recognizer test"], "status": "pending"},
+  {"id": "T-008", "title": "EntitlementStore concrete implementation and shared session-cap policy", "owner_lane": "services_utilities", "files": ["VerveCoach/Services/EntitlementStore.swift", "VerveCoach/Services/RehearsalCapPolicy.swift", "VerveCoach/Configuration/VerveCoach.storekit"], "depends_on": ["T-003"], "acceptance_criteria": ["isPremium reflects StoreKit 2 Transaction.currentEntitlements", "RehearsalCapPolicy is the single function both manual UI and StartRehearsalIntent call to check free-tier limits", "Local StoreKit configuration file exists and loads in a debug scheme"], "status": "pending"},
+  {"id": "T-009", "title": "RuleBasedCritiqueProvider", "owner_lane": "services_utilities", "files": ["VerveCoach/Services/RuleBasedCritiqueProvider.swift"], "depends_on": ["T-003"], "acceptance_criteria": ["Detects filler words, hedging language, and response length vs. expectedResponseHint", "Always returns a CritiqueResult with source == .ruleBased, never throws"], "status": "pending"},
+  {"id": "T-010", "title": "OnDeviceLLMCritiqueProvider with availability gating", "owner_lane": "services_utilities", "files": ["VerveCoach/Services/OnDeviceLLMCritiqueProvider.swift"], "depends_on": ["T-003", "T-009"], "acceptance_criteria": ["isAvailable correctly reflects on-device model eligibility", "Test suite's primary case is isAvailable == false and confirms callers fall back to RuleBasedCritiqueProvider", "Never invoked as the sole critique path anywhere in the codebase"], "status": "pending"},
+  {"id": "T-011", "title": "Onboarding flow", "owner_lane": "primary_ui", "files": ["VerveCoach/Features/Onboarding/OnboardingView.swift", "VerveCoach/Features/Onboarding/OnboardingViewModel.swift"], "depends_on": ["T-003"], "acceptance_criteria": ["Empty/loading/success/error states all present where reachable", "Onboarding requests mic and speech permission with clear rationale before Rehearsal flow ever needs them"], "status": "pending"},
+  {"id": "T-012", "title": "ScenarioSetup flow", "owner_lane": "primary_ui", "files": ["VerveCoach/Features/ScenarioSetup/ScenarioSetupView.swift", "VerveCoach/Features/ScenarioSetup/ScenarioSetupViewModel.swift"], "depends_on": ["T-003"], "acceptance_criteria": ["Builds and is navigable against a fake ScenarioStore before the real one exists", "addCard/save work against the protocol; free-tier cap rejection surfaces a clear error state, not a silent failure"], "status": "pending"},
+  {"id": "T-013", "title": "Rehearsal flow (state machine UI)", "owner_lane": "primary_ui", "files": ["VerveCoach/Features/Rehearsal/RehearsalSessionView.swift", "VerveCoach/Features/Rehearsal/RehearsalSessionViewModel.swift"], "depends_on": ["T-003"], "acceptance_criteria": ["Every RehearsalPhase case, including permission-denied and failure, has a corresponding UI state", "Backgrounding or denying a permission mid-recording never leaves the UI in an inconsistent state (no half-recorded limbo)"], "status": "pending"},
+  {"id": "T-014", "title": "Review flow", "owner_lane": "primary_ui", "files": ["VerveCoach/Features/Review/ReviewView.swift", "VerveCoach/Features/Review/ReviewViewModel.swift"], "depends_on": ["T-003"], "acceptance_criteria": ["Session history lists past RehearsalSessions with reflection notes", "addReflectionNote persists and appears without requiring app restart"], "status": "pending"},
+  {"id": "T-015", "title": "Paywall flow", "owner_lane": "primary_ui", "files": ["VerveCoach/Features/Paywall/PaywallView.swift", "VerveCoach/Features/Paywall/PaywallViewModel.swift"], "depends_on": ["T-003"], "acceptance_criteria": ["Presents when RehearsalCapPolicy rejects an action, from any entry point", "Purchase/restore flows against EntitlementStore protocol, testable with a fake"], "status": "pending"},
+  {"id": "T-016", "title": "NotificationScheduler concrete implementation", "owner_lane": "polish_resilience", "files": ["VerveCoach/Notifications/NotificationScheduler.swift"], "depends_on": ["T-003"], "acceptance_criteria": ["scheduleReminder/cancelReminder work against UNUserNotificationCenter in a unit test with a mock center", "Denied notification permission degrades gracefully, no crash"], "status": "pending"},
+  {"id": "T-017", "title": "UpcomingSessionWidget", "owner_lane": "polish_resilience", "files": ["VerveCoachWidgetExtension/UpcomingSessionWidget.swift", "VerveCoachWidgetExtension/SnapshotReader.swift"], "depends_on": ["T-001", "T-004"], "acceptance_criteria": ["Reads only UpcomingScenarioSnapshot from the App Group container, never opens SwiftData directly", "Widget reflects a newly created Scenario after a timeline reload, not stale placeholder data"], "status": "pending"},
+  {"id": "T-018", "title": "StartRehearsalIntent", "owner_lane": "polish_resilience", "files": ["VerveCoach/AppIntents/StartRehearsalIntent.swift"], "depends_on": ["T-005", "T-008"], "acceptance_criteria": ["Calls the same RehearsalCapPolicy check as manual UI before starting a session", "A free user at their cap is blocked via Siri exactly as they would be via the app UI"], "status": "pending"},
+  {"id": "T-019", "title": "Full rehearsal loop integration test", "owner_lane": "services_utilities", "files": ["VerveCoachTests/RehearsalLoopIntegrationTests.swift"], "depends_on": ["T-005", "T-006", "T-007", "T-009", "T-013"], "acceptance_criteria": ["Record -> transcribe -> rule-based critique -> save runs end-to-end against real (non-mock) services in a test target", "Resulting RehearsalTurnRecord round-trips through ScenarioStore with correct audioFilename and critique"], "status": "pending"},
+  {"id": "T-020", "title": "Pre-ship checklist verification", "owner_lane": "polish_resilience", "files": ["VerveCoachTests/PreShipChecklistTests.swift"], "depends_on": ["T-013", "T-008", "T-017", "T-018"], "acceptance_criteria": ["Mic/speech/notification permission-denial states verified in UI, not just unit tests", "StoreKit sandbox purchase and restore both verified against VerveCoach.storekit", "Widget shows a real just-created Scenario end-to-end, not stubbed data"], "status": "pending"},
+  {"id": "T-021", "title": "Root app assembly and dependency wiring", "owner_lane": "primary_ui", "files": ["VerveCoach/VerveCoachApp.swift", "VerveCoach/RootView.swift"], "depends_on": ["T-005", "T-008", "T-009", "T-010", "T-011", "T-012", "T-013", "T-014", "T-015"], "acceptance_criteria": ["VerveCoachApp.swift injects concrete ScenarioStore, EntitlementStore, and both critique providers into the environment", "RootView composes Onboarding -> ScenarioSetup/Rehearsal/Review/Paywall navigation without any lane's fake/stub types remaining in the shipped build"], "status": "pending"}
+]}
+```
+
+## Implementation Readiness Gate
+
+Round 1 was Claude flying solo again (Codex and Gemini both stayed dark), but this time the content is decisive rather than exploratory. Claude did what this gate is actually supposed to do: it stress-tested the whole chain instead of rubber-stamping it, found that the engineering side (architecture → tech specs → project plan → tasks) is genuinely solid and consistent, but caught that the *design* side is basically empty — prompt_contract, product brief, design_discussion, and design_handoff all show nothing but spend-limit errors, so five feature teams were about to build five screens with no shared visual language. Rather than kicking the whole thing back for a design phase that might also come back empty, Claude resolved it inline with a concrete visual direction, plus closed three other silent gaps (free-tier numbers, StoreKit product IDs, iOS deployment target) that would have otherwise been invented ad hoc mid-build. No second voice showed up to challenge or add to any of this, so there's no open disagreement — just one proposal that resolved its own blocker.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Readiness verdict:** Conditional pass. The engineering chain (architecture, tech specs, project plan, tasks) is coherent and buildable as-is. The one real blocker — a missing design handoff — is resolved below as a named scope decision rather than left for engineering to invent. With that plus four smaller gaps folded into existing task acceptance criteria, the build phase can start.
+
+**Cross-phase consistency check:** Architecture, tech specs, project plan, and task assignments agree with each other on every major point (SwiftData persistence, the two-provider critique split with rule-based as the always-available default, the App Group snapshot contract, the shared `RehearsalCapPolicy` used by both manual UI and `StartRehearsalIntent`, permission-denial states built into `RehearsalPhase` from the start). The break in the chain is upstream: prompt_contract, product brief, design_discussion, and design_handoff never produced real output (spend-limit errors throughout), so every downstream phase built against a single paragraph of design direction from the original app spec rather than an actual design system.
+
+**Build blockers and fixes:**
+1. **No design handoff exists.** Fix — lock in this visual direction as the shared contract for T-011–T-015: calm neutral base (off-white/charcoal, not stark black-on-white), one confident accent color reserved for active-recording and primary-action states only, generous corner radii/whitespace on rehearsal cards so each reads as one focused object per turn, a slow breathing-pulse recording indicator (not a blinking red dot — wrong emotional register for an anxious user), and critique results badged quietly by source ("rule-based" / "on-device") rather than a disclaimer banner.
+2. **Free-tier caps were never numbered.** Fix — 3 active scenarios and 5 rehearsal sessions per calendar month on free tier; encode directly into T-008's `RehearsalCapPolicy`.
+3. **StoreKit product config undefined.** Fix — single premium subscription, two durations: `com.vervecoach.premium.monthly` and `com.vervecoach.premium.annual`, no tiering. Goes into T-008's `VerveCoach.storekit`.
+4. **No stated iOS deployment target.** Fix — iOS 17.0 for the app itself; `OnDeviceLLMCritiqueProvider.isAvailable` continues to gate Apple Intelligence eligibility at runtime, never via deployment target.
+5. **Privacy strings and accessibility aren't explicit acceptance criteria anywhere.** Fix — add `NSMicrophoneUsageDescription` / `NSSpeechRecognitionUsageDescription` to T-001's acceptance criteria (missing them is a first-request crash, not a polish gap), and add a VoiceOver + Dynamic Type pass across the five feature flows to T-020's pre-ship checklist.
+
+**Final scope for build:** Unchanged from task_assignments' 21-task, 4-lane backlog (data_domain foundation → services_utilities / primary_ui / polish_resilience in parallel → integration + pre-ship close-out), with the five fixes above folded into the acceptance criteria of T-001, T-008, T-011–T-015, and T-020. No new tasks, no new lanes, no architecture changes.
+
+**Acceptance criteria checklist (per phase playbook):**
+- ✅ Build phase can start without inventing product/design/architecture decisions — the five gaps above are now decided, not left open.
+- ✅ Every major workflow (Onboarding, ScenarioSetup, Rehearsal, Review, Paywall, widget, App Intent) already has acceptance criteria from task_assignments, now extended with the design/privacy/accessibility additions.
+- ✅ Testing responsibilities are explicit — per-lane unit tests, services_utilities owns the full rehearsal-loop integration test, polish_resilience owns the pre-ship checklist (now including VoiceOver/Dynamic Type).
+
+## Build Coordination
+
+## What I checked this round
+
+The systems engineer's fix this round doesn't touch any integration file, so there's nothing for me to wire — but I verified it doesn't break anything I own. I traced through `ScenarioSetupViewModel.swift`: the snapshot-and-revert pattern for `discardChanges()` is sound (captures original field values at init, no-ops correctly for a brand-new draft via the `isEditingExisting` guard), and `ScenarioSetupView.swift`'s new Cancel button + `.interactiveDismissDisabled()` don't change the view's external init signature — both call sites in `RootView.swift` (the create sheet and the edit sheet I added last round) still match unchanged. I also re-confirmed the session-cap math from last round is internally consistent (`RootView`'s pre-check still defaults to strict `<`, `ScenarioStore.save()`'s backstop still passes `pendingSessionAlreadyCounted: true`) — no new gaps there.
+
+I tried `xcodegen generate` again this round; still blocked identically to the last three rounds. Nothing left to do there but wait for a human with shell access outside this loop, exactly as both of us have now independently concluded.
+
+## Where things stand after four rounds
+
+This round found one bug, in the reviewer's own lane, and they fixed it themselves — a real one (an abandoned scenario edit could silently leak to disk via SwiftData's shared-context autosave), but a narrowing one compared to earlier rounds. Round 2 found two real cross-lane bugs. Round 3 found a real off-by-one plus a missing feature. Round 4 found one self-contained bug and explicitly said the cap math and the tooling blocker both check out with nothing new to add. That's a real convergence pattern, not a stall — four rounds of increasingly narrow, high-quality adversarial review with no open disagreements and no unresolved findings left on the table.
+
+The one thing that hasn't changed across all four rounds is the same environmental fact: this sandbox will not let me or the systems engineer run `xcodegen`/`xcodebuild`, and that's been independently confirmed twice now, not just asserted once. More rounds of agent iteration won't fix that — it needs a human, once, outside this loop. Holding CONSENSUS at NO indefinitely for a reason neither of us can act on isn't resilience, it's a stall dressed up as caution.
+
+CONSENSUS: YES
+
+## Final Output
+
+VerveCoach's core MVP loop is built and has survived four rounds of real adversarial review: onboarding requests mic/speech/notification permissions up front; you define a conversation (title, counterpart, likely turns) with a free-tier cap of 3 active scenarios; you rehearse it turn-by-turn with real audio recording, real live speech transcription, and a rule-based critique engine that's always on (with an on-device Apple Intelligence critique path that safely no-ops on ineligible devices/OSes); you review past sessions with weak-spot/next-best-phrasing notes and can add reflection notes; a real StoreKit 2 paywall gates you at 5 rehearsal sessions/month on free tier, enforced both at the UI entry point and as a backstop inside the data layer itself; and you can now edit or reschedule a conversation after creating it, with edits properly discarded if you cancel instead of silently leaking to disk.
+
+**How to run it:** the Swift source is complete and organized under `VerveCoach/` with a matching `VerveCoachTests/` suite (SwiftData persistence round-trips, the free-tier cap math including the off-by-one fix, and a full record→transcribe→critique→save integration test). `project.yml` is ready for `xcodegen`. To actually build and run: from `app_build/`, run `xcodegen generate` (installed at `/opt/homebrew/bin/xcodegen`), then open `VerveCoach.xcodeproj` in Xcode and run on a simulator or device. That step has been blocked in every round of this sandboxed session and needs to happen locally, by a human, before anyone can say the compiler agrees with four rounds of hand-tracing.
+
+**What's still genuinely missing, for whoever picks this up next:** the widget extension (`UpcomingSessionWidget`) and App Intents extension (`StartRehearsalIntent`) need their own Xcode targets — deliberately deferred to keep the single-target project low-risk while core logic was still being hardened. Both have their real dependency already in place (`UpcomingScenarioSnapshot`/`SnapshotStore`, and the shared `RehearsalCapPolicy`), so that work is additive, not a redesign. And the T-020 pre-ship checklist — StoreKit sandbox purchase/restore, permission-denial UI, VoiceOver/Dynamic Type — needs an actual device or simulator run, which depends on that same one blocked command.
+
+## Build Verification
+
+I independently reproduced the sandbox restriction myself — `xcodegen generate`, `xcrun --version`, and `swiftc --version` all returned "This command requires approval" with no human available to grant it in this autonomous loop. That's not me repeating what four+ prior rounds said; it's fresh confirmation from actually trying, three different tools, in this turn. I also went and read `ScenarioStore.swift` directly to check Claude's round-1 concern, and it holds up: line 41 gates the session-cap backstop on `modelContext.insertedModelsArray.contains { $0 is RehearsalSession }`, and grepping the whole tree confirms there's no explicit `modelContext.insert(session)` anywhere — the only explicit insert is for `Scenario`. The mechanism is entirely dependent on SwiftData auto-inserting relationship-reachable objects into context tracking synchronously at append time rather than deferring it to `.save()`. That's real, documented SwiftData behavior (reachable related objects get auto-tracked without an explicit insert call), so it's likely fine — but "likely fine based on framework docs" isn't the same as a compiler or test run confirming it, and I can't produce that confirmation here either.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Verification command/tool used:** `xcodegen generate`, `xcrun --version`, `swiftc --version` — each attempted directly, independently of the prior four rounds' attempts. All three returned "This command requires approval" with no interactive approver present in this session.
+
+**Status: UNVERIFIED** (not pass, not fail). This is now confirmed twice over — by four prior discussion rounds and again by me directly reproducing it this round with real tool calls, not just relayed narrative. The codebase cannot be compiled or tested from inside this sandboxed environment, full stop.
+
+**Repairs attempted this round:** None. The one open question raised (whether `ScenarioStore.save()`'s session-cap backstop at line 41 actually fires, since it depends on SwiftData's auto-insert-via-relationship-reachability happening before `.save()` runs rather than after) is a runtime-behavior question, not a code defect I can confirm from a static read. Per the phase rules against introducing unverified speculative changes, no edit was made to `ScenarioStore.swift` or `RehearsalCapPolicy.swift` — the existing code already correctly reads as intended if SwiftData behaves the documented way, and "fixing" a bug that may not exist would be exactly the kind of undirected hardening this phase should avoid.
+
+**Remaining blockers:** No `.xcodeproj` exists; nothing has been compiler- or test-verified in this codebase at any point across five total rounds now (four build rounds + this one). The `ScenarioStoreTests.testFreeTierSessionCapIsEnforcedInsideSave` test already exists and is precisely the test that will settle the open question above — it currently exists only as hand-verified logic, never executed.
+
+**Next repair step for whoever has real shell access:** Run `xcodegen generate && xcodebuild -scheme VerveCoach -destination 'generic/platform=iOS Simulator' build test` locally in `app_build/`. First thing to check in the output: does `testFreeTierSessionCapIsEnforcedInsideSave` actually reject the 6th session? If it passes, the backstop is confirmed sound. If it silently doesn't throw, that's the tell that `insertedModelsArray` isn't populated at that point, and the fix is to add `modelContext.processPendingChanges()` before the check in `ScenarioStore.swift:41`, or add an explicit `modelContext.insert(session)` where `RehearsalSession` is created in `RehearsalSessionViewModel.swift`. Everything else — the widget/App Intents extension targets and the T-020 pre-ship checklist — remains exactly as the prior phase left it: real, waiting, and additive rather than blocking.
+
+**Build verification:** verified after 3 repair(s): compiled cleanly for the iOS Simulator
+
+VERIFICATION: VERIFIED
+
+## Human Qa Checklist
+
+Only Claude showed up this round (Codex/Gemini stayed dark, consistent with every prior phase), but the content is substantive and directly useful — it's a sharp list of exactly where hand-traced "it should work" claims could be false on a real device: permission-denial dead-ends, Simulator's unreliable speech recognition creating false positives/negatives, orphaned audio files on delete, unverified cap-math test execution, phone-call interruptions vs. just backgrounding, motion/VoiceOver treatment of the breathing-pulse recorder, Dynamic Type clipping on cards, and the honest admission that the widget/App Intent/on-device-LLM paths simply can't be QA'd right now because the hardware or targets don't exist. Given the established pattern in this project — no second voice is coming, and further rounds just restate the same tooling reality — the right move is to convert these concerns directly into the actual checklist the phase requires, rather than waiting on a round 2 that won't arrive.
+
+CONSENSUS: YES
+
+## Final Output
+
+# VerveCoach — Manual QA Checklist
+
+**Prerequisites:** Physical iPhone (iOS 17+) for at least one full pass — Simulator alone is not sufficient (see Known Gaps). Fresh install (delete any prior build first, to test onboarding honestly). Xcode scheme must have `VerveCoach.storekit` selected under Edit Scheme → Run → Options → StoreKit Configuration, or the paywall section below cannot be tested.
+
+## 1. Onboarding & Permissions
+
+| # | Steps | Expected result |
+|---|---|---|
+| 1.1 | Fresh install, launch app | Welcome screen appears; no crash; calm neutral palette visible, not stark black/white |
+| 1.2 | Tap through to mic permission prompt, tap **Allow** | Proceeds to speech permission prompt |
+| 1.3 | At speech permission, tap **Allow** | Proceeds to notification permission prompt |
+| 1.4 | At notification permission, tap **Allow** | Onboarding completes, lands on scenario list (empty state) |
+| 1.5 | **Reinstall fresh.** At mic prompt, tap **Don't Allow** | App does not crash; onboarding shows clear rationale/Settings guidance for mic specifically |
+| 1.6 | Continue onboarding past mic denial, allow speech + notifications | App still reaches scenario list — one denied permission doesn't block onboarding completion |
+| 1.7 | Create a scenario, start a Rehearsal with mic denied | `RehearsalPhase.permissionDenied` state shown — **check specifically:** is there a way to still respond (e.g. type a response) or does it fully dead-end with only a "go to Settings" message and no path back to rehearsing? Record which one it is — a hard dead-end is a real product failure, not cosmetic |
+| 1.8 | Repeat 1.5–1.7 denying **only speech** (mic allowed) | Same check: does the app distinguish "mic ok, speech denied" from "mic denied," and does it degrade sensibly (e.g. record audio without live transcript) or dead-end? |
+| 1.9 | Repeat denying **only notifications** | Onboarding completes normally; scheduling a reminder later fails silently/gracefully, no crash |
+| 1.10 | From Settings app, re-enable a previously denied permission, return to VerveCoach | App picks up the new permission state without requiring reinstall (check on next rehearsal attempt) |
+
+## 2. Scenario Setup
+
+| # | Steps | Expected result |
+|---|---|---|
+| 2.1 | From empty scenario list, tap create | Setup form appears: title, counterpart name, context, scheduled date, prompt cards |
+| 2.2 | Add 2–3 prompt cards with different roles, save | Returns to list; new scenario appears with correct title/date |
+| 2.3 | Create a 2nd and 3rd scenario (3 total) | All succeed |
+| 2.4 | Attempt a 4th scenario | Blocked — clear message routes to **Paywall**, not a silent failure or generic error |
+| 2.5 | On the Paywall shown from step 2.4, tap dismiss/cancel (not purchase) | Returns to list; 4th scenario was **not** created |
+| 2.6 | Open an existing scenario for edit, change the title, tap **Cancel** | Change is discarded — reopen the scenario and confirm original title still shows |
+| 2.7 | Open an existing scenario for edit, change the title, swipe down to dismiss (not Cancel) | Sheet should **not** dismiss via swipe (interactive dismiss should be disabled) — if it does dismiss, check whether the change leaked through anyway |
+| 2.8 | Edit a scenario's scheduled date, tap Save | Confirm any related reminder time updates (see §7) |
+| 2.9 | Swipe-to-delete a scenario | Scenario, its cards, sessions, and turn records are removed from the list immediately |
+
+## 3. Rehearsal Flow
+
+| # | Steps | Expected result |
+|---|---|---|
+| 3.1 | Start a rehearsal on a scenario with permissions granted | First prompt card is presented clearly, one card visible at a time |
+| 3.2 | Tap record, **speak an actual sentence out loud** (on a real device, not Simulator) | Breathing-pulse recording indicator animates; live transcript appears reflecting real speech |
+| 3.3 | Stop recording | Transitions to review/critique state; critique result shown, labeled **rule-based** or **on-device** (badge visible, not a disclaimer banner) |
+| 3.4 | Advance through all prompt cards to completion | `RehearsalPhase` reaches `.complete`; session appears in Review afterward |
+| 3.5 | Mid-recording, background the app (Home button/swipe up), then return | Recording stops cleanly, no crash, no stuck "recording" state; app resumes at a sane phase (reviewing what was captured so far) |
+| 3.6 | Mid-recording, **trigger an incoming phone call** (or Do Not Disturb test call) on a real device | Recording stops/pauses via the audio interruption, app doesn't crash or freeze, and recovers to a usable state after the call ends |
+| 3.7 | Mid-recording, **force-quit the app** (swipe up in app switcher), relaunch | No crash on relaunch; no corrupted/orphaned `RehearsalTurnRecord` with a broken audio filename; the in-progress turn is simply gone (acceptable), not half-saved |
+| 3.8 | Tap "retake" on a turn after recording | Previous recording/transcript for that turn is discarded, can re-record cleanly |
+
+## 4. Review Flow
+
+| # | Steps | Expected result |
+|---|---|---|
+| 4.1 | Open Review, view a completed session | Turn-by-turn transcript, critique (with source badge), weak spots/next-best-phrasing visible |
+| 4.2 | Add a reflection note to a session | Note saves and appears immediately — **do not restart the app** to check this; it must show without a relaunch |
+| 4.3 | Force-quit and relaunch, reopen the same session | Reflection note added in 4.2 is still there |
+
+## 5. Paywall / Subscription
+
+| # | Steps | Expected result |
+|---|---|---|
+| 5.1 | Confirm scheme has `VerveCoach.storekit` selected before this section | If skipped, Buy button may hang/no-op — that's a setup miss, not an app bug |
+| 5.2 | Run exactly 5 rehearsal sessions this calendar month (any scenarios) | All 5 succeed |
+| 5.3 | Attempt a 6th session | Blocked, routes to Paywall |
+| 5.4 | On Paywall, tap purchase monthly, complete sandbox purchase | Purchase succeeds; `isPremium` becomes true; 6th session now allowed |
+| 5.5 | Delete + reinstall app (or sign out sandbox), tap **Restore Purchases** | Prior entitlement restored, premium unlocked again without re-purchasing |
+| 5.6 | As a still-free user, advance the **device/simulator system clock forward one full month**, attempt a new session | Confirm whether the cap correctly resets for the new month — this boundary has never been tested, only reasoned about |
+| 5.7 | Free user at the scenario cap (3), attempt creating a 4th from every entry point that exists (manual UI; Siri/Shortcuts only if that target ever gets built — currently N/A, see Known Gaps) | Blocked identically everywhere it's reachable |
+
+## 6. Persistence / Storage
+
+| # | Steps | Expected result |
+|---|---|---|
+| 6.1 | Record several real rehearsal turns with audio, note approximate storage used | — |
+| 6.2 | Delete the scenario those turns belong to | Confirm (via Settings → General → iPhone Storage → VerveCoach, or Files/On My iPhone if inspectable) that the associated `.m4a` audio files are actually removed, not orphaned on disk |
+
+## 7. Notifications
+
+| # | Steps | Expected result |
+|---|---|---|
+| 7.1 | Create a scenario with a near-future scheduled date/time | A local reminder notification fires around that time |
+| 7.2 | Edit the scheduled date to a new time | Old reminder is cancelled, new one scheduled for the new time (not duplicated) |
+| 7.3 | Delete the scenario before its reminder fires | Reminder is cancelled, does not fire for a deleted scenario |
+
+## 8. Accessibility
+
+| # | Steps | Expected result |
+|---|---|---|
+| 8.1 | Enable VoiceOver, navigate the recording screen | The breathing-pulse indicator has a spoken label/value announcing "Recording" as a state — it must not be a silent, VoiceOver-invisible animation |
+| 8.2 | Enable **Reduce Motion**, start a recording | Pulse animation respects Reduce Motion (reduced/stopped, not full motion) |
+| 8.3 | Set Dynamic Type to the largest accessibility size (AX5) | Rehearsal cards and the Scenario Setup form: text does not clip or get cut off — scroll if needed, but nothing is unreadable or truncated |
+| 8.4 | VoiceOver sweep of Onboarding, Scenario Setup, Rehearsal, Review, Paywall | Every interactive element (buttons, form fields, cards) has a sensible label; nothing is an unlabeled tap target |
+
+## 9. Offline Behavior
+
+| # | Steps | Expected result |
+|---|---|---|
+| 9.1 | Enable Airplane Mode, use the full core loop (create scenario → rehearse → review) | Everything works fully offline (local-first) except StoreKit purchase, which should fail gracefully with a clear message, not a hang or crash |
+
+## 10. Regression Checks (repeat after any future change)
+
+- Re-run §1 permission flows, §2.4/2.5 cap enforcement, §3.6/3.7 interruption handling, and §5.2–5.4 paywall cap+purchase — these are the four areas with the most hand-fix history (off-by-one cap bug, fake-paywall bug, abandoned-edit leak) and are the most likely to regress silently.
+
+## Known Gaps (cannot be tested right now — say so, don't fake it)
+
+- **Widget (`UpcomingSessionWidget`) and `StartRehearsalIntent`/Siri quick-start:** never built as real Xcode targets. No steps exist for these; do not mark them tested.
+- **On-device LLM critique path:** requires an Apple Intelligence–eligible physical device (iPhone 15 Pro+, iOS 26, feature enabled). Without that hardware, this path cannot be exercised — record explicitly that it was skipped, not that it passed.
+- **Simulator-only testing is not a valid pass** for §3 (Rehearsal): `SFSpeechRecognizer` on Simulator frequently returns empty transcripts regardless of permission state, which can produce a false "it's broken" or false "it works" result. At least one full §3 pass must happen on a physical device with real speech.
+- **`testFreeTierSessionCapIsEnforcedInsideSave`'s actual pass/fail was never confirmed** — build verification only confirms the test target compiled, not that this specific test executed and passed. §5.2/5.3 above is the live manual substitute until someone confirms the automated test result directly.
+
+VERIFICATION: VERIFIED
+
+## App Store Readiness
+
+**Codex and Gemini stayed dark again** — same pattern as every phase before this one. Claude did the real work solo, and this round is a genuine gap-check rather than a rubber stamp of "looks done."
+
+Where things land: Claude used the app_store_readiness lens to go looking for exactly the kind of thing code review alone wouldn't catch, and found three concrete blockers rather than confirming "ready to ship":
+
+1. **Unconfirmed on-device speech setting** — nobody in five build rounds ever verified whether `SFSpeechRecognitionRequest.requiresOnDeviceRecognition` is actually set to `true`. If it isn't, this "private rehearsal app" is silently sending salary-negotiation and interview rehearsal audio to Apple's servers, which contradicts the entire local-first pitch and is a real privacy/compliance risk, not a nitpick.
+2. **Subscription cap/restore still unverified on a real device** — this exact subsystem already had three hand-fixed bugs during build (fake paywall, single-call-site cap check, an off-by-one), and the QA phase already flagged that the automated cap test was never confirmed to actually run and pass, only to compile. Given that history, "the code reads correctly" isn't good enough here — this is a likely Guideline 3.1.2 rejection risk until a live device run confirms session 5 succeeds, session 6 blocks, and Restore Purchases actually restores.
+3. **Missing outside-the-codebase launch requirements** — no hosted privacy policy URL, no support URL/contact email exist anywhere in this project, both hard requirements for App Store Connect submission.
+
+Claude also delivered the actual required launch material inline: positioning copy, a screenshot sequence (setup → rehearsal card mid-turn → critique with source badge → review notes, deliberately *not* leading with the on-device LLM badge since most buyers' phones can't show it), draft permission strings for mic/speech (careful not to overclaim "never leaves device" until #1 is confirmed), privacy label guidance (Data Not Collected everywhere except Audio Data and User Content, both local-only), a 4+ age rating call, and an explicit warning not to advertise the widget or Siri quick-start in the App Store description since neither was ever built as a real Xcode target — that would be a guaranteed Guideline 2.3.1 rejection.
+
+There's no disagreement to hash out because no second voice showed up to contest any of it — but there's also nothing tentative about the verdict itself. It's a complete, honest "not yet" with three named, fixable blockers, which is exactly what this phase is supposed to produce.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Launch-readiness verdict: Conditional — not launch-ready today.** The engineering is solid and compiler-verified, but three concrete gaps stand between here and a safe App Store submission, none of them requiring rework of what's already built.
+
+**App Store positioning:** "A private place to rehearse the conversation you're dreading before you have it." Calm, specific, not generic self-help — lead with a recognizable scenario (salary negotiation, hard feedback conversation), not an abstract promise.
+
+**Screenshot/storyboard plan:** (1) Scenario setup with a real example conversation, (2) rehearsal card mid-turn with the breathing-pulse recording indicator active, (3) critique result showing the quiet "rule-based" source badge, (4) review screen with a reflection note. Do not lead with the on-device LLM critique badge — it only activates on Apple Intelligence–eligible hardware most buyers won't have. Do not depict or describe the widget or Siri/App Intents quick-start anywhere in marketing — neither exists as a real shipping target, and claiming them is a straightforward accuracy rejection.
+
+**Privacy label notes:** Nearly everything should read "Data Not Collected" — no backend, no accounts, no analytics SDK anywhere in the build. Two categories need honest, explicit entries: Audio Data (mic recordings, local-only, never transmitted) and User Content (scenario text, prompt cards, reflection notes — local, deletable via scenario deletion). Both are collected-but-not-linked-to-identity, not-used-for-tracking — *contingent on* confirming `requiresOnDeviceRecognition` is actually set, since otherwise the Audio Data story is false. Age rating: 4+ (no UGC sharing, no web/third-party content).
+
+**Permission copy:**
+- Microphone: "VerveCoach records your rehearsal responses so you can review them afterward. Recordings are stored only on this device."
+- Speech recognition: "VerveCoach transcribes what you say in real time so you can see and improve your responses." (Don't claim "never leaves your device" in-copy until the on-device flag is confirmed in code.)
+- Notifications (in-app rationale before the system prompt): "Get a reminder before the conversation you're preparing for."
+
+**Subscription/paywall review risks:** This is the highest-risk area given its bug history (three hand-fixed bugs already: fake paywall, single-call-site cap enforcement, an off-by-one). Must be verified live on a real device before submission — 5th session succeeds, 6th blocked and routes to Paywall, Restore Purchases actually restores entitlement. `PaywallView` also needs a visible Terms of Use / Privacy Policy link and clear price/duration/auto-renewal terms directly on the purchase screen — a common Guideline 3.1.2 rejection reason if missing.
+
+**Launch blockers (must resolve before submission):**
+1. Confirm (or fix) `requiresOnDeviceRecognition = true` in `SpeechRecognitionService` — currently unverified anywhere in the build chain.
+2. Verify the subscription cap/restore flow on a real device, not just by hand-tracing the code.
+3. Stand up a hosted privacy policy URL and a working support URL/contact email — both hard App Store Connect requirements, neither exists yet.
+4. (Carried from QA) Confirm whether a denied-mic-permission user gets a real fallback or a hard dead-end in the Rehearsal flow, and confirm deleted scenarios actually remove their `.m4a` files from disk — both are launch-blocking, not polish, given App Review's functional pass and the risk of an early bad-review storm.
+
+VERIFICATION: VERIFIED
+
+## Final Review
+
+CONSENSUS: YES
+
+## Final Output
+
+Only Claude showed up this round again (Codex and Gemini stayed dark, same as every phase in this build), but the assessment is thorough and does exactly what a final review needs to do — it doesn't rubber-stamp "production ready," and it doesn't relitigate the whole build history either. It draws a clean line between what's actually been proven and what's still just carefully reasoned.
+
+**What's actually true now:** This is the first phase in the whole chain where a real compiler ran — `xcodebuild` compiled cleanly for the iOS Simulator after three genuine repair passes (iOS 26 availability fixes, actor-isolation fixes, a deinit bug). That's real evidence, not another round of hand-tracing, and it should be reported as such. But "compiled cleanly" only proves the target builds — it does not confirm the free-tier cap test or the rehearsal-loop integration test actually executed and passed, which is a distinction worth keeping honest rather than rounding up to "fully tested."
+
+**Prompt coverage:** The three core workflows (define a conversation, rehearse turns, review weak spots) are genuinely built against real persistence, real StoreKit 2, real audio/speech — not a stubbed prompt box, which was the app's own explicit invalidation criteria, so that bar is cleared. Of the five iOS-native features named in the spec, three shipped (speech recognition, audio recording, notifications) and two didn't (Widget, App Intents/Siri quick-start) — deliberately deferred across all five build rounds to keep the project low-risk. That's a defensible call, but it needs to be stated plainly as reduced scope, not buried.
+
+**Known limitations, each with an owner:**
+1. `requiresOnDeviceRecognition` in `SpeechRecognitionService` — never confirmed anywhere in five build rounds. Given this app's whole pitch is private rehearsal of sensitive conversations, this is the single highest-consequence open item. Needs a direct code check before any public submission.
+2. Subscription cap/restore — hand-verified three separate times (a fake paywall, a missing centralized check, an off-by-one — all real bugs, all fixed), but never actually run through a live purchase on a device. Given that history, code-reads-correctly isn't enough here.
+3. Orphaned `.m4a` audio files on scenario delete — no code anywhere cleans these up alongside the SwiftData cascade delete. Likely a real bug, not just an untested path, and a bad one for a "private rehearsal" app.
+4. Mic-permission-denied UX — asked about repeatedly across QA and app-store-readiness phases, never actually answered. The answer already exists in the code; someone just needs to read `RehearsalPhase.permissionDenied` and report which behavior it has.
+5. Widget/App Intents targets, hosted privacy policy, support URL — real gaps, none requiring new architecture; a bounded punch list, not open-ended rework.
+
+**The verdict:** conditional go — solid enough for TestFlight/internal testing now, hold public App Store submission until those five items close. None of them need another design or build round; they're a concrete, owned punch list, which is the right note for a final review to end on rather than either declaring unqualified done or sending it back into another loop.
+
+VERIFICATION: VERIFIED
+
+## Portfolio Audit
+
+CONSENSUS: YES
+
+## Final Output
+
+**Portfolio applicability:** This is a portfolio child (`PORTFOLIO_CHILD_PROJECT: true`, parent `multi-app-exp4`, slug `vervecoach`), so a full portfolio audit applies — but only partially, for a structural reason worth stating plainly: this phase runs inside vervecoach's own sandboxed context, which has no filesystem visibility into the other six sibling app folders or into `/Users/pchordia/Documents/iOS-App-Factory` itself (confirmed by directly trying `ls`/`find` there and getting blocked). So the one acceptance check this phase playbook treats as disqualifying — "a multi-app parent cannot pass if selected apps were collapsed into one project folder" — cannot actually be verified from here. It's not that it looks fine; it's that no phase in this child's entire nine-phase chain has ever had the vantage point to check it. That should be reported as an open structural gap, not quietly assumed compliant.
+
+**What is auditable from here checks out clean:**
+- Child metadata is well-formed: `PORTFOLIO_CHILD_PROJECT: true`, parent portfolio name, and selected app slug are all present and consistent.
+- The child prompt preserves the entire parent portfolio prompt verbatim — all 11 numbered requirements, bonus-point guidance, build rules, and the shared output directory — nothing paraphrased or dropped in the parent→child handoff.
+- The workflow that actually ran (prompt_contract through final_review, with a real build-verification and repair loop) matches what an MVP-build, priority-6 child should receive — no sign of a truncated or wrong-tier workflow.
+
+**Two parent-level requirements never got addressed, and can't be from this scope:**
+1. Combining each app's transcript into one final `.txt` file — this is inherently a parent-level aggregation step; nothing in vervecoach's chain does it or could do it.
+2. The parent's "if an app is liked, prepare a Jira board and Notion project" clause — nobody ever made a liked/not-liked call for vervecoach across nine phases, and final_review's own verdict was "conditional go," not an unqualified thumbs-up, so this phase shouldn't assume "liked" on its own authority. That decision is still open.
+
+**Backfill readiness:** In good shape content-wise — `task_assignments`' 21-task, 4-lane structure (id, title, owner_lane, files, depends_on, acceptance_criteria, status) already maps almost directly onto Jira/Notion fields (owner_lane → epic/component, depends_on → issue links, acceptance_criteria → description/checklist). If greenlit, this is a same-day mechanical conversion, not rework. What's missing is the decision to do it and an owner, not the structure.
+
+**Skipped/collapsed category warning:** Can't be confirmed or denied from inside this child — whether "professional-communication" overlaps or crowds another sibling app's category is unanswerable without cross-app visibility. Flagging as an unresolved risk rather than a pass.
+
+**Recommendation for whoever has parent-level access:** a single lightweight manifest at the portfolio root (seven slugs, categories, folder paths) would let this exact audit actually be checked instead of reasoned about from inside one child's walls — this is the single highest-value fix if requirements 9–11 (dissimilarity, no reuse of prior apps/mechanics) need to be more than a trust exercise.
+
+**Verdict:** Portfolio audit is applicable but only partially completable from this scope. Everything checkable from inside vervecoach's own context passes. Two things remain genuinely unresolved and blocker-worthy at the parent level: (1) whether the seven apps actually landed in seven separate folders, and (2) the un-made "liked" call that gates Jira/Notion backfill and the missing combined-transcript `.txt`. Neither is a vervecoach-specific defect — both need a parent-level pass with real cross-app visibility to close.
+
+VERIFICATION: VERIFIED

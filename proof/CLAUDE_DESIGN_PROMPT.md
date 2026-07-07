@@ -1,0 +1,1 @@
+Design a premium iOS small-batch-business costing app called Proof. Warm craft-market aesthetic, ledger-like clarity, product/recipe list, materials-and-labor entry screen, suggested-pricing result with profit-trend chart. Include empty state and a state where labor rate hasn't been set yet.

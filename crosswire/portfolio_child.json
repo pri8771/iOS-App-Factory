@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-games",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Crosswire",
+    "slug": "crosswire",
+    "category": "multiplayer, 10-12 players",
+    "promise": "Fully cooperative asymmetric-clue game, no deception",
+    "monetization": "Paid theme \"campaigns\"",
+    "build": true,
+    "priority": 8,
+    "one_sentence_promise": "Fully cooperative asymmetric-clue game, no deception",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

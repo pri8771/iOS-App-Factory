@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-a2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "cleanline",
+    "slug": "cleanline",
+    "category": "Graphics & Design",
+    "promise": "Photographs a hand-drawn sketch and traces it to clean, editable vector paths (SVG/PDF) via on-device Vision.",
+    "target_user": "Illustrators/print-on-demand sellers who sketch on paper but need vector output.",
+    "build": true,
+    "one_sentence_promise": "Photographs a hand-drawn sketch and traces it to clean, editable vector paths (SVG/PDF) via on-device Vision.",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

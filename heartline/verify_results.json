@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 07:07:59",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "b8eef2f650b9fc3695ca03caf6ac467af289cdc2a99e8b442e41cb38a9f3b038",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "Heartline",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "Failed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/heartline/app_build/Heartline/Sources/ServicesUtilities/SubscriptionManager.swift:71:9: error: main actor-isolated property 'updatesTask' can not be referenced from a nonisolated context\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 07:08:22",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "b8eef2f650b9fc3695ca03caf6ac467af289cdc2a99e8b442e41cb38a9f3b038",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Heartline",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

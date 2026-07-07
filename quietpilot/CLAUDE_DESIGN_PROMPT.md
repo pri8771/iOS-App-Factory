@@ -1,0 +1,1 @@
+Design an acoustic-focus scheduling app called QuietPilot with a muted steel-and-aurora visual identity: waveform imagery that resolves into calm heatmap cards, restrained motion, high legibility at a glance, and a tone that reads as a considerate daily planner rather than a surveillance meter.

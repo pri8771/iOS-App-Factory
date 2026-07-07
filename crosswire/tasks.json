@@ -1,0 +1,539 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project & package scaffold: Xcode project, CrosswireKit SPM package, all target memberships, bundle id, signing",
+      "owner_lane": "data_domain",
+      "files": [
+        "Crosswire.xcodeproj",
+        "CrosswireKit/Package.swift",
+        "Crosswire/App/CrosswireApp.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Project builds with zero source files and all five package targets plus app/UI test targets present",
+        "Every lane's designated source directories exist and are attached to the correct target",
+        "Bundle id and signing config are set so the app runs on a simulator with no manual Xcode edits"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "CrosswireModels: all shared Codable structs/enums per frozen interfaces-json",
+      "owner_lane": "data_domain",
+      "files": [
+        "CrosswireKit/Sources/CrosswireModels/Player.swift",
+        "CrosswireKit/Sources/CrosswireModels/ConnectionState.swift",
+        "CrosswireKit/Sources/CrosswireModels/RosterEntry.swift",
+        "CrosswireKit/Sources/CrosswireModels/ScenarioGenre.swift",
+        "CrosswireKit/Sources/CrosswireModels/ClueTokenType.swift",
+        "CrosswireKit/Sources/CrosswireModels/FragmentFact.swift",
+        "CrosswireKit/Sources/CrosswireModels/Fragment.swift",
+        "CrosswireKit/Sources/CrosswireModels/ClueTokenTemplate.swift",
+        "CrosswireKit/Sources/CrosswireModels/SolutionKey.swift",
+        "CrosswireKit/Sources/CrosswireModels/ScenarioPack.swift",
+        "CrosswireKit/Sources/CrosswireModels/Clue.swift",
+        "CrosswireKit/Sources/CrosswireModels/SolutionProposal.swift",
+        "CrosswireKit/Sources/CrosswireModels/RoundOutcome.swift",
+        "CrosswireKit/Sources/CrosswireModels/RoundPhase.swift",
+        "CrosswireKit/Sources/CrosswireModels/RoundSnapshot.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Every type matches the tech_specs interfaces-json signature exactly",
+        "Module imports only Foundation, zero SwiftUI/MultipeerConnectivity",
+        "Clue board type is [Clue] ordered array, never a dictionary"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "FragmentDealer: deterministic sessionID-seeded dealing (locked decision, not a lookup ambiguity)",
+      "owner_lane": "data_domain",
+      "files": [
+        "CrosswireKit/Sources/CrosswireRulesEngine/FragmentDealer.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "dealFragments(pack:playerCount:) is a pure function of pack + playerCount + seed",
+        "Same seed always produces the same assignment; different sessionIDs produce different assignments",
+        "Seed is injectable so unit tests are fully deterministic"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Clue token validation and TokenComposer vocabulary enforcement",
+      "owner_lane": "data_domain",
+      "files": [
+        "CrosswireKit/Sources/CrosswireRulesEngine/ClueValidator.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "validateClue(tokens:against:) rejects any token not owned by the given fragment",
+        "Function is pure and synchronous, no I/O"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Solvability checker (evaluateSolvability)",
+      "owner_lane": "data_domain",
+      "files": [
+        "CrosswireKit/Sources/CrosswireRulesEngine/SolvabilityChecker.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "evaluateSolvability(pack:playerCount:) returns true only if the solution's requiredFactIDs are fully covered by the union of dealt fragments at that player count",
+        "Runs for any player count 6...12 without crashing on malformed input"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Solution proposal state machine (fresh id/tally per propose, decline discards)",
+      "owner_lane": "data_domain",
+      "files": [
+        "CrosswireKit/Sources/CrosswireRulesEngine/ProposalResolver.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "A decline discards the proposal entirely; the next propose creates a new UUID and empty tally",
+        "resolveProposal only returns confirmed once every roster entry's tally is confirmed (full-confirm, no majority path)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "CrosswireRulesEngine unit tests against MockGameTransport fixtures",
+      "owner_lane": "data_domain",
+      "files": [
+        "CrosswireKit/Tests/CrosswireRulesEngineTests/DealingTests.swift",
+        "CrosswireKit/Tests/CrosswireRulesEngineTests/ClueValidatorTests.swift",
+        "CrosswireKit/Tests/CrosswireRulesEngineTests/SolvabilityTests.swift",
+        "CrosswireKit/Tests/CrosswireRulesEngineTests/ProposalResolverTests.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "All rules engine logic is covered with zero import of SwiftUI or MultipeerConnectivity",
+        "Tests are deterministic across repeated CI runs (fixed seeds)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Author scenario pack content: one full pack with fragmentSets for player counts 6-12",
+      "owner_lane": "data_domain",
+      "files": [
+        "[REDACTED:high_entropy].json"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Pack includes premise, centralQuestion, solution key, allowedTokenVocabulary, and a fragmentSets entry for every player count 6 through 12",
+        "isFree is true for this pack (guest-never-gated requirement)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Automated solvability validation gate across player counts 6-12 for every bundled pack",
+      "owner_lane": "data_domain",
+      "files": [
+        "CrosswireKit/Tests/ScenarioValidationTests/PackSolvabilityTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Test fails the build if any bundled pack is not solvable at any of the 7 player counts 6...12",
+        "If the first-draft pack fails at low counts, task is reopened for content redesign (redundant/overlapping fragments) rather than silently skipped"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "GameTransport protocol, PeerID, GameMessage, TransportEvent, MockGameTransport",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CrosswireKit/Sources/CrosswireTransport/PeerID.swift",
+        "CrosswireKit/Sources/CrosswireTransport/GameMessage.swift",
+        "CrosswireKit/Sources/CrosswireTransport/TransportEvent.swift",
+        "CrosswireKit/Sources/CrosswireTransport/GameTransport.swift",
+        "CrosswireKit/Sources/CrosswireTransport/MockGameTransport.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "MockGameTransport can simulate N peers with configurable latency range and drop rate, and can trigger a reconnect event on command",
+        "GameTransport is the only type any other module needs to depend on for transport behavior"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "MultipeerGameTransport (real MC wrapper) + send-failure policy: retry once, then feed peer into peerReconnecting",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CrosswireKit/Sources/CrosswireTransport/MultipeerGameTransport.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "All MCSessionDelegate/advertiser/browser callbacks hop to the main actor before emitting a TransportEvent",
+        "A send/broadcast throw triggers exactly one immediate retry; a second failure emits peerReconnecting for that peer, never a new UI state",
+        "NSBonjourServices string in Info.plist matches the advertised/browsed service type exactly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "RoundSnapshotWriter actor: atomic writes, coalescing, flush on phase transition and backgrounding",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CrosswireKit/Sources/CrosswirePersistence/RoundSnapshotWriter.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Writes use Data.write(.atomic); rapid state changes coalesce to roughly one write per couple seconds",
+        "save/loadIfRestorable/delete never block the main actor; loadIfRestorable applies the phase-non-terminal-AND-within-grace-window rule and silently deletes anything else"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "ScenarioPackLoader: bundled versioned JSON loading",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CrosswireKit/Sources/CrosswirePersistence/ScenarioPackLoader.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Loads all bundled packs from CrosswireKit/Resources/ScenarioPacks",
+        "Mismatched schemaVersion fails loudly in debug builds rather than silently misparsing"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "SettingsStore: UserDefaults wrapper for display name and settings",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CrosswireKit/Sources/CrosswirePersistence/SettingsStore.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "displayName persists across launches and is never defaulted from the device name",
+        "hasSeenRFTip flag persists and is readable before first Home screen render"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "PurchaseManager: StoreKit 2 async product/entitlement/restore wrapper",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CrosswireKit/Sources/CrosswirePurchases/PurchaseManager.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "products(), currentEntitlements(), restore() all use StoreKit 2 async APIs with no backend call",
+        "Entitlement check works fully offline via Transaction.currentEntitlements"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Transport + persistence unit tests: N-peer/latency/drop/reconnect, stale-snapshot discard, interrupted atomic write",
+      "owner_lane": "services_utilities",
+      "files": [
+        "CrosswireKit/Tests/CrosswireTransportTests/MockTransportTests.swift",
+        "CrosswireKit/Tests/CrosswirePersistenceTests/SnapshotWriterTests.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "A snapshot past the grace window or already-terminal is proven to be silently discarded, never surfaced",
+        "A simulated interrupted write does not leave a corrupt/partial file on disk"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "AppRootCoordinator + AppRoute pre-session NavigationStack, restoreIfEligible wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Crosswire/App/AppRootCoordinator.swift",
+        "Crosswire/App/AppRoute.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "On launch, restoreIfEligible is called before any onboarding UI renders",
+        "Mission start replaces the navigation root wholesale (never pushes) so back-swipe cannot leave an active round"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Pre-session screens: NameEntry, Home/Discovery, PermissionPrimer, PackPicker, Lobby, LateJoinBlocked, Settings",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Crosswire/Features/NameEntry/",
+        "Crosswire/Features/Home/",
+        "Crosswire/Features/PermissionPrimer/",
+        "Crosswire/Features/PackPicker/",
+        "Crosswire/Features/Lobby/",
+        "Crosswire/Features/LateJoinBlocked/",
+        "Crosswire/Features/Settings/"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Every screen has explicit empty/loading/success/error states where reachable, per the design_handoff spec",
+        "Local-network-permission-denied is a distinct visual state from the empty 'no sessions found' state",
+        "Lobby's Start button is disabled below 6 players with the reason stated inline"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "MissionViewModel: sole owner of active-round state, transport event handling, send-failure policy",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Crosswire/Features/Mission/MissionViewModel.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-010",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Single @Observable @MainActor instance per device; no sheet or view holds a duplicate copy of round state",
+        "handle(_:) implements the locked retry-once-then-peerReconnecting policy for send failures"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Mission canvas: board with scroll-preserving + new-clue indicator, FragmentTray, TokenComposer (partial-detent sheets)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Crosswire/Features/Mission/MissionView.swift",
+        "Crosswire/Features/Mission/FragmentTrayView.swift",
+        "Crosswire/Features/Mission/TokenComposerView.swift"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "A new clue arriving while scrolled away from bottom shows a tap-to-jump indicator instead of forcing auto-scroll",
+        "TokenComposer can only construct clues from the local player's own fragment facts, never free text",
+        "Fragment reveal is a labeled accessible toggle, not a bare gesture"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Solution Confirm overlay: propose/confirm/decline with three-state tally",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Crosswire/Features/Mission/SolutionConfirmView.swift"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Tally visibly distinguishes pending/confirmed/declined per player",
+        "A decline returns everyone to the board and a fresh propose starts a new tally, never reusing the old one"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Briefing, Resolution beat, Debrief/Reveal, Replay screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Crosswire/Features/Briefing/",
+        "Crosswire/Features/Resolution/",
+        "Crosswire/Features/Debrief/",
+        "Crosswire/Features/Replay/"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Debrief shows every player's original fragment side-by-side with a deliberate, explicit VoiceOver reading order (not default grid traversal)",
+        "Win and loss share identical structural layout, differing only in outcome banner/tone"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "XCUITest coverage for single-device deterministic flows",
+      "owner_lane": "primary_ui",
+      "files": [
+        "CrosswireUITests/NameEntryTests.swift",
+        "CrosswireUITests/DiscoveryStateTests.swift",
+        "CrosswireUITests/PackPickerTests.swift",
+        "CrosswireUITests/SettingsTests.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Empty, loading, and permission-denied states are each exercised by a distinct test, not inferred from success-state tests"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "ResilienceBanner component family + ResilienceState model wiring",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Crosswire/Resilience/ResilienceBanner.swift",
+        "Crosswire/Resilience/ResilienceState.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "One component renders all four variants (reconnecting/compromised/hostDisconnected/restoringMission) parameterized by severity",
+        "Severity is conveyed in the accessibility label text, never by color alone"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "AppLifecycleObserver: idle-timer suspension, background auto-hide, flush-write on backgrounding",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Crosswire/Resilience/AppLifecycleObserver.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "isIdleTimerDisabled is true only for the duration of an active session and restored after",
+        "An immediate background/foreground cycle mid-round blurs the fragment before the OS finishes its transition animation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Accessibility audit pass across all screens (VoiceOver, Dynamic Type reflow, Reduce Motion tokens)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Crosswire/Features/**/*.swift (accessibility modifiers only, no layout/logic changes)"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-020",
+        "T-021",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Dynamic Type causes reflow (vertical re-stack) on every clue/fragment card, never truncation",
+        "Reduce Motion replaces every decorative animation (pin-drop, connecting lines, staggered debrief fade) with an instant or discrete equivalent"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Full-round MockGameTransport integration test: deal to relaunch-restore, gates UI-integration sign-off",
+      "owner_lane": "primary_ui",
+      "files": [
+        "CrosswireTests/FullRoundIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-021",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Single test exercises deal -> clue exchange -> propose -> decline -> reconfirm -> resolve -> snapshot write -> simulated relaunch -> restore against MockGameTransport",
+        "Test must pass before any polish_resilience or remaining primary_ui screen task is considered mergeable to main"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Device/simulator verification pass with an honest statement of tested scale",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Crosswire/Resilience/VERIFICATION_NOTES.md"
+      ],
+      "depends_on": [
+        "T-023",
+        "T-027"
+      ],
+      "acceptance_criteria": [
+        "States explicitly how many physical devices vs. simulator-to-simulator pairs were actually used",
+        "Never implies 10-12-simultaneous-peer coverage that was not actually exercised"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-029",
+      "title": "StoreKit paywall wiring + free/locked pack-picker honesty enforcement",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Crosswire/Features/PackPicker/PackPickerView.swift",
+        "Crosswire/Features/Settings/SettingsView.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "A guest joining someone else's session never encounters a paywall anywhere in their flow",
+        "Locked packs are visibly and honestly labeled as not-yet-available, never fake-unlockable"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,140 @@
+PORTFOLIO_CHILD_PROJECT: true
+Parent portfolio: batch-cat-b3
+Selected app slug: afterglow
+
+Build this app as a working local-first SwiftUI MVP.
+
+## Selected App Spec
+
+# Afterglow
+
+Build mode: **MVP build**.
+Build priority: **6**.
+
+## App Name
+
+Afterglow
+
+## Category
+
+Travel
+
+## One-Sentence Promise
+
+Turns your trip's photos and notes into a beautiful, automatically organized travel journal you'll actually finish.
+
+## Target User
+
+People who take many trip photos but never organize them into anything meaningful afterward.
+
+## Painful Moment Solved
+
+Coming home with hundreds of photos, meaning to make something of them, and never doing it — the memory fades into an unsorted camera roll.
+
+## Why It Is Different
+
+On-device clustering of Photos-framework metadata into a day-by-day trip story the user captions, producing a polished exportable journal entirely offline, with no cloud photo processing.
+
+## Why Users Would Pay
+
+Premium layout themes, unlimited archived trips, printable photo-book export, richer on-device narrative generation from captions/voice notes.
+
+## Subscription Model
+
+Free: 1 trip journal, basic themes. Paid: unlimited trips, premium themes, print export, narrative generation.
+
+## Local-First MVP Scope
+
+Entirely on-device — reads Photos metadata with permission, clusters by day/location, exports as PDF/shareable images.
+
+## Future Backend Roadmap
+
+Optional cloud backup of finished journals; potential shared collaborative journal for co-travelers who also have the app.
+
+## AR / Local ML / Local LLM Fit
+
+On-device Vision for clustering and highlight-photo selection; optional on-device LLM to draft short narrative captions strictly from the user's own notes.
+
+## Design Direction
+
+Premium photo-book aesthetic — full-bleed imagery, elegant serif captions, a designed keepsake rather than a generic gallery.
+
+## App Store Positioning
+
+The travel journal that makes itself — from your own photos, entirely on your phone.
+
+## Invalidation Criteria
+
+If most users abandon the caption step after auto-clustering, ship a faster no-caption default output instead of assuming the concept fails.
+
+## v1 Build Scope
+
+Photo selection, auto day-clustering, captions/voice notes, one layout theme, export.
+
+## Core Workflows
+
+- Select a trip's date range/photos
+- Review auto-generated day clusters
+- Add captions or voice notes
+- Choose a layout theme
+- Export/share the finished journal
+
+## iOS-Native Features
+
+- Photos framework + on-device Vision for clustering
+- Widgets showing last trip's cover photo
+- Share Sheet export
+
+## Key Risks
+
+- Photos permission friction requires transparent handling
+- Clustering quality degrades with sparse location metadata
+- On-device narrative generation must never invent details the user didn't note
+
+## Claude Design Handoff Prompt
+
+Design a premium photo-book travel-journal app: full-bleed day-cluster spreads, a light-touch caption/voice-note editor, and a theme picker that feels like choosing a real photo-book cover.
+
+## Parent Portfolio Prompt
+
+Build 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.
+
+This is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project — one folder per app.
+
+
+Requirements for every app:
+1. Must go from 0 to production-ready, not just a few features.
+2. Must be unique, useful, and commercially viable.
+3. Must be beautifully designed and feel premium.
+4. Must provide real end-user value.
+5. Must have a realistic path to monetization — a subscription or paid offering with genuine value (never cosmetics-only).
+6. Should have viral potential (broad or niche) without sacrificing usefulness.
+7. Must be better than its competitors in a meaningful way.
+8. Local-first where applicable, architected so cloud support can be added later without rewriting.
+
+UNIQUENESS (hard rule, non-negotiable):
+- No app in this batch may be similar to another app in this batch.
+- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.
+- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).
+- Do not reuse prior concepts, themes, or mechanics from earlier apps — even if the request sounds similar to something built before, produce a differentiated concept.
+
+Bonus points (optional — only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.
+
+Build rules:
+- Run the app efforts in parallel; keep discussion/design phases separate per app.
+- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.
+- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.
+- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.
+- Use enough rounds per phase for high-quality discussion, ending early on consensus.
+- Recover cleanly from stalls; report only important milestones.
+
+Output:
+- One folder per app in the output directory — never one folder containing all apps.
+Output directory:
+- /Users/pchordia/Documents/iOS-App-Factory
+
+Now generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.
+
+
+## Change requested
+The app currently FAILS to compile. Fix every compiler error until the build succeeds cleanly; do not drop features unless unavoidable.

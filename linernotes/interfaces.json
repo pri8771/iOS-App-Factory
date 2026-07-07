@@ -1,0 +1,622 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "ProjectID",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ProjectID: Hashable, Codable, Sendable { let rawValue: UUID }",
+      "owning_lane": "data_domain",
+      "notes": "Stable project identity used across persistence, import/export, and UI routing."
+    },
+    {
+      "name": "TrackEntryID",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TrackEntryID: Hashable, Codable, Sendable { let rawValue: UUID }",
+      "owning_lane": "data_domain",
+      "notes": "Stable identity for reorder, note attachment, and deletion."
+    },
+    {
+      "name": "ContributorIdentity",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ContributorIdentity: Codable, Hashable, Sendable { var displayName: String; var role: ContributorRole }",
+      "owning_lane": "data_domain",
+      "notes": "Minimal collaborator identity for v1 package exchange."
+    },
+    {
+      "name": "ContributorRole",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ContributorRole: String, Codable, Sendable { case owner, collaborator }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "OccasionKind",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum OccasionKind: String, Codable, CaseIterable, Sendable { case birthday, goodbye, anniversary, newBaby, justBecause }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed v1 occasion taxonomy from design decisions."
+    },
+    {
+      "name": "ThemeToken",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ThemeToken: String, Codable, CaseIterable, Sendable { case amber, fadedRed, tobacco, charcoal }",
+      "owning_lane": "data_domain",
+      "notes": "Stable serialized theme identifier; UI maps this to visuals."
+    },
+    {
+      "name": "PackageKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PackageKind: String, Codable, Sendable { case keepsake, invite }",
+      "owning_lane": "data_domain",
+      "notes": "Set at export time; drives Import Arrival's two intro variants."
+    },
+    {
+      "name": "Project",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Project: Identifiable, Codable, Sendable { let id: UUID; var schemaVersion: Int; var title: String; var recipientName: String; var occasion: Occasion; var dedication: String?; var theme: Theme; var tracks: [TrackEntry]; var contributors: [Contributor]; var createdAt: Date; var updatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "One folder on disk per project; this struct is the versioned manifest JSON at its root."
+    },
+    {
+      "name": "CollaborationMode",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum CollaborationMode: String, Codable, Sendable { case solo, linearHandoff }",
+      "owning_lane": "data_domain",
+      "notes": "V1 explicitly excludes concurrent merge."
+    },
+    {
+      "name": "TrackEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TrackEntry: Identifiable, Codable, Sendable { let id: UUID; var catalogID: String; var snapshotTitle: String; var snapshotArtist: String; var artworkFilename: String?; var addedByContributorID: UUID; var note: LinerNote?; var sortIndex: Int }",
+      "owning_lane": "data_domain",
+      "notes": "artworkFilename is a relative path to bytes on disk, written at add-time by ProjectEditor.addTrack via ProjectFileStore.writeArtwork, never a remote URL."
+    },
+    {
+      "name": "MusicTrackReference",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MusicTrackReference: Codable, Hashable, Sendable { var appleMusicSongID: String?; var snapshottedTitle: String; var snapshottedArtist: String; var snapshottedArtworkFilename: String?; var durationSeconds: TimeInterval? }",
+      "owning_lane": "data_domain",
+      "notes": "Separates external playback capability from local renderable truth."
+    },
+    {
+      "name": "LinerNote",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LinerNote: Identifiable, Codable, Sendable { let id: UUID; var content: LinerNoteContent; var createdAt: Date; var updatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "TextNote",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TextNote: Codable, Hashable, Sendable { var body: String; var createdAt: Date; var updatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Pure text note payload."
+    },
+    {
+      "name": "VoiceNote",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct VoiceNote: Codable, Hashable, Sendable { var filename: String; var durationSeconds: TimeInterval; var format: VoiceNoteFormat; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "References owned local audio asset."
+    },
+    {
+      "name": "VoiceNoteFormat",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum VoiceNoteFormat: String, Codable, Sendable { case aacMono32kbps, aacMono48kbps }",
+      "owning_lane": "data_domain",
+      "notes": "Locked v1 presets to bound file size."
+    },
+    {
+      "name": "EntitlementTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EntitlementTier: String, Codable, Sendable { case free, paid }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "EntitlementSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EntitlementSnapshot: Codable, Sendable { var tier: EntitlementTier; var cachedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Gate decisions read this cached value, never a live purchase check at the moment of action."
+    },
+    {
+      "name": "EntitlementGateReason",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EntitlementGateReason: String, Codable, Sendable, Error { case projectLimitReached, trackLimitReached, collaboratorsRequirePaid, exportRequiresPaid }",
+      "owning_lane": "data_domain",
+      "notes": "Stable reasons surfaced by domain and UI."
+    },
+    {
+      "name": "ProjectLimits",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ProjectLimits: Sendable { func canCreateProject(existingProjectCount: Int, entitlement: EntitlementSnapshot) -> Result<Void, EntitlementGateReason>; func canAddTrack(currentTrackCount: Int, entitlement: EntitlementSnapshot) -> Result<Void, EntitlementGateReason>; func canInviteCollaborator(entitlement: EntitlementSnapshot) -> Result<Void, EntitlementGateReason>; func canExport(entitlement: EntitlementSnapshot) -> Result<Void, EntitlementGateReason> }",
+      "owning_lane": "data_domain",
+      "notes": "Pure rule engine for local gating."
+    },
+    {
+      "name": "ProjectSummary",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ProjectSummary: Codable, Identifiable, Sendable { var id: ProjectID; var title: String; var recipientName: String; var occasion: OccasionKind; var theme: ThemeToken; var annotatedTrackCount: Int; var totalTrackCount: Int; var updatedAt: Date; var packageKind: PackageKind }",
+      "owning_lane": "data_domain",
+      "notes": "Shelf and widget-friendly lightweight summary."
+    },
+    {
+      "name": "ProjectPackageManifest",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ProjectPackageManifest: Codable, Sendable { var schemaVersion: Int; var packageKind: PackageKind; var project: Project; var exportedAt: Date; var appBuildVersion: String }",
+      "owning_lane": "data_domain",
+      "notes": "Same struct backs the Share preview and the Import Arrival read, so preview can never drift from the real export."
+    },
+    {
+      "name": "ProjectPersistenceError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ProjectPersistenceError: Error, Sendable { case notFound; case decodeFailed; case encodeFailed; case atomicWriteFailed; case assetWriteFailed; case assetDeleteFailed }",
+      "owning_lane": "data_domain",
+      "notes": "Thrown by ProjectFileStore."
+    },
+    {
+      "name": "ProjectImportError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ProjectImportError: Error, Sendable { case unsupportedSchema; case malformedManifest; case invalidPackageKind; case missingReferencedAsset; case fileTooLarge; case tooManyFiles; case securityValidationFailed }",
+      "owning_lane": "data_domain",
+      "notes": "Fail-closed package import errors, thrown by ProjectPackageImporting."
+    },
+    {
+      "name": "ProjectFileStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ProjectFileStore: Sendable { func loadLibraryIndex() async throws -> LibraryIndex; func loadProject(id: UUID) async throws -> Project; func save(_ project: Project) async throws; func deleteProject(id: UUID) async throws; func writeArtwork(_ data: Data, projectID: UUID, trackID: UUID) async throws -> String; func writeAudioFile(from tempURL: URL, projectID: UUID, noteID: UUID) async throws -> String; func audioFileURL(projectID: UUID, noteID: UUID) -> URL; func deleteAsset(projectID: UUID, relativeFilename: String) async throws; func sweepOrphanedAssets(projectID: UUID) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Single local-truth persistence boundary; throws ProjectPersistenceError. Package import/export deliberately excluded \u2014 see ProjectPackageImporting/Exporting, since untrusted-package handling is a distinct trust boundary."
+    },
+    {
+      "name": "MusicCatalogTrack",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MusicCatalogTrack: Identifiable, Sendable { var id: String { catalogID }; let catalogID: String; let title: String; let artist: String; let artworkURL: URL?; let durationSeconds: TimeInterval? }",
+      "owning_lane": "data_domain",
+      "notes": "Lightweight search-result row; artworkURL is only for the Add Track results list preview. Adding a track triggers a separate fetch-and-write-to-disk step producing TrackEntry.artworkFilename \u2014 the search result itself never carries full image bytes."
+    },
+    {
+      "name": "TrackPlaybackAvailability",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TrackPlaybackAvailability: Sendable { case playable; case unavailable(openInAppleMusicURL: URL?) }",
+      "owning_lane": "data_domain",
+      "notes": "Drives the playback screen's 'Open in Apple Music' fallback; computed independently of the note experience."
+    },
+    {
+      "name": "MusicLibraryProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol MusicLibraryProviding: Sendable { func requestAuthorization() async -> MusicAuthorizationStatus; func search(term: String) async throws -> [MusicCatalogTrack]; func availability(forCatalogID id: String) async -> TrackPlaybackAvailability; func startPlayback(catalogID: String) async throws; func stopPlayback() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Real impl wraps MusicAuthorization/MusicCatalogSearchRequest/ApplicationMusicPlayer; fake impl returns fixture arrays since real MusicKit is unreliable in Simulator/CI."
+    },
+    {
+      "name": "MusicAuthorizationState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum MusicAuthorizationState: Sendable { case notDetermined, authorized, denied, restricted }",
+      "owning_lane": "services_utilities",
+      "notes": "UI-visible authorization state."
+    },
+    {
+      "name": "AudioMeterSample",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct AudioMeterSample: Sendable { var power: Float; var timestamp: TimeInterval }",
+      "owning_lane": "services_utilities",
+      "notes": "Cheap amplitude feed for waveform/spool skin."
+    },
+    {
+      "name": "RecordingDraft",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RecordingDraft: Sendable { var fileURL: URL; var durationSeconds: TimeInterval; var meterSamples: [AudioMeterSample] }",
+      "owning_lane": "services_utilities",
+      "notes": "Temporary captured note before commit into owned storage."
+    },
+    {
+      "name": "AudioRecordingError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AudioRecordingError: Error, Sendable { case permissionDenied; case sessionUnavailable; case startFailed; case interrupted; case finalizeFailed }",
+      "owning_lane": "data_domain",
+      "notes": "Thrown by startRecording/stopRecording; distinct from the async events() stream."
+    },
+    {
+      "name": "AudioRecording",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AudioRecording: AnyObject, Sendable { func requestPermission() async -> Bool; func startRecording(to fileURL: URL, maxDuration: TimeInterval) throws; func stopRecording() async throws -> RecordingResult; func cancelRecording(); func events() -> AsyncStream<AudioRecordingEvent> }",
+      "owning_lane": "services_utilities",
+      "notes": "startRecording must feel instant (<300ms to visible recording state); fake impl can push .interrupted through events() to drive interruptedRecoverable in tests without real hardware."
+    },
+    {
+      "name": "EntitlementProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementProviding: Sendable { func currentSnapshot() async -> EntitlementSnapshot; func refreshSnapshot() async -> EntitlementSnapshot; func canCreateAdditionalProject(currentCount: Int) -> Bool; func canAddTrack(currentCount: Int) -> Bool; func canAddCollaborator(currentCount: Int) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "The boundary-check functions are pure and unit-testable with no StoreKit involved; currentSnapshot/refreshSnapshot are the only async/StoreKit-touching members."
+    },
+    {
+      "name": "ExtensionSummaryWriter",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ExtensionSummaryWriter { func write(summary: ProjectSummary) async throws; func clear(projectID: ProjectID) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "App-group summary writer for widget and live activity surfaces."
+    },
+    {
+      "name": "ProjectLibrary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ProjectLibrary { private(set) var entries: [LibraryIndexEntry]; private(set) var entitlement: EntitlementSnapshot; private(set) var importState: ImportState; func refresh() async; func createProject(title: String, recipientName: String, occasion: Occasion, theme: Theme, dedication: String?) async throws -> Project; func deleteProject(id: UUID) async throws; func importPackage(at url: URL) async throws -> ImportArrivalContext }",
+      "owning_lane": "primary_ui",
+      "notes": "@Observable requires a class, not a struct; createProject throws EntitlementError.projectLimitReached rather than silently ignoring the free-tier cap."
+    },
+    {
+      "name": "NewProjectDraft",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct NewProjectDraft: Sendable { var title: String; var recipientName: String; var occasion: OccasionKind; var dedication: String?; var theme: ThemeToken }",
+      "owning_lane": "primary_ui",
+      "notes": "Creation flow input payload."
+    },
+    {
+      "name": "ImportState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ImportState: Sendable { case idle; case processing; case failed(message: String) }",
+      "owning_lane": "data_domain",
+      "notes": "Shelf's transient import-processing/error banner state."
+    },
+    {
+      "name": "ProjectEditor",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ProjectEditor { private(set) var project: Project; private(set) var addTrackState: AddTrackState; private(set) var saveState: SaveState; func addTrack(_ track: MusicCatalogTrack) async throws; func removeTrack(id: UUID) async throws; func moveTrackEarlier(id: UUID) async throws; func moveTrackLater(id: UUID) async throws; func reorderTracks(from source: IndexSet, to destination: Int) async throws; func attachTextNote(trackID: UUID, body: String) async throws; func removeVoiceNote(trackID: UUID) async throws; func beginRecording(trackID: UUID) -> RecordCaptureViewModel; func exportPackage(kind: PackageKind) async throws -> URL }",
+      "owning_lane": "primary_ui",
+      "notes": "moveTrackEarlier/moveTrackLater and reorderTracks call the identical underlying mutation, satisfying the single-mutation-path accessibility requirement. addTrack throws EntitlementError.trackLimitReached at the 6th track."
+    },
+    {
+      "name": "PlaybackScreenState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PlaybackScreenState: Sendable { case idle; case loadingTrack(TrackEntryID); case playing(TrackEntryID); case unavailable(TrackEntryID, openInAppleMusicURL: URL?); case failed(message: String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Playback UI never assumes songs resolve."
+    },
+    {
+      "name": "SaveState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SaveState: Sendable { case clean; case dirty; case saving; case failed(message: String) }",
+      "owning_lane": "data_domain",
+      "notes": "User-visible autosave feedback surfaced by ProjectEditor."
+    },
+    {
+      "name": "RecordingScreenState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RecordingScreenState: Sendable { case idle; case recording(elapsed: TimeInterval, remaining: TimeInterval, meter: AudioMeterSample?); case interruptedRecoverable; case preview(RecordingDraft); case micDenied; case failed(message: String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Explicit record flow state machine."
+    },
+    {
+      "name": "beginRecordingFlow",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func beginRecordingFlow(recorder: AudioRecording, maxDuration: TimeInterval) async -> RecordingScreenState",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared resilience helper for starting recording with permission/interruption handling."
+    },
+    {
+      "name": "recoverFromInterruption",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func recoverFromInterruption(editor: ProjectEditor, trackID: TrackEntryID, recorder: AudioRecording) async -> RecordingScreenState",
+      "owning_lane": "polish_resilience",
+      "notes": "Defines the interrupted-recoverable behavior contract."
+    },
+    {
+      "name": "validateImportedPackage",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func validateImportedPackage(at url: URL, maxTotalBytes: Int, maxFileCount: Int) async throws -> ProjectPackageManifest",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared validator called by ProjectPackageImporting.inspect() before any copy into owned storage."
+    },
+    {
+      "name": "Occasion",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Occasion: String, Codable, Sendable { case birthday, goodbye, anniversary, newBaby, justBecause }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed chip set, not free text."
+    },
+    {
+      "name": "Theme",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Theme: String, Codable, Sendable { case amber, fadedRed, tobacco, charcoal }",
+      "owning_lane": "data_domain",
+      "notes": "Maps to design token accent set; charcoal is the dark variant."
+    },
+    {
+      "name": "LinerNoteContent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LinerNoteContent: Codable, Sendable { case voice(audioFilename: String, durationSeconds: Double); case text(body: String) }",
+      "owning_lane": "data_domain",
+      "notes": "Text and voice are equal-weight variants of one type, never a fallback flag."
+    },
+    {
+      "name": "Contributor",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Contributor: Identifiable, Codable, Sendable { let id: UUID; var displayName: String; var role: ContributorRole }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "LibraryIndexEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LibraryIndexEntry: Identifiable, Codable, Sendable { let id: UUID; var title: String; var recipientName: String; var occasion: Occasion; var theme: Theme; var trackCount: Int; var annotatedCount: Int; var isFinished: Bool; var updatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Cheap shelf-load projection; avoids decoding every full Project on launch."
+    },
+    {
+      "name": "LibraryIndex",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LibraryIndex: Codable, Sendable { var entries: [LibraryIndexEntry] }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "SharedProjectSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SharedProjectSummary: Codable, Sendable { var projectID: UUID; var title: String; var recipientName: String; var annotatedCount: Int; var totalCount: Int; var themeToken: String; var isFinished: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "The only type the widget/Live Activity extension target ever imports; written via App Group container."
+    },
+    {
+      "name": "MusicAuthorizationStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MusicAuthorizationStatus: Sendable { case notDetermined, authorized, denied, restricted }",
+      "owning_lane": "data_domain",
+      "notes": "Single canonical name, replacing duplicate MusicAuthorizationState."
+    },
+    {
+      "name": "RecordingResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecordingResult: Sendable { let fileURL: URL; let durationSeconds: Double }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "AudioRecordingEvent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AudioRecordingEvent: Sendable { case levelUpdate(Float); case interrupted; case resumed }",
+      "owning_lane": "data_domain",
+      "notes": "interrupted/resumed sourced from AVAudioSession.interruptionNotification, not custom polling."
+    },
+    {
+      "name": "AudioPlayback",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AudioPlayback: AnyObject, Sendable { func play(url: URL) throws; func pause(); func stop() }",
+      "owning_lane": "services_utilities",
+      "notes": "Used for note playback (voice liner notes), not MusicKit song playback."
+    },
+    {
+      "name": "ProjectPackageExporting",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ProjectPackageExporting: Sendable { func makePackage(for project: Project, kind: PackageKind) async throws -> URL }",
+      "owning_lane": "services_utilities",
+      "notes": "Returns a URL to the .linernotes-typed directory package; never bundles licensed audio."
+    },
+    {
+      "name": "ProjectPackageImporting",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ProjectPackageImporting: Sendable { func inspect(packageAt url: URL) async throws -> ProjectPackageManifest; func importProject(packageAt url: URL) async throws -> Project }",
+      "owning_lane": "services_utilities",
+      "notes": "inspect() decodes+validates only (delegates to validateImportedPackage), never opens in place; importProject copies into app storage or throws ProjectImportError on schema/size/type violation."
+    },
+    {
+      "name": "WidgetSummaryWriting",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol WidgetSummaryWriting: Sendable { func write(_ summary: SharedProjectSummary) async throws; func writeRecent(_ summaries: [SharedProjectSummary]) async throws; func clear(projectID: UUID) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Writes to the App Group container the widget/Live Activity extension reads from."
+    },
+    {
+      "name": "AppEnvironment",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AppEnvironment: Sendable { let musicLibrary: MusicLibraryProviding; let audioRecordingFactory: @Sendable () -> AudioRecording; let audioPlaybackFactory: @Sendable () -> AudioPlayback; let projectFileStore: ProjectFileStore; let entitlement: EntitlementProviding; let packageExporter: ProjectPackageExporting; let packageImporter: ProjectPackageImporting; let widgetSummaryWriter: WidgetSummaryWriting; static func live() -> AppEnvironment; static func fake(fixture: String?) -> AppEnvironment }",
+      "owning_lane": "services_utilities",
+      "notes": "Composition root selected by -linernotesUITestMode launch argument + LINERNOTES_FIXTURE env var; the DI seam every test tier depends on."
+    },
+    {
+      "name": "DebouncedSaveController",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class DebouncedSaveController { init(store: ProjectFileStore, debounceMilliseconds: Int = 300); func scheduleSave(_ project: Project); func forceFlush() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Owned by ProjectEditor; forceFlush is called from one scenePhase observer at app root plus interruption/termination paths."
+    },
+    {
+      "name": "AddTrackState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AddTrackState: Sendable { case authorizing; case denied; case idle; case searching(term: String); case results([MusicCatalogTrack]); case empty(term: String); case blockedByEntitlement }",
+      "owning_lane": "primary_ui",
+      "notes": "denied state must offer retry, never be a dead end."
+    },
+    {
+      "name": "RecordCaptureState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecordCaptureState: Sendable { case idle; case recording(elapsedSeconds: Double, level: Float); case interruptedRecoverable(elapsedSeconds: Double); case recordedPreview(durationSeconds: Double); case reRecordConfirm; case textDraft(String); case textSaved(String); case micDenied }",
+      "owning_lane": "primary_ui",
+      "notes": "interruptedRecoverable must only be reachable via a real AVAudioSession interruption event (or the fake's synthesized one) in tests, never a stub flag."
+    },
+    {
+      "name": "RecordCaptureViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class RecordCaptureViewModel { private(set) var state: RecordCaptureState; func startRecording(); func stopAndSave() async throws; func discardRecording(); func switchToText(); func saveText(_ body: String) async throws }",
+      "owning_lane": "primary_ui",
+      "notes": "startRecording must feel instant (<300ms to visible recording state); re-record path deletes the prior audio file from disk immediately via ProjectFileStore.deleteAsset."
+    },
+    {
+      "name": "PlaybackState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PlaybackState: Sendable { case idle; case loadingTrack(UUID); case playing(UUID); case unavailable(UUID, openInAppleMusicURL: URL?); case failed(message: String) }",
+      "owning_lane": "primary_ui",
+      "notes": "unavailable never renders as a spinner and always carries a concrete deep link; note audio/text continues regardless of song availability."
+    },
+    {
+      "name": "PlaybackViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class PlaybackViewModel { private(set) var state: PlaybackState; private(set) var currentIndex: Int; func play(); func pause(); func advance(to index: Int) }",
+      "owning_lane": "primary_ui",
+      "notes": ""
+    },
+    {
+      "name": "ImportArrivalContext",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ImportArrivalContext: Sendable { var manifest: ProjectPackageManifest; var kind: PackageKind }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "ImportArrivalState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ImportArrivalState: Sendable { case keepsakeIntro(ImportArrivalContext); case contributorIntro(ImportArrivalContext); case failed(reason: String) }",
+      "owning_lane": "primary_ui",
+      "notes": "failed is fail-closed and non-crashing; never falls through to the track list."
+    },
+    {
+      "name": "EntitlementError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EntitlementError: Error, Sendable { case projectLimitReached; case trackLimitReached; case collaboratorNotAllowed }",
+      "owning_lane": "data_domain",
+      "notes": "Thrown by ProjectLibrary/ProjectEditor at the exact action point, driving the contextual PaywallSheet."
+    },
+    {
+      "name": "MusicKitMusicLibraryProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class MusicKitMusicLibraryProvider: MusicLibraryProviding { }",
+      "owning_lane": "services_utilities",
+      "notes": "Live implementation wrapping MusicAuthorization + MusicCatalogSearchRequest + ApplicationMusicPlayer."
+    },
+    {
+      "name": "AVAudioRecordingService",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class AVAudioRecordingService: AudioRecording { }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps AVAudioRecorder + AVAudioSession.interruptionNotification; mono AAC 32-48kbps settings fixed here."
+    },
+    {
+      "name": "FileManagerProjectStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "actor FileManagerProjectStore: ProjectFileStore { }",
+      "owning_lane": "services_utilities",
+      "notes": "Actor-isolated for off-main file I/O; atomic write-then-rename; owns the orphan-sweep implementation."
+    },
+    {
+      "name": "StoreKitEntitlementProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class StoreKitEntitlementProvider: EntitlementProviding { }",
+      "owning_lane": "services_utilities",
+      "notes": "Built against a local .storekit config; boundary logic itself is must-have, live purchase wiring is out of scope."
+    },
+    {
+      "name": "FakeServiceDoubles",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum FakeServices { static func musicLibrary(fixture: String?) -> MusicLibraryProviding; static func audioRecording() -> AudioRecording; static func projectFileStore(inMemory: Bool) -> ProjectFileStore; static func entitlement(tier: EntitlementTier) -> EntitlementProviding }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs both unit tests and the -linernotesUITestMode XCUITest seam; fake AudioRecording can synthesize .interrupted via events()."
+    },
+    {
+      "name": "SchemaMigrator",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SchemaMigrator: Sendable { func migrate(rawJSON: Data, fromVersion: Int) throws -> Project }",
+      "owning_lane": "polish_resilience",
+      "notes": "Fail-closed: unrecognized/future schema versions throw rather than attempt a best-effort partial decode."
+    },
+    {
+      "name": "AccessibilityReorderActions",
+      "kind": "function",
+      "language": "swift",
+      "signature": "extension View { func trackReorderActions(moveEarlier: @escaping () -> Void, moveLater: @escaping () -> Void) -> some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Applies the custom VoiceOver 'Move earlier'/'Move later' accessibility actions, calling the same ProjectEditor methods as drag."
+    },
+    {
+      "name": "ReducedMotionFallback",
+      "kind": "function",
+      "language": "swift",
+      "signature": "extension EnvironmentValues { var linernotesReduceMotion: Bool { get } }",
+      "owning_lane": "polish_resilience",
+      "notes": "Wraps accessibilityReduceMotion; every spool/flip/breathing animation branches on this with a static/cross-fade fallback."
+    },
+    {
+      "name": "FakeServices",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum FakeServices { static func musicLibrary(fixture: String?) -> MusicLibraryProviding; static func audioRecording() -> AudioRecording; static func audioPlayback() -> AudioPlayback; static func projectFileStore(inMemory: Bool) -> ProjectFileStore; static func entitlement(tier: EntitlementTier) -> EntitlementProviding; static func packageExporter() -> ProjectPackageExporting; static func packageImporter() -> ProjectPackageImporting; static func widgetSummaryWriter() -> WidgetSummaryWriting }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs both unit tests and the -linernotesUITestMode XCUITest seam."
+    }
+  ],
+  "errors": []
+}

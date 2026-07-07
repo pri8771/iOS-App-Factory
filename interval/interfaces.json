@@ -1,0 +1,286 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Outcome",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum Outcome: String, Codable, CaseIterable { case completed, stoppedEarly, interrupted, expiredWhileAway, canceledQuickly }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical five-value session taxonomy used everywhere."
+    },
+    {
+      "name": "LearningState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum LearningState: String, Codable, Sendable { case defaultState, learning, adapted }",
+      "owning_lane": "data_domain",
+      "notes": "adapted requires >=5 non-degenerate completed sessions."
+    },
+    {
+      "name": "TimeBucket",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum TimeBucket: String, Codable, Sendable { case earlyMorning, morning, afternoon, evening, night }",
+      "owning_lane": "data_domain",
+      "notes": "Computed once from Calendar.current hour at session start; stored, never recomputed retroactively from the raw timestamp."
+    },
+    {
+      "name": "SessionProvenance",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum SessionProvenance: String, Codable { case userConfirmed, autoReconciled, autoReconciledThenEdited }",
+      "owning_lane": "data_domain",
+      "notes": "Explains how final outcome was established."
+    },
+    {
+      "name": "SessionRecord",
+      "kind": "struct",
+      "language": "swift (SwiftData @Model class)",
+      "signature": "@Model public final class SessionRecord { public var id: UUID; public var profileID: UUID; public var startTimestamp: Date; public var plannedFocusDuration: TimeInterval; public var plannedBreakDuration: TimeInterval; public var recommendedFocusDuration: TimeInterval; public var recommendedBreakDuration: TimeInterval; public var recommendationExplanation: String?; public var actualEndTimestamp: Date?; public var actualElapsedSeconds: TimeInterval?; public var outcome: SessionOutcome?; public var wasOverride: Bool; public var energyRating: Int?; public var timeBucket: TimeBucket; public var provenance: OutcomeProvenance }",
+      "owning_lane": "data_domain",
+      "notes": "No separate RecommendationSnapshot entity; snapshot-at-start fields folded directly onto SessionRecord."
+    },
+    {
+      "name": "Profile",
+      "kind": "struct",
+      "language": "swift (SwiftData @Model class)",
+      "signature": "@Model public final class Profile { public var id: UUID; public var name: String; public var createdAt: Date; public var isDefault: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Exactly one auto-created default instance in free tier; multi-profile is paid-gated at the view layer only."
+    },
+    {
+      "name": "RecommendationEvidence",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RecommendationEvidence: Codable, Sendable { let recentCompletionRate: Double; let recentEarlyStopRate: Double; let overrideCompletionRate: Double?; let dominantTimeBucket: TimeBucket?; let sampleSize: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Compact explanation payload for UI and paywall preview."
+    },
+    {
+      "name": "Recommendation",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct Recommendation: Sendable { public let focusDuration: TimeInterval; public let breakDuration: TimeInterval; public let learningState: LearningState; public let explanation: String?; public let evidence: [EvidenceMark]; public let progressTowardAdaptation: (completed: Int, needed: Int) }",
+      "owning_lane": "data_domain",
+      "notes": "Returned by RecommendationEngine.recommend; cached on SessionCoordinator, never recomputed inside a SwiftUI view body."
+    },
+    {
+      "name": "RecommendationEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public enum RecommendationEngine { public static func recommend(sessions: [SessionSnapshot], previousRecommendation: Recommendation?, tier: SubscriptionTier, now: Date) -> Recommendation }",
+      "owning_lane": "data_domain",
+      "notes": "Pure, Foundation-only, no SwiftData/SwiftUI imports. Applies clamps (10-90 min focus, 3-20 min break), step cap (min 10%/5min per recalculation), 60s degenerate floor exclusion, rolling window (20 free / unbounded subscribed), 5-session adapted threshold."
+    },
+    {
+      "name": "SessionPhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum SessionPhase { case idle(Recommendation), running(SessionRecord), onBreak(SessionRecord), awaitingOutcome(SessionRecord), reconciliationPending(SessionRecord, provisional: SessionOutcome) }",
+      "owning_lane": "primary_ui",
+      "notes": "Every screen renders as a pure function of this; active-session view binds via fullScreenCover(item:), never NavigationStack push."
+    },
+    {
+      "name": "SessionRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol SessionRepository { func fetchSessions(profileID: UUID, limit: Int?) throws -> [SessionRecord]; func fetchUnresolvedSession(profileID: UUID) throws -> SessionRecord?; func save(_ session: SessionRecord) throws; func fetchProfiles() throws -> [Profile]; func createProfile(name: String) throws -> Profile; func deleteAllData() throws }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData-backed concrete impl is MainActor-bound; sole write path -- HistoryViewModel/@Query is never used directly against SessionRecord."
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol NotificationScheduler { func requestAuthorizationIfNeeded() async -> Bool; var isAuthorized: Bool { get async }; func scheduleSessionEnd(sessionID: UUID, fireDate: Date, kind: NotificationKind) async; func cancel(sessionID: UUID) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Cancels by stable per-session UUID identifier, never removeAllPendingNotificationRequests(). requestAuthorizationIfNeeded checks current settings first; never re-prompts after denial."
+    },
+    {
+      "name": "SubscriptionStore",
+      "kind": "struct",
+      "language": "swift (@MainActor @Observable class)",
+      "signature": "@MainActor @Observable public final class SubscriptionStore { public private(set) var entitlementState: EntitlementState; public func purchase(_ product: Product) async throws; public func restore() async throws; public func refreshEntitlements() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Entitlement checks only gate feature-layer views (profiles, insights); never sit inside SessionCoordinator.start()."
+    },
+    {
+      "name": "Clock",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol Clock { var now: Date { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Test seam injected into SessionCoordinator so reconciliation/recommendation timing is deterministic in tests."
+    },
+    {
+      "name": "SessionCoordinator",
+      "kind": "struct",
+      "language": "swift (@MainActor @Observable class)",
+      "signature": "@MainActor @Observable public final class SessionCoordinator { public private(set) var phase: SessionPhase; public func start(overrideDuration: TimeInterval?); public func stop(); public func skipBreak(); public func confirmOutcome(_ outcome: SessionOutcome, energyRating: Int?); public func reconcileOnLaunch() }",
+      "owning_lane": "primary_ui",
+      "notes": "Sole writer of SessionPhase. Timer truth = startTimestamp + plannedDuration recomputed from Date(), never a paused in-memory counter. stop()/natural-completion immediately call ReconciliationPolicy.provisionalOutcome(trigger: .manualStop/.naturalCompletion, ...) and persist before the outcome sheet appears; reconcileOnLaunch() uses .appRelaunchReconciliation."
+    },
+    {
+      "name": "reconcileOutcome",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func reconcileOutcome(for session: SessionRecord, now: Date, completionThreshold: Double = 0.9, degenerateFloorSeconds: Int = 60) -> Outcome",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared pure rule used on relaunch and provisional terminal write."
+    },
+    {
+      "name": "makePaywallPreviewRecommendation",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public func makePaywallPreviewRecommendation(from sessions: [SessionSnapshot], tier: SubscriptionTier, now: Date) -> Recommendation?",
+      "owning_lane": "polish_resilience",
+      "notes": "Uses RecommendationEngine.recommend against the user's own real data for the paywall's live preview; view-layer entitlement gate decides visibility, never a stock/fake sample."
+    },
+    {
+      "name": "verifyNoNetworkInCorePath",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public func verifyNoNetworkInCorePath() throws",
+      "owning_lane": "polish_resilience",
+      "notes": "Mechanical structural test enforcing zero-network rule for the timer/logging/adaptation module boundary."
+    },
+    {
+      "name": "SessionOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum SessionOutcome: String, Codable, Sendable { case completed, stoppedEarly, interrupted, expiredWhileAway, canceledBeforeMeaningfulProgress }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed 5-value taxonomy; every terminal SessionRecord has exactly one non-nil value."
+    },
+    {
+      "name": "OutcomeProvenance",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum OutcomeProvenance: String, Codable, Sendable { case userConfirmed, autoReconciled, autoReconciledThenEdited }",
+      "owning_lane": "data_domain",
+      "notes": "Set by ReconciliationPolicy writes and OutcomeCaptureSheet confirm/correct."
+    },
+    {
+      "name": "SubscriptionTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum SubscriptionTier: String, Codable, Sendable { case free, subscribed }",
+      "owning_lane": "data_domain",
+      "notes": "Determines rolling window size passed into RecommendationEngine (20 sessions free, unbounded subscribed)."
+    },
+    {
+      "name": "SessionEndTrigger",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum SessionEndTrigger: Sendable { case naturalCompletion, manualStop, appRelaunchReconciliation }",
+      "owning_lane": "data_domain",
+      "notes": "Distinguishes foreground stop/completion from relaunch reconciliation; ReconciliationPolicy behavior differs by trigger, not one blind elapsed-fraction formula for all three."
+    },
+    {
+      "name": "SessionSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct SessionSnapshot: Codable, Sendable { public let id: UUID; public let startTimestamp: Date; public let plannedFocusDuration: TimeInterval; public let actualElapsedSeconds: TimeInterval; public let outcome: SessionOutcome; public let wasOverride: Bool; public let timeBucket: TimeBucket }",
+      "owning_lane": "data_domain",
+      "notes": "Plain-data mirror of SessionRecord; the ONLY input type RecommendationEngine accepts. Never pass SwiftData @Model instances into engine code or tests."
+    },
+    {
+      "name": "EvidenceMark",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct EvidenceMark: Sendable { public let outcome: SessionOutcome }",
+      "owning_lane": "data_domain",
+      "notes": "Backing data for the Canvas-rendered evidence strip; 5-8 most recent non-degenerate sessions."
+    },
+    {
+      "name": "AppSettingsRecord",
+      "kind": "struct",
+      "language": "swift (SwiftData @Model class)",
+      "signature": "@Model public final class AppSettingsRecord { public var id: UUID; public var hasRequestedNotificationPermission: Bool; public var hasShownFirstRunExplainer: Bool; public var storeWasReset: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Singleton row. storeWasReset read once by RootView then cleared after the honest-reset message is shown."
+    },
+    {
+      "name": "RepositoryError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum RepositoryError: Error, Sendable { case storeUnavailable, saveFailed, notFound }",
+      "owning_lane": "data_domain",
+      "notes": "storeUnavailable triggers the corrupted-store recovery path at app launch via AppLaunchBootstrap."
+    },
+    {
+      "name": "ReconciliationPolicy",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public enum ReconciliationPolicy { public static let degenerateFloor: TimeInterval; public static let completedThresholdFraction: Double; public static func provisionalOutcome(trigger: SessionEndTrigger, plannedDuration: TimeInterval, elapsed: TimeInterval) -> SessionOutcome }",
+      "owning_lane": "data_domain",
+      "notes": "Single shared function for all three end triggers, with trigger-specific behavior -- manualStop never resolves to expiredWhileAway."
+    },
+    {
+      "name": "NotificationKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum NotificationKind: Sendable { case focusEnd, breakEnd }",
+      "owning_lane": "services_utilities",
+      "notes": ""
+    },
+    {
+      "name": "EntitlementState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum EntitlementState: Sendable { case free, subscribed, lapsed }",
+      "owning_lane": "services_utilities",
+      "notes": "lapsed preserves data (soft-lock), never triggers deletion."
+    },
+    {
+      "name": "HistoryViewModel",
+      "kind": "struct",
+      "language": "swift (@MainActor @Observable class)",
+      "signature": "@MainActor @Observable public final class HistoryViewModel { public private(set) var rows: [SessionRecord]; public var filter: HistoryFilter; public func refresh() }",
+      "owning_lane": "primary_ui",
+      "notes": "Explicit refresh triggered by SessionCoordinator writes; History screen never uses @Query directly against SessionRecord."
+    },
+    {
+      "name": "HistoryFilter",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum HistoryFilter: Sendable { case all, completed, earlyStop, interrupted }",
+      "owning_lane": "primary_ui",
+      "notes": "Backs the History segmented control."
+    },
+    {
+      "name": "AppLaunchBootstrap",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public enum AppLaunchBootstrap { public static func makeModelContainer() -> (container: ModelContainer, didResetStore: Bool) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Catches ModelContainer init failure, deletes the underlying store file, reinitializes empty; didResetStore flag sets AppSettingsRecord.storeWasReset for the honest reset message."
+    },
+    {
+      "name": "EmptyStateView",
+      "kind": "struct",
+      "language": "swift (SwiftUI View)",
+      "signature": "public struct EmptyStateView: View { public init(title: String, message: String, systemImage: String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared across History, Settings, and the store-reset screen instead of bespoke per-screen empty states."
+    },
+    {
+      "name": "ErrorStateView",
+      "kind": "struct",
+      "language": "swift (SwiftUI View)",
+      "signature": "public struct ErrorStateView: View { public init(title: String, message: String, retryAction: (() -> Void)?) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Paired with EmptyStateView; used for store-error and purchase-failure surfaces."
+    },
+    {
+      "name": "ReduceMotionAnimator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public enum ReduceMotionAnimator { public static func animation(_ base: Animation) -> Animation? }",
+      "owning_lane": "polish_resilience",
+      "notes": "Single shared helper every .animation() call site routes through; returns nil (instant) when Reduce Motion is on."
+    }
+  ],
+  "errors": []
+}

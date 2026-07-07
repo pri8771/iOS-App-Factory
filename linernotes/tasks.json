@@ -1,0 +1,642 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Xcode project scaffolding: targets, App Group, signing, UTType/document-opener registration, privacy strings, .storekit skeleton, launch seam",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Linernotes.xcodeproj/project.pbxproj",
+        "LinernotesApp/Info.plist",
+        "LinernotesApp/Linernotes.entitlements",
+        "LinernotesWidget/Info.plist",
+        "LinernotesWidget/LinernotesWidget.entitlements",
+        "LinernotesKit/Package.swift",
+        "Configuration/Linernotes.storekit",
+        "LinernotesApp/Support/LaunchSeam.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "App + widget targets build empty on simulator",
+        "App Group ID matches across app and widget entitlements",
+        ".linernotes UTType and document-opener capability declared in Info.plist",
+        "NSAppleMusicUsageDescription and NSMicrophoneUsageDescription present with plain-language copy",
+        "-linernotesUITestMode launch arg and LINERNOTES_FIXTURE env var are parseable via LaunchSeam"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Core enums and lightweight value types",
+      "owner_lane": "data_domain",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Models/Occasion.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/Theme.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/ContributorRole.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/PackageKind.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/EntitlementTier.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/MusicAuthorizationStatus.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/TrackPlaybackAvailability.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/RecordingResult.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/AudioRecordingEvent.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "All types Codable/Sendable per interfaces contract",
+        "Zero imports beyond Foundation",
+        "Package builds and existing tests (if any) stay green"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Liner note content and contributor models",
+      "owner_lane": "data_domain",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Models/LinerNoteContent.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/Contributor.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/LinerNote.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "LinerNoteContent voice/text cases are equal-weight, no isFallback flag anywhere",
+        "Codable round-trip unit test for both LinerNoteContent cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Track and Project models plus catalog track type",
+      "owner_lane": "data_domain",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Models/TrackEntry.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/Project.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/MusicCatalogTrack.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "TrackEntry.artworkFilename is a relative on-disk path, never a URL type",
+        "Project Codable round-trip test including nested tracks/contributors",
+        "MusicCatalogTrack.id computed from catalogID per interfaces contract"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Library index and shared widget summary models",
+      "owner_lane": "data_domain",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Models/LibraryIndexEntry.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/LibraryIndex.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/SharedProjectSummary.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "LibraryIndexEntry never requires decoding a full Project to populate the shelf",
+        "SharedProjectSummary is the only model referenced anywhere in widget-facing code"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Package manifest, entitlement snapshot, and all error enums",
+      "owner_lane": "data_domain",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Models/ProjectPackageManifest.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/EntitlementSnapshot.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/AudioRecordingError.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/ProjectPersistenceError.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/ProjectImportError.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/EntitlementError.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/ImportArrivalContext.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/ImportState.swift",
+        "LinernotesKit/Sources/LinernotesKit/Models/SaveState.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "ProjectPackageManifest is schema-versioned and Codable round-trip tested",
+        "Every error enum used by services_utilities in tech_specs exists here with matching cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Entitlement pure rule engine with boundary unit tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Models/EntitlementRules.swift",
+        "LinernotesKit/Tests/LinernotesKitTests/ModelsTests/EntitlementRulesTests.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "canCreateAdditionalProject/canAddTrack/canAddCollaborator are pure functions with no StoreKit or IO dependency",
+        "Boundary tests cover exactly: 1st vs 2nd project on free, 5th vs 6th track on free, 0 vs 1 collaborator on free, and unlimited on paid for all three",
+        "This is the only place free/paid limits are computed anywhere in the codebase"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Service protocol definitions",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/Protocols/MusicLibraryProviding.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Protocols/AudioRecording.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Protocols/AudioPlayback.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Protocols/ProjectFileStore.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Protocols/EntitlementProviding.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Protocols/ProjectPackageExporting.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Protocols/ProjectPackageImporting.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Protocols/WidgetSummaryWriting.swift"
+      ],
+      "depends_on": [
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Every protocol signature matches the tech_specs interfaces-json verbatim",
+        "No implementation code in this task, protocols only, compiles standalone"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Fake service implementations for all protocols, including synthesizable interruption",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/Fake/FakeServices.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Fake/FakeMusicLibraryProvider.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Fake/FakeAudioRecording.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Fake/FakeAudioPlayback.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Fake/InMemoryProjectFileStore.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Fake/FakeEntitlementProvider.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Fake/FakePackageExporterImporter.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Fake/FakeWidgetSummaryWriter.swift"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "FakeAudioRecording.events() can emit .interrupted on demand via a test-only trigger method",
+        "FakeMusicLibraryProvider returns fixture arrays keyed by a fixture name string",
+        "InMemoryProjectFileStore round-trips save/load with no disk IO",
+        "Unit tests exist for the fakes themselves, not just consumers of them"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "FileManagerProjectStore: atomic persistence and asset lifecycle",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/Live/FileManagerProjectStore.swift"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "All writes are atomic write-then-rename",
+        "writeArtwork/writeAudioFile write real bytes to disk under the project folder and return relative paths",
+        "deleteAsset removes the file immediately, not just the reference",
+        "sweepOrphanedAssets(projectID:) is scoped to one project and does not touch other projects",
+        "Simulated crash-mid-write test proves no partial file is ever visible to a reader"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "DebouncedSaveController",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/DebouncedSaveController.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "scheduleSave debounces at 300ms default, configurable via init",
+        "forceFlush awaits any pending write to completion before returning",
+        "Unit test proves forceFlush after rapid scheduleSave calls results in exactly the latest project state on disk"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Live package exporter/importer wired to validation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/Live/ProjectPackageExporter.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Live/ProjectPackageImporter.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "makePackage never writes catalog audio bytes into the package directory, only metadata/art/text/voice-note files, inspectable by a test that lists package contents",
+        "inspect()/importProject call validateImportedPackage before touching app storage",
+        "importProject copies into owned storage only after validation passes, never opens the untrusted directory in place"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "validateImportedPackage with explicit path-traversal rejection and fuzz tests",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/PackageValidation.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/SchemaMigrator.swift",
+        "LinernotesKit/Tests/LinernotesKitTests/ResilienceTests/PackageValidationTests.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Rejects any declared asset filename containing a path separator or .. component, with a dedicated test case",
+        "Rejects schema-version mismatches and oversized/too-numerous files, each with its own test",
+        "Fuzzed test feeds at least 50 adversarial filename/size/schema permutations and asserts none are ever accepted incorrectly",
+        "SchemaMigrator throws on unrecognized versions rather than best-effort partial decode"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "MusicKit live provider",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/Live/MusicKitMusicLibraryProvider.swift"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "requestAuthorization wraps MusicAuthorization.request()",
+        "search wraps MusicCatalogSearchRequest and returns MusicCatalogTrack fixtures-compatible shape",
+        "availability(forCatalogID:) reflects real catalog/subscription state",
+        "Manual-device-only test noted in code comments since Simulator MusicKit is unreliable"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Live audio recording and playback services",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/Live/AVAudioRecordingService.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Live/AVAudioPlaybackService.swift"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Recorder wired to real AVAudioSession.interruptionNotification, publishing .interrupted/.resumed through events()",
+        "Audio format fixed to mono AAC 32-48kbps",
+        "startRecording begins the AVAudioRecorder synchronously on call, no awaited setup before recording visibly starts"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "StoreKit entitlement provider and App Group widget summary writer",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/Live/StoreKitEntitlementProvider.swift",
+        "LinernotesKit/Sources/LinernotesKit/Services/Live/AppGroupWidgetSummaryWriter.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "StoreKitEntitlementProvider calls EntitlementRules for every boundary decision, never reimplements the limits",
+        "Built against the local .storekit config from T-001, no live product ID wiring",
+        "AppGroupWidgetSummaryWriter writes SharedProjectSummary JSON into the shared App Group container and nothing else"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "AppEnvironment composition root: fake() factory",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/AppEnvironment.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "AppEnvironment.fake(fixture:) fully wires FakeServices and is usable standalone",
+        "AppEnvironment.live() exists as a clearly marked fatalError stub pointing at T-021, not silently missing",
+        "Struct matches the tech_specs interfaces-json signature exactly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "ProjectLibrary and ProjectEditor view models",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/ViewModels/ProjectLibrary.swift",
+        "LinernotesKit/Sources/LinernotesKit/ViewModels/ProjectEditor.swift",
+        "LinernotesKit/Tests/LinernotesKitTests/ViewModelTests/ProjectLibraryTests.swift",
+        "LinernotesKit/Tests/LinernotesKitTests/ViewModelTests/ProjectEditorTests.swift"
+      ],
+      "depends_on": [
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "createProject throws EntitlementError.projectLimitReached on the 2nd free project, verified by test against AppEnvironment.fake()",
+        "addTrack throws EntitlementError.trackLimitReached on the 6th track",
+        "moveTrackEarlier, moveTrackLater, and reorderTracks call one identical underlying mutation function",
+        "Every mutation goes through DebouncedSaveController, never a direct ProjectFileStore.save call from the view model"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "RecordCaptureViewModel",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/ViewModels/RecordCaptureViewModel.swift",
+        "LinernotesKit/Tests/LinernotesKitTests/ViewModelTests/RecordCaptureViewModelTests.swift"
+      ],
+      "depends_on": [
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "interruptedRecoverable state is reached only by driving the fake AudioRecording's synthesized .interrupted event, never a stub flag set directly on RecordCaptureState",
+        "Re-record path calls ProjectFileStore.deleteAsset on the prior file before saving the new one",
+        "Text draft/save path is a fully separate, equally-weighted code path from voice, not a fallback branch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "PlaybackViewModel",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/ViewModels/PlaybackViewModel.swift",
+        "LinernotesKit/Tests/LinernotesKitTests/ViewModelTests/PlaybackViewModelTests.swift"
+      ],
+      "depends_on": [
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        ".unavailable state always carries a non-nil openInAppleMusicURL when one exists",
+        "advance(to:) updates currentIndex and keeps note playback/text in sync with the displayed track regardless of song availability"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "AppEnvironment.live() wiring and launch-seam integration",
+      "owner_lane": "services_utilities",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Services/AppEnvironment.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-014",
+        "T-015",
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "live() wires every real service with no remaining fatalError stub",
+        "App root selects fake vs live purely from the T-001 launch seam, verified by a test launching with -linernotesUITestMode"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Shelf and New Occasion screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LinernotesApp/Features/Shelf/ShelfView.swift",
+        "LinernotesApp/Features/NewOccasion/NewOccasionView.swift",
+        "LinernotesApp/Features/Shared/EmptyStateCard.swift",
+        "LinernotesApp/Features/Shared/PaywallSheet.swift"
+      ],
+      "depends_on": [
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Shelf renders empty/populated/importing/corrupted-import states, each independently reachable in a SwiftUI preview",
+        "New Occasion blocks the 2nd project at the commit action via PaywallSheet, not a disabled button with no explanation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Authoring booklet and Add Track screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LinernotesApp/Features/Authoring/AuthoringView.swift",
+        "LinernotesApp/Features/Authoring/TrackCard.swift",
+        "LinernotesApp/Features/AddTrack/AddTrackView.swift",
+        "LinernotesApp/Features/Shared/ThemeSwatchPicker.swift",
+        "LinernotesApp/Features/Shared/OccasionChip.swift",
+        "LinernotesApp/Features/Shared/ContributorBadge.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-022",
+        "T-027"
+      ],
+      "acceptance_criteria": [
+        "TrackCard exposes one combined VoiceOver label including note status spoken as a full phrase, not icon-only",
+        "Drag reorder and the T-027 VoiceOver move-earlier/move-later actions call the identical ProjectEditor mutation",
+        "AddTrackState machine implements denied-with-retry, empty-results, and the 6th-track entitlement block visibly at the add action",
+        "ForEach over tracks keys on TrackEntry.id, never array index"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Record Capture and Playback screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LinernotesApp/Features/RecordCapture/RecordCaptureView.swift",
+        "LinernotesApp/Features/RecordCapture/AmplitudeIndicator.swift",
+        "LinernotesApp/Features/RecordCapture/RecordButton.swift",
+        "LinernotesApp/Features/Playback/PlaybackView.swift",
+        "LinernotesApp/Features/Playback/CompactPlaybackStrip.swift",
+        "LinernotesApp/Features/Playback/SideMarker.swift"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-020",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Record surface visibly enters recording state within 300ms of tap, verified by a UI test measuring state transition timing against the fake recorder",
+        "Voice/Text toggle renders both options at equal size, no secondary/fallback visual treatment",
+        "Playback screen swaps unavailable tracks to an Open-in-Apple-Music affordance, never a spinner",
+        "Reduced Motion fallback (T-027) is applied to every spool/flip/breathing animation on both screens"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Share/Handoff and Import Arrival screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LinernotesApp/Features/ShareHandoff/ShareHandoffView.swift",
+        "LinernotesApp/Features/ShareHandoff/PackagePreviewManifest.swift",
+        "LinernotesApp/Features/ImportArrival/ImportArrivalView.swift",
+        "LinernotesApp/Features/ImportArrival/ImportStatusBanner.swift",
+        "LinernotesApp/Features/Shared/RightsSafeInfoRow.swift"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Send-the-Gift and Invite-a-Contributor are visually distinct with independent copy",
+        "PackagePreviewManifest renders from the exact same ProjectPackageManifest the exporter produces, no separate preview-only struct",
+        "Import Arrival's failed state is fail-closed, shows calm error copy, and never falls through to a track list"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "App root integration: navigation, scenePhase force-flush, live environment swap-in",
+      "owner_lane": "primary_ui",
+      "files": [
+        "LinernotesApp/LinernotesApp.swift",
+        "LinernotesApp/RootNavigationView.swift"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-024",
+        "T-025"
+      ],
+      "acceptance_criteria": [
+        "Exactly one scenePhase observer at the app root calls DebouncedSaveController.forceFlush() on .background and .inactive",
+        "App boots on AppEnvironment.live() by default and AppEnvironment.fake() only under the T-001 launch seam",
+        "Full core loop (create, add track, record note, reorder, preview, export) completes manually on simulator with the fake fixture with zero crashes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Accessibility helpers: custom reorder actions and reduced-motion environment value",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LinernotesKit/Sources/LinernotesKit/Accessibility/AccessibilityReorderActions.swift",
+        "LinernotesKit/Sources/LinernotesKit/Accessibility/ReducedMotionFallback.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "trackReorderActions adds VoiceOver 'Move earlier'/'Move later' custom actions that call the passed closures directly",
+        "linernotesReduceMotion wraps accessibilityReduceMotion and is usable from any View",
+        "Unit/UI test confirms the custom actions are exposed and fire the correct closure"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Orphan-sweep vs crash-recovery race integration tests",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LinernotesKit/Tests/LinernotesKitTests/ResilienceTests/OrphanSweepRaceTests.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Test proves sweepOrphanedAssets(projectID:) never runs before that project's own load/recovery reconciliation completes",
+        "Simulated crash-mid-write scenario followed immediately by a sweep call proves no legitimately-referenced asset is ever deleted",
+        "Test explicitly fails if sweep is ever invoked as a single global pass instead of per-project"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-029",
+      "title": "Widget extension",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LinernotesWidget/LinernotesWidget.swift",
+        "LinernotesWidget/LinernotesWidgetTimelineProvider.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Timeline provider reads SharedProjectSummary only, never imports Project or any Models file outside SharedProjectSummary",
+        "Widget shows in-progress annotated/total count or a recent finished keepsake and deep-links into the app",
+        "Verified running in a simulator widget preview, not just compiling"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-030",
+      "title": "Live Activity for playback",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LinernotesWidget/LinernotesPlaybackActivity.swift",
+        "LinernotesApp/Support/LiveActivityAdapter.swift"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Activity starts/updates/ends tied to real PlaybackViewModel state transitions via a thin adapter, not a mocked timeline",
+        "Activity shows current track and note progress and is verified running on a simulator or device"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-031",
+      "title": "XCUITest golden-path smoke test",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "LinernotesAppUITests/GoldenPathSmokeTests.swift"
+      ],
+      "depends_on": [
+        "T-026"
+      ],
+      "acceptance_criteria": [
+        "Test launches with -linernotesUITestMode and a named LINERNOTES_FIXTURE",
+        "Walks create project, add fixture track, record a text note, reorder, preview playback, export package, asserting no crash and expected text at each step"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-032",
+      "title": "Manual verification checklist and final production-readiness review",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docs/VERIFICATION_CHECKLIST.md",
+        "docs/FINAL_REVIEW.md"
+      ],
+      "depends_on": [
+        "T-026",
+        "T-029",
+        "T-030",
+        "T-031"
+      ],
+      "acceptance_criteria": [
+        "Checklist lists every M7 manual device check (permission denials, real interruption during real recording, force-quit at each named point, unavailable-track playback, corrupted-package import, widget refresh, Live Activity timing, cross-device handoff) with pass/fail/owner columns",
+        "Final review explicitly names any ceiling gaps (widget/Live Activity depth, no live StoreKit, no CloudKit) rather than omitting them, matching the production-readiness bar from the prompt contract"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

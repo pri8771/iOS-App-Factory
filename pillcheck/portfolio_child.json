@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Pillcheck",
+    "slug": "pillcheck",
+    "category": "Medical",
+    "promise": "Medication interaction and polypharmacy-burden checker with pharmacist-visit prep",
+    "targetUser": "Caregiver managing a family member's 5+ prescriptions across multiple providers",
+    "mechanic": "interaction checker + pharmacist-visit prep",
+    "build": true,
+    "one_sentence_promise": "Medication interaction and polypharmacy-burden checker with pharmacist-visit prep",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

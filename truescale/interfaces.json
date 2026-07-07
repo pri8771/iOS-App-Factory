@@ -1,0 +1,318 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "ProjectLifecycle",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ProjectLifecycle: String, Codable, Sendable { case active, archived }",
+      "owning_lane": "data_domain",
+      "notes": "User-visible project/archive state only; not subscription lock state."
+    },
+    {
+      "name": "ProjectAccessState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ProjectAccessState: String, Codable, Sendable { case normal, lockedReadOnlyDueToPlan }",
+      "owning_lane": "data_domain",
+      "notes": "Derived and persisted access state for downgrade handling."
+    },
+    {
+      "name": "AreaLifecycle",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AreaLifecycle: String, Codable, Sendable { case active, archived }",
+      "owning_lane": "data_domain",
+      "notes": "Areas are soft-state, never cascade-delete issues."
+    },
+    {
+      "name": "IssueSeverity",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum IssueSeverity: String, Codable, CaseIterable, Sendable { case minor, moderate, urgent }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed vocabulary for v1."
+    },
+    {
+      "name": "IssueStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum IssueStatus: String, Codable, CaseIterable, Sendable { case open, monitor, repairNeeded, resolved }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed vocabulary for v1."
+    },
+    {
+      "name": "MeasurementSource",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum MeasurementSource: String, Codable, Sendable { case manual, ar }",
+      "owning_lane": "data_domain",
+      "notes": "Manual and AR share one schema."
+    },
+    {
+      "name": "MeasurementUnit",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum MeasurementUnit: String, Codable, CaseIterable, Sendable { case inches, feetInches, centimeters, meters }",
+      "owning_lane": "data_domain",
+      "notes": "US-customary default, settings override."
+    },
+    {
+      "name": "ARConfidenceState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ARConfidenceState: String, Codable, Sendable { case unsupported, unstable, measured }",
+      "owning_lane": "data_domain",
+      "notes": "Separate from capability check so reports and UI can label trust honestly."
+    },
+    {
+      "name": "Measurement",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Measurement: Codable, Sendable, Equatable { var value: Double; var unit: MeasurementUnit; var source: MeasurementSource; var arConfidence: ARConfidenceState? }",
+      "owning_lane": "data_domain",
+      "notes": "Single issue measurement payload regardless of source."
+    },
+    {
+      "name": "PhotoAssetState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PhotoAssetState: Codable, Sendable, Equatable { case pending; case ready(originalRelativePath: String, thumbnailRelativePath: String?); case missingOrCorrupted }",
+      "owning_lane": "data_domain",
+      "notes": "Required shared contract across capture, thumbnails, detail, and export."
+    },
+    {
+      "name": "ProjectModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ProjectModel: Identifiable, Sendable { var id: UUID; var name: String; var siteLabel: String?; var createdAt: Date; var updatedAt: Date; var lifecycle: ProjectLifecycle; var accessState: ProjectAccessState }",
+      "owning_lane": "data_domain",
+      "notes": "Domain mirror/snapshot shape used across lanes; SwiftData model may wrap same fields."
+    },
+    {
+      "name": "AreaModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct AreaModel: Identifiable, Sendable { var id: UUID; var projectID: UUID; var name: String; var createdAt: Date; var updatedAt: Date; var lifecycle: AreaLifecycle; var displayOrder: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Duplicate names allowed within a project."
+    },
+    {
+      "name": "IssueModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct IssueModel: Identifiable, Sendable { var id: UUID; var projectID: UUID; var areaID: UUID; var createdAt: Date; var updatedAt: Date; var capturedAt: Date; var severity: IssueSeverity; var status: IssueStatus; var note: String?; var measurement: Measurement?; var photoState: PhotoAssetState }",
+      "owning_lane": "data_domain",
+      "notes": "No separate draft model; record exists after shutter success."
+    },
+    {
+      "name": "BusinessProfileModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct BusinessProfileModel: Sendable { var companyName: String; var contactLine: String?; var logoRelativePath: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Pro branding input for reports."
+    },
+    {
+      "name": "AppSettingsModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct AppSettingsModel: Sendable { var preferredMeasurementUnit: MeasurementUnit; var lastUsedProjectID: UUID?; var lastUsedAreaID: UUID? }",
+      "owning_lane": "data_domain",
+      "notes": "Small persisted settings surface only."
+    },
+    {
+      "name": "EntitlementTier",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EntitlementTier: String, Sendable { case free, pro }",
+      "owning_lane": "services_utilities",
+      "notes": "Effective app tier only."
+    },
+    {
+      "name": "EntitlementSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct EntitlementSnapshot: Sendable, Equatable { var tier: EntitlementTier; var activeProjectLimit: Int?; var checkedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "Cached locally and consulted at safe enforcement points only."
+    },
+    {
+      "name": "ProjectRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ProjectRepository { @MainActor func fetchProjects() throws -> [ProjectModel]; @MainActor func createProject(name: String, siteLabel: String?) throws -> ProjectModel; @MainActor func updateProject(_ project: ProjectModel) throws; @MainActor func archiveProject(id: UUID) throws; @MainActor func unarchiveProject(id: UUID) throws }",
+      "owning_lane": "data_domain",
+      "notes": "Main-actor bound because backed by SwiftData ModelContext."
+    },
+    {
+      "name": "AreaRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol AreaRepository { @MainActor func fetchAreas(projectID: UUID) throws -> [AreaModel]; @MainActor func createArea(projectID: UUID, name: String) throws -> AreaModel; @MainActor func updateArea(_ area: AreaModel) throws; @MainActor func archiveArea(id: UUID) throws }",
+      "owning_lane": "data_domain",
+      "notes": "No hard delete on non-empty area."
+    },
+    {
+      "name": "IssueRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol IssueRepository { @MainActor func fetchIssues(projectID: UUID) throws -> [IssueModel]; @MainActor func createPendingIssue(projectID: UUID, areaID: UUID, capturedAt: Date) throws -> IssueModel; @MainActor func updateIssue(_ issue: IssueModel) throws; @MainActor func deleteIssue(id: UUID) throws }",
+      "owning_lane": "data_domain",
+      "notes": "Pending issue creation is explicit to support interruption-safe capture flow."
+    },
+    {
+      "name": "ProjectPolicy",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ProjectPolicy { func canCreateProject(currentActiveCount: Int, entitlement: EntitlementSnapshot) -> Bool; func applyDowngradeLock(projects: [ProjectModel], entitlement: EntitlementSnapshot) -> [UUID] }",
+      "owning_lane": "data_domain",
+      "notes": "Centralizes free-tier cap and downgrade lock rules."
+    },
+    {
+      "name": "IssueFilter",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct IssueFilter: Sendable, Equatable { var areaIDs: Set<UUID>; var severities: Set<IssueSeverity>; var statuses: Set<IssueStatus> }",
+      "owning_lane": "data_domain",
+      "notes": "Shared between Workspace issue segment and report previews if needed."
+    },
+    {
+      "name": "MeasurementFormatter",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MeasurementFormatter { func string(from measurement: Measurement, preferredUnit: MeasurementUnit) -> String }",
+      "owning_lane": "polish_resilience",
+      "notes": "Single formatting source for UI and export."
+    },
+    {
+      "name": "CameraCaptureResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CameraCaptureResult: Sendable { var issueID: UUID; var imageData: Data; var capturedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "Raw capture payload before compression/storage."
+    },
+    {
+      "name": "CameraAvailability",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum CameraAvailability: Sendable, Equatable { case ready; case permissionDenied; case temporarilyUnavailable(reason: String); case lowStorage }",
+      "owning_lane": "services_utilities",
+      "notes": "Distinct user-facing states required by product spec."
+    },
+    {
+      "name": "CameraCapturing",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol CameraCapturing { @MainActor func prepare() async; @MainActor func currentAvailability() -> CameraAvailability; @MainActor func capturePhoto(for issueID: UUID) async throws -> CameraCaptureResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Protocol boundary required for UI tests and simulator testing."
+    },
+    {
+      "name": "MeasurementAvailability",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum MeasurementAvailability: Sendable, Equatable { case manualOnly; case arUnsupported; case arUnstable; case arReady }",
+      "owning_lane": "services_utilities",
+      "notes": "UI consumes this to keep one measurement field with internal branching."
+    },
+    {
+      "name": "MeasurementProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol MeasurementProviding { @MainActor func availability() -> MeasurementAvailability; @MainActor func captureARMeasurement() async throws -> Measurement }",
+      "owning_lane": "services_utilities",
+      "notes": "Abstracts ARKit for unsupported/unstable/success simulation."
+    },
+    {
+      "name": "PhotoAssetStore",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PhotoAssetStore { func persistCapturedPhoto(_ result: CameraCaptureResult) async throws -> PhotoAssetState; func loadImageData(for state: PhotoAssetState) throws -> Data }",
+      "owning_lane": "services_utilities",
+      "notes": "Implements downsample, compression, EXIF stripping, temp-write then atomic move."
+    },
+    {
+      "name": "StorageHealthService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol StorageHealthService { func hasSufficientCapacityForCapture() -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Preflight low-storage check before shutter."
+    },
+    {
+      "name": "ReportIssueSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ReportIssueSnapshot: Sendable { var id: UUID; var areaName: String; var capturedAt: Date; var severity: IssueSeverity; var status: IssueStatus; var note: String?; var measurementText: String?; var measurementSource: MeasurementSource?; var photoState: PhotoAssetState }",
+      "owning_lane": "polish_resilience",
+      "notes": "Background-safe export input; never pass SwiftData models off-main."
+    },
+    {
+      "name": "ReportDocumentSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ReportDocumentSnapshot: Sendable { var projectName: String; var generatedAt: Date; var businessProfile: BusinessProfileModel?; var issues: [ReportIssueSnapshot] }",
+      "owning_lane": "polish_resilience",
+      "notes": "Complete report render input assembled on main actor."
+    },
+    {
+      "name": "ReportSnapshotBuilder",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ReportSnapshotBuilder { @MainActor func build(project: ProjectModel, areas: [AreaModel], issues: [IssueModel], settings: AppSettingsModel, businessProfile: BusinessProfileModel?) -> ReportDocumentSnapshot }",
+      "owning_lane": "polish_resilience",
+      "notes": "Owns grouping/order/degradation metadata before render."
+    },
+    {
+      "name": "ReportRendering",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ReportRendering { func renderPDF(from snapshot: ReportDocumentSnapshot, entitlement: EntitlementSnapshot) async throws -> URL }",
+      "owning_lane": "services_utilities",
+      "notes": "Renderer takes snapshot + entitlement, never queries StoreKit internally."
+    },
+    {
+      "name": "EntitlementServicing",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol EntitlementServicing { func currentSnapshot() -> EntitlementSnapshot; func refreshIfNeeded() async; func restorePurchases() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "App-scoped long-lived service fed by StoreKit and scenePhase."
+    },
+    {
+      "name": "CaptureCoordinatorModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CaptureCoordinatorModel: Sendable { var issue: IssueModel; var cameraAvailability: CameraAvailability; var measurementAvailability: MeasurementAvailability }",
+      "owning_lane": "primary_ui",
+      "notes": "UI-facing aggregate state for Capture screen only; not persisted as-is."
+    },
+    {
+      "name": "beginIssueCapture",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "@MainActor func beginIssueCapture(projectID: UUID, areaID: UUID, issueRepo: IssueRepository) throws -> IssueModel",
+      "owning_lane": "primary_ui",
+      "notes": "Creates pending issue immediately after shutter flow starts or succeeds per implementation wiring."
+    },
+    {
+      "name": "finalizeCapturedPhoto",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func finalizeCapturedPhoto(result: CameraCaptureResult, photoStore: PhotoAssetStore, issueRepo: IssueRepository) async throws",
+      "owning_lane": "services_utilities",
+      "notes": "Persists image off-main and patches issue photo state on main actor."
+    },
+    {
+      "name": "verifyProjectCreationAllowed",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "@MainActor func verifyProjectCreationAllowed(projectRepo: ProjectRepository, entitlementService: EntitlementServicing, policy: ProjectPolicy) throws -> Bool",
+      "owning_lane": "polish_resilience",
+      "notes": "Safe enforcement checkpoint before creating a project."
+    }
+  ],
+  "errors": []
+}

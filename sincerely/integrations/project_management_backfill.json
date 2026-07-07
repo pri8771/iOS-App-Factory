@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "sincerely",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b3\nSelected app slug: sincerely\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Sincerely\n\nBuild mode: **MVP build**.\nBuild priority: **2**.\n\n## App Name\n\nSincerely\n\n## Category\n\nSocial Networking\n\n## One-Sentence Promise\n\nHelps you notice and say the specific, real thing you appreciate about someone \u2014 and actually get it to them.\n\n## Target User\n\nEmotionally intentional adults who want to strengthen relationships with family, friends, or mentors but lack a designed way to express it beyond generic texts.\n\n## Painful Moment Solved\n\nThinking 'I should tell them how much that meant to me' and never doing it because there's no specific format, or it feels shallow over text.\n\n## Why It Is Different\n\nSolo-first structured gratitude journal that composes a specific-appreciation note and delivers it via native Share Sheet \u2014 the recipient needs zero app to receive it.\n\n## Why Users Would Pay\n\nPremium card designs/typography, relationship reminders ('you haven't told X anything in 6 months'), a private permanent archive/export.\n\n## Subscription Model\n\nFree: basic card style, manual sending, 5 saved relationships. Paid: unlimited premium designs, relationship reminders, archive/export.\n\n## Local-First MVP Scope\n\nFully local journal and relationship reminders; sending via native Share Sheet rendering a shareable card, no server needed.\n\n## Future Backend Roadmap\n\nOptional cloud sync of the archive across devices; eventual two-way 'received' tracking if the recipient also has the app.\n\n## AR / Local ML / Local LLM Fit\n\nOptional on-device LLM writing assist to turn a rough thought into a well-worded specific note \u2014 opt-in, never auto-generating fake sentiment.\n\n## Design Direction\n\nWarm, tactile, fine-stationery aesthetic \u2014 letterpress textures and typography, not a social-app look.\n\n## App Store Positioning\n\nSay the specific thing. Sincerely helps you write and send real appreciation \u2014 not another generic 'thinking of you' text.\n\n## Invalidation Criteria\n\nIf users send once and never return within 6 weeks with no engagement from relationship reminders, redesign the reminder mechanic before assuming the concept fails.\n\n## v1 Build Scope\n\nRelationship list, guided note composer, Share Sheet sending, one reminder type.\n\n## Core Workflows\n\n- Add a person\n- Write a specific-appreciation note with guided prompts\n- Preview a designed card\n- Send via Share Sheet\n- Browse personal gratitude timeline\n\n## iOS-Native Features\n\n- Share Sheet/Messages extension\n- Widgets ('who haven't you thanked lately')\n- App Intents/Siri for quick capture\n- Local notifications for relationship nudges\n\n## Key Risks\n\n- Writing-assist overuse could feel like a greeting-card gimmick\n- Specific-compliment prompts could feel like homework\n- Premium card designs must not read as cosmetics-only monetization\n\n## Claude Design Handoff Prompt\n\nDesign a fine-stationery-inspired gratitude app: a calm relationship list, a guided note composer that feels like writing a real card, and an elegant preview/send screen \u2014 no gamification, no feed.\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n",
+    "verification": "UNVERIFIED (no .xcodeproj/.xcworkspace found.)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "SINCERELY",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "build_coordination"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "final_review"
+        ]
+      }
+    ],
+    "issues": []
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "sincerely",
+      "Status": "Needs review",
+      "Source": "Orchestrator",
+      "Workflow Phases": 3
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b3\nSelected app slug: sincerely\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Sincerely\n\nBuild mode: **MVP build**.\nBuild priority: **2**.\n\n## App Name\n\nSincerely\n\n## Category\n\nSocial Networking\n\n## One-Sentence Promise\n\nHelps you notice and say the specific, real thing you appreciate about someone \u2014 and actually get it to them.\n\n## Target User\n\nEmotionally intentional adults who want to strengthen relationships with family, friends, or mentors but lack a designed way to express it beyond generic texts.\n\n## Painful Moment Solved\n\nThinking 'I should tell them how much that meant to me' and never doing it because there's no specific format, or it feels shallow over text.\n\n## Why It Is Different\n\nSolo-first structured gratitude journal that composes a specific-appreciation note and delivers it via native Share Sheet \u2014 the recipient needs zero app to receive it.\n\n## Why Users Would Pay\n\nPremium card designs/typography, relationship reminders ('you haven't told X anything in 6 months'), a private permanent archive/export.\n\n## Subscription Model\n\nFree: basic card style, manual sending, 5 saved relationships. Paid: unlimited premium designs, relationship reminders, archive/export.\n\n## Local-First MVP Scope\n\nFully local journal and relationship reminders; sending via native Share Sheet rendering a shareable card, no server needed.\n\n## Future Backend Roadmap\n\nOptional cloud sync of the archive across devices; eventual two-way 'received' tracking if the recipient also has the app.\n\n## AR / Local ML / Local LLM Fit\n\nOptional on-device LLM writing assist to turn a rough thought into a well-worded specific note \u2014 opt-in, never auto-generating fake sentiment.\n\n## Design Direction\n\nWarm, tactile, fine-stationery aesthetic \u2014 letterpress textures and typography, not a social-app look.\n\n## App Store Positioning\n\nSay the specific thing. Sincerely helps you write and send real appreciation \u2014 not another generic 'thinking of you' text.\n\n## Invalidation Criteria\n\nIf users send once and never return within 6 weeks with no engagement from relationship reminders, redesign the reminder mechanic before assuming the concept fails.\n\n## v1 Build Scope\n\nRelationship list, guided note composer, Share Sheet sending, one reminder type.\n\n## Core Workflows\n\n- Add a person\n- Write a specific-appreciation note with guided prompts\n- Preview a designed card\n- Send via Share Sheet\n- Browse personal gratitude timeline\n\n## iOS-Native Features\n\n- Share Sheet/Messages extension\n- Widgets ('who haven't you thanked lately')\n- App Intents/Siri for quick capture\n- Local notifications for relationship nudges\n\n## Key Risks\n\n- Writing-assist overuse could feel like a greeting-card gimmick\n- Specific-compliment prompts could feel like homework\n- Premium card designs must not read as cosmetics-only monetization\n\n## Claude Design Handoff Prompt\n\nDesign a fine-stationery-inspired gratitude app: a calm relationship list, a guided note composer that feels like writing a real card, and an elegant preview/send screen \u2014 no gamification, no feed.\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [],
+    "interfaces": []
+  },
+  "phase_outputs": {
+    "iterate_scope": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+    "build_coordination": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\n**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)",
+    "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED"
+  }
+}

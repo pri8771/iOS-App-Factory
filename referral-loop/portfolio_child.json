@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-a1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Referral Loop",
+    "slug": "referral-loop",
+    "category": "Business",
+    "build": true,
+    "description": "Narrow referral-chain tracker: who referred whom, did it convert, was the loop closed.",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

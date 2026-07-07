@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-a1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Availability Concierge",
+    "slug": "availability-concierge",
+    "category": "Business",
+    "build": true,
+    "description": "Reactive triage of informal inbound scheduling asks into a trackable pipeline.",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

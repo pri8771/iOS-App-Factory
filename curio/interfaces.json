@@ -1,0 +1,446 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "BigNumber",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct BigNumber: Codable, Comparable, CustomStringConvertible { var mantissa: Double; var exponent: Int; init(mantissa: Double, exponent: Int); init(_ value: Double); static let zero: BigNumber; static func + (lhs: BigNumber, rhs: BigNumber) -> BigNumber; static func * (lhs: BigNumber, rhs: BigNumber) -> BigNumber; static func * (lhs: BigNumber, rhs: Double) -> BigNumber; mutating func normalize(); func formatted() -> String }",
+      "owning_lane": "data_domain",
+      "notes": "Mantissa/exponent numeric engine; every lane touches this for currency/multipliers. Normalize must guard against mantissa->0/NaN and exponent overflow per architecture review."
+    },
+    {
+      "name": "SpecimenCategory",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SpecimenCategory: String, Codable, CaseIterable { case fossil, mineral, flora, fauna, artifact }",
+      "owning_lane": "data_domain",
+      "notes": "Non-color matching axis; glyph/icon is source of truth, color is decoration."
+    },
+    {
+      "name": "Region",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Region: String, Codable, CaseIterable { case desert, polarIce, rainforest, deepSea, highlands, patronVault }",
+      "owning_lane": "data_domain",
+      "notes": "patronVault is the Patron-exclusive region, hidden from free users in ContentCatalog filtering."
+    },
+    {
+      "name": "Era",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Era: String, Codable, CaseIterable { case precambrian, paleozoic, mesozoic, cenozoic }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "Rarity",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Rarity: Int, Codable, CaseIterable, Comparable { case common = 1, uncommon = 2, rare = 3, legendary = 4 }",
+      "owning_lane": "data_domain",
+      "notes": "Used as scoring weight in RarityThresholdScoringEngine."
+    },
+    {
+      "name": "SpecimenDefinition",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SpecimenDefinition: Codable, Identifiable { let id: String; let displayName: String; let category: SpecimenCategory; let region: Region; let era: Era; let rarity: Rarity; let glyphSymbolName: String; let colorTokenKey: String; let flavorText: String; let regionExclusiveToPatron: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Static content, loaded from bundled JSON, never part of MuseumSnapshot."
+    },
+    {
+      "name": "SpecimenLocation",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SpecimenLocation: Codable, Equatable { case intakeTray; case unplacedHolding; case placed(wingID: UUID, slotID: UUID) }",
+      "owning_lane": "data_domain",
+      "notes": "No delete case exists by design -- enforces non-destructive placement at the type level."
+    },
+    {
+      "name": "Specimen",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Specimen: Codable, Identifiable, Equatable { let id: UUID; let definitionID: String; var isCataloged: Bool; var location: SpecimenLocation }",
+      "owning_lane": "data_domain",
+      "notes": "Owned instance; joins to SpecimenDefinition via definitionID."
+    },
+    {
+      "name": "WingType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum WingType: String, Codable, CaseIterable { case adjacencyGrid, rowCollection, rarityThreshold }",
+      "owning_lane": "data_domain",
+      "notes": "Third case (rarityThreshold) subject to pre-authorized demotion to should-have if implementation can't show a genuinely distinct scoring rule from adjacencyGrid."
+    },
+    {
+      "name": "SlotPosition",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SlotPosition: Codable, Equatable { case grid(row: Int, col: Int); case row(rowIndex: Int, position: Int); case tier(tierIndex: Int, position: Int) }",
+      "owning_lane": "data_domain",
+      "notes": "Structural proof that the three wing shells are not the same grid relabeled."
+    },
+    {
+      "name": "Slot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Slot: Codable, Identifiable, Equatable { let id: UUID; var position: SlotPosition; var placedSpecimenID: UUID? }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "Wing",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Wing: Codable, Identifiable { let id: UUID; var wingType: WingType; var slots: [Slot]; var isDonated: Bool; var donatedAt: Date?; var isPatronExclusive: Bool }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "WingLayoutTemplate",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WingLayoutTemplate: Decodable { let wingType: WingType; let slotCount: Int; let matchingRuleDescription: String; func makeSlots() -> [Slot] }",
+      "owning_lane": "data_domain",
+      "notes": "Content-defined; matchingRuleDescription feeds the always-visible plaque text."
+    },
+    {
+      "name": "ExpeditionDestination",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExpeditionDestination: Codable, Identifiable { let id: String; let displayName: String; let cost: BigNumber; let duration: TimeInterval; let specimenPool: [String]; let requiresPatron: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Static content."
+    },
+    {
+      "name": "ActiveExpedition",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ActiveExpedition: Codable, Identifiable { let id: UUID; let destinationID: String; let slotIndex: Int; let startDate: Date; let returnDate: Date; var isCollected: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "returnDate is absolute; remaining time is always returnDate - now, clamped >= 0, never a decrementing counter."
+    },
+    {
+      "name": "PrestigeRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PrestigeRecord: Codable, Identifiable { let id: UUID; let wingID: UUID; let donatedAt: Date; let grantedBonusMultiplier: BigNumber; let wingTypeAtDonation: WingType }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "PatronEntitlement",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PatronEntitlement: Codable, Equatable { var isActive: Bool; var expirationDate: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "Sourced from StoreKit at runtime, not from MuseumSnapshot -- this separation is what makes the restore-mismatch state representable."
+    },
+    {
+      "name": "MuseumSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MuseumSnapshot: Codable { var schemaVersion: Int; var currency: BigNumber; var wings: [Wing]; var specimens: [UUID: Specimen]; var activeExpeditions: [ActiveExpedition]; var prestigeHistory: [PrestigeRecord]; var hasCompletedOnboarding: Bool; var lastKnownGoodDate: Date }",
+      "owning_lane": "data_domain",
+      "notes": "The only thing written to disk. Never contains static content or Patron entitlement."
+    },
+    {
+      "name": "ContentCatalog",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ContentCatalog: Decodable { let specimenDefinitions: [String: SpecimenDefinition]; let expeditionDestinations: [ExpeditionDestination]; let wingLayouts: [WingType: WingLayoutTemplate] }",
+      "owning_lane": "data_domain",
+      "notes": "Loaded once from bundled JSON at launch; immutable for the process lifetime."
+    },
+    {
+      "name": "ContentCatalogLoader",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ContentCatalogLoader { static func loadFromBundle(bundle: Bundle = .main) throws -> ContentCatalog }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "ScreenState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ScreenState<Success> { case loading; case empty; case success(Success); case error(String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Every one of the 10 screens' view-facing state must use this shape, not a bespoke per-screen enum."
+    },
+    {
+      "name": "WingScoringEngine",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol WingScoringEngine { func currentMultiplier(for wing: Wing, specimens: [UUID: Specimen], catalog: ContentCatalog) -> BigNumber; func isSetComplete(for wing: Wing, specimens: [UUID: Specimen], catalog: ContentCatalog) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure functions, no SwiftUI import; one implementation per WingType case."
+    },
+    {
+      "name": "AdjacencyScoringEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AdjacencyScoringEngine: WingScoringEngine",
+      "owning_lane": "services_utilities",
+      "notes": "Region/era/type/color-family adjacency on a LazyVGrid-shaped slot layout."
+    },
+    {
+      "name": "RowCollectionScoringEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RowCollectionScoringEngine: WingScoringEngine",
+      "owning_lane": "services_utilities",
+      "notes": "Each row scores independently as it fills."
+    },
+    {
+      "name": "RarityThresholdScoringEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RarityThresholdScoringEngine: WingScoringEngine",
+      "owning_lane": "services_utilities",
+      "notes": "Scores by weighted rarity value crossing a tier threshold, not identity-matching -- must be verified structurally distinct from AdjacencyScoringEngine or demoted per the pre-authorized gate."
+    },
+    {
+      "name": "OfflineProgressCalculator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum OfflineProgressCalculator { static func clampedElapsed(now: Date, lastKnownGood: Date) -> TimeInterval; static func advancedExpeditions(_ expeditions: [ActiveExpedition], to now: Date) -> [ActiveExpedition]; static func overflowRefund(intakeCount: Int, capacity: Int, refundPerSpecimen: BigNumber) -> (kept: Int, refunded: Int, currency: BigNumber) }",
+      "owning_lane": "services_utilities",
+      "notes": "clampedElapsed is the 5-line clock-jump guard from architecture review; must be independently unit-testable."
+    },
+    {
+      "name": "PersistenceControlling",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PersistenceControlling { func load() throws -> MuseumSnapshot; func save(_ snapshot: MuseumSnapshot) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Enables fault-injection testing via a mock conformance."
+    },
+    {
+      "name": "FileMuseumPersistenceController",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct FileMuseumPersistenceController: PersistenceControlling { init(directory: URL) }",
+      "owning_lane": "services_utilities",
+      "notes": "Temp-file + replaceItemAt atomic write, applicationSupportDirectory, included in iCloud device backup."
+    },
+    {
+      "name": "PersistenceError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PersistenceError: Error, Equatable { case decodingFailed; case writeFailed; case noSavedSnapshot }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "PatronEntitlementManaging",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PatronEntitlementManaging { var currentEntitlement: PatronEntitlement { get async }; func purchase() async throws -> PatronEntitlement; func restore() async throws -> PatronEntitlement; func observeUpdates(_ onChange: @escaping (PatronEntitlement) -> Void) }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2 backed; Transaction.currentEntitlements + Transaction.updates listener."
+    },
+    {
+      "name": "StoreKitPatronManager",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "actor StoreKitPatronManager: PatronEntitlementManaging",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "DispatchEligibility",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DispatchEligibility: Equatable { case allowed; case blocked(reason: String) }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "CatalogResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CatalogResult: Equatable { case correct; case correctedTo(SpecimenCategory) }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "PlacementResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PlacementResult: Equatable { case placed; case setCompleted(newMultiplier: BigNumber); case setBroken(newMultiplier: BigNumber); case rejected(reason: String) }",
+      "owning_lane": "data_domain",
+      "notes": "UI fires the protected set-completion animation directly off .setCompleted, no polling."
+    },
+    {
+      "name": "DonationResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DonationResult: Equatable { case donated(bonus: BigNumber); case rejected(reason: String) }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "GameStoreLoadState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum GameStoreLoadState: Equatable { case loading; case ready; case decodeFailed }",
+      "owning_lane": "services_utilities",
+      "notes": "Drives Museum Overview's error state; resetAndStartFresh() is the only path out of decodeFailed and requires explicit user confirmation."
+    },
+    {
+      "name": "GameStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class GameStore { private(set) var snapshot: MuseumSnapshot; private(set) var catalog: ContentCatalog; private(set) var patronEntitlement: PatronEntitlement; private(set) var loadState: GameStoreLoadState; init(persistence: PersistenceControlling, catalog: ContentCatalog, patronManager: PatronEntitlementManaging); func dispatchExpedition(destinationID: String, slot: Int) -> DispatchEligibility; func collectReadyExpeditions(now: Date); func catalogSpecimen(id: UUID, guessedCategory: SpecimenCategory) -> CatalogResult; func placeSpecimen(id: UUID, wingID: UUID, slotID: UUID) -> PlacementResult; func removeSpecimen(id: UUID) -> PlacementResult; func donateWing(id: UUID) -> DonationResult; func refreshOfflineProgress(now: Date); func resetAndStartFresh(); func save(); func purchasePatron() async; func restorePurchases() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Single source of truth; every screen reads slices of snapshot/catalog/patronEntitlement and writes only through these methods. Internally schedules a debounced save on every mutation plus an unconditional save on scenePhase .background (hooked from CurioApp)."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Hashable { case wingInterior(UUID); case donateConfirm(UUID); case gallery; case showcase(UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "NavigationStack path type; transient @State only, never persisted."
+    },
+    {
+      "name": "MuseumOverviewView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MuseumOverviewView: View",
+      "owning_lane": "primary_ui",
+      "notes": "Binds to GameStore.loadState via ScreenState; hosts WingSummaryCard list."
+    },
+    {
+      "name": "ExpeditionDeskView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExpeditionDeskView: View",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "IntakeTrayView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct IntakeTrayView: View",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "CatalogingSheetView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CatalogingSheetView: View",
+      "owning_lane": "primary_ui",
+      "notes": "Sheet-presented, not pushed."
+    },
+    {
+      "name": "WingInteriorView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WingInteriorView: View",
+      "owning_lane": "primary_ui",
+      "notes": "Switches rendering shell on wing.wingType; shared tap-select/tap-place primitive via SlotButton."
+    },
+    {
+      "name": "DonateWingConfirmView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DonateWingConfirmView: View",
+      "owning_lane": "primary_ui",
+      "notes": "Full sheet, not .alert."
+    },
+    {
+      "name": "GalleryView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct GalleryView: View",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "ShowcaseView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ShowcaseView: View",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "PatronStoreView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PatronStoreView: View",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "SettingsView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SettingsView: View",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "OnboardingOverlay",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct OnboardingOverlay: View",
+      "owning_lane": "polish_resilience",
+      "notes": "Gated by snapshot.hasCompletedOnboarding."
+    },
+    {
+      "name": "WingSummaryCard",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WingSummaryCard: View",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "WingMiniGrid",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WingMiniGrid: View",
+      "owning_lane": "primary_ui",
+      "notes": "Shared render, non-interactive small-scale variant, reused by Overview/Gallery/Showcase."
+    },
+    {
+      "name": "CountdownText",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CountdownText: View",
+      "owning_lane": "primary_ui",
+      "notes": "TimelineView(.periodic) scoped strictly to this text, never a view-wide Timer.publish."
+    },
+    {
+      "name": "PersistentBanner",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PersistentBanner: View",
+      "owning_lane": "polish_resilience",
+      "notes": "One component, used for tray overflow-refund and Patron restore-mismatch messaging."
+    },
+    {
+      "name": "EmptyStateView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EmptyStateView: View",
+      "owning_lane": "polish_resilience",
+      "notes": null
+    },
+    {
+      "name": "ErrorStateView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ErrorStateView: View",
+      "owning_lane": "polish_resilience",
+      "notes": null
+    }
+  ],
+  "errors": []
+}

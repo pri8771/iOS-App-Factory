@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "apps": [
+    {
+      "name": "Dayframe",
+      "slug": "dayframe",
+      "category": "Photo & Video",
+      "promise": "On-device Vision auto-picks your best daily video moment and assembles a monthly reel",
+      "targetUser": "People who've abandoned manual daily-video-diary habits",
+      "build": true,
+      "one_sentence_promise": "On-device Vision auto-picks your best daily video moment and assembles a monthly reel",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Interval",
+      "slug": "interval",
+      "category": "Productivity",
+      "promise": "A focus timer that learns your real focus patterns and adapts session length/timing to you",
+      "targetUser": "People who've abandoned generic Pomodoro apps",
+      "build": true,
+      "one_sentence_promise": "A focus timer that learns your real focus patterns and adapts session length/timing to you",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Loose Ends",
+      "slug": "looseends",
+      "category": "Productivity",
+      "promise": "Weekly ritual resurfaces one dormant personal project at a time to act on, snooze, or release",
+      "targetUser": "People with a guilt-inducing backlog of unfinished personal intentions",
+      "build": true,
+      "one_sentence_promise": "Weekly ritual resurfaces one dormant personal project at a time to act on, snooze, or release",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Proofline",
+      "slug": "proofline",
+      "category": "Photo & Video",
+      "promise": "Cull, batch-grade, and produce a client-ready proof sheet from a full shoot in minutes",
+      "targetUser": "Parents/hobbyist & semi-pro photographers who dread post-shoot culling",
+      "build": true,
+      "one_sentence_promise": "Cull, batch-grade, and produce a client-ready proof sheet from a full shoot in minutes",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Shelf",
+      "slug": "shelf",
+      "category": "Photo & Video",
+      "promise": "Batch background-removal and consistent cropping for resale listing photos",
+      "targetUser": "Poshmark/Depop/eBay resellers shooting high item volume",
+      "build": true,
+      "one_sentence_promise": "Batch background-removal and consistent cropping for resale listing photos",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Tab Zero",
+      "slug": "tabzero",
+      "category": "Productivity",
+      "promise": "Photograph a piece of mail and get it auto-filed as bill/todo/archive with the due date pulled out",
+      "targetUser": "People with a physical-mail pile-up and bill-deadline anxiety",
+      "build": true,
+      "risk": "Mechanic (document photo \u2192 extracted structured fields) sits close to the excluded PO-automation tool",
+      "riskMitigation": "Build phase must actively defend the single-envelope, no-vendor-workflow framing rather than treat the distinction as settled",
+      "one_sentence_promise": "Photograph a piece of mail and get it auto-filed as bill/todo/archive with the due date pulled out",
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    }
+  ],
+  "parent": "batch-cat-b2"
+}

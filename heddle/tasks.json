@@ -1,0 +1,335 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffold & boot verification",
+      "owner_lane": "data_domain",
+      "files": [
+        "Heddle.xcodeproj/project.pbxproj",
+        "HeddleApp/HeddleApp.swift",
+        "Info.plist",
+        "HeddleTests/ (target config)",
+        "HeddleUITests/ (target config)"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "xcodebuild succeeds for the target",
+        "Simulator boots to a placeholder root view with no crash",
+        "HeddleTests and HeddleUITests targets exist and run, even with zero tests written yet",
+        "Info.plist contains no usage-description keys of any kind"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Design system tokens",
+      "owner_lane": "data_domain",
+      "files": [
+        "DesignSystem/Colors.swift",
+        "DesignSystem/Spacing.swift",
+        "DesignSystem/Typography.swift",
+        "DesignSystem/ThreadIdentity.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Light/dark hex values match design_handoff exactly for background, madder red, indigo, walnut brown, sage, ochre",
+        "Each color pair independently verified WCAG AA against its own background",
+        "Spacing scale 4/8/12/16/24/32/48pt and radii 12/8/3-4pt defined as named constants",
+        "Fixed five-color to five-shape (circle/diamond/square/triangle/hexagon) identity map is exhaustive over ThreadColor.allCases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Core data-domain models",
+      "owner_lane": "data_domain",
+      "files": [
+        "Models/Position.swift",
+        "Models/ThreadColor.swift",
+        "Models/CapShape.swift",
+        "Models/Direction.swift",
+        "Models/CellContent.swift",
+        "Models/Thread.swift",
+        "Models/PuzzleDifficultyTier.swift",
+        "Models/PuzzleBoard.swift",
+        "Models/PuzzleSummary.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "All types match the tech_specs interfaces-json signatures exactly",
+        "PuzzleBoard (including nested Thread and CellContent) round-trips through Codable encode/decode in a unit test",
+        "PuzzleDifficultyTier.gentle.dimensions == 5 and .standard.dimensions == 7",
+        "Compiles cleanly into the Heddle target with no framework imports beyond Foundation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Generator engine + solvability test suite",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Generation/PuzzleGenerating.swift",
+        "Generation/PuzzleGeneratorEngine.swift",
+        "Generation/GeneratorError.swift",
+        "HeddleTests/GeneratorSolvabilityTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "PuzzleGeneratorEngine is declared as an actor conforming to PuzzleGenerating, never callable in a way that blocks the main actor",
+        "500+ generations per difficulty tier all pass a programmatic solvability check",
+        "Real wall-clock cost of the full suite is measured; if slow, a fast smoke-tier plus full CI-tier split is implemented and explicitly documented as such",
+        "GeneratorError.timedOut / .unableToConverge are the only checked errors surfaced"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Fallback puzzle provider",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Generation/FallbackPuzzleProvider.swift",
+        "Generation/BundledFallbacks/"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Exactly one precomputed board per tier, bundled at build time",
+        "Each bundled board independently verified solvable using the same check used in the generator suite",
+        "bundledFallback(tier:) never throws under any input"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "SwiftData persistence layer",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Persistence/PuzzleRecord.swift",
+        "Persistence/Entitlement.swift",
+        "Persistence/SwiftDataStoring.swift",
+        "Persistence/SwiftDataStore.swift",
+        "Persistence/Clock.swift",
+        "HeddleTests/PersistenceTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "SwiftDataStore is a @ModelActor with its own background ModelContext",
+        "Round-trip save/load of a materialized PuzzleBoard blob verified in a test",
+        "Debounced coalesced writes tested via an injectable virtual clock, with zero real Task.sleep-based test timing",
+        "flushPendingWrites() is awaited unconditionally on scenePhase backgrounding, verified by a test",
+        "Schema review confirms zero unique constraints and every property optional or defaulted"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Corrupted-store recovery + debug force-corrupt hook",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Persistence/CorruptStoreRecovery.swift",
+        "Persistence/DebugHooks.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "#if DEBUG-gated hook can force the on-disk store into an unreadable state before launch",
+        "recoverFromCorruptStore catches ModelContainer init failure, deletes the unreadable store, and returns a fresh empty container with no crash",
+        "The force-corrupt hook does not exist in a Release configuration build (verified by grep/build settings, not assumed)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "ThreadTraceController + state machine tests",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Puzzle/ThreadTraceController.swift",
+        "Features/Puzzle/StepResult.swift",
+        "HeddleTests/ThreadTraceControllerTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "commitStep covers legal extension, illegal-move rejection (no crash, no state change, gesture continues), retraction of a different-color thread back to its endpoint, and full-board completion detection",
+        "All tests are pure logic against PuzzleBoard values with zero view or gesture code involved"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "PuzzleViewModel + PuzzleScreenState",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Puzzle/PuzzleViewModel.swift",
+        "Features/Puzzle/PuzzleScreenState.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004",
+        "T-006",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "onAppear() drives .generating -> .ready via Task { await engine.generate(...) } and never blocks the main actor during generation",
+        "undo() removes the most recently completed thread at full thread granularity, never a partial cell or drag-frame",
+        "beginNextLoom() is only reachable from .solved state, never auto-invoked by a timer",
+        ".failed(fallback:) is reached when the generator throws or times out, using the bundled fallback"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Puzzle board view: Canvas rendering, accessibility overlay, gesture adapters, parity test",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Puzzle/LoomBoardView.swift",
+        "Features/Puzzle/ThreadPath.swift",
+        "Features/Puzzle/CellAccessibilityElement.swift",
+        "Features/Puzzle/UndoControl.swift",
+        "Features/Puzzle/PuzzleView.swift",
+        "HeddleUITests/DragVoiceOverParityTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-008",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Canvas/Path renders thread visuals; a transparent overlay grid of real SwiftUI accessibility elements carries per-cell VoiceOver labels and 'extend thread here'/'cancel thread' custom actions",
+        "Both the DragGesture adapter and the VoiceOver custom-action adapter call only ThreadTraceController.commitStep, with no duplicated legality logic in either adapter",
+        "A parity test solves an identical puzzle via simulated drag and separately via accessibility actions and asserts the resulting board states are identical",
+        "Every interactive element has a hit target of at least 44x44pt"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Hub screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Hub/HubViewModel.swift",
+        "Features/Hub/HubSheetRoot.swift",
+        "Features/Hub/YesterdaySummaryRow.swift",
+        "Features/Hub/LoomPassTeaserButton.swift",
+        "Features/Hub/LoomPassComingSoonSheet.swift",
+        "Features/Puzzle/HubEntryControl.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "yesterdaySummary == nil renders the first-launch copy locked in design_handoff, never an omitted row",
+        "Tapping the Loom Pass teaser always surfaces the coming-soon sheet, never a silent no-op tap",
+        "Hub presents as a sheet with its own nested NavigationStack into Settings",
+        "Hub entry control (spool icon) is at least 44x44pt"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Settings screen + shared reset/recovery view",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Settings/SettingsViewModel.swift",
+        "Features/Settings/SettingsRoot.swift",
+        "Features/Settings/ResetConfirmationView.swift",
+        "Features/Settings/ReduceMotionStatusRow.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "ResetConfirmationView is a single view implementation reused both for manual settings reset and for corrupted-store recovery at launch",
+        "Manual reset requires an explicit confirmation step before data is cleared",
+        "Reduce Motion row reads and displays the system setting only, with no duplicate app-level toggle"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Haptics",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Polish/HapticsPlaying.swift",
+        "Polish/CoreHapticsEngine.swift",
+        "Polish/NoOpHaptics.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "HapticsPlaying protocol allows injecting a no-op fake so no unrelated test requires a physical device",
+        "Core Haptics-backed implementation compiles and runs on device",
+        "Feel is manually signed off on a physical device before this task is considered verified; Simulator sign-off does not count and is recorded as such"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Solve celebration + Reduce Motion fallback + generation apology banner",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Features/Puzzle/SolveCelebrationOverlay.swift",
+        "Features/Puzzle/GenerationApologyBanner.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-009",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Normal motion: ~0.6s spring bloom with a light-catching sweep on solve",
+        "Reduce Motion on: degrades to a ~0.3s cross-fade while the haptic pulse still fires unchanged, verified by toggling the setting",
+        "Celebration holds until an explicit 'begin next loom' tap; no timer-driven auto-advance exists anywhere in the code",
+        "Apology banner reads as warm in-voice copy, never a system-error visual style"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "App entry wiring, scenePhase flush, full state integration, debug-hook and release audit",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "HeddleApp/HeddleApp.swift",
+        "HeddleApp/DebugHooks.swift",
+        "release-audit-checklist.md"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-007",
+        "T-009",
+        "T-010",
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "ModelContainer initialization is wrapped with recoverFromCorruptStore and surfaces failure through the shared ResetConfirmationView-based screen",
+        "scenePhase change to background triggers an awaited flushPendingWrites() before the scene may suspend",
+        "All four PuzzleScreenState cases are reachable through real UI with correct transitions, including force-quit/relaunch restoring exact in-progress thread state",
+        "#if DEBUG force-corrupt and force-generator-throw hooks are confirmed absent from a Release configuration build",
+        "Final grep confirms zero StoreKit imports anywhere in the codebase and zero stray Info.plist usage-description keys"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

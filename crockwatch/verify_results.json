@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 03:59:37",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "034b4bb311880cd2054b2ea0e4ad23dbc11d0f5a6925ff594001543b69a23f6a",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "crockwatch",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "/Users/pchordia/Documents/iOS-App-Factory/crockwatch/app_build/crockwatch/Services/EntitlementManager.swift:29:9: error: main actor-isolated property 'transactionListenerTask' can not be referenced from a nonisolated context\nFailed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/crockwatch/app_build/crockwatch/Views/Creation/BatchCreationView.swift:96:13: error: generic parameter 'Content' could not be inferred\n/Users/pchordia/Documents/iOS-App-Factory/crockwatch/app_build/crockwatch/Views/Creation/BatchCreationView.swift:96:20: error: missing argument label 'content:' in call\n/Users/pchordia/Documents/iOS-App-Factory/crockwatch/app_build/crockwatch/Views/Creation/BatchCreationView.swift:96:21: error: cannot convert value of type 'String' to expected argument type '() -> Content'\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 04:01:23",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "034b4bb311880cd2054b2ea0e4ad23dbc11d0f5a6925ff594001543b69a23f6a",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "crockwatch",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

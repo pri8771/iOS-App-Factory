@@ -1,0 +1,468 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Xcode project scaffolding + App Group shared container",
+      "owner_lane": "data_domain",
+      "files": [
+        "Chapterly.xcodeproj/project.pbxproj",
+        "Chapterly/Chapterly.entitlements",
+        "ChapterlyWidgets/ChapterlyWidgets.entitlements",
+        "Chapterly/Resources/PrivacyInfo.xcprivacy",
+        "Chapterly/App/ChapterlyApp.swift",
+        "Chapterly/Repositories/ModelContainer+Shared.swift",
+        "Chapterly/Models/ChapterlyMigrationPlan.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Chapterly app target and ChapterlyWidgets extension target both exist and share one App Group entitlement",
+        "buildSharedModelContainer(appGroupID:) compiles and returns a working container from both targets",
+        "SchemaV1 enumerates all @Model types",
+        "app launches to a blank shell on device/simulator with no crash"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Domain models + repositories",
+      "owner_lane": "data_domain",
+      "files": [
+        "Chapterly/Models/Book.swift",
+        "Chapterly/Models/Entry.swift",
+        "Chapterly/Models/Circle.swift",
+        "Chapterly/Models/CircleMember.swift",
+        "Chapterly/Models/ShareEvent.swift",
+        "Chapterly/Models/AppSettings.swift",
+        "Chapterly/Repositories/BookRepository.swift",
+        "Chapterly/Repositories/EntryRepository.swift",
+        "Chapterly/Repositories/CircleRepository.swift",
+        "Chapterly/Repositories/ShareEventRepository.swift",
+        "Chapterly/Repositories/SettingsRepository.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "all @Model types match tech_specs signatures exactly",
+        "EntryRepository.fetchTimeline uses relationshipKeyPathsForPrefetching internally on book before mapping to TimelineItem",
+        "deleting a Book cascades to delete its Entries; removing a CircleMember does not delete ShareEvent history",
+        "ShareEvent round-trip test: record a share, fetch it back by entryID and by circleID, both succeed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Seeded preview data + persistence smoke test",
+      "owner_lane": "data_domain",
+      "files": [
+        "Chapterly/Repositories/PreviewData.swift",
+        "ChapterlyTests/DataDomainTests/PersistenceSmokeTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "preview container seeded with sample books/entries/circle",
+        "on-disk (not in-memory) store persists across a simulated force-quit/relaunch in a test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Real-device OCR spike + go/no-go verdict",
+      "owner_lane": "services_utilities",
+      "files": [
+        "docs/ocr-spike-verdict.md"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "20 real photographed book pages run through VNDocumentCameraViewController capture then VNRecognizeTextRequest on an actual device",
+        "verdict doc records whether heavy text correction should be treated as the normal case or the exception, feeding OCRReviewModel design in T-015"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Core service protocols, live implementations, and fakes",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Chapterly/Services/Clock.swift",
+        "Chapterly/Services/DocumentScanService.swift",
+        "Chapterly/Services/OCRService.swift",
+        "Chapterly/Services/ContactPickerService.swift",
+        "Chapterly/Services/MessageComposerService.swift",
+        "Chapterly/Services/ShareTextFormatter.swift",
+        "Chapterly/Services/BiometricAuthService.swift",
+        "Chapterly/Services/StatsService.swift",
+        "Chapterly/Services/Fakes/"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "every protocol matches tech_specs signatures",
+        "each has a fake implementation usable in previews/tests",
+        "StatsService computes StatsSnapshot from BookRepository/EntryRepository data"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "StreakCalculator + EntryRepository perf harness",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Chapterly/Services/StreakCalculator.swift",
+        "ChapterlyTests/ServicesTests/StreakCalculatorTests.swift",
+        "ChapterlyTests/DataDomainTests/EntryRepositoryPerfTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "StreakCalculator is a pure function tested across midnight/timezone/DST edge cases with an injected Clock",
+        "perf test seeds ~1000 entries and asserts fetchTimeline stays within an explicit time budget"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Bare-bones widget canary",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "ChapterlyWidgets/ChapterlyWidgetsBundle.swift",
+        "ChapterlyWidgets/CanaryWidget.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "widget target reads one seeded value from the shared ModelContainer and renders it on a real device, proving the App Group entitlement works before M4 polish begins"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Routing, AppRouter, root shell, composition root",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Chapterly/App/AppRouter.swift",
+        "Chapterly/App/Route.swift",
+        "Chapterly/App/RootView.swift",
+        "Chapterly/App/AppEnvironment.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "NavigationStack rooted at Timeline; Stats and Circle reachable only via nav-bar icons, never tabs",
+        "AppEnvironment wires all repositories and services via init injection, no view touches SwiftData or a system framework directly",
+        "app boots to an honest empty-state Timeline"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Add/Edit Book screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Chapterly/Features/Book/AddEditBookView.swift",
+        "Chapterly/Features/Book/BookFormModel.swift"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "title/author only required; cover/genre/isbn/dates/status all optional",
+        "empty/validation-fail/success/discard states implemented",
+        "saved book appears in library list and persists via BookRepository"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "EntryComposeModel + manual/OCR-fake compose flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Chapterly/Capture/EntryDraft.swift",
+        "Chapterly/Capture/CaptureCoordinator.swift",
+        "Chapterly/Capture/CaptureStep.swift",
+        "Chapterly/Features/EntryCompose/EntryComposeModel.swift",
+        "Chapterly/Features/EntryCompose/EntryComposeView.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "EntryComposeModel.save() persists via EntryRepository",
+        "applyOCRResult is built and tested against both a manual draft and a fake OCR-shaped RecognizedTextResult now, not retrofitted in M3",
+        "quote-first save: everything else optional",
+        "SaveState goes idle->saving->saved with no visible spinner for a local save"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Timeline (home) + Book Detail",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Chapterly/Features/Timeline/TimelineModel.swift",
+        "Chapterly/Features/Timeline/TimelineView.swift",
+        "Chapterly/Features/BookDetail/BookDetailView.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-009",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "TimelineModel loads exclusively through EntryRepository.fetchTimeline, paginated, never a full-table fetch",
+        "empty/early-success/mature/error states all implemented and render instantly for local data",
+        "Book Detail edit/delete behavior is cascade-correct"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Entry Detail as shareable artifact + zoom transition",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Chapterly/Features/EntryDetail/EntryDetailView.swift",
+        "Chapterly/Features/EntryDetail/EntryDetailModel.swift",
+        "Chapterly/App/Route.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Entry Detail renders as the pull-quote artifact layout, unmodified enough to be screenshot-worthy",
+        "matchedTransitionSource/.navigationTransition(.zoom(sourceID:in:)) namespace and id agree between Timeline row and Entry Detail",
+        "named UI test: tap row -> transition -> detail -> back, passes as a hard milestone gate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Stats screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Chapterly/Features/Stats/StatsModel.swift",
+        "Chapterly/Features/Stats/StatsView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "renders StatsSnapshot from StatsService only, no inline date math in the view",
+        "zero-data/low-data/normal-data/error states all implemented and feel meaningful even with little data"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Live VisionKit/Vision OCR wiring",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Chapterly/Services/DocumentScanServiceLive.swift",
+        "Chapterly/Services/OCRServiceLive.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "single-page VNDocumentCameraViewController capture wired to VNRecognizeTextRequest recognition",
+        "multiple returned pages produce DocumentScanError.multiplePagesReturned with explicit rejection, never a silent keep-page-0"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Camera permission gating + OCR review screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Chapterly/Capture/OCRReviewModel.swift",
+        "Chapterly/Capture/OCRReviewView.swift",
+        "Chapterly/Capture/CameraPermissionView.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "not-determined/denied/live/processing/fatal-unavailable are all real screens",
+        "denied camera degrades to manual entry, never a dead end",
+        "no-text-detected is a normal terminal state offering Retake/Type instead/Continue",
+        "OCR path produces the same saved Entry shape as the manual path",
+        "verified on a real device with camera access denied via actual Settings toggle"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Contact picker + Messages/share-sheet live wiring",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Chapterly/Services/ContactPickerServiceLive.swift",
+        "Chapterly/Services/MessageComposerServiceLive.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "CNContactPickerViewController wrapped with zero Contacts entitlement requested",
+        "MFMessageComposeViewController falls back to UIActivityViewController when canSendText()==false, verified on a real device (Simulator always reports false and only proves the fallback path)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Circle screens + outbound share flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Chapterly/Features/Circle/CircleModel.swift",
+        "Chapterly/Features/Circle/CircleView.swift",
+        "Chapterly/Features/Circle/AddCircleMemberView.swift",
+        "Chapterly/Features/Circle/ShareHandoffView.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "one-circle cap enforced in UI only, data model still supports many",
+        "empty/configured/add-member/limit-reached states implemented, limit-reached framed as a subscription tier not an error",
+        "Share reachable only from a completed Entry Detail, never a capture-to-share shortcut",
+        "real share text via ShareTextFormatter, never placeholder text",
+        "ShareEvent recorded on every send"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Full widgets + LogQuoteIntent",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "ChapterlyWidgets/CurrentlyReadingWidget.swift",
+        "ChapterlyWidgets/StreakWidget.swift",
+        "Chapterly/Intents/LogQuoteIntent.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-013",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "both widgets replace the canary and show real persisted data on-device with real empty states",
+        "LogQuoteIntent defaults to the most-recently-active book but always confirms attachment before save, routing through EntryComposeModel's real save path"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "App Lock",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Chapterly/Resilience/AppLockController.swift",
+        "Chapterly/Resilience/AppLockOverlayView.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "gates on .background with a grace window, not .inactive, so OCR/Messages/share sheets don't trigger a re-lock",
+        "biometric authentication with passcode fallback via BiometricAuthService",
+        "off by default, toggle in Settings, fully operable via VoiceOver with a non-biometric path"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Settings, paywall stub, onboarding/privacy copy",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Chapterly/Settings/SettingsView.swift",
+        "Chapterly/Settings/PaywallView.swift",
+        "Chapterly/Features/Onboarding/OnboardingView.swift"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "paywall gates OCR entry point and a second circle with honest 'coming soon' tap copy and no functional billing",
+        "onboarding states the local-only privacy promise in plain language with one CTA and no forced permissions",
+        "settings toggles app lock and shows subscription tier state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Accessibility pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "ChapterlyUITests/AccessibilityTests.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012",
+        "T-015",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Dynamic Type verified through AX5 sizes on Timeline and Entry Detail pull-quote layout",
+        "rating control exposes the adjustable VoiceOver trait announcing 'n of 5'",
+        "'type it instead' is the first VoiceOver-focused element on the OCR screen",
+        "warm cream/sepia backgrounds pass a WCAG AA contrast check on secondary text"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Migration test + perf CI gate finalization",
+      "owner_lane": "data_domain",
+      "files": [
+        "ChapterlyTests/DataDomainTests/MigrationTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "schema migration test from SchemaV1 passes as an automated CI test",
+        "1000-entry perf gate runs in CI, not only locally"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Final acceptance checklist + repair buffer",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docs/acceptance-checklist.md"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-015",
+        "T-017",
+        "T-018",
+        "T-019",
+        "T-020",
+        "T-021",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "every reachable screen's empty/loading/success/error states verified against the checklist",
+        "no dead ends on denied camera/contacts permissions",
+        "no placeholder share text anywhere",
+        "circle never carries equal or greater visual weight than the personal journal on Timeline",
+        "real-device checklist fully checked: camera denial via Settings, canSendText()==false, OCR spike re-validated against the finished UI, widgets/intent verified on-device"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

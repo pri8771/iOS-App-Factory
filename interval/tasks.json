@@ -1,0 +1,535 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Domain enums + single constants file",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Sources/IntervalCore/Domain/Enums.swift",
+        "IntervalCore/Sources/IntervalCore/Domain/Constants.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "SessionOutcome, LearningState, OutcomeProvenance, TimeBucket, SubscriptionTier, SessionEndTrigger all defined per tech_specs signatures",
+        "All tunables (10-90min focus clamp, 3-20min break clamp, 10%/5min step cap, 60s degenerate floor, 5-session adapted threshold, 20-session/unbounded rolling window) defined exactly once in Constants.swift",
+        "IntervalCore package builds with zero SwiftUI/StoreKit/UserNotifications imports anywhere in the target"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "SessionSnapshot, EvidenceMark, Recommendation value types",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Sources/IntervalCore/Domain/SessionSnapshot.swift",
+        "IntervalCore/Sources/IntervalCore/Domain/Recommendation.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "SessionSnapshot is Codable/Sendable and is the only type RecommendationEngine will accept",
+        "Recommendation includes explanation, evidence, progressTowardAdaptation per tech_specs signature"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "SwiftData models: SessionRecord, Profile, AppSettingsRecord",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Sources/IntervalCore/Data/Models.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Fields match tech_specs SessionRecord signature exactly, including provenance and timeBucket stored (not recomputed)",
+        "No task-name/notes/journaling fields present"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "SessionRepository protocol + SwiftData implementation",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Sources/IntervalCore/Data/SessionRepository.swift",
+        "IntervalCore/Sources/IntervalCore/Data/RepositoryError.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Concrete impl is MainActor-bound",
+        "deleteAllData wipes SessionRecord/Profile/learning state across all profiles but never touches AppSettingsRecord onboarding/permission flags",
+        "storeUnavailable error path is distinguishable from saveFailed/notFound"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "RecommendationEngine (pure)",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Sources/IntervalCore/Domain/RecommendationEngine.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Foundation-only, no SwiftData/SwiftUI imports",
+        "Applies clamps, step cap, degenerate floor, rolling window, and 5-session adapted threshold sourced only from Constants.swift"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "ReconciliationPolicy (trigger-aware)",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Sources/IntervalCore/Domain/ReconciliationPolicy.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "provisionalOutcome(trigger:) never resolves manualStop to expiredWhileAway",
+        "appRelaunchReconciliation uses the >=90% elapsed threshold from Constants.swift",
+        "all elapsed-time math uses raw Date/TimeInterval arithmetic, never Calendar component subtraction"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "SessionRecord <-> SessionSnapshot translation + integration test",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Sources/IntervalCore/Data/SessionSnapshotTranslation.swift",
+        "IntervalCore/Tests/IntervalCoreTests/TranslationIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Test builds a real SwiftData SessionRecord, translates it, runs it through RecommendationEngine, asserts output",
+        "Time bucket is read from stored value, never recomputed from raw timestamp"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "IntervalCore pure-logic test suite",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Tests/IntervalCoreTests/RecommendationEngineTests.swift",
+        "IntervalCore/Tests/IntervalCoreTests/ReconciliationPolicyTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Synthetic [SessionSnapshot] arrays only, zero ModelContext setup",
+        "Covers every clamp/step-cap/degenerate-floor/threshold boundary and all three SessionEndTrigger cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Repository + bootstrap + migration tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "IntervalCore/Tests/IntervalCoreTests/SessionRepositoryTests.swift",
+        "IntervalCore/Tests/IntervalCoreTests/SchemaMigrationTests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Deliberately corrupts the on-disk store (main file + WAL/SHM) and asserts clean recovery via AppLaunchBootstrap",
+        "One VersionedSchema/SchemaMigrationPlan round-trip test passes",
+        "deleteAllData test asserts all profiles wiped, AppSettingsRecord flags untouched"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Clock protocol + NotificationKind enum",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Interval/Services/Clock.swift",
+        "Interval/Services/NotificationKind.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Clock is injectable into SessionCoordinator for deterministic test timing"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "NotificationScheduler protocol + real UNUserNotificationCenter impl",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Interval/Services/NotificationScheduler.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "cancel(sessionID:) removes only that session's pending requests, never removeAllPendingNotificationRequests()",
+        "requestAuthorizationIfNeeded checks current settings first and never re-prompts after a prior denial"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "EntitlementState enum + SubscriptionStore (StoreKit 2)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Interval/Services/SubscriptionStore.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "lapsed state preserves data access as read-only, never triggers deletion",
+        "purchase/restore/refreshEntitlements implemented against real StoreKit 2 Product/Transaction APIs"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Notification + subscription test suites",
+      "owner_lane": "services_utilities",
+      "files": [
+        "IntervalTests/NotificationSchedulerTests.swift",
+        "IntervalTests/SubscriptionStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Notification tests assert zero pending requests for a session ID after cancel, and no re-prompt after simulated denial",
+        "SubscriptionStoreTests use StoreKitTest/SKTestSession to cover purchase, restore, restore-with-nothing, and every documented failure type"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "AppLaunchBootstrap (corrupted-store recovery)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Interval/Services/AppLaunchBootstrap.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Catches ModelContainer init failure, deletes store file AND its WAL/SHM companions as one atomic set, reinitializes empty",
+        "Sets AppSettingsRecord.storeWasReset for a one-time honest message"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "SessionPhase enum",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Interval/App/SessionPhase.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Matches tech_specs signature exactly (idle/running/onBreak/awaitingOutcome/reconciliationPending)",
+        "This file plus SessionCoordinator's public API are tagged core-v1-frozen once T-016 passes T-017's tests, gating all further UI work"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "SessionCoordinator",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Interval/App/SessionCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-010",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Sole writer of SessionPhase; timer truth is always startTimestamp+plannedDuration recomputed from Date()",
+        "stop()/naturalCompletion write a provisional outcome via ReconciliationPolicy before any sheet appears",
+        "reconcileOnLaunch() uses .appRelaunchReconciliation and never blocks starting a new session"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "SessionCoordinator on-device scenario matrix",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IntervalTests/SessionCoordinatorTests.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Real-device (not simulator-only) pass of: start->lock->elapse-past-end->relaunch; start->stop-at-40s; outcome-sheet-open->force-quit->relaunch; break transition; notification fires and cancels by correct UUID"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Home screen + evidence strip",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Interval/UI/Home/HomeView.swift",
+        "Interval/UI/Home/RecommendationCard.swift",
+        "Interval/UI/Home/LearningStateChip.swift",
+        "Interval/UI/Home/WhyLine.swift",
+        "Interval/UI/Home/SegmentedHistoryStrip.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Renders as a pure function of SessionPhase/Recommendation, no independent local state",
+        "Fresh install shows fixed 25/5 defaults with zero personalization language",
+        "Evidence strip rendered via Canvas with one summarized VoiceOver label"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Active session screen + start-adjustment + outcome sheets",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Interval/UI/Session/ActiveSessionView.swift",
+        "Interval/UI/Session/StartAdjustmentSheet.swift",
+        "Interval/UI/Session/OutcomeCaptureSheet.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Active session bound via fullScreenCover(item:), never NavigationStack push",
+        "Outcome sheet is pre-filled and swipe-dismissible when a provisional outcome already exists",
+        "Stop control requires confirmation and has deliberate spacing from Skip-break"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "History screen + HistoryViewModel",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Interval/UI/History/HistoryView.swift",
+        "Interval/UI/History/HistoryViewModel.swift",
+        "Interval/UI/History/HistoryFilter.swift"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "No @Query used against SessionRecord anywhere in this screen; all reads go through HistoryViewModel/SessionRepository",
+        "This week strip shows real free-tier data; locked teaser row opens paywall",
+        "All/Completed/Early-stop/Interrupted filter implemented"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Settings screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Interval/UI/Settings/SettingsView.swift"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Upgrade row, notification status, precise local-storage privacy copy, delete-all-data row, subscription status incl. lapsed all present"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "RootView + app entry + TabView wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Interval/App/IntervalApp.swift",
+        "Interval/App/RootView.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-019",
+        "T-020",
+        "T-021",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Three tabs only: Home, History, Settings",
+        "RootView reads AppSettingsRecord.storeWasReset once on first appearance and clears it after showing the honest message",
+        "SessionCoordinator injected once via .environment(_:) at app root"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Shared empty/error state components + Reduce Motion helper",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Interval/UI/Shared/EmptyStateView.swift",
+        "Interval/UI/Shared/ErrorStateView.swift",
+        "Interval/UI/Shared/ReduceMotionAnimator.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Shared across History, Settings, and the store-reset screen instead of bespoke per-screen states",
+        "Every .animation() call site in the app routes through ReduceMotionAnimator, returning nil when Reduce Motion is on"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Paywall sheet + live preview",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Interval/UI/Paywall/PaywallView.swift",
+        "Interval/UI/Paywall/PaywallPreview.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-012",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "default/purchasing/success/failed-by-type/restore states all implemented",
+        "makePaywallPreviewRecommendation uses the user's own real data when available, view-layer entitlement gate decides visibility, never a stock sample"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Delete-all-data confirmation sheet",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Interval/UI/Settings/DeleteAllDataConfirmSheet.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "States exactly what's erased and that subscription status is untouched",
+        "Destructive-styled confirm requiring explicit tap; brief success toast on return to Settings"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Zero-network structural audit",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IntervalTests/NoNetworkAuditTests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "verifyNoNetworkInCorePath mechanically asserts zero networking types reachable from the timer/logging/adaptation module boundary"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Accessibility pass across Home/Session/History",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Interval/UI/Home/HomeView.swift",
+        "Interval/UI/Session/ActiveSessionView.swift",
+        "Interval/UI/History/HistoryView.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-019",
+        "T-020",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "VoiceOver milestone-only announcements (start/halfway/one-minute/complete), never per-second",
+        "Dynamic Type headroom verified on the why-line string at largest sizes",
+        "Outcome buttons reflow vertically at large Dynamic Type"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Seeded debug dataset proving visible recommendation movement",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IntervalTests/SeededAdaptationDemoTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-016",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "A seeded synthetic history visibly changes Home's on-screen recommendation and one-line why, not just an internal test value"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-029",
+      "title": "Final integration hardening & go/no-go review",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Interval/",
+        "IntervalCore/",
+        "IntervalTests/",
+        "IntervalUITests/"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-013",
+        "T-022",
+        "T-024",
+        "T-025",
+        "T-026",
+        "T-027",
+        "T-028",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Full scripted end-to-end QA matrix passes on-device with realistic interruption patterns",
+        "Cross-boundary repair pass complete (coordinator/repository races, store-reset messaging, accessibility regressions from final tweaks)",
+        "Go/no-go review confirms: engine tests pass, corruption recovery exercised, background/lock/kill reconciliation proven on-device, core loop works fully offline"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

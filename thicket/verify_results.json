@@ -1,0 +1,53 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 15:48:30",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "af866c7e196c79683b8c96b6fa0ee3c245feeab2cd69bc37b261e6674a90df88",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": false,
+    "ok": false,
+    "status": "unverified",
+    "tool": "xcodebuild",
+    "scheme": null,
+    "summary": "no .xcodeproj/.xcworkspace found.",
+    "errors": "",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 16:25:55",
+    "phase": "build_coordination",
+    "workflow": "iterate",
+    "prompt_hash": "36aa72295014455edbd43328e452ce2b8bfe66df1d05585f79efbe2766253fdf",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "Thicket",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "Failed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/thicket/app_build/Thicket/Models/CuttingPlaceholderModel.swift:146:71: error: main actor-isolated static property 'defaultStorageURL' can not be referenced from a nonisolated context\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 16:26:39",
+    "phase": "build_coordination",
+    "workflow": "iterate",
+    "prompt_hash": "36aa72295014455edbd43328e452ce2b8bfe66df1d05585f79efbe2766253fdf",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Thicket",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

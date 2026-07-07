@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "findings": [
+    {
+      "schema_version": 1,
+      "source": "secret_scan",
+      "category": "secret_hardcoded",
+      "severity": "Critical",
+      "confidence": "high",
+      "title": "Hardcoded secret (assignment) at LinernotesKit/Sources/LinernotesKit/Models/SharedProjectSummary.swift:28",
+      "file": "LinernotesKit/Sources/LinernotesKit/Models/SharedProjectSummary.swift",
+      "line": 28,
+      "why": "A assignment-shaped credential is committed in generated source.",
+      "fix": "Move the value to secure configuration (Keychain / env / build settings) and rotate the exposed credential.",
+      "status": "open"
+    }
+  ]
+}

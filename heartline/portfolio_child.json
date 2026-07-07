@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Heartline",
+    "slug": "heartline",
+    "category": "Medical",
+    "promise": "QRISK3-methodology cardiometabolic risk score with GP-visit prep sheet",
+    "targetUser": "Adult with family cardiac history seeking a real number, not vague anxiety",
+    "mechanic": "validated risk score + clinician-visit prep",
+    "build": true,
+    "one_sentence_promise": "QRISK3-methodology cardiometabolic risk score with GP-visit prep sheet",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

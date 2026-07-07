@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-a1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Night Sky Logbook",
+    "slug": "night-sky-logbook",
+    "category": "Reference",
+    "build": true,
+    "description": "Nightly recomputed, location-scored sky visibility plus an observation log; AR sky-pointing deliberately deferred to v1.1 rather than risking a fragile v1 centerpiece.",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

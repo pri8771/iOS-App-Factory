@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b3",
+  "build": true,
+  "build_priority": 2,
+  "app": {
+    "name": "Sincerely",
+    "slug": "sincerely",
+    "category": "Social Networking",
+    "one_sentence_promise": "Helps you notice and say the specific, real thing you appreciate about someone \u2014 and actually get it to them.",
+    "target_user": "Emotionally intentional adults who want to strengthen relationships with family, friends, or mentors but lack a designed way to express it beyond generic texts.",
+    "painful_moment": "Thinking 'I should tell them how much that meant to me' and never doing it because there's no specific format, or it feels shallow over text.",
+    "why_different": "Solo-first structured gratitude journal that composes a specific-appreciation note and delivers it via native Share Sheet \u2014 the recipient needs zero app to receive it.",
+    "why_users_pay": "Premium card designs/typography, relationship reminders ('you haven't told X anything in 6 months'), a private permanent archive/export.",
+    "subscription_model": "Free: basic card style, manual sending, 5 saved relationships. Paid: unlimited premium designs, relationship reminders, archive/export.",
+    "local_first_mvp_scope": "Fully local journal and relationship reminders; sending via native Share Sheet rendering a shareable card, no server needed.",
+    "future_backend_roadmap": "Optional cloud sync of the archive across devices; eventual two-way 'received' tracking if the recipient also has the app.",
+    "core_workflows": [
+      "Add a person",
+      "Write a specific-appreciation note with guided prompts",
+      "Preview a designed card",
+      "Send via Share Sheet",
+      "Browse personal gratitude timeline"
+    ],
+    "ios_native_features": [
+      "Share Sheet/Messages extension",
+      "Widgets ('who haven't you thanked lately')",
+      "App Intents/Siri for quick capture",
+      "Local notifications for relationship nudges"
+    ],
+    "ar_ml_llm_fit": "Optional on-device LLM writing assist to turn a rough thought into a well-worded specific note \u2014 opt-in, never auto-generating fake sentiment.",
+    "design_direction": "Warm, tactile, fine-stationery aesthetic \u2014 letterpress textures and typography, not a social-app look.",
+    "claude_design_prompt": "Design a fine-stationery-inspired gratitude app: a calm relationship list, a guided note composer that feels like writing a real card, and an elegant preview/send screen \u2014 no gamification, no feed.",
+    "app_store_positioning": "Say the specific thing. Sincerely helps you write and send real appreciation \u2014 not another generic 'thinking of you' text.",
+    "key_risks": [
+      "Writing-assist overuse could feel like a greeting-card gimmick",
+      "Specific-compliment prompts could feel like homework",
+      "Premium card designs must not read as cosmetics-only monetization"
+    ],
+    "invalidation_criteria": "If users send once and never return within 6 weeks with no engagement from relationship reminders, redesign the reminder mechanic before assuming the concept fails.",
+    "v1_build_scope": "Relationship list, guided note composer, Share Sheet sending, one reminder type.",
+    "build": true,
+    "build_priority": 2
+  }
+}

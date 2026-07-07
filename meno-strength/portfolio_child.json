@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Meno Strength",
+    "slug": "meno-strength",
+    "category": "Health & Fitness",
+    "promise": "Strength & recovery coach adapted to perimenopause/menopause physiology",
+    "targetUser": "48-year-old former regular exerciser navigating hot flashes, sleep disruption, and changing recovery needs",
+    "mechanic": "life-stage-adapted training coach",
+    "build": true,
+    "one_sentence_promise": "Strength & recovery coach adapted to perimenopause/menopause physiology",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

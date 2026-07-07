@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-games",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Curio",
+    "slug": "curio",
+    "category": "idle",
+    "promise": "Accumulate-and-organize museum/cabinet idle game",
+    "monetization": "Curated era \"wings,\" optional LLM flavor-text with offline fallback",
+    "build": true,
+    "priority": 2,
+    "one_sentence_promise": "Accumulate-and-organize museum/cabinet idle game",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

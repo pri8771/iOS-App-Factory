@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Player",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Player: Identifiable, Codable, Hashable { let id: UUID; var name: String; var colorIndex: Int }",
+      "owning_lane": "data_domain",
+      "notes": "colorIndex indexes into the fixed 6-hue player palette from design tokens; red reserved for trigger/false-start."
+    },
+    {
+      "name": "GamePhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum GamePhase: Codable, Hashable { case setup, howToPlay, heatAssignment, arena, eliminationReveal, roundSummary, gameOver }",
+      "owning_lane": "data_domain",
+      "notes": "Single source of truth for what MatchContainerView renders; navigation must never diverge from this."
+    },
+    {
+      "name": "Heat",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Heat: Identifiable, Codable { let id: UUID; var playerIDs: [Player.ID]; var survivorTarget: Int; var isComplete: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Only populated when player count exceeds simultaneousCap (default 6). Default survivorTarget rounds UP (ceil(count/2)) so a small odd heat never advances zero players."
+    },
+    {
+      "name": "EliminationReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EliminationReason: String, Codable { case falseStart, slowLift }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "EliminationRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EliminationRecord: Identifiable, Codable { let id: UUID; let playerID: Player.ID; let reason: EliminationReason; let roundNumber: Int; let heatIndex: Int? }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "Match",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Match: Codable { var id: UUID; var players: [Player]; var heats: [Heat]; var activeHeatIndex: Int?; var roundNumber: Int; var eliminationLog: [EliminationRecord]; var phase: GamePhase }",
+      "owning_lane": "data_domain",
+      "notes": "This exact struct is what MatchSnapshotStore persists on backgrounding."
+    },
+    {
+      "name": "HeatPlanner",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum HeatPlanner { static func plan(players: [Player], simultaneousCap: Int = 6) -> [Heat] }",
+      "owning_lane": "data_domain",
+      "notes": "Pure, nonisolated function; handles exact-cap boundary, odd totals, and a heat producing only one survivor. Callable from background test threads without actor hops."
+    },
+    {
+      "name": "GameEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class GameEngine { private(set) var match: Match?; private(set) var route: AppRoute; func startMatch(players: [Player]) throws(MatchStartError); func beginNextRound(); func applyArenaVerdict(_ verdict: ArenaVerdict); func advanceAfterSummary(); func abandonMatch(); func handleScenePhaseChange(_ phase: ScenePhase); func resumeIfAvailable() -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Sole owner of match + navigation route. applyArenaVerdict is called synchronously from ArenaUIView's touch handlers, which already run on main \u2014 no actor-hop needed."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Hashable { case playerSetup, matchPlay, settings }",
+      "owning_lane": "primary_ui",
+      "notes": "Intentionally shallow \u2014 NavigationStack path never grows per-round; MatchContainerView owns in-match transitions internally via GamePhase."
+    },
+    {
+      "name": "TouchSample",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TouchSample { let slotID: Int; let playerID: Player.ID; let beganAt: TimeInterval; var endedAt: TimeInterval?; var wasCancelled: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": "Timestamps are UITouch.timestamp (hardware time), never Date() or SwiftUI dispatch time."
+    },
+    {
+      "name": "VoidReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum VoidReason: String { case droppedTouch, backgrounded, manual }",
+      "owning_lane": "polish_resilience",
+      "notes": "backgrounded case closes the architecture-review gap: scenePhase changes mid-round void via GameEngine.handleScenePhaseChange, not just touchesCancelled. manual is a UI backstop since touchesCancelled isn't guaranteed to fire."
+    },
+    {
+      "name": "ArenaVerdict",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ArenaVerdict { case resolved(eliminated: [Player.ID], survivors: [Player.ID], reason: EliminationReason), voided(VoidReason) }",
+      "owning_lane": "primary_ui",
+      "notes": "Return type of ArenaResolver; only value that crosses from the UIKit island back into GameEngine."
+    },
+    {
+      "name": "ArenaResolver",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ArenaResolver { static func resolve(samples: [TouchSample], triggerTime: TimeInterval) -> ArenaVerdict }",
+      "owning_lane": "primary_ui",
+      "notes": "Pure, nonisolated, no UIKit/UIView dependency \u2014 unit-testable with synthetic timestamp arrays from any thread."
+    },
+    {
+      "name": "ArmingDurationProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ArmingDurationProviding { func nextDuration() -> TimeInterval }",
+      "owning_lane": "primary_ui",
+      "notes": "Production impl RandomArmingDurationProvider(range: 1.5...3.0); tests inject a fixed-value stub. Animation driven by CADisplayLink inside ArenaUIView, never a SwiftUI @State timer."
+    },
+    {
+      "name": "SettingsStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class SettingsStore { var hapticsEnabled: Bool; var soundEnabled: Bool; var reduceMotionOverride: Bool; var accessibleModeDefault: Bool; func load(); func save() }",
+      "owning_lane": "services_utilities",
+      "notes": "Backed by UserDefaults; accessibleModeDefault must never be gated by ProEntitlementState. load() falls back to defaults on decode issues."
+    },
+    {
+      "name": "MatchRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MatchRecord: Identifiable, Codable { let id: UUID; let date: Date; let playerNames: [String]; let winnerName: String; let roundCount: Int }",
+      "owning_lane": "services_utilities",
+      "notes": ""
+    },
+    {
+      "name": "MatchHistoryStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor final class MatchHistoryStore { func loadAll() -> [MatchRecord]; func append(_ record: MatchRecord); func clear() }",
+      "owning_lane": "services_utilities",
+      "notes": "JSON file via FileManager, capped at last 50 records; corrupt file falls back to empty array, never throws past app launch."
+    },
+    {
+      "name": "StoreManager",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class StoreManager { private(set) var proEntitlement: ProEntitlementState; func purchasePro() async; func restorePurchases() async; func refreshEntitlements() async }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2, genuinely async/network-backed \u2014 the one real actor-hop boundary in the app. Entitlement cached via Transaction.currentEntitlements so Pro works offline at a party."
+    },
+    {
+      "name": "ProEntitlementState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ProEntitlementState { case unknown, notPurchased, purchasing, purchased, error(PurchaseErrorReason) }",
+      "owning_lane": "services_utilities",
+      "notes": "Reason must be distinguishable in the UI, not one generic error banner."
+    },
+    {
+      "name": "HapticsEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor final class HapticsEngine { func prepare(); func fireTrigger(); func fireSurvival(); func fireFalseStart(); func fireSlowLiftElimination() }",
+      "owning_lane": "services_utilities",
+      "notes": "prepare() must be called at arming-phase start, not trigger time, to avoid generator cold-start latency reading as trigger lag."
+    },
+    {
+      "name": "MatchSnapshotStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor final class MatchSnapshotStore { func save(_ match: Match); func loadSnapshot() -> Match?; func clearSnapshot() }",
+      "owning_lane": "polish_resilience",
+      "notes": "Written on scenePhase .background/.inactive; powers Home's 'Resume Game' affordance. Decode failure returns nil, never throws."
+    },
+    {
+      "name": "AccessibleArenaView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AccessibleArenaView: View { let match: Match; let onVerdict: (ArenaVerdict) -> Void }",
+      "owning_lane": "polish_resilience",
+      "notes": "Sequential single-tap-per-player VoiceOver-friendly substitute for the simultaneous ArenaUIView; same ArenaVerdict/EliminationReason contract."
+    },
+    {
+      "name": "MatchContainerView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MatchContainerView: View { var engine: GameEngine }",
+      "owning_lane": "primary_ui",
+      "notes": "Single NavigationStack destination for the whole in-match experience; switches on engine.match.phase, no per-round push. Back-out is a single confirm-to-abandon alert."
+    },
+    {
+      "name": "MatchStartError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MatchStartError: Error { case belowMinimumPlayers(minimum: Int), duplicateName(String) }",
+      "owning_lane": "data_domain",
+      "notes": "GameEngine.startMatch is the single source of truth for roster validity; PlayerSetupView surfaces the thrown error rather than duplicating validation."
+    },
+    {
+      "name": "MatchPersistenceError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MatchPersistenceError: Error { case decodeFailed, writeFailed }",
+      "owning_lane": "services_utilities",
+      "notes": "Thrown internally by MatchHistoryStore/MatchSnapshotStore only; both catch and degrade to empty/nil rather than propagate to UI or block app launch."
+    },
+    {
+      "name": "PurchaseErrorReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PurchaseErrorReason: String { case network, userCancelled, verificationFailed }",
+      "owning_lane": "services_utilities",
+      "notes": "userCancelled dismisses silently; network shows a retry affordance; verificationFailed is the only case with a support path."
+    }
+  ],
+  "errors": []
+}

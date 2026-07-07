@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "parent": "batch-games",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Parlor",
+    "slug": "parlor",
+    "category": "party, pass-one-phone",
+    "promise": "Hidden-role deduction party game, phone as moderator",
+    "monetization": "Paid role-set/scenario packs",
+    "alcohol_stake_default": "non-alcohol via settings toggle",
+    "build": true,
+    "priority": 5,
+    "one_sentence_promise": "Hidden-role deduction party game, phone as moderator",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

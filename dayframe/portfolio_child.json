@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Dayframe",
+    "slug": "dayframe",
+    "category": "Photo & Video",
+    "promise": "On-device Vision auto-picks your best daily video moment and assembles a monthly reel",
+    "targetUser": "People who've abandoned manual daily-video-diary habits",
+    "build": true,
+    "one_sentence_promise": "On-device Vision auto-picks your best daily video moment and assembles a monthly reel",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

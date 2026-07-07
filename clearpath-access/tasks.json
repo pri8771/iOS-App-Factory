@@ -1,0 +1,573 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Domain plain-struct models (Coordinate, RouteEndpoint, obstacle enums, ObstacleReport, RoutePolyline, RouteCandidate, RouteSnapshot/Source, ObstacleRelationship, ObstacleMatch, ConfidenceLevel, FrictionCategory, ScoredRoute, RouteRecommendation, ReportDraft, Favorite, RecentDestination)",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/Models/Coordinate.swift",
+        "Domain/Models/RouteEndpoint.swift",
+        "Domain/Models/ObstacleType.swift",
+        "Domain/Models/ObstacleSeverity.swift",
+        "Domain/Models/ReportProvenance.swift",
+        "Domain/Models/ObstacleReport.swift",
+        "Domain/Models/RoutePolyline.swift",
+        "Domain/Models/RouteCandidate.swift",
+        "Domain/Models/RouteSnapshot.swift",
+        "Domain/Models/ObstacleRelationship.swift",
+        "Domain/Models/ObstacleMatch.swift",
+        "Domain/Models/ConfidenceLevel.swift",
+        "Domain/Models/FrictionCategory.swift",
+        "Domain/Models/ScoredRoute.swift",
+        "Domain/Models/RouteRecommendation.swift",
+        "Domain/Models/ReportDraft.swift",
+        "Domain/Models/Favorite.swift",
+        "Domain/Models/RecentDestination.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All types match interfaces-json signatures exactly, Sendable/Codable/Equatable as specified",
+        "Zero imports beyond Foundation and CoreLocation-for-math",
+        "Compiles standalone with no SwiftData or MapKit dependency"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Scoring engine: ScoringConstants, RouteScorer, ObstacleMatcher",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/Scoring/ScoringConstants.swift",
+        "Domain/Scoring/RouteScorer.swift",
+        "Domain/Scoring/ObstacleMatcher.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "outerBufferMeters=20, innerBufferMeters=10 as fixed constants",
+        "recencyMultiplier bands: <7d=1.0, 8-30d=0.6, 31-90d=0.3, >90d=0.1, daysOld is Int",
+        "RouteScorer.recommend applies shorter-route tie-break on equal friction category",
+        "ObstacleMatcher bounding-box pre-filters before per-segment projection math"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Domain boundary-value unit tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "Tests/DomainTests/ScoringBoundaryTests.swift",
+        "Tests/DomainTests/ObstacleMatcherTests.swift",
+        "Tests/DomainTests/TieBreakTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Asserts 19m counts / 21m does not",
+        "Asserts 9m reads on-route / 11m reads nearby",
+        "Asserts day 6 vs 8, day 30 vs 31, day 90 vs 91 land in different decay bands",
+        "Asserts shorter route wins on equal friction category tie",
+        "This suite is a required merge gate for any change under Domain/Scoring/"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Persistence force-quit and CloudKit-schema-safety spikes",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tests/IntegrationTests/Spikes/PersistenceSpikeTests.swift",
+        "Tests/IntegrationTests/Spikes/CloudKitSchemaSpikeTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Two independent ModelContainer instances against the same store URL surface a committed write across instances",
+        "A throwaway ModelConfiguration with cloudKitDatabase: .automatic does not throw against the planned schema shape",
+        "Findings documented before T-005 begins; entitlement stays off in shipped code"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "SwiftData records, ModelContainerFactory, domain<->record mapping",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Persistence/Models/ObstacleReportRecord.swift",
+        "Persistence/Models/FavoriteRecord.swift",
+        "Persistence/Models/RecentDestinationRecord.swift",
+        "Persistence/Models/CachedRouteSnapshotRecord.swift",
+        "Persistence/ModelContainerFactory.swift",
+        "Persistence/Mapping/DomainRecordMapping.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Every attribute has a default, relationships optional, no unique constraints, explicit stable UUID fields",
+        "ModelContainerFactory produces containers usable by the two-instance survival pattern proven in T-004"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "ObstacleStore repository + DemoDataSeeder",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Persistence/ObstacleRepository.swift",
+        "Persistence/DemoDataSeeder.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "installSeedDataIfNeeded checks ScoringConstants.currentSeedDataVersion against a persisted flag, no duplicate rows on repeat install",
+        "resetSeedData backs the Settings demo-data-reset control",
+        "supersede and supersedeNearby implemented per ObstacleStore protocol",
+        "Seed corridor uses invented street names inside a real named city"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "FavoritesStore, RecentsStore, CachedRouteStore repositories",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Persistence/FavoritesRepository.swift",
+        "Persistence/RecentsRepository.swift",
+        "Persistence/CachedRouteRepository.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "FavoritesStore.count() usable before add() so a 3rd-favorite check never half-saves",
+        "RecentsStore caps at 5, label+coordinate only, clearRecents implemented",
+        "CachedRouteStore honors ~1 day staleness threshold and implements deleteExpiredRoutes(olderThan:)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Store-level supersession and force-quit persistence integration tests",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tests/IntegrationTests/ObstacleStoreSupersessionTests.swift",
+        "Tests/IntegrationTests/PersistenceSurvivalTests.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Save an obstacle, submit a new report inside the inner 10m buffer, assert fetchActiveReports excludes the old row while fetchHistory returns both",
+        "Force-quit survival verified via two independent ModelContainer instances against the same store URL for all four stores",
+        "This suite is a required merge gate for any change under Persistence/"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "LocationService, RouteSearchService (RouteFetching/PlaceSearching), ReachabilityMonitor",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/LocationService.swift",
+        "Services/RouteSearchService.swift",
+        "Services/ReachabilityMonitor.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "LocationService exposes authorizationState as observed state, not polled; When-In-Use only",
+        "RouteSearchService wraps MKDirections/MKLocalSearch and throws only RouteRequestError, never raw MKError",
+        "ReachabilityMonitor is NWPathMonitor-backed and used only as a coarse hint, never sole error-cause truth"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "PurchaseService + StoreKit local configuration",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/PurchaseService.swift",
+        "Config/Products.storekit"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Non-consumable product id com.clearpathaccess.pro.lifetime",
+        "hasProUnlock reflects on-device VerificationResult only, no receipt-validation backend",
+        "purchasePro and restorePurchases both testable against the local .storekit config"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "ReportSubmission decision logic + tests",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/ReportSubmission.swift",
+        "Tests/IntegrationTests/ReportSubmissionTests.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Chooses supersede(existingID:) when targetObstacleID is set, else supersedeNearby using innerBufferMeters (10m, not 20m), else saveReport",
+        "Test proves a two-doors-down unrelated obstacle is not superseded by a new report"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "App shell, composition root, RootView with fake dependencies",
+      "owner_lane": "primary_ui",
+      "files": [
+        "App/ClearpathAccessApp.swift",
+        "App/AppDependencies.swift",
+        "App/RootView.swift",
+        "App/Fakes/FakeRouteFetching.swift",
+        "App/Fakes/FakeLocationProviding.swift",
+        "App/Fakes/FakeObstacleStore.swift",
+        "App/Fakes/FakePurchaseManaging.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Exactly one AppDependencies bundle built once and injected via environment",
+        "Per-tab NavigationStacks for Plan and Saved, independent path types",
+        "App builds and runs end-to-end against fakes with no real service implementation yet"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Design system tokens and shared component inventory (frozen milestone-1 deliverable so the core flow is never blocked on a later-starting lane)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "DesignSystem/Tokens.swift",
+        "DesignSystem/Components/RecommendationCard.swift",
+        "DesignSystem/Components/ConfidenceBadge.swift",
+        "DesignSystem/Components/WarningChip.swift",
+        "DesignSystem/Components/SeverityIndicator.swift",
+        "DesignSystem/Components/RouteSwitcherChip.swift",
+        "DesignSystem/Components/TrustBanner.swift",
+        "DesignSystem/Components/ObstacleRow.swift",
+        "DesignSystem/Components/DemoCard.swift",
+        "DesignSystem/Components/FavoriteRow.swift",
+        "DesignSystem/Components/PaywallUnlockPanel.swift",
+        "DesignSystem/Components/SharePreviewCard.swift"
+      ],
+      "depends_on": [
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Colors/spacing/radius/type match locked tokens exactly, no color reused for a second meaning",
+        "Every custom control has explicit accessibilityLabel/accessibilityValue, none left to default inference",
+        "44x44pt minimum tap target on every interactive component",
+        "Owned by primary_ui; all other lanes consume it read-only, new-component requests go through primary_ui as a handoff, same discipline as AppDependencies"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "RouteExplanation types, RouteExplanationBuilder, first-run flag utility",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Domain/Explanation/RouteExplanation.swift",
+        "Domain/Explanation/WarningChipModel.swift",
+        "Domain/Explanation/WarningChipKind.swift",
+        "Domain/Explanation/RouteExplanationBuilder.swift",
+        "App/Flags/FirstRunFlags.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "RouteExplanationBuilder.build is a pure static function producing the what/why/confidence triad plus the honest single-route wording branch",
+        "hasCompletedFirstRouteSearch is UserDefaults-backed and never derived from zero-recents/zero-favorites state",
+        "Pulled to the front of this lane's queue since Route Result (milestone 3) depends on it, not deferred to this lane's milestone-5 work"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Onboarding + Plan tab",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Onboarding/OnboardingView.swift",
+        "Features/Plan/PlanView.swift",
+        "Features/Plan/PlanViewModel.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Onboarding is 3 cards max ending in a location-permission step with an equal-weight manual-entry path",
+        "Plan has no map surface, ever",
+        "Fresh-install demo card appears only when hasCompletedFirstRouteSearch is false, gated by the flag from T-014, never by recents/favorites emptiness"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Destination/origin search screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Search/SearchView.swift",
+        "Features/Search/SearchViewModel.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Manual pin-drop entry is first-class, not a fallback",
+        "Empty/ambiguous search results have distinct, honest copy"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Route Result screen: two-stage loading, map/list, RouteResultViewModel and nav types",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/RouteResult/RouteResultView.swift",
+        "Features/RouteResult/RouteResultViewModel.swift",
+        "Features/RouteResult/Segment.swift",
+        "Features/RouteResult/RouteResultInput.swift",
+        "Features/RouteResult/RouteResultLoadPhase.swift",
+        "Features/Plan/PlanRoute.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Single scrolling container, no fixed header, survives largest Dynamic Type with no truncation",
+        "checkingObstacles phase holds a visible 400-600ms minimum even when local scoring is instant",
+        "Single-route results hide switcher chips and use honest only-route-found wording",
+        "Zero-matched-obstacle routes say no reported obstacles, never safe or accessible"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Route Result loading-floor timing test and scenario state tests",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tests/UITests/RouteResultLoadingFloorTests.swift",
+        "Tests/UITests/RouteResultScenarioTests.swift"
+      ],
+      "depends_on": [
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Mechanical test asserts checkingObstacles duration meets the 400-600ms floor even with instant local scoring",
+        "Distinct honestly-worded tests exist for permission-denied, offline, geocoding failure, no-route-found, no-nearby-obstacles, low-confidence, single-route"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Report Obstacle sheet + Obstacle Detail sheet + local rescore wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/ReportObstacle/ReportObstacleView.swift",
+        "Features/ObstacleDetail/ObstacleDetailView.swift"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Report completes in under 30 seconds",
+        "Save calls ReportSubmission.submit then routeResultViewModel.rescore() only, never a second directions call",
+        "looks clear now option appears only when reporting against an existing flagged item"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Manual VoiceOver pass on Route Result and Report sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tests/Accessibility/RouteResultVoiceOverChecklist.md"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "VoiceOver reaches route summary, every flagged item, and the report action with zero dead ends",
+        "Reading order matches recommendation -> confidence -> why -> selector -> toggle -> content"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Saved tab: favorites list, lazy staggered refresh capped at 2 concurrent (owned by primary_ui \u2014 FavoriteRowStatus and SavedRoute were locked as primary_ui types in the tech-spec interfaces-json)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Saved/SavedView.swift",
+        "Features/Saved/SavedViewModel.swift",
+        "Features/Saved/FavoriteRowStatus.swift",
+        "Features/Saved/SavedRoute.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-013",
+        "T-014",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Rows refetch lazily and staggered, never all at once on tab appear",
+        "Persistent 2-of-2-free indicator shown at cap",
+        "Reopened favorite uses today's suggested route framing, live re-fetch of geometry only"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Saved refresh concurrency-safety test",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tests/IntegrationTests/SavedConcurrencyTests.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Test proves no race or double-fire when two favorite rows trigger a refresh close together, not just visual staggering"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Paywall sheet + StoreKit purchase/restore UI + restore-gates-paywall test",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Features/Paywall/PaywallView.swift",
+        "Tests/IntegrationTests/PaywallRestoreGatesTests.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "3rd favorite save attempt triggers paywall over the actual route just tried, not a silent failure",
+        "Sells only unlimited favorites plus share export, never implies routing/scoring/reporting are premium",
+        "Test asserts restoring purchases after reinstall suppresses the paywall on the very next favorite-save attempt, distinct from restore-works-in-isolation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Share snapshot builder + share preview + ShareLink export",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Domain/Share/ShareSnapshot.swift",
+        "Domain/Share/MakeShareSnapshot.swift",
+        "Features/SharePreview/SharePreviewView.swift"
+      ],
+      "depends_on": [
+        "T-014",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "ShareSnapshot is self-contained, no account or network required to open",
+        "Share preview shows exactly what ShareLink will export before it's invoked"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Settings/info screen",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Features/Settings/SettingsView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Full disclaimer text, sample-data explanation, restore purchases, note-privacy guidance, demo-data reset, and clear-recents controls all present and functional"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Integration pass: wire real services into AppDependencies for release configuration",
+      "owner_lane": "primary_ui",
+      "files": [
+        "App/AppDependencies.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007",
+        "T-009",
+        "T-010",
+        "T-011",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Real LocationService, RouteSearchService, ObstacleRepository, FavoritesRepository, RecentsRepository, CachedRouteRepository, PurchaseService, ReachabilityMonitor all wired in place of fakes",
+        "Fakes remain available for previews/tests only, gated out of the release build",
+        "This file plus target build-settings/scheme changes are the only edits requiring integrator sign-off; routine new-file target-membership additions by any lane are not a shared-edit-zone violation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Accessibility CI gate wiring",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/AccessibilityAuditTests.swift"
+      ],
+      "depends_on": [
+        "T-020",
+        "T-021",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "performAccessibilityAudit() runs as a mechanical CI gate covering contrast, hit-target size, missing labels across all screens",
+        "Runs alongside, not instead of, the manual VoiceOver pass from T-020"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Full regression script and final release checklist",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/RegressionUITests.swift"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-023",
+        "T-024",
+        "T-025",
+        "T-026",
+        "T-027"
+      ],
+      "acceptance_criteria": [
+        "Script covers fresh install, demo corridor, manual origin, zero-obstacle route, low-confidence route, report submission, favorite save, paywall intercept, cached-route offline review, and seed reset",
+        "Every step passes on a real device or simulator run before the app is called done"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

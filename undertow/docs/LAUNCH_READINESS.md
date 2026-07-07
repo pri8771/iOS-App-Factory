@@ -1,0 +1,32 @@
+# undertow — Launch Readiness
+
+_Honest, non-AI summary. 'Verified' means a real tool ran and passed; anything else is stated plainly._
+
+- Phases completed: **21 / 21**
+- Phases reaching consensus: **12 / 21**
+- Build verification: **VERIFIED (compiled cleanly for the iOS Simulator)**
+- Secret scan: PASS (0 hardcoded secrets)
+
+## Per-phase status
+
+- Prompt Contract — • completed
+- Product Research — • completed
+- Portfolio Selection — • completed
+- Initial Discussion — • completed
+- Per App Product Brief — • completed
+- Next Steps Small — • completed
+- Detailed Discussion — • completed
+- App Features — • completed
+- Design Discussion — • completed
+- Design Handoff — ✅ consensus
+- Ios Architecture Review — ✅ consensus
+- Tech Specs — ✅ consensus
+- Project Plan — ✅ consensus
+- Task Assignments — ✅ consensus
+- Implementation Readiness Gate — ✅ consensus
+- Build Coordination — ✅ consensus
+- Build Verification — ✅ consensus
+- Human Qa Checklist — ✅ consensus
+- App Store Readiness — ✅ consensus
+- Final Review — ✅ consensus
+- Portfolio Audit — ✅ consensus

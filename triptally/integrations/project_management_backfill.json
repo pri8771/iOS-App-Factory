@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "triptally",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b3\nSelected app slug: triptally\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# TripTally\n\nBuild mode: **MVP build**.\nBuild priority: **5**.\n\n## App Name\n\nTripTally\n\n## Category\n\nTravel\n\n## One-Sentence Promise\n\nA trip-specific shared expense ledger that handles multiple currencies and settles up without everyone needing the app or being online.\n\n## Target User\n\nGroups of friends or family splitting costs across a multi-day, multi-currency trip.\n\n## Painful Moment Solved\n\nGeneric expense splitters aren't trip-aware \u2014 no day-by-day view, no currency-at-time-of-purchase handling, and everyone must be online with the same app.\n\n## Why It Is Different\n\nA trip-day timeline view of spending with manually-entered, locked-at-time exchange rates (no live FX dependency), letting one organizer log for the whole group and export a settle-up summary via Messages/PDF.\n\n## Why Users Would Pay\n\nMultiple simultaneous trips, receipt photo OCR, multi-organizer collaborative editing via exchanged trip files, detailed spend-by-category reports.\n\n## Subscription Model\n\nFree: 1 active trip, manual entry only. Paid: unlimited trips, OCR receipts, detailed reports.\n\n## Local-First MVP Scope\n\nFully local ledger per trip; sharing/settling via exported summary (share sheet/PDF/text), not live multi-device sync.\n\n## Future Backend Roadmap\n\nReal-time shared ledger via CloudKit sharing so multiple people edit the same trip live.\n\n## AR / Local ML / Local LLM Fit\n\nOn-device Vision OCR for receipt photo capture of amount and currency.\n\n## Design Direction\n\nClean financial-editorial look, currency-forward typography, a trip-day timeline as the visual centerpiece.\n\n## App Store Positioning\n\nThe trip expense ledger built for real multi-currency, multi-day travel \u2014 not a generic bill splitter.\n\n## Invalidation Criteria\n\nIf organizers churn mid-trip at a high rate, the single-logger dependency fails and needs a faster, lighter capture flow.\n\n## v1 Build Scope\n\nTrip/traveler setup, expense logging with currency, day timeline, settle-up calculation, export summary.\n\n## Core Workflows\n\n- Create trip and travelers\n- Log an expense with currency and split\n- View day-by-day spend timeline\n- View settle-up summary\n- Export/share the summary\n\n## iOS-Native Features\n\n- Widgets for current trip spend\n- Live Activities for active trip-day spend total\n- App Intents for quick expense logging\n\n## Key Risks\n\n- Value depends on one diligent organizer logging for the group\n- Manually-entered exchange rates must be clearly labeled as user-entered, not live\n- Risk of reading as 'just Splitwise for trips' if execution doesn't distinguish it\n\n## Claude Design Handoff Prompt\n\nDesign a clean, currency-forward trip-expense app: a day-by-day spend timeline as the hero view, a fast expense-entry sheet with currency picker, and a clear settle-up summary screen suitable for exporting.\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n",
+    "verification": "UNVERIFIED (no .xcodeproj/.xcworkspace found.)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "TRIPTALLY",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "build_coordination"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "final_review"
+        ]
+      }
+    ],
+    "issues": []
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "triptally",
+      "Status": "Needs review",
+      "Source": "Orchestrator",
+      "Workflow Phases": 3
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-b3\nSelected app slug: triptally\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# TripTally\n\nBuild mode: **MVP build**.\nBuild priority: **5**.\n\n## App Name\n\nTripTally\n\n## Category\n\nTravel\n\n## One-Sentence Promise\n\nA trip-specific shared expense ledger that handles multiple currencies and settles up without everyone needing the app or being online.\n\n## Target User\n\nGroups of friends or family splitting costs across a multi-day, multi-currency trip.\n\n## Painful Moment Solved\n\nGeneric expense splitters aren't trip-aware \u2014 no day-by-day view, no currency-at-time-of-purchase handling, and everyone must be online with the same app.\n\n## Why It Is Different\n\nA trip-day timeline view of spending with manually-entered, locked-at-time exchange rates (no live FX dependency), letting one organizer log for the whole group and export a settle-up summary via Messages/PDF.\n\n## Why Users Would Pay\n\nMultiple simultaneous trips, receipt photo OCR, multi-organizer collaborative editing via exchanged trip files, detailed spend-by-category reports.\n\n## Subscription Model\n\nFree: 1 active trip, manual entry only. Paid: unlimited trips, OCR receipts, detailed reports.\n\n## Local-First MVP Scope\n\nFully local ledger per trip; sharing/settling via exported summary (share sheet/PDF/text), not live multi-device sync.\n\n## Future Backend Roadmap\n\nReal-time shared ledger via CloudKit sharing so multiple people edit the same trip live.\n\n## AR / Local ML / Local LLM Fit\n\nOn-device Vision OCR for receipt photo capture of amount and currency.\n\n## Design Direction\n\nClean financial-editorial look, currency-forward typography, a trip-day timeline as the visual centerpiece.\n\n## App Store Positioning\n\nThe trip expense ledger built for real multi-currency, multi-day travel \u2014 not a generic bill splitter.\n\n## Invalidation Criteria\n\nIf organizers churn mid-trip at a high rate, the single-logger dependency fails and needs a faster, lighter capture flow.\n\n## v1 Build Scope\n\nTrip/traveler setup, expense logging with currency, day timeline, settle-up calculation, export summary.\n\n## Core Workflows\n\n- Create trip and travelers\n- Log an expense with currency and split\n- View day-by-day spend timeline\n- View settle-up summary\n- Export/share the summary\n\n## iOS-Native Features\n\n- Widgets for current trip spend\n- Live Activities for active trip-day spend total\n- App Intents for quick expense logging\n\n## Key Risks\n\n- Value depends on one diligent organizer logging for the group\n- Manually-entered exchange rates must be clearly labeled as user-entered, not live\n- Risk of reading as 'just Splitwise for trips' if execution doesn't distinguish it\n\n## Claude Design Handoff Prompt\n\nDesign a clean, currency-forward trip-expense app: a day-by-day spend timeline as the hero view, a fast expense-entry sheet with currency picker, and a clear settle-up summary screen suitable for exporting.\n\n## Parent Portfolio Prompt\n\nBuild 9 completely separate production-ready iOS apps at the same time: exactly 3 Social Networking apps, 3 Travel apps, and 3 Utilities apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 18 candidate ideas, discuss them thoroughly, choose the best 9, and build all 9 to production quality.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [],
+    "interfaces": []
+  },
+  "phase_outputs": {
+    "iterate_scope": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+    "build_coordination": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\n**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)",
+    "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED"
+  }
+}

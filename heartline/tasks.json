@@ -1,0 +1,438 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Domain value types: RiskInputs, RiskOutput, RiskBand, FormulaVersion, RiskAssessment, InputDelta and their nested enums",
+      "owner_lane": "data_domain",
+      "files": [
+        "Heartline/Sources/DataDomain/RiskInputs.swift",
+        "Heartline/Sources/DataDomain/RiskOutput.swift",
+        "Heartline/Sources/DataDomain/RiskAssessment.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All types compile as Codable, Sendable, Equatable per tech_specs signatures",
+        "RiskAssessment keeps rawInputs/formulaVersion/computedOutput as three separate stored fields, never collapsed",
+        "No SwiftUI import anywhere in this file set"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "RiskCalculationEngine and UnitConversion as pure nonisolated namespace enums, plus fixture and round-trip tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "Heartline/Sources/DataDomain/RiskCalculationEngine.swift",
+        "Heartline/Sources/DataDomain/UnitConversion.swift",
+        "HeartlineTests/DataDomainTests/RiskCalculationEngineTests.swift",
+        "HeartlineTests/DataDomainTests/UnitConversionTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "calculate(inputs:formulaVersion:) throws RiskCalculationError.missingRequiredQuickField when age/sex/smoking/height/weight absent, never a crash",
+        "Fixture tests cover a case at every RiskBand threshold boundary",
+        "UnitConversion round-trip tests pass for mmol/L<->mg/dL, cm<->in, kg<->lb within floating point tolerance",
+        "Engine and conversions have zero dependency on RiskProfileStore or SwiftUI"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Shared Application Support directory bootstrap to prevent SnapshotFileStore/WizardDraftStore first-launch race",
+      "owner_lane": "data_domain",
+      "files": [
+        "Heartline/Sources/DataDomain/AppDirectory.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Single function ensures the app's Application Support subdirectory exists, callable once at launch before any actor touches disk",
+        "Test simulates fresh install with both actors triggered near-simultaneously and confirms no crash/duplicate-directory error"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "SnapshotFileStore and WizardDraftStore actors, PersistenceError, WizardDraft",
+      "owner_lane": "data_domain",
+      "files": [
+        "Heartline/Sources/DataDomain/SnapshotFileStore.swift",
+        "Heartline/Sources/DataDomain/WizardDraftStore.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Files live in Application Support with .completeUntilFirstUserAuthentication protection, included in iCloud device backup (not excluded)",
+        "SnapshotFileStore.load() read/decode failure returns empty array, never throws to caller as a crash",
+        "WizardDraftStore.saveDraft is called on scenePhase .background transitions during an active wizard session and clearDraft on confirm/cancel",
+        "Both are declared as Swift actor, isolated off main"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "RiskProfileStore merge point: addAssessment awaits SnapshotFileStore before mutating in-memory state",
+      "owner_lane": "data_domain",
+      "files": [
+        "Heartline/Sources/DataDomain/RiskProfileStore.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "@MainActor @Observable class, single source of truth for committed assessments",
+        "addAssessment awaits the actor save before appending in-memory so disk and memory can't drift",
+        "load() failure path renders empty-state data, not an error state",
+        "diff(_:_:) produces InputDelta array consumed by AssessmentDiffView"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Author frozen shared fixtures: one reference RiskAssessment+trend array, one old-formula-version JSON snapshot",
+      "owner_lane": "data_domain",
+      "files": [
+        "HeartlineTests/DataDomainTests/Fixtures/FrozenGoldenAssessment.json",
+        "HeartlineTests/DataDomainTests/Fixtures/FrozenGoldenAssessment.swift",
+        "HeartlineTests/DataDomainTests/Fixtures/LegacyFormulaVersionSnapshot.json"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Exactly one golden fixture exists and is imported by both the migration test and the PDF golden-file test \u2014 no second independently authored fixture",
+        "Legacy snapshot is authored and frozen now, before FormulaVersion ever gains a second case"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Formula-version migration test proving old computedOutput survives under a newer FormulaVersion",
+      "owner_lane": "data_domain",
+      "files": [
+        "HeartlineTests/DataDomainTests/FormulaVersionMigrationTests.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Decodes LegacyFormulaVersionSnapshot.json and asserts computedOutput is byte-for-byte unchanged after load",
+        "Test fails loudly if any future FormulaVersion case addition mutates historical computedOutput"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Design tokens: asset-catalog Color Sets and spacing/corner-radius/type-scale constants",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Heartline/Heartline/Assets.xcassets/Colors/bgCanvas.colorset",
+        "Heartline/Heartline/Assets.xcassets/Colors/surfaceCard.colorset",
+        "Heartline/Heartline/Assets.xcassets/Colors/inkPrimary.colorset",
+        "Heartline/Heartline/Assets.xcassets/Colors/inkSecondary.colorset",
+        "Heartline/Heartline/Assets.xcassets/Colors/accentTeal.colorset",
+        "Heartline/Heartline/Assets.xcassets/Colors/bandLow.colorset",
+        "Heartline/Heartline/Assets.xcassets/Colors/bandModerate.colorset",
+        "Heartline/Heartline/Assets.xcassets/Colors/bandHigh.colorset",
+        "Heartline/Heartline/Assets.xcassets/Colors/strokeSubtle.colorset",
+        "Heartline/Sources/PolishResilience/DesignTokens.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Every color set has both light and dark hex values baked in per design_handoff's exact values",
+        "bandHigh is referenced nowhere outside RiskBandBadge/chart high-segment \u2014 lint check or code comment enforcing this",
+        "DesignTokens.swift exposes spacing (4/8/12/16/24/32/40) and corner radius (16, 12) as named constants, no screen hardcodes a raw number"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Shared resilience components: EmptyStateView, LoadingSkeletonView, SkeletonKind, AccessibilityAnnouncer",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Heartline/Sources/PolishResilience/EmptyStateView.swift",
+        "Heartline/Sources/PolishResilience/LoadingSkeletonView.swift",
+        "Heartline/Sources/PolishResilience/AccessibilityAnnouncer.swift"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "One shared EmptyStateView used by Home/Trends/Prep Sheet, no screen hand-rolls its own",
+        "LoadingSkeletonView supports gauge/chart/list SkeletonKind cases",
+        "AccessibilityAnnouncer pairs VoiceOver announcement of number+band together, never band alone"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "RiskBandBadge: the single reusable band-rendering component",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Heartline/Sources/PrimaryUI/RiskBandBadge.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Every band render anywhere in the app goes through this view, never a raw color fill",
+        "Icon+text always both present, verified by a snapshot or accessibility-label test",
+        "Uses bandLow/bandModerate/bandHigh tokens exclusively"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "StoreKit: SubscriptionManager, EntitlementState, SubscriptionProduct, local .storekit config, entitlement gate wired to Prep Sheet export only",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Heartline/Sources/ServicesUtilities/SubscriptionManager.swift",
+        "Heartline/Sources/ServicesUtilities/EntitlementState.swift",
+        "Heartline/Sources/ServicesUtilities/SubscriptionProduct.swift",
+        "Heartline/Heartline.storekit"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "start() begins the Transaction listener at launch",
+        "entitlementState is cached and trusted until a fresh check succeeds; never a synchronous network gate",
+        "unknown state renders as free-tier-visible, never a hard lock",
+        "Gate is implemented specifically on Prep Sheet PDF export/share action \u2014 viewing score, trends, and running the wizard are never gated",
+        "StoreKit Testing config exercises purchase, restore, and airplane-mode cached-entitlement behavior"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "UnitPreferencesStore: persisted default display units",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Heartline/Sources/ServicesUtilities/UnitPreferencesStore.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "UserDefaults-backed, not Application-Support file-protected (display preference, not medical data)",
+        "Exposes cholesterolUnit/weightUnit/heightUnit as the single source every screen reads for default display units"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "NotificationScheduler: contextual local reminder, never on cold launch",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Heartline/Sources/ServicesUtilities/NotificationScheduler.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "scheduleUpdateReminder is only ever called after a first assessment completes, verified by a call-site test, never from app launch code path",
+        "Local UNUserNotificationCenter only, no remote push"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "AppLockController: optional Face ID/Touch ID gate",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Heartline/Sources/ServicesUtilities/AppLockController.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Off by default, opt-in only via SettingsView",
+        "authenticate() uses LocalAuthentication, fails closed (isLocked stays true) on any authentication error"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "RootTabView environment-injection shell with empty tab destinations and scenePhase observation",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Heartline/Sources/PrimaryUI/RootTabView.swift",
+        "Heartline/Heartline/HeartlineApp.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Injects RiskProfileStore, SubscriptionManager, UnitPreferencesStore into environment exactly once at this root",
+        "Single scenePhase observer here triggers WizardDraftStore autosave when the wizard sheet is presented \u2014 no other view independently observes scenePhase for this purpose",
+        "HeartlineApp.swift is the only @main entry point file and is integrator-reviewed before merge"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Home screen with RiskGaugeView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Heartline/Sources/PrimaryUI/HomeView.swift",
+        "Heartline/Sources/PrimaryUI/RiskGaugeView.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-010",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "nil output + not loading renders EmptyStateView prompting first assessment",
+        "isLoading renders LoadingSkeletonView(.gauge)",
+        "disk-read failure falls back to empty state, never a crash",
+        "Arc fill animates 0.6s spring on load, snaps instantly under Reduce Motion",
+        "CTAs present: Update my numbers, Prep for my GP visit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Trends screen with TrendLineChart, AssessmentMarker, AssessmentDiffView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Heartline/Sources/PrimaryUI/TrendsView.swift",
+        "Heartline/Sources/PrimaryUI/TrendLineChart.swift",
+        "Heartline/Sources/PrimaryUI/AssessmentMarker.swift",
+        "Heartline/Sources/PrimaryUI/AssessmentDiffView.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-010",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Fewer than 2 assessments shows 'keep tracking to see your trend' empty state",
+        "hasAnimated flag ensures line draw-in fires once per session, not on every tab reselect",
+        "Tapping two markers presents AssessmentDiffView with both RiskBandBadges plus field-by-field InputDelta list"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Prep Sheet screen and PrepSheetDocument single-layout-source view",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Heartline/Sources/PrimaryUI/PrepSheetView.swift",
+        "Heartline/Sources/PrimaryUI/PrepSheetDocument.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-010",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Empty state (no assessments) points back to Home",
+        "forcedLightAppearance parameter, when true, renders standard-type-size light-mode regardless of environment",
+        "This is the single layout source backing both on-screen and PDF export \u2014 no separate PDF-only view exists"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Risk-input wizard: WizardStepContainer, QuickEstimateForm, ClinicalPrecisionForm, UnitToggle, wizard container wired to WizardDraftStore",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Heartline/Sources/PrimaryUI/WizardStepContainer.swift",
+        "Heartline/Sources/PrimaryUI/QuickEstimateForm.swift",
+        "Heartline/Sources/PrimaryUI/ClinicalPrecisionForm.swift",
+        "Heartline/Sources/PrimaryUI/UnitToggle.swift",
+        "Heartline/Sources/PrimaryUI/RiskInputWizardView.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-004",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Live preview is local @State, debounced, committed to RiskProfileStore only on confirm",
+        "Score badged 'estimate' until clinical step completes",
+        "Back navigation preserves already-entered answers in both steps, never resets the other step's draft",
+        "On relaunch after a scenePhase-background event mid-wizard, the wizard offers to resume from WizardDraftStore rather than starting blank",
+        "UnitToggle stress-tested at accessibility XXL Dynamic Type size without clipping"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "SettingsView: unit defaults, notification toggle, app-lock toggle, subscription management entry",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Heartline/Sources/PrimaryUI/SettingsView.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-012",
+        "T-013",
+        "T-014",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Reached only via gear icon on Home, not a tab",
+        "Unit toggles here persist to UnitPreferencesStore and are reflected app-wide, not just in this session"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "PDFExportService wrapping ImageRenderer in forced light/standard-size environment",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Heartline/Sources/ServicesUtilities/PDFExportService.swift"
+      ],
+      "depends_on": [
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "renderPDF always passes forcedLightAppearance: true into PrepSheetDocument regardless of live app Dark Mode or Dynamic Type setting",
+        "Export action is the single point where entitlementState is checked per the T-011 gate decision"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "PDF golden-file test using the shared frozen fixture",
+      "owner_lane": "services_utilities",
+      "files": [
+        "HeartlineTests/ServicesUtilitiesTests/PDFExportGoldenFileTests.swift"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Renders the same FrozenGoldenAssessment fixture from T-006, not a separately authored one",
+        "Test explicitly sets the live environment to Dark Mode + accessibility text size before export and asserts the output PDF is still light/standard-size"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Scenario verification pass: wizard-backgrounding resume, corrupt-snapshot fallback, airplane-mode entitlement, dark-mode PDF export end-to-end",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "HeartlineTests/ScenarioTests/WizardResumeScenarioTests.swift",
+        "HeartlineTests/ScenarioTests/CorruptSnapshotScenarioTests.swift",
+        "HeartlineTests/ScenarioTests/OfflineEntitlementScenarioTests.swift"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-011",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Killing the app mid-wizard and relaunching resumes the clinical step with prior answers intact",
+        "A hand-corrupted snapshot file on disk causes RiskProfileStore.load to fall back to empty state, not a crash loop",
+        "A previously-entitled subscriber in simulated airplane mode is never locked out of Prep Sheet export",
+        "All four scenarios pass before the app is declared done, per the acceptance checks for this phase"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

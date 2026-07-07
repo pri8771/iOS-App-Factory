@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Arena on-device touch-timestamp spike + ArenaUIView scaffold",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Flinch/Arena/ArenaUIView.swift",
+        "Flinch/Arena/TouchSample.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Minimal UIViewRepresentable logs UITouch.timestamp deltas for simultaneous multi-finger lifts, run on an actual older/lower-end physical device, not just simulator",
+        "Findings on touchesCancelled reliability and timestamp precision are written down and shared before T-008 begins",
+        "TouchSample struct captures beganAt/endedAt/wasCancelled using UITouch.timestamp, never Date() or SwiftUI dispatch time"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Core domain models",
+      "owner_lane": "data_domain",
+      "files": [
+        "Flinch/Engine/Player.swift",
+        "Flinch/Engine/GamePhase.swift",
+        "Flinch/Engine/Heat.swift",
+        "Flinch/Engine/EliminationReason.swift",
+        "Flinch/Engine/EliminationRecord.swift",
+        "Flinch/Engine/Match.swift",
+        "Flinch/Engine/MatchStartError.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All types compile with Codable/Hashable/Identifiable conformances exactly as specified in tech_specs",
+        "Heat.survivorTarget defaults to ceil(count/2) so a small odd heat never advances zero players",
+        "Codable round-trip unit tests pass for Match, Heat, EliminationRecord"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "HeatPlanner pure function + full boundary tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "Flinch/Engine/HeatPlanner.swift",
+        "FlinchTests/HeatPlannerTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Nonisolated pure function, callable from background test threads with no actor hop",
+        "Tests cover 3, 5, 6, 7, 10 players, the exact simultaneousCap(6) boundary, and odd totals",
+        "A heat structure that reduces the final round to exactly one player auto-advances that player straight to Game Over; Arena only ever runs with 2+ players present, and this is a covered test case, not just a code comment"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "ArenaResolver + arming duration provider",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Flinch/Arena/ArenaResolver.swift",
+        "Flinch/Arena/ArmingDurationProviding.swift",
+        "Flinch/Arena/ArenaVerdict.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "ArenaResolver.resolve(samples:triggerTime:) is a pure, nonisolated function with zero UIView/UITouch dependency",
+        "RandomArmingDurationProvider defaults to 1.5...3.0s range; a fixed-value stub is injectable for tests",
+        "Unit tests use synthetic TouchSample arrays to cover resolved/falseStart/slowLift/voided outcomes without touching UIKit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Match history persistence",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Flinch/Services/MatchHistoryStore.swift",
+        "Flinch/Services/MatchRecord.swift",
+        "Flinch/Services/MatchPersistenceError.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "JSON file via FileManager, capped at last 50 MatchRecord entries, oldest trimmed",
+        "A corrupt/undecodable file degrades to an empty array internally via MatchPersistenceError; it never throws past app launch or blocks the UI",
+        "Round-trip test plus an explicit corrupt-file test case both pass"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "In-progress match snapshot store",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Flinch/Services/MatchSnapshotStore.swift",
+        "Flinch/Arena/VoidReason.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "save/loadSnapshot/clearSnapshot operate on the exact Match struct from T-002",
+        "Decode failure returns nil, never throws, reusing MatchPersistenceError from T-005 internally",
+        "VoidReason covers droppedTouch, backgrounded, and manual cases",
+        "This file lives inside the Services/ folder but is NOT touched by the services_utilities lane \u2014 ownership is by task, not by folder"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "GameEngine core state machine",
+      "owner_lane": "data_domain",
+      "files": [
+        "Flinch/Engine/GameEngine.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-004",
+        "T-005",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "@Observable @MainActor, sole owner of match state and navigation route",
+        "startMatch(players:) throws MatchStartError for belowMinimumPlayers/duplicateName; PlayerSetupView will only surface this, never re-validate",
+        "handleScenePhaseChange voids an in-progress round on background/inactive rather than resolving against timestamps captured while suspended, and writes a real snapshot via MatchSnapshotStore between rounds",
+        "resumeIfAvailable is tested against T-006's real store, not a stub",
+        "A decode-forward-compatibility test exists: an old on-disk snapshot decoded against a schema that has since gained a new GamePhase/EliminationReason case degrades to 'no snapshot' instead of silently vanishing unnoticed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Wire ArenaUIView to resolver, animation, and haptics",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Flinch/Arena/ArenaUIView.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-004",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Tension/arming animation runs on CADisplayLink/CABasicAnimation entirely inside the UIKit view, invisible to SwiftUI's Observation graph",
+        "HapticsEngine.prepare() is called at arming-phase start, not at trigger time",
+        "ArenaUIView calls ArenaResolver.resolve(...) synchronously on main and hands the ArenaVerdict straight to GameEngine.applyArenaVerdict, no actor hop",
+        "This task closes and lands before T-015 opens, since T-015 edits this same file next"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Haptics engine",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Flinch/Services/HapticsEngine.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "prepare/fireTrigger/fireSurvival/fireFalseStart/fireSlowLiftElimination all implemented with UIImpactFeedbackGenerator",
+        "Each fire method uses a haptic pattern distinguishable by feel from the others per the design phase's accessibility notes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Settings store",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Flinch/Services/SettingsStore.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "UserDefaults-backed, load() falls back to defaults on any decode issue rather than throwing",
+        "accessibleModeDefault is never gated by ProEntitlementState anywhere in this file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "StoreKit 2 purchase flow",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Flinch/Services/StoreManager.swift",
+        "Flinch/Services/ProEntitlementState.swift",
+        "Flinch/Services/PurchaseErrorReason.swift",
+        "Flinch/Configuration.storekit"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "One-time 'Flinch Pro' unlock product wired through StoreKit 2, not a subscription",
+        "Entitlement cached via Transaction.currentEntitlements so Pro works with no network at an offline party",
+        "ProEntitlementState.error carries a PurchaseErrorReason (network/userCancelled/verificationFailed) distinguishable by the calling UI",
+        "A local .storekit config file is checked into the project as a tracked artifact, not assumed to exist"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "SwiftUI screens, navigation shell, and shared components",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Flinch/Views/AppRoute.swift",
+        "Flinch/Views/HomeView.swift",
+        "Flinch/Views/PlayerSetupView.swift",
+        "Flinch/Views/HowToPlayView.swift",
+        "Flinch/Views/HeatAssignmentView.swift",
+        "Flinch/Views/EliminationRevealView.swift",
+        "Flinch/Views/RoundSummaryView.swift",
+        "Flinch/Views/GameOverView.swift",
+        "Flinch/Views/SettingsView.swift",
+        "Flinch/Views/MatchContainerView.swift",
+        "Flinch/Components/PlayerDot.swift",
+        "Flinch/Components/TensionField.swift",
+        "Flinch/Components/EliminationBadge.swift",
+        "Flinch/Components/ReactionTimeChip.swift",
+        "Flinch/Components/ScoreboardRow.swift",
+        "Flinch/Components/PrimaryButton.swift",
+        "Flinch/Components/PlayerChip.swift",
+        "Flinch/Components/SettingsToggleRow.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-007",
+        "T-010",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "NavigationStack stays shallow: Home -> PlayerSetup -> MatchPlay/Settings, never grows per round",
+        "MatchContainerView switches its body on GameEngine.match.phase and cross-fades; Heat Assignment is a state inside it, not a separate push",
+        "Back-navigation out of a live match is a single confirm-to-abandon alert, never a raw stack pop",
+        "PlayerSetupView surfaces MatchStartError (duplicate name, below minimum) without re-implementing validation",
+        "Every screen that can reach empty/loading/success/error states implements all applicable ones, including the purchase flow's three distinct PurchaseErrorReason treatments",
+        "MatchContainerView contains the accessible-mode branch reading SettingsStore.accessibleModeDefault; polish_resilience does not edit this file to add it"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Full Arena round flow integration inside the match loop",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Flinch/Views/MatchContainerView.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Arena -> Elimination Reveal -> Round Summary -> next round or Game Over loop works end to end for a single heat",
+        "False-start and slow-lift eliminations render visually and haptically distinct outcomes",
+        "Heat Assignment correctly routes multi-heat matches into a final round only when 2+ survivors remain"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Accessible Mode arena substitute",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Flinch/Arena/AccessibleArenaView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Sequential, single-tap-per-player, VoiceOver-friendly interaction replacing simultaneous multitouch",
+        "Produces the identical ArenaVerdict/EliminationReason contract as ArenaUIView so GameEngine can't tell which one ran",
+        "Never gated behind ProEntitlementState"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Manual void-round backstop and Reduce Motion fallback",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Flinch/Arena/ArenaUIView.swift"
+      ],
+      "depends_on": [
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "A manual 'void this round' affordance exists in the Arena UI as a backstop, since touchesCancelled is not guaranteed to fire for every real dropped-touch scenario",
+        "Reduce Motion swaps the trigger flash for a cross-fade and promotes haptic feedback to the primary trigger cue",
+        "This task opens only after T-008 and T-013 have both landed, to avoid concurrent edits to the same file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Device integration pass across heats and interruption scenarios",
+      "owner_lane": "polish_resilience",
+      "files": [],
+      "depends_on": [
+        "T-007",
+        "T-013",
+        "T-014",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Full game loop verified end to end across the heats boundary matrix (3, 5, 6, 7, 10 players) on a real device",
+        "scenePhase interruption (call, lock screen, backgrounding) tested specifically on an older device under simulated memory pressure, not just a current-gen simulator",
+        "VoiceOver pass through Accessible Mode completed and logged as a manual result, not inferred from unit tests"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Ship readiness: StoreKitTest verification and final checklist",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FlinchTests/StoreManagerTests.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Purchase, restore, and all three PurchaseErrorReason paths verified against the local .storekit config via StoreKitTest, not live sandbox",
+        "Final manual device checklist and accessibility audit both signed off and recorded as the manual-only verification track distinct from CI"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

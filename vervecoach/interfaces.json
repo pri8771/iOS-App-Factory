@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "ConversationRole",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ConversationRole: String, Codable { case user, counterpart }",
+      "owning_lane": "data_domain",
+      "notes": "Who speaks a given PromptCard turn."
+    },
+    {
+      "name": "Scenario",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Scenario { var id: UUID; var title: String; var conversationKind: String; var counterpartName: String; var context: String; var scheduledFor: Date?; var createdAt: Date; var cards: [PromptCard]; var sessions: [RehearsalSession] }",
+      "owning_lane": "data_domain",
+      "notes": "Root entity for a defined upcoming conversation. conversationKind is a free string tag (e.g. 'salary_negotiation') not a closed enum, so users/rule engine can extend it."
+    },
+    {
+      "name": "PromptCard",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PromptCard { var id: UUID; var scenarioID: UUID; var order: Int; var role: ConversationRole; var promptText: String; var expectedResponseHint: String? }",
+      "owning_lane": "data_domain",
+      "notes": "One likely turn in the conversation, ordered within a Scenario."
+    },
+    {
+      "name": "RehearsalSession",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class RehearsalSession { var id: UUID; var scenarioID: UUID; var startedAt: Date; var endedAt: Date?; var turnRecords: [RehearsalTurnRecord]; var reflectionNotes: [ReflectionNote] }",
+      "owning_lane": "data_domain",
+      "notes": "One full run-through of a Scenario's cards."
+    },
+    {
+      "name": "RehearsalTurnRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class RehearsalTurnRecord { var id: UUID; var sessionID: UUID; var cardID: UUID; var transcript: String; var audioFilename: String?; var durationSeconds: Double; var critique: CritiqueResult? }",
+      "owning_lane": "data_domain",
+      "notes": "audioFilename references a file in Application Support, never stored as blob data."
+    },
+    {
+      "name": "ReflectionNote",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ReflectionNote { var id: UUID; var sessionID: UUID; var text: String; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Free-text weak-spot / next-best-phrasing note attached to a session."
+    },
+    {
+      "name": "CritiqueResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CritiqueResult: Codable { var strengths: [String]; var weakSpots: [String]; var suggestedPhrasing: [String]; var source: CritiqueSource; var generatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Embedded/codable value, not its own @Model, since it's owned 1:1 by a RehearsalTurnRecord."
+    },
+    {
+      "name": "CritiqueSource",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CritiqueSource: String, Codable { case ruleBased, onDeviceModel }",
+      "owning_lane": "data_domain",
+      "notes": "UI must always show which engine produced a critique so users trust the rule-based default and aren't confused by quality variance."
+    },
+    {
+      "name": "CritiqueProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CritiqueProviding: Sendable { func critique(response: String, forCard card: PromptCard) async -> CritiqueResult }",
+      "owning_lane": "services_utilities",
+      "notes": "RuleBasedCritiqueProvider always available; OnDeviceLLMCritiqueProvider checked via isAvailable before use, never assumed."
+    },
+    {
+      "name": "RuleBasedCritiqueProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RuleBasedCritiqueProvider: CritiqueProviding { func critique(response: String, forCard card: PromptCard) async -> CritiqueResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Ships to 100% of devices; detects filler words, hedging language, response length vs. expectedResponseHint."
+    },
+    {
+      "name": "OnDeviceLLMCritiqueProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct OnDeviceLLMCritiqueProvider: CritiqueProviding { static var isAvailable: Bool { get }; func critique(response: String, forCard card: PromptCard) async -> CritiqueResult }",
+      "owning_lane": "services_utilities",
+      "notes": "isAvailable gates on device/OS Foundation Models eligibility; never the sole critique path, purely additive enhancement."
+    },
+    {
+      "name": "SpeechRecognitionService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SpeechRecognitionService: Sendable { func startTranscribing() async throws -> AsyncStream<String>; func stop() }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps SFSpeechRecognizer; must handle authorization denial as a first-class state, not a crash."
+    },
+    {
+      "name": "AudioRecordingService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AudioRecordingService: Sendable { func startRecording() throws -> URL; func stopRecording() -> URL; var currentDuration: Double { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps AVAudioRecorder, writes .m4a to Application Support, returns filename for RehearsalTurnRecord.audioFilename."
+    },
+    {
+      "name": "ScenarioStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ScenarioStore: Sendable { func save(_ scenario: Scenario) throws; func fetchAll() throws -> [Scenario]; func delete(_ scenario: Scenario) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Thin wrapper over ModelContext so view models never touch SwiftData directly, keeping them testable with a fake store."
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementStore: Sendable { var isPremium: Bool { get }; func refresh() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Backed by StoreKit 2 Transaction.currentEntitlements; free tier caps active Scenarios and RehearsalSessions per month."
+    },
+    {
+      "name": "RehearsalPhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RehearsalPhase: Equatable { case presentingCard(PromptCard); case recording(PromptCard); case reviewingResponse(PromptCard, transcript: String); case critiquing(PromptCard); case complete }",
+      "owning_lane": "primary_ui",
+      "notes": "Single source of truth driving RehearsalSessionViewModel navigation; no boolean-flag navigation."
+    },
+    {
+      "name": "RehearsalSessionViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class RehearsalSessionViewModel { var phase: RehearsalPhase; func advance() async; func retakeCurrentTurn() }",
+      "owning_lane": "primary_ui",
+      "notes": "Owns the state machine for one live rehearsal run; consumes SpeechRecognitionService, AudioRecordingService, CritiqueProviding."
+    },
+    {
+      "name": "ScenarioSetupViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ScenarioSetupViewModel { var draft: Scenario; func addCard(role: ConversationRole, text: String); func save() throws }",
+      "owning_lane": "primary_ui",
+      "notes": "Backs the manual scenario/card setup flow."
+    },
+    {
+      "name": "ReviewViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ReviewViewModel { var sessions: [RehearsalSession]; func addReflectionNote(_ text: String, to session: RehearsalSession) throws }",
+      "owning_lane": "primary_ui",
+      "notes": "Backs session history / weak-spot review screen."
+    },
+    {
+      "name": "StartRehearsalIntent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StartRehearsalIntent: AppIntent { static var title: LocalizedStringResource; func perform() async throws -> some IntentResult }",
+      "owning_lane": "polish_resilience",
+      "notes": "App Intent for Siri/Shortcuts quick rehearsal start on a given Scenario."
+    },
+    {
+      "name": "UpcomingSessionWidget",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct UpcomingSessionWidget: Widget { var body: some WidgetConfiguration }",
+      "owning_lane": "polish_resilience",
+      "notes": "WidgetKit surface showing next scheduled Scenario; reads via App Group shared container, not direct SwiftData access."
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol NotificationScheduler: Sendable { func scheduleReminder(for scenario: Scenario) throws; func cancelReminder(for scenario: Scenario) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Wraps UNUserNotificationCenter for pre-conversation rehearsal reminders."
+    }
+  ],
+  "errors": []
+}

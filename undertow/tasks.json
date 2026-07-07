@@ -1,0 +1,591 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Core data types: GameState, typed IDs, ResourceBundle, Creature, CurrentUpgrade, StreakState, SpeciesEntry",
+      "owner_lane": "data_domain",
+      "files": [
+        "Undertow/DataDomain/GameState.swift",
+        "Undertow/DataDomain/TypedIDs.swift",
+        "Undertow/DataDomain/ResourceBundle.swift",
+        "Undertow/DataDomain/Creature.swift",
+        "Undertow/DataDomain/CurrentUpgrade.swift",
+        "Undertow/DataDomain/StreakState.swift",
+        "Undertow/DataDomain/SpeciesCatalog.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All types compile and conform to Codable/Equatable/Identifiable as specified in tech_specs interfaces-json",
+        "Typed IDs (BiomeID, CreatureID, SpeciesID, CurrentID) used everywhere instead of bare String/UUID",
+        "No SwiftUI import in this folder"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Pure economy functions + unit tests (OfflineGrowthCalculator, StockingDensityCurve, UpgradeCostCurve, StreakEngine)",
+      "owner_lane": "data_domain",
+      "files": [
+        "Undertow/DataDomain/OfflineGrowthCalculator.swift",
+        "Undertow/DataDomain/StockingDensityCurve.swift",
+        "Undertow/DataDomain/UpgradeCostCurve.swift",
+        "Undertow/DataDomain/StreakEngine.swift",
+        "UndertowTests/DataDomainTests/EconomyTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Zero Date() calls inside this folder; every function takes an injected Date/DateProvider",
+        "Unit tests cover negative elapsed (clamped to 0), elapsed beyond max catch-up cap, exact-affordability boundary, streak broken by exactly one day vs the grace window",
+        "visibleSpriteCount is hard-capped at 32-40 regardless of ownedCount",
+        "All tests green"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Shared cross-lane enums: PresentedSheet, Entitlement, PurchaseResult, AppError",
+      "owner_lane": "data_domain",
+      "files": [
+        "Undertow/DataDomain/PresentedSheet.swift",
+        "Undertow/DataDomain/Entitlement.swift",
+        "Undertow/DataDomain/PurchaseResult.swift",
+        "Undertow/DataDomain/AppError.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "PresentedSheet is Identifiable & Equatable with exactly one active case possible at a time",
+        "Enums are additive-only after this task merges: no case renames without a cross-lane review",
+        "Compiles standalone with no UI imports"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "DateProvider / SystemDateProvider / FixedDateProvider",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Undertow/Services/DateProvider.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "FixedDateProvider usable as a deterministic unit-test seam",
+        "No dependency on GameState or any data_domain type"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "PersistenceService: atomic JSON write/read to Application Support",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Undertow/Services/PersistenceService.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Writes go to a temp file then atomic rename, never a direct in-place overwrite",
+        "save() is off-main-actor from a copied value-type snapshot",
+        "load() returns nil (not throw) on first-ever launch with no saved file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "SchemaMigration + fake-v2 fixture proving the migration switch dispatches and decodes",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Undertow/Services/SchemaMigration.swift",
+        "UndertowTests/ServicesTests/SchemaMigrationTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "currentVersion constant defined and load() runs migrate() unconditionally, even at schemaVersion 1",
+        "A hand-authored JSON fixture with schemaVersion bumped and one structurally different field decodes correctly through the migration switch",
+        "Test fails loudly if the switch statement is ever a no-op passthrough"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "SpeciesCatalog content: 8-12 species per biome, bundled JSON",
+      "owner_lane": "data_domain",
+      "files": [
+        "Undertow/Resources/SpeciesCatalog.json"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Every biome in Depths has at least 8 species entries with displayName, voiceOverDescription, unlockRequirement",
+        "Catalog decodes into [SpeciesEntry] with no missing required fields",
+        "Runs in parallel with T-002/T-003, not blocked behind them"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Silhouette icon asset pass for undiscovered creatures (Claude Design)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Undertow/Resources/Assets.xcassets/CreatureSilhouettes/"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "12 single-color cyan/coral line-art silhouettes matching the locked design-handoff prompt",
+        "Exported as vector-compatible assets usable at Almanac card size",
+        "No photorealism, no gradients, consistent stroke weight"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "ReefStore engine: state ownership, purchaseCurrent, stirPool, claimDailyTide, handleScenePhaseChange with debounced multi-trigger save",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Undertow/Services/ReefStore.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-004",
+        "T-005",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Single @MainActor @Observable class, all mutation goes through its methods",
+        "handleScenePhaseChange stamps lastSeenDate on .background and applies OfflineGrowthCalculator on foreground synchronously before any async persistence",
+        "save() is also called (debounced) from purchaseCurrent, claimDailyTide, and stirPool's resource bump, not only from the scenePhase transition",
+        "Unit-testable via injected PersistenceService/DateProvider/StoreKitManaging fakes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Force-quit-after-purchase repro test",
+      "owner_lane": "services_utilities",
+      "files": [
+        "UndertowTests/ServicesTests/ForceQuitPersistenceTests.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Test simulates purchaseCurrent followed immediately by process termination (no scenePhase transition) and confirms the debounced save still persisted the purchase",
+        "Documented as a named, repeatable test case, not a manual-only step"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "App shell & entry point: UndertowApp.swift, environment injection, scenePhase wiring",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Undertow/App/UndertowApp.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Injects ReefStore via .environment() at the root",
+        "Wires .onChange(of: scenePhase) to ReefStore.handleScenePhaseChange",
+        "Integrator-owned file: any lane needing a change here files a note rather than editing directly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "ReefCanvas spike: TimelineView/Canvas rendering with sprite cap and vitality, timeboxed go/no-go",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/Reef/ReefCanvas.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Timeboxed at 2-3 days with a written go/no-go frame-rate measurement, not open-ended",
+        "Draw count bounded by StockingDensityCurve.visibleSpriteCount regardless of owned-creature count",
+        "Reduce Motion swaps ambient drift for a slow opacity pulse",
+        "If the go/no-go criterion is missed by deadline, falls back automatically to the pre-committed layered cross-faded illustration approach in the same file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Reef screen shell: ReefView, ResourcePill, TideProgressBar, ActionDrawer, RootTabView/AppTab, first-launch flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/Reef/ReefView.swift",
+        "Undertow/UI/Reef/ResourcePill.swift",
+        "Undertow/UI/Reef/TideProgressBar.swift",
+        "Undertow/UI/Reef/ActionDrawer.swift",
+        "Undertow/UI/Reef/FirstLaunchView.swift",
+        "Undertow/UI/AppTab.swift",
+        "Undertow/UI/RootTabView.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Reef renders previous state instantly on foreground, no blank screen or spinner while offline-growth reconciles",
+        "First-launch is a guided single tap, no modal tutorial",
+        "ResourcePill passes Dynamic Type at largest accessibility size"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Almanac screen: creature/biome codex with empty/loading/populated/locked states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/Almanac/AlmanacView.swift",
+        "Undertow/UI/Almanac/CreatureCard.swift",
+        "Undertow/UI/Almanac/CreatureDetailView.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-007",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Empty state uses the silhouette assets from T-008, never gray boxes",
+        "Locked state is a stubbed always-free Entitlement until T-026 wires the real gate",
+        "All four required states implemented"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Currents screen: upgrade tree with CurrentNode affordable/unaffordable/purchased/dormant states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/Currents/CurrentsView.swift",
+        "Undertow/UI/Currents/CurrentNode.swift",
+        "Undertow/UI/Currents/CurrentDetailView.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Nodes laid out along a flowing current-line, not a rigid grid",
+        "Tap target >=44pt via padding independent of visual node size",
+        "Unaffordable state shows a real preview, not a blank/disabled node"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Depths screen: vertical biome map",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/Depths/DepthsView.swift",
+        "Undertow/UI/Depths/BiomeTile.swift",
+        "Undertow/UI/Depths/BiomeDetailView.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Five biomes rendered in order (sunlit shallows to polar tide pool)",
+        "Optional display-serif accent used only for biome names, never UI chrome"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Daily Tide screen: streak check-in/reward",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/DailyTide/DailyTideView.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "isClaimableToday computed via StreakEngine at render time, never trusted as stale stored state",
+        "Claim triggers a debounced save per T-009's rule"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Settings screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/Settings/SettingsView.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Notification permission states (notDetermined/denied/authorized/provisional) each render distinctly",
+        "Denied state deep-links to system Settings"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Welcome Back sheet: first-return and long-absence variants",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/WelcomeBack/WelcomeBackView.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Distinct copy/visual for wasFirstReturn vs repeat absence",
+        "elapsedClamped shows a soft capped framing instead of a raw multi-week number"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Dormant/locked visual state styling for CurrentNode",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Undertow/UI/Currents/CurrentNodeVisualState+Style.swift"
+      ],
+      "depends_on": [
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Dormant state uses a theme-consistent treatment (color/glow), not generic grayed opacity",
+        "Visually distinct from unaffordable state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Shared empty/loading/error state views + accessibility label helpers",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Undertow/UI/Shared/EmptyStateView.swift",
+        "Undertow/UI/Shared/LoadingStateView.swift",
+        "Undertow/UI/Shared/ErrorStateView.swift",
+        "Undertow/Accessibility/VoiceOverLabels.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-014",
+        "T-015",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Every screen from T-013-T-016 uses these shared components instead of ad hoc empty/error views",
+        "VoiceOver labels include state, e.g. 'Clownfish, discovered, level 2'",
+        "Error states switch over AppError cases exhaustively"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Haptics + two-tier motion language + Reduce Motion fallback",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Undertow/UI/Shared/HapticsManager.swift",
+        "Undertow/UI/Shared/ReduceMotionModifiers.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Ambient motion (drift/particles) stays slow sine/ease, never springy",
+        "Direct feedback (tap, claim, unlock) uses spring transitions",
+        "Haptics fire only on stirring/claims, never on ambient ticks"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": ".storekit config file + StoreKitManaging protocol and fake",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Undertow/Resources/Products.storekit",
+        "Undertow/Services/StoreKitManaging.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Config supports purchase, renewal, refund, and interrupted-purchase scenarios deterministically",
+        "observeTransactionUpdates wraps Transaction.updates and reflects mid-session revocation",
+        "Fake implementation usable in unit tests without hitting the sandbox"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "NotificationScheduler: contextual permission request",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Undertow/Services/NotificationScheduler.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "requestAuthorization is never called from app launch, only from the first Daily Tide claim or an explicit remind-me tap",
+        "currentAuthorizationStatus exposes all four UNAuthorizationStatus-mapped states for Settings to read"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Deep Current paywall screen: loading/success/restore/purchase-in-progress/network-failure states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/DeepCurrent/DeepCurrentView.swift",
+        "Undertow/UI/DeepCurrent/PassBadge.swift"
+      ],
+      "depends_on": [
+        "T-023",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Restore Purchases is an explicit, user-tapped action with its own success/no-purchases-found/failure states",
+        "Reachable at any time, plus exactly one soft one-time offer after first session, never an interstitial",
+        "All five named states implemented"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Entitlement gating wiring: real entitlement replaces stubbed always-free in Almanac/Currents",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Undertow/UI/Almanac/AlmanacView.swift",
+        "Undertow/UI/Currents/CurrentsView.swift"
+      ],
+      "depends_on": [
+        "T-023",
+        "T-014",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Locked-state visuals driven by the real StoreKitManaging.entitlement, not a stub",
+        "Screen reacts to entitlement changes from observeTransactionUpdates without requiring a relaunch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Fake-schema-migration fixture: end-to-end verification",
+      "owner_lane": "services_utilities",
+      "files": [
+        "UndertowTests/ServicesTests/SchemaMigrationTests.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Test re-run as part of milestone-5 integration verification, confirmed still green against the final merged GameState shape"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Force-quit-after-purchase: full integration verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "UndertowUITests/ForceQuitPurchaseUITests.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-025"
+      ],
+      "acceptance_criteria": [
+        "Real purchase through the .storekit config, force-quit, relaunch, currency deduction and entitlement both confirmed present"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-029",
+      "title": "Offline-growth math: end-to-end check with real device clock change",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "UndertowUITests/OfflineGrowthUITests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Verified on a real device/simulator clock change, not only unit tests",
+        "Elapsed-beyond-cap and negative-elapsed (clock rollback) cases both exercised manually and pass"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-030",
+      "title": "StoreKit revocation manual verification pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "UndertowUITests/StoreKitRevocationNotes.md"
+      ],
+      "depends_on": [
+        "T-023",
+        "T-025"
+      ],
+      "acceptance_criteria": [
+        "Purchase made, then revoked via StoreKit testing UI, gated screens (Almanac/Currents/DeepCurrent) confirmed to flip back to locked without a relaunch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-031",
+      "title": "ReefCanvas frame-budget profiling and go/no-go enforcement",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "UndertowUITests/ReefCanvasPerformanceNotes.md"
+      ],
+      "depends_on": [
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Sustained 60fps measured with a profiler on the minimum supported device at the 32-40 sprite cap with particles active",
+        "If missed, confirms the fallback illustration path from T-012 was actually taken, not silently ignored"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-032",
+      "title": "Final accessibility, Dynamic Type, and VoiceOver full pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "UndertowUITests/AccessibilityAuditNotes.md"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-025",
+        "T-019",
+        "T-017",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "All screens checked at largest Dynamic Type size, tightest layouts (ResourcePill, CurrentNode labels) confirmed non-clipping",
+        "WCAG AA contrast confirmed on cyan-on-navy label text (not just decorative glow)",
+        "VoiceOver walkthrough of all five tabs plus all sheets completed with no unlabeled controls"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,1879 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "docket",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-a2\nSelected app slug: docket\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# docket\n\nBuild mode: **MVP build**.\n\n## App Name\n\ndocket\n\n## Category\n\nNews\n\n## One-Sentence Promise\n\nTurns dense local-government agendas/minutes into a plain-language, on-device digest of what changed.\n\n## Target User\n\nCivically engaged residents with no time to read 80-page PDFs.\n\n## Claude Design Handoff Prompt\n\n(not supplied yet)\n\n## Parent Portfolio Prompt\n\nBuild 6 completely separate production-ready iOS apps at the same time: exactly 2 Food & Drink apps, 2 Graphics & Design apps, and 2 News apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 12 candidate ideas, discuss them thoroughly, choose the best 6, and build all 6 to production quality.\n\n\n## Change requested\nThe app currently FAILS to compile. Fix every compiler error until the build succeeds cleanly; do not drop features unless unavoidable.\n",
+    "verification": "VERIFIED (compiled cleanly for the iOS Simulator)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "DOCKET",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "build_coordination"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "final_review"
+        ]
+      }
+    ],
+    "issues": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "SwiftData models, enums, and versioned ModelContainer schema factory",
+        "description": "Generated from orchestrator task `T-001` for `docket`.\n\nOwner lane: `data_domain`\nFiles: Docket/Core/Models/FollowedSource.swift, Docket/Core/Models/Meeting.swift, Docket/Core/Models/DigestItem.swift, Docket/Core/Models/DiffRecord.swift, Docket/Core/Models/DiffSpan.swift, Docket/Core/Models/ProcessingStage.swift, Docket/Core/Models/ChangeType.swift, Docket/Core/Models/NotificationCadence.swift, Docket/Core/Models/ModelContainerFactory.swift\n\nAcceptance criteria:\n- All four @Model types compile with the exact field shapes from tech_specs interfaces-json\n- DigestItem.id is derived as \"\\(sourceID)-\\(meetingID)-\\(sectionIndex)\", never array position, with a unit test proving stability across reordering\n- ProcessingStage/ChangeType/NotificationCadence are flat String Codable enums, no associated values\n- ModelContainerFactory exposes a single static func other lanes call to get a configured, versioned ModelContainer",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Docket/Core/Models/FollowedSource.swift",
+            "Docket/Core/Models/Meeting.swift",
+            "Docket/Core/Models/DigestItem.swift",
+            "Docket/Core/Models/DiffRecord.swift",
+            "Docket/Core/Models/DiffSpan.swift",
+            "Docket/Core/Models/ProcessingStage.swift",
+            "Docket/Core/Models/ChangeType.swift",
+            "Docket/Core/Models/NotificationCadence.swift",
+            "Docket/Core/Models/ModelContainerFactory.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "All four @Model types compile with the exact field shapes from tech_specs interfaces-json",
+            "DigestItem.id is derived as \"\\(sourceID)-\\(meetingID)-\\(sectionIndex)\", never array position, with a unit test proving stability across reordering",
+            "ProcessingStage/ChangeType/NotificationCadence are flat String Codable enums, no associated values",
+            "ModelContainerFactory exposes a single static func other lanes call to get a configured, versioned ModelContainer"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "DiffEngine pure diff function + fixture tests",
+        "description": "Generated from orchestrator task `T-002` for `docket`.\n\nOwner lane: `data_domain`\nFiles: Docket/Core/Diffing/DiffEngine.swift, DocketTests/DiffEngineTests.swift, DocketTests/Fixtures/DiffPairs/\n\nAcceptance criteria:\n- DiffEngine.diff(old:new:) has zero imports of SwiftData or Summarization\n- Fixture-based unit tests cover unchanged/added/removed spans across at least 5 realistic agenda-text pairs\n- Function is deterministic \u2014 same input always produces identical DiffSpan array",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Docket/Core/Diffing/DiffEngine.swift",
+            "DocketTests/DiffEngineTests.swift",
+            "DocketTests/Fixtures/DiffPairs/"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "DiffEngine.diff(old:new:) has zero imports of SwiftData or Summarization",
+            "Fixture-based unit tests cover unchanged/added/removed spans across at least 5 realistic agenda-text pairs",
+            "Function is deterministic \u2014 same input always produces identical DiffSpan array"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "SummarizerService protocol + ExtractiveSummarizer deterministic implementation",
+        "description": "Generated from orchestrator task `T-003` for `docket`.\n\nOwner lane: `data_domain`\nFiles: Docket/Core/Summarization/SummarizerService.swift, Docket/Core/Summarization/ExtractiveSummarizer.swift, DocketTests/ExtractiveSummarizerTests.swift\n\nAcceptance criteria:\n- SummarizerService protocol matches tech_specs signature exactly\n- ExtractiveSummarizer never throws for well-formed input and requires no network/model access\n- Fixture tests confirm first-sentence/heading extraction on at least 5 sample section texts\n- FoundationModelsSummarizer is stubbed as a TODO-free placeholder conforming to the protocol, gated behind an availability check, not wired into ProcessingCoordinator yet",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Docket/Core/Summarization/SummarizerService.swift",
+            "Docket/Core/Summarization/ExtractiveSummarizer.swift",
+            "DocketTests/ExtractiveSummarizerTests.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "SummarizerService protocol matches tech_specs signature exactly",
+            "ExtractiveSummarizer never throws for well-formed input and requires no network/model access",
+            "Fixture tests confirm first-sentence/heading extraction on at least 5 sample section texts",
+            "FoundationModelsSummarizer is stubbed as a TODO-free placeholder conforming to the protocol, gated behind an availability check, not wired into ProcessingCoordinator yet"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "PDFExtractor + OCRExtractor + ExtractionResult",
+        "description": "Generated from orchestrator task `T-004` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Extraction/PDFExtractor.swift, Docket/Core/Extraction/OCRExtractor.swift, Docket/Core/Extraction/ExtractionResult.swift, DocketTests/PDFExtractorTests.swift, DocketTests/Fixtures/PDFs/\n\nAcceptance criteria:\n- PDFExtractor tries PDFKit text layer first, falls back to OCRExtractor per page with no text layer\n- Per-page OCR failures populate unreadablePageIndices rather than throwing for the whole document\n- Fixture tests cover one clean text-layer PDF and one scanned/image-only PDF",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Extraction/PDFExtractor.swift",
+            "Docket/Core/Extraction/OCRExtractor.swift",
+            "Docket/Core/Extraction/ExtractionResult.swift",
+            "DocketTests/PDFExtractorTests.swift",
+            "DocketTests/Fixtures/PDFs/"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "PDFExtractor tries PDFKit text layer first, falls back to OCRExtractor per page with no text layer",
+            "Per-page OCR failures populate unreadablePageIndices rather than throwing for the whole document",
+            "Fixture tests cover one clean text-layer PDF and one scanned/image-only PDF"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "PDFFileStore on-disk storage",
+        "description": "Generated from orchestrator task `T-005` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Persistence/PDFFileStore.swift, DocketTests/PDFFileStoreTests.swift\n\nAcceptance criteria:\n- save(data:) writes to Documents/PDFs/<uuid>.pdf and returns only the filename\n- No PDF binary ever passed into or stored via SwiftData\n- url(for:) round-trips correctly in a unit test",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Persistence/PDFFileStore.swift",
+            "DocketTests/PDFFileStoreTests.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "save(data:) writes to Documents/PDFs/<uuid>.pdf and returns only the filename",
+            "No PDF binary ever passed into or stored via SwiftData",
+            "url(for:) round-trips correctly in a unit test"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "ProcessingCoordinator core pipeline wiring",
+        "description": "Generated from orchestrator task `T-006` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Processing/ProcessingCoordinator.swift\n\nAcceptance criteria:\n- ProcessingCoordinator is a @ModelActor calling PDFExtractor -> SummarizerService -> DiffEngine in sequence\n- Intermediate stage ticks are written only to ProcessingStatusBoard, never to SwiftData\n- Final DigestItem/DiffRecord are committed to the model context only at ready/partial/failed terminal states",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Processing/ProcessingCoordinator.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-002",
+            "T-003",
+            "T-004",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "ProcessingCoordinator is a @ModelActor calling PDFExtractor -> SummarizerService -> DiffEngine in sequence",
+            "Intermediate stage ticks are written only to ProcessingStatusBoard, never to SwiftData",
+            "Final DigestItem/DiffRecord are committed to the model context only at ready/partial/failed terminal states"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "Launch-reconciliation pass",
+        "description": "Generated from orchestrator task `T-007` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Processing/ProcessingCoordinator.swift, DocketTests/ReconciliationTests.swift\n\nAcceptance criteria:\n- App-launch reconciliation requeues any persisted non-terminal ProcessingStage found in SwiftData\n- Named integration test: kill mid-.summarizing, relaunch against the same store, assert the meeting gets requeued and reaches a terminal state",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Processing/ProcessingCoordinator.swift",
+            "DocketTests/ReconciliationTests.swift"
+          ],
+          "depends_on": [
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "App-launch reconciliation requeues any persisted non-terminal ProcessingStage found in SwiftData",
+            "Named integration test: kill mid-.summarizing, relaunch against the same store, assert the meeting gets requeued and reaches a terminal state"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "In-flight invocation guard",
+        "description": "Generated from orchestrator task `T-008` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Processing/ProcessingCoordinator.swift, DocketTests/InFlightGuardTests.swift\n\nAcceptance criteria:\n- Coordinator tracks in-flight meetingIDs and refuses/no-ops a second concurrent process() call for the same ID\n- Named test: two concurrent process(meetingID:) calls for the same ID result in exactly one pipeline run and one terminal DigestItem set, not duplicated records",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Processing/ProcessingCoordinator.swift",
+            "DocketTests/InFlightGuardTests.swift"
+          ],
+          "depends_on": [
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "Coordinator tracks in-flight meetingIDs and refuses/no-ops a second concurrent process() call for the same ID",
+            "Named test: two concurrent process(meetingID:) calls for the same ID result in exactly one pipeline run and one terminal DigestItem set, not duplicated records"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "ProcessingStatusBoard",
+        "description": "Generated from orchestrator task `T-009` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Core/Processing/ProcessingStatusBoard.swift\n\nAcceptance criteria:\n- @MainActor @Observable, in-memory only, keyed by document id\n- update(id:stage:) is the only mutation path; views read via the published stages dictionary",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Core/Processing/ProcessingStatusBoard.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "@MainActor @Observable, in-memory only, keyed by document id",
+            "update(id:stage:) is the only mutation path; views read via the published stages dictionary"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "DesignSystem tokens + nine components",
+        "description": "Generated from orchestrator task `T-010` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/DesignSystem/Tokens.swift, Docket/DesignSystem/DigestGroupHeader.swift, Docket/DesignSystem/DigestItemCard.swift, Docket/DesignSystem/ChangeBadge.swift, Docket/DesignSystem/ProcessingStageIndicator.swift, Docket/DesignSystem/CompletenessIndicator.swift, Docket/DesignSystem/LastSyncedLabel.swift, Docket/DesignSystem/SourceSearchRow.swift, Docket/DesignSystem/EmptyStateView.swift, Docket/DesignSystem/PDFImportPicker.swift\n\nAcceptance criteria:\n- Colors/spacing/type/radius match the design-handoff token values exactly (hex codes, spacing scale, corner radii)\n- ChangeBadge covers all five ChangeType cases with the specified color+icon pairing\n- All tap targets are 44x44pt minimum\n- Every component supports Dynamic Type up to accessibility XXXL without truncating the change type",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/DesignSystem/Tokens.swift",
+            "Docket/DesignSystem/DigestGroupHeader.swift",
+            "Docket/DesignSystem/DigestItemCard.swift",
+            "Docket/DesignSystem/ChangeBadge.swift",
+            "Docket/DesignSystem/ProcessingStageIndicator.swift",
+            "Docket/DesignSystem/CompletenessIndicator.swift",
+            "Docket/DesignSystem/LastSyncedLabel.swift",
+            "Docket/DesignSystem/SourceSearchRow.swift",
+            "Docket/DesignSystem/EmptyStateView.swift",
+            "Docket/DesignSystem/PDFImportPicker.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Colors/spacing/type/radius match the design-handoff token values exactly (hex codes, spacing scale, corner radii)",
+            "ChangeBadge covers all five ChangeType cases with the specified color+icon pairing",
+            "All tap targets are 44x44pt minimum",
+            "Every component supports Dynamic Type up to accessibility XXXL without truncating the change type"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "Onboarding feature",
+        "description": "Generated from orchestrator task `T-011` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/Onboarding/OnboardingView.swift, Docket/Features/Onboarding/OnboardingModel.swift\n\nAcceptance criteria:\n- Static bundled-directory list with search, manual-add fallback on no results\n- No true error state modeled (directory is bundled, never network-fetched)",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/Onboarding/OnboardingView.swift",
+            "Docket/Features/Onboarding/OnboardingModel.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Static bundled-directory list with search, manual-add fallback on no results",
+            "No true error state modeled (directory is bundled, never network-fetched)"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Following feed feature",
+        "description": "Generated from orchestrator task `T-012` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/Following/FollowingFeedView.swift, Docket/Features/Following/FollowingFeedModel.swift, Docket/Features/Following/SourceDigestGroup.swift\n\nAcceptance criteria:\n- Empty-before-follow, per-source skeleton loading, success grouped list, and a distinct quiet 'all caught up' state are all separately implemented (not collapsed into one empty state)\n- Built and testable against a mock ProcessingCoordinator/status board before T-006 merges",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/Following/FollowingFeedView.swift",
+            "Docket/Features/Following/FollowingFeedModel.swift",
+            "Docket/Features/Following/SourceDigestGroup.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Empty-before-follow, per-source skeleton loading, success grouped list, and a distinct quiet 'all caught up' state are all separately implemented (not collapsed into one empty state)",
+            "Built and testable against a mock ProcessingCoordinator/status board before T-006 merges"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Source Detail feature",
+        "description": "Generated from orchestrator task `T-013` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/SourceDetail/SourceDetailView.swift, Docket/Features/SourceDetail/SourceDetailModel.swift\n\nAcceptance criteria:\n- visibleHistory truncates to current+1 meeting unless EntitlementStore says otherwise\n- Failed-sync shown as non-blocking amber/red label with manual retry",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/SourceDetail/SourceDetailView.swift",
+            "Docket/Features/SourceDetail/SourceDetailModel.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "visibleHistory truncates to current+1 meeting unless EntitlementStore says otherwise",
+            "Failed-sync shown as non-blocking amber/red label with manual retry"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "Digest Item Detail feature",
+        "description": "Generated from orchestrator task `T-014` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/DigestDetail/DigestItemDetailView.swift, Docket/Features/DigestDetail/DigestItemDetailModel.swift\n\nAcceptance criteria:\n- Named-stage loading, success = summary+diff, partial = summary+completeness flag+missing sections, failed = message+retry+direct PDF link\n- VoiceOver label folds change type + completeness into one announcement per design handoff",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/DigestDetail/DigestItemDetailView.swift",
+            "Docket/Features/DigestDetail/DigestItemDetailModel.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Named-stage loading, success = summary+diff, partial = summary+completeness flag+missing sections, failed = message+retry+direct PDF link",
+            "VoiceOver label folds change type + completeness into one announcement per design handoff"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Add Source feature full wiring",
+        "description": "Generated from orchestrator task `T-015` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/AddSource/AddSourceView.swift, Docket/Features/AddSource/AddSourceModel.swift\n\nAcceptance criteria:\n- search/follow/importPDF match tech_specs signatures\n- follow() surfaces EntitlementError.sourceCapReached to the view to trigger PaywallView\n- Bad/unreadable PDF import produces the specific 'we couldn't read this file' error copy",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/AddSource/AddSourceView.swift",
+            "Docket/Features/AddSource/AddSourceModel.swift"
+          ],
+          "depends_on": [
+            "T-011",
+            "T-018"
+          ],
+          "acceptance_criteria": [
+            "search/follow/importPDF match tech_specs signatures",
+            "follow() surfaces EntitlementError.sourceCapReached to the view to trigger PaywallView",
+            "Bad/unreadable PDF import produces the specific 'we couldn't read this file' error copy"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "Settings feature",
+        "description": "Generated from orchestrator task `T-016` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/Settings/SettingsView.swift, Docket/Features/Settings/SettingsModel.swift\n\nAcceptance criteria:\n- Diagnostics sub-state directly surfaces on-device Apple Intelligence/model availability rather than letting it fail silently elsewhere",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/Settings/SettingsView.swift",
+            "Docket/Features/Settings/SettingsModel.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Diagnostics sub-state directly surfaces on-device Apple Intelligence/model availability rather than letting it fail silently elsewhere"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-016"
+        }
+      },
+      {
+        "external_id": "T-017",
+        "issue_type": "Task",
+        "summary": "EntitlementStore (StoreKit 2)",
+        "description": "Generated from orchestrator task `T-017` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Entitlements/EntitlementStore.swift, DocketTests/EntitlementStoreTests.swift, Docket/Configuration/Docket.storekit\n\nAcceptance criteria:\n- Backed by Transaction.currentEntitlements, all three checks (canFollowAdditionalSource, canViewHistoryBeyondMostRecent, canEnableNotifications) work fully offline\n- Free tier: max 2 sources, current+1 history, no notifications; Plus: unlimited/full history/notifications\n- Each of the three gates has an independent .storekit-config-driven test",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Entitlements/EntitlementStore.swift",
+            "DocketTests/EntitlementStoreTests.swift",
+            "Docket/Configuration/Docket.storekit"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Backed by Transaction.currentEntitlements, all three checks (canFollowAdditionalSource, canViewHistoryBeyondMostRecent, canEnableNotifications) work fully offline",
+            "Free tier: max 2 sources, current+1 history, no notifications; Plus: unlimited/full history/notifications",
+            "Each of the three gates has an independent .storekit-config-driven test"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-017"
+        }
+      },
+      {
+        "external_id": "T-018",
+        "issue_type": "Task",
+        "summary": "Jurisdiction directory content + loader",
+        "description": "Generated from orchestrator task `T-018` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Resources/JurisdictionDirectory.json, Docket/Core/Directory/JurisdictionDirectoryEntry.swift, Docket/Core/Directory/JurisdictionDirectoryLoader.swift\n\nAcceptance criteria:\n- Bundled JSON ships with a real, usable initial set of municipal council/school-board/planning-commission entries across multiple states, not a token 10-entry placeholder\n- Loader never touches the network\n- JurisdictionDirectoryEntry matches tech_specs signature",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Resources/JurisdictionDirectory.json",
+            "Docket/Core/Directory/JurisdictionDirectoryEntry.swift",
+            "Docket/Core/Directory/JurisdictionDirectoryLoader.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Bundled JSON ships with a real, usable initial set of municipal council/school-board/planning-commission entries across multiple states, not a token 10-entry placeholder",
+            "Loader never touches the network",
+            "JurisdictionDirectoryEntry matches tech_specs signature"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-018"
+        }
+      },
+      {
+        "external_id": "T-019",
+        "issue_type": "Task",
+        "summary": "NotificationScheduler",
+        "description": "Generated from orchestrator task `T-019` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Notifications/NotificationScheduler.swift\n\nAcceptance criteria:\n- requestAuthorizationIfNeeded only called contextually after first source followed + cadence set, never at launch\n- schedule(for:) no-ops when EntitlementStore.canEnableNotifications is false",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Notifications/NotificationScheduler.swift"
+          ],
+          "depends_on": [
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "requestAuthorizationIfNeeded only called contextually after first source followed + cadence set, never at launch",
+            "schedule(for:) no-ops when EntitlementStore.canEnableNotifications is false"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-019"
+        }
+      },
+      {
+        "external_id": "T-020",
+        "issue_type": "Task",
+        "summary": "PaywallView + PaywallTrigger",
+        "description": "Generated from orchestrator task `T-020` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: Docket/Features/Paywall/PaywallView.swift, Docket/Features/Paywall/PaywallTrigger.swift\n\nAcceptance criteria:\n- One sheet, one message, headline copy varies only by trigger (sourceCap/history/notifications)\n- Triggered contextually from AddSourceModel/SourceDetailModel/notification toggle, never at launch",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Docket/Features/Paywall/PaywallView.swift",
+            "Docket/Features/Paywall/PaywallTrigger.swift"
+          ],
+          "depends_on": [
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "One sheet, one message, headline copy varies only by trigger (sourceCap/history/notifications)",
+            "Triggered contextually from AddSourceModel/SourceDetailModel/notification toggle, never at launch"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-020"
+        }
+      },
+      {
+        "external_id": "T-021",
+        "issue_type": "Task",
+        "summary": "PDF retention policy design + implementation",
+        "description": "Generated from orchestrator task `T-021` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: Docket/Core/Persistence/PDFRetentionPolicy.swift, DocketTests/PDFRetentionPolicyTests.swift\n\nAcceptance criteria:\n- Written policy doc committed alongside code covering the Plus-upgrade interaction explicitly\n- Eviction only occurs after confirming extracted text/digest already persisted in SwiftData\n- Plus-tier users never silently lose archived PDFs \u2014 either exempted from eviction or history access re-triggers fetch, decided and implemented, not left ambiguous",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Docket/Core/Persistence/PDFRetentionPolicy.swift",
+            "DocketTests/PDFRetentionPolicyTests.swift"
+          ],
+          "depends_on": [
+            "T-005",
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "Written policy doc committed alongside code covering the Plus-upgrade interaction explicitly",
+            "Eviction only occurs after confirming extracted text/digest already persisted in SwiftData",
+            "Plus-tier users never silently lose archived PDFs \u2014 either exempted from eviction or history access re-triggers fetch, decided and implemented, not left ambiguous"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-021"
+        }
+      },
+      {
+        "external_id": "T-022",
+        "issue_type": "Task",
+        "summary": "Schema migration smoke test",
+        "description": "Generated from orchestrator task `T-022` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: DocketTests/SchemaMigrationTests.swift\n\nAcceptance criteria:\n- A V2 schema fixture with one deliberately added trivial field\n- Test proves ModelContainer migrates an existing populated store to V2 without data loss",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "DocketTests/SchemaMigrationTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "A V2 schema fixture with one deliberately added trivial field",
+            "Test proves ModelContainer migrates an existing populated store to V2 without data loss"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-022"
+        }
+      },
+      {
+        "external_id": "T-023",
+        "issue_type": "Task",
+        "summary": "Accessibility and snapshot testing",
+        "description": "Generated from orchestrator task `T-023` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: DocketTests/DigestItemCardSnapshotTests.swift\n\nAcceptance criteria:\n- ImageRenderer-based snapshot test of DigestItemCard at accessibility XXXL passes with no truncated change-type badge\n- Amended gold badge contrast is measured against WCAG AA and either passes or the color token is adjusted",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "DocketTests/DigestItemCardSnapshotTests.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "ImageRenderer-based snapshot test of DigestItemCard at accessibility XXXL passes with no truncated change-type badge",
+            "Amended gold badge contrast is measured against WCAG AA and either passes or the color token is adjusted"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-023"
+        }
+      },
+      {
+        "external_id": "T-024",
+        "issue_type": "Task",
+        "summary": "XCUITest smoke flows",
+        "description": "Generated from orchestrator task `T-024` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: DocketUITests/OnboardingFlowTests.swift, DocketUITests/AddSourceFailureFlowTests.swift\n\nAcceptance criteria:\n- Onboarding -> follow a source -> 'all caught up' flow passes end to end\n- Add-source -> import a corrupt/unreadable PDF -> specific failure message flow passes end to end",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "DocketUITests/OnboardingFlowTests.swift",
+            "DocketUITests/AddSourceFailureFlowTests.swift"
+          ],
+          "depends_on": [
+            "T-012",
+            "T-015"
+          ],
+          "acceptance_criteria": [
+            "Onboarding -> follow a source -> 'all caught up' flow passes end to end",
+            "Add-source -> import a corrupt/unreadable PDF -> specific failure message flow passes end to end"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-024"
+        }
+      },
+      {
+        "external_id": "T-025",
+        "issue_type": "Task",
+        "summary": "Physical-device verification pass",
+        "description": "Generated from orchestrator task `T-025` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: docs/PhysicalDeviceChecklist.md\n\nAcceptance criteria:\n- Manual checklist executed on a real device covering BGTaskScheduler background refresh and the real Foundation Models summarizer path\n- Explicitly documented as non-blocking for ship, with results recorded, not left unverified",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "docs/PhysicalDeviceChecklist.md"
+          ],
+          "depends_on": [
+            "T-006",
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "Manual checklist executed on a real device covering BGTaskScheduler background refresh and the real Foundation Models summarizer path",
+            "Explicitly documented as non-blocking for ship, with results recorded, not left unverified"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-025"
+        }
+      },
+      {
+        "external_id": "T-026",
+        "issue_type": "Task",
+        "summary": "App entry point and tab assembly",
+        "description": "Generated from orchestrator task `T-026` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/DocketApp.swift, Docket/RootTabView.swift\n\nAcceptance criteria:\n- Constructs ModelContainer via data_domain's factory function only, no ad hoc schema setup\n- Assembles the three-tab IA (Following/Explore-Add/Settings)\n- This file is single-owned; other lanes request changes rather than editing directly",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/DocketApp.swift",
+            "Docket/RootTabView.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-009",
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "Constructs ModelContainer via data_domain's factory function only, no ad hoc schema setup",
+            "Assembles the three-tab IA (Following/Explore-Add/Settings)",
+            "This file is single-owned; other lanes request changes rather than editing directly"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-026"
+        }
+      }
+    ]
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "docket",
+      "Status": "Done",
+      "Source": "Orchestrator",
+      "Workflow Phases": 3
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-cat-a2\nSelected app slug: docket\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# docket\n\nBuild mode: **MVP build**.\n\n## App Name\n\ndocket\n\n## Category\n\nNews\n\n## One-Sentence Promise\n\nTurns dense local-government agendas/minutes into a plain-language, on-device digest of what changed.\n\n## Target User\n\nCivically engaged residents with no time to read 80-page PDFs.\n\n## Claude Design Handoff Prompt\n\n(not supplied yet)\n\n## Parent Portfolio Prompt\n\nBuild 6 completely separate production-ready iOS apps at the same time: exactly 2 Food & Drink apps, 2 Graphics & Design apps, and 2 News apps.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 12 candidate ideas, discuss them thoroughly, choose the best 6, and build all 6 to production quality.\n\n\n## Change requested\nThe app currently FAILS to compile. Fix every compiler error until the build succeeds cleanly; do not drop features unless unavoidable.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "SwiftData models, enums, and versioned ModelContainer schema factory",
+        "description": "Generated from orchestrator task `T-001` for `docket`.\n\nOwner lane: `data_domain`\nFiles: Docket/Core/Models/FollowedSource.swift, Docket/Core/Models/Meeting.swift, Docket/Core/Models/DigestItem.swift, Docket/Core/Models/DiffRecord.swift, Docket/Core/Models/DiffSpan.swift, Docket/Core/Models/ProcessingStage.swift, Docket/Core/Models/ChangeType.swift, Docket/Core/Models/NotificationCadence.swift, Docket/Core/Models/ModelContainerFactory.swift\n\nAcceptance criteria:\n- All four @Model types compile with the exact field shapes from tech_specs interfaces-json\n- DigestItem.id is derived as \"\\(sourceID)-\\(meetingID)-\\(sectionIndex)\", never array position, with a unit test proving stability across reordering\n- ProcessingStage/ChangeType/NotificationCadence are flat String Codable enums, no associated values\n- ModelContainerFactory exposes a single static func other lanes call to get a configured, versioned ModelContainer",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Docket/Core/Models/FollowedSource.swift",
+            "Docket/Core/Models/Meeting.swift",
+            "Docket/Core/Models/DigestItem.swift",
+            "Docket/Core/Models/DiffRecord.swift",
+            "Docket/Core/Models/DiffSpan.swift",
+            "Docket/Core/Models/ProcessingStage.swift",
+            "Docket/Core/Models/ChangeType.swift",
+            "Docket/Core/Models/NotificationCadence.swift",
+            "Docket/Core/Models/ModelContainerFactory.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "All four @Model types compile with the exact field shapes from tech_specs interfaces-json",
+            "DigestItem.id is derived as \"\\(sourceID)-\\(meetingID)-\\(sectionIndex)\", never array position, with a unit test proving stability across reordering",
+            "ProcessingStage/ChangeType/NotificationCadence are flat String Codable enums, no associated values",
+            "ModelContainerFactory exposes a single static func other lanes call to get a configured, versioned ModelContainer"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "DiffEngine pure diff function + fixture tests",
+        "description": "Generated from orchestrator task `T-002` for `docket`.\n\nOwner lane: `data_domain`\nFiles: Docket/Core/Diffing/DiffEngine.swift, DocketTests/DiffEngineTests.swift, DocketTests/Fixtures/DiffPairs/\n\nAcceptance criteria:\n- DiffEngine.diff(old:new:) has zero imports of SwiftData or Summarization\n- Fixture-based unit tests cover unchanged/added/removed spans across at least 5 realistic agenda-text pairs\n- Function is deterministic \u2014 same input always produces identical DiffSpan array",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Docket/Core/Diffing/DiffEngine.swift",
+            "DocketTests/DiffEngineTests.swift",
+            "DocketTests/Fixtures/DiffPairs/"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "DiffEngine.diff(old:new:) has zero imports of SwiftData or Summarization",
+            "Fixture-based unit tests cover unchanged/added/removed spans across at least 5 realistic agenda-text pairs",
+            "Function is deterministic \u2014 same input always produces identical DiffSpan array"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "SummarizerService protocol + ExtractiveSummarizer deterministic implementation",
+        "description": "Generated from orchestrator task `T-003` for `docket`.\n\nOwner lane: `data_domain`\nFiles: Docket/Core/Summarization/SummarizerService.swift, Docket/Core/Summarization/ExtractiveSummarizer.swift, DocketTests/ExtractiveSummarizerTests.swift\n\nAcceptance criteria:\n- SummarizerService protocol matches tech_specs signature exactly\n- ExtractiveSummarizer never throws for well-formed input and requires no network/model access\n- Fixture tests confirm first-sentence/heading extraction on at least 5 sample section texts\n- FoundationModelsSummarizer is stubbed as a TODO-free placeholder conforming to the protocol, gated behind an availability check, not wired into ProcessingCoordinator yet",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Docket/Core/Summarization/SummarizerService.swift",
+            "Docket/Core/Summarization/ExtractiveSummarizer.swift",
+            "DocketTests/ExtractiveSummarizerTests.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "SummarizerService protocol matches tech_specs signature exactly",
+            "ExtractiveSummarizer never throws for well-formed input and requires no network/model access",
+            "Fixture tests confirm first-sentence/heading extraction on at least 5 sample section texts",
+            "FoundationModelsSummarizer is stubbed as a TODO-free placeholder conforming to the protocol, gated behind an availability check, not wired into ProcessingCoordinator yet"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "PDFExtractor + OCRExtractor + ExtractionResult",
+        "description": "Generated from orchestrator task `T-004` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Extraction/PDFExtractor.swift, Docket/Core/Extraction/OCRExtractor.swift, Docket/Core/Extraction/ExtractionResult.swift, DocketTests/PDFExtractorTests.swift, DocketTests/Fixtures/PDFs/\n\nAcceptance criteria:\n- PDFExtractor tries PDFKit text layer first, falls back to OCRExtractor per page with no text layer\n- Per-page OCR failures populate unreadablePageIndices rather than throwing for the whole document\n- Fixture tests cover one clean text-layer PDF and one scanned/image-only PDF",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Extraction/PDFExtractor.swift",
+            "Docket/Core/Extraction/OCRExtractor.swift",
+            "Docket/Core/Extraction/ExtractionResult.swift",
+            "DocketTests/PDFExtractorTests.swift",
+            "DocketTests/Fixtures/PDFs/"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "PDFExtractor tries PDFKit text layer first, falls back to OCRExtractor per page with no text layer",
+            "Per-page OCR failures populate unreadablePageIndices rather than throwing for the whole document",
+            "Fixture tests cover one clean text-layer PDF and one scanned/image-only PDF"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "PDFFileStore on-disk storage",
+        "description": "Generated from orchestrator task `T-005` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Persistence/PDFFileStore.swift, DocketTests/PDFFileStoreTests.swift\n\nAcceptance criteria:\n- save(data:) writes to Documents/PDFs/<uuid>.pdf and returns only the filename\n- No PDF binary ever passed into or stored via SwiftData\n- url(for:) round-trips correctly in a unit test",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Persistence/PDFFileStore.swift",
+            "DocketTests/PDFFileStoreTests.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "save(data:) writes to Documents/PDFs/<uuid>.pdf and returns only the filename",
+            "No PDF binary ever passed into or stored via SwiftData",
+            "url(for:) round-trips correctly in a unit test"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "ProcessingCoordinator core pipeline wiring",
+        "description": "Generated from orchestrator task `T-006` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Processing/ProcessingCoordinator.swift\n\nAcceptance criteria:\n- ProcessingCoordinator is a @ModelActor calling PDFExtractor -> SummarizerService -> DiffEngine in sequence\n- Intermediate stage ticks are written only to ProcessingStatusBoard, never to SwiftData\n- Final DigestItem/DiffRecord are committed to the model context only at ready/partial/failed terminal states",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Processing/ProcessingCoordinator.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-002",
+            "T-003",
+            "T-004",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "ProcessingCoordinator is a @ModelActor calling PDFExtractor -> SummarizerService -> DiffEngine in sequence",
+            "Intermediate stage ticks are written only to ProcessingStatusBoard, never to SwiftData",
+            "Final DigestItem/DiffRecord are committed to the model context only at ready/partial/failed terminal states"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "Launch-reconciliation pass",
+        "description": "Generated from orchestrator task `T-007` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Processing/ProcessingCoordinator.swift, DocketTests/ReconciliationTests.swift\n\nAcceptance criteria:\n- App-launch reconciliation requeues any persisted non-terminal ProcessingStage found in SwiftData\n- Named integration test: kill mid-.summarizing, relaunch against the same store, assert the meeting gets requeued and reaches a terminal state",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Processing/ProcessingCoordinator.swift",
+            "DocketTests/ReconciliationTests.swift"
+          ],
+          "depends_on": [
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "App-launch reconciliation requeues any persisted non-terminal ProcessingStage found in SwiftData",
+            "Named integration test: kill mid-.summarizing, relaunch against the same store, assert the meeting gets requeued and reaches a terminal state"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "In-flight invocation guard",
+        "description": "Generated from orchestrator task `T-008` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Processing/ProcessingCoordinator.swift, DocketTests/InFlightGuardTests.swift\n\nAcceptance criteria:\n- Coordinator tracks in-flight meetingIDs and refuses/no-ops a second concurrent process() call for the same ID\n- Named test: two concurrent process(meetingID:) calls for the same ID result in exactly one pipeline run and one terminal DigestItem set, not duplicated records",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Processing/ProcessingCoordinator.swift",
+            "DocketTests/InFlightGuardTests.swift"
+          ],
+          "depends_on": [
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "Coordinator tracks in-flight meetingIDs and refuses/no-ops a second concurrent process() call for the same ID",
+            "Named test: two concurrent process(meetingID:) calls for the same ID result in exactly one pipeline run and one terminal DigestItem set, not duplicated records"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "ProcessingStatusBoard",
+        "description": "Generated from orchestrator task `T-009` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Core/Processing/ProcessingStatusBoard.swift\n\nAcceptance criteria:\n- @MainActor @Observable, in-memory only, keyed by document id\n- update(id:stage:) is the only mutation path; views read via the published stages dictionary",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Core/Processing/ProcessingStatusBoard.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "@MainActor @Observable, in-memory only, keyed by document id",
+            "update(id:stage:) is the only mutation path; views read via the published stages dictionary"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "DesignSystem tokens + nine components",
+        "description": "Generated from orchestrator task `T-010` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/DesignSystem/Tokens.swift, Docket/DesignSystem/DigestGroupHeader.swift, Docket/DesignSystem/DigestItemCard.swift, Docket/DesignSystem/ChangeBadge.swift, Docket/DesignSystem/ProcessingStageIndicator.swift, Docket/DesignSystem/CompletenessIndicator.swift, Docket/DesignSystem/LastSyncedLabel.swift, Docket/DesignSystem/SourceSearchRow.swift, Docket/DesignSystem/EmptyStateView.swift, Docket/DesignSystem/PDFImportPicker.swift\n\nAcceptance criteria:\n- Colors/spacing/type/radius match the design-handoff token values exactly (hex codes, spacing scale, corner radii)\n- ChangeBadge covers all five ChangeType cases with the specified color+icon pairing\n- All tap targets are 44x44pt minimum\n- Every component supports Dynamic Type up to accessibility XXXL without truncating the change type",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/DesignSystem/Tokens.swift",
+            "Docket/DesignSystem/DigestGroupHeader.swift",
+            "Docket/DesignSystem/DigestItemCard.swift",
+            "Docket/DesignSystem/ChangeBadge.swift",
+            "Docket/DesignSystem/ProcessingStageIndicator.swift",
+            "Docket/DesignSystem/CompletenessIndicator.swift",
+            "Docket/DesignSystem/LastSyncedLabel.swift",
+            "Docket/DesignSystem/SourceSearchRow.swift",
+            "Docket/DesignSystem/EmptyStateView.swift",
+            "Docket/DesignSystem/PDFImportPicker.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Colors/spacing/type/radius match the design-handoff token values exactly (hex codes, spacing scale, corner radii)",
+            "ChangeBadge covers all five ChangeType cases with the specified color+icon pairing",
+            "All tap targets are 44x44pt minimum",
+            "Every component supports Dynamic Type up to accessibility XXXL without truncating the change type"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "Onboarding feature",
+        "description": "Generated from orchestrator task `T-011` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/Onboarding/OnboardingView.swift, Docket/Features/Onboarding/OnboardingModel.swift\n\nAcceptance criteria:\n- Static bundled-directory list with search, manual-add fallback on no results\n- No true error state modeled (directory is bundled, never network-fetched)",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/Onboarding/OnboardingView.swift",
+            "Docket/Features/Onboarding/OnboardingModel.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Static bundled-directory list with search, manual-add fallback on no results",
+            "No true error state modeled (directory is bundled, never network-fetched)"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Following feed feature",
+        "description": "Generated from orchestrator task `T-012` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/Following/FollowingFeedView.swift, Docket/Features/Following/FollowingFeedModel.swift, Docket/Features/Following/SourceDigestGroup.swift\n\nAcceptance criteria:\n- Empty-before-follow, per-source skeleton loading, success grouped list, and a distinct quiet 'all caught up' state are all separately implemented (not collapsed into one empty state)\n- Built and testable against a mock ProcessingCoordinator/status board before T-006 merges",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/Following/FollowingFeedView.swift",
+            "Docket/Features/Following/FollowingFeedModel.swift",
+            "Docket/Features/Following/SourceDigestGroup.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Empty-before-follow, per-source skeleton loading, success grouped list, and a distinct quiet 'all caught up' state are all separately implemented (not collapsed into one empty state)",
+            "Built and testable against a mock ProcessingCoordinator/status board before T-006 merges"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Source Detail feature",
+        "description": "Generated from orchestrator task `T-013` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/SourceDetail/SourceDetailView.swift, Docket/Features/SourceDetail/SourceDetailModel.swift\n\nAcceptance criteria:\n- visibleHistory truncates to current+1 meeting unless EntitlementStore says otherwise\n- Failed-sync shown as non-blocking amber/red label with manual retry",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/SourceDetail/SourceDetailView.swift",
+            "Docket/Features/SourceDetail/SourceDetailModel.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "visibleHistory truncates to current+1 meeting unless EntitlementStore says otherwise",
+            "Failed-sync shown as non-blocking amber/red label with manual retry"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "Digest Item Detail feature",
+        "description": "Generated from orchestrator task `T-014` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/DigestDetail/DigestItemDetailView.swift, Docket/Features/DigestDetail/DigestItemDetailModel.swift\n\nAcceptance criteria:\n- Named-stage loading, success = summary+diff, partial = summary+completeness flag+missing sections, failed = message+retry+direct PDF link\n- VoiceOver label folds change type + completeness into one announcement per design handoff",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/DigestDetail/DigestItemDetailView.swift",
+            "Docket/Features/DigestDetail/DigestItemDetailModel.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Named-stage loading, success = summary+diff, partial = summary+completeness flag+missing sections, failed = message+retry+direct PDF link",
+            "VoiceOver label folds change type + completeness into one announcement per design handoff"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Add Source feature full wiring",
+        "description": "Generated from orchestrator task `T-015` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/AddSource/AddSourceView.swift, Docket/Features/AddSource/AddSourceModel.swift\n\nAcceptance criteria:\n- search/follow/importPDF match tech_specs signatures\n- follow() surfaces EntitlementError.sourceCapReached to the view to trigger PaywallView\n- Bad/unreadable PDF import produces the specific 'we couldn't read this file' error copy",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/AddSource/AddSourceView.swift",
+            "Docket/Features/AddSource/AddSourceModel.swift"
+          ],
+          "depends_on": [
+            "T-011",
+            "T-018"
+          ],
+          "acceptance_criteria": [
+            "search/follow/importPDF match tech_specs signatures",
+            "follow() surfaces EntitlementError.sourceCapReached to the view to trigger PaywallView",
+            "Bad/unreadable PDF import produces the specific 'we couldn't read this file' error copy"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "Settings feature",
+        "description": "Generated from orchestrator task `T-016` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/Features/Settings/SettingsView.swift, Docket/Features/Settings/SettingsModel.swift\n\nAcceptance criteria:\n- Diagnostics sub-state directly surfaces on-device Apple Intelligence/model availability rather than letting it fail silently elsewhere",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/Features/Settings/SettingsView.swift",
+            "Docket/Features/Settings/SettingsModel.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Diagnostics sub-state directly surfaces on-device Apple Intelligence/model availability rather than letting it fail silently elsewhere"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-016"
+        }
+      },
+      {
+        "external_id": "T-017",
+        "issue_type": "Task",
+        "summary": "EntitlementStore (StoreKit 2)",
+        "description": "Generated from orchestrator task `T-017` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Entitlements/EntitlementStore.swift, DocketTests/EntitlementStoreTests.swift, Docket/Configuration/Docket.storekit\n\nAcceptance criteria:\n- Backed by Transaction.currentEntitlements, all three checks (canFollowAdditionalSource, canViewHistoryBeyondMostRecent, canEnableNotifications) work fully offline\n- Free tier: max 2 sources, current+1 history, no notifications; Plus: unlimited/full history/notifications\n- Each of the three gates has an independent .storekit-config-driven test",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Entitlements/EntitlementStore.swift",
+            "DocketTests/EntitlementStoreTests.swift",
+            "Docket/Configuration/Docket.storekit"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Backed by Transaction.currentEntitlements, all three checks (canFollowAdditionalSource, canViewHistoryBeyondMostRecent, canEnableNotifications) work fully offline",
+            "Free tier: max 2 sources, current+1 history, no notifications; Plus: unlimited/full history/notifications",
+            "Each of the three gates has an independent .storekit-config-driven test"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-017"
+        }
+      },
+      {
+        "external_id": "T-018",
+        "issue_type": "Task",
+        "summary": "Jurisdiction directory content + loader",
+        "description": "Generated from orchestrator task `T-018` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Resources/JurisdictionDirectory.json, Docket/Core/Directory/JurisdictionDirectoryEntry.swift, Docket/Core/Directory/JurisdictionDirectoryLoader.swift\n\nAcceptance criteria:\n- Bundled JSON ships with a real, usable initial set of municipal council/school-board/planning-commission entries across multiple states, not a token 10-entry placeholder\n- Loader never touches the network\n- JurisdictionDirectoryEntry matches tech_specs signature",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Resources/JurisdictionDirectory.json",
+            "Docket/Core/Directory/JurisdictionDirectoryEntry.swift",
+            "Docket/Core/Directory/JurisdictionDirectoryLoader.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Bundled JSON ships with a real, usable initial set of municipal council/school-board/planning-commission entries across multiple states, not a token 10-entry placeholder",
+            "Loader never touches the network",
+            "JurisdictionDirectoryEntry matches tech_specs signature"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-018"
+        }
+      },
+      {
+        "external_id": "T-019",
+        "issue_type": "Task",
+        "summary": "NotificationScheduler",
+        "description": "Generated from orchestrator task `T-019` for `docket`.\n\nOwner lane: `services_utilities`\nFiles: Docket/Core/Notifications/NotificationScheduler.swift\n\nAcceptance criteria:\n- requestAuthorizationIfNeeded only called contextually after first source followed + cadence set, never at launch\n- schedule(for:) no-ops when EntitlementStore.canEnableNotifications is false",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Docket/Core/Notifications/NotificationScheduler.swift"
+          ],
+          "depends_on": [
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "requestAuthorizationIfNeeded only called contextually after first source followed + cadence set, never at launch",
+            "schedule(for:) no-ops when EntitlementStore.canEnableNotifications is false"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-019"
+        }
+      },
+      {
+        "external_id": "T-020",
+        "issue_type": "Task",
+        "summary": "PaywallView + PaywallTrigger",
+        "description": "Generated from orchestrator task `T-020` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: Docket/Features/Paywall/PaywallView.swift, Docket/Features/Paywall/PaywallTrigger.swift\n\nAcceptance criteria:\n- One sheet, one message, headline copy varies only by trigger (sourceCap/history/notifications)\n- Triggered contextually from AddSourceModel/SourceDetailModel/notification toggle, never at launch",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Docket/Features/Paywall/PaywallView.swift",
+            "Docket/Features/Paywall/PaywallTrigger.swift"
+          ],
+          "depends_on": [
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "One sheet, one message, headline copy varies only by trigger (sourceCap/history/notifications)",
+            "Triggered contextually from AddSourceModel/SourceDetailModel/notification toggle, never at launch"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-020"
+        }
+      },
+      {
+        "external_id": "T-021",
+        "issue_type": "Task",
+        "summary": "PDF retention policy design + implementation",
+        "description": "Generated from orchestrator task `T-021` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: Docket/Core/Persistence/PDFRetentionPolicy.swift, DocketTests/PDFRetentionPolicyTests.swift\n\nAcceptance criteria:\n- Written policy doc committed alongside code covering the Plus-upgrade interaction explicitly\n- Eviction only occurs after confirming extracted text/digest already persisted in SwiftData\n- Plus-tier users never silently lose archived PDFs \u2014 either exempted from eviction or history access re-triggers fetch, decided and implemented, not left ambiguous",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Docket/Core/Persistence/PDFRetentionPolicy.swift",
+            "DocketTests/PDFRetentionPolicyTests.swift"
+          ],
+          "depends_on": [
+            "T-005",
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "Written policy doc committed alongside code covering the Plus-upgrade interaction explicitly",
+            "Eviction only occurs after confirming extracted text/digest already persisted in SwiftData",
+            "Plus-tier users never silently lose archived PDFs \u2014 either exempted from eviction or history access re-triggers fetch, decided and implemented, not left ambiguous"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-021"
+        }
+      },
+      {
+        "external_id": "T-022",
+        "issue_type": "Task",
+        "summary": "Schema migration smoke test",
+        "description": "Generated from orchestrator task `T-022` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: DocketTests/SchemaMigrationTests.swift\n\nAcceptance criteria:\n- A V2 schema fixture with one deliberately added trivial field\n- Test proves ModelContainer migrates an existing populated store to V2 without data loss",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "DocketTests/SchemaMigrationTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "A V2 schema fixture with one deliberately added trivial field",
+            "Test proves ModelContainer migrates an existing populated store to V2 without data loss"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-022"
+        }
+      },
+      {
+        "external_id": "T-023",
+        "issue_type": "Task",
+        "summary": "Accessibility and snapshot testing",
+        "description": "Generated from orchestrator task `T-023` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: DocketTests/DigestItemCardSnapshotTests.swift\n\nAcceptance criteria:\n- ImageRenderer-based snapshot test of DigestItemCard at accessibility XXXL passes with no truncated change-type badge\n- Amended gold badge contrast is measured against WCAG AA and either passes or the color token is adjusted",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "DocketTests/DigestItemCardSnapshotTests.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "ImageRenderer-based snapshot test of DigestItemCard at accessibility XXXL passes with no truncated change-type badge",
+            "Amended gold badge contrast is measured against WCAG AA and either passes or the color token is adjusted"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-023"
+        }
+      },
+      {
+        "external_id": "T-024",
+        "issue_type": "Task",
+        "summary": "XCUITest smoke flows",
+        "description": "Generated from orchestrator task `T-024` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: DocketUITests/OnboardingFlowTests.swift, DocketUITests/AddSourceFailureFlowTests.swift\n\nAcceptance criteria:\n- Onboarding -> follow a source -> 'all caught up' flow passes end to end\n- Add-source -> import a corrupt/unreadable PDF -> specific failure message flow passes end to end",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "DocketUITests/OnboardingFlowTests.swift",
+            "DocketUITests/AddSourceFailureFlowTests.swift"
+          ],
+          "depends_on": [
+            "T-012",
+            "T-015"
+          ],
+          "acceptance_criteria": [
+            "Onboarding -> follow a source -> 'all caught up' flow passes end to end",
+            "Add-source -> import a corrupt/unreadable PDF -> specific failure message flow passes end to end"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-024"
+        }
+      },
+      {
+        "external_id": "T-025",
+        "issue_type": "Task",
+        "summary": "Physical-device verification pass",
+        "description": "Generated from orchestrator task `T-025` for `docket`.\n\nOwner lane: `polish_resilience`\nFiles: docs/PhysicalDeviceChecklist.md\n\nAcceptance criteria:\n- Manual checklist executed on a real device covering BGTaskScheduler background refresh and the real Foundation Models summarizer path\n- Explicitly documented as non-blocking for ship, with results recorded, not left unverified",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "docs/PhysicalDeviceChecklist.md"
+          ],
+          "depends_on": [
+            "T-006",
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "Manual checklist executed on a real device covering BGTaskScheduler background refresh and the real Foundation Models summarizer path",
+            "Explicitly documented as non-blocking for ship, with results recorded, not left unverified"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-025"
+        }
+      },
+      {
+        "external_id": "T-026",
+        "issue_type": "Task",
+        "summary": "App entry point and tab assembly",
+        "description": "Generated from orchestrator task `T-026` for `docket`.\n\nOwner lane: `primary_ui`\nFiles: Docket/DocketApp.swift, Docket/RootTabView.swift\n\nAcceptance criteria:\n- Constructs ModelContainer via data_domain's factory function only, no ad hoc schema setup\n- Assembles the three-tab IA (Following/Explore-Add/Settings)\n- This file is single-owned; other lanes request changes rather than editing directly",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Docket/DocketApp.swift",
+            "Docket/RootTabView.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-009",
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "Constructs ModelContainer via data_domain's factory function only, no ad hoc schema setup",
+            "Assembles the three-tab IA (Following/Explore-Add/Settings)",
+            "This file is single-owned; other lanes request changes rather than editing directly"
+          ],
+          "source_project": "docket",
+          "source_task_id": "T-026"
+        }
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "ProcessingStage",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ProcessingStage: String, Codable { case queued, extracting, summarizing, diffing, ready, partial, failed }",
+        "owning_lane": "data_domain",
+        "notes": "Persisted flat on Meeting/DigestItem. Rich ProcessingState (with completeness/failure payloads) is a computed, non-persisted view built from this + completenessNote/missingSections/failureReason \u2014 never store an associated-value enum directly in SwiftData."
+      },
+      {
+        "name": "ChangeType",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ChangeType: String, Codable { case new, amended, removed, postponed, firstDigest }",
+        "owning_lane": "data_domain",
+        "notes": "Drives ChangeBadge shape+icon+color per design tokens."
+      },
+      {
+        "name": "FollowedSource",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class FollowedSource { var id: UUID; var name: String; var jurisdictionType: String; var locationText: String; var sourceURL: String?; var lastSyncedAt: Date?; var lastSyncStatus: String; var notificationCadence: NotificationCadence; var createdAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "notificationCadence gated by EntitlementStore.canEnableNotifications when != .off."
+      },
+      {
+        "name": "NotificationCadence",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum NotificationCadence: String, Codable { case off, daily, weekly, instant }",
+        "owning_lane": "data_domain",
+        "notes": null
+      },
+      {
+        "name": "Meeting",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class Meeting { var id: UUID; var source: FollowedSource; var date: Date; var title: String; var agendaPDFFilename: String?; var minutesPDFFilename: String?; var stage: ProcessingStage }",
+        "owning_lane": "data_domain",
+        "notes": "PDF binaries never stored in SwiftData \u2014 filenames key into PDFFileStore on disk."
+      },
+      {
+        "name": "DigestItem",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class DigestItem { var id: String; var meeting: Meeting; var sectionIndex: Int; var title: String; var summary: String; var changeType: ChangeType; var stage: ProcessingStage; var completenessNote: String?; var missingSections: [String]; var failureReason: String?; var originalText: String; var priorVersion: DigestItem? }",
+        "owning_lane": "data_domain",
+        "notes": "id MUST be deterministic \"\\(sourceID)-\\(meetingID)-\\(agendaItemNumberOrSectionIndex)\", never array position \u2014 required for stable ForEach identity across reprocessing."
+      },
+      {
+        "name": "DiffRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class DiffRecord { var id: UUID; var digestItem: DigestItem; var spans: [DiffSpan]; var computedAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": null
+      },
+      {
+        "name": "DiffSpan",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DiffSpan: Codable { enum Kind: String, Codable { case unchanged, added, removed }; let kind: Kind; let text: String }",
+        "owning_lane": "data_domain",
+        "notes": "Element type of DiffEngine.diff output; stored as Codable/JSON column in DiffRecord.spans."
+      },
+      {
+        "name": "DiffEngine.diff",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum DiffEngine { static func diff(old: String, new: String) -> [DiffSpan] }",
+        "owning_lane": "data_domain",
+        "notes": "Pure, zero dependency on SwiftData/Summarizer. Myers-diff-style over extracted text. Fully unit-testable against fixture pairs."
+      },
+      {
+        "name": "SummarizerService",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol SummarizerService { func summarize(sectionText: String) async throws -> String }",
+        "owning_lane": "data_domain",
+        "notes": "ExtractiveSummarizer (deterministic, always available) and FoundationModelsSummarizer (gated by Apple Intelligence eligibility) both conform. ProcessingCoordinator depends only on this protocol."
+      },
+      {
+        "name": "ProcessingCoordinator",
+        "kind": "function",
+        "language": "swift",
+        "signature": "@ModelActor actor ProcessingCoordinator { func process(meetingID: PersistentIdentifier, summarizer: SummarizerService) async }",
+        "owning_lane": "services_utilities",
+        "notes": "Off-main actor. Writes live stage ticks to ProcessingStatusBoard (not SwiftData); commits final DigestItem/DiffRecord only at terminal states. Must run a reconciliation pass at app launch: any persisted non-terminal ProcessingStage is requeued, never left stuck."
+      },
+      {
+        "name": "ProcessingStatusBoard",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class ProcessingStatusBoard { private(set) var stages: [String: ProcessingStage]; func update(id: String, stage: ProcessingStage) }",
+        "owning_lane": "primary_ui",
+        "notes": "In-memory only, keyed by DigestItem/Meeting id. Views bind here for progress UI so SwiftData/@Query never re-renders on every intermediate tick."
+      },
+      {
+        "name": "PDFExtractor",
+        "kind": "function",
+        "language": "swift",
+        "signature": "struct PDFExtractor { func extractText(fileURL: URL) async throws -> ExtractionResult }",
+        "owning_lane": "services_utilities",
+        "notes": "PDFKit text layer first; falls back to OCRExtractor per page when a page has no text layer."
+      },
+      {
+        "name": "OCRExtractor",
+        "kind": "function",
+        "language": "swift",
+        "signature": "struct OCRExtractor { func recognizeText(pageImage: CGImage) async throws -> String }",
+        "owning_lane": "services_utilities",
+        "notes": "Wraps VNRecognizeTextRequest. Per-page failures surface as DigestItem.missingSections entries, not a whole-document failure."
+      },
+      {
+        "name": "ExtractionResult",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ExtractionResult { let sections: [(title: String, text: String)]; let unreadablePageIndices: [Int] }",
+        "owning_lane": "services_utilities",
+        "notes": null
+      },
+      {
+        "name": "PDFFileStore",
+        "kind": "function",
+        "language": "swift",
+        "signature": "struct PDFFileStore { func save(data: Data) throws -> String; func url(for filename: String) -> URL }",
+        "owning_lane": "services_utilities",
+        "notes": "Documents/PDFs/<uuid>.pdf on disk; SwiftData models hold only the filename string."
+      },
+      {
+        "name": "EntitlementStore",
+        "kind": "function",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class EntitlementStore { private(set) var isPlus: Bool; func canFollowAdditionalSource(currentCount: Int) -> Bool; var canViewHistoryBeyondMostRecent: Bool { get }; var canEnableNotifications: Bool { get } }",
+        "owning_lane": "services_utilities",
+        "notes": "Backed by StoreKit 2 Transaction.currentEntitlements, checked fully offline. Free: max 2 sources, current+1 prior meeting history, no notifications. Docket Plus: unlimited sources, full history, notifications."
+      },
+      {
+        "name": "FollowingFeedModel",
+        "kind": "function",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class FollowingFeedModel { var groupedSources: [SourceDigestGroup]; func refresh() async }",
+        "owning_lane": "primary_ui",
+        "notes": "Groups DigestItems by FollowedSource; distinguishes empty-before-follow vs. 'all caught up' (followed, zero unread) as separate rendered states."
+      },
+      {
+        "name": "SourceDigestGroup",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct SourceDigestGroup: Identifiable { let id: UUID; let source: FollowedSource; let items: [DigestItem]; let hasUnread: Bool }",
+        "owning_lane": "primary_ui",
+        "notes": null
+      },
+      {
+        "name": "AddSourceModel",
+        "kind": "function",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class AddSourceModel { var results: [JurisdictionDirectoryEntry]; func search(query: String) async; func follow(_ entry: JurisdictionDirectoryEntry) throws; func importPDF(url: URL) async throws }",
+        "owning_lane": "primary_ui",
+        "notes": "follow(_:) throws EntitlementError.sourceCapReached when EntitlementStore.canFollowAdditionalSource is false, caught by the view to present PaywallView."
+      },
+      {
+        "name": "JurisdictionDirectoryEntry",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct JurisdictionDirectoryEntry: Identifiable, Codable { let id: String; let name: String; let jurisdictionType: String; let locationText: String; let sourceURL: String? }",
+        "owning_lane": "services_utilities",
+        "notes": "Loaded from a bundled JSON directory shipped in the app \u2014 never hits network, so Onboarding/Add Source search has no true error state."
+      },
+      {
+        "name": "SourceDetailModel",
+        "kind": "function",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class SourceDetailModel { var meetings: [Meeting]; var visibleHistory: [Meeting] { get }; func retrySync() async }",
+        "owning_lane": "primary_ui",
+        "notes": "visibleHistory truncated to current+1 prior meeting unless EntitlementStore.canViewHistoryBeyondMostRecent."
+      },
+      {
+        "name": "DigestItemDetailModel",
+        "kind": "function",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class DigestItemDetailModel { var item: DigestItem; var diff: [DiffSpan]?; func retryProcessing() async }",
+        "owning_lane": "primary_ui",
+        "notes": null
+      },
+      {
+        "name": "PaywallView",
+        "kind": "function",
+        "language": "swift",
+        "signature": "struct PaywallView: View { let trigger: PaywallTrigger }",
+        "owning_lane": "polish_resilience",
+        "notes": "One sheet, one message, regardless of which of the three gates triggered it \u2014 trigger only changes headline copy."
+      },
+      {
+        "name": "PaywallTrigger",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PaywallTrigger { case sourceCap, history, notifications }",
+        "owning_lane": "polish_resilience",
+        "notes": null
+      },
+      {
+        "name": "NotificationScheduler",
+        "kind": "function",
+        "language": "swift",
+        "signature": "struct NotificationScheduler { func requestAuthorizationIfNeeded() async -> Bool; func schedule(for source: FollowedSource) async }",
+        "owning_lane": "services_utilities",
+        "notes": "Requested contextually after first source followed + cadence set, never at launch; no-ops if EntitlementStore.canEnableNotifications is false."
+      }
+    ]
+  },
+  "phase_outputs": {
+    "iterate_scope": "Given I don't have direct access to the actual `app_build` source in this sandboxed phase, I'll close this out based on the discussion so far and hand a concrete, actionable scope to the implementation phase.\n\nCodex's file-level read is the more useful anchor here \u2014 it names the actual files in play (models, view models, `ProcessingCoordinator`, `RootTabView`/`SettingsView`) and gives us a plausible failure shape (SwiftData relationship/optionality bugs, `@Observable`/`@MainActor` boundary violations, `@Query`/navigation generic inference breaks). That's the concrete triage list the next phase should work through in order: models first, then view-model actor isolation, then view-level generics \u2014 because errors in the model layer cascade into everything downstream, so fixing them first collapses a lot of the noise before touching views.\n\nMy round-1 concern stands as the guardrail on top of that plan, not a competing plan: whoever fixes this must not let the diff/summarization pipeline (source \u2192 meeting \u2192 digest item \u2192 diff, with plain-language change surfacing) get stubbed out as a shortcut to a green build. If `ProcessingCoordinator` or the diff logic turns out to be structurally broken (not just mechanically broken), the fix should degrade honestly \u2014 e.g., fall back to a simpler diff algorithm \u2014 and say so explicitly, rather than silently making every document report \"no changes.\"\n\nCONSENSUS: YES\n\n## Final Output\n\nScope for the compile-fix pass:\n\n**Triage order (fix root-cause layers before dependents):**\n1. **SwiftData model layer** \u2014 `FollowedSource`, `Meeting`, `DigestItem`, `DiffRecord`. Check relationship declarations (inverse, cascade rules), optionality, and default values. Fix these first; errors here cascade into everything else.\n2. **View-model / Observation layer** \u2014 `FollowingFeedModel`, `OnboardingModel`, `AddSourceModel`, `SourceDetailModel`, `DigestItemDetailModel`, `ProcessingCoordinator`. Verify `@Observable`/`@MainActor` boundaries are consistent, especially anywhere async processing code touches UI-facing state. `ProcessingCoordinator` is the highest-risk file if it uses `#Predicate`, background tasks, or model-actor APIs \u2014 check it carefully.\n3. **View layer** \u2014 `RootTabView`, `SettingsView`, `ProcessingStatusBoard`. Resolve `@Query`/navigation-destination/generic-inference errors last, once the types feeding them are stable.\n4. **Project-level check** \u2014 if any error persists after 1\u20133, check for a stale/renamed type or a file missing from target membership rather than continuing to chase phantom type errors.\n\n**Hard constraint:** the local-first pipeline (followed source \u2192 meeting \u2192 digest item \u2192 diff, with staged processing and plain-language change surfacing) must remain real and wired to the UI. Mechanical fixes (type mismatches, actor-isolation annotations, argument-label drift, Codable conformance) should just be fixed in place \u2014 no product risk there. If a genuinely structural failure is found in the diffing/summarization logic, the fix may degrade it (e.g., line-level diff instead of semantic diff) but must not remove it or stub it to a canned/constant result \u2014 and that degradation must be called out explicitly in the phase output, not left silent.\n\n**Definition of done for this pass:** build succeeds cleanly AND opening a document still produces a plausible, non-hardcoded summary of what changed \u2014 not just exit code 0. Note any remaining functional gaps (empty/loading/error states, persistence correctness) for the next verification pass rather than declaring the app done on compile success alone.",
+    "build_coordination": "This round's changes check out \u2014 but I found one real bug hiding in Codex's own fix. Let me finalize.\n\n## Recap\n\n**What I found and fixed:** Codex's new `deleteDiffRecords(for:)` helper in `ProcessingCoordinator.swift` set `descriptor.fetchLimit = 0` \u2014 which in SwiftData means \"fetch zero results,\" not \"no limit.\" That silently made the whole stale-diff-record cleanup a no-op: the fetch always returned an empty array, so old `DiffRecord`s were never actually deleted. This would have failed Codex's own new regression test (`diffRecords.count == 1` after reprocessing) the moment it actually ran, since the old diff would still be sitting there alongside the new one. Removed the bad `fetchLimit` line \u2014 now it correctly fetches and deletes all matching diff records before a stale digest item is dropped or a surviving one gets its diff replaced.\n\n**What I verified by reading, not just trusting the transcript:** checked Claude's `AddSourceModel`/`AddSourceView` overlay changes (`activeImportStatusID`, `ProcessingStageIndicator`, `ProcessingStatusBoard.stage(for:)`) \u2014 all type-correct and consistent with what's already wired at the root. Confirmed `git status` shows exactly the 4 files this round's transcript claims changed, no surprise conflicts.\n\n**On the \"no simulator runtimes\" build failure Codex hit:** I tried to reproduce a real `xcodebuild` run myself and hit the same wall as both workers \u2014 every build-tool invocation in this integrator session gets blocked with no approver available. I can't independently confirm the asset-catalog/simulator-runtime failure, but Codex's evidence is concrete (real `.o`-equivalent dependency files, `LinkFileList`, per-module `.pcm` caches for dozens of frameworks \u2014 that's real `swiftc`/`clang` work, not a bluff), and it's consistent with a sandboxed CI machine that has no iOS Simulator runtime downloaded at all. That's an environment gap, not a project misconfiguration \u2014 nothing in `project.yml`/`pbxproj` forces a simulator dependency for a device build. I'm not going to chase it further by disabling asset catalogs or previews, since that would be a real regression for actual development.\n\n**Housekeeping:** added `.deriveddata*/` to `.gitignore` so these local build directories stop showing up as untracked noise every round.\n\n**Where this leaves the app:** the full pipeline \u2014 follow/import a source \u2192 extract \u2192 summarize \u2192 diff \u2192 plain-language digest \u2014 is real, wired end-to-end, fires immediately on import (not just at relaunch), cleans up after itself on reprocess (no stale digest items, no duplicate diffs), and shows honest multi-stage progress instead of a generic spinner. Two rounds of real compiler evidence plus my own line-by-line review of the touched files turned up no remaining source-level errors, and I caught and fixed one genuine data-corruption bug this round that no compiler would have flagged.\n\n**What's left, for whoever picks this up next:** (1) a real `xcodebuild`/simulator run on an unrestricted machine to get the actual green build confirmation nobody in this sandbox can produce; (2) `DigestGroupHeader`'s `onRetrySync` still isn't wired in `FollowingFeedView` \u2014 Claude correctly deferred this since it's a nested-tap-target question (`Button` inside a `NavigationLink` header) that needs a real simulator to verify, not a blind guess; (3) `DocketUITests` is still an empty target \u2014 decide to write it or drop it.\n\nCONSENSUS: YES\n\n## Final Output\n\nDocket's core loop is built and wired: you follow a local-government source (or import a PDF directly), Docket extracts the agenda/minutes text, summarizes each section, diffs it against the prior meeting, and shows a plain-language digest with per-section change badges \u2014 all on-device, no stubbed/canned output anywhere in that chain. Importing now kicks off processing immediately with real named-stage progress (\"Reading document\u2026\", \"Summarizing\u2026\", etc.) instead of leaving it queued until next launch, and reprocessing cleans up after itself instead of leaving stale digest items or duplicate diffs behind.\n\nTo run it: open `Docket.xcodeproj` in Xcode, select the Docket scheme, and run on a simulator (Debug config now has code signing disabled so it won't ask for a Development Team). Every lane's source-level work has now been reviewed and no compiler errors are known to remain; what's still unconfirmed is an actual green `xcodebuild` from a machine that isn't sandboxed against build tools and does have simulator runtimes installed \u2014 that's the one honest gap left, and it's an environment/verification step, not more code to write.\n\n**Build verification:** verified after 2 repair(s): compiled cleanly for the iOS Simulator",
+    "final_review": "This one's a clear go. The build is verified green after two real repairs (a bad `ModelConfiguration` initializer and a `deinit`/main-actor isolation bug), both mechanical fixes with no product downgrade. More importantly, nobody used the compile-fix as an excuse to gut the differentiator \u2014 the extract\u2192summarize\u2192diff\u2192plain-language-digest pipeline is still real, and this round's work actually made it *more* correct (immediate processing on import instead of waiting for relaunch, stale diff records and orphaned digest items cleaned up on reprocess, a genuine data-corruption bug caught by a human reading code, not the compiler). That's the bar this phase cares about \u2014 real user-visible behavior, not a green build hiding a stub \u2014 and it's met.\n\nWhere I side with Claude's round-1 point over just declaring victory: \"compiles\" and \"works\" aren't the same claim, and every verification pass here stopped at `xcodebuild`. Nobody has actually launched the simulator and tapped through onboarding \u2192 add source \u2192 watch processing \u2192 open a digest item \u2192 reprocess \u2192 retry. Given that two real bugs slipped past compilation entirely, I'm not willing to assume the rest of the app is clean just because it builds. So the honest call is: go for handoff, not go for \"fully done.\"\n\nCONSENSUS: YES\n\n## Final Output\n\n**What was built:** Docket's full local-first loop \u2014 follow a government source or import a PDF, extract text, summarize per section, diff against the prior meeting, and surface a plain-language digest with change badges \u2014 is implemented and wired end to end, with no stubbed/canned output anywhere in the chain. This compile-fix pass also fixed real correctness bugs along the way: invalid `ModelConfiguration` construction, a main-actor property touched from `deinit`, immediate (not relaunch-gated) processing on import, stale `DiffRecord`s no longer accumulating on reprocess, and obsolete `DigestItem`s no longer lingering after a section count changes.\n\n**Verification status:** VERIFIED \u2014 `xcodebuild` compiled cleanly for the iOS Simulator (attempt 2, after 2 targeted repairs). This is a real, tool-confirmed result, not a sandbox approximation.\n\n**Prompt coverage:** The specific ask \u2014 \"fix every compiler error until the build succeeds cleanly, don't drop features unless unavoidable\" \u2014 is fully met. No features were dropped; the diffing/summarization pipeline, the thing that makes this app worth having, survived intact and was actually hardened.\n\n**Known limitations (name them plainly, don't smooth over):**\n1. No actual simulator run-through has happened \u2014 every check in this whole effort stopped at compilation. Empty/loading/error states exist in code but haven't been exercised live.\n2. `DigestGroupHeader`'s retry affordance in the following feed is not wired to `onRetrySync`. It is unconfirmed whether this renders as a dead/tappable-looking control (bad \u2014 reads as broken) or simply isn't present (fine \u2014 just missing). Nobody has looked at this with real eyes yet.\n3. `DocketUITests` is an empty target \u2014 no decision made yet on whether to fill it or remove it.\n4. Persistence correctness across multiple import/reprocess cycles has only been reasoned about, not observed under a live simulator run.\n\n**Top follow-ups, in order:**\n1. Run an actual simulator smoke test: onboarding \u2192 add/follow a source \u2192 import a PDF \u2192 watch staged processing \u2192 open a digest item \u2192 reprocess \u2192 check retry/error paths. This is the single highest-value next step since it's the one thing no round of this effort has done.\n2. During that smoke test, specifically determine whether `DigestGroupHeader`'s retry control is absent or present-but-dead, and fix accordingly (wire it, or remove the dead-looking element).\n3. Decide on `DocketUITests`: write real tests or delete the empty target.\n\nThis is a go \u2014 ship it to the next phase \u2014 with the explicit understanding that \"verified\" here means \"compiles and the pipeline is architecturally real,\" not \"every screen has been tapped through by a human or simulator yet.\"\n\nVERIFICATION: VERIFIED"
+  }
+}

@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "ProcessingStage",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ProcessingStage: String, Codable { case queued, extracting, summarizing, diffing, ready, partial, failed }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted flat on Meeting/DigestItem. Rich ProcessingState (with completeness/failure payloads) is a computed, non-persisted view built from this + completenessNote/missingSections/failureReason \u2014 never store an associated-value enum directly in SwiftData."
+    },
+    {
+      "name": "ChangeType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ChangeType: String, Codable { case new, amended, removed, postponed, firstDigest }",
+      "owning_lane": "data_domain",
+      "notes": "Drives ChangeBadge shape+icon+color per design tokens."
+    },
+    {
+      "name": "FollowedSource",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class FollowedSource { var id: UUID; var name: String; var jurisdictionType: String; var locationText: String; var sourceURL: String?; var lastSyncedAt: Date?; var lastSyncStatus: String; var notificationCadence: NotificationCadence; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "notificationCadence gated by EntitlementStore.canEnableNotifications when != .off."
+    },
+    {
+      "name": "NotificationCadence",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum NotificationCadence: String, Codable { case off, daily, weekly, instant }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "Meeting",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Meeting { var id: UUID; var source: FollowedSource; var date: Date; var title: String; var agendaPDFFilename: String?; var minutesPDFFilename: String?; var stage: ProcessingStage }",
+      "owning_lane": "data_domain",
+      "notes": "PDF binaries never stored in SwiftData \u2014 filenames key into PDFFileStore on disk."
+    },
+    {
+      "name": "DigestItem",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class DigestItem { var id: String; var meeting: Meeting; var sectionIndex: Int; var title: String; var summary: String; var changeType: ChangeType; var stage: ProcessingStage; var completenessNote: String?; var missingSections: [String]; var failureReason: String?; var originalText: String; var priorVersion: DigestItem? }",
+      "owning_lane": "data_domain",
+      "notes": "id MUST be deterministic \"\\(sourceID)-\\(meetingID)-\\(agendaItemNumberOrSectionIndex)\", never array position \u2014 required for stable ForEach identity across reprocessing."
+    },
+    {
+      "name": "DiffRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class DiffRecord { var id: UUID; var digestItem: DigestItem; var spans: [DiffSpan]; var computedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "DiffSpan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DiffSpan: Codable { enum Kind: String, Codable { case unchanged, added, removed }; let kind: Kind; let text: String }",
+      "owning_lane": "data_domain",
+      "notes": "Element type of DiffEngine.diff output; stored as Codable/JSON column in DiffRecord.spans."
+    },
+    {
+      "name": "DiffEngine.diff",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum DiffEngine { static func diff(old: String, new: String) -> [DiffSpan] }",
+      "owning_lane": "data_domain",
+      "notes": "Pure, zero dependency on SwiftData/Summarizer. Myers-diff-style over extracted text. Fully unit-testable against fixture pairs."
+    },
+    {
+      "name": "SummarizerService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SummarizerService { func summarize(sectionText: String) async throws -> String }",
+      "owning_lane": "data_domain",
+      "notes": "ExtractiveSummarizer (deterministic, always available) and FoundationModelsSummarizer (gated by Apple Intelligence eligibility) both conform. ProcessingCoordinator depends only on this protocol."
+    },
+    {
+      "name": "ProcessingCoordinator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@ModelActor actor ProcessingCoordinator { func process(meetingID: PersistentIdentifier, summarizer: SummarizerService) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Off-main actor. Writes live stage ticks to ProcessingStatusBoard (not SwiftData); commits final DigestItem/DiffRecord only at terminal states. Must run a reconciliation pass at app launch: any persisted non-terminal ProcessingStage is requeued, never left stuck."
+    },
+    {
+      "name": "ProcessingStatusBoard",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class ProcessingStatusBoard { private(set) var stages: [String: ProcessingStage]; func update(id: String, stage: ProcessingStage) }",
+      "owning_lane": "primary_ui",
+      "notes": "In-memory only, keyed by DigestItem/Meeting id. Views bind here for progress UI so SwiftData/@Query never re-renders on every intermediate tick."
+    },
+    {
+      "name": "PDFExtractor",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct PDFExtractor { func extractText(fileURL: URL) async throws -> ExtractionResult }",
+      "owning_lane": "services_utilities",
+      "notes": "PDFKit text layer first; falls back to OCRExtractor per page when a page has no text layer."
+    },
+    {
+      "name": "OCRExtractor",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct OCRExtractor { func recognizeText(pageImage: CGImage) async throws -> String }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps VNRecognizeTextRequest. Per-page failures surface as DigestItem.missingSections entries, not a whole-document failure."
+    },
+    {
+      "name": "ExtractionResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExtractionResult { let sections: [(title: String, text: String)]; let unreadablePageIndices: [Int] }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "PDFFileStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct PDFFileStore { func save(data: Data) throws -> String; func url(for filename: String) -> URL }",
+      "owning_lane": "services_utilities",
+      "notes": "Documents/PDFs/<uuid>.pdf on disk; SwiftData models hold only the filename string."
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class EntitlementStore { private(set) var isPlus: Bool; func canFollowAdditionalSource(currentCount: Int) -> Bool; var canViewHistoryBeyondMostRecent: Bool { get }; var canEnableNotifications: Bool { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Backed by StoreKit 2 Transaction.currentEntitlements, checked fully offline. Free: max 2 sources, current+1 prior meeting history, no notifications. Docket Plus: unlimited sources, full history, notifications."
+    },
+    {
+      "name": "FollowingFeedModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class FollowingFeedModel { var groupedSources: [SourceDigestGroup]; func refresh() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Groups DigestItems by FollowedSource; distinguishes empty-before-follow vs. 'all caught up' (followed, zero unread) as separate rendered states."
+    },
+    {
+      "name": "SourceDigestGroup",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SourceDigestGroup: Identifiable { let id: UUID; let source: FollowedSource; let items: [DigestItem]; let hasUnread: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "AddSourceModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AddSourceModel { var results: [JurisdictionDirectoryEntry]; func search(query: String) async; func follow(_ entry: JurisdictionDirectoryEntry) throws; func importPDF(url: URL) async throws }",
+      "owning_lane": "primary_ui",
+      "notes": "follow(_:) throws EntitlementError.sourceCapReached when EntitlementStore.canFollowAdditionalSource is false, caught by the view to present PaywallView."
+    },
+    {
+      "name": "JurisdictionDirectoryEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct JurisdictionDirectoryEntry: Identifiable, Codable { let id: String; let name: String; let jurisdictionType: String; let locationText: String; let sourceURL: String? }",
+      "owning_lane": "services_utilities",
+      "notes": "Loaded from a bundled JSON directory shipped in the app \u2014 never hits network, so Onboarding/Add Source search has no true error state."
+    },
+    {
+      "name": "SourceDetailModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class SourceDetailModel { var meetings: [Meeting]; var visibleHistory: [Meeting] { get }; func retrySync() async }",
+      "owning_lane": "primary_ui",
+      "notes": "visibleHistory truncated to current+1 prior meeting unless EntitlementStore.canViewHistoryBeyondMostRecent."
+    },
+    {
+      "name": "DigestItemDetailModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class DigestItemDetailModel { var item: DigestItem; var diff: [DiffSpan]?; func retryProcessing() async }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "PaywallView",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct PaywallView: View { let trigger: PaywallTrigger }",
+      "owning_lane": "polish_resilience",
+      "notes": "One sheet, one message, regardless of which of the three gates triggered it \u2014 trigger only changes headline copy."
+    },
+    {
+      "name": "PaywallTrigger",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PaywallTrigger { case sourceCap, history, notifications }",
+      "owning_lane": "polish_resilience",
+      "notes": null
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct NotificationScheduler { func requestAuthorizationIfNeeded() async -> Bool; func schedule(for source: FollowedSource) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Requested contextually after first source followed + cadence set, never at launch; no-ops if EntitlementStore.canEnableNotifications is false."
+    }
+  ],
+  "errors": []
+}

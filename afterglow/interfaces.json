@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "PhotoAsset",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PhotoAsset { var identifier: String { get }; var creationDate: Date? { get }; var location: GeoCoordinate? { get }; var mediaSubtype: PhotoMediaSubtype { get }; var pixelSize: CGSize { get }; var qualityScore: Double { get } }",
+      "owning_lane": "data_domain",
+      "notes": "Lives in AfterglowCore package (Foundation-only, no Photos/CoreLocation import). Real conformance is PhotosLibraryAdapter's PHAssetWrapper; test conformance is FixturePhotoAsset."
+    },
+    {
+      "name": "GeoCoordinate",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct GeoCoordinate: Equatable { let latitude: Double; let longitude: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Framework-free stand-in for CLLocationCoordinate2D so AfterglowCore has zero platform-framework deps."
+    },
+    {
+      "name": "PhotoMediaSubtype",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PhotoMediaSubtype { case camera, screenshot, video, livePhoto, other }",
+      "owning_lane": "data_domain",
+      "notes": "Drives default screenshot/non-camera exclusion from clusters."
+    },
+    {
+      "name": "DayClusterResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DayClusterResult: Equatable { let date: Date; let assetIdentifiers: [String]; let suggestedCoverIdentifier: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Output of ClusteringEngine.cluster; UI/services lanes map this onto TripDay/PhotoRef rows."
+    },
+    {
+      "name": "ClusteringEngine.cluster",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func cluster(assets: [PhotoAsset], calendar: Calendar) -> [DayClusterResult]",
+      "owning_lane": "data_domain",
+      "notes": "Pure, synchronous, nonisolated. Timestamp-only; location is enrichment applied inside, never a hard dependency. Call off-MainActor for libraries >~500 assets."
+    },
+    {
+      "name": "BurstCollapser.collapse",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func collapse(assets: [PhotoAsset], within interval: TimeInterval) -> [[PhotoAsset]]",
+      "owning_lane": "data_domain",
+      "notes": "Groups near-duplicate burst shots so cover selection and day strips aren't destabilized by bursts."
+    },
+    {
+      "name": "CoverPhotoHeuristic.selectCover",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func selectCover(from assets: [PhotoAsset]) -> PhotoAsset?",
+      "owning_lane": "data_domain",
+      "notes": "Pure function over precomputed qualityScore; does NOT decode pixels itself \u2014 PhotosLibraryAdapter precomputes qualityScore at ingestion."
+    },
+    {
+      "name": "TripStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TripStatus: String, Codable { case draft, exported }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted on Trip; drives Trips Home card treatment."
+    },
+    {
+      "name": "Trip",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Trip { var id: UUID; var title: String; var startDate: Date; var endDate: Date; var status: TripStatus; var themeID: String; var coverPhotoAssetID: String?; var createdAt: Date; var exportedAt: Date?; var lastExportedPDFPath: String?; @Relationship(deleteRule: .cascade) var days: [TripDay] }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData @Model, part of AfterglowSchemaV1."
+    },
+    {
+      "name": "TripDay",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class TripDay { var id: UUID; var date: Date; var orderIndex: Int; var captionText: String; var captionUpdatedAt: Date; @Relationship(inverse: \\Trip.days) var trip: Trip?; @Relationship(deleteRule: .cascade) var photoRefs: [PhotoRef]; @Relationship(deleteRule: .cascade) var voiceNote: VoiceNote? }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData @Model."
+    },
+    {
+      "name": "PhotoRef",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PhotoRef { var id: UUID; var assetLocalIdentifier: String; var orderIndex: Int; var isManuallyAdded: Bool; var isMissing: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Never stores image bytes, only PHAsset.localIdentifier. isMissing persisted so UI can render MissingAssetTile even before re-resolution."
+    },
+    {
+      "name": "VoiceNote",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class VoiceNote { var id: UUID; var fileURL: URL; var duration: TimeInterval; var transcript: String?; var transcriptEdited: Bool; var recordedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData @Model; fileURL relative to Application Support."
+    },
+    {
+      "name": "AfterglowSchemaV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum AfterglowSchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Trip.self, TripDay.self, PhotoRef.self, VoiceNote.self] } }",
+      "owning_lane": "data_domain",
+      "notes": "Paired with AfterglowMigrationPlan: SchemaMigrationPlan (currently single-stage) set up from commit one per ios_architecture_review."
+    },
+    {
+      "name": "JournalExportSidecar",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct JournalExportSidecar: Codable { let tripID: UUID; let title: String; let days: [SidecarDay]; let themeID: String; let exportedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Serialized alongside the PDF at export; cloud-sync-ready per per_app_product_brief, and shareable standalone as a lightweight user-triggered backup path (export-only, no import UI \u2014 named limitation)."
+    },
+    {
+      "name": "PermissionProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PermissionProviding { func photosAuthorizationStatus() -> PhotosAuthState; func requestPhotosAccess() async -> PhotosAuthState; func microphoneAuthorizationStatus() -> AVAudioSession.RecordPermission; func requestMicrophoneAccess() async -> Bool; func speechAuthorizationStatus() -> SFSpeechRecognizerAuthorizationStatus; func requestSpeechAccess() async -> SFSpeechRecognizerAuthorizationStatus }",
+      "owning_lane": "services_utilities",
+      "notes": "Real implementation wraps PHPhotoLibrary/AVAudioSession/SFSpeechRecognizer; fake implementation used by app-level and UI tests to force denied/limited/revoked-mid-session deterministically."
+    },
+    {
+      "name": "PhotosAuthState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PhotosAuthState { case notDetermined, full, limited, denied }",
+      "owning_lane": "services_utilities",
+      "notes": "Drives the three-state Photos permission machine plus the revoked-mid-session transition."
+    },
+    {
+      "name": "PhotosLibraryAdapter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PhotosLibraryAdapter { func fetchAssets(in range: DateInterval) async -> [PhotoAsset]; func resolveAsset(identifier: String) async -> PhotoAsset? }",
+      "owning_lane": "services_utilities",
+      "notes": "Only place PHAsset/PHPhotoLibrary is imported outside permission code. Precomputes qualityScore per asset here."
+    },
+    {
+      "name": "TripFlowStep",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TripFlowStep: Hashable { case tripSetup(tripID: UUID); case clusterReview(tripID: UUID); case captionEditor(tripID: UUID); case themePreview(tripID: UUID); case exportPreview(tripID: UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "Pushed onto a single NavigationPath rooted at Trips Home."
+    },
+    {
+      "name": "TripStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class TripStore { func createTrip(range: DateInterval) async -> UUID; func reassignPhoto(_ photoRefID: UUID, to dayID: UUID); func updateCaption(for dayID: UUID, text: String); func chooseTheme(_ themeID: String, for tripID: UUID); func beginExport(for tripID: UUID) -> AsyncStream<ExportProgress>; func markExported(tripID: UUID, pdfURL: URL); func resumeStep(for tripID: UUID) -> TripFlowStep }",
+      "owning_lane": "primary_ui",
+      "notes": "Sole mutation entry point \u2014 views and services never touch ModelContext directly. resumeStep backs both app-resume and widget deep-link routing."
+    },
+    {
+      "name": "AudioRecordingService",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class AudioRecordingService { func startRecording() throws; func stopRecording() -> URL?; func handleInterruption(_ notification: Notification) }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns AVAudioSession/AVAudioRecorder; interruption handler auto-saves partial recording rather than discarding."
+    },
+    {
+      "name": "TranscriptionService",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TranscriptionService { func transcribe(fileURL: URL) async throws -> String }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps SFSpeechRecognizer; only invoked after speech-recognition authorization is separately granted from microphone."
+    },
+    {
+      "name": "ExportProgress",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ExportProgress { case rendering(page: Int, of: Int); case completed(fileURL: URL); case failed(AfterglowError) }",
+      "owning_lane": "services_utilities",
+      "notes": "Streamed from the PDFExportRenderer actor to the Export Preview view for a determinate progress bar."
+    },
+    {
+      "name": "PDFExportRenderer",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "actor PDFExportRenderer { func render(trip: Trip, theme: ThemeID) -> AsyncStream<ExportProgress> }",
+      "owning_lane": "services_utilities",
+      "notes": "Runs off the main actor; downsamples export images to a defined ceiling (e.g. 2400px long edge) distinct from review-grid thumbnails. Consumes ExportLayoutEngine.layout output."
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class EntitlementStore { var isSubscribed: Bool; func refresh() async; func purchase(_ product: Product) async throws; func restorePurchases() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Backed by StoreKit 2 Transaction.currentEntitlements + Transaction.updates; existing trips remain accessible regardless of lapsed status, only new-trip creation gates on isSubscribed."
+    },
+    {
+      "name": "WidgetSnapshotWriter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WidgetSnapshotWriter { func writeSnapshot(tripID: UUID, title: String, coverImage: UIImage) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Writes downsampled cover + JSON snapshot to App Group container and calls WidgetCenter.shared.reloadTimelines synchronously inside TripStore.markExported, before the trip flips to exported."
+    },
+    {
+      "name": "afterglow://trip/<id>",
+      "kind": "endpoint",
+      "language": "url-scheme",
+      "signature": "afterglow://trip/{tripID}",
+      "owning_lane": "primary_ui",
+      "notes": "Widget deep link; resolved via TripStore.resumeStep(for:) to push the correct TripFlowStep or a read-only export view."
+    },
+    {
+      "name": "AfterglowError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AfterglowError: Error { case assetUnavailable, permissionDenied(PermissionKind), exportRenderFailed(underlying: Error), shareCancelled, diskFull }",
+      "owning_lane": "polish_resilience",
+      "notes": "Unified error surface consumed by all screen-level error states; shareCancelled must never mutate Trip.status."
+    },
+    {
+      "name": "MissingAssetTile.resolve",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func resolve(photoRef: PhotoRef, adapter: PhotosLibraryAdapter) async -> AssetResolutionResult",
+      "owning_lane": "polish_resilience",
+      "notes": "AssetResolutionResult is .available(PhotoAsset) or .missing; used by Cluster Review, Caption Editor, Export Preview so a library-deleted photo renders a defined tile, not a crash."
+    },
+    {
+      "name": "AssetResolutionResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AssetResolutionResult { case available(PhotoAsset); case missing }",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared result type for the missing-asset-tile pattern across three screens."
+    },
+    {
+      "name": "ExportLayoutEngine.layout",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func layout(trip: JournalExportSidecar, theme: ThemeID) -> [ExportPageLayout]",
+      "owning_lane": "data_domain",
+      "notes": "Pure page-composition math (photo placement, caption flow) consumed by PDFExportRenderer; kept in AfterglowCore so layout logic is unit-testable without PDFKit."
+    },
+    {
+      "name": "ExportPageLayout",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExportPageLayout: Equatable { let dayIndex: Int; let photoIdentifiers: [String]; let captionText: String }",
+      "owning_lane": "data_domain",
+      "notes": "Intermediate output between ExportLayoutEngine and PDFExportRenderer's actual drawing code."
+    },
+    {
+      "name": "ThemeID",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ThemeID: String, Codable { case classicPaperV1 }",
+      "owning_lane": "data_domain",
+      "notes": "Single v1 theme; future themes add cases, no picker UI required to add them."
+    },
+    {
+      "name": "SidecarDay",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SidecarDay: Codable { let date: Date; let captionText: String; let photoIdentifiers: [String]; let voiceTranscript: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Element type of JournalExportSidecar.days."
+    },
+    {
+      "name": "PermissionKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PermissionKind { case photos, microphone, speechRecognition }",
+      "owning_lane": "polish_resilience",
+      "notes": "Used by AfterglowError.permissionDenied so error UI can show the correct denied-state copy and Settings deep link per permission."
+    }
+  ],
+  "errors": []
+}

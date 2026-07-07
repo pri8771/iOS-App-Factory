@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp5",
+  "build": true,
+  "build_priority": 2,
+  "app": {
+    "name": "QuietPilot",
+    "slug": "quietpilot",
+    "category": "Acoustic-aware focus scheduling",
+    "one_sentence_promise": "Learns how your real environments actually sound and negotiates your daily focus blocks around them instead of just measuring decibels once.",
+    "target_user": "Remote workers, students, and podcasters in shared or noise-variable spaces (open-plan homes, shared offices, apartments) who need predictable deep-work time.",
+    "painful_moment": "Noise and interruptions wreck long focus sessions, and there's no way to know in advance which hours in which room are actually going to be quiet enough \u2014 so people either guess, or get burned mid-session by the espresso machine or a neighbor's call.",
+    "why_different": "Not a one-shot decibel meter: on-device spectral analysis and local pattern clustering build a per-room acoustic profile over repeated short sessions, and the app's daily verb is a scheduling negotiation \u2014 it proposes and defends focus blocks against your calendar using what it's learned about when a room is actually quiet, so the value compounds with use instead of being a single diagnostic you run once and forget.",
+    "why_users_pay": "Saves real deep-work hours and reduces interruption-recovery cost; subscription unlocks unlimited room profiles, calendar-aware scheduling intelligence, and multi-person/team readiness views for shared spaces.",
+    "subscription_model": "Free tier: one room profile, manual session logging, basic score. Paid: unlimited room profiles, calendar-integrated scheduling recommendations, team/shared-space readiness analytics, historical trend export.",
+    "local_first_mvp_scope": "SwiftData models for rooms, sessions, detected noise-pattern clusters, and calendar-linked focus blocks; spectral feature extraction and clustering run fully on-device against locally captured short audio sessions, discarding raw audio after feature extraction.",
+    "future_backend_roadmap": "CloudKit sync across a person's devices; opt-in shared household/team room profiles; policy templates for shared offices \u2014 additive, no rewrite needed.",
+    "core_workflows": [
+      "Start/stop a short acoustic capture session with automatic metadata (time, room, activity type)",
+      "Build and refine a room's noise-pattern profile from repeated sessions",
+      "Get a room readiness score for a given time window",
+      "Get and negotiate a proposed focus-block schedule against the calendar",
+      "Review trends and compare before/after a room change (e.g., moved desks, added a rug)"
+    ],
+    "ios_native_features": [
+      "BGAppRefreshTask for nightly profile recomputation",
+      "Home/Lock Screen widget for current room score and next proposed focus window",
+      "App Intents for starting/stopping a session from Shortcuts or Siri",
+      "Haptic feedback for threshold crossings",
+      "Local notifications for negotiated quiet windows"
+    ],
+    "ar_ml_llm_fit": "On-device FFT-based spectral feature extraction plus local CoreML clustering for recurring noise-pattern detection \u2014 no cloud audio processing, no LLM required.",
+    "design_direction": "Muted steel-and-aurora palette, waveform-to-heatmap card transitions, strict micro-typography scale, calm spring motion \u2014 restrained rather than clinical.",
+    "claude_design_prompt": "Design an acoustic-focus scheduling app called QuietPilot with a muted steel-and-aurora visual identity: waveform imagery that resolves into calm heatmap cards, restrained motion, high legibility at a glance, and a tone that reads as a considerate daily planner rather than a surveillance meter.",
+    "app_store_positioning": "The focus app that learns how your spaces actually sound and negotiates your schedule around them, instead of a decibel meter you check once and forget.",
+    "key_risks": [
+      "Microphone capture needs an unmistakably explicit start/stop model or it reads as creepy always-listening surveillance",
+      "Repeat-use value depends on the scheduling-negotiation loop actually working, not just the initial room diagnostic \u2014 if that loop is weak the app becomes a one-time novelty",
+      "Environmental variability (a different noise source each day) can undercut confidence in the profile and needs honest uncertainty framing, not false precision"
+    ],
+    "invalidation_criteria": "If the scheduling-negotiation loop can't be made genuinely useful against real calendars, narrow v1 to room-profile-and-score only and market it honestly as a diagnostic tool rather than a scheduler, rather than overclaiming a weak scheduling feature.",
+    "v1_build_scope": "Manual session capture, on-device spectral clustering for up to 3 room profiles, readiness scoring, one calendar-aware focus-block proposal flow, trend timeline, local export \u2014 no team/multi-person analytics in v1.",
+    "build": true,
+    "build_priority": 2
+  }
+}

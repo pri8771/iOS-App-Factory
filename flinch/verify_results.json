@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 07:14:24",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "577e9d71dca0290ab1b268e8609b988c56f7fb28f2cfdf1e4498e997401330c0",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "Flinch",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "Failed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/flinch/app_build/Flinch/Services/StoreManager.swift:27:9: error: main actor-isolated property 'updatesTask' can not be referenced from a nonisolated context\n/Users/pchordia/Documents/iOS-App-Factory/flinch/app_build/Flinch/Arena/ArenaUIView.swift:119:20: error: cannot access property 'displayLink' with a non-Sendable type 'CADisplayLink?' from nonisolated deinit\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 07:15:40",
+    "phase": "build_verification",
+    "workflow": "app_build_child",
+    "prompt_hash": "577e9d71dca0290ab1b268e8609b988c56f7fb28f2cfdf1e4498e997401330c0",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Flinch",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

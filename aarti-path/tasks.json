@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Static content model types (Tradition, PracticeType, Practice, LearningPath, LearningModule, Lesson)",
+      "owner_lane": "data_domain",
+      "files": [
+        "AartiPath/Models/Tradition.swift",
+        "AartiPath/Models/PracticeType.swift",
+        "AartiPath/Models/Practice.swift",
+        "AartiPath/Models/LearningPath.swift",
+        "AartiPath/Models/LearningModule.swift",
+        "AartiPath/Models/Lesson.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All types are Codable + Identifiable where applicable",
+        "Compiles standalone with no SwiftData import",
+        "No reference to a Deity type anywhere"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "SwiftData @Model classes + ModelContainer schema",
+      "owner_lane": "data_domain",
+      "files": [
+        "AartiPath/Models/PracticeSessionRecord.swift",
+        "AartiPath/Models/StreakRecord.swift",
+        "AartiPath/Models/UserProfile.swift",
+        "AartiPath/Models/JournalEntry.swift",
+        "AartiPath/Models/LessonProgressRecord.swift",
+        "AartiPath/App/AppContainer.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Each class is @Model final class, matches frozen signatures exactly",
+        "ModelContainer initializes with full schema and no migration crash on first launch",
+        "Singleton rows (StreakRecord, UserProfile) are fetched-or-created idempotently"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Bundled content JSON + ContentCatalog loader with versioned upsert",
+      "owner_lane": "data_domain",
+      "files": [
+        "AartiPath/Content/ContentCatalog.swift",
+        "AartiPath/Content/ContentCatalogLoading.swift",
+        "[REDACTED:high_entropy].json"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Loader throws a typed error on malformed JSON instead of crashing",
+        "Upsert keyed by stable content id preserves existing LessonProgressRecord rows across a version bump",
+        "At least one Hindu and one Jain practice and learning path present"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Catalog decode + version-bump upsert unit tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "AartiPath/Tests/ContentCatalogTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Test seeds v1 content, records progress, reseeds v2 content, asserts progress survives",
+        "Test covers malformed/missing-field JSON producing a thrown error, not a crash"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Real MVP content authoring (audio + lesson text)",
+      "owner_lane": "data_domain",
+      "files": [
+        "AartiPath/Resources/Audio/*.m4a",
+        "[REDACTED:high_entropy].json"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "No practice references a silent or placeholder-beep audio asset",
+        "At least one full learning path module has real lesson text for both traditions"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Support/LoadState and Support/AppError shared types",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "AartiPath/Support/LoadState.swift",
+        "AartiPath/Support/AppError.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "LoadState<T> matches frozen signature (idle/loading/loaded/failed)",
+        "AppError conforms to LocalizedError with user-facing messages for all four cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "StreakService implementing StreakServicing",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AartiPath/Services/StreakService.swift",
+        "AartiPath/Tests/StreakServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "recordPractice is idempotent for same local calendar day",
+        "Freeze consumption and streak-reset edge cases are unit tested",
+        "No clock-tamper detection logic added (explicitly out of scope per project_plan)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "ProgressService implementing ProgressServicing",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AartiPath/Services/ProgressService.swift",
+        "AartiPath/Tests/ProgressServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Lesson unlock keyed by lessonID only, never by tradition",
+        "Switching UserProfile.selectedTradition does not alter any LessonProgressRecord",
+        "Sequential unlock ordering is unit tested"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "AudioPlaybackService and NotificationScheduler",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AartiPath/Services/AudioPlaybackService.swift",
+        "AartiPath/Services/NotificationScheduler.swift",
+        "AartiPath/Tests/AudioPlaybackServiceTests.swift",
+        "AartiPath/Tests/NotificationSchedulerTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Audio prep happens off-main",
+        "Notification permission denial surfaces as a thrown/typed error, not a silent no-op"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "SubscriptionManager implementing SubscriptionManaging",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AartiPath/Services/SubscriptionManager.swift",
+        "AartiPath/Tests/SubscriptionManagerTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Product ids are aartipath.premium.monthly and aartipath.premium.annual",
+        "restorePurchases correctly flips isSubscribed after a simulated reinstall in tests"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "StoreKit Configuration file + sandbox scheme wiring",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "AartiPath/Configuration.storekit",
+        "AartiPath.xcodeproj/xcshareddata/xcschemes/AartiPath.xcscheme"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Scheme runs against the local StoreKit config in simulator without a live App Store connection",
+        "Both product ids resolve in a test purchase"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "HomeViewModel + HomeView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AartiPath/ViewModels/HomeViewModel.swift",
+        "AartiPath/Views/HomeView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007",
+        "T-008",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Empty, loading, success, and error states all render distinct UI",
+        "Today's practice reflects selectedTradition"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "PracticeSessionViewModel + PracticeSessionView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AartiPath/ViewModels/PracticeSessionViewModel.swift",
+        "AartiPath/Views/PracticeSessionView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Completing a session calls StreakServicing.recordPractice exactly once",
+        "Playback failure surfaces AppError.audioUnavailable in the UI"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "LearningPathViewModel + LearningPathView + LessonView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AartiPath/ViewModels/LearningPathViewModel.swift",
+        "AartiPath/Views/LearningPathView.swift",
+        "AartiPath/Views/LessonView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Locked lessons are visibly non-interactive",
+        "Completing a lesson visibly unlocks exactly the next one"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "ProfileViewModel + ProfileView + StreakView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AartiPath/ViewModels/ProfileViewModel.swift",
+        "AartiPath/Views/ProfileView.swift",
+        "AartiPath/Views/StreakView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007",
+        "T-009",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Reminder time update round-trips through NotificationScheduling",
+        "Subscription status displayed matches SubscriptionManaging.isSubscribed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "OnboardingViewModel + OnboardingView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AartiPath/ViewModels/OnboardingViewModel.swift",
+        "AartiPath/Views/OnboardingView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "completeOnboarding persists selectedTradition to UserProfile",
+        "Cannot proceed past onboarding without a tradition selected"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "PaywallViewModel + PaywallView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AartiPath/ViewModels/PaywallViewModel.swift",
+        "AartiPath/Views/PaywallView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-010",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Purchase and restore both drive isPurchasing state correctly",
+        "Purchase failure surfaces AppError.purchaseFailed, not a silent failure"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Accessibility, empty/loading/error state pass, and privacy/README polish",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "AartiPath/Views/HomeView.swift",
+        "AartiPath/Views/PracticeSessionView.swift",
+        "AartiPath/Views/LearningPathView.swift",
+        "AartiPath/Views/LessonView.swift",
+        "AartiPath/Views/ProfileView.swift",
+        "AartiPath/Views/StreakView.swift",
+        "AartiPath/Views/OnboardingView.swift",
+        "AartiPath/Views/PaywallView.swift",
+        "AartiPath/Info.plist",
+        "README.md"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013",
+        "T-014",
+        "T-015",
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "VoiceOver labels and Dynamic Type support present on every screen",
+        "Notification permission usage string present in Info.plist",
+        "This task only adds diffs to existing views, never restructures a screen's layout or state ownership"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "End-to-end release-gate verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docs/release_gate_checklist.md"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Full smoke sequence executed and passes: install, onboarding, practice, streak, lesson unlock, paywall purchase, force-quit/relaunch persistence, notification-denied error state on a second fresh install",
+        "Any failure blocks calling the app done"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

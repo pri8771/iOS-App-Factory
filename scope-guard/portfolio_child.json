@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp4",
+  "build": true,
+  "build_priority": 2,
+  "app": {
+    "name": "Scope Guard",
+    "slug": "scope-guard",
+    "category": "Freelance & Consulting Tools",
+    "one_sentence_promise": "Paste in client messages and get scope-creep flagged with a drafted change order before you do unpaid work.",
+    "target_user": "Independent freelancers and small consultancies who lose money to informal scope creep buried in message threads.",
+    "painful_moment": "A client casually asks for 'one more small thing' and the freelancer must decide, under time pressure, whether that's billable.",
+    "why_different": "Intervenes before the unpaid work happens, at the moment the ask lands, instead of tracking time after the fact.",
+    "why_users_pay": "Unlimited projects/clients and unlimited LLM extractions versus a capped free tier.",
+    "subscription_model": "Free: 1 active project, 10 extractions/month. Paid (~$9.99/mo): unlimited projects and extractions, change-order templates, PDF export.",
+    "local_first_mvp_scope": "Local project/client records, pasted-text ingestion, on-device LLM extraction of deliverables vs. new asks, manual scope baseline, change-order draft generation, local export.",
+    "future_backend_roadmap": "Repository protocol boundary now; later, optional email/Slack ingestion via cloud connector behind the same interface.",
+    "core_workflows": [
+      "define project scope baseline",
+      "paste in new client message",
+      "LLM flags in-scope vs out-of-scope asks",
+      "review and edit flagged items",
+      "generate change-order draft"
+    ],
+    "ios_native_features": [
+      "On-device Foundation Models framework",
+      "Share extension from Mail/Messages",
+      "Local document export",
+      "Accessibility-first form-heavy UI"
+    ],
+    "ar_ml_llm_fit": "LLM extraction is the entire value proposition; ships an explicit non-LLM manual-tagging fallback for ineligible devices.",
+    "design_direction": "Sharp, contract-grade, no-nonsense \u2014 legal document meets modern productivity app.",
+    "claude_design_prompt": "Design a premium iOS app called Scope Guard for freelancers to catch client scope creep. Sharp contract-grade aesthetic, clear in-scope/flagged distinction, paste-in-message screen, review/flag screen, change-order draft preview. Include empty state and an on-device-AI-unavailable fallback state.",
+    "app_store_positioning": "Stop doing unpaid work you didn't agree to.",
+    "key_risks": [
+      "Devices without Apple Intelligence eligibility need a genuinely usable manual fallback",
+      "Extraction quality needs validation against messy real-world phrasing"
+    ],
+    "invalidation_criteria": "If freelancers stop pasting messages after week one, or flags are routinely wrong, the mechanic needs rework.",
+    "v1_build_scope": "Single-user local project/client management, manual scope baseline, paste-and-extract with LLM and manual fallback, change-order draft + export, full state coverage, StoreKit 2 paywall.",
+    "build": true,
+    "build_priority": 2
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b3",
+  "build": true,
+  "build_priority": 8,
+  "app": {
+    "name": "Runway",
+    "slug": "runway",
+    "category": "Utilities",
+    "one_sentence_promise": "Shows freelancers and irregular-income earners exactly how many days of runway they have left, without linking a bank account.",
+    "target_user": "Freelancers, contractors, and gig workers with irregular income who find steady-paycheck budgeting apps useless or overwhelming.",
+    "painful_moment": "Constant low-grade anxiety about how long you could coast if work dried up, with no simple, privacy-respecting way to see it.",
+    "why_different": "One core number \u2014 days of runway \u2014 projected from manually entered recurring and one-off entries, explicitly with no bank linking, a real privacy-first differentiator against account-linked competitors.",
+    "why_users_pay": "Multiple what-if scenario projections, historical accuracy tracking of past projections, recurring-income templates for freelance patterns, tax-quarter export.",
+    "subscription_model": "Free: single runway projection, manual entries. Paid: scenario modeling, historical tracking, export.",
+    "local_first_mvp_scope": "Fully on-device ledger of income/expense entries with recurring-entry support and runway calculation.",
+    "future_backend_roadmap": "Optional cloud backup/sync; possible opt-in CSV statement import later, still never live account linking.",
+    "core_workflows": [
+      "Add income/expense entries (one-off or recurring)",
+      "View runway projection",
+      "Model a what-if scenario",
+      "Review historical accuracy of past projections"
+    ],
+    "ios_native_features": [
+      "Widgets showing current runway at a glance",
+      "Live Activities for a runway countdown during a lean stretch",
+      "App Intents/Siri for quick entry"
+    ],
+    "ar_ml_llm_fit": "None \u2014 an honest, non-ML personal finance tool by design.",
+    "design_direction": "Calm, confidence-inspiring \u2014 a single hero number as the centerpiece, muted premium palette, no alarmist red/green gamification.",
+    "claude_design_prompt": "Design a calm personal-finance app centered on one hero number (days of runway): a minimal entry-logging flow, a muted-palette runway dashboard, and a simple what-if scenario comparison view.",
+    "app_store_positioning": "Know your runway \u2014 without linking your bank account to another app.",
+    "key_risks": [
+      "Manual-entry discipline is the single biggest adoption risk",
+      "Entry must take under 5 seconds or it won't stick",
+      "Competing against free bank-linked apps requires the privacy pitch to be foregrounded clearly"
+    ],
+    "invalidation_criteria": "If active logging drops off sharply after week 2, manual-only entry is unsustainable and needs an import or receipt-photo shortcut.",
+    "v1_build_scope": "Entry logging with recurring support, runway calculation/display, one what-if scenario, historical log view.",
+    "build": true,
+    "build_priority": 8
+  }
+}

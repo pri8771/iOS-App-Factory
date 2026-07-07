@@ -1,0 +1,384 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffold: git init, Xcode target, folder layout, PrivacyInfo, StoreKit config stub, onboarding flag",
+      "owner_lane": "data_domain",
+      "files": [
+        "crockwatch.xcodeproj/project.pbxproj",
+        "crockwatch/App/CrockwatchApp.swift",
+        "crockwatch/Resources/PrivacyInfo.xcprivacy",
+        "crockwatch/Resources/Configuration.storekit",
+        "crockwatch/Resources/DesignTokens.swift",
+        "crockwatch/App/OnboardingFlag.swift",
+        "Info.plist"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "git repo initialized with main branch",
+        "project builds and runs to a blank screen on simulator",
+        "folder stubs exist for Domain/Persistence/Services/Stores/Views/Resources matching tech_specs layout",
+        "Configuration.storekit has placeholder product ids for monthly and yearly premium",
+        "PrivacyInfo.xcprivacy present with no third-party SDK entries",
+        "hasCompletedOnboarding exposed via @AppStorage, readable/writable from two call sites"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Domain value types and fixed-vocabulary enums",
+      "owner_lane": "data_domain",
+      "files": [
+        "crockwatch/Domain/Enums.swift",
+        "crockwatch/Domain/Batch.swift",
+        "crockwatch/Domain/ObservationEvent.swift",
+        "crockwatch/Domain/DerivedStatus.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "zero SwiftData or SwiftUI imports anywhere in this file set",
+        "every type/signature matches tech_specs interfaces-json exactly",
+        "all enums are Codable, Sendable, and CaseIterable where required"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Pacing engine, rank, cap enforcement + full parameterized test matrix (hard gate)",
+      "owner_lane": "data_domain",
+      "files": [
+        "crockwatch/Domain/PacingEngine.swift",
+        "crockwatch/Domain/CapEnforcement.swift",
+        "crockwatch/Domain/RankActiveBatches.swift",
+        "crockwatchTests/DomainTests/PacingEngineTests.swift",
+        "crockwatchTests/DomainTests/CapEnforcementTests.swift",
+        "crockwatchTests/DomainTests/RankActiveBatchesTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "deriveStatus never calls Date() internally, now is always injected",
+        "safetyCeiling = 60 documented in-code as valid only while there is a single local-notification producer",
+        "parameterized matrix covers ferment types x temperature histories x timezone-transition boundaries x capacity-reshuffle scenarios",
+        "synthetic 70-batch scenario exercises the 60-ceiling overflow path",
+        "this suite must be green before any task depending on it starts"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Persistence layer (private SwiftData models, repositories) + cross-batch isolation tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "crockwatch/Persistence/BatchModel.swift",
+        "crockwatch/Persistence/ObservationEventModel.swift",
+        "crockwatch/Persistence/SchemaV1.swift",
+        "crockwatch/Persistence/BatchRepository.swift",
+        "crockwatch/Persistence/HistoryRepository.swift",
+        "crockwatch/Persistence/ModelContainer+Setup.swift",
+        "crockwatchTests/PersistenceTests/BatchRepositoryTests.swift",
+        "crockwatchTests/PersistenceTests/IsolationTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "@Model types are never imported outside this folder",
+        "automated test proves same-day batches never collide",
+        "automated test proves logging on batch 3 never changes batch 1's status or notification eligibility, using an injected clock",
+        "HistoryRepository pagination uses explicit offset/limit, never fetch-all-then-slice",
+        "writes execute off the main actor via a ModelActor-conforming executor"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "NotificationScheduler + fake scheduler test double",
+      "owner_lane": "services_utilities",
+      "files": [
+        "crockwatch/Services/NotificationScheduler.swift",
+        "crockwatch/Services/FakeNotificationScheduler.swift",
+        "crockwatchTests/ServiceTests/NotificationSchedulerTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "upsert-by-identifier via add(), keyed to batch UUID",
+        "explicit cancel only on eligibility exit, never remove-then-add",
+        "notification body copy is generic and durable, test asserts body never contains reasoning or confidence text",
+        "FakeNotificationScheduler conforms to the same interface for use in store tests before real OS wiring lands"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "SparklineGenerator (shared visual + accessibility source)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "crockwatch/Services/SparklineGenerator.swift",
+        "crockwatchTests/ServiceTests/SparklineGeneratorTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "one function produces points, trend, and accessibilitySummary from the same data",
+        "unit tests assert trend matches synthetic monotonic rising/falling/flat/insufficient-data series"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "EntitlementManager (StoreKit 2)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "crockwatch/Services/EntitlementManager.swift",
+        "crockwatchTests/ServiceTests/EntitlementManagerTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "trusts Transaction.currentEntitlements only, no custom offline grace heuristic",
+        "beginTransactionUpdatesListener wired as a background task",
+        "purchase/restore failures mapped locally from StoreKit's own error types"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "BatchStoreError",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "crockwatch/Stores/BatchStoreError.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "exactly three cases: persistenceFailed(underlying:), batchNotFound(UUID), activeCapReached",
+        "Sendable, no generic app-wide AppFailure bus introduced"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Vertical slice: BatchStore, HistoryStore, AppForegroundCoordinator on real persistence",
+      "owner_lane": "primary_ui",
+      "files": [
+        "crockwatch/Stores/BatchStore.swift",
+        "crockwatch/Stores/HistoryStore.swift",
+        "crockwatch/Stores/AppForegroundCoordinator.swift",
+        "crockwatchTests/StoreTests/BatchStoreTests.swift",
+        "crockwatchTests/StoreTests/RecomputeStaleTests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "recomputeStale is the complete authoritative pass from day one: re-ranking, staleness decay, and notification-eligibility reassignment via CapEnforcement.notificationEligibleBatchIDs, tested against FakeNotificationScheduler",
+        "persist-then-derive write is kicked off on submit; on-device measurement confirms the ~100ms write+derive budget fits inside the ~300ms transition window",
+        "BatchStoreError is the only error type thrown across this surface",
+        "swipe actions and detail buttons will call these same methods with no duplicated logic"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Core loop UI: Home, Batch Creation, Batch Detail, Log-Observation sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "crockwatch/Views/Home/",
+        "crockwatch/Views/Creation/",
+        "crockwatch/Views/Detail/",
+        "crockwatch/Views/LogObservation/",
+        "crockwatch/Views/Components/BatchRow.swift",
+        "crockwatch/Views/Components/StatePill.swift",
+        "crockwatch/Views/Components/ReasoningText.swift",
+        "crockwatch/Views/Components/WindowSparkline.swift",
+        "crockwatch/Views/Components/ConfidenceGlyph.swift",
+        "crockwatch/Views/Components/FermentFamilyPicker.swift",
+        "crockwatch/Views/Components/ObservationSheet.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "create 3+ batches, log temp/taste, watch ranking update live, force-quit and relaunch preserves state",
+        "home row visual order matches design_handoff: name, hero state phrase, reasoning line, urgency marker + confidence glyph, no date range",
+        "every screen implements empty/loading/success/error states",
+        "VoiceOver accessibility labels and identifiers present on every interactive element and BatchRow (row read in name -> state phrase -> reasoning -> confidence order)",
+        "no 'safe'/'done'/'ready' language anywhere in copy"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Real notification integration (swap fake scheduler for real OS wiring)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "crockwatch/Services/NotificationScheduler.swift",
+        "crockwatch/App/CrockwatchApp.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "real authorization request fires at the onboarding permission-ask moment, not before",
+        "AppForegroundCoordinator's foreground recheck actually calls currentAuthorizationStatus",
+        "deleting a batch cancels its pending notification, verified by test",
+        "kill-app-then-relaunch manual smoke test documented and passed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "NotificationBanner + Settings screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "crockwatch/Views/Components/NotificationBanner.swift",
+        "crockwatch/Views/Settings/"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "banner is persistent, not a one-shot toast, shown whenever notifications are denied",
+        "banner state rechecked on every foreground via AppForegroundCoordinator",
+        "settings deep-links to system notification settings",
+        "replay-onboarding action resets the @AppStorage flag and re-presents onboarding"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "History/Archive screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "crockwatch/Views/History/",
+        "crockwatch/Views/Components/ArchiveLabel.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "segmented Completed/Archived, never merged into one list",
+        "backed by paginated @Query, not an in-memory rebuild",
+        "archived detail has action buttons and manual override physically removed from layout, not just disabled",
+        "empty-completed and empty-archive states both designed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Paywall sheet + free-tier cap enforcement wiring in creation flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "crockwatch/Views/Paywall/",
+        "crockwatch/Views/Components/PaywallCard.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "attempting a 4th active batch on free tier blocks pre-form with the paywall sheet, never opens the creation form",
+        "paywall is dismissible, backing out is a valid outcome, never a trap",
+        "a live still-fermenting batch is never auto-archived by this flow"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Named cross-lane test: purchase, downgrade, archive-and-cancel notifications",
+      "owner_lane": "primary_ui",
+      "files": [
+        "crockwatchTests/StoreTests/DowngradeArchiveNotificationTests.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "scripted via StoreKitTest: purchase premium, create 5 active batches, downgrade to free",
+        "exactly 2 batches archived via CapEnforcement.batchesToArchiveOnDowngrade, using historyCutoff/tier rules",
+        "the 2 archived batches immediately lose their scheduled notifications",
+        "the remaining 3 keep their notifications unchanged",
+        "this test is a required gate for this milestone, not deferred to general verification"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Onboarding cards",
+      "owner_lane": "primary_ui",
+      "files": [
+        "crockwatch/Views/Onboarding/"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "3 skippable cards explaining adaptive windows, honest uncertainty, and the notification ask in plain language",
+        "presented as fullScreenCover gated on hasCompletedOnboarding",
+        "reachable again from Settings replay action",
+        "skippable at every step, batch creation reachable immediately after"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Accessibility, Reduce Motion, and copy-audit verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "crockwatchUITests/AccessibilityTests.swift",
+        "crockwatchUITests/DynamicTypeTests.swift",
+        "crockwatchTests/CopyAuditTests.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-012",
+        "T-013",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "VoiceOver row read-order verified as name -> state phrase -> reasoning -> confidence",
+        "Dynamic Type accessibility-size snapshot test on the detail reasoning sentence confirms reflow with no truncation",
+        "Reduce Motion fallback confirmed: re-ranking snaps instantly with Reduce Motion enabled",
+        "automated grep-style test scans all user-facing string literals and fails on 'safe', 'done', 'ready' used as certification claims"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Full verification pass + release checklist",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docs/RELEASE_CHECKLIST.md"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "full automated suite (domain matrices, persistence, notification reconciliation, StoreKit-scripted cap/downgrade/restore) runs green together",
+        "RELEASE_CHECKLIST.md lists the three non-automatable manual scenarios: force-kill-then-notification-fires, real device timezone/DST change mid-batch, StoreKit sandbox purchase/restore/downgrade smoke test",
+        "each of the 8 project_plan milestones is checked off against what was actually built, not assumed"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

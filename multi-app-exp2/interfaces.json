@@ -1,0 +1,494 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "CadenceTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CadenceTier: String, Codable, Sendable, CaseIterable { case close, regular, occasional; var days: Int { get } }",
+      "owning_lane": "data_domain",
+      "notes": "close=14, regular=42, occasional=180. Locked in detailed_discussion."
+    },
+    {
+      "name": "WarmthState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum WarmthState: String, Codable, Sendable { case warm, cooling, cold }",
+      "owning_lane": "data_domain",
+      "notes": "warm<1.0, cooling 1.0-<1.5, cold>=1.5. Never stored, always derived at read time."
+    },
+    {
+      "name": "InteractionKind",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum InteractionKind: String, Sendable { case note, outreach }",
+      "owning_lane": "data_domain",
+      "notes": "Used for timeline rendering and ritual logging semantics."
+    },
+    {
+      "name": "RitualResolution",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RitualResolution: String, Sendable { case unresolved, loggedOutreach, snoozed, archived }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted on ritual session items to support resume and completion summary."
+    },
+    {
+      "name": "SubscriptionState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum SubscriptionState: Sendable { case free, subscribed(expiration: Date?), unavailable }",
+      "owning_lane": "services_utilities",
+      "notes": "UI may render paywall and settings from this state; entitlement checks still re-query live when gating."
+    },
+    {
+      "name": "CreatePersonInput",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CreatePersonInput: Sendable { let name: String; let cadence: CadenceTier; let firstNoteBody: String; let keyFact: String?; let openLoop: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Single fast-capture payload for onboarding and add-person sheet."
+    },
+    {
+      "name": "LogInteractionInput",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct LogInteractionInput: Sendable { let personID: UUID; let kind: InteractionKind; let body: String; let keyFact: String?; let openLoop: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Used by person detail and ritual action flow."
+    },
+    {
+      "name": "PersonSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PersonSnapshot: Identifiable, Sendable, Equatable { let id: PersonID; var name: String; var createdAt: Date; var lastInteractionAt: Date; var cadence: CadenceTier; var isArchived: Bool; var snoozedUntil: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "Plain value returned across the repository boundary; UI/domain never touch PersistentModel."
+    },
+    {
+      "name": "InteractionSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct InteractionSnapshot: Sendable, Identifiable { let id: UUID; let personID: UUID; let kind: InteractionKind; let body: String; let keyFact: String?; let openLoop: String?; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Timeline and explanation generation depend on this shape."
+    },
+    {
+      "name": "WarmthEvaluation",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct WarmthEvaluation: Sendable, Hashable { public let ratio: Double; public let state: WarmthState; public let explanation: String; public init(ratio: Double, state: WarmthState, explanation: String) }",
+      "owning_lane": "data_domain",
+      "notes": "Holds derived relationship warmth and natural language explanation."
+    },
+    {
+      "name": "AttentionItem",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct AttentionItem: Sendable, Identifiable { let id: UUID; let person: PersonSnapshot; let evaluation: WarmthEvaluation; let lastInteraction: InteractionSnapshot?; let isSnoozed: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Sorted queue item shared by dashboard and ritual session creation."
+    },
+    {
+      "name": "AttentionQueue",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct AttentionQueue: Sendable { let dueItems: [AttentionItem]; let cappedItems: [AttentionItem]; let hiddenDueCount: Int; let totalDueCount: Int; let freePreviewLimit: Int; let sessionCap: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Encodes both the top-3 paywall boundary and the hard ritual cap of 10."
+    },
+    {
+      "name": "RitualSessionItemSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RitualSessionItemSnapshot: Identifiable, Sendable, Equatable { let id: UUID; let personID: PersonID; let orderIndex: Int; let ratioAtEntry: Double; let stateAtEntry: WarmthState; let explanationAtEntry: String; var resolution: ResolutionStatus }",
+      "owning_lane": "data_domain",
+      "notes": "orderIndex is mandatory \u2014 SwiftData relationship arrays don't guarantee order across relaunch."
+    },
+    {
+      "name": "RitualSessionSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RitualSessionSnapshot: Identifiable, Sendable, Equatable { let id: UUID; let createdAt: Date; var completedAt: Date?; var items: [RitualSessionItemSnapshot] }",
+      "owning_lane": "data_domain",
+      "notes": "At most one row with completedAt == nil at a time."
+    },
+    {
+      "name": "DateProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol DateProviding: Sendable { var now: Date { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Injected into domain and services; debug time-travel swaps the concrete implementation."
+    },
+    {
+      "name": "RelationshipRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol RelationshipRepository { func fetchActivePeople() async throws -> [PersonSnapshot]; func fetchArchivedPeople() async throws -> [PersonSnapshot]; func fetchPerson(id: PersonID) async throws -> PersonSnapshot?; func fetchNotes(for personID: PersonID) async throws -> [NoteSnapshot]; func fetchMostRecentNoteByPerson() async throws -> [PersonID: NoteSnapshot]; func addPerson(name: String, cadence: CadenceTier, firstNote: String, keyFact: String?, openLoop: String?, at date: Date) async throws -> PersonID; func logOutreach(personID: PersonID, text: String, keyFact: String?, openLoop: String?, at date: Date) async throws; func snoozePerson(_ personID: PersonID, until date: Date) async throws; func archivePerson(_ personID: PersonID) async throws; func unarchivePerson(_ personID: PersonID) async throws; func deletePersonPermanently(_ personID: PersonID) async throws; func deleteAllData() async throws; func nameCollisionExists(for proposedName: String, excluding personID: PersonID?) async throws -> Bool; func fetchUnresolvedRitualSession() async throws -> RitualSessionSnapshot?; func createRitualSession(_ session: RitualSessionSnapshot) async throws; func resolveRitualItem(sessionID: UUID, personID: PersonID, resolution: ResolutionStatus, at date: Date) async throws; func completeRitualSession(sessionID: UUID, at date: Date) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Operation-specific by design: invariants (required first note, lastInteractionAt bump on outreach, duplicate check) live in one place, not scattered across view models. Protocol lives in NurtureDomain; concrete SwiftData implementation lives in NurtureData."
+    },
+    {
+      "name": "WarmthCalculator.evaluate",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func evaluate(person: PersonSnapshot, mostRecentNote: NoteSnapshot?, asOf referenceDate: Date, calendar: Calendar) -> WarmthAssessment",
+      "owning_lane": "data_domain",
+      "notes": "Pure, Foundation-only. If this file imports SwiftData, that's a defect."
+    },
+    {
+      "name": "AttentionQueueBuilder.build",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func build(people: [PersonSnapshot], interactionsByPerson: [UUID: [InteractionSnapshot]], asOf: Date, calendar: Calendar, freePreviewLimit: Int, sessionCap: Int) -> AttentionQueue",
+      "owning_lane": "data_domain",
+      "notes": "Computes inclusion, sort order, truncation counts, and paywall teaser boundary deterministically."
+    },
+    {
+      "name": "RitualSessionService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol RitualSessionService: Sendable { @MainActor func resumableSession() throws -> RitualSessionSnapshot?; @MainActor func startSession(from queue: AttentionQueue, asOf: Date) throws -> RitualSessionSnapshot; @MainActor func resolve(sessionID: UUID, personID: UUID, resolution: RitualResolution, resolvedAt: Date, snoozeUntil: Date?) throws -> RitualSessionSnapshot; @MainActor func complete(sessionID: UUID, completedAt: Date) throws }",
+      "owning_lane": "data_domain",
+      "notes": "Persists the frozen ritual snapshot and per-item resolution state across relaunch."
+    },
+    {
+      "name": "EntitlementService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol EntitlementService: AnyObject { var current: Entitlement { get }; func refresh() async; func purchase(productID: String) async throws; func restorePurchases() async throws; func startObservingTransactions() }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2-backed; transaction observation is an in-process Task at launch, no Background Modes."
+    },
+    {
+      "name": "AuthService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol AuthService: Sendable { @MainActor func unlockApp() async -> Bool; @MainActor func reauthenticate(reason: String) async -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Used for launch lock plus fresh auth before export and permanent delete; cancel is treated as no-op."
+    },
+    {
+      "name": "ExportPayload",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ExportPayload: Sendable { let schemaVersion: String; let exportedAt: Date; let people: [PersonSnapshot]; let interactions: [InteractionSnapshot]; let ritualSessions: [RitualSessionSnapshot] }",
+      "owning_lane": "services_utilities",
+      "notes": "Versioned JSON export shape; never dump raw SwiftData models."
+    },
+    {
+      "name": "ExportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ExportService: Sendable { func buildExport() async throws -> ExportDocumentV1 }",
+      "owning_lane": "services_utilities",
+      "notes": "Called only after fresh re-auth and on-screen unencrypted-file warning."
+    },
+    {
+      "name": "NotificationScheduling",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol NotificationScheduling: Sendable { @MainActor func requestAuthorizationIfNeeded() async -> Bool; @MainActor func syncWeeklyReminder(nextEligibleDate: Date?) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Should-have feature only; denial must degrade to in-app reminders without breaking the main flow."
+    },
+    {
+      "name": "AppDependencies",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AppDependencies { let repository: RelationshipRepository; let dateProvider: DateProvider; let authService: AuthenticationService; let entitlementService: EntitlementService; let notificationScheduler: NotificationScheduler; let exportService: ExportService }",
+      "owning_lane": "services_utilities",
+      "notes": "Injected once at app root via environment."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AppRoute: Hashable { case personDetail(UUID); case settings; case archivedPeople }",
+      "owning_lane": "primary_ui",
+      "notes": "NavigationStack path contract; modal surfaces stay out of the route enum."
+    },
+    {
+      "name": "AppRouter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AppRouter { var path: [Route]; var addPersonPresented: Bool; var ritualPresented: Bool; var paywallSource: PaywallSource? }",
+      "owning_lane": "primary_ui",
+      "notes": "Owns all push/modal presentation state; nothing else may present navigation."
+    },
+    {
+      "name": "ResolutionStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ResolutionStatus: Codable, Sendable, Equatable { case unresolved; case loggedOutreach(noteID: UUID); case snoozed(until: Date); case archived }",
+      "owning_lane": "data_domain",
+      "notes": "Per-ritual-item outcome, persisted so an interrupted session resumes with exact progress."
+    },
+    {
+      "name": "PersonID",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PersonID: Hashable, Codable, Sendable { let rawValue: UUID }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical identity everywhere above SwiftData; lives in NurtureDomain (Foundation-only target)."
+    },
+    {
+      "name": "NoteSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NoteSnapshot: Identifiable, Sendable, Equatable { let id: UUID; let personID: PersonID; var text: String; var createdAt: Date; var keyFact: String?; var openLoop: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Timeline item; source for why-now explanation anchors."
+    },
+    {
+      "name": "WarmthAssessment",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WarmthAssessment: Sendable, Equatable { let ratio: Double; let state: WarmthState; let explanation: String }",
+      "owning_lane": "data_domain",
+      "notes": "Live-derived output shared by dashboard, ritual snapshot capture, and detail screen."
+    },
+    {
+      "name": "WarmthCalculator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum WarmthCalculator { static func assess(person: PersonSnapshot, mostRecentNote: NoteSnapshot?, asOf date: Date, calendar: Calendar) -> WarmthAssessment }",
+      "owning_lane": "data_domain",
+      "notes": "Agreed in spirit by both; exact parameter list (single most-recent note vs. full notes array) differs between the two proposals and needs picking."
+    },
+    {
+      "name": "QueueEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct QueueEntry: Identifiable, Sendable, Equatable { var id: PersonID { personID }; let personID: PersonID; let assessment: WarmthAssessment }",
+      "owning_lane": "data_domain",
+      "notes": "Single source for ranked attention/ritual queue membership."
+    },
+    {
+      "name": "VisibleQueue",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct VisibleQueue: Sendable, Equatable { let visible: [QueueEntry]; let hiddenCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Shared entitlement-truncated shape so dashboard teaser and ritual reveal-in-place cannot drift."
+    },
+    {
+      "name": "AttentionQueueBuilder",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum AttentionQueueBuilder { static func buildQueue(people: [PersonSnapshot], mostRecentNoteByPerson: [PersonID: NoteSnapshot], asOf date: Date, calendar: Calendar, cap: Int) -> [QueueEntry]; static func applyEntitlement(to queue: [QueueEntry], isSubscribed: Bool, freeLimit: Int) -> VisibleQueue }",
+      "owning_lane": "data_domain",
+      "notes": "MISSING from Gemini's contract \u2014 this is a real gap, not a naming difference. Needs explicit adoption or an equivalent next round."
+    },
+    {
+      "name": "PersonRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PersonRecord { var id: UUID; var name: String; var createdAt: Date; var lastInteractionAt: Date; var cadenceRaw: String; var isArchived: Bool; var snoozedUntil: Date?; @Relationship(deleteRule: .cascade) var notes: [NoteRecord] }",
+      "owning_lane": "data_domain",
+      "notes": "Lives only in NurtureData target."
+    },
+    {
+      "name": "NoteRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class NoteRecord { var id: UUID; var personID: UUID; var text: String; var createdAt: Date; var keyFact: String?; var openLoop: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Fetched via one grouped FetchDescriptor sorted by createdAt for fetchMostRecentNoteByPerson, never N per-person queries."
+    },
+    {
+      "name": "RitualSessionRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class RitualSessionRecord { var id: UUID; var createdAt: Date; var completedAt: Date?; @Relationship(deleteRule: .cascade) var items: [RitualSessionItemRecord] }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted frozen session for interrupt/resume."
+    },
+    {
+      "name": "RitualSessionItemRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class RitualSessionItemRecord { var id: UUID; var personID: UUID; var orderIndex: Int; var ratioAtEntry: Double; var stateRaw: String; var explanationAtEntry: String; var resolutionRaw: String; var resolvedAt: Date?; var snoozeUntilIfSnoozed: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "Must always be fetched sorted by orderIndex; never trust relationship-array order."
+    },
+    {
+      "name": "ContainerLocating",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ContainerLocating: Sendable { func resolveDatabaseURL() -> URL }",
+      "owning_lane": "services_utilities",
+      "notes": "Only in Claude's proposal; Gemini describes the App Group fallback in prose but doesn't formalize an injectable protocol for testing it."
+    },
+    {
+      "name": "DateProvider",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol DateProvider: Sendable { func now() -> Date }",
+      "owning_lane": "services_utilities",
+      "notes": "Injectable clock powering domain logic, debug time travel, and relock timing."
+    },
+    {
+      "name": "AuthenticationService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AuthenticationService: Sendable { var biometricsOrPasscodeEnrolled: Bool { get }; func authenticate(reason: String) async -> Result<Void, NurtureError> }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps LocalAuthentication deviceOwnerAuthentication; distinguishes cancel vs failure via NurtureError."
+    },
+    {
+      "name": "Entitlement",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Entitlement: Sendable, Equatable { case free; case subscribed(expiresAt: Date?) }",
+      "owning_lane": "services_utilities",
+      "notes": "Richer than a flat bool so UI/tests express real transitions."
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol NotificationScheduler: Sendable { func requestAuthorizationIfNeeded() async -> Bool; func scheduleWeeklyReminder(on weekday: Int, hour: Int, minute: Int) async throws; func cancelWeeklyReminder() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Should-have; denied state falls back to in-app badge/banner."
+    },
+    {
+      "name": "ExportDocumentV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExportDocumentV1: Codable, Sendable { let schemaVersion: Int; let exportedAt: Date; let people: [PersonSnapshot]; let notes: [NoteSnapshot] }",
+      "owning_lane": "services_utilities",
+      "notes": "Versioned plaintext export payload; never export raw SwiftData models."
+    },
+    {
+      "name": "Route",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Route: Hashable { case personDetail(PersonID); case settings; case archivedPeople }",
+      "owning_lane": "primary_ui",
+      "notes": "Carries PersonID, never PersistentIdentifier."
+    },
+    {
+      "name": "PaywallSource",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PaywallSource: Identifiable { case dashboardTeaser; case ritualOverflow; var id: String { get } }",
+      "owning_lane": "primary_ui",
+      "notes": "Single source of truth for paywall presentation and copy variant; no separate presentPaywall boolean."
+    },
+    {
+      "name": "AttentionCardActions",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AttentionCardActions { case navigate(() -> Void); case ritual(onLog: () -> Void, onSnooze: () -> Void, onArchive: () -> Void) }",
+      "owning_lane": "primary_ui",
+      "notes": "Parameterizes the one shared AttentionCard view without boolean-flag sprawl."
+    },
+    {
+      "name": "NurtureError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum NurtureError: Error, Equatable { case persistenceFailure(String); case authenticationCancelled; case authenticationFailed; case entitlementUnavailable; case exportFailed(String); case invalidSnoozeDate }",
+      "owning_lane": "polish_resilience",
+      "notes": "Unified error surface mapped to inline empty/error screen states, not raw system alerts."
+    },
+    {
+      "name": "PrivacyShieldState",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class PrivacyShieldState { var isShielded: Bool; func handle(scenePhase: ScenePhase, now: Date) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Root-level testable app-switcher privacy mask, ~2min relock grace."
+    },
+    {
+      "name": "DebugClock",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "#if DEBUG final class DebugClock: DateProvider { var override: Date?; func advance(by component: Calendar.Component, value: Int); func set(_ date: Date?); func now() -> Date } #endif",
+      "owning_lane": "polish_resilience",
+      "notes": "Discrete jumps only, no scrubber; compiled out of Release entirely, verified absent from a Release archive."
+    },
+    {
+      "name": "PersonDTO",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct PersonDTO: Sendable, Hashable, Identifiable { public let id: UUID; public let name: String; public let createdAt: Date; public let lastInteractionAt: Date; public let cadence: CadenceTier; public let isArchived: Bool; public let snoozeUntil: Date?; public init(id: UUID, name: String, createdAt: Date, lastInteractionAt: Date, cadence: CadenceTier, isArchived: Bool, snoozeUntil: Date?) }",
+      "owning_lane": "data_domain",
+      "notes": "Thread-safe representation of a Person record."
+    },
+    {
+      "name": "NoteDTO",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct NoteDTO: Sendable, Hashable, Identifiable { public let id: UUID; public let personId: UUID; public let text: String; public let createdAt: Date; public let keyFact: String?; public let openLoop: String?; public init(id: UUID, personId: UUID, text: String, createdAt: Date, keyFact: String?, openLoop: String?) }",
+      "owning_lane": "data_domain",
+      "notes": "Thread-safe representation of an interaction note."
+    },
+    {
+      "name": "RitualSessionItemDTO",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct RitualSessionItemDTO: Sendable, Hashable, Identifiable { public let id: UUID; public let personId: UUID; public let warmthRatioAtEntry: Double; public let warmthStateAtEntry: WarmthState; public let explanationAtEntry: String; public let resolution: ResolutionStatus; public init(id: UUID, personId: UUID, warmthRatioAtEntry: Double, warmthStateAtEntry: WarmthState, explanationAtEntry: String, resolution: ResolutionStatus) }",
+      "owning_lane": "data_domain",
+      "notes": "Captured snapshot item of a person in a ritual review."
+    },
+    {
+      "name": "RitualSessionDTO",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct RitualSessionDTO: Sendable, Hashable, Identifiable { public let id: UUID; public let createdAt: Date; public let completedAt: Date?; public let items: [RitualSessionItemDTO]; public init(id: UUID, createdAt: Date, completedAt: Date?, items: [RitualSessionItemDTO]) }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted weekly review session snapshot."
+    },
+    {
+      "name": "LocalAuthenticationService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol LocalAuthenticationService: Sendable { var isBiometricsEnrolled: Bool { get }; func authenticateUser(reason: String) async -> Result<Void, Error> }",
+      "owning_lane": "services_utilities",
+      "notes": "Abstraction for biometric/passcode device verification."
+    },
+    {
+      "name": "SchemaV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum SchemaV1: VersionedSchema { static var versionIdentifier: Schema.Version; static var models: [any PersistentModel.Type] }",
+      "owning_lane": "data_domain",
+      "notes": "Versioned from first commit; no CloudKit-backed ModelConfiguration anywhere."
+    },
+    {
+      "name": "AttentionQueueBuilder.buildQueue",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func buildQueue(people: [PersonSnapshot], mostRecentNotes: [PersonID: NoteSnapshot], asOf referenceDate: Date, calendar: Calendar, cap: Int) -> [QueueEntry]",
+      "owning_lane": "data_domain",
+      "notes": "Ranked queue for both dashboard and ritual entry from one code path."
+    },
+    {
+      "name": "AttentionQueueBuilder.applyEntitlement",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func applyEntitlement(to queue: [QueueEntry], entitlement: Entitlement, freeLimit: Int) -> VisibleQueue",
+      "owning_lane": "data_domain",
+      "notes": "Single authority for the 3-vs-4 teaser boundary and mid-ritual reveal-in-place; never duplicated in view code."
+    },
+    {
+      "name": "RitualSessionFactory.makeSnapshot",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func makeSnapshot(from queue: [QueueEntry], createdAt: Date) -> RitualSessionSnapshot",
+      "owning_lane": "data_domain",
+      "notes": "Freezes membership, order, and explanation text at ritual entry."
+    },
+    {
+      "name": "StorageDirectoryProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol StorageDirectoryProviding: Sendable { func databaseURL() throws -> URL }",
+      "owning_lane": "services_utilities",
+      "notes": "Abstracts App Group vs Application Support fallback so both paths are unit-testable."
+    }
+  ],
+  "errors": []
+}

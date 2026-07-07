@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-a2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "tessella",
+    "slug": "tessella",
+    "category": "Graphics & Design",
+    "promise": "Parametric seamless-pattern designer with a live tiled preview, guaranteed seamless by construction.",
+    "target_user": "Independent textile/surface designers needing print-ready repeats.",
+    "build": true,
+    "one_sentence_promise": "Parametric seamless-pattern designer with a live tiled preview, guaranteed seamless by construction.",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

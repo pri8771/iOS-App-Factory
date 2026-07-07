@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp6",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Undertow",
+    "slug": "undertow",
+    "category": "idle_game",
+    "tagline": "Living reef diorama idle game where growth is coral/kelp/biomass, not a number-stack.",
+    "target_user": "Casual player wanting a calming 5-minute check-in.",
+    "build": true,
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

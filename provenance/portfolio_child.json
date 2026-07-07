@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp4",
+  "build": true,
+  "build_priority": 1,
+  "app": {
+    "name": "Provenance",
+    "slug": "provenance",
+    "category": "Collecting & Valuation",
+    "one_sentence_promise": "Photograph what you collect and get insurance-grade condition, provenance, and value tracking without a spreadsheet.",
+    "target_user": "Serious collectors of high-value physical goods (watches, vinyl, trading cards, wine, sneakers) who currently track holdings in Notes or spreadsheets and have no real sense of aggregate value or condition history.",
+    "painful_moment": "You just bought or received a piece, you want to log it before the details slip your mind, and existing apps are single-category or spreadsheet-grade.",
+    "why_different": "Cross-category, condition-aware valuation over time with photographic condition history, and an actual exportable report insurers/appraisers can use.",
+    "why_users_pay": "Ongoing market-value tracking and alerts, unlimited items/categories, and insurance-ready PDF export are gated behind the paid tier.",
+    "subscription_model": "Free: manual catalog up to 25 items, no valuation tracking. Paid (~$6.99/mo or $59/yr): unlimited items, on-device photo-based item ID assist, value-over-time charts, insurance export.",
+    "local_first_mvp_scope": "SwiftData-backed local catalog, on-device Vision framework classification assist, manual condition/provenance fields, local value-history entries, PDF export via local rendering.",
+    "future_backend_roadmap": "Repository protocol boundary now; later, optional cloud sync and an opt-in market-price feed behind the same interface.",
+    "core_workflows": [
+      "capture item via photo",
+      "assist-classify item type/model",
+      "log condition, provenance, purchase price",
+      "track value entries over time",
+      "generate insurance export report"
+    ],
+    "ios_native_features": [
+      "Vision framework on-device classification",
+      "Camera capture",
+      "Files/document export",
+      "Widgets for total collection value",
+      "Dynamic Type/VoiceOver accessible detail views"
+    ],
+    "ar_ml_llm_fit": "On-device Vision-based item ID assist is integral to reducing cataloging friction; fully usable via manual entry if classification fails.",
+    "design_direction": "Quiet, archival, museum-catalog aesthetic \u2014 dark neutral backgrounds, serif accents, photo-forward cards.",
+    "claude_design_prompt": "Design a premium iOS collector's valuation app called Provenance. Archival/museum-catalog aesthetic, dark neutral background, serif display type, photo-forward item cards, condition timeline view, value-over-time chart screen. Include empty state, item detail screen, insurance-export preview.",
+    "app_store_positioning": "The valuation ledger for people who collect things worth tracking.",
+    "key_risks": [
+      "On-device classification may misidentify niche items",
+      "Value tracking depends on user-entered market data absent a live price feed"
+    ],
+    "invalidation_criteria": "If users only ever use manual entry and value fields go unfilled, reposition as pure catalog+condition tracking.",
+    "v1_build_scope": "Single-user local catalog, photo capture + classification assist, condition/provenance logging, manual value entries with history chart, PDF insurance export, full state coverage, StoreKit 2 paywall.",
+    "build": true,
+    "build_priority": 1
+  }
+}

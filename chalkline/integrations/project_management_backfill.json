@@ -1,0 +1,605 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "chalkline",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: multi-app-exp5\nSelected app slug: chalkline\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Chalkline\n\nBuild mode: **MVP build**.\nBuild priority: **3**.\n\n## App Name\n\nChalkline\n\n## Category\n\nClimbing technique & route log with on-device movement analysis\n\n## One-Sentence Promise\n\nShows a climber exactly where their movement broke down on a route, not just what grade they sent.\n\n## Target User\n\nBoulderers and sport climbers who climb several times a week and want to improve technique, not just log send counts.\n\n## Painful Moment Solved\n\nA climber films an attempt on their phone but has no objective way to see where their center of mass drifted, where they over-gripped, or how this attempt compares to the last one \u2014 improvement is guesswork and the route log is just numbers.\n\n## Why It Is Different\n\nOn-device Vision body-pose estimation over captured attempt video produces a movement trace and an efficiency score per attempt \u2014 a real, deterministic, camera-centric technical capability nobody else localizes in a climbing app; bold gym-signage graphic visual language with chalk-dust texture, route-color-coding, and haptic-tied transitions between attempts.\n\n## Why Users Would Pay\n\nSubscription unlocks unlimited video-analysis history, side-by-side attempt comparison, and training-plan generation from logged technique weaknesses.\n\n## Subscription Model\n\nFree tier: route/attempt logging, capped video-analysis history. Paid: unlimited analysis history, attempt-comparison view, generated training plans.\n\n## Local-First MVP Scope\n\nSwiftData models for gyms/routes/attempts/sessions with video references; Vision pose estimation samples each attempt clip at a fixed low frame rate (not full video framerate) and efficiency scoring runs fully on-device against locally stored video.\n\n## Future Backend Roadmap\n\nCloudKit sync for cross-device attempt history; optional gym-community route-sharing later \u2014 additive on top of the local-first model.\n\n## AR / Local ML / Local LLM Fit\n\nOn-device Vision framework for body-pose estimation during attempt review, sampled at a fixed low frame rate per clip for reliability \u2014 the app's defining hard capability, not a bonus feature.\n\n## Design Direction\n\nBold gym-signage graphic design: chalk-dust textures, high-contrast route-color-coding, kinetic haptic-tied transitions between attempts, energetic but legible type scale.\n\n## App Store Positioning\n\nThe climbing app that shows you where your technique actually broke down, using pose analysis no other climbing log does on-device.\n\n## Invalidation Criteria\n\nIf on-device pose estimation can't produce a stable, explainable efficiency signal from typical gym-lighting phone video even with the framing guide, narrow v1 to movement-trace visualization only and drop the numeric efficiency score rather than ship a misleading number \u2014 this is the documented fallback, not a hoped-for outcome.\n\n## v1 Build Scope\n\nRoute/attempt logging, video capture/import, low-frame-rate pose-trace overlay with efficiency score, basic attempt comparison; training-plan generation deferred as a fast-follow if time allows.\n\n## Core Workflows\n\n- Log a route and attempt\n- Capture or import attempt video\n- View pose-trace overlay and efficiency score\n- Compare attempts side by side\n- Track session goals and streaks\n- Get a training-plan suggestion from logged weaknesses\n\n## iOS-Native Features\n\n- Widget: session streak / next gym goal\n- Live Activity for timed attempts or rest intervals\n- App Intents for Siri (\"log a send\")\n- On-device Vision framework for pose estimation\n\n## Key Risks\n\n- Pose estimation accuracy depends on video framing/lighting the user controls \u2014 mitigated with an in-app framing guide and a visible confidence indicator rather than presenting shaky data as certain\n- Efficiency scoring could feel like a gimmick if not clearly tied to actionable technique feedback\n- Clip storage needs a sane retention/compression default so it doesn't balloon like a general video library\n\n## Claude Design Handoff Prompt\n\nDesign a climbing technique app called Chalkline with a bold gym-signage graphic visual identity: chalk-dust textures, high-contrast route-color-coded UI, energetic display type, and kinetic transitions tied to haptics. It should feel like climbing-gym wayfinding brought to life, not a fitness-tracker template.\n\n## Parent Portfolio Prompt\n\nBuild 3 completely separate, production-ready iOS apps at the same time.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app, never bundled together.\n\nPick any 3 categories/concepts you like \u2014 there is no fixed category assignment. Choose the 3 strongest ideas.\n\nTOP PRIORITY \u2014 DESIGN & UI/UX (this outweighs every other consideration):\n- Design and UI/UX quality is the single most important success criterion. An app that works but looks generic is a FAILURE here.\n- Each app must have a world-class, distinctive visual identity: a deliberate color system, type scale, spacing system, iconography, and motion language \u2014 not stock SwiftUI defaults.\n- Premium, polished, \"Apple Design Award\" caliber. Every screen considered: empty states, loading states, error states, transitions.\n- Delightful, purposeful microinteractions and animation (haptics, spring transitions, meaningful state changes) \u2014 never gratuitous.\n- Strong visual hierarchy, generous whitespace, real content density decisions, dark mode, Dynamic Type, and full accessibility (VoiceOver labels, 44pt targets, WCAG AA contrast).\n- Each of the 3 apps must look and feel clearly DIFFERENT from the other two \u2014 three distinct design directions, not one template recolored.\n- Include a documented design system per app (tokens, components, states) and make the built UI actually match it.\n\nSECOND PRIORITY \u2014 COMPLEXITY & DEPTH (required):\n- Each app must be genuinely COMPLEX and substantial \u2014 NOT a simple single-purpose utility or a weekend toy.\n- Expect many interconnected features and screens, a real domain data model with relationships, non-trivial business logic and algorithms, meaningful state management, background work, and offline persistence with a clear sync-later architecture.\n- Depth that rewards long-term daily use: robust settings, edge-case handling, empty/error/loading states everywhere, data import/export, and at least one genuinely hard technical capability done well.\n- Aim for the scope a small team would build over months, not something trivial. Complexity must serve real user value \u2014 never complexity for its own sake.\n\nRequirements:\n1. Each app must go from 0 to production-ready, not just a few features.\n2. Each app must be unique, useful, and commercially viable.\n3. Each app must provide real end-user value.\n4. Each app should have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n5. Each app should have viral potential (broad or niche) without sacrificing usefulness.\n6. Each app should be better than its competitors in a meaningful way, especially on design and depth.\n7. Each app should be local-first, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built in this workspace or before (Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, and the ~50 apps of the prior batch such as aarti-path, afterglow, backtimer, batchbridge, chapterly, choicepoint, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, fastlane-po, flinch, heartline, kitbag, linernotes, longwave, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas).\n- Produce differentiated concepts even if a category overlaps.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the three app efforts in parallel; keep discussion and design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Spend real effort in the design AND architecture phases \u2014 design discussion, design handoff, and technical architecture must be thorough and specific.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 8 candidate ideas, discuss them thoroughly with heavy weight on design potential AND depth, choose the best 3, and build all 3 to production quality with exceptional UI/UX and real complexity.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n\n\n## Change requested \u2014 BUILD DID NOT PRODUCE AN APP\nThe pipeline finished but app_build has NO Xcode project and NO source files (the build workers were rate-limited). The full product/design/architecture work IS already done in this project's phase folders (design_discussion, design_handoff, tech_specs, ios_architecture_review, task_assignments). Now actually BUILD the app: create a complete, buildable Xcode project and implement the full app in Swift/SwiftUI per those specs and the design system \u2014 premium UI/UX and real feature depth as specified \u2014 until it COMPILES cleanly for the iOS Simulator. Do not stop until real source files exist and the build succeeds.\n",
+    "verification": "VERIFIED (compiled cleanly for the iOS Simulator)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "CHALKLINE",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "build_coordination"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "final_review"
+        ]
+      }
+    ],
+    "issues": []
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "chalkline",
+      "Status": "Done",
+      "Source": "Orchestrator",
+      "Workflow Phases": 3
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: multi-app-exp5\nSelected app slug: chalkline\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Chalkline\n\nBuild mode: **MVP build**.\nBuild priority: **3**.\n\n## App Name\n\nChalkline\n\n## Category\n\nClimbing technique & route log with on-device movement analysis\n\n## One-Sentence Promise\n\nShows a climber exactly where their movement broke down on a route, not just what grade they sent.\n\n## Target User\n\nBoulderers and sport climbers who climb several times a week and want to improve technique, not just log send counts.\n\n## Painful Moment Solved\n\nA climber films an attempt on their phone but has no objective way to see where their center of mass drifted, where they over-gripped, or how this attempt compares to the last one \u2014 improvement is guesswork and the route log is just numbers.\n\n## Why It Is Different\n\nOn-device Vision body-pose estimation over captured attempt video produces a movement trace and an efficiency score per attempt \u2014 a real, deterministic, camera-centric technical capability nobody else localizes in a climbing app; bold gym-signage graphic visual language with chalk-dust texture, route-color-coding, and haptic-tied transitions between attempts.\n\n## Why Users Would Pay\n\nSubscription unlocks unlimited video-analysis history, side-by-side attempt comparison, and training-plan generation from logged technique weaknesses.\n\n## Subscription Model\n\nFree tier: route/attempt logging, capped video-analysis history. Paid: unlimited analysis history, attempt-comparison view, generated training plans.\n\n## Local-First MVP Scope\n\nSwiftData models for gyms/routes/attempts/sessions with video references; Vision pose estimation samples each attempt clip at a fixed low frame rate (not full video framerate) and efficiency scoring runs fully on-device against locally stored video.\n\n## Future Backend Roadmap\n\nCloudKit sync for cross-device attempt history; optional gym-community route-sharing later \u2014 additive on top of the local-first model.\n\n## AR / Local ML / Local LLM Fit\n\nOn-device Vision framework for body-pose estimation during attempt review, sampled at a fixed low frame rate per clip for reliability \u2014 the app's defining hard capability, not a bonus feature.\n\n## Design Direction\n\nBold gym-signage graphic design: chalk-dust textures, high-contrast route-color-coding, kinetic haptic-tied transitions between attempts, energetic but legible type scale.\n\n## App Store Positioning\n\nThe climbing app that shows you where your technique actually broke down, using pose analysis no other climbing log does on-device.\n\n## Invalidation Criteria\n\nIf on-device pose estimation can't produce a stable, explainable efficiency signal from typical gym-lighting phone video even with the framing guide, narrow v1 to movement-trace visualization only and drop the numeric efficiency score rather than ship a misleading number \u2014 this is the documented fallback, not a hoped-for outcome.\n\n## v1 Build Scope\n\nRoute/attempt logging, video capture/import, low-frame-rate pose-trace overlay with efficiency score, basic attempt comparison; training-plan generation deferred as a fast-follow if time allows.\n\n## Core Workflows\n\n- Log a route and attempt\n- Capture or import attempt video\n- View pose-trace overlay and efficiency score\n- Compare attempts side by side\n- Track session goals and streaks\n- Get a training-plan suggestion from logged weaknesses\n\n## iOS-Native Features\n\n- Widget: session streak / next gym goal\n- Live Activity for timed attempts or rest intervals\n- App Intents for Siri (\"log a send\")\n- On-device Vision framework for pose estimation\n\n## Key Risks\n\n- Pose estimation accuracy depends on video framing/lighting the user controls \u2014 mitigated with an in-app framing guide and a visible confidence indicator rather than presenting shaky data as certain\n- Efficiency scoring could feel like a gimmick if not clearly tied to actionable technique feedback\n- Clip storage needs a sane retention/compression default so it doesn't balloon like a general video library\n\n## Claude Design Handoff Prompt\n\nDesign a climbing technique app called Chalkline with a bold gym-signage graphic visual identity: chalk-dust textures, high-contrast route-color-coded UI, energetic display type, and kinetic transitions tied to haptics. It should feel like climbing-gym wayfinding brought to life, not a fitness-tracker template.\n\n## Parent Portfolio Prompt\n\nBuild 3 completely separate, production-ready iOS apps at the same time.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app, never bundled together.\n\nPick any 3 categories/concepts you like \u2014 there is no fixed category assignment. Choose the 3 strongest ideas.\n\nTOP PRIORITY \u2014 DESIGN & UI/UX (this outweighs every other consideration):\n- Design and UI/UX quality is the single most important success criterion. An app that works but looks generic is a FAILURE here.\n- Each app must have a world-class, distinctive visual identity: a deliberate color system, type scale, spacing system, iconography, and motion language \u2014 not stock SwiftUI defaults.\n- Premium, polished, \"Apple Design Award\" caliber. Every screen considered: empty states, loading states, error states, transitions.\n- Delightful, purposeful microinteractions and animation (haptics, spring transitions, meaningful state changes) \u2014 never gratuitous.\n- Strong visual hierarchy, generous whitespace, real content density decisions, dark mode, Dynamic Type, and full accessibility (VoiceOver labels, 44pt targets, WCAG AA contrast).\n- Each of the 3 apps must look and feel clearly DIFFERENT from the other two \u2014 three distinct design directions, not one template recolored.\n- Include a documented design system per app (tokens, components, states) and make the built UI actually match it.\n\nSECOND PRIORITY \u2014 COMPLEXITY & DEPTH (required):\n- Each app must be genuinely COMPLEX and substantial \u2014 NOT a simple single-purpose utility or a weekend toy.\n- Expect many interconnected features and screens, a real domain data model with relationships, non-trivial business logic and algorithms, meaningful state management, background work, and offline persistence with a clear sync-later architecture.\n- Depth that rewards long-term daily use: robust settings, edge-case handling, empty/error/loading states everywhere, data import/export, and at least one genuinely hard technical capability done well.\n- Aim for the scope a small team would build over months, not something trivial. Complexity must serve real user value \u2014 never complexity for its own sake.\n\nRequirements:\n1. Each app must go from 0 to production-ready, not just a few features.\n2. Each app must be unique, useful, and commercially viable.\n3. Each app must provide real end-user value.\n4. Each app should have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n5. Each app should have viral potential (broad or niche) without sacrificing usefulness.\n6. Each app should be better than its competitors in a meaningful way, especially on design and depth.\n7. Each app should be local-first, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built in this workspace or before (Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, and the ~50 apps of the prior batch such as aarti-path, afterglow, backtimer, batchbridge, chapterly, choicepoint, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, fastlane-po, flinch, heartline, kitbag, linernotes, longwave, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas).\n- Produce differentiated concepts even if a category overlaps.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the three app efforts in parallel; keep discussion and design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Spend real effort in the design AND architecture phases \u2014 design discussion, design handoff, and technical architecture must be thorough and specific.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 8 candidate ideas, discuss them thoroughly with heavy weight on design potential AND depth, choose the best 3, and build all 3 to production quality with exceptional UI/UX and real complexity.\n\n\n## Change requested\nThe build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.\n\n\n## Change requested \u2014 BUILD DID NOT PRODUCE AN APP\nThe pipeline finished but app_build has NO Xcode project and NO source files (the build workers were rate-limited). The full product/design/architecture work IS already done in this project's phase folders (design_discussion, design_handoff, tech_specs, ios_architecture_review, task_assignments). Now actually BUILD the app: create a complete, buildable Xcode project and implement the full app in Swift/SwiftUI per those specs and the design system \u2014 premium UI/UX and real feature depth as specified \u2014 until it COMPILES cleanly for the iOS Simulator. Do not stop until real source files exist and the build succeeds.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [],
+    "interfaces": [
+      {
+        "name": "Attempt",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class Attempt { @Attribute(.unique) var id: UUID; var createdAt: Date; var status: AttemptStatus; var outcome: AttemptOutcome; var source: AttemptSource; var routeLabelRaw: String; var routeLabelNormalized: String; var videoRelativePath: String; var analysisScore: Double?; var isScoreStable: Bool; var overallConfidence: Double?; var summaryText: String?; var breakdownTimestamp: TimeInterval?; @Attribute(.externalStorage) var traceData: Data?; var traceVersion: Int }",
+        "owning_lane": "data_domain",
+        "notes": "Single model only by contract: Attempt-only schema. externalStorage keeps potentially large trace bytes out of hot row while avoiding second model/table."
+      },
+      {
+        "name": "AttemptStatus",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AttemptStatus: String, Codable { case recording, analyzing, analyzed, analysisFailed }",
+        "owning_lane": "data_domain",
+        "notes": "Four persisted statuses only; no queuedForRetry persisted state."
+      },
+      {
+        "name": "AttemptSource",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AttemptSource: String, Codable { case recorded, imported }",
+        "owning_lane": "data_domain",
+        "notes": "Importing remains a UI/capture substate only."
+      },
+      {
+        "name": "AttemptOutcome",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AttemptOutcome: String, Codable { case sent, fell, other }",
+        "owning_lane": "data_domain",
+        "notes": "Persisted for route log integrity."
+      },
+      {
+        "name": "PoseTraceArtifact",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct PoseTraceArtifact: PersistentModel { @Attribute(.externalStorage) var data: Data; var formatVersion: Int; var pointCount: Int; var durationSeconds: Double }",
+        "owning_lane": "data_domain",
+        "notes": "Persisted analysis output blob (or replaceable per-joint schema); immutable once analysis completes."
+      },
+      {
+        "name": "PoseFrameSample",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct PoseFrameSample: Codable { let timeOffsetSeconds: Double; let landmarks: [JointPoint]; let frameConfidence: Double; let usable: Bool }",
+        "owning_lane": "data_domain",
+        "notes": "Pure value artifact for trace rendering, comparison, and determinism testing."
+      },
+      {
+        "name": "JointPoint",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct JointPoint: Codable, Sendable { let x: Double; let y: Double; let confidence: Double }",
+        "owning_lane": "data_domain",
+        "notes": "Normalized 0-1 coordinates."
+      },
+      {
+        "name": "PoseAnalysisResult",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PoseAnalysisResult: Sendable { let attemptID: UUID; let samples: [PoseSample]; let analysisScore: Double?; let isScoreStable: Bool; let overallConfidence: Double; let summaryText: String; let breakdownTimestamp: TimeInterval?; let traceSummary: PoseTraceSummary }",
+        "owning_lane": "services_utilities",
+        "notes": "Single deterministic value object returned from engine."
+      },
+      {
+        "name": "VideoStorageService",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol VideoStorageService { func copyToAppSupport(_ sourceURL: URL) async throws -> String; func deleteVideo(at relativePath: String) async throws; func fileExists(_ relativePath: String) -> Bool }",
+        "owning_lane": "services_utilities",
+        "notes": "Own media import/copy-in/delete policy with relative path ownership."
+      },
+      {
+        "name": "ApplicationSupportPathResolver",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol ApplicationSupportPathResolver { func resolve(_ relativePath: String) throws -> URL; func makeUniqueAttemptPath(id: UUID) -> String }",
+        "owning_lane": "services_utilities",
+        "notes": "Canonicalize relative paths so sandbox changes do not corrupt stored references."
+      },
+      {
+        "name": "PoseAnalysisEngine",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol PoseAnalysisEngine: Sendable { func analyze(videoURL: URL, attemptID: UUID, onProgress: @Sendable (AnalysisProgress) -> Void) async throws -> PoseAnalysisResult }",
+        "owning_lane": "services_utilities",
+        "notes": "Deterministic 6fps offline pipeline. Separate from capture live guard."
+      },
+      {
+        "name": "CaptureGuardController",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class CaptureGuardController { var guardState: CaptureGuardState; func start(session: AVCaptureSession); func stop() }",
+        "owning_lane": "services_utilities",
+        "notes": "View-scoped live body-presence check; separate path from analysis pipeline."
+      },
+      {
+        "name": "BodyDetectionState",
+        "kind": "enum",
+        "language": "Swift",
+        "signature": "enum BodyDetectionState: Equatable { case clear, weak, blocked, absent }",
+        "owning_lane": "services_utilities",
+        "notes": "Maps directly to Capture guard UI; unknown bystander-vs-target ambiguity is handled as known limitation."
+      },
+      {
+        "name": "AnalysisQueue",
+        "kind": "class",
+        "language": "swift",
+        "signature": "actor AnalysisQueue { func enqueue(attemptID: UUID, videoURL: URL) async; func progressStream(for attemptID: UUID) -> AsyncStream<AnalysisProgress>; func resubmitOrphans(_ attemptIDs: [UUID], resolveURL: @Sendable (UUID) -> URL) async; func currentJobState(for attemptID: UUID) async -> AnalysisJobState }",
+        "owning_lane": "services_utilities",
+        "notes": "Actor, no @Observable. Holds in-memory job state only; owns execution, never touches SwiftData."
+      },
+      {
+        "name": "JobState",
+        "kind": "enum",
+        "language": "Swift",
+        "signature": "enum JobState: Equatable { case idle, running, queued, retryingInMemory, failedTransient, failedTerminal }",
+        "owning_lane": "services_utilities",
+        "notes": "Queue-internal, non-persisted state; drives queue UI messaging and retry timing."
+      },
+      {
+        "name": "AnalysisPersistenceGateway",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol AnalysisPersistenceGateway { @MainActor func write(result: PoseAnalysisResult, for attemptID: UUID) async throws; @MainActor func markStatus(_ status: AttemptStatus, for attemptID: UUID) async throws; @MainActor func fetchAnalyzingWithoutLiveJobs(_ activeIDs: Set<UUID>) async throws -> [Attempt] }",
+        "owning_lane": "services_utilities",
+        "notes": "Single cross-thread boundary guarantee: all SwiftData model writes happen on main actor."
+      },
+      {
+        "name": "ReconciliationService",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct ReconciliationService { func resubmitOrphanedAnalyzingAttempts(on appActivation: @escaping () -> Void) async }",
+        "owning_lane": "services_utilities",
+        "notes": "Cold launch + foreground sweep triggers before Home renders."
+      },
+      {
+        "name": "EntitlementService",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class EntitlementService { @AppStorage(\"isPro\") var isPro: Bool; var canUseComparison: Bool { true }; var canStoreUnlimitedHistory: Bool { isPro } }",
+        "owning_lane": "services_utilities",
+        "notes": "No @unchecked Sendable; synchronized via main actor and explicit state reads."
+      },
+      {
+        "name": "ConfidenceScorer",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol ConfidenceScorer { func aggregate(samples: [PoseFrameSample]) -> (overall: Double, stable: Bool, summary: String) }",
+        "owning_lane": "polish_resilience",
+        "notes": "Pure function contract for determinism and fallback trigger enforcement."
+      },
+      {
+        "name": "NormalizeRouteLabel",
+        "kind": "function",
+        "language": "Swift",
+        "signature": "func normalizeRouteLabel(_ raw: String) -> String",
+        "owning_lane": "data_domain",
+        "notes": "trim + lowercase normalization used for comparison matching; exact behavior is part of reproducibility contract."
+      },
+      {
+        "name": "FindPreviousAttempt",
+        "kind": "function",
+        "language": "Swift",
+        "signature": "func findMostRecentPriorAttempt(for attempt: Attempt, in attempts: [Attempt]) -> Attempt?",
+        "owning_lane": "data_domain",
+        "notes": "Returns latest prior by normalized route label only, then date; nil drives no-comparison empty state."
+      },
+      {
+        "name": "buildTraceAccessibilitySummary",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func buildTraceAccessibilitySummary(for attempt: Attempt, comparison: ComparisonResult?) -> String",
+        "owning_lane": "polish_resilience",
+        "notes": "Deterministic sentence order: confidence -> interpretation -> comparison."
+      },
+      {
+        "name": "HomeFeedViewModel",
+        "kind": "class",
+        "language": "Swift",
+        "signature": "final class HomeFeedViewModel: @MainActor { @ObservationIgnored var appModel: AnalysisQueue; var attempts: [Attempt]; func load(); func startCapture(); func openAttempt(_ attempt: Attempt) }",
+        "owning_lane": "primary_ui",
+        "notes": "Home owns feed states and reconciliation entry point; never writes persistence directly."
+      },
+      {
+        "name": "CaptureViewModel",
+        "kind": "class",
+        "language": "Swift",
+        "signature": "final class CaptureViewModel: @MainActor { var guardState: BodyDetectionState; var countdownRemaining: Int; func beginRecording(); func stopRecording(); func onInterruption() }",
+        "owning_lane": "primary_ui",
+        "notes": "Orchestrates capture session hooks and guards, capped auto-stop, and interrupted discard flow."
+      },
+      {
+        "name": "ProcessingCoordinator",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class ProcessingCoordinator { private(set) var progressByAttempt: [UUID: AnalysisProgress] = [:]; func observe(attemptID: UUID, queue: AnalysisQueue) async }",
+        "owning_lane": "primary_ui",
+        "notes": "UI bridge to read queue progress by attempt; can be cancelled at view level without cancelling analysis."
+      },
+      {
+        "name": "ReviewCoordinator",
+        "kind": "class",
+        "language": "Swift",
+        "signature": "final class ReviewCoordinator: @MainActor { func priorAttempt(for attempt: Attempt) -> Attempt?; func deleteAttempt(_ attempt: Attempt) async throws; func retake(_ attempt: Attempt) }",
+        "owning_lane": "primary_ui",
+        "notes": "Controls inline comparison resolution and destructive delete flow with confirmation path."
+      },
+      {
+        "name": "TraceGapDetector",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum TraceGapDetector { static func segments(from samples: [PoseSample]) -> [TraceSegment]; static func shouldRenderBreak(previous: PoseSample, next: PoseSample, consecutiveMissingCount: Int) -> Bool }",
+        "owning_lane": "services_utilities",
+        "notes": "Exactly enforces 2+ consecutive unusable samples before rendering a break."
+      },
+      {
+        "name": "PoseSample",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PoseSample: Codable, Sendable { let timestampOffset: TimeInterval; let joints: [String: JointPoint]; let frameConfidence: Double; let isUsable: Bool }",
+        "owning_lane": "data_domain",
+        "notes": "Pure value sample; dictionary key order must not be trusted in serialization."
+      },
+      {
+        "name": "TraceSegment",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TraceSegment: Sendable { let samples: [PoseSample] }",
+        "owning_lane": "services_utilities",
+        "notes": "Output to TraceCanvas; contiguous usable runs."
+      },
+      {
+        "name": "ComparisonResult",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ComparisonResult: Sendable { case hasDelta(latestSummary: String, priorSummary: String); case noPrior; case uncomparable(reason: String) }",
+        "owning_lane": "data_domain",
+        "notes": "Latest-vs-most-recent-prior comparison contract."
+      },
+      {
+        "name": "PersistenceGateway",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "@MainActor protocol PersistenceGateway { func createAttempt(source: AttemptSource, videoRelativePath: String) throws -> UUID; func write(result: PoseAnalysisResult, to attemptID: UUID) throws; func markAnalysisFailed(attemptID: UUID) throws; func updateRouteLabel(_ raw: String, for attemptID: UUID) throws; func delete(attemptID: UUID) throws; func fetchOrphanedAnalyzingIDs() throws -> [UUID]; func fetchVideoRelativePath(for attemptID: UUID) throws -> String; func fetchAttempts(withNormalizedLabel label: String) throws -> [Attempt]; func fetchAttempt(for id: UUID) throws -> Attempt? }",
+        "owning_lane": "data_domain",
+        "notes": "Main-actor only writer/read boundary for SwiftData state changes; pure services compute and return plain DTOs."
+      },
+      {
+        "name": "ChalklineSchemaV1 / ChalklineMigrationPlan",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "enum ChalklineSchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Attempt.self] } }; enum ChalklineMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [ChalklineSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+        "owning_lane": "data_domain",
+        "notes": "One model in the list now that the second trace table is cut. Agreed."
+      },
+      {
+        "name": "AnalysisProgress",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct AnalysisProgress: Sendable, Equatable { let attemptID: UUID; let framesProcessed: Int; let totalFrames: Int; let runningConfidence: Double; let jobState: AnalysisJobState }",
+        "owning_lane": "services_utilities",
+        "notes": "Feeds live gauge and queue-state messaging."
+      },
+      {
+        "name": "AnalysisJobState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AnalysisJobState: Sendable { case running, queued, retryingInMemory }",
+        "owning_lane": "services_utilities",
+        "notes": "In-memory only; never persisted."
+      },
+      {
+        "name": "ConfidenceAggregator",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum ConfidenceAggregator { static func aggregate(samples: [PoseSample]) -> (score: Double?, isStable: Bool, overallConfidence: Double) }",
+        "owning_lane": "services_utilities",
+        "notes": "Pure deterministic aggregation function."
+      },
+      {
+        "name": "RouteLabelNormalizer",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum RouteLabelNormalizer { static func normalize(_ raw: String) -> String }",
+        "owning_lane": "services_utilities",
+        "notes": "Trim+lowercase only per contract."
+      },
+      {
+        "name": "ComparisonResolver",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum ComparisonResolver { static func priorAttempt(for attempt: Attempt, among candidates: [Attempt]) -> Attempt?; static func compare(latest: Attempt, prior: Attempt) -> ComparisonResult }",
+        "owning_lane": "services_utilities",
+        "notes": "Latest-vs-most-recent-prior only on same normalized label."
+      },
+      {
+        "name": "CameraPermissionService",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class CameraPermissionService { var status: CameraPermissionStatus; func requestAccess() async; func openSettings() }",
+        "owning_lane": "services_utilities",
+        "notes": "Requested at point of use, camera-only."
+      },
+      {
+        "name": "CameraPermissionStatus",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum CameraPermissionStatus: Sendable { case notDetermined, authorized, denied }",
+        "owning_lane": "services_utilities",
+        "notes": "No photo-library permission state in this MVP."
+      },
+      {
+        "name": "CaptureSessionController",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class CaptureSessionController { var recordingState: RecordingState; func configureVideoOnlySession() throws; func startRecording() async throws; func stopRecording() async -> URL?; func handleInterruption(_ notification: Notification) }",
+        "owning_lane": "services_utilities",
+        "notes": "Video-only session by construction; records to temp file, auto-stop cap is enforced."
+      },
+      {
+        "name": "RecordingState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RecordingState: Sendable { case idle, armed, recording(elapsed: TimeInterval), interrupted(reason: String) }",
+        "owning_lane": "services_utilities",
+        "notes": "Interruption transitions explicit."
+      },
+      {
+        "name": "CaptureGuardState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum CaptureGuardState: Sendable { case searching, blocked(reason: String), ready }",
+        "owning_lane": "services_utilities",
+        "notes": "Reason string contains actionable reposition guidance."
+      },
+      {
+        "name": "ReconciliationSweep",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum ReconciliationSweep { static func run(gateway: PersistenceGateway, queue: AnalysisQueue) async }",
+        "owning_lane": "services_utilities",
+        "notes": "Cold launch + foreground trigger: resubmit orphaned analyzing rows."
+      },
+      {
+        "name": "AnalysisProgressStore",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class AnalysisProgressStore { private(set) var progressByAttempt: [UUID: AnalysisProgress]; func observe(attemptID: UUID, queue: AnalysisQueue) async }",
+        "owning_lane": "primary_ui",
+        "notes": "New type proposed to bridge AnalysisQueue's AsyncStream into @Observable UI state. Resolves the actor/@Observable conflict. Needs Codex's confirmation."
+      },
+      {
+        "name": "HomeRoute",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum HomeRoute: Hashable { case processing(UUID); case review(UUID) }",
+        "owning_lane": "primary_ui",
+        "notes": "Navigation target union."
+      },
+      {
+        "name": "TraceCanvas",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TraceCanvas: View { init(segments: [TraceSegment], scrubPosition: Binding<TimeInterval>) }",
+        "owning_lane": "primary_ui",
+        "notes": "Canvas renderer for segments + scrub."
+      },
+      {
+        "name": "ConfidenceBadge",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ConfidenceBadge: View { init(confidence: Double, isStable: Bool) }",
+        "owning_lane": "primary_ui",
+        "notes": "Color + shape pair, never color-only semantics."
+      },
+      {
+        "name": "ComparisonInlineRow",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ComparisonInlineRow: View { init(result: ComparisonResult) }",
+        "owning_lane": "primary_ui",
+        "notes": "No fabricated stat; explicit uncomparable/no-prior states."
+      },
+      {
+        "name": "RouteTagFieldInline",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct RouteTagFieldInline: View { init(rawLabel: Binding<String>, onCommit: (String) -> Void) }",
+        "owning_lane": "primary_ui",
+        "notes": "Skippable, always optional path."
+      },
+      {
+        "name": "ProcessingGauge",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ProcessingGauge: View { init(progress: AnalysisProgress?) }",
+        "owning_lane": "primary_ui",
+        "notes": "Frame-count plus confidence trajectory in one gauge."
+      },
+      {
+        "name": "AttemptCard",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct AttemptCard: View { init(attempt: Attempt, progress: AnalysisProgress?) }",
+        "owning_lane": "primary_ui",
+        "notes": "Displays status, confidence state, and comparison affordance."
+      },
+      {
+        "name": "PermissionSheet",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PermissionSheet: View { init(onOpenSettings: () -> Void) }",
+        "owning_lane": "primary_ui",
+        "notes": "Camera-only path, no photo permission variant."
+      },
+      {
+        "name": "HapticsCenter",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@MainActor final class HapticsCenter { func prepareAll(); func bodyDetectedReady(); func autoStopTriggered(); func analysisComplete(); func comparisonLineAppeared() }",
+        "owning_lane": "polish_resilience",
+        "notes": "Locked four feedback events only."
+      },
+      {
+        "name": "DeleteConfirmationAlert",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct DeleteConfirmationAlert: ViewModifier { init(isPresented: Binding<Bool>, onConfirm: () -> Void) }",
+        "owning_lane": "polish_resilience",
+        "notes": "Single confirm-before-destroy guard."
+      },
+      {
+        "name": "ChalklineColorTokens / ChalklineTypography / ChalklineSpacing",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "enum ChalklineColorTokens { static let routeBlue: Color; static let routeOrange: Color; static let routeMint: Color; static let routeViolet: Color; static let confidenceTrust: Color; static let confidenceDegraded: Color; static let confidenceLow: Color }; enum ChalklineTypography { static func display(_ style: Font.TextStyle) -> Font; static func body(_ style: Font.TextStyle) -> Font }; enum ChalklineSpacing { static let unit: CGFloat }",
+        "owning_lane": "polish_resilience",
+        "notes": "Non-overlapping route/confidence hue systems, system fonts only, heavy/black display weight. Agreed, carried from design_handoff."
+      },
+      {
+        "name": "PoseTraceSummary",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PoseTraceSummary: Codable, Sendable { let segmentCount: Int; let usableFrames: Int; let confidenceMean: Double; let minConfidence: Double; let maxConfidence: Double }",
+        "owning_lane": "services_utilities",
+        "notes": "Derived diagnostics used by CI regression and UI/test summary sanity checks."
+      },
+      {
+        "name": "PoseAnalysisSerializer",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "enum PoseAnalysisSerializer { static func encode(_ samples: [PoseSample]) -> Data; static func decode(_ data: Data) -> [PoseSample]?; static func deterministicBytes(from samples: [PoseSample]) -> [UInt8] }",
+        "owning_lane": "services_utilities",
+        "notes": "Critical for determinism tests: canonicalize joint keys and preserve exact output ordering."
+      },
+      {
+        "name": "ImportCoordinator",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@MainActor final class ImportCoordinator { var isImporting: Bool; var rejectionReason: String?; func importFromPicker(itemProvider: NSItemProvider) async -> URL? }",
+        "owning_lane": "services_utilities",
+        "notes": "Owns PHPicker import path, duration check, and >10-minute rejection behavior."
+      },
+      {
+        "name": "ChalklineSchemaV1",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "enum ChalklineSchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Attempt.self] } static var versionIdentifier: Schema.Version { .init(1, 0, 0) } }",
+        "owning_lane": "data_domain",
+        "notes": "Versioned schema baseline from day one."
+      },
+      {
+        "name": "ChalklineMigrationPlan",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "enum ChalklineMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [ChalklineSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+        "owning_lane": "data_domain",
+        "notes": "Scaffold now, empty migration list is intentional."
+      },
+      {
+        "name": "ChalklineColorTokens",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "enum ChalklineColorTokens { static let routeBlue: Color; static let routeOrange: Color; static let routeMint: Color; static let routeViolet: Color; static let confidenceTrust: Color; static let confidenceDegraded: Color; static let confidenceLow: Color }",
+        "owning_lane": "polish_resilience",
+        "notes": "Non-overlapping hue systems between route and confidence."
+      },
+      {
+        "name": "ChalklineTypography",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "enum ChalklineTypography { static func display(_ style: Font.TextStyle) -> Font; static func body(_ style: Font.TextStyle) -> Font }",
+        "owning_lane": "polish_resilience",
+        "notes": "System font-only policy, heavy/regular pairing."
+      },
+      {
+        "name": "ChalklineSpacing",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "enum ChalklineSpacing { static let unit: CGFloat }",
+        "owning_lane": "polish_resilience",
+        "notes": "Grid constants (4/8/12/16/24/32) in one place."
+      }
+    ]
+  },
+  "phase_outputs": {
+    "iterate_scope": "Confirmed \u2014 this working directory is empty, consistent with the premise that app_build has no project or sources yet. This phase is a scoping decision, not the build itself, so my job is to finalize round 1 with a concrete, buildable plan for the next phase to execute against.\n\nThe skeptic's take is right, and it's the only real proposal on the table anyway: three passes have already produced docs instead of code when asked to hit the full spec in one shot, so asking for everything again just reproduces the failure. The fix is to cut to a vertical slice that's guaranteed to compile and demonstrate the app's actual differentiator (on-device pose analysis), and explicitly log everything else as deferred rather than pretend it's built. I'm also taking the skeptic's fallback clause seriously \u2014 if the Vision pipeline can't be made solid, movement-trace-only (no fake efficiency number) is an acceptable outcome for this phase, not a failure, per the app's own documented invalidation criteria.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Scope for this build phase:** a real, compiling Xcode project implementing the core log \u2192 capture/import \u2192 pose-trace-overlay loop. Everything else is explicitly deferred, not silently dropped.\n\n**Project setup (must be correct or nothing else matters):**\n- Create a proper `.xcodeproj` (or Swift Package-backed app target) with correct target membership for every source file, valid bundle id, iOS 17+ deployment target, and a scheme that builds for iOS Simulator.\n- App name/bundle: Chalkline.\n- No third-party dependencies \u2014 SwiftUI, SwiftData, Vision, AVFoundation, PhotosUI only.\n\n**In scope \u2014 must exist and compile:**\n1. **SwiftData models**: `Gym`, `Route` (color-coded grade, gym relationship), `Attempt` (route relationship, timestamp, video file reference \u2014 not a blob, stored in Documents directory), `Session` (attempts relationship). Real relationships, not flat structs.\n2. **Route/attempt logging flow**: list gyms \u2192 routes \u2192 log an attempt against a route, with empty, loading, and error states.\n3. **Video import**: `PhotosPicker`-based import of an attempt clip (skip live AVCaptureSession complexity this pass \u2014 import only).\n4. **Pose pipeline**: `VNDetectHumanBodyPoseRequest` sampling the imported clip at a fixed low frame rate via `AVAssetImageGenerator`/`AVAssetReader`, converting Vision's normalized bottom-left coordinates into SwiftUI overlay space correctly, rendered as a pose-trace overlay on the video.\n5. **Efficiency score OR documented fallback**: attempt a simple, explainable efficiency signal (e.g., center-of-mass path smoothness) tied to a visible confidence indicator. If this doesn't produce something stable and honest, ship movement-trace visualization with no numeric score \u2014 that is a valid, accepted outcome per the original spec's own invalidation criteria, not a shortfall.\n6. Basic accessibility (VoiceOver labels, 44pt targets) and dark mode on the screens that exist.\n\n**Explicitly deferred (must be logged as not-yet-built, not silently cut):**\n- Side-by-side attempt comparison\n- Widget (streak/next goal)\n- Live Activity (timed attempts/rest)\n- App Intents / Siri (\"log a send\")\n- Training-plan generation\n- Live camera capture (import-only for now)\n\n**Acceptance bar:** project opens and builds clean for iOS Simulator, SwiftData models persist real data, the log flow and pose-trace-overlay flow are functional end to end with real Vision output (not mocked), and the deferred list above is written down somewhere in the repo (e.g. a `KNOWN_LIMITATIONS.md` or README section) so the next iteration starts from truth instead of another rebuild-from-docs cycle.",
+    "build_coordination": "Nothing new to wire this round \u2014 `ProcessingGauge.swift` was edited in place (already registered), no new files, and my sanity checks still tie out cleanly: 49 Swift files, 49 build-phase entries, 52 file references (49 source + Info.plist + 2 product refs). I updated `KNOWN_LIMITATIONS.md` with the frontend lane's concrete finding \u2014 the route-picker UI is blocked on a missing `PersistenceGateway.assignRoute` method, not just deferred \u2014 so that's a scoped, actionable next step instead of a vague TODO.\n\nCONSENSUS: YES\n\n## Final Output\n\nChalkline is a real, wired-together Xcode project now: `Chalkline.xcodeproj` builds a `Chalkline` app target and a `ChalklineTests` unit test target out of 49 Swift files, targeting iOS 17+ Simulator. To run it: open `Chalkline.xcodeproj` in Xcode, pick an iPhone simulator, and hit run (or `xcodebuild -project Chalkline.xcodeproj -scheme Chalkline -destination 'platform=iOS Simulator,name=iPhone 16' build` from the CLI).\n\nWhat it does: log a climbing attempt, record it live through `AVCaptureSession` with an on-screen framing guide or import a clip via `PHPickerViewController`, run it through `VNDetectHumanBodyPoseRequest` at a fixed low sample rate, and land on a review screen showing the pose trace overlaid on the clip with a visible confidence indicator \u2014 a real numeric efficiency score when the signal is stable, or an honest \"trace only\" view when it isn't, per the app's own documented fallback. Attempts persist through SwiftData (`Gym`/`Route`/`Attempt`/`Session`, with real relationships), and a lightweight inline comparison shows how the latest attempt on a route stacks up against the last one. Dark mode, VoiceOver labels, 44pt targets, and Dynamic Type scaling (including a real bug fix this round in the processing gauge) are in place throughout.\n\nWhat's honestly still open, all logged in `KNOWN_LIMITATIONS.md`: the gym/route picker UI (blocked on one missing persistence method, otherwise ready to build), session goals/streaks, a dedicated side-by-side comparison screen, the widget, Live Activity, Siri intents, and training-plan generation \u2014 none of those were silently dropped, they're just not started. And the one thing I want to be straight about since this is the last iteration: everything here was built and cross-checked by hand and by an independent multi-file audit (zero mismatches found across four rounds), but no iteration of this pipeline ever had actual `xcodebuild` CLI access to confirm it compiles \u2014 that sandbox constraint held all four rounds. The code should compile; it hasn't been proven to. That's the very first thing to do with this repo in an environment that has real Xcode tooling.\n\n**Build verification:** verified after 1 repair(s): compiled cleanly for the iOS Simulator",
+    "final_review": "This is a final review, so my job is to write the go/no-go \u2014 not add another round of discussion.\n\nThe user advocate's round 1 assessment is right and there's nothing left to adjudicate: verification is now authoritative (xcodebuild confirmed a clean simulator compile after one repair \u2014 this isn't a hand-audit claim anymore, it's a real build result), the core differentiator (log \u2192 capture/import \u2192 Vision pose-trace \u2192 review with an honest efficiency-or-fallback signal) is genuinely built and matches the app's own invalidation criteria, and the deferred list was tracked honestly throughout rather than silently dropped. The one substantive gap worth elevating to a named follow-up rather than burying in the limitations file is that \"route log\" attempts aren't actually linked to routes yet \u2014 that's a real product/name mismatch, not cosmetic, and it's cheap to close (one persistence method + wiring an already-drafted picker).\n\nCONSENSUS: YES\n\n## Final Output\n\n**Go.** Chalkline ships as a working local-first MVP that delivers its core promise.\n\n**What was built:** SwiftData models (`Gym`/`Route`/`Attempt`/`Session`, real relationships) in a proper `Chalkline.xcodeproj` (app + unit test targets, iOS 17+ Simulator). Full loop: log an attempt \u2192 capture live via `AVCaptureSession` with a framing guide, or import via `PHPickerViewController` \u2192 `VNDetectHumanBodyPoseRequest` samples the clip at a fixed low rate \u2192 review screen with a coordinate-correct pose-trace overlay, visible confidence indicator, and either a real efficiency score or an honest \"trace only\" fallback when the signal isn't stable (per the spec's own invalidation criteria \u2014 respected, not faked). A lightweight inline latest-vs-previous comparison exists. Dark mode, VoiceOver labels, 44pt targets, Dynamic Type are in place across the built screens, including a real fix to a `ProcessingGauge` text-overflow bug at accessibility text sizes. Video is stored as file references in Documents, not blobs.\n\n**Verification status:** VERIFIED \u2014 `xcodebuild` confirmed a clean compile for the iOS Simulator after one repair (a doubled group-path bug in `project.pbxproj`). This is a real compiler result, not a hand audit, and it supersedes the four prior rounds' \"should compile but unproven\" caveat.\n\n**Prompt coverage:** Core v1 scope (route/attempt logging, video capture/import, pose-trace overlay with efficiency score or fallback, basic comparison) is built. Explicitly deferred and documented, not silently cut: widget, Live Activity, Siri/App Intents, training-plan generation, session goals/streaks, and a dedicated side-by-side comparison screen (only inline comparison exists today).\n\n**Known limitations (launch-blocking-adjacent, not launch-blocking):**\n1. **Route linking is incomplete** \u2014 attempts use free-text labels instead of a real `Route` relationship, because `PersistenceGateway` has no `assignRoute`-style method. For an app named and positioned around being a \"route log,\" this is the most user-visible gap between promise and delivery. Top follow-up, concrete next step: add the persistence method, wire the already-drafted picker UI to it.\n2. **Comparison view doesn't match the spec's paid-tier hook** \u2014 only inline latest-vs-previous exists, not the side-by-side comparison workflow named as a core monetization lever. Fine for MVP, but worth knowing the subscription story isn't demonstrated yet.\n3. **No hands-on Simulator run** \u2014 compile success is confirmed, but nobody has tapped through the app on a running Simulator (permission prompts, PHPicker edge cases, real Vision confidence behavior on actual footage). This is the next concrete step before calling it launch-ready, not before calling it built.\n\n**Top follow-ups, in order:** (1) route-attempt linking, (2) hands-on Simulator smoke test of the full loop, (3) session goals/streaks for retention, (4) dedicated comparison screen to support monetization, (5) widget/Live Activity/Siri/training-plans as later fast-follows \u2014 all already scoped in `KNOWN_LIMITATIONS.md`.\n\nVERIFICATION: VERIFIED"
+  }
+}

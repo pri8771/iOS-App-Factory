@@ -1,0 +1,588 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Domain record types and PlanningConfig: IncomeEntry, Obligation, ObligationCadence, ReserveSnapshot, ConfidenceTier, MonthlyBucket, RiskWindowFlag, RunwayResult, ExplanationLineItem, ExplanationEmphasis, PlanningConfig, PlanningResult \u2014 exact round-4 tech_specs shapes, no deviation.",
+      "owner_lane": "data_domain",
+      "files": [
+        "IrregularIncomePlanner/Domain/Models/IncomeEntry.swift",
+        "IrregularIncomePlanner/Domain/Models/Obligation.swift",
+        "IrregularIncomePlanner/Domain/Models/ReserveSnapshot.swift",
+        "IrregularIncomePlanner/Domain/Models/ConfidenceTier.swift",
+        "IrregularIncomePlanner/Domain/Models/MonthlyBucket.swift",
+        "IrregularIncomePlanner/Domain/Models/RiskWindowFlag.swift",
+        "IrregularIncomePlanner/Domain/Models/RunwayResult.swift",
+        "IrregularIncomePlanner/Domain/Models/ExplanationLineItem.swift",
+        "IrregularIncomePlanner/Domain/Models/PlanningConfig.swift",
+        "IrregularIncomePlanner/Domain/Models/PlanningResult.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "All types match tech_specs round-4 signatures exactly (field names, optionality)",
+        "All Codable/Hashable/Sendable conformances present",
+        "isCorrection on IncomeEntry is computed, never stored",
+        "Zero SwiftUI or persistence imports anywhere in Domain/"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "PlanningEngine.evaluate implementation: cadence expansion for all 5 cadences, baseline percentile calc, three-tier confidence thresholds, 14-day risk-window flagging, runway calc, explanation line items, never-floored safe-to-spend.",
+      "owner_lane": "data_domain",
+      "files": [
+        "IrregularIncomePlanner/Domain/PlanningEngine.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Non-throwing static function matching locked signature exactly, asOf always caller-supplied with no default",
+        "Zero-income months materialize as real zero-height buckets, never omitted",
+        "Confidence tier boundaries exact: 0-1 insufficient, 2-5 low, 6+ full"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Domain fixture test suite covering the full acceptance list: windfall non-inflation, lean-month handling, all 3 confidence tiers at exact thresholds, all 5 cadence expansions, 14-day risk window with multiple simultaneous flags, negative safe-to-spend unfloored, same-day duplicate summation, negative income corrections.",
+      "owner_lane": "data_domain",
+      "files": [
+        "IrregularIncomePlanner/Tests/DomainTests/PlanningEngineTests.swift",
+        "IrregularIncomePlanner/Tests/DomainTests/Fixtures/*.json"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Every case in Milestone 1's exit-criteria list has a named, passing test",
+        "Windfall-month fixture produces a safe-to-spend number that does not track the windfall, asserted with numeric tolerance"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "FinancialStore: concrete @MainActor @Observable class wired to FinancialDocumentStore, all mutators recompute synchronously via recomputePlanningResult with explicit per-call asOf; init hydrates manualFallbackEstimate from the document, snapshotDocument() round-trips it back out. Calls the polish_resilience-owned recomputePlanningResult helper as its only path into the engine \u2014 never PlanningEngine.evaluate directly.",
+      "owner_lane": "data_domain",
+      "files": [
+        "IrregularIncomePlanner/Domain/Stores/FinancialStore.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-011",
+        "T-030"
+      ],
+      "acceptance_criteria": [
+        "init never defaults manualFallbackEstimate to nil when the document has a value",
+        "snapshotDocument() includes the current manualFallbackEstimate",
+        "Every mutator takes asOf explicitly, no internal Date() default",
+        "No direct call to PlanningEngine.evaluate anywhere in this file \u2014 only via recomputePlanningResult"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "FinancialStore integrity tests: fallback-durability test (mutate manualFallbackEstimate, snapshot, reload through fake store, assert identical state) and the two-part relaunch assertion (raw record equality, then fresh engine run against reloaded records with original asOf, assert identical PlanningResult). This test blocks sign-off on both T-004 and T-011 jointly \u2014 neither lane self-certifies this one.",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Tests/PersistenceTests/FinancialStoreIntegrityTests.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Fallback-durability test passes",
+        "Two-part relaunch assertion passes as two distinct assertions, not one"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Implement Dashboard and Money Inputs vertical slice on top of shared store and shared UI",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/Dashboard/DashboardView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/Dashboard/DashboardViewModel.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/MoneyInputs/MoneyInputsView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/MoneyInputs/MoneyInputsViewModel.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/MoneyInputs/IncomeEditorView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/MoneyInputs/ObligationEditorView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/MoneyInputs/ReserveEditorView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "A first-time user can skip or complete onboarding inputs, add income and obligation data, optionally set reserve or manual fallback, and land on Dashboard with the correct confidence state.",
+        "Money Inputs supports distinct same-day income entries, negative corrections, cadence-aware obligations, and reserve editing without local shadow state.",
+        "Dashboard reflects safe-to-spend, runway, and risk-window outputs directly from FinancialStore and updates immediately after edits.",
+        "All reachable vertical-slice screens expose empty, loading, success, and recoverable error states where the workflow can reach them."
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Implement Explanation-History and Settings-Data-Privacy flows including premium gate surfaces",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/ExplanationHistory/ExplanationHistoryView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/ExplanationHistory/ExplanationHistoryViewModel.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/Settings/SettingsView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Features/Settings/SettingsViewModel.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/SharedUI/LockedFeatureRow.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Explanation-History renders hand-traceable breakdown, history states, and its premium teaser surface without recomputing finance logic in the view.",
+        "Settings exposes biometric lock toggle state, import-export actions, privacy messaging, and a real local entitlement-backed locked row.",
+        "Import and export flows connect to service interfaces through coordinator-owned dependencies rather than direct file logic in views.",
+        "Feature surfaces preserve the four-top-level-surface information architecture with no extra navigation destination added."
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Add resilience, acceptance, accessibility, and negative-path verification across the assembled app",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlanner/Polish/SnapshotRedactionModifier.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlannerTests/DomainTests/PlanningEngineFixtureTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlannerTests/PersistenceTests/FinancialDocumentStoreTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlannerTests/PersistenceTests/ImportExportTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlannerTests/ViewModelTests/AppRootCoordinatorTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlannerTests/SnapshotTests/DashboardSnapshotTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/IrregularIncomePlannerTests/Acceptance/AcceptanceChecklist.md"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004",
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Test suite proves invalid import leaves on-disk data byte-identical, cancelled import produces zero writes, and manualFallbackEstimate survives export-import with identical insufficient-data confidence state.",
+        "Snapshot and accessibility verification cover default and AX5 hero rendering, icon-plus-text risk communication, and VoiceOver-readable confidence provenance.",
+        "Snapshot redaction and lock-scrim privacy checks are documented and manually verifiable for app-switcher and foreground transitions.",
+        "Final acceptance checklist covers lean-month and windfall-month scenario replay, hand-checkable runway math, honest cold-start states, and relaunch integrity."
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-000",
+      "title": "Xcode project scaffold: create IrregularIncomePlanner.xcodeproj at /Users/pchordia/Documents/iOS-App-Factory/irregular-income-planner/, app + unit-test + UI-test targets, iOS 17 deployment target, folder groups matching the locked file layout (Domain/, Persistence/, Auth/, Entitlement/, Services/, App/, Features/{Dashboard,MoneyInputs,ExplanationHistory,Settings,Onboarding,AppLock}/, SharedUI/, Tests/{DomainTests,PersistenceTests,ViewModelTests,SnapshotTests}), Info.plist with NSFaceIDUsageDescription, empty SwiftUI App entry point that compiles and launches to a blank screen.",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IrregularIncomePlanner.xcodeproj/*",
+        "IrregularIncomePlanner/App/IrregularIncomePlannerApp.swift",
+        "IrregularIncomePlanner/Info.plist"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Project builds and runs on iOS 17 simulator showing a blank screen",
+        "All folder groups exist and are wired to correct targets (app target vs test targets)",
+        "NSFaceIDUsageDescription present in Info.plist"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "FinancialDocument and AppSettings model structs plus ImportValidationError enum, exact round-4 shapes (manualFallbackEstimate lives on FinancialDocument, never AppSettings) \u2014 persistence-facing contract, owned by services_utilities per tech_specs' locked owning_lane stamp.",
+      "owner_lane": "services_utilities",
+      "files": [
+        "IrregularIncomePlanner/Persistence/FinancialDocument.swift",
+        "IrregularIncomePlanner/Persistence/AppSettings.swift",
+        "IrregularIncomePlanner/Persistence/ImportValidationError.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "FinancialDocument includes manualFallbackEstimate: Decimal?",
+        "AppSettings has no manualFallbackEstimate field",
+        "Both Codable with schemaVersion"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "FinancialDocumentStore + SettingsStore protocols, real atomic-write (temp-file + FileManager.replaceItemAt) implementations under file protection, plus in-memory fakes for testing.",
+      "owner_lane": "services_utilities",
+      "files": [
+        "IrregularIncomePlanner/Persistence/FinancialDocumentStore.swift",
+        "IrregularIncomePlanner/Persistence/SettingsStore.swift",
+        "IrregularIncomePlanner/Persistence/AtomicJSONFileStore.swift",
+        "IrregularIncomePlanner/Tests/PersistenceTests/Fakes/InMemoryFinancialDocumentStore.swift",
+        "IrregularIncomePlanner/Tests/PersistenceTests/Fakes/InMemorySettingsStore.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Writes are atomic (temp file then replace, never partial writes observable)",
+        "Both files stored under standard file protection in Application Support",
+        "Fakes support round-trip and load-error injection for tests"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "ImportExportService: exportData/validateImport, fully in-memory validation (via validateFinancialDocument), zero disk writes or store mutation inside the call.",
+      "owner_lane": "services_utilities",
+      "files": [
+        "IrregularIncomePlanner/Services/ImportExport/ImportExportService.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-031"
+      ],
+      "acceptance_criteria": [
+        "validateImport never touches disk or a live store",
+        "Malformed JSON, unsupported schema version, and invalid records (including negative manualFallbackEstimate) each produce the correct ImportValidationError case"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "AuthenticatorProtocol wrapping LAContext (real implementation) plus a fake for hardware-free testing; AuthAvailability/AuthResult enums.",
+      "owner_lane": "services_utilities",
+      "files": [
+        "IrregularIncomePlanner/Auth/AuthenticatorProtocol.swift",
+        "IrregularIncomePlanner/Auth/LAContextAuthenticator.swift",
+        "IrregularIncomePlanner/Tests/ViewModelTests/Fakes/FakeAuthenticator.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        ".unavailable case never dead-ends the caller",
+        "Fake authenticator can simulate success/failure/cancel/unavailable deterministically for coordinator tests"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "EntitlementService reading/writing AppSettingsStore.settings.entitlementActive.",
+      "owner_lane": "services_utilities",
+      "files": [
+        "IrregularIncomePlanner/Entitlement/EntitlementService.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "setEntitled persists through AppSettingsStore, isEntitled reflects current value with no caching drift"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "CurrencyFormatting: single formatting path, currencyCode nil defers to locale currency, large-number formatting never truncates.",
+      "owner_lane": "services_utilities",
+      "files": [
+        "IrregularIncomePlanner/Services/Formatting/CurrencyFormatting.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "Large invoice-scale amounts format without truncation or scientific notation",
+        "Locale switch changes symbol/grouping correctly in a unit test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004b",
+      "title": "AppSettingsStore: concrete @MainActor @Observable class over AppSettings with setLockEnabled/setEntitlementActive/setOnboardingCompleted.",
+      "owner_lane": "data_domain",
+      "files": [
+        "IrregularIncomePlanner/Domain/Stores/AppSettingsStore.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Decode failure on load falls back to AppSettings defaults, never blocks launch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Import/export negative-path and round-trip tests: schema-invalid import leaves on-disk document byte-identical; cancelled import produces zero writes; insufficient-data user's manualFallbackEstimate survives export/import and lands on identical ConfidenceTier.insufficientData(manualFallback:).",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Tests/PersistenceTests/ImportExportRoundTripTests.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "All three named tests present and passing",
+        "The fallback-estimate round-trip test asserts on ConfidenceTier, not just raw JSON equality"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-030",
+      "title": "recomputePlanningResult helper: single call path into PlanningEngine.evaluate, sourcing manualFallbackEstimate consistently from the document. Owned here (polish_resilience) per tech_specs' locked owning_lane stamp, not folded silently into FinancialStore.",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Domain/Support/PlanningRecompute.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "FinancialStore's mutators call only this helper, never PlanningEngine.evaluate directly, so there is one call path to keep consistent"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-031",
+      "title": "validateFinancialDocument: shared domain validation for import and post-decode load checks, rejecting a negative manualFallbackEstimate. Owned here (polish_resilience) per tech_specs' locked owning_lane stamp, not data_domain.",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Domain/Validation/DomainValidator.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Negative manualFallbackEstimate raises ImportValidationError.invalidRecord",
+        "Negative IncomeEntry.amount is NOT rejected (valid correction), asserted in a test distinguishing the two"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "AppRootCoordinator + AppRootState: settings-before-document bootstrap ordering, unlock-triggered concurrent document decode, corrupted-storage side-channel error, scenePhase handling.",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IrregularIncomePlanner/App/AppRootCoordinator.swift",
+        "IrregularIncomePlanner/App/AppRootState.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-004b",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "Unit test proves AppSettingsStore resolves before any FinancialStore load attempt",
+        "financialStore is nil while phase == .locked",
+        "Failed/cancelled auth discards any in-flight document load",
+        "Corrupted financial JSON still allows reaching Settings/import"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "AppLockScrim SwiftUI view: five states (locked-gate, authenticating, success, failure-with-retry, passcode-fallback), calm branded design, never composites/blurs real data. Applies SnapshotRedactionModifier at the app root for app-switcher redaction.",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IrregularIncomePlanner/Features/AppLock/AppLockScrim.swift",
+        "IrregularIncomePlanner/Features/AppLock/AppLockViewState.swift"
+      ],
+      "depends_on": [
+        "T-020",
+        "T-032"
+      ],
+      "acceptance_criteria": [
+        "Manual/visual check: no dashboard silhouette, no blurred content ever visible under the scrim",
+        "All five states reachable and distinct",
+        "Root view wraps content with redactedOnInactive(_:) from T-032"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Shared UI component layer: EmptyStateView (parameterized, no shared generic text), HeroSafeToSpendCard, IncomeRibbonPath, ConfidenceTierIndicator, RunwayCard, RiskWindowCard, LockedFeatureRow. Built before Dashboard/MoneyInputs so neither invents its own empty-state copy. Accessibility (AX5 layout floor, icon+text signals, VoiceOver labels) is built in here by the same lane that consumes these components in-screen, not retrofitted later by a lane that never has to live with the result.",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IrregularIncomePlanner/SharedUI/EmptyStateView.swift",
+        "IrregularIncomePlanner/SharedUI/HeroSafeToSpendCard.swift",
+        "IrregularIncomePlanner/SharedUI/IncomeRibbonPath.swift",
+        "IrregularIncomePlanner/SharedUI/ConfidenceTierIndicator.swift",
+        "IrregularIncomePlanner/SharedUI/RunwayCard.swift",
+        "IrregularIncomePlanner/SharedUI/RiskWindowCard.swift",
+        "IrregularIncomePlanner/SharedUI/LockedFeatureRow.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Hero number holds layout at AX5 Dynamic Type without truncating",
+        "Ribbon uses three fixed styles only (solid/dashed/absent), static, no charts/tooltips",
+        "Confidence and risk signals are never color-only anywhere in these components"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Onboarding + Dashboard: promise/privacy screens, symmetric skip affordances for income and reserve, Dashboard hero/runway/risk-window/quick-actions across all its states (skeleton, insufficient-data, low-confidence, fully-computed, negative-safe-to-spend, reserve-missing, corrupted-storage).",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IrregularIncomePlanner/Features/Onboarding/*.swift",
+        "IrregularIncomePlanner/Features/Dashboard/*.swift"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Skipping income lands on Dashboard's insufficient-data state, not a dead end",
+        "All 7 named Dashboard states are reachable and visually distinct",
+        "Full vertical-slice path (cold launch through lock gate if enabled, onboarding, add income/obligation/reserve-or-fallback, Dashboard) works end to end and survives force-quit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Money Inputs: income CRUD (same-day duplicates distinct, negative corrections visually marked), obligation CRUD (cadence + due date, grouped by due date, manual amount only), reserve single-value panel with inline edit, manual fallback estimate editor writing through FinancialStore.updateManualFallbackEstimate.",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IrregularIncomePlanner/Features/MoneyInputs/*.swift"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Two same-date income entries both appear distinctly and sum correctly in the engine",
+        "No field anywhere lets the app estimate or auto-fill an obligation amount",
+        "Deleting an obligation immediately updates safe-to-spend and risk flags"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Explanation/History: plain-language receipt (baseline/obligations/reserve effect), chronological history, past confidence-tier transitions, premium teaser row using LockedFeatureRow.",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IrregularIncomePlanner/Features/ExplanationHistory/*.swift"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "Every number shown is hand-reconstructible from raw entries",
+        "Empty state copy is distinct from Dashboard's insufficient-data wording"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Settings/Data/Privacy: biometric lock toggle, export/import UI (ImportFlowState-driven: idle/validating/confirmingReplace/success/failure), premium locked/unlocked row wired to real EntitlementService.",
+      "owner_lane": "primary_ui",
+      "files": [
+        "IrregularIncomePlanner/Features/Settings/*.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013",
+        "T-014",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Import confirmation step required before replace; cancelling produces zero disk writes",
+        "Import failure shows a recoverable, non-destructive error state",
+        "Premium row visibly locked/unlocked based on a real flippable boolean, no StoreKit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-032",
+      "title": "SnapshotRedactionModifier: View extension swapping to a branded placeholder on scenePhase == .inactive before the system app-switcher snapshot.",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Polish/SnapshotRedactionModifier.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "Modifier compiles and is documented as a manual QA checklist item (scenePhase transitions not asserted in CI)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-033",
+      "title": "Hero-card and confidence-state snapshot tests at default and AX5 Dynamic Type sizes.",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Tests/SnapshotTests/HeroCardSnapshotTests.swift"
+      ],
+      "depends_on": [
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Snapshot coverage across insufficient-data/low-confidence/fully-computed/negative-safe-to-spend states at both type sizes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-034",
+      "title": "Currency formatting edge-case tests: large numbers, locale switches, negative values.",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Tests/PersistenceTests/CurrencyFormattingTests.swift"
+      ],
+      "depends_on": [
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "No truncation or scientific notation at large invoice-scale amounts across at least 3 locales"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-035",
+      "title": "Coordinator ordering and lock-boundary tests: AppSettingsStore-before-FinancialStore race test, financialStore-nil-while-locked, failed-auth discards in-flight load, passcode-unavailable falls through to unlocked-with-notice.",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Tests/ViewModelTests/AppRootCoordinatorTests.swift"
+      ],
+      "depends_on": [
+        "T-020",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "All four named behaviors covered by passing unit tests using the fake authenticator and fake stores"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-036",
+      "title": "Final Milestone 6 acceptance-bar replay against the fully assembled app: multi-month data with a lean and a windfall month, safe-to-spend that doesn't spike off the windfall, hand-checkable runway math, honest zero/one-entry states, all surviving a full relaunch. Own pass/fail criteria, run after every other task closes.",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "IrregularIncomePlanner/Tests/AcceptanceTests/FullAppAcceptanceTests.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-005",
+        "T-016",
+        "T-023",
+        "T-024",
+        "T-025",
+        "T-026",
+        "T-033",
+        "T-034",
+        "T-035"
+      ],
+      "acceptance_criteria": [
+        "Scripted end-to-end scenario passes against the assembled app, not assumed satisfied by earlier unit tests summed together",
+        "A person can hand-verify the final safe-to-spend and runway numbers from the raw fixture data"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "PlanKind",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PlanKind: String, Codable { case active, template }",
+      "owning_lane": "data_domain",
+      "notes": "Templates have no serveTime until duplicated into an active plan; free tier never creates templates. Lives in Domain/Models/."
+    },
+    {
+      "name": "PlanStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PlanStatus: String, Codable { case draft, started, completed }",
+      "owning_lane": "data_domain",
+      "notes": "draft = pre-Start (relative, editable); started = schedule committed, edits locked; completed = all steps done."
+    },
+    {
+      "name": "StepKind",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum StepKind: String, Codable { case active, passive }",
+      "owning_lane": "data_domain",
+      "notes": "Drives flame-vs-clock glyph; never color, per accessibility rule."
+    },
+    {
+      "name": "StepRuntimeStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum StepRuntimeStatus: String, Codable { case upcoming, inProgress, doneEarly, completed }",
+      "owning_lane": "data_domain",
+      "notes": "Computed by SchedulingEngine.deriveLiveState, never stored. Lives in Scheduling/, not Domain/."
+    },
+    {
+      "name": "Plan",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Plan { var id: UUID; var kind: PlanKind; var serveTime: Date?; var status: PlanStatus; var createdAt: Date; var startedAt: Date?; var completedAt: Date?; var templateName: String?; var lateShiftTotalSeconds: TimeInterval; @Relationship(deleteRule: .cascade, inverse: \\Dish.plan) var dishes: [Dish] }",
+      "owning_lane": "data_domain",
+      "notes": "Reference type despite 'struct' kind tag (SwiftData @Model requires a class). Lives in Domain/Models/, imports SwiftData -- kept physically separate from Scheduling/ which must not."
+    },
+    {
+      "name": "Dish",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Dish { var id: UUID; var name: String; var entryOrder: Int; var colorIndex: Int; var plan: Plan?; @Relationship(deleteRule: .cascade, inverse: \\Step.dish) var steps: [Step] }",
+      "owning_lane": "data_domain",
+      "notes": "entryOrder is the tie-break sort key for simultaneous step start times; colorIndex maps into the fixed 6-8 hue dish palette, assigned at creation."
+    },
+    {
+      "name": "Step",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Step { var id: UUID; var label: String; var plannedDuration: TimeInterval; var kind: StepKind; var stepOrder: Int; var scheduledStartAt: Date?; var scheduledEndAt: Date?; var completedEarlyAt: Date?; var dish: Dish? }",
+      "owning_lane": "data_domain",
+      "notes": "plannedDuration + stepOrder are entry data used pre-Start. scheduledStartAt/scheduledEndAt are entry data too (written once at Start, mutated only by applyRunningLate or a forgotten-dish merge) -- NOT a cache of a live computation."
+    },
+    {
+      "name": "StepInput",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct StepInput { let stepID: UUID; let dishID: UUID; let dishName: String; let colorIndex: Int; let dishEntryOrder: Int; let label: String; let duration: TimeInterval; let kind: StepKind; let stepOrder: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Framework-free value-type snapshot fed into SchedulingEngine; built from Plan/Dish/Step by AppModel, never a raw @Model reference. Lives in Scheduling/."
+    },
+    {
+      "name": "TimelineItem",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TimelineItem: Identifiable { let id: UUID; let dishID: UUID; let dishName: String; let colorIndex: Int; let label: String; let kind: StepKind; let startAt: Date; let endAt: Date; let isPastDue: Bool; let runtimeStatus: StepRuntimeStatus }",
+      "owning_lane": "data_domain",
+      "notes": "Pure output value type; safe to pass directly into SwiftUI views and into ActivityAttributes.ContentState. Lives in Scheduling/, tested via SchedulingEngineTests fixtures."
+    },
+    {
+      "name": "MergedTimeline",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MergedTimeline { let serveTime: Date; let items: [TimelineItem]; let generatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Used for both the Plan Builder live preview (draft, unpersisted) and as the basis for FullTimeline in Start Confirmation."
+    },
+    {
+      "name": "LiveCountdownState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct LiveCountdownState { let dominant: TimelineItem?; let secondaryInProgress: [TimelineItem]; let allUpcoming: [TimelineItem]; let nextRecomputeAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "nextRecomputeAt is the soonest upcoming startAt/endAt boundary; drives the discrete recompute timer so per-second numeral ticks never trigger a full re-sort."
+    },
+    {
+      "name": "SchedulingEngine",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum SchedulingEngine { static func previewTimeline(serveTime: Date, dishes: [Dish]) -> MergedTimeline; static func commitSchedule(serveTime: Date, dishes: [Dish], now: Date) -> [UUID: (start: Date, end: Date)]; static func deriveLiveState(items: [TimelineItem], now: Date) -> LiveCountdownState; static func applyRunningLate(items: [TimelineItem], shiftBy: TimeInterval, now: Date) -> [TimelineItem]; static func markStepDoneEarly(items: [TimelineItem], stepID: UUID, now: Date) -> [TimelineItem] }",
+      "owning_lane": "data_domain",
+      "notes": "Lives at BackTimer/Scheduling/SchedulingEngine.swift, Foundation-only, no SwiftData/ActivityKit/UserNotifications imports -- physically separated from Domain/ so this constraint is visually enforced, not just policy. 100% covered by BackTimerTests/SchedulingEngineTests.swift: tie-break, DST spring-forward/fall-back, midnight-crossing, past-due-at-creation, running-late cascade incl. in-flight passive step."
+    },
+    {
+      "name": "PersistenceController",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PersistenceController { static let shared: PersistenceController; let container: ModelContainer; init(inMemory: Bool = false) }",
+      "owning_lane": "data_domain",
+      "notes": "Lives at BackTimer/Domain/Persistence/PersistenceController.swift. Single local SwiftData store, no App Group. inMemory init supports BackTimerTests/AppModelTests and SwiftUI previews without touching disk."
+    },
+    {
+      "name": "FreeTierLimits",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct FreeTierLimits { static let maxDishesPerPlan = 3; static let maxConcurrentActivePlans = 1; static let templatesAllowed = false }",
+      "owning_lane": "services_utilities",
+      "notes": "Lives in BackTimer/Services/. Checked by EntitlementStore.canAddDish/canCreateConcurrentPlan/canUseTemplates, gated from cached entitlement so it works offline."
+    },
+    {
+      "name": "SubscriptionTier",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum SubscriptionTier: String, Codable { case free, subscribed }",
+      "owning_lane": "services_utilities",
+      "notes": "Cached at launch/foreground via Transaction.currentEntitlements when connectivity exists; never a hard network-blocking check."
+    },
+    {
+      "name": "EntitlementError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EntitlementError: Error { case purchaseFailed(String); case restoreFoundNothing; case storeKitUnavailable }",
+      "owning_lane": "services_utilities",
+      "notes": "restoreFoundNothing is worded as an expected empty result in the UI, not a failure, per the locked Settings/Paywall state model."
+    },
+    {
+      "name": "EntitlementProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol EntitlementProviding: AnyObject { var tier: SubscriptionTier { get }; var isRestoring: Bool { get }; var lastError: EntitlementError? { get }; func refresh() async; func purchase(_ product: Product) async throws; func restorePurchases() async; func canAddDish(currentCount: Int) -> Bool; func canCreateConcurrentPlan(currentActiveCount: Int) -> Bool; func canUseTemplates() -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Concrete impl EntitlementStore (@Observable @MainActor) wraps StoreKit 2. Protocol exists so BackTimerTests/AppModelTests can inject a fake; BackTimerUITests/PaywallUITests exercises the real impl via .storekit config + SKTestSession."
+    },
+    {
+      "name": "NotificationSchedulingError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum NotificationSchedulingError: Error { case authorizationDenied; case systemSchedulingFailed(String); case pendingLimitExceeded }",
+      "owning_lane": "services_utilities",
+      "notes": "Surfaces into Start Confirmation's error state, which rolls the plan back to .draft rather than starting with missing alerts -- covered by AppModelTests.testStartPlan_rollsBackOnSchedulingFailure."
+    },
+    {
+      "name": "NotificationScheduling",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol NotificationScheduling { func requestAuthorization() async -> Bool; func scheduleWindow(planID: UUID, items: [TimelineItem], now: Date, windowSize: Int) async throws; func cancelAll(planID: UUID) async; func pendingRequestIDs(planID: UUID) async -> Set<String>; func reconcile(expected: [TimelineItem], planID: UUID) async -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Concrete impl NotificationCoordinator wraps UNUserNotificationCenter, lives in BackTimer/Services/. reconcile diffs actual-pending vs expected -- the concrete signal for the 'notification silently failed' error state. Reschedule triggers: Start, every scenePhase->.active, every notification delivery/response, every applyRunningLate call."
+    },
+    {
+      "name": "LiveActivityError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum LiveActivityError: Error { case authorizationDenied; case startFailed(String) }",
+      "owning_lane": "services_utilities",
+      "notes": "Distinct from NotificationSchedulingError since the two permissions are denied/granted independently per the locked degraded-mode design."
+    },
+    {
+      "name": "LiveActivityManaging",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol LiveActivityManaging { var isActivityActive: Bool { get }; func requestAuthorization() -> Bool; func start(planID: UUID, initialState: LiveCountdownState) throws; func update(_ state: LiveCountdownState) async; func end(finalState: LiveCountdownState?) async; func detectForceEnded() -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Concrete impl LiveActivityCoordinator wraps ActivityKit, lives in BackTimer/Services/. detectForceEnded checked on foreground to trigger the force-ended-recovery banner."
+    },
+    {
+      "name": "BackTimerActivityAttributes",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct BackTimerActivityAttributes: ActivityAttributes { public struct ContentState: Codable, Hashable { var dominantLabel: String; var dominantColorIndex: Int; var dominantEndAt: Date; var secondaryCount: Int } var planID: UUID }",
+      "owning_lane": "services_utilities",
+      "notes": "Lives at BackTimerWidgetExtension/BackTimerActivityAttributes.swift with dual target membership (app + extension) -- the ONLY file shared between targets, no App Group. BackTimerLiveActivity.swift in the extension target renders all five presentation contexts (lock screen, DI compact-leading/trailing, minimal, expanded) purely from ContentState."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AppRoute: Equatable { case liveCountdown(planID: UUID); case home }",
+      "owning_lane": "services_utilities",
+      "notes": "Consumed once on launch/foreground by AppModel.bootstrap; cleared after navigation so it never re-fires."
+    },
+    {
+      "name": "DeepLinkRouter",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Observable @MainActor final class DeepLinkRouter { var pendingRoute: AppRoute?; func handleNotificationResponse(_ response: UNNotificationResponse); func consumePendingRoute() -> AppRoute? }",
+      "owning_lane": "services_utilities",
+      "notes": "Tapping a step-transition notification must deep-link straight into Live Countdown, not just foreground the app."
+    },
+    {
+      "name": "AppModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Observable @MainActor final class AppModel { var navigationPath: NavigationPath; var activePlan: Plan?; var liveCountdownState: LiveCountdownState?; var pendingBanner: PermissionBannerKind?; func bootstrap() async; func startPlan(_ plan: Plan) async throws; func applyRunningLate(shiftBy: TimeInterval); func markStepDoneEarly(_ step: Step) }",
+      "owning_lane": "primary_ui",
+      "notes": "Lives at BackTimer/App/AppModel.swift. Single root owner of ModelContext and navigation. bootstrap() implements cold-launch shortcut: checks for an active started plan before Home ever renders, then checks DeepLinkRouter.pendingRoute. Orchestration logic covered by BackTimerTests/AppModelTests.swift against fake NotificationScheduling/LiveActivityManaging/EntitlementProviding; end-to-end happy path covered once by BackTimerUITests/CoreFlowUITests.swift."
+    },
+    {
+      "name": "ErrorBannerModel",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ErrorBannerModel: Identifiable { let id: UUID; let message: String; let severity: BannerSeverity }",
+      "owning_lane": "polish_resilience",
+      "notes": "Lives in BackTimer/Shared/. Backs the global no-modal-alerts rule -- every error in this app renders inline/banner, never as a system alert."
+    },
+    {
+      "name": "BannerSeverity",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum BannerSeverity: String { case info, warning, error }",
+      "owning_lane": "polish_resilience",
+      "notes": "warning used for permission-degraded states, error for actionable failures like a failed purchase or failed scheduling commit."
+    },
+    {
+      "name": "PermissionBannerKind",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PermissionBannerKind: Equatable { case notificationsDenied; case liveActivityDenied; case forceEndedRecovery }",
+      "owning_lane": "polish_resilience",
+      "notes": "Three visually and textually distinct banners per the locked design -- never merged into one generic 'something's wrong' banner."
+    }
+  ],
+  "errors": []
+}

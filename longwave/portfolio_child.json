@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-games",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Longwave",
+    "slug": "longwave",
+    "category": "idle",
+    "promise": "Build-and-optimize radio-relay network idle game",
+    "monetization": "Real tech-tier expansions, not speed-ups",
+    "build": true,
+    "priority": 1,
+    "one_sentence_promise": "Build-and-optimize radio-relay network idle game",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

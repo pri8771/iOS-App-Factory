@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 17:10:31",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "2454a9179089745f02d788e43ea39e5a11d546495ca85bc0273d88ddc7a03b6b",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "Undertow",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/ReefStore.swift:36:9: error: main actor-isolated property 'saveTask' can not be referenced from a nonisolated context\n/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/ReefStore.swift:37:9: error: main actor-isolated property 'transactionObservationTask' can not be referenced from a nonisolated context\nFailed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/StoreKitManaging.swift:113:14: warning: instance method 'lock' is unavailable from asynchronous contexts; Use async-safe scoped locking instead; this is an error in the Swift 6 language mode\n/Users/pchordia/Documents/iOS-App-Factory/undertow/app_build/Undertow/Services/StoreKitManaging.swift:115:14: warning: instance method 'unlock' is unavailable from asynchronous contexts; Use async-safe scoped locking instead; this is an error in the Swift 6 language mode\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-07 17:11:26",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "2454a9179089745f02d788e43ea39e5a11d546495ca85bc0273d88ddc7a03b6b",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Undertow",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

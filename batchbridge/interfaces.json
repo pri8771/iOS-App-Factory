@@ -1,0 +1,502 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "DocumentStatus",
+      "kind": "enum",
+      "language": "python/typescript",
+      "signature": "enum DocumentStatus { uploaded, processing, needs_review, extraction_failed, approved, exported, reopened }",
+      "owning_lane": "data_domain",
+      "notes": "Server-authoritative lifecycle state. Frontend must never derive or cache an alternate mode."
+    },
+    {
+      "name": "FieldReason",
+      "kind": "enum",
+      "language": "python/typescript",
+      "signature": "enum FieldReason { low_confidence, missing_evidence, business_rule_mismatch, unknown_ship_to, stale_after_reprocess, manual_entry }",
+      "owning_lane": "data_domain",
+      "notes": "A field may carry more than one reason simultaneously; always an array."
+    },
+    {
+      "name": "EvidenceRef",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type EvidenceRef = { source_text: string | null; page_number: number | null; bbox: { x: number; y: number; width: number; height: number } | null }",
+      "owning_lane": "data_domain",
+      "notes": "bbox is a per-field progressive enhancement; never faked, never blocking."
+    },
+    {
+      "name": "ExtractedField",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type ExtractedField = { value: string | number | null; confidence: number | null; needs_review: boolean; reasons: FieldReason[]; evidence: EvidenceRef }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical field payload for both header fields and line-item cells."
+    },
+    {
+      "name": "LineItemPayload",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type LineItemPayload = { id: string; line_number: FieldValue; material_code: FieldValue; description: FieldValue; quantity: FieldValue; uom: FieldValue; unit_price: FieldValue; line_total: FieldValue; requested_delivery_date: FieldValue; row_needs_review: boolean; row_reasons: FieldReason[] }",
+      "owning_lane": "primary_ui",
+      "notes": "UI-editable line item contract inside ReviewDocumentPayload; id is stable for React keys/ARIA grid nav."
+    },
+    {
+      "name": "ShipToCandidate",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type ShipToCandidate = { catalog_id: string; ship_to_id: string; customer_name: string; normalized_address: string; confidence: number; reason: string; matched_attributes: string[] }",
+      "owning_lane": "data_domain",
+      "notes": "Top match and alternates must be explainable, not just scored."
+    },
+    {
+      "name": "ShipToResolution",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type ShipToResolution = { status: 'matched' | 'ambiguous' | 'no_match' | 'customer_unknown'; resolved_method: 'matched' | 'manual' | 'created' | null; selected_ship_to_id: string | null; best_match: ShipToMatchCandidate | null; alternates: ShipToMatchCandidate[]; extracted_address: string | null }",
+      "owning_lane": "data_domain",
+      "notes": "Drives the Ship To scorecard and export gating; distinguishes customer_unknown from no_match per detailed_discussion."
+    },
+    {
+      "name": "ReviewDocumentPayload",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type ReviewDocumentPayload = { document_id: string; status: DocumentStatus; original_filename: string; customer_name: string | null; po_number: string | null; page_count: number; header_fields: Record<string, FieldValue>; line_items: LineItemPayload[]; ship_to_resolution: ShipToResolution; totals_summary: { extracted_subtotal: number | null; extracted_tax: number | null; extracted_total: number | null; computed_line_total: number | null; mismatch: boolean }; raw_ocr_available: boolean; raw_json_available: boolean; latest_extraction_run_id: string | null; latest_correction_id: string | null; approved_correction_id: string | null; stale_corrections: boolean; last_error_code: string | null; last_error_message: string | null }",
+      "owning_lane": "primary_ui",
+      "notes": "THE canonical single bundled response for GET /api/documents/{id}, assembled server-side from Document+ExtractionResult+CorrectedResult so Review.tsx never waterfalls fetches. Covers needs_review, extraction_failed, approved, reopened rendering."
+    },
+    {
+      "name": "DocumentListItem",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type DocumentListItem = { document_id: string; original_filename: string; status: DocumentStatus; customer_name: string | null; po_number: string | null; uploaded_at: string; updated_at: string; aggregate_confidence: number | null; duplicate_hint: boolean; processing_step: string | null; processing_progress_label: string | null; last_error_message: string | null }",
+      "owning_lane": "primary_ui",
+      "notes": "Queue list row; processing labels may be null when the pipeline-narration enhancement is unavailable and the static fallback badge is used."
+    },
+    {
+      "name": "DashboardSummary",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type DashboardSummary = { uploaded_count: number; processing_count: number; needs_review_count: number; extraction_failed_count: number; approved_count: number; exported_count: number; average_confidence: number | null; success_rate: number | null; attention_document_ids: string[] }",
+      "owning_lane": "primary_ui",
+      "notes": "Computed live from the DB on every call, never cached/estimated."
+    },
+    {
+      "name": "CorrectionPatch",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type CorrectionPatch = { header_fields: Record<string, { value: string | number | null }>; line_items: Array<{ id: string; fields: Record<string, { value: string | number | null }> }>; ship_to_selection: { selected_ship_to_id: string | null; create_new_catalog_entry: boolean } | null }",
+      "owning_lane": "primary_ui",
+      "notes": "Explicit draft-save payload; no silent autosave implied anywhere in the flow."
+    },
+    {
+      "name": "PromptConfig",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class PromptConfig(BaseModel): id: str; scope: Literal['global','customer']; customer_name: str | None; mode: Literal['replace','supplement'] | None; prompt_text: str; is_active: bool; created_at: datetime; updated_at: datetime",
+      "owning_lane": "data_domain",
+      "notes": "mode only meaningful when scope='customer'."
+    },
+    {
+      "name": "ShipToCatalogRecord",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type ShipToCatalogRecord = { id: string; customer_name: string; ship_to_id: string; address1: string; address2: string | null; city: string; region: string | null; postal_code: string | null; country: string; aliases: string[]; last_matched_at: string | null }",
+      "owning_lane": "data_domain",
+      "notes": "Catalog CRUD contract."
+    },
+    {
+      "name": "DocumentProcessingService",
+      "kind": "protocol",
+      "language": "python",
+      "signature": "class DocumentProcessingService(Protocol): async def enqueue(document_id: str) -> None; async def reprocess(document_id: str, prompt_config_id: str | None = None) -> None; async def reconcile_stale_processing(now_utc: datetime) -> int",
+      "owning_lane": "services_utilities",
+      "notes": "Owns background pipeline and stale-processing recovery."
+    },
+    {
+      "name": "NeedsReviewEvaluator",
+      "kind": "function",
+      "language": "python",
+      "signature": "def evaluate_needs_review(normalized_payload: dict, confidence_threshold: float) -> tuple[dict, list[str]]",
+      "owning_lane": "services_utilities",
+      "notes": "Applies confidence, missing-evidence, and business-rule checks; returns annotated payload plus document-level flags."
+    },
+    {
+      "name": "ShipToMatcher",
+      "kind": "protocol",
+      "language": "python",
+      "signature": "class ShipToMatcher(Protocol): def match(customer_name: str | None, extracted_address: str | None) -> ShipToResolution",
+      "owning_lane": "services_utilities",
+      "notes": "Must produce deterministic reason strings and alternates."
+    },
+    {
+      "name": "StorageManager",
+      "kind": "protocol",
+      "language": "python",
+      "signature": "class StorageManager(Protocol):\n    def save_original(self, document_id: str, filename: str, content: bytes) -> str: ...\n    def save_page_image(self, document_id: str, page_number: int, content: bytes) -> str: ...\n    def save_artifact(self, document_id: str, kind: str, filename: str, content: bytes) -> str: ...\n    def delete_document_bundle(self, document_id: str) -> None: ...",
+      "owning_lane": "services_utilities",
+      "notes": "Abstracts local filesystem layout for PDFs, page images, raw payloads, exports."
+    },
+    {
+      "name": "GET /api/documents",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "?status=&search=&customer=&sort=attention|recency|filename -> 200 { documents: DocumentListItem[] }",
+      "owning_lane": "services_utilities",
+      "notes": "Default sort is attention-priority per design_handoff."
+    },
+    {
+      "name": "POST /api/documents",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "multipart/form-data files[] -> 201 { accepted: string[]; rejected: Array<{ filename: string; reason: string }> }",
+      "owning_lane": "services_utilities",
+      "notes": "Batch upload with visible per-file rejection (password-protected, non-PDF, corrupt)."
+    },
+    {
+      "name": "GET /api/documents/{document_id}",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "GET /api/documents/{document_id} -> ReviewDocumentPayload",
+      "owning_lane": "primary_ui",
+      "notes": "Primary review payload endpoint."
+    },
+    {
+      "name": "PATCH /api/documents/{document_id}/correction",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "PATCH /api/documents/{document_id}/correction body CorrectionPatch -> ReviewDocumentPayload",
+      "owning_lane": "primary_ui",
+      "notes": "Explicit draft save; returns fresh server-authoritative status and payload."
+    },
+    {
+      "name": "POST /api/documents/{document_id}/reprocess",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/documents/{document_id}/reprocess body { prompt_config_id?: string } -> { document_id: string; status: DocumentStatus }",
+      "owning_lane": "services_utilities",
+      "notes": "Creates new extraction run, preserves prior corrections."
+    },
+    {
+      "name": "POST /api/documents/{document_id}/approve",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/documents/{document_id}/approve -> { document_id: string; status: DocumentStatus; approved_correction_id: string }",
+      "owning_lane": "primary_ui",
+      "notes": "Approval freezes current corrected snapshot."
+    },
+    {
+      "name": "POST /api/documents/{document_id}/reopen",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/documents/{document_id}/reopen -> { document_id: string; status: DocumentStatus; latest_correction_id: string }",
+      "owning_lane": "polish_resilience",
+      "notes": "Required to edit an approved/exported document again."
+    },
+    {
+      "name": "POST /api/documents/{document_id}/export",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/documents/{document_id}/export body { format: 'json' | 'csv' } -> { document_id: string; status: DocumentStatus; download_path: string }",
+      "owning_lane": "services_utilities",
+      "notes": "Allowed only from approved state; export failure must not revoke approval."
+    },
+    {
+      "name": "GET /api/dashboard",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "-> 200 DashboardSummary",
+      "owning_lane": "services_utilities",
+      "notes": "Computed live from the DB on each call."
+    },
+    {
+      "name": "GET /api/prompts",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "-> 200 { prompts: PromptConfig[] }",
+      "owning_lane": "services_utilities",
+      "notes": "Lists global and customer-specific prompt configs."
+    },
+    {
+      "name": "PUT /api/prompts/{prompt_id}",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "body PromptConfig -> 200 PromptConfig",
+      "owning_lane": "services_utilities",
+      "notes": "Prompt save path for settings UI."
+    },
+    {
+      "name": "GET /api/ship-to",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "?search=&customer= -> 200 { records: ShipToRecord[] }",
+      "owning_lane": "services_utilities",
+      "notes": "Catalog table listing and search."
+    },
+    {
+      "name": "POST /api/ship-to",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "body ShipToRecord -> 201 ShipToRecord",
+      "owning_lane": "services_utilities",
+      "notes": "Create new catalog entry, including inline create-from-review flow."
+    },
+    {
+      "name": "PATCH /api/ship-to/{catalog_id}",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "body Partial<ShipToRecord> -> 200 ShipToRecord",
+      "owning_lane": "services_utilities",
+      "notes": "Catalog edit path, used by the same inline sheet component as Review's create flow."
+    },
+    {
+      "name": "FieldValue",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type FieldValue = { value: string | number | null; confidence: number; needs_review: boolean; reasons: FieldReason[]; evidence: EvidenceRef }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical envelope for every header and line-item field, both in DB storage and API payloads. Also referred to as ExtractedField in UI contexts \u2014 same shape."
+    },
+    {
+      "name": "FieldValueTS",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "interface FieldValue<T = string | number | null> { value: T; confidence: number; source_text: string | null; page_number: number | null; needs_review: boolean; review_reason: string | null }",
+      "owning_lane": "data_domain",
+      "notes": "TS mirror of FieldValue; lives in src/types/fieldValue.ts"
+    },
+    {
+      "name": "Document",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class Document(BaseModel): id: str; filename: str; status: DocumentStatus; customer_name: str | None; po_number: str | None; uploaded_at: datetime; updated_at: datetime; page_count: int; duplicate_of_id: str | None; processing_started_at: datetime | None; current_extraction_result_id: str | None",
+      "owning_lane": "data_domain",
+      "notes": "backend/app/models/document.py"
+    },
+    {
+      "name": "Page",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class Page(BaseModel): id: str; document_id: str; page_number: int; image_path: str; rotation: int; width: int; height: int",
+      "owning_lane": "data_domain",
+      "notes": "backend/app/models/page.py"
+    },
+    {
+      "name": "OcrResult",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class OcrResult(BaseModel): id: str; page_id: str; engine: str; raw_text: str; confidence: float; bbox_data: list[dict] | None; created_at: datetime",
+      "owning_lane": "data_domain",
+      "notes": "bbox_data null when provider doesn't return coordinates; consumers branch on presence."
+    },
+    {
+      "name": "ExtractionResult",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class ExtractionResult(BaseModel): id: str; document_id: str; run_number: int; prompt_config_id: str | None; status: Literal['success','failed']; header_fields: dict[str, FieldValue]; line_items: list[LineItem]; raw_model_output_1: str | None; raw_model_output_2: str | None; created_at: datetime",
+      "owning_lane": "data_domain",
+      "notes": "Append-only, never updated in place; run_number increments per document."
+    },
+    {
+      "name": "LineItem",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class LineItem(BaseModel): id: str; line_no: FieldValue; material_code: FieldValue; description: FieldValue; qty: FieldValue; uom: FieldValue; unit_price: FieldValue; line_total: FieldValue; requested_delivery_date: FieldValue",
+      "owning_lane": "data_domain",
+      "notes": "Persisted per extraction run inside ExtractionResult.line_items; corrected versions live in CorrectedResult.line_items."
+    },
+    {
+      "name": "ShipToMatchCandidate",
+      "kind": "struct",
+      "language": "python/typescript",
+      "signature": "type ShipToMatchCandidate = { ship_to_id: string; confidence: number; matched_on: string[]; reason: string }",
+      "owning_lane": "data_domain",
+      "notes": "reason is generated deterministically from matched_on; tests assert on matched_on, not prose."
+    },
+    {
+      "name": "CorrectedResult",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class CorrectedResult(BaseModel): id: str; document_id: str; extraction_result_id: str; header_fields: dict[str, FieldValue]; line_items: list[LineItem]; ship_to_resolution: ShipToResolution | None; is_stale: bool; approved_at: datetime | None; exported_at: datetime | None; created_at: datetime; updated_at: datetime",
+      "owning_lane": "data_domain",
+      "notes": "is_stale computed at read time (extraction_result_id != document.current_extraction_result_id), never stored."
+    },
+    {
+      "name": "ShipToRecord",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class ShipToRecord(BaseModel): id: str; ship_to_id: str; customer_name: str; address_line1: str; address_line2: str | None; city: str; region: str | None; postal_code: str; country: str; aliases: list[str]; created_at: datetime; updated_at: datetime; last_matched_at: datetime | None",
+      "owning_lane": "data_domain",
+      "notes": "backend/app/models/ship_to_record.py; aliases as JSON array, the retention moat."
+    },
+    {
+      "name": "AuditLogEntry",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class AuditLogEntry(BaseModel): id: str; document_id: str | None; document_snapshot_label: str; event_type: str; event_detail: dict; created_at: datetime",
+      "owning_lane": "data_domain",
+      "notes": "Nullable document_id + denormalized label so entries survive the document delete cascade."
+    },
+    {
+      "name": "OCRProvider",
+      "kind": "protocol",
+      "language": "python",
+      "signature": "class OCRProvider(Protocol):\n    async def run(self, image_path: str) -> OcrResult: ...",
+      "owning_lane": "services_utilities",
+      "notes": "MockOCRProvider and a real adapter both implement this; orchestrator depends only on the protocol."
+    },
+    {
+      "name": "ExtractionProvider",
+      "kind": "protocol",
+      "language": "python",
+      "signature": "class ExtractionProvider(Protocol):\n    async def extract(self, ocr_text: str, prompt: str) -> tuple[dict, str]: ...\n    async def repair(self, ocr_text: str, prompt: str, invalid_output: str) -> tuple[dict, str]: ...",
+      "owning_lane": "services_utilities",
+      "notes": "Orchestrator owns the exactly-one-retry rule; provider just answers extract/repair calls."
+    },
+    {
+      "name": "compute_needs_review",
+      "kind": "function",
+      "language": "python",
+      "signature": "def compute_needs_review(field: FieldValue, business_rule_violation: bool, confidence_threshold: float) -> FieldValue",
+      "owning_lane": "services_utilities",
+      "notes": "Pure function combining the three layers (threshold, missing/mismatched source_text, business-rule override); unit-tested against the subtotal+tax\u2260total fixture."
+    },
+    {
+      "name": "match_ship_to",
+      "kind": "function",
+      "language": "python",
+      "signature": "def match_ship_to(extracted_address: dict, customer_name: str | None, catalog: list[ShipToRecord]) -> ShipToResolution",
+      "owning_lane": "services_utilities",
+      "notes": "Deterministic reason generation from matched_on; distinguishes customer_unknown vs no_match; returns resolved_method='manual' shape when nothing clears threshold."
+    },
+    {
+      "name": "run_pipeline",
+      "kind": "function",
+      "language": "python",
+      "signature": "async def run_pipeline(document_id: str, prompt_override: str | None = None) -> ExtractionResult",
+      "owning_lane": "services_utilities",
+      "notes": "Orchestrates convert->ocr->extract->repair-once->needs_review; sole caller is the ProcessingQueue consumer to serialize SQLite writes."
+    },
+    {
+      "name": "reset_stuck_processing",
+      "kind": "function",
+      "language": "python",
+      "signature": "async def reset_stuck_processing(timeout_minutes: int = 10) -> list[str]",
+      "owning_lane": "polish_resilience",
+      "notes": "Periodic 60s-interval sweep from app startup; returns reset document ids for audit logging."
+    },
+    {
+      "name": "GET /api/documents/{id}",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "-> 200 ReviewDocumentPayload",
+      "owning_lane": "services_utilities",
+      "notes": "Single bundled fetch for the Review route, no waterfall."
+    },
+    {
+      "name": "GET /api/documents/{id}/status",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "-> 200 { status: DocumentStatus; pipeline_step: string | null }",
+      "owning_lane": "services_utilities",
+      "notes": "Lightweight polling target consumed by useDocumentStatusPolling."
+    },
+    {
+      "name": "POST /api/documents/{id}/reprocess",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "body { prompt_config_id?: string } -> 202 { document_id: string; status: DocumentStatus; extraction_result_id: string }",
+      "owning_lane": "services_utilities",
+      "notes": "Creates a new ExtractionResult row; never mutates prior rows or corrected_results."
+    },
+    {
+      "name": "PATCH /api/documents/{id}/corrections",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "{ header_fields?: dict; line_items?: list; ship_to_resolution?: ShipToResolution } -> 200 CorrectedResult",
+      "owning_lane": "services_utilities",
+      "notes": "Rejected with 409 if document.status is approved/exported without an explicit prior reopen."
+    },
+    {
+      "name": "POST /api/documents/{id}/approve",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "-> 200 { document_id: string; status: DocumentStatus; approved_correction_id: string } | 409 { blocking_fields: string[] }",
+      "owning_lane": "services_utilities",
+      "notes": "Blocks approval while unresolved needs_review fields or unresolved ship_to remain."
+    },
+    {
+      "name": "POST /api/documents/{id}/export",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "?format=json|csv -> 200 file stream | { download_path: string }",
+      "owning_lane": "services_utilities",
+      "notes": "Only callable from approved state; export failure never revokes approval; recorded as an audit_log boundary event."
+    },
+    {
+      "name": "POST /api/documents/{id}/reopen",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "body { reason: string } -> 200 { document_id: string; status: DocumentStatus; latest_correction_id: string }",
+      "owning_lane": "polish_resilience",
+      "notes": "Required explicit action before any further PATCH on an exported document; audit-logged."
+    },
+    {
+      "name": "useDocumentStatusPolling",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function useDocumentStatusPolling(documentIds: string[]): void",
+      "owning_lane": "primary_ui",
+      "notes": "src/hooks/useDocumentStatusPolling.ts; polls only while \u22651 doc is uploaded/processing, invalidates TanStack Query cache on change, idles otherwise."
+    },
+    {
+      "name": "useReviewDraft",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function useReviewDraft(documentId: string): { draft: CorrectionPatch; isDirty: boolean; save: () => Promise<void>; discard: () => void }",
+      "owning_lane": "primary_ui",
+      "notes": "src/hooks/useReviewDraft.ts; enforces no-silent-autosave, drives the unsaved-changes navigation guard."
+    },
+    {
+      "name": "fetchDocumentDetail",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "async function fetchDocumentDetail(id: string): Promise<DocumentDetail>",
+      "owning_lane": "primary_ui",
+      "notes": "src/api/documents.ts; sole data source for Review.tsx, status always read from response.document.status."
+    },
+    {
+      "name": "ProcessingQueue",
+      "kind": "struct",
+      "language": "python",
+      "signature": "class ProcessingQueue: queue: asyncio.Queue[str]\n    async def enqueue(self, document_id: str) -> None: ...\n    async def run_consumer(self) -> None: ...",
+      "owning_lane": "services_utilities",
+      "notes": "backend/app/worker/queue.py; single consumer task, in-process only \u2014 satisfies the serialized-writer requirement without external broker infra."
+    },
+    {
+      "name": "log_audit_event",
+      "kind": "function",
+      "language": "python",
+      "signature": "def log_audit_event(document_id: str | None, event_type: str, detail: dict) -> AuditLogEntry",
+      "owning_lane": "polish_resilience",
+      "notes": "Called from every mutating endpoint and pipeline transition."
+    },
+    {
+      "name": "fetchReviewDocument",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "async function fetchReviewDocument(id: string): Promise<ReviewDocumentPayload>",
+      "owning_lane": "primary_ui",
+      "notes": "src/api/documents.ts; sole data source for Review.tsx; status always read from response.status."
+    },
+    {
+      "name": "PATCH /api/documents/{id}/correction",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "body CorrectionPatch -> 200 ReviewDocumentPayload | 409 (if approved/exported without prior reopen)",
+      "owning_lane": "services_utilities",
+      "notes": "Explicit draft save; returns fresh server-authoritative status and payload."
+    }
+  ],
+  "errors": []
+}

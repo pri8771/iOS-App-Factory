@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-a2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "crockwatch",
+    "slug": "crockwatch",
+    "category": "Food & Drink",
+    "promise": "Adaptive fermentation batch tracker with taste-check timers tuned to variable, temp-dependent process time, not a fixed clock.",
+    "target_user": "Home fermentation hobbyists running multiple concurrent ferments.",
+    "build": true,
+    "one_sentence_promise": "Adaptive fermentation batch tracker with taste-check timers tuned to variable, temp-dependent process time, not a fixed clock.",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

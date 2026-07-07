@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp6",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Undersong",
+    "slug": "undersong",
+    "category": "social",
+    "tagline": "Short voice stories pinned to real physical places, discovered by proximity, decaying/resurfacing seasonally.",
+    "target_user": "Someone who wants a human layer on places they walk daily.",
+    "build": true,
+    "open_risks": [
+      "Riskiest pick \u2014 cold-start problem and biggest local-first tension; V1 scoped down to seeded content + own-story loop, live multi-user discovery pushed to roadmap."
+    ],
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

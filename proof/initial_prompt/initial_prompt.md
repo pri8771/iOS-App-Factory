@@ -1,0 +1,150 @@
+PORTFOLIO_CHILD_PROJECT: true
+Parent portfolio: multi-app-exp4
+Selected app slug: proof
+
+Build this app as a working local-first SwiftUI MVP.
+
+## Selected App Spec
+
+# Proof
+
+Build mode: **MVP build**.
+Build priority: **4**.
+
+## App Name
+
+Proof
+
+## Category
+
+Maker & Small-Batch Business Tools
+
+## One-Sentence Promise
+
+Log what a batch actually costs you in materials and time, and know the price that keeps you from secretly losing money.
+
+## Target User
+
+Side-hustle makers and small-batch sellers who price intuitively and have never calculated true per-unit cost including their own labor time.
+
+## Painful Moment Solved
+
+Finishing a batch of product and having no real answer to 'am I actually making money on this.'
+
+## Why It Is Different
+
+Calculates true landed cost per unit including labor at a user-set rate, and derives a defensible minimum price.
+
+## Why Users Would Pay
+
+Unlimited products, a reusable material cost library, and profit-trend reporting versus a single-product free tier.
+
+## Subscription Model
+
+Free: 1 tracked product. Paid (~$5.99/mo or $44/yr): unlimited products, shared material cost library, batch profit-trend history.
+
+## Local-First MVP Scope
+
+Local product/recipe records, reusable material cost entries, labor time entry with user-set hourly rate, per-batch true-cost calculation, suggested pricing, local profit-history tracking.
+
+## Future Backend Roadmap
+
+Repository protocol boundary now; later, optional cloud backup/sync and a marketplace sales-import point behind the same interface.
+
+## AR / Local ML / Local LLM Fit
+
+None — deliberately no bonus tech; the value is disciplined cost accounting done well.
+
+## Design Direction
+
+Warm, craft-market aesthetic with honest, ledger-like data presentation.
+
+## App Store Positioning
+
+The true cost of what you make, finally in plain numbers.
+
+## Invalidation Criteria
+
+If users stop logging labor time within the first few batches, the promise collapses to materials-only and needs repositioning.
+
+## v1 Build Scope
+
+Single-user local product/recipe and cost tracking, labor-time entry, true-cost calculation with suggested pricing, profit-trend history, full state coverage, StoreKit 2 paywall.
+
+## Core Workflows
+
+- define a product/recipe with materials and quantities
+- log labor time per batch
+- calculate true per-unit cost
+- get a suggested minimum price for a target margin
+- track profit trend across batches
+
+## iOS-Native Features
+
+- Local persistence via SwiftData
+- Widgets showing last batch's margin
+- Share sheet export of a priced product card
+- Dynamic Type/VoiceOver accessible data-entry forms
+
+## Key Risks
+
+- Users may resist entering honest labor time, undermining the core calculation
+- Material entry could feel tedious for makers with many small inputs
+
+## Claude Design Handoff Prompt
+
+Design a premium iOS small-batch-business costing app called Proof. Warm craft-market aesthetic, ledger-like clarity, product/recipe list, materials-and-labor entry screen, suggested-pricing result with profit-trend chart. Include empty state and a state where labor rate hasn't been set yet.
+
+## Parent Portfolio Prompt
+
+Build 7 completely separate iOS apps at the same time.
+
+Requirements:
+1. Each app must go from 0 to production-ready, not just a few features.
+2. Each app must be unique, useful, and commercially viable.
+3. Each app must be beautifully designed and feel premium.
+4. Each app must provide real end-user value.
+5. Each app should have a realistic path to monetization, with a subscription or paid offering that offers genuine value.
+6. Each app should have viral potential in general or within a niche, but virality must not come at the expense of usefulness.
+7. Each app should be better than its competitors in a meaningful way.
+8. Each app should be local-first, but architected so cloud support could be added later without rewriting everything.
+9. The seven apps must not be similar to each other.
+10. No app can be similar to anything I have already built before — including the apps already in this workspace (e.g. Waylay and TrueScale, currently in progress).
+11. Do not reuse prior concepts, themes, or mechanics from earlier apps unless there is a strong, clearly justified reason.
+
+Bonus points:
+- Unique use of LLMs
+- Unique use of AR
+- Unique use of ML
+
+Important:
+- Bonus points are optional. Do not force them in if they would weaken the app.
+- If an LLM, AR, or ML feature is used, it must provide real value and be integral to the product.
+- Do not bias the ideas toward bonus points.
+- Do not make the app around novelty alone.
+- The final result for each app must be a full production-ready app, not a prototype.
+
+Build rules:
+- Run the seven app efforts in parallel.
+- Keep the discussion and design phases separate for each app.
+- Each app should get its own full product direction, design direction, architecture, implementation plan, and build output.
+- Save all prompt discussion, phase discussion, and final decisions for each app.
+- At the end, combine the full transcript for each app into a .txt file.
+- If an app is liked, also prepare a Jira board and Notion project for it separately, including epics, tasks, fields, and all the implementation structure needed for backfilling later.
+- If the system supports multiple rounds per phase, use enough rounds to get high-quality discussion, but allow a phase to end early if consensus is reached.
+- Make the orchestrator resilient: if a phase stalls, recover cleanly instead of looping.
+- Report only important milestones, not every tiny step.
+
+Output:
+- Create one folder per app in the output directory.
+- There must be one folder per app, not one folder containing all apps.
+- Keep the outputs clearly separated and organized.
+
+Output directory:
+- /Users/pchordia/Documents/iOS-App-Factory
+
+Now generate candidate app ideas (at least 10), discuss them thoroughly, choose the best 7, and build all seven to production quality.
+
+
+## Change requested
+The build produced Swift sources but NO .xcodeproj/.xcworkspace — the app cannot be built. Generate a complete, working Xcode project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.

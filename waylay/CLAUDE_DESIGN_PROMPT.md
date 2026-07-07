@@ -1,0 +1,1 @@
+Design a warm, low-friction location-memory app whose entire emotional register is 'oh right, that place!' — not a task manager. Capture must feel instant; resurfacing must feel like a delightful nudge, never a chore.

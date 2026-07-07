@@ -1,0 +1,18 @@
+{
+  "current_phase": "iterate_scope",
+  "current_round": 1,
+  "next_agent": "claude",
+  "prompt_hash": "edee7125def9b9ed4cca144a140e2b975d1e3a26a513711238092aca286e12cd",
+  "completed_phases": [],
+  "phase_outputs": {},
+  "last_processed": "2026-07-07 11:01:07",
+  "consensus_status": {},
+  "vote_results": {},
+  "runner_pid": 42236,
+  "done": false,
+  "error": null,
+  "status": "running",
+  "workflow": "iterate",
+  "blocked_conflict": null,
+  "awaiting_approval": null
+}

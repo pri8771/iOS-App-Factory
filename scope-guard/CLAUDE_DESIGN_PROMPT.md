@@ -1,0 +1,1 @@
+Design a premium iOS app called Scope Guard for freelancers to catch client scope creep. Sharp contract-grade aesthetic, clear in-scope/flagged distinction, paste-in-message screen, review/flag screen, change-order draft preview. Include empty state and an on-device-AI-unavailable fallback state.

@@ -1,0 +1,606 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Shared enums & envelope types (DocumentStatus, FieldReason, EvidenceRef, FieldValue)",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/app/schemas/common.py"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "DocumentStatus, FieldReason, EvidenceRef, FieldValue defined exactly per tech_specs signatures",
+        "Importable with no circular deps",
+        "Unit test asserts enum values match the locked list (uploaded/processing/needs_review/extraction_failed/approved/exported/reopened)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "DB engine, WAL mode, schema-init strategy",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/app/db.py"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "PRAGMA journal_mode=WAL and busy_timeout=5000 set on every connection",
+        "Base.metadata.create_all() used at startup as the stated schema-init strategy (documented in a code comment, not left implicit)",
+        "Session-per-request dependency function provided",
+        "Two connections opened concurrently in a test don't raise under a short transaction"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Shared fixture PDF set + generator script",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/tests/fixtures/clean.pdf",
+        "backend/tests/fixtures/messy_scanned.pdf",
+        "backend/tests/fixtures/totals_mismatch.pdf",
+        "backend/tests/fixtures/double_failure_trigger.pdf",
+        "backend/tests/fixtures/corrupt.pdf",
+        "backend/tests/fixtures/password_protected.pdf",
+        "backend/tests/fixtures/generate_fixtures.py",
+        "backend/tests/fixtures/README.md"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All six named fixtures present and committed",
+        "README.md in the fixtures folder states what each fixture is for so no other lane invents a duplicate",
+        "totals_mismatch.pdf has subtotal+tax != total by construction",
+        "double_failure_trigger.pdf is paired with a documented mock-provider trigger, not a PDF property"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "SQLAlchemy models for all nine tables",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/app/models/__init__.py",
+        "backend/app/models/document.py",
+        "backend/app/models/page.py",
+        "backend/app/models/ocr_result.py",
+        "backend/app/models/extraction_result.py",
+        "backend/app/models/line_item.py",
+        "backend/app/models/corrected_result.py",
+        "backend/app/models/ship_to_record.py",
+        "backend/app/models/prompt_config.py",
+        "backend/app/models/audit_log_entry.py"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "All nine tables create cleanly via create_all",
+        "audit_log_entry.document_id is nullable with a denormalized document_snapshot_label so rows survive delete cascade",
+        "extraction_result has an incrementing run_number and is never updated in place by any code path",
+        "Delete cascade removes documents/pages/ocr_results/extraction_results/corrected_results/line_items but not audit_log"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Pydantic request/response schemas",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/app/schemas/document.py",
+        "backend/app/schemas/review.py",
+        "backend/app/schemas/dashboard.py",
+        "backend/app/schemas/ship_to.py",
+        "backend/app/schemas/prompt.py",
+        "backend/app/schemas/correction.py"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "ReviewDocumentPayload, DocumentListItem, DashboardSummary, CorrectionPatch, ShipToResolution match tech_specs signatures field-for-field",
+        "Schemas are separate from ORM models with no SQLAlchemy internals leaking into API responses",
+        "Importable without circular dependency on models/"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "DB-level restart/persistence unit test",
+      "owner_lane": "data_domain",
+      "files": [
+        "backend/tests/test_db_restart.py"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Test inserts a document row, closes and reopens the engine against the same sqlite file path, and asserts the row is still present",
+        "This is the engine-level proof; the full docker-compose restart proof is a separate polish_resilience task"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "OCR/Extraction provider protocols, mocks, storage manager",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/services/pipeline/ocr_provider.py",
+        "backend/app/services/pipeline/extraction_provider.py",
+        "backend/app/services/storage.py"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "OCRProvider, ExtractionProvider, StorageManager defined as Protocols exactly per tech_specs signatures",
+        "MockOCRProvider returns deterministic OcrResult content keyed off a fixture path",
+        "MockExtractionProvider is configurable to fail JSON validation a specified number of times, used later to prove the double-failure test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "PDF conversion module",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/services/pipeline/convert.py"
+      ],
+      "depends_on": [
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Given a fixture PDF path, returns page images and page count",
+        "Every page is OCR'd regardless of embedded text layer (no dual code path)",
+        "Corrupt and password_protected fixtures raise a specific typed exception the orchestrator can catch and surface, not a generic Exception"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "compute_needs_review pure function + standalone tests",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/services/validation/needs_review.py",
+        "backend/tests/test_needs_review.py"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Implements all three layers independently: confidence threshold, missing/mismatched source_text override, business-rule reconciliation",
+        "Blocking fixture test: totals_mismatch case forces needs_review=True and business_rule_mismatch in reasons for the total field even when self-reported confidence is high",
+        "Test file has zero dependency on the DB or orchestrator, runs as a pure unit test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "match_ship_to pure function + standalone tests",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/services/matching/ship_to_matcher.py",
+        "backend/tests/test_ship_to_matcher.py"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Returns ShipToResolution with a matched_on list and a reason string generated deterministically from matched_on, not the reverse",
+        "Fixture test asserts matched_on content for an alias+postal match",
+        "Fixture tests assert status='no_match' and status='customer_unknown' as visibly distinct outcomes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "run_pipeline orchestrator + ProcessingQueue",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/services/pipeline/orchestrator.py",
+        "backend/app/worker/queue.py"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-008",
+        "T-009",
+        "T-010",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "convert->ocr->extract->repair-once->needs_review->ship_to_match runs end to end against mock providers on the clean fixture and persists an ExtractionResult",
+        "double_failure_trigger fixture results in status=extraction_failed with both raw_model_output_1 and raw_model_output_2 populated and the mock's call count proves exactly one repair retry, never a third attempt",
+        "ProcessingQueue serializes processing: a test enqueuing 5 document ids proves writes happen one at a time, not concurrently"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "ReviewDocumentPayload assembler",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/services/review_assembler.py"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Single function assembles the full ReviewDocumentPayload from Document+ExtractionResult+CorrectedResult+ShipToResolution in one call, no further DB round trips needed by route handlers",
+        "Unit tests cover all four rendering states: needs_review, extraction_failed, approved, reopened",
+        "is_stale computed at read time by comparing extraction_result_id to the document's current_extraction_result_id, never stored"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Export generator (JSON/CSV)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/services/export/json_export.py",
+        "backend/app/services/export/csv_export.py"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Given a CorrectedResult, produces valid JSON and CSV",
+        "Every required header field (PO#, date, customer, buyer, payer, bill-to, ship-to+address, Ship To ID, currency, subtotal, tax, total) and line-item field (line no, material code, description, qty, UoM, unit price, line total, requested delivery date) is present in both formats",
+        "Round-trip test against a fixture document's corrected data confirms no field is silently dropped"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Documents API routes (upload/list/detail/status/correction/reprocess/approve/export)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/api/routes/documents.py"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "All endpoint signatures and status codes match tech_specs exactly (201/200/202/409 as specified)",
+        "approve returns 409 with blocking_fields while unresolved needs_review fields or unresolved ship_to remain",
+        "PATCH correction returns 409 if the document is approved/exported without a prior reopen",
+        "Integration test drives upload->process->correct->approve->export end to end against mock providers"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Dashboard/Prompts/ShipTo API routes",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/api/routes/dashboard.py",
+        "backend/app/api/routes/prompts.py",
+        "backend/app/api/routes/ship_to.py"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "GET /api/dashboard is computed live from the DB on every call and matches a seeded mixed-state fixture set exactly, never cached",
+        "PUT /api/prompts/{id} produces a config that a rerun ties to a new extraction_result_id",
+        "POST/PATCH /api/ship-to are the same code path used by the inline create-from-review flow, not a duplicated implementation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "FastAPI app wiring + lifespan hook points",
+      "owner_lane": "services_utilities",
+      "files": [
+        "backend/app/main.py"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-014",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "App boots and registers all routers",
+        "ProcessingQueue consumer starts on the FastAPI lifespan startup hook",
+        "Binds to 127.0.0.1 by default",
+        "A clearly commented hook-point block exists for polish_resilience's stuck-reset sweep registration so that later edit is a single additive line, never a rewrite of this file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Frontend scaffold, design tokens, routing shell",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/vite.config.ts",
+        "frontend/src/main.tsx",
+        "frontend/src/App.tsx",
+        "frontend/src/styles/tokens.css"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Vite+React project boots",
+        "Five routes registered (Dashboard, Documents, Review, PromptConfig, ShipToCatalog) each rendering a placeholder that compiles",
+        "Design tokens file matches the locked palette (background #FAF8F3, trusted-action #2B4C5C, needs-review #B8860B, matched #5B4B8A, approved #2F6B4F, error #B23A2E) and type scale from design_handoff"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Hand-mirrored TS types + contract-freeze diff",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/types/common.ts",
+        "frontend/src/types/document.ts",
+        "frontend/src/types/review.ts",
+        "frontend/src/types/dashboard.ts",
+        "frontend/src/types/shipTo.ts",
+        "frontend/src/types/prompt.ts"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "TS types mirror the merged backend Pydantic schemas field-for-field",
+        "A diff pass is done against T-005's actual merged schema output before this task is marked complete, logged in INTEGRATION_LOG.md",
+        "Any mismatch found is logged and fixed here, not silently left for a screen to discover later"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Typed API clients + TanStack Query wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/api/documents.ts",
+        "frontend/src/api/dashboard.ts",
+        "frontend/src/api/shipTo.ts",
+        "frontend/src/api/prompts.ts",
+        "frontend/src/api/audit.ts"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "One typed client function per endpoint in tech_specs, none returning `any`",
+        "Every mutation explicitly invalidates the relevant query cache key, no hand-rolled global state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "useDocumentStatusPolling + useReviewDraft hooks",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/hooks/useDocumentStatusPolling.ts",
+        "frontend/src/hooks/useReviewDraft.ts"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Polling hook fires only while at least one tracked document is uploaded/processing and idles otherwise, proven with mocked timers",
+        "useReviewDraft exposes isDirty and blocks navigation away from unsaved edits without an explicit save or discard confirmation \u2014 no silent autosave"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Documents screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/routes/Documents.tsx",
+        "frontend/src/components/UploadDropzone.tsx",
+        "frontend/src/components/DocumentRow.tsx"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "First-run empty, upload-in-progress, populated, filtered-empty, and error states all render",
+        "Default sort is attention-priority",
+        "Duplicate-upload hint is visually present on rows flagged duplicate_hint"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Review workspace",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/routes/Review.tsx",
+        "frontend/src/components/StatusBadge.tsx",
+        "frontend/src/components/ConfidenceChip.tsx",
+        "frontend/src/components/EvidencePopover.tsx",
+        "frontend/src/components/FieldRow.tsx",
+        "frontend/src/components/LineItemTable.tsx",
+        "frontend/src/components/ShipToScorecard.tsx",
+        "frontend/src/components/PipelineStatusStrip.tsx"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Four mocked DocumentStatus fixtures (needs_review, extraction_failed, approved, reopened) each produce a visibly distinct, correct render",
+        "Keyboard tab order covers PDF pane -> flagged fields -> line-item table -> Ship To card -> approve action",
+        "Cmd/Ctrl+Enter approve-and-advance is wired and disabled while isDirty is true",
+        "Stale-correction warning surfaces near the top of the pane, not buried in history"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Dashboard screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/routes/Dashboard.tsx",
+        "frontend/src/components/DashboardStatCard.tsx"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Renders live counts, average confidence, and success rate from GET /api/dashboard",
+        "Loading, populated, refresh-in-progress, and error states all present"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "PromptConfig + ShipToCatalog screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "frontend/src/routes/PromptConfig.tsx",
+        "frontend/src/routes/ShipToCatalog.tsx",
+        "frontend/src/components/PromptEditor.tsx",
+        "frontend/src/components/ConfirmDialog.tsx"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Prompt editor exposes 'save for future documents' and 'save and rerun on this document' as two distinct actions, not one bare save button",
+        "The Ship To catalog's inline create/edit sheet is the same component imported and reused from Review's scorecard, verified by a shared-import check, not a duplicated copy"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Docker/compose scaffold + env template",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docker-compose.yml",
+        "backend/Dockerfile",
+        "frontend/Dockerfile",
+        ".env.example"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Named volumes declared for PDFs, page images, the SQLite file, and exports",
+        "Compose file binds the API to 127.0.0.1 by default with a documented override flag for anything else",
+        "No hardcoded secrets; .env.example lists every required key"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Reopen endpoint + audit logging service",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "backend/app/api/routes/lifecycle.py",
+        "backend/app/services/audit.py"
+      ],
+      "depends_on": [
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "POST /api/documents/{id}/reopen requires a reason, transitions status to reopened, and is the only path that unblocks a further PATCH on an approved/exported document",
+        "Test proves PATCH before reopen returns 409 and PATCH after reopen returns 200",
+        "log_audit_event is called from every mutating endpoint and every pipeline transition"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Stuck-processing sweep",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "backend/app/worker/stuck_reset.py"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "A document manually set to processing with an old processing_started_at is reset to a retryable state within one sweep interval in a clock-shifted test",
+        "Reset is logged to audit_log",
+        "Registered into main.py's designated hook point as a single additive line, verified by diffing main.py before/after this task"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Docker persistence verification",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "scripts/verify_restart.sh"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-025"
+      ],
+      "acceptance_criteria": [
+        "An actual docker-compose down && up cycle is run against a seeded document",
+        "Before/after assertions confirm the document row and its files are present after the restart \u2014 not inferred from reading the compose file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-029",
+      "title": "Concurrent-upload SQLite lock test",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "backend/tests/test_concurrency.py"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "5+ documents uploaded concurrently against the real queue across 10 runs produce zero 'database is locked' errors"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-030",
+      "title": "Playwright E2E: happy path + forced failure",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "e2e/happy-path.spec.ts",
+        "e2e/forced-failure.spec.ts"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-022",
+        "T-023",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "happy-path spec drives upload->flagged review->correct->resolve ship-to->approve->export against mock providers and passes headlessly",
+        "forced-failure spec drives the double_failure_trigger fixture into extraction_failed and confirms hand-entry plus reprocess-with-edited-prompt both work"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-031",
+      "title": "README, privacy disclosure, final regression sweep",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "README.md",
+        "CHANGELOG.md",
+        "INTEGRATION_LOG.md"
+      ],
+      "depends_on": [
+        "T-026",
+        "T-027",
+        "T-028",
+        "T-029",
+        "T-030",
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "A fresh clone + docker-compose up + README instructions alone gets a new operator to an approved export in under ~5 minutes, tested from scratch",
+        "README explicitly discloses that document content is transmitted to whichever OCR/LLM provider is configured",
+        "Full backend+frontend+e2e test suite passes in one run before this task closes"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

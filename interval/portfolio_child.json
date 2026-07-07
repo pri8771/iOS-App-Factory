@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b2",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Interval",
+    "slug": "interval",
+    "category": "Productivity",
+    "promise": "A focus timer that learns your real focus patterns and adapts session length/timing to you",
+    "targetUser": "People who've abandoned generic Pomodoro apps",
+    "build": true,
+    "one_sentence_promise": "A focus timer that learns your real focus patterns and adapts session length/timing to you",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

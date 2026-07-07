@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp6",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Skyglass",
+    "slug": "skyglass",
+    "category": "education",
+    "tagline": "AR stargazing app driven by real orbital mechanics, not a static star chart, with a persistent observation log.",
+    "target_user": "Parent/hobbyist doing backyard stargazing with a kid.",
+    "build": true,
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

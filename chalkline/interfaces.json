@@ -1,0 +1,512 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Attempt",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Attempt { @Attribute(.unique) var id: UUID; var createdAt: Date; var status: AttemptStatus; var outcome: AttemptOutcome; var source: AttemptSource; var routeLabelRaw: String; var routeLabelNormalized: String; var videoRelativePath: String; var analysisScore: Double?; var isScoreStable: Bool; var overallConfidence: Double?; var summaryText: String?; var breakdownTimestamp: TimeInterval?; @Attribute(.externalStorage) var traceData: Data?; var traceVersion: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Single model only by contract: Attempt-only schema. externalStorage keeps potentially large trace bytes out of hot row while avoiding second model/table."
+    },
+    {
+      "name": "AttemptStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AttemptStatus: String, Codable { case recording, analyzing, analyzed, analysisFailed }",
+      "owning_lane": "data_domain",
+      "notes": "Four persisted statuses only; no queuedForRetry persisted state."
+    },
+    {
+      "name": "AttemptSource",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AttemptSource: String, Codable { case recorded, imported }",
+      "owning_lane": "data_domain",
+      "notes": "Importing remains a UI/capture substate only."
+    },
+    {
+      "name": "AttemptOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AttemptOutcome: String, Codable { case sent, fell, other }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted for route log integrity."
+    },
+    {
+      "name": "PoseTraceArtifact",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PoseTraceArtifact: PersistentModel { @Attribute(.externalStorage) var data: Data; var formatVersion: Int; var pointCount: Int; var durationSeconds: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted analysis output blob (or replaceable per-joint schema); immutable once analysis completes."
+    },
+    {
+      "name": "PoseFrameSample",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PoseFrameSample: Codable { let timeOffsetSeconds: Double; let landmarks: [JointPoint]; let frameConfidence: Double; let usable: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Pure value artifact for trace rendering, comparison, and determinism testing."
+    },
+    {
+      "name": "JointPoint",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct JointPoint: Codable, Sendable { let x: Double; let y: Double; let confidence: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Normalized 0-1 coordinates."
+    },
+    {
+      "name": "PoseAnalysisResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PoseAnalysisResult: Sendable { let attemptID: UUID; let samples: [PoseSample]; let analysisScore: Double?; let isScoreStable: Bool; let overallConfidence: Double; let summaryText: String; let breakdownTimestamp: TimeInterval?; let traceSummary: PoseTraceSummary }",
+      "owning_lane": "services_utilities",
+      "notes": "Single deterministic value object returned from engine."
+    },
+    {
+      "name": "VideoStorageService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol VideoStorageService { func copyToAppSupport(_ sourceURL: URL) async throws -> String; func deleteVideo(at relativePath: String) async throws; func fileExists(_ relativePath: String) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Own media import/copy-in/delete policy with relative path ownership."
+    },
+    {
+      "name": "ApplicationSupportPathResolver",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ApplicationSupportPathResolver { func resolve(_ relativePath: String) throws -> URL; func makeUniqueAttemptPath(id: UUID) -> String }",
+      "owning_lane": "services_utilities",
+      "notes": "Canonicalize relative paths so sandbox changes do not corrupt stored references."
+    },
+    {
+      "name": "PoseAnalysisEngine",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PoseAnalysisEngine: Sendable { func analyze(videoURL: URL, attemptID: UUID, onProgress: @Sendable (AnalysisProgress) -> Void) async throws -> PoseAnalysisResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Deterministic 6fps offline pipeline. Separate from capture live guard."
+    },
+    {
+      "name": "CaptureGuardController",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class CaptureGuardController { var guardState: CaptureGuardState; func start(session: AVCaptureSession); func stop() }",
+      "owning_lane": "services_utilities",
+      "notes": "View-scoped live body-presence check; separate path from analysis pipeline."
+    },
+    {
+      "name": "BodyDetectionState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum BodyDetectionState: Equatable { case clear, weak, blocked, absent }",
+      "owning_lane": "services_utilities",
+      "notes": "Maps directly to Capture guard UI; unknown bystander-vs-target ambiguity is handled as known limitation."
+    },
+    {
+      "name": "AnalysisQueue",
+      "kind": "class",
+      "language": "swift",
+      "signature": "actor AnalysisQueue { func enqueue(attemptID: UUID, videoURL: URL) async; func progressStream(for attemptID: UUID) -> AsyncStream<AnalysisProgress>; func resubmitOrphans(_ attemptIDs: [UUID], resolveURL: @Sendable (UUID) -> URL) async; func currentJobState(for attemptID: UUID) async -> AnalysisJobState }",
+      "owning_lane": "services_utilities",
+      "notes": "Actor, no @Observable. Holds in-memory job state only; owns execution, never touches SwiftData."
+    },
+    {
+      "name": "JobState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum JobState: Equatable { case idle, running, queued, retryingInMemory, failedTransient, failedTerminal }",
+      "owning_lane": "services_utilities",
+      "notes": "Queue-internal, non-persisted state; drives queue UI messaging and retry timing."
+    },
+    {
+      "name": "AnalysisPersistenceGateway",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol AnalysisPersistenceGateway { @MainActor func write(result: PoseAnalysisResult, for attemptID: UUID) async throws; @MainActor func markStatus(_ status: AttemptStatus, for attemptID: UUID) async throws; @MainActor func fetchAnalyzingWithoutLiveJobs(_ activeIDs: Set<UUID>) async throws -> [Attempt] }",
+      "owning_lane": "services_utilities",
+      "notes": "Single cross-thread boundary guarantee: all SwiftData model writes happen on main actor."
+    },
+    {
+      "name": "ReconciliationService",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ReconciliationService { func resubmitOrphanedAnalyzingAttempts(on appActivation: @escaping () -> Void) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Cold launch + foreground sweep triggers before Home renders."
+    },
+    {
+      "name": "EntitlementService",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class EntitlementService { @AppStorage(\"isPro\") var isPro: Bool; var canUseComparison: Bool { true }; var canStoreUnlimitedHistory: Bool { isPro } }",
+      "owning_lane": "services_utilities",
+      "notes": "No @unchecked Sendable; synchronized via main actor and explicit state reads."
+    },
+    {
+      "name": "ConfidenceScorer",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ConfidenceScorer { func aggregate(samples: [PoseFrameSample]) -> (overall: Double, stable: Bool, summary: String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Pure function contract for determinism and fallback trigger enforcement."
+    },
+    {
+      "name": "NormalizeRouteLabel",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func normalizeRouteLabel(_ raw: String) -> String",
+      "owning_lane": "data_domain",
+      "notes": "trim + lowercase normalization used for comparison matching; exact behavior is part of reproducibility contract."
+    },
+    {
+      "name": "FindPreviousAttempt",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func findMostRecentPriorAttempt(for attempt: Attempt, in attempts: [Attempt]) -> Attempt?",
+      "owning_lane": "data_domain",
+      "notes": "Returns latest prior by normalized route label only, then date; nil drives no-comparison empty state."
+    },
+    {
+      "name": "buildTraceAccessibilitySummary",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func buildTraceAccessibilitySummary(for attempt: Attempt, comparison: ComparisonResult?) -> String",
+      "owning_lane": "polish_resilience",
+      "notes": "Deterministic sentence order: confidence -> interpretation -> comparison."
+    },
+    {
+      "name": "HomeFeedViewModel",
+      "kind": "class",
+      "language": "Swift",
+      "signature": "final class HomeFeedViewModel: @MainActor { @ObservationIgnored var appModel: AnalysisQueue; var attempts: [Attempt]; func load(); func startCapture(); func openAttempt(_ attempt: Attempt) }",
+      "owning_lane": "primary_ui",
+      "notes": "Home owns feed states and reconciliation entry point; never writes persistence directly."
+    },
+    {
+      "name": "CaptureViewModel",
+      "kind": "class",
+      "language": "Swift",
+      "signature": "final class CaptureViewModel: @MainActor { var guardState: BodyDetectionState; var countdownRemaining: Int; func beginRecording(); func stopRecording(); func onInterruption() }",
+      "owning_lane": "primary_ui",
+      "notes": "Orchestrates capture session hooks and guards, capped auto-stop, and interrupted discard flow."
+    },
+    {
+      "name": "ProcessingCoordinator",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class ProcessingCoordinator { private(set) var progressByAttempt: [UUID: AnalysisProgress] = [:]; func observe(attemptID: UUID, queue: AnalysisQueue) async }",
+      "owning_lane": "primary_ui",
+      "notes": "UI bridge to read queue progress by attempt; can be cancelled at view level without cancelling analysis."
+    },
+    {
+      "name": "ReviewCoordinator",
+      "kind": "class",
+      "language": "Swift",
+      "signature": "final class ReviewCoordinator: @MainActor { func priorAttempt(for attempt: Attempt) -> Attempt?; func deleteAttempt(_ attempt: Attempt) async throws; func retake(_ attempt: Attempt) }",
+      "owning_lane": "primary_ui",
+      "notes": "Controls inline comparison resolution and destructive delete flow with confirmation path."
+    },
+    {
+      "name": "TraceGapDetector",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum TraceGapDetector { static func segments(from samples: [PoseSample]) -> [TraceSegment]; static func shouldRenderBreak(previous: PoseSample, next: PoseSample, consecutiveMissingCount: Int) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Exactly enforces 2+ consecutive unusable samples before rendering a break."
+    },
+    {
+      "name": "PoseSample",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PoseSample: Codable, Sendable { let timestampOffset: TimeInterval; let joints: [String: JointPoint]; let frameConfidence: Double; let isUsable: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Pure value sample; dictionary key order must not be trusted in serialization."
+    },
+    {
+      "name": "TraceSegment",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TraceSegment: Sendable { let samples: [PoseSample] }",
+      "owning_lane": "services_utilities",
+      "notes": "Output to TraceCanvas; contiguous usable runs."
+    },
+    {
+      "name": "ComparisonResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ComparisonResult: Sendable { case hasDelta(latestSummary: String, priorSummary: String); case noPrior; case uncomparable(reason: String) }",
+      "owning_lane": "data_domain",
+      "notes": "Latest-vs-most-recent-prior comparison contract."
+    },
+    {
+      "name": "PersistenceGateway",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor protocol PersistenceGateway { func createAttempt(source: AttemptSource, videoRelativePath: String) throws -> UUID; func write(result: PoseAnalysisResult, to attemptID: UUID) throws; func markAnalysisFailed(attemptID: UUID) throws; func updateRouteLabel(_ raw: String, for attemptID: UUID) throws; func delete(attemptID: UUID) throws; func fetchOrphanedAnalyzingIDs() throws -> [UUID]; func fetchVideoRelativePath(for attemptID: UUID) throws -> String; func fetchAttempts(withNormalizedLabel label: String) throws -> [Attempt]; func fetchAttempt(for id: UUID) throws -> Attempt? }",
+      "owning_lane": "data_domain",
+      "notes": "Main-actor only writer/read boundary for SwiftData state changes; pure services compute and return plain DTOs."
+    },
+    {
+      "name": "ChalklineSchemaV1 / ChalklineMigrationPlan",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "enum ChalklineSchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Attempt.self] } }; enum ChalklineMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [ChalklineSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+      "owning_lane": "data_domain",
+      "notes": "One model in the list now that the second trace table is cut. Agreed."
+    },
+    {
+      "name": "AnalysisProgress",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AnalysisProgress: Sendable, Equatable { let attemptID: UUID; let framesProcessed: Int; let totalFrames: Int; let runningConfidence: Double; let jobState: AnalysisJobState }",
+      "owning_lane": "services_utilities",
+      "notes": "Feeds live gauge and queue-state messaging."
+    },
+    {
+      "name": "AnalysisJobState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AnalysisJobState: Sendable { case running, queued, retryingInMemory }",
+      "owning_lane": "services_utilities",
+      "notes": "In-memory only; never persisted."
+    },
+    {
+      "name": "ConfidenceAggregator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ConfidenceAggregator { static func aggregate(samples: [PoseSample]) -> (score: Double?, isStable: Bool, overallConfidence: Double) }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure deterministic aggregation function."
+    },
+    {
+      "name": "RouteLabelNormalizer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum RouteLabelNormalizer { static func normalize(_ raw: String) -> String }",
+      "owning_lane": "services_utilities",
+      "notes": "Trim+lowercase only per contract."
+    },
+    {
+      "name": "ComparisonResolver",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ComparisonResolver { static func priorAttempt(for attempt: Attempt, among candidates: [Attempt]) -> Attempt?; static func compare(latest: Attempt, prior: Attempt) -> ComparisonResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Latest-vs-most-recent-prior only on same normalized label."
+    },
+    {
+      "name": "CameraPermissionService",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class CameraPermissionService { var status: CameraPermissionStatus; func requestAccess() async; func openSettings() }",
+      "owning_lane": "services_utilities",
+      "notes": "Requested at point of use, camera-only."
+    },
+    {
+      "name": "CameraPermissionStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CameraPermissionStatus: Sendable { case notDetermined, authorized, denied }",
+      "owning_lane": "services_utilities",
+      "notes": "No photo-library permission state in this MVP."
+    },
+    {
+      "name": "CaptureSessionController",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class CaptureSessionController { var recordingState: RecordingState; func configureVideoOnlySession() throws; func startRecording() async throws; func stopRecording() async -> URL?; func handleInterruption(_ notification: Notification) }",
+      "owning_lane": "services_utilities",
+      "notes": "Video-only session by construction; records to temp file, auto-stop cap is enforced."
+    },
+    {
+      "name": "RecordingState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecordingState: Sendable { case idle, armed, recording(elapsed: TimeInterval), interrupted(reason: String) }",
+      "owning_lane": "services_utilities",
+      "notes": "Interruption transitions explicit."
+    },
+    {
+      "name": "CaptureGuardState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CaptureGuardState: Sendable { case searching, blocked(reason: String), ready }",
+      "owning_lane": "services_utilities",
+      "notes": "Reason string contains actionable reposition guidance."
+    },
+    {
+      "name": "ReconciliationSweep",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ReconciliationSweep { static func run(gateway: PersistenceGateway, queue: AnalysisQueue) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Cold launch + foreground trigger: resubmit orphaned analyzing rows."
+    },
+    {
+      "name": "AnalysisProgressStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AnalysisProgressStore { private(set) var progressByAttempt: [UUID: AnalysisProgress]; func observe(attemptID: UUID, queue: AnalysisQueue) async }",
+      "owning_lane": "primary_ui",
+      "notes": "New type proposed to bridge AnalysisQueue's AsyncStream into @Observable UI state. Resolves the actor/@Observable conflict. Needs Codex's confirmation."
+    },
+    {
+      "name": "HomeRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum HomeRoute: Hashable { case processing(UUID); case review(UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "Navigation target union."
+    },
+    {
+      "name": "TraceCanvas",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TraceCanvas: View { init(segments: [TraceSegment], scrubPosition: Binding<TimeInterval>) }",
+      "owning_lane": "primary_ui",
+      "notes": "Canvas renderer for segments + scrub."
+    },
+    {
+      "name": "ConfidenceBadge",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ConfidenceBadge: View { init(confidence: Double, isStable: Bool) }",
+      "owning_lane": "primary_ui",
+      "notes": "Color + shape pair, never color-only semantics."
+    },
+    {
+      "name": "ComparisonInlineRow",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ComparisonInlineRow: View { init(result: ComparisonResult) }",
+      "owning_lane": "primary_ui",
+      "notes": "No fabricated stat; explicit uncomparable/no-prior states."
+    },
+    {
+      "name": "RouteTagFieldInline",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RouteTagFieldInline: View { init(rawLabel: Binding<String>, onCommit: (String) -> Void) }",
+      "owning_lane": "primary_ui",
+      "notes": "Skippable, always optional path."
+    },
+    {
+      "name": "ProcessingGauge",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ProcessingGauge: View { init(progress: AnalysisProgress?) }",
+      "owning_lane": "primary_ui",
+      "notes": "Frame-count plus confidence trajectory in one gauge."
+    },
+    {
+      "name": "AttemptCard",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AttemptCard: View { init(attempt: Attempt, progress: AnalysisProgress?) }",
+      "owning_lane": "primary_ui",
+      "notes": "Displays status, confidence state, and comparison affordance."
+    },
+    {
+      "name": "PermissionSheet",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PermissionSheet: View { init(onOpenSettings: () -> Void) }",
+      "owning_lane": "primary_ui",
+      "notes": "Camera-only path, no photo permission variant."
+    },
+    {
+      "name": "HapticsCenter",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor final class HapticsCenter { func prepareAll(); func bodyDetectedReady(); func autoStopTriggered(); func analysisComplete(); func comparisonLineAppeared() }",
+      "owning_lane": "polish_resilience",
+      "notes": "Locked four feedback events only."
+    },
+    {
+      "name": "DeleteConfirmationAlert",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DeleteConfirmationAlert: ViewModifier { init(isPresented: Binding<Bool>, onConfirm: () -> Void) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Single confirm-before-destroy guard."
+    },
+    {
+      "name": "ChalklineColorTokens / ChalklineTypography / ChalklineSpacing",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum ChalklineColorTokens { static let routeBlue: Color; static let routeOrange: Color; static let routeMint: Color; static let routeViolet: Color; static let confidenceTrust: Color; static let confidenceDegraded: Color; static let confidenceLow: Color }; enum ChalklineTypography { static func display(_ style: Font.TextStyle) -> Font; static func body(_ style: Font.TextStyle) -> Font }; enum ChalklineSpacing { static let unit: CGFloat }",
+      "owning_lane": "polish_resilience",
+      "notes": "Non-overlapping route/confidence hue systems, system fonts only, heavy/black display weight. Agreed, carried from design_handoff."
+    },
+    {
+      "name": "PoseTraceSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PoseTraceSummary: Codable, Sendable { let segmentCount: Int; let usableFrames: Int; let confidenceMean: Double; let minConfidence: Double; let maxConfidence: Double }",
+      "owning_lane": "services_utilities",
+      "notes": "Derived diagnostics used by CI regression and UI/test summary sanity checks."
+    },
+    {
+      "name": "PoseAnalysisSerializer",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum PoseAnalysisSerializer { static func encode(_ samples: [PoseSample]) -> Data; static func decode(_ data: Data) -> [PoseSample]?; static func deterministicBytes(from samples: [PoseSample]) -> [UInt8] }",
+      "owning_lane": "services_utilities",
+      "notes": "Critical for determinism tests: canonicalize joint keys and preserve exact output ordering."
+    },
+    {
+      "name": "ImportCoordinator",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@MainActor final class ImportCoordinator { var isImporting: Bool; var rejectionReason: String?; func importFromPicker(itemProvider: NSItemProvider) async -> URL? }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns PHPicker import path, duration check, and >10-minute rejection behavior."
+    },
+    {
+      "name": "ChalklineSchemaV1",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "enum ChalklineSchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Attempt.self] } static var versionIdentifier: Schema.Version { .init(1, 0, 0) } }",
+      "owning_lane": "data_domain",
+      "notes": "Versioned schema baseline from day one."
+    },
+    {
+      "name": "ChalklineMigrationPlan",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "enum ChalklineMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [ChalklineSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+      "owning_lane": "data_domain",
+      "notes": "Scaffold now, empty migration list is intentional."
+    },
+    {
+      "name": "ChalklineColorTokens",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum ChalklineColorTokens { static let routeBlue: Color; static let routeOrange: Color; static let routeMint: Color; static let routeViolet: Color; static let confidenceTrust: Color; static let confidenceDegraded: Color; static let confidenceLow: Color }",
+      "owning_lane": "polish_resilience",
+      "notes": "Non-overlapping hue systems between route and confidence."
+    },
+    {
+      "name": "ChalklineTypography",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum ChalklineTypography { static func display(_ style: Font.TextStyle) -> Font; static func body(_ style: Font.TextStyle) -> Font }",
+      "owning_lane": "polish_resilience",
+      "notes": "System font-only policy, heavy/regular pairing."
+    },
+    {
+      "name": "ChalklineSpacing",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum ChalklineSpacing { static let unit: CGFloat }",
+      "owning_lane": "polish_resilience",
+      "notes": "Grid constants (4/8/12/16/24/32) in one place."
+    }
+  ],
+  "errors": [
+    "block #4 in `interfaces-json` failed JSON parse: Expecting property name enclosed in double quotes: line 1 column 10509 (char 10508)"
+  ]
+}

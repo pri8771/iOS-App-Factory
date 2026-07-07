@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Piece",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Piece: Identifiable, Hashable { let id: UUID; var name: String; var targetTempoBPM: Double?; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Domain-layer plain struct; SwiftData @Model class in Persistence/ maps to/from this at the repository boundary. Tempo mode is NOT stored here \u2014 it's captured per-Session at recording time."
+    },
+    {
+      "name": "Session",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Session: Identifiable, Hashable { let id: UUID; let pieceID: Piece.ID; let startedAt: Date; var durationSeconds: Double; var tempoModeAtRecording: TempoMode; var pitchAccuracyScore: Double?; var tempoStabilityScore: Double?; var signalQuality: SignalQuality; var compressedWaveformOutline: [Float]; var wasRecordedUnderPaidEntitlement: Bool; var isIncomplete: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Score/quality fields are nil for free-tier sessions; repository layer refuses to persist them when wasRecordedUnderPaidEntitlement is false. isIncomplete marks sessions cut short by backgrounding/interruption."
+    },
+    {
+      "name": "TempoMode",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TempoMode: Codable, Hashable { case targetTempo(bpm: Double); case selfConsistency }",
+      "owning_lane": "data_domain",
+      "notes": "Captured per-session so editing a Piece's targetTempoBPM later never retroactively changes historical sessions' scoring mode."
+    },
+    {
+      "name": "SignalQuality",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SignalQuality: Codable, Hashable { case confident; case lowSignal; case multiPitchDetected; case tooShortToAnalyze }",
+      "owning_lane": "data_domain",
+      "notes": "Drives ConfidenceBadge and StatusCardKind selection; tooShortToAnalyze is reused both for genuinely brief takes and for sessions ended early by backgrounding/interruption."
+    },
+    {
+      "name": "PieceAccessState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PieceAccessState: Equatable { case full; case lockedReadOnly }",
+      "owning_lane": "data_domain",
+      "notes": "Computed reactively from EntitlementProviding + Piece.createdAt ordering: on lapse, the single oldest-created Piece keeps .full, all others become .lockedReadOnly. Never persisted; always derived."
+    },
+    {
+      "name": "Entitlement",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Entitlement: Equatable { case free; case paid }",
+      "owning_lane": "services_utilities",
+      "notes": "Source of truth is StoreKitEntitlementStore.current."
+    },
+    {
+      "name": "AnalysisResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AnalysisResult { var pitchAccuracyScore: Double; var tempoStabilityScore: Double; var signalQuality: SignalQuality; var compressedWaveformOutline: [Float] }",
+      "owning_lane": "services_utilities",
+      "notes": "Output of the pure DSP pass over a full completed audio buffer."
+    },
+    {
+      "name": "PitchTempoAnalyzing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PitchTempoAnalyzing { func analyze(samples: [Float], sampleRate: Double, tempoMode: TempoMode) -> AnalysisResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure, UIKit/AVFoundation-free. Fixture-corpus unit tested (clean in-tune, clean out-of-tune, noise, silence, double-stop)."
+    },
+    {
+      "name": "AudioSessionProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AudioSessionProviding { func start(onBuffer: @escaping ([Float]) -> Void) throws; func stop() -> [Float]; var isBusy: Bool { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps AVAudioEngine; fake conformance used in view-model tests and previews."
+    },
+    {
+      "name": "PieceRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PieceRepository { func fetchAll() async throws -> [Piece]; func create(name: String, targetTempoBPM: Double?) async throws -> Piece; func update(_ piece: Piece) async throws; func count() async throws -> Int }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData-backed conformance in Persistence/; in-memory fake for tests. No @Model types appear in the protocol signature."
+    },
+    {
+      "name": "SessionRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SessionRepository { func sessions(for pieceID: Piece.ID) async throws -> [Session]; func startCheckpoint(pieceID: Piece.ID, tempoMode: TempoMode, entitlement: Entitlement) async throws -> Session.ID; func checkpoint(sessionID: Session.ID, elapsedSeconds: Double, partialWaveform: [Float]) async throws; func finalize(sessionID: Session.ID, result: AnalysisResult?, durationSeconds: Double, isIncomplete: Bool) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "checkpoint() is called on a fixed ~3s cadence from a ModelActor-isolated background context, never the audio callback thread; finalize's result is nil for free-tier sessions."
+    },
+    {
+      "name": "AnnotationEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func annotation(priorSessions: [Session], newSession: Session) -> String?",
+      "owning_lane": "data_domain",
+      "notes": "Only compares sessions sharing the same TempoMode case; returns a 'measurement changed' message on a mode switch instead of silently mixing scales; returns nil (first-session state) when priorSessions is empty."
+    },
+    {
+      "name": "EntitlementProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementProviding { var current: Entitlement { get }; func purchase(_ product: SubscriptionProduct) async throws; func restore() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2 Transaction.updates-backed @Observable implementation; injected via environment; drives PieceAccessState everywhere."
+    },
+    {
+      "name": "SubscriptionProduct",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SubscriptionProduct: String { case monthly; case annual }",
+      "owning_lane": "services_utilities",
+      "notes": "Maps to StoreKit product identifiers configured in the local .storekit test config."
+    },
+    {
+      "name": "ReminderScheduling",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ReminderScheduling { var authorizationStatus: UNAuthorizationStatus { get async }; func requestAndSchedule() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Called only when user taps to enable a reminder; Settings surface reads authorizationStatus live, never caches it."
+    },
+    {
+      "name": "LiveActivityManaging",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol LiveActivityManaging { func start(piece: Piece, streak: Int) throws; func end(reason: LiveActivityEndReason) }",
+      "owning_lane": "services_utilities",
+      "notes": "start() called on Recording phase entry; end() called synchronously from the same code path as a scenePhase/interruption-triggered stop, plus from the next-launch reconciliation sweep for orphaned activities."
+    },
+    {
+      "name": "LiveActivityEndReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LiveActivityEndReason { case sessionCompleted; case interruptedOrBackgrounded; case reconciledOrphan }",
+      "owning_lane": "services_utilities",
+      "notes": "Distinguishes the three end triggers for QA/logging purposes even though the user-facing behavior (activity ends) is identical."
+    },
+    {
+      "name": "WidgetSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WidgetSnapshot: Codable { var streakCount: Int; var lastSessionDate: Date?; var lastPieceName: String? }",
+      "owning_lane": "services_utilities",
+      "notes": "Lives in the SharedKit package target so app + widget extension compile against the identical type. Written to App Group UserDefaults after every session finalize()."
+    },
+    {
+      "name": "WidgetSnapshotStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol WidgetSnapshotStore { func write(_ snapshot: WidgetSnapshot); func read() -> WidgetSnapshot? }",
+      "owning_lane": "services_utilities",
+      "notes": "Concrete impl uses UserDefaults(suiteName: appGroupID); write() calls WidgetCenter.shared.reloadTimelines afterward."
+    },
+    {
+      "name": "StatusCardKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum StatusCardKind { case micBusy; case tooShortToAnalyze; case multiPitchDetected; case firstSessionNoComparison; case noSessionsYet; case lockedReadOnly }",
+      "owning_lane": "primary_ui",
+      "notes": "Exhaustively switched over by the StatusCard view; compiler catches a missing case if a new state is added. Excludes mic-permission-required and the live low-confidence overlay, which are bespoke views."
+    },
+    {
+      "name": "SummaryContent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SummaryContent { case free(duration: Double); case paid(result: AnalysisResult, annotation: String?) }",
+      "owning_lane": "primary_ui",
+      "notes": "Drives the one shared SummaryView shell; never two separate SummaryView types."
+    },
+    {
+      "name": "SessionPhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SessionPhase { case calibrating; case recording; case processing; case summary(SummaryContent) }",
+      "owning_lane": "primary_ui",
+      "notes": "Drives a single fullScreenCover SessionFlowView via crossfade transitions between cases; back-swipe gesture disabled while .recording."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Hashable { case pieceDetail(Piece.ID) }",
+      "owning_lane": "primary_ui",
+      "notes": "The entire NavigationStack path type; every other screen (SessionFlow, permission screens, PieceForm, Paywall, Settings) is a sheet or fullScreenCover, not a pushed destination."
+    },
+    {
+      "name": "AudioSessionInterruptionHandling",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func handleInterruptionOrBackgrounding(sessionID: Session.ID, elapsedSeconds: Double) async",
+      "owning_lane": "polish_resilience",
+      "notes": "Triggered by scenePhase leaving .active or AVAudioSession.interruptionNotification; performs an immediate non-resumable finalize(isIncomplete: true) and calls LiveActivityManaging.end(reason: .interruptedOrBackgrounded) synchronously."
+    },
+    {
+      "name": "OrphanedActivityReconciler",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func reconcileOrphanedActivitiesOnLaunch(sessionRepository: SessionRepository, activityManager: LiveActivityManaging) async",
+      "owning_lane": "polish_resilience",
+      "notes": "Run once at app launch: if a Live Activity claims an active session that has no matching in-progress Session row, end it silently via .reconciledOrphan."
+    }
+  ],
+  "errors": []
+}

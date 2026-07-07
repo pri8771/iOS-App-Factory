@@ -1,0 +1,422 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "TraceDocument",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TraceDocument: Codable, Sendable, Identifiable { let id: UUID; var createdAt: Date; var updatedAt: Date; var status: TraceStatus; var lastCommittedStage: TraceStage; var workspaceMode: WorkspaceMode; var qualityGateResult: QualityGateResult?; var exportStatus: ExportStatus; var thumbnailFileName: String; var normalizedImageFileName: String; var vectorFileName: String }",
+      "owning_lane": "data_domain",
+      "notes": "Maps to metadata.json only; never carries vector path data (see VectorDocument) or EXIF/location/device fields. LOCKED."
+    },
+    {
+      "name": "TraceStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TraceStatus: String, Codable, Sendable { case needsReview; case exported; case traceFailed }",
+      "owning_lane": "data_domain",
+      "notes": "Matches the locked Recents chip vocabulary exactly. A document only exists with this status after the quality gate has passed \u2014 rejected captures are deleted, never persisted with any status. LOCKED."
+    },
+    {
+      "name": "TraceStage",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TraceStage: String, Codable, Sendable { case captured; case normalized; case traced; case edited }",
+      "owning_lane": "data_domain",
+      "notes": "The four committed checkpoints. 'captured' is written the instant bytes exist (so resume-during-gate-evaluation works), but the whole folder is deleted immediately on gate rejection via NewTraceOutcome, so a captured-only checkpoint never survives past a rejection. LOCKED."
+    },
+    {
+      "name": "WorkspaceMode",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum WorkspaceMode: String, Codable, Sendable { case compare; case edit }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted so reopened traces resume in the correct Workspace mode. LOCKED."
+    },
+    {
+      "name": "QualityGateResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct QualityGateResult: Codable, Sendable { var passed: Bool; var rejectionReason: RejectionReason?; var metrics: QualityMetrics?; var borderlineConfidence: Double? }",
+      "owning_lane": "data_domain",
+      "notes": "borderlineConfidence is should-have marginal-pass indicator; optional, never blocks passed=true flow. LOCKED."
+    },
+    {
+      "name": "QualityGateFailure",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum QualityGateFailure: String, Codable, Sendable { case skewTooHigh, shadowCoverageTooHigh, blurTooHigh, contrastTooLow, sketchTooFaint, noSketchRegionDetected, ruledPaperInterference }",
+      "owning_lane": "data_domain",
+      "notes": "Locked rejection vocabulary shared by services and UI."
+    },
+    {
+      "name": "QualityMetrics",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct QualityMetrics: Codable, Sendable { var skewDegrees: Double; var shadowCoverage: Double; var blurScore: Double; var contrastScore: Double; var sketchCoverage: Double }",
+      "owning_lane": "services_utilities",
+      "notes": "Internal measured values backing gate decisions and fixture-test assertions; not shown raw to users. LOCKED."
+    },
+    {
+      "name": "VectorDocument",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct VectorDocument: Codable, Sendable { var canvasSize: CGSize; var paths: [VectorPath]; var simplifyStrength: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Maps to vector.json as its own checkpoint file, separate from TraceDocument/metadata.json, so Recents/routing never decodes heavy geometry unnecessarily. LOCKED."
+    },
+    {
+      "name": "VectorPath",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct VectorPath: Codable, Sendable, Identifiable, Equatable { let id: UUID; var segments: [PathSegment]; var isClosed: Bool; var boundingBox: CGRect; var nodeCount: Int; var sourceLength: Double; var strokeWidthPt: CGFloat }",
+      "owning_lane": "data_domain",
+      "notes": "nodeCount/boundingBox/sourceLength support the clean-trace acceptance bar (bounded nodes, no sub-3pt orphan fragments). LOCKED."
+    },
+    {
+      "name": "EditCommand",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EditCommand: Codable, Sendable { case deletePath(id: UUID); case mergePaths(ids: [UUID], resultID: UUID); case setSimplifyStrength(pathID: UUID, value: Double) }",
+      "owning_lane": "data_domain",
+      "notes": "Signatures match the exact command list already locked in design_handoff. Appended to undo/redo stack only on gesture commit/release, never mid-drag. LOCKED."
+    },
+    {
+      "name": "ExportFormat",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ExportFormat: String, Codable, Sendable { case svg; case pdf }",
+      "owning_lane": "data_domain",
+      "notes": "Supported export targets. LOCKED."
+    },
+    {
+      "name": "ExportState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ExportState: String, Codable, Sendable { case neverExported, ready, exporting, exported, failed }",
+      "owning_lane": "polish_resilience",
+      "notes": "Persistent export summary for recents and recovery messaging."
+    },
+    {
+      "name": "TraceError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TraceError: Error, Sendable { case invalidImageData; case normalizationFailed; case qualityGateFailed(QualityGateFailure); case vectorizationFailed; case persistenceFailed; case exportFailed; case checkpointCorrupted }",
+      "owning_lane": "polish_resilience",
+      "notes": "Stable error contract across services and UI."
+    },
+    {
+      "name": "TraceSession",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class TraceSession { let traceID: UUID; private(set) var document: TraceDocument; private(set) var vectorDocument: VectorDocument?; var mode: WorkspaceMode; var zoomScale: CGFloat; var panOffset: CGSize; var selectedPathIDs: Set<UUID>; private(set) var undoStack: [EditCommand]; private(set) var redoStack: [EditCommand]; var processingStage: ProcessingStage?; private(set) var interruptionRecoveryState: InterruptionRecoveryState; func apply(_ command: EditCommand) async throws; func undo(); func redo(); var canUndo: Bool; var canRedo: Bool; func exportCurrentTrace(format: ExportFormat, fileName: String) async throws -> ExportArtifact; func acknowledgeInterruptionRecovery() }",
+      "owning_lane": "primary_ui",
+      "notes": "kind field has no 'class' option; this is a reference class. interruptionRecoveryState lives here so the resume banner has exactly one owner; acknowledgeInterruptionRecovery() flips it back to .none once the relevant view has displayed the banner, so it shows once per recovery rather than on every subsequent view of the session. zoomScale/panOffset/selectedPathIDs are transient view state, never checkpointed. apply(_:) is the only mutation path and triggers a checkpoint write after commit. undo/redo are non-throwing since they replay an already-validated command log. LOCKED, confirmed by both agents in round 3."
+    },
+    {
+      "name": "ImageIngesting",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ImageIngesting { func ingest(_ imageData: Data) async throws -> NormalizedImageArtifact }",
+      "owning_lane": "services_utilities",
+      "notes": "Handles EXIF orientation, metadata stripping, downsampling, and normalized working image creation."
+    },
+    {
+      "name": "NormalizedImageArtifact",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct NormalizedImageArtifact: Sendable { var imageData: Data; var pixelSize: CGSizeDTO; var checksum: String }",
+      "owning_lane": "services_utilities",
+      "notes": "Working image after ingest; durable after review commit."
+    },
+    {
+      "name": "QualityGating",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol QualityGating { func evaluate(_ normalized: NormalizedImageArtifact) async -> QualityGateResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure, fixture-testable gate service."
+    },
+    {
+      "name": "Vectorizing",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol Vectorizing { func vectorize(_ normalized: NormalizedImageArtifact, simplifyStrength: Float) async throws -> VectorDocument }",
+      "owning_lane": "services_utilities",
+      "notes": "Bespoke core subsystem; owns contour cleanup, simplification, fitting, and classification."
+    },
+    {
+      "name": "EditingReducer",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func apply(command: EditCommand, to document: VectorDocument) throws -> VectorDocument",
+      "owning_lane": "data_domain",
+      "notes": "Pure reducer for committed edits and undo/redo."
+    },
+    {
+      "name": "Exporting",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol Exporting { func export(_ document: VectorDocument, format: ExportFormat, fileName: String) async throws -> ExportArtifact }",
+      "owning_lane": "services_utilities",
+      "notes": "Serializes vector document to shareable file URL."
+    },
+    {
+      "name": "ExportArtifact",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExportArtifact: Sendable { var format: ExportFormat; var fileURL: URL; var fileSizeBytes: Int64 }",
+      "owning_lane": "services_utilities",
+      "notes": "Returned as a file URL (not raw Data) since the Export sheet hands off directly to the share sheet; survives share-sheet failure by remaining on disk. LOCKED."
+    },
+    {
+      "name": "TraceStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol TraceStore: Sendable { func writeCheckpoint(_ stage: TraceStage, document: TraceDocument, normalizedImage: NormalizedImage?, vectorDocument: VectorDocument?) async throws; func loadDocument(id: UUID) throws -> TraceDocument; func loadVectorDocument(id: UUID) throws -> VectorDocument?; func listAllMetadata() throws -> [TraceMetadata]; func delete(id: UUID) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns folder layout and atomic temp-file-then-rename writes; listAllMetadata rebuilds by scanning per-trace folders. delete(id:) used both for user-initiated deletion and internally by AppModel after gate rejection. LOCKED."
+    },
+    {
+      "name": "ProcessingStage",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ProcessingStage: String, Codable, Sendable, CaseIterable { case checkingGeometry; case correctingPerspective; case isolatingLinework; case tracingPaths; case preparingPreview }",
+      "owning_lane": "polish_resilience",
+      "notes": "Sequential named stages shown on Processing screen; no percent progress bar. LOCKED."
+    },
+    {
+      "name": "TraceWorkflowControlling",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol TraceWorkflowControlling { func startNewTrace(from imageData: Data) async; func retryFromLastCheckpoint() async; func commitSimplify(pathIDs: [UUID], value: Float) async; func commitDelete(pathIDs: [UUID]) async; func commitMerge(pathIDs: [UUID]) async; func exportCurrentTrace(format: ExportFormat, fileName: String) async }",
+      "owning_lane": "primary_ui",
+      "notes": "UI-facing workflow API that orchestrates services without leaking implementation details into views."
+    },
+    {
+      "name": "CGSizeDTO",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CGSizeDTO: Codable, Sendable { var width: Double; var height: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Codable geometry type for cross-module serialization."
+    },
+    {
+      "name": "RectDTO",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RectDTO: Codable, Sendable { var x: Double; var y: Double; var width: Double; var height: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Codable bounding-box representation."
+    },
+    {
+      "name": "BezierSegmentDTO",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct BezierSegmentDTO: Codable, Sendable { var start: PointDTO; var control1: PointDTO; var control2: PointDTO; var end: PointDTO }",
+      "owning_lane": "data_domain",
+      "notes": "Serializable cubic segment shape for SVG/PDF generation."
+    },
+    {
+      "name": "PointDTO",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PointDTO: Codable, Sendable { var x: Double; var y: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Codable point type for vector serialization."
+    },
+    {
+      "name": "PathSegment",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PathSegment: Codable, Sendable, Equatable { case line(to: CGPoint); case cubic(to: CGPoint, control1: CGPoint, control2: CGPoint) }",
+      "owning_lane": "data_domain",
+      "notes": "Uses native CGPoint/CGSize/CGRect (Codable+Sendable on this deployment target) rather than a custom DTO wrapper. LOCKED."
+    },
+    {
+      "name": "CheckpointStage",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CheckpointStage: String, Codable, Sendable { case captured; case normalized; case traced; case edited }",
+      "owning_lane": "data_domain",
+      "notes": "The four committed checkpoints; resume-after-kill always restarts from the highest stage actually committed to disk."
+    },
+    {
+      "name": "RejectionReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RejectionReason: String, Codable, Sendable, CaseIterable { case skewTooHigh; case shadowCoverageTooHigh; case blurTooHigh; case contrastTooLow; case sketchTooFaint; case noSketchRegionDetected; case ruledPaperInterference }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed named rejection vocabulary; one safety-orange treatment, differentiated by icon glyph only. LOCKED."
+    },
+    {
+      "name": "TraceCommand",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TraceCommand: Sendable { case deletePath(id: UUID); case mergePaths(ids: [UUID], resultID: UUID); case setSimplifyStrength(pathID: UUID, value: Double) }",
+      "owning_lane": "data_domain",
+      "notes": "Appended to TraceSession's undo stack only on gesture commit/release, never mid-drag."
+    },
+    {
+      "name": "TraceMetadata",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TraceMetadata: Codable, Sendable, Identifiable { let id: UUID; var updatedAt: Date; var status: TraceStatus; var thumbnailFileName: String; var exportStatus: ExportStatus }",
+      "owning_lane": "data_domain",
+      "notes": "Lightweight Recents-row projection; rebuilt by scanning per-trace folders and reading each TraceDocument, never trusted from a separate index file alone. LOCKED."
+    },
+    {
+      "name": "ExportStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ExportStatus: String, Codable, Sendable { case notExported; case exported; case exportFailedButSaved }",
+      "owning_lane": "data_domain",
+      "notes": "exportFailedButSaved must always leave the trace visible/reopenable in Recents. LOCKED."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Hashable { case recentsHome; case newTraceIntake; case cameraCapture; case qualityGateCorrection(traceID: UUID); case processing(traceID: UUID); case workspace(traceID: UUID, mode: WorkspaceMode); case settings }",
+      "owning_lane": "primary_ui",
+      "notes": "Drives the single NavigationStack path array; Export is a modal sheet, not a route case. LOCKED."
+    },
+    {
+      "name": "AppRouter.route(for:)",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func route(for document: TraceDocument) -> AppRoute",
+      "owning_lane": "primary_ui",
+      "notes": "Only place allowed to decide where a reopened trace lands. Only ever called on documents that already passed the gate, since rejected captures are never persisted. LOCKED."
+    },
+    {
+      "name": "CaptureService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CaptureService: Sendable { func capturePhoto() async throws -> CapturedImage }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs Camera Capture screen (AVFoundation); kept separate from ImportService per the locked permission model. LOCKED."
+    },
+    {
+      "name": "ImportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ImportService: Sendable { func importPhoto() async throws -> CapturedImage? }",
+      "owning_lane": "services_utilities",
+      "notes": "PHPickerViewController-backed; must remain fully usable when camera permission is denied. LOCKED."
+    },
+    {
+      "name": "CapturedImage",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CapturedImage: Sendable { let pixelData: Data; let orientation: CGImagePropertyOrientation }",
+      "owning_lane": "data_domain",
+      "notes": "Raw, transient bytes; the 'captured' checkpoint persists this only once the gate has passed. LOCKED."
+    },
+    {
+      "name": "NormalizationService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol NormalizationService: Sendable { func normalize(_ image: CapturedImage) async throws -> NormalizedImage }",
+      "owning_lane": "services_utilities",
+      "notes": "Applies orientation fix, perspective correction, EXIF/location/timestamp strip, before quality gate runs. LOCKED."
+    },
+    {
+      "name": "NormalizedImage",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NormalizedImage: Sendable { let pixelData: Data; let width: Int; let height: Int }",
+      "owning_lane": "data_domain",
+      "notes": "EXIF/location/timestamp already stripped by construction time; this is what gets checkpointed as normalized.heic. LOCKED."
+    },
+    {
+      "name": "QualityGateService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol QualityGateService: Sendable { func evaluate(_ image: NormalizedImage) async -> QualityGateResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure, fixture-testable; runs before vectorization, out-of-envelope images never proceed silently. LOCKED."
+    },
+    {
+      "name": "VectorizationEngine",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol VectorizationEngine: Sendable { func vectorize(_ image: NormalizedImage, simplifyStrength: Double, progress: @Sendable (ProcessingStage) -> Void) async throws -> VectorDocument }",
+      "owning_lane": "services_utilities",
+      "notes": "Actor-isolated implementation expected (e.g. actor VectorizationEngineImpl); bespoke contour cleanup/simplification/fitting/winding-classification core, not a thin Vision wrapper. progress callback drives named stage labels only, never a percent value. LOCKED."
+    },
+    {
+      "name": "EditEngine.apply(_:to:)",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func apply(_ command: EditCommand, to document: VectorDocument) throws -> VectorDocument",
+      "owning_lane": "services_utilities",
+      "notes": "Pure reducer; TraceSession.apply(_:) delegates here then persists a checkpoint. Throws only as a defensive backstop for invalid preconditions (e.g. merging <2 paths) that the UI should already prevent via disabled controls. LOCKED."
+    },
+    {
+      "name": "ExportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ExportService: Sendable { func export(_ document: VectorDocument, format: ExportFormat, fileName: String) async throws -> ExportArtifact }",
+      "owning_lane": "services_utilities",
+      "notes": "Must produce real vector paths with correct winding/fill-rule; validated via rasterize-and-diff tests against fixtures, not just XML validity. LOCKED."
+    },
+    {
+      "name": "InterruptionRecoveryState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum InterruptionRecoveryState: Sendable { case none; case resumedAt(TraceStage, traceID: UUID) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Set by AppModel.openSession when it detects an unclean prior exit; cleared via TraceSession.acknowledgeInterruptionRecovery() once the resume banner has been shown, so it never reappears on every subsequent view of the same session. LOCKED."
+    },
+    {
+      "name": "PipelineError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PipelineError: Error, Sendable { case captureUnavailable; case invalidImageData; case normalizationFailed; case qualityGateFailed(RejectionReason); case vectorizationFailed; case exportFailed(reason: String); case persistenceFailed; case checkpointCorrupted }",
+      "owning_lane": "polish_resilience",
+      "notes": "Single stable error contract across services and UI; every stage failure maps to one case and to an explicit designed error state, no silent catch-and-ignore. LOCKED."
+    },
+    {
+      "name": "AccessibilityPathAction",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func accessibilityActions(for path: VectorPath, in session: TraceSession) -> [String]",
+      "owning_lane": "polish_resilience",
+      "notes": "Backs PathListRow's direct .accessibilityAction entries (select/delete/merge) with zero required canvas interaction; verified with a real VoiceOver session per locked accessibility requirement. LOCKED."
+    },
+    {
+      "name": "AppModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class AppModel { private(set) var recents: [TraceMetadata]; func refreshRecents() async; func startNewTrace(capturedImage: CapturedImage, source: CaptureSource) async throws -> NewTraceOutcome; func openSession(id: UUID) async throws -> TraceSession; func deleteTrace(id: UUID) async throws }",
+      "owning_lane": "primary_ui",
+      "notes": "kind field has no 'class' option; this is a reference class. Takes typed CapturedImage, not raw Data. Internally: writes captured checkpoint, runs gate, deletes the folder on rejection, keeps it and returns .accepted on pass. openSession detects an unclean prior exit and sets the returned TraceSession's interruptionRecoveryState accordingly. LOCKED, confirmed by both agents in round 3."
+    },
+    {
+      "name": "CaptureSource",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CaptureSource: Sendable { case camera; case photoImport }",
+      "owning_lane": "data_domain",
+      "notes": "Disambiguates AppModel.startNewTrace's origin for internal routing only, no analytics. LOCKED."
+    },
+    {
+      "name": "accessibilityActions(for:in:)",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func accessibilityActions(for path: VectorPath, in session: TraceSession) -> [String]",
+      "owning_lane": "polish_resilience",
+      "notes": "Backs path-list direct accessibility actions for select/delete/merge without requiring canvas interaction."
+    },
+    {
+      "name": "NewTraceOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum NewTraceOutcome: Sendable { case rejected(RejectionReason); case accepted(traceID: UUID) }",
+      "owning_lane": "data_domain",
+      "notes": "Return type of AppModel.startNewTrace. On .rejected, no TraceDocument/folder persists \u2014 AppModel deletes the just-written capture checkpoint internally so no ghost folder or Recents entry is ever created. LOCKED, confirmed by both agents in round 3."
+    }
+  ],
+  "errors": []
+}

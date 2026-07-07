@@ -1,0 +1,39 @@
+{
+  "current_phase": "final_review",
+  "current_round": 0,
+  "next_agent": null,
+  "prompt_hash": "80ca9898db6f8b0a309e747327cadbeddb40bd76e9bd7cd05acc41212b42cde9",
+  "completed_phases": [
+    "iterate_scope",
+    "build_coordination",
+    "final_review"
+  ],
+  "phase_outputs": {
+    "iterate_scope": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage",
+    "build_coordination": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\n**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)",
+    "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED"
+  },
+  "last_processed": "2026-07-07 15:32:02",
+  "consensus_status": {
+    "iterate_scope": false,
+    "build_coordination": true,
+    "final_review": false
+  },
+  "vote_results": {
+    "iterate_scope": {
+      "decided": false,
+      "by": "claude"
+    },
+    "final_review": {
+      "decided": false,
+      "by": "claude"
+    }
+  },
+  "runner_pid": 59635,
+  "done": true,
+  "error": null,
+  "status": "done",
+  "workflow": "iterate",
+  "blocked_conflict": null,
+  "awaiting_approval": null
+}

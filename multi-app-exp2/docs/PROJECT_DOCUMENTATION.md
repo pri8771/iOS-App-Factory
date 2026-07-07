@@ -1,0 +1,789 @@
+# multi-app-exp2 — Project Documentation
+
+_Generated deterministically from the orchestrator's phase outputs (workflow: `app_build`). Non-AI render — nothing here is fabricated; empty phases are marked N/A._
+
+## Contents
+
+- Prompt Contract
+- Product Research
+- Portfolio Selection
+- Initial Discussion
+- Per App Product Brief
+- Next Steps Small
+- Detailed Discussion
+- App Features
+- Design Discussion
+- Design Handoff
+- Ios Architecture Review
+- Tech Specs
+- Project Plan
+- Task Assignments
+- Implementation Readiness Gate
+- Build Coordination
+- Build Verification
+- Human Qa Checklist
+- App Store Readiness
+- Final Review
+- Portfolio Audit
+
+## Prompt Contract
+
+Here's where round two actually landed.
+
+The room converged on the thing that was unresolved after round one: which app to build. Gemini looked hard at its own Scribe/CBT-journal pitch, agreed with Codex and Claude's critique — no real off-the-shelf on-device sentiment model to point at, and a therapeutic-framing liability that would balloon scope — and dropped it. Everyone is now behind Codex's idea: a local-first professional relationship-intelligence app (working name "Nurture") that helps someone remember people, spot relationships going cold, and prep context before reaching out. It's deterministic date/decay/scoring logic, which matters a lot for this group's stated bar, since it means the "real tests on core business logic" requirement is straightforward to actually satisfy rather than aspirational.
+
+On top of the idea, everyone explicitly signed onto the same guardrails: persistence sits behind a protocol with exactly one local concrete implementation for v1 (no speculative sync code), default to zero third-party dependencies unless something clearly earns its keep, the paywall is a real StoreKit 2 implementation exercised via a local StoreKit configuration file (not just a strategy doc), and whatever phase declares this "done" has to state plainly which parts were verified by building/running/testing versus which are documented intent. Claude also added, and Codex and Gemini both took, a rule that the app owns its own local person records and never requires system Contacts access to function — Contacts import is an optional accelerator, so a permission-denied state is a real, testable product state instead of decoration.
+
+One thing does not get to stand as-is: Gemini suggested relocating the actual output directory to a sandbox scratch path instead of the user's explicitly stated `/Users/pchordia/Documents/GitHub`. That's not a matter of group taste to negotiate — the user gave that path twice in the original prompt as a hard requirement, and quietly swapping it is exactly the kind of scope drift this phase exists to prevent. That suggestion is rejected; the contract keeps the original location.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Original prompt:** preserved verbatim above (Build a complete, production-ready iOS app... through "Then build it fully.").
+
+**App selected:** A local-first, native SwiftUI professional relationship-intelligence app (working name "Nurture") — helps a user maintain a durable network by tracking last-contact recency, surfacing relationships going cold, prepping context before outreach, and running a lightweight weekly maintenance ritual. Chosen over a CBT/mood-journal alternative because it's lower-risk to build and verify (deterministic scoring logic, no ML feasibility gap, no therapeutic-claims liability) while satisfying monetization, retention, and differentiation better.
+
+**Hard requirements:**
+- Output at `/Users/pchordia/Documents/GitHub/<clean-product-repo-name>` — non-negotiable, per the user's explicit instruction.
+- A real, opens-and-builds Xcode project targeting iOS 17+/Swift 5.9+, SwiftUI, native frameworks only.
+- Local-first persistence (SwiftData or Core Data) behind a repository/protocol boundary, with exactly one concrete implementation (local) in v1 — no premature sync/conflict-resolution code.
+- Default to zero third-party dependencies; add one only if it materially reduces real risk.
+- A working local paywall: StoreKit 2 + a local StoreKit configuration file, gating real entitlement logic in code — not a strategy doc.
+- Real automated tests (XCTest/Swift Testing) covering actual business logic: persistence round-trips, recency/decay/scoring calculations, and subscription entitlement gating — with an explicit statement later of what's covered and what isn't.
+- The app owns its own local contact/person records; system Contacts access is an optional import accelerator, never required to use the app — including a real permission-denied empty state.
+- Every core-journey screen has intentional empty, loading, error, and success states.
+- All ten requested deliverables exist as separate files in the repo (not folded into one README): Xcode project, source, README, product brief, monetization strategy, architecture notes, QA checklist, App Store readiness notes, setup/run instructions, and a Claude Design prompt for future visual refinement.
+
+**Non-goals:** no multi-app suite, no Android/cross-platform, no real backend/cloud server, no live App Store submission or real StoreKit sandbox transactions, no paid third-party services (analytics/crash/push SaaS), no speculative multi-device sync code, no AI/ML bolted on without a real reason (this app's core mechanics are deterministic and don't require it).
+
+**Production-readiness means:** opens and builds in Xcode against a current SDK without manual fixup; runs in simulator; demonstrates every core workflow end-to-end with real state coverage, not just happy path; data persists across relaunch; paywall is testable locally via StoreKit config; no TODO/placeholder screens on the primary journey. It explicitly does not mean App Store approval, real revenue, a signed distribution build, or live third-party integrations.
+
+**Decision rules for later phases:**
+- When effort is constrained, cut breadth before cutting polish on the core ritual — a smaller fully-real app beats a larger stubbed one.
+- A feature that doesn't strengthen recurring utility, retention, or subscription credibility is expendable.
+- Claims about monetization ("users would pay") and virality must be framed as stated product hypotheses with reasoning, never as verified outcomes or flat assertions.
+- Differentiation must show up as user-visible product behavior, not clever copywriting.
+- At completion, the final phase must explicitly enumerate, deliverable by deliverable, what is a real working artifact verified by building/running/testing versus what is written intent — this cannot be papered over by confident prose.
+
+## Product Research
+
+Consensus reading, then moving on.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Audience and use context:** Not "anyone with contacts" — specifically busy professionals whose income or opportunities depend on network maintenance: founders, consultants, recruiters, investors, salespeople, business developers, community builders. Usage is bursty and moment-driven, not daily habitual: right after meeting someone (capture while memory is fresh), right before reaching out (need context fast), and a weekly maintenance ritual (the retention engine). Everyone agrees a bursty-then-quiet usage pattern is itself a risk — the app has to have something useful to say in the quiet stretches or it gets forgotten between bursts.
+
+**Comparable apps/patterns:** Dex, Clay, Covve, Cloze, UpHabit, Folk, Monica, and Notion personal-CRM templates already occupy this space — this is a real, funded category (Clay especially), so "personal CRM" alone isn't differentiation. The pattern to borrow: timeline + next-step clarity, calm scanability, fast add, strong empty states — the good parts of Contacts/Reminders/Notes. The pattern to avoid: dense grids, pipeline jargon, deep field entry — becoming a miniature Salesforce for personal life. The group's agreed differentiator is treating relationship warmth as a visibly decaying signal driving the entire core loop (dashboard, notifications, weekly ritual), not a buried sort option — if that mechanic isn't the spine of the product, it's just Dex with nicer fonts.
+
+**Platform-specific opportunities:** Home-screen widget surfacing a small "going cold" queue, local notifications for the weekly review, App Intents/Siri Shortcuts and/or a share-sheet extension for frictionless capture ("logged a note about X") without opening the app, Face ID/passcode gate on launch (justified because the app stores sensitive personal opinions about named real people, not generic notes), fast one-tap logging, haptics on triage actions. Explicitly out: anything scraping calls/messages/email automatically — too fragile and privacy-invasive for v1.
+
+**Major assumptions/risks (at least three, clearly labeled as assumptions):**
+1. Assumption: manual logging is the only capture path in a local-first v1 (no email/calendar scraping) — risk that if logging friction is too high, retention collapses; mitigation is one-tap logging plus a share-extension/App-Intent path, not just an in-app form.
+2. Assumption: the "intelligence" here is deterministic decay/scoring math, not ML — risk of overpromising smartness the data model can't back up; framing must be "private relationship operating system," not "AI knows your network."
+3. Risk: guilt-trip tone. A dashboard that only ever shows who you're neglecting will drive uninstalls, not subscriptions — needs capped queues, humane snooze, a genuine "all caught up" success state, and supportive copy.
+4. Risk: cold-start emptiness — a CRM with zero people is worthless, so optional Contacts import is a real onboarding lever, not a checkbox feature, precisely because manual entry alone is too slow to reach a first "aha."
+5. Risk: arbitrary paywalls (e.g. gating by contact count) read as cheap and undercut the monetization thesis the contract already commits to — premium should gate ongoing intelligence (weekly digest, batch resurfacing, richer pre-outreach context), not basic tracking.
+6. Assumption: virality here is indirect/niche (reputation spillover from being visibly thoughtful) — not literal invite-a-friend sharing; forcing a broad-viral hook would be manufactured and against the group's own anti-novelty rule.
+
+**Implications for the first build:** Home screen is an opinionated action queue (needs attention / new / maintain momentum), not an alphabetical contact list. Person creation under a minute. Detail view leads with context/next-step before raw facts. Weekly ritual is a short, satisfying, completable queue — the core retention mechanic. Decay/scoring logic must be deterministic, transparent to the user (show *why* someone reads as cooling), and built with an injectable clock from day one so the business-logic tests the contract already requires are actually honest. The app's local person store stays fully independent of system Contacts — permission-denied is a normal, well-designed empty state, not a dead end. Every core screen needs its real empty/loading/error/success states worked out now, including the "good" state (nobody's going cold) so the product doesn't read as pure anxiety machinery.
+
+## Portfolio Selection
+
+All three agents converged fully — this is a single-app run, no portfolio split needed.
+
+CONSENSUS: YES
+
+## Final Output
+
+This is a single-app run, not a portfolio. The original prompt asked for exactly one iOS app, and that decision was already locked in two phases ago (the relationship-intelligence app, working name "Nurture"). No `portfolio-json` manifest is required — this phase explicitly records that no split is needed.
+
+**Single-app vs portfolio-parent decision:** Single app. No sibling projects, no portfolio manifest.
+
+**Selected app:**
+- **Name/slug:** Nurture (working name) / `nurture-ios`
+- **Category:** Professional relationship intelligence (personal CRM / productivity)
+- **Promise:** A private, local-first iPhone app that helps busy network-dependent professionals remember people, see which relationships are cooling via deterministic recency-decay scoring, capture context fast after meetings, and run a short, satisfying weekly follow-up ritual.
+- **Target user:** Founders, consultants, recruiters, investors, salespeople, and other professionals whose income or opportunities depend on maintaining a warm network.
+- **Build flag:** true
+
+**Selection rationale:** Directly inherited from the prompt_contract and product_research phases — Nurture beat the alternative (a CBT/mood-journal app called "Scribe") because it uses deterministic date/decay/scoring logic that's honestly testable, carries no ML-feasibility gap or therapeutic-claims liability, and better satisfies the monetization/retention/differentiation bar. No new alternatives were introduced this phase; nothing else was up for selection.
+
+**Rejected alternatives:** Scribe (CBT mood journal) — already killed in prompt_contract on feasibility and liability grounds. No portfolio split, no second/companion app — the prompt asked for one app, and inventing siblings would violate the "smaller fully-real app beats a larger stubbed one" rule the group already committed to.
+
+**Additional guardrails the group agreed to carry into build:** All supporting capabilities (widget, App Intents, share extension) live as targets inside the single `nurture-ios` Xcode project, not spun out separately. The three core jobs — person/relationship store, decay/scoring engine, weekly ritual UI — must each be built as first-class, fully realized flows rather than one being an afterthought (the weekly ritual specifically needs its own onboarding, empty, and completion states, not just a filtered dashboard view). The domain logic (models, scoring, repository protocol) should live in a separately testable module/framework target so the core-business-logic testing requirement isn't fighting project structure later.
+
+**portfolio-json:** Not applicable — explicitly recording that this is a single-app run and no manifest is required.
+
+## Initial Discussion
+
+All three converge cleanly on the product shape this round — no real fight left, just three complementary layers of detail stacked on the same idea.
+
+Codex nailed down the promise and the emotional bar: Nurture has to feel lighter than the problem it solves — fast capture, transparent scoring, a real "caught up" state — or it degenerates into guilt software nobody reopens. Claude took that and made it mechanically concrete: per-person cadence tiers (Close/Regular/Occasional) instead of one global clock, day-zero anchored at creation so a brand-new contact never reads as already cooling, a capped/ranked weekly ritual queue with an honest "more waiting next week" message instead of dumping everything on the user, and an App Group container decision made now (not discovered later) because the widget/share-extension/App Intents targets need to share the local store with the main app. Claude also flagged that the widget has to show initials/counts by default rather than full names, since a lock-screen widget blasting real names would quietly defeat the Face ID gate everyone already agreed to. Gemini came at it from QA and locked in the testability and durability requirements: injectable date provider for the decay engine (non-negotiable, or the test suite is fake), Face ID with passcode fallback so nobody gets locked out of their own notes, a flat versioned SwiftData schema from day one to avoid migration brittleness, and a StoreKit paywall that's actually gating real feature code against a local config file, not a cosmetic screen.
+
+Nobody's arguing against anybody else here — each round added detail the others hadn't specified rather than contradicting it. The four required outputs (promise, primary user/scenario, core loop, boundaries, success criteria) are all answered, and answered the same way by all three.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Product promise:** Nurture is a private, local-first iPhone app that helps busy, network-dependent professionals capture context on people they meet, see who's genuinely at risk of going cold through transparent, personalized decay scoring (not one global clock), and clear a short, capped weekly ritual that turns that signal into real outreach — without ever requiring system Contacts access.
+
+**Primary user and scenario:** A solo consultant, founder, recruiter, or investor who meets a lot of people and can't reliably hold context across weeks. The two moments that matter most: (1) right after meeting someone — add them and jot a note in under a minute, before the conversation's even fully over; (2) a short Sunday-evening ritual where the app hands over a small, ranked, capped queue of people worth reconnecting with and explains, in plain terms, why each one is there.
+
+**Core loop:** Add or import a person fast (default cadence tier: Regular, changeable later, so capture never gets blocked by a decision) → log a quick note/interaction → each person's "clock" is anchored at creation (never at zero, so a brand-new contact never shows up already cold) and scored as elapsed-time-since-last-touch relative to their personal expected cadence → the weekly ritual surfaces a capped, ranked, explainable queue → user acts per person (log outreach, snooze to a real future date, or archive) → ritual ends in a genuine completion/celebration state, not just an empty list.
+
+**Hard scope boundaries:** No automatic ingestion of calls/messages/email/calendar. No team, multi-user, or social/sharing features. No CRM pipeline jargon, tags-as-taxonomy, or custom field builders. No real backend or push infrastructure — local notifications only. Contacts import stays a strictly optional onboarding accelerator; the app owns its own records and works fully with zero contacts or a denied Contacts permission. No indefinite/permanent snooze that quietly does nothing — a person eventually resurfaces or gets archived, no fake third option. Premium value comes from ongoing intelligence/ritual depth, never from crippling basic tracking or gating by contact count.
+
+**Measurable success criteria (build-time, checkable facts, not business outcomes):**
+- Every core screen (onboarding incl. Contacts-denied path, dashboard, person detail/add/log, weekly ritual) demonstrably reaches its empty, loading, error, and success states in the simulator.
+- The decay/scoring engine runs on an injectable date provider (no direct `Date()` calls in scoring logic) and has unit tests with fixed clocks proving specific inputs produce specific cadence-tier transitions, including the day-zero-at-creation rule.
+- Adding a person and logging a first note takes five taps or fewer / under a minute.
+- The weekly ritual is fully completable end-to-end, is capped rather than showing every cooling relationship at once, and ends in a distinct, real completion state.
+- Face ID gates the app with a working passcode fallback (LocalAuthentication), so nobody can get locked out of their own data.
+- The paywall gates a named recurring-value feature via a real local StoreKit 2 configuration file, not just a described strategy.
+- Widget/App Intents/share-extension share the local store via an App Group and default to low-detail display (initials/counts, not full names) to preserve the privacy promise of the Face ID gate.
+- Persisted data (SwiftData, flat versioned schema) survives app relaunch in the simulator.
+
+## Per App Product Brief
+
+CONSENSUS: YES
+
+## Final Output
+
+Round two closed out the one real fight from round one. Gemini looked hard at gating Face ID and contact counts behind the paywall, heard Codex and Claude's case that both would break trust exactly when it matters most (right when a user is deciding whether to trust the app with sensitive opinions about real people, and right when they're dumping a dozen new contacts in after a conference), and dropped both gates without reservation — updating the actual product_brief.md file to match, not just the spoken position. Everyone's now aligned on one clean monetization line, and Claude specifically flagged pre-outreach context briefs as the feature that has to earn its keep by doing real synthesis work, not just reformatting notes the free tier already shows — Gemini took that further with a concrete idea (a structured "briefing card" pulling relational anchors like names/facts/open threads out of notes) that stays deterministic, no ML bolted on, consistent with the group's earlier decision to avoid forcing AI in. No open disagreements remain.
+
+**Target user and use case:** Solo consultants, founders, recruiters, investors, and salespeople whose income depends on maintaining a warm professional network but who don't want to live inside a CRM. The two moments that matter: capturing context within a minute of meeting someone, and a short weekly ritual that turns decayed relationships into an actionable, capped follow-up queue.
+
+**Paid value and subscription value — final split:**
+- **Free (baseline, not a stripped demo):** unlimited people, unlimited notes, full cadence-tiered decay scoring with a visible per-person "why" explanation, Face ID/passcode gate, and a preview of the weekly ritual (top 3 cooling relationships, with an honest "X more waiting — upgrade to see your full queue" message).
+- **Paid (the ongoing intelligence layer):** the complete capped ritual queue, pre-outreach context briefs (the flagship feature — a synthesized "briefing card" extracting relational anchors like names, key facts, and the last open thread from note history, not just a reformatted note scroll), batch resurfacing after a dry spell, custom per-person cadence tuning beyond the three defaults, and relationship-health trend history.
+- Face ID and contact volume are explicitly baseline trust/utility, never premium levers — gating either would read as "we don't protect your privacy until you pay" or interrupt the highest-value onboarding moment (dumping in contacts right after an event).
+
+**Core loop:** Add a person in under a minute (default cadence: Regular, no setup tax) → log a quick note → day-zero anchored at creation so new people never read as already cold → home screen shows a ranked, explainable attention queue, not an alphabetical list → weekly ritual surfaces a capped queue → user logs outreach, snoozes to a real date, or archives → ritual ends in a genuine completion state.
+
+**Competitive wedge:** Relationship warmth is the organizing principle of the entire UI, not a buried filter — every important screen answers "who needs me, why, and what's the smallest useful action," with a transparent, visible per-person explanation (e.g., "6 weeks since contact, expected cadence 2 weeks — cooling"). This is what separates Nurture from database-shaped competitors (Dex, Clay, Cloze, Monica) that you have to open and search.
+
+**Viral or niche growth angle:** Reputation spillover, explicitly framed as a stated hypothesis, not a verified acquisition channel — a user who shows up unusually well-prepared and follows through consistently gets asked what tool they use. No invite mechanic, no social graph; those would be manufactured for a private single-player tool.
+
+**Local-first and cloud-ready plan:** One local SwiftData implementation behind a `RelationshipRepository` protocol boundary — zero sync/conflict-resolution code this pass. App Group shares the local store across the main app, widget, App Intents, and share extension; passive surfaces (widget) default to counts/initials, never full names, to preserve the Face ID privacy promise. The protocol seam is the entire cloud-readiness story; nothing further gets built now.
+
+**The real reason this app deserves to exist:** Notes and Reminders don't score anything, Contacts doesn't know what "cold" means, and existing personal-CRM competitors are database-shaped tools you have to go open and search. Nurture is the only one putting "who needs me this week and why" on the home screen as a computed, transparent, per-person signal — and it monetizes by doing that computation and weekly synthesis well, not by gating storage or safety.
+
+## Next Steps Small
+
+CONSENSUS: YES
+
+## Final Output
+
+Everyone landed in the same place by the end of round two. The one real fight — whether the flagship "briefing card" (the synthesized pre-outreach summary) belongs in the very first proving slice — got resolved with Claude conceding the point after Codex reframed the question: this slice exists to answer "does the core warm→cooling→ritual→relief loop feel meaningfully better than Contacts+Notes," not "can we build a premium feature." Cramming in the briefing card would have muddied that experiment (if it flopped, nobody would know whether to blame the loop or the card). So the card is out of slice one entirely — not stubbed, not faked — but its data shape gets seeded now: the note-logging flow gets two optional fields ("key fact" and "open loop") behind a disclosure chip, so slice two has real structured data to build the card from later, without adding friction to the five-taps-or-fewer capture flow.
+
+In exchange, the group agreed to pour the effort that would've gone to the card into making the plain mechanics unusually sharp: the per-person "why now" explanation should read like the app understands the relationship (referencing the actual last note, not just a raw day-count), and the ritual completion screen should name what actually happened in that session, not generic "you're all caught up" copy. Gemini's idea of a hidden debug time-travel panel (built on a swappable `DateProvider` protocol) was adopted by all three as load-bearing, not a nicety — it's the only realistic way to QA decay transitions and paywall gating without waiting for real time to pass. Gemini also flagged a practical build detail everyone accepted: Face ID needs to be toggleable/gracefully handled in the simulator so it doesn't block day-to-day development.
+
+**MVP slice:** Main app target only (no widget, share extension, or App Intents UI this pass — architecture stays extension-ready via App Group container, but nothing beyond that gets built now). It includes: onboarding with a real Contacts-denied branch and Face ID/passcode setup; manual add-person under a minute with a default "Regular" cadence; a note-logging flow with a required freeform note plus an optional "+ add a detail" disclosure revealing "key fact" and "open loop" fields; a home dashboard as a ranked, explainable attention queue (not an alphabetical list); a weekly ritual screen with a capped queue and exactly three actions per person (log outreach / snooze to a date / archive), ending in a crafted, specific completion state; SwiftData persistence behind the `RelationshipRepository` protocol; an injectable `DateProvider` powering the scoring engine, paired with a DEBUG-only panel to jump the clock forward by day/week/month; and a local StoreKit 2 paywall gating exactly one thing — the full ritual queue beyond a free top-3 preview.
+
+**Must-have interactions:** Add a person and log a first note in under a minute / five taps or fewer. Tap into a person and see a plain-language "why now" explanation tied to their actual last note, not a bare day-count. Open the ritual, take at least one action, and reach a completion screen that reflects the specific actions taken that session. Use the debug panel to jump time forward and watch warmth scores and the ritual queue update correctly. Hit the paywall specifically when trying to see past the top-3 free ritual preview. Relaunch the app and confirm all data (people, notes, ritual state) persisted.
+
+**Cut list:** Contacts import/CNContactStore picker, home-screen widget, share extension, App Intents, custom per-person cadence editing beyond the three default tiers, relationship-health trend history, batch resurfacing, and — the one item that took real debate to settle — the user-facing pre-outreach briefing card. Its underlying optional data fields are seeded now; the synthesized card UI itself is explicitly slice two.
+
+**Validation criteria:** A fresh install can go fully offline from zero to one archived-or-snoozed person through a completed ritual. Scoring engine unit tests use the injectable clock to prove specific fixed-date inputs produce specific cadence-tier transitions, including day-zero-anchored-at-creation. The debug time-travel panel correctly forces warmth-state and ritual-queue changes. The local StoreKit configuration actually gates and unlocks the full ritual queue (not just displaying a price). Face ID/passcode works with a simulator-friendly toggle so it doesn't block development. Data survives a simulator relaunch. Someone unfamiliar with the project can go from launch to a logged note on a new person in under sixty seconds unassisted.
+
+## Detailed Discussion
+
+CONSENSUS: YES
+
+## Final Output
+
+Round two closed out everything that was still open. Claude gave up the 0.75 early-warning band once Codex pointed out the math — for an Occasional relationship that's flagging someone 45 days before anything's actually wrong, which is the guilt-machine failure mode the whole product exists to avoid. Everyone locked onto Codex's cleaner formula instead. Contacts permission got resolved the same way: Claude actually went back and found that the earlier phase's own output was self-contradictory (it demanded a "real Contacts-denied branch" while also cutting Contacts import from the same slice — you can't have a real denial screen for a permission you never had a reason to request), so Codex's call to drop the Contacts prompt entirely isn't a scope override, it's a bug fix in a prior decision. Face ID's DEBUG-only carve-out, the export/delete re-auth requirements, and the snooze-doesn't-reset-the-clock rule all landed the same way across all three without anyone pushing back.
+
+**Resolved requirements:**
+- **Decay math, final:** cadences fixed at Close = 14 days, Regular = 42 days, Occasional = 180 days. Ratio = elapsed time since `max(createdAt, lastInteractionAt)` divided by cadence, recomputed live on every read from the injectable `DateProvider` — never cached or persisted as a stored field. States: **warm** (ratio < 1.0), **cooling** (1.0 ≤ ratio < 1.5), **cold** (ratio ≥ 1.5) — boundaries are inclusive on the lower state exactly as stated. Ritual queue includes everyone at ratio ≥ 1.0, sorted descending by ratio, hard-capped at 10; free tier sees the top 3 only when the full queue actually exceeds 3.
+- **Contacts, corrected:** no `CNContactStore` usage, no permission prompt, and no Contacts entry in `Info.plist` anywhere in this slice. Onboarding states plainly that Nurture works fully without Contacts and routes straight to manual add. A real permission-denied branch becomes relevant only once import ships in a later slice — this is recorded as a correction to `next_steps_small`'s internally-inconsistent requirement, not a silent scope drop.
+- **Face ID, final:** on by default in the shipped app, requested during onboarding, using `deviceOwnerAuthentication` (biometric with automatic passcode fallback). Relocks on cold launch and after a short background grace window (~2 minutes), not on every scene-phase transition. If a device has neither biometrics nor a passcode enrolled, the app runs unlocked with a persistent, dismissible warning rather than blocking access. The dev-convenience disable toggle and the debug time-travel panel are both wrapped in `#if DEBUG` at the view level (compiled out of Release entirely, not just defaulted off), with an explicit QA checklist line item to verify neither exists in a Release archive.
+- **Person lifecycle, final:** three distinct actions — snooze (hides until a real, validated future date; does not reset the clock, so a person can resurface already cooling/cold, by design), archive (stops active tracking, keeps history, can be reversed), and a new fourth action, permanent delete (irreversible, requires a fresh biometric/passcode challenge immediately before executing, confirmed via a destructive-styled "Delete Permanently" action rather than a generic OK dialog).
+- **Local export, newly in scope:** a minimal manual JSON export from Settings via `fileExporter`/`ShareLink`, gated by a fresh LocalAuthentication challenge immediately before export (not reliant on the current session's unlock state), with an explicit on-screen warning that the exported file is unencrypted and no longer protected by the app's Face ID gate once it leaves the sandbox.
+- **Architecture, final:** SwiftData repository runs on the main actor (acceptable at this app's realistic scale); App Group container is the default persistence location with automatic fallback to the standard Application Support directory when the App Group entitlement can't be resolved, so the project builds without a paid developer account.
+- **Restore Purchases / entitlements:** must check live via `Transaction.currentEntitlements`, not a cached boolean, with a real "Restore Purchases" affordance so reinstall-and-restore doesn't silently break the paywall.
+
+**Edge cases enumerated:** zero-people empty state; single-person-never-logged-again state; queue overflow beyond the cap of 10 (never dump the full list, always show a "N more waiting" message); paywall never appears unless the free preview is genuinely truncated (no ambush for 1-2 due items); snoozed person reappearing already deep in cooling/cold once the date passes; archived person never silently resurfacing; app termination mid-ritual (progress must survive relaunch); DST/timezone shifts must recompute via `Calendar`-based day counting, not raw `TimeInterval`, to avoid off-by-one cadence bugs; duplicate-name warning (lightweight, not a full dedupe system) on new-person creation; snooze date validation (no past dates, no absurd far-future dates functioning as a fake permanent mute); notification permission denial falls back to in-app badges/banners rather than depending on push; devices with no enrolled passcode/biometrics get unlocked-with-warning rather than a hard lock.
+
+**Data and privacy implications:** no network dependency, no analytics SDKs, no remote note processing anywhere in v1. No lock-screen/passive-surface display of full names (carried forward from earlier phases for future widget work). Local export is the one deliberate hole in the "sensitive data never leaves the sandbox unprotected" promise, and it's mitigated with re-auth-at-the-moment-of-export plus an explicit warning rather than silently allowed. Same fresh-re-auth requirement applies to permanent delete, for friction/intentionality reasons rather than privacy ones. No backup/sync beyond normal device-level iOS behavior — losing the phone without an export means losing the data, and that limitation is disclosed rather than hidden.
+
+**Risk register:**
+- Guilt-spiral dashboard → mitigated by hard queue cap, supportive copy, snooze/archive escape valves, and a real completion state (locked in prior phases, reaffirmed here with exact numbers).
+- Trust collapse from inconsistent privacy posture → mitigated by baseline (not paywalled, not defaulted-off) Face ID with passcode fallback, no unnecessary permission requests, local-first-only data flow.
+- Retention collapse from slow first value → mitigated by no Contacts-permission detour, manual add + first note under a minute as the only onboarding path.
+- Arbitrary-feeling paywall → mitigated by gating only ritual-queue depth beyond a genuinely-exceeded top-3 preview, never storage or safety.
+- State-transition bugs (snooze/archive/relaunch/DST) → mitigated by deterministic, derived-at-read-time scoring and explicit test coverage per transition, calendar-based date math.
+- Data loss with no recovery path → mitigated (not eliminated) by adding minimal authenticated local JSON export; residual risk (no restore/import, no sync) is accepted and disclosed rather than solved this pass.
+- Optimization temptation to cache warmth as a stored field → explicitly flagged and rejected in advance: warmth/ratio/state must remain derived at read time only, or the debug time-travel panel becomes dishonest.
+
+**Final assumptions:** one device, no sync/cloud/backup beyond the new manual export; one local SwiftData implementation behind the repository protocol; zero Contacts permission requests or CNContactStore usage this slice; no automatic ingestion from email/messages/calendar; no cached/persisted warmth scores anywhere; accessibility (VoiceOver labels on warmth explanations, Dynamic Type support) treated as in-scope per the global rules even though no earlier phase named it explicitly; if effort runs tight, cut breadth before cutting capture speed, explanation quality, ritual flow, completion-state craft, or any of the trust mechanics (Face ID, export, permanent delete) locked in this phase.
+
+## App Features
+
+Looking at how this round played out: Codex and Claude both came down hard on Gemini's round-1 should/could list, arguing Contacts import, widget, custom cadences, and batch resurfacing aren't "maybe if there's time" items — they're invasive scope reopenings that the group already spent two prior phases explicitly closing off, each carrying hidden test/build surface (CNContactStore auth states, App Group lock-screen privacy review) that isn't budgeted for. Gemini's round-2 response accepted this and reported updating the actual `app_features.md` file to move contacts/widgets/App Intents/briefing-card explicitly to won't-build, matching Codex and Claude's position without pushback.
+
+On accessibility, all three landed on the same resolution: not a standalone should-have bullet, but a named, testable bar folded into each must-have's acceptance criteria — Claude even nailed down four concrete checks (combined VoiceOver element for the "why now" sentence, "3 of 7"-style progress value on the ritual screen, one announced completion summary, and Dynamic Type legibility at accessibility-XXL for lock/warning states), and Codex signed onto exactly that shape rather than a separate feature line.
+
+The must-have spine itself was never really in dispute — onboarding with no Contacts prompt, fast capture under 5 taps, the explainable warmth dashboard, the capped weekly ritual with its three exits, person lifecycle (archive/delete), local export, StoreKit gating, and the DateProvider/debug panel all showed up basically identically across all three agents from round one onward. Claude also pinned down two boundary details worth holding onto explicitly: the paywall teaser threshold (exactly 3 qualifying = no teaser, exactly 4 = "1 more waiting") and a capped, four-scenario acceptance test for export/delete (success and cancel-leaves-nothing-changed for each) so those trust features don't quietly balloon into an open-ended test matrix.
+
+One loose thread: Gemini's round-2 message summarized the file update rather than pasting the actual won't-build list and acceptance-criteria text in full, so it's not 100% visually confirmed that custom cadences and batch resurfacing (as opposed to just contacts/widgets/App Intents/briefing card) are explicitly named in the written won't-build list — but nothing in Gemini's response defends keeping them, and they were already locked out in earlier phases, so I'm reading this as accepted rather than a live disagreement.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Must-have features (each carries a user story + acceptance criteria, restated below in checkable form):**
+
+1. **Onboarding & trust setup** — no Contacts prompt anywhere; app states plainly it works fully without Contacts; Face ID/passcode offered on first run, defaults on when available; devices with neither get unlocked-with-persistent-warning, never a dead end.
+2. **Fast manual person creation + first note** — person + first note in 5 taps or fewer; default cadence Regular; lightweight non-blocking duplicate-name warning; optional "key fact"/"open loop" fields behind a disclosure chip, skippable entirely.
+3. **Deterministic warmth + "why now" explanation** — live-computed from the locked 14/42/180-day cadences and injected clock; warm/cooling/cold boundaries exactly match ratio rules (cooling at ratio ≥ 1.0, cold at ratio ≥ 1.5); explanation sentence references actual last-note content/timestamp, not a bare day count; exposed as one combined VoiceOver element per person.
+4. **Dashboard as ranked action queue** — sorted by ratio descending; distinct zero-people, nobody-cooling ("in good shape"), and active-queue states; paywall teaser only appears once qualifying count exceeds 3 (exactly 3 = no teaser, exactly 4 = "1 more waiting").
+5. **Weekly ritual as its own session flow** — capped at 10, "N more waiting" message beyond the cap; exactly three actions (log outreach / snooze to a validated future date / archive); snooze hides without resetting the clock; completion screen names the specific actions taken that session; progress and completion state survive app termination/relaunch; ritual progress exposed as an accessible "3 of 7"-style value, completion summary as one announced element.
+6. **Person detail & lifecycle actions** — chronological notes plus live warmth explanation; archive (reversible, hidden from active queries, history retained); permanent delete (irreversible, fresh biometric/passcode challenge immediately before executing, destructive-styled confirmation) — tested via exactly two scenarios: successful re-auth deletes and is gone on relaunch; cancelled/failed re-auth leaves everything untouched on relaunch.
+7. **Real StoreKit 2 paywall** — live entitlement check via `Transaction.currentEntitlements` (never cached); gates only the full ritual queue beyond the free top-3; working Restore Purchases; never gates privacy, storage, or basic scoring.
+8. **Local persistence, export, and release-safe debug tooling** — SwiftData behind the repository protocol persists across relaunch (people, notes, snooze/archive state, entitlement UI); JSON export via Settings requires a fresh auth challenge regardless of session state, shows an unencrypted-file warning, produces no file on cancel — tested via exactly two scenarios mirroring delete; App Group storage falls back cleanly to Application Support; debug time-travel panel and Face-ID-disable toggle both wrapped in `#if DEBUG`, verified absent from a Release archive.
+9. **Accessibility as a cross-cutting bar on every must-have above** — not a separate feature, but a named, testable acceptance condition per screen (combined accessibility elements, exposed progress values, single announced summaries, Dynamic Type legibility at XXL on trust/lock screens).
+
+**Should-have:** local weekly reminder notification requesting permission only once there's real value to notify about, with in-app badge/banner fallback on denial; a settings surface clearly showing privacy posture, export risk, and subscription status.
+
+**Could-have:** small ritual polish (haptics, progress phrasing, stronger empty/success illustration) — cut immediately if it competes with core-loop build time or quality.
+
+**Won't-build this slice:** Contacts import / any `CNContactStore` usage or Info.plist Contacts entry; home-screen widget; share extension; App Intents UI; the synthesized pre-outreach briefing card UI (its data fields are already seeded, per earlier phases); custom per-person cadence editing beyond the three fixed tiers; relationship-health trend history; batch resurfacing; search/filtering on the people list (a search-first surface is a different app than one built on computed attention); any email/message/calendar/call scraping; cloud sync, accounts, or collaboration features; any analytics/crash-reporting/marketing SDK.
+
+**Design discipline carried forward:** the dashboard (orientation: who needs me, why) and the weekly ritual (bounded action session with a real finish line) must stay two distinct screens with distinct roles — blurring them turns the product back into a generic list app, which is the single biggest risk to the whole concept surviving contact with build.
+
+## Design Discussion
+
+Reading through round one, all three actually landed in the same place without much friction — Codex mapped the product flow, Claude fleshed out every screen's craft and states, and Gemini backed both of them up from the architecture side (computed-at-read warmth, main-actor repository, reauth wired to the exact moment of delete/export). Nobody is fighting here: Claude's "no tab bar, ritual as an event not a destination" call lines up cleanly with Gemini's "single-active-navigation stack," and Codex's screen list matches Claude's almost one-for-one, just described from a different angle. The one stylistic difference — Codex sketches a separate "log interaction" sheet while Claude folds the first note into the Add Person flow with an optional follow-on sheet — isn't a real disagreement, just two ways of describing the same "capture value immediately" requirement, and both agree the mechanism (required note, optional disclosure fields, save-without-touching-them) is identical.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Screen inventory (8 screens/flows):**
+1. **Launch/Lock** — Face ID/passcode gate on cold launch and after ~2min background grace period; states: authenticating, unlocked-with-warning (no biometrics/passcode enrolled), failed-with-passcode-retry.
+2. **Onboarding** — three short beats: what the app is/isn't (explicitly: never reads Contacts/messages/calendar), Face ID/passcode setup framed as protection not friction, straight into Add Person. No permission prompts, no paywall preview here.
+3. **Add Person** (sheet) — name, cadence segmented picker (default Regular), immediately followed by a required one-line first note; "+ add a detail" disclosure (closed by default) reveals key fact / open loop; inline non-blocking duplicate-name warning.
+4. **Dashboard** (the app's one true home, no tab bar) — ranked, explainable attention queue; a ritual-entry card appears pinned above the queue only when something is due, and disappears into the good-shape state when it's not.
+5. **Person Detail** — warmth explanation as a full sentence referencing the actual last note, reverse-chronological timeline, archive (easy to reach) and permanent delete (deliberately harder to reach, destructive-styled, fresh re-auth before confirming).
+6. **Ritual** (full-screen modal, entered deliberately) — one bounded, capped session; progress indicator; three equally-weighted actions (log outreach / snooze / archive); ends in a completion screen naming the session's specific actions.
+7. **Paywall** — a destination reached only from the ritual/dashboard overflow point when the free top-3 is genuinely exceeded, never a floating upsell; own loading/error/success/restore states.
+8. **Settings** — privacy lock status, subscription + Restore Purchases, export (warning shown before the auth prompt), archived people, full reset/delete, DEBUG-only panels.
+
+**Primary user flow:** Onboarding (no Contacts ask) → Face ID/passcode setup → empty Dashboard with one dominant CTA → Add Person + first note in the same motion (under a minute) → Dashboard now feels alive even with nobody due yet → once someone crosses warmth ratio 1.0, the ritual-entry card appears → user enters the Ritual, acts on a capped queue, hits a real completion state, returns to Dashboard → paywall only ever appears at the point the free preview is genuinely exceeded.
+
+**State model per screen:** Dashboard has four distinct states (zero-people, populated-but-nobody-due "good shape" success state, active ranked queue, free-tier-truncated with exact 3-no-teaser/4-shows-"1 more waiting" boundary). Add Person has clean-empty, inline duplicate warning (non-blocking), validation error (blank name/note), success handoff. Person Detail has no-notes-yet, active history, archived, delete-confirmation, and canceled-reauth-leaves-everything-untouched. Ritual has no-one-due, under-cap queue, paywall-truncated queue, over-cap "N more waiting," interrupted-and-resumed-after-relaunch, and named completion state. Paywall has loading/error(StoreKit unreachable, app still usable free)/success/restore. All warmth math stays exactly as locked previously: ratio = elapsed/cadence off `max(createdAt,lastInteractionAt)`, warm <1.0, cooling 1.0–<1.5, cold ≥1.5, computed live via `DateProvider`, never cached.
+
+**Visual direction:** Calm, bright, "expensive," not dark/techy — warm neutrals, generous spacing, restrained single accent color reserved for state changes. Warmth signals read as a gradient nudge (warm-to-cool), never alarm-red. Dashboard and Ritual share the same card language and "why now" sentence so they feel like one coherent app, while remaining structurally separate screens with separate entry/exit points. Ritual can take slightly stronger visual framing (a focused "mode") than the calmer dashboard. Illustrations only where they earn their place — the empty and good-shape success states deserve real craft, not placeholder copy.
+
+**Accessibility notes (cross-cutting, per screen, not a separate feature):** each dashboard/ritual card exposes its "why now" sentence as one combined VoiceOver element; ritual progress exposes an explicit accessible value ("3 of 7"); completion screen announces one summary element, not scattered labels; lock/unlocked-warning copy and destructive actions (delete, export) stay legible and unmistakable at accessibility-XXL Dynamic Type, never relying on color alone. Copy for "why now" explanations must gracefully degrade to something plain when the underlying note is thin, so the app never appears to perform intelligence it doesn't have.
+
+**Design principle carried forward as the load-bearing rule for this phase:** Dashboard answers "who needs me, and why now" (orientation/reassurance); Ritual answers "what's the smallest useful session I can finish this week" (bounded action/relief). They share visual language but must never collapse into a single generalized list screen — that's the one failure mode everyone flagged as fatal to the product's wedge.
+
+## Design Handoff
+
+CONSENSUS: YES
+
+## Final Output
+
+Everyone landed on the same builder-ready handoff, with two things resolved this round that were still open after round one.
+
+**The ritual-snapshot rule (now fully specified, not just an idea):** the Dashboard stays live-computed always. The Ritual is different — once a session starts, the queue's membership, order, and the "why now" explanation text shown for each person are frozen for that session, so nothing silently reorders or vanishes mid-review because the debug clock moved or an earlier action shifted the math. Codex extended this to freeze the explanation copy itself, not just membership/order. Claude (systems) then closed the real gap: that freeze can't just live in view-model memory, or it breaks the already-locked "ritual survives app termination" requirement — so there's now a small persisted `RitualSession` record (session id, frozen ordered list of people with their ratio/state/explanation as captured at entry, and a per-person resolution status) that gets rehydrated verbatim if the app is killed mid-session, giving a real "resume this week's review" state instead of a blank or re-randomized one. One subtlety everyone should hold onto: the *content* of the frozen queue never changes mid-session, but the *entitlement check* gating how much of it you can see stays live — so if someone subscribes mid-ritual, the previously-hidden people reveal themselves in place rather than requiring an exit/re-entry. Those are explicitly two separate axes (frozen content vs. live paywall visibility), not one boolean.
+
+**No external design pause:** unanimous, explicit yes on all three sides. The screen inventory, four dashboard states with the exact 3-vs-4 paywall boundary, token roles, component list, motion/reduce-motion behavior, and now the ritual-session architecture are all specified enough for a SwiftUI builder to work directly from this handoff. The Claude Design prompt is included as the originally-requested deliverable #10, explicitly scoped as a future visual-refinement pass on an already-built app — not permission to reopen the information architecture.
+
+**What's locked for the handoff itself:**
+- 8 screens (Launch/Lock, Onboarding, Add Person, Dashboard, Person Detail, Ritual, Paywall, Settings), each with layout intent, states, and navigation mechanism (NavigationStack root + sheet/fullScreenCover only for Add Person/Ritual/Paywall).
+- Design tokens as roles, not hexes: warm linen canvas, lifted cream surface, one ink text color, one restrained amber/terracotta accent (CTAs and state changes only), soft desaturated green for good-shape/completion, muted destructive red reserved only for permanent delete/full reset, warmth expressed as a gentle gradient dot/edge — never a full-card alarm fill. 4pt spacing scale, native Dynamic Type text styles only (no fixed point sizes), 12–20pt corner radii, one soft shadow.
+- Component inventory shared across screens: `AttentionCard` (one shared view between Dashboard and Ritual, differentiated by an actions enum, not boolean flags), `WarmthIndicator`, `RitualProgressChip`, `RitualActionBar`, `DisclosureField`, `InlineDuplicateWarning`, distinct `EmptyStateView`/`GoodShapeSuccessView` (not one templated view), `CompletionSummaryView`, `LockShieldView`, `PaywallCard`, `SnoozeDatePicker`, `DestructiveConfirmationSheet`.
+- Accessibility embedded per screen, not appended: combined VoiceOver element per attention card, accessible "n of total" ritual progress value, one announced completion summary, XXL Dynamic Type support that lets cards grow rather than clip, Reduce Motion given real static alternatives (not slowed-down versions of the same animation).
+- The load-bearing product rule carried through the whole run one more time: Dashboard answers "who needs me and why now," Ritual answers "what's the smallest useful session I can finish this week" — same visual language, structurally separate, never collapsing into one generic list.
+
+Gemini's handoff file mirrors this content (design philosophy, tokens, screen specs, motion, accessibility, Claude Design prompt) and nothing in it contradicts what Codex and Claude locked inline this round; per the group's own standing rule, silence on specifics after being asked twice to surface conflicts is being read as agreement, not a live dispute.
+
+## Ios Architecture Review
+
+CONSENSUS: YES
+
+## Final Output
+
+Everyone's converged on a boring-in-the-right-way architecture, and the two people doing the hardest pushing (Codex and Claude/QA) closed out every open item from round one. Gemini's round-two write-up—despite an odd stretch of stray "I will check X" narration that reads like leaked planning notes rather than real content—lands on a detailed architecture (DTOs, `AppRouter`, `WarmthCalculator`, App Group fallback code, StoreKit resilience, DI via a plain `AppDependencies` struct) that matches what Codex and Claude locked, and it quietly drops the disputed polish ideas and the window-overlay mechanism rather than defending them — which the group is treating as concession, consistent with how they've resolved silence before.
+
+**SwiftUI architecture:** MVVM-ish with a `@MainActor @Observable AppRouter` holding a `NavigationStack` path plus separate sheet/fullScreenCover flags for Add Person, Ritual, and Paywall — nothing else may present navigation. The domain layer (scoring, queue-building, explanation-sentence generation) is a pure, non-actor-isolated function set operating only on plain `Sendable` value types (`PersonSnapshot`/`PersonDTO`, `InteractionSnapshot`, etc.) — never a `PersistentModel`. The enforceable rule going into tech_specs: if a file containing scoring math imports SwiftData, that's a defect. Queue-building and "why now" sentence generation live in this same pure layer so dashboard, ritual, and tests can never drift from each other.
+
+**Apple frameworks:** SwiftData (behind the DTO-returning `RelationshipRepository` protocol), StoreKit 2, LocalAuthentication, UserNotifications for the should-have reminder. Explicitly no Combine, no CloudKit (no CloudKit capability, no CloudKit-backed `ModelConfiguration`, checked by confirming Signing & Capabilities has no iCloud entry), no ML/LLM/AR anywhere — the "why now" explanation must stay fully deterministic and verifiable, permanently, not just for this slice.
+
+**Persistence:** `VersionedSchema` (`SchemaV1`) from the first commit even with one version. App Group container as default storage location with a concrete, unit-testable fallback to Application Support when the entitlement can't resolve. Frozen `RitualSession`/`RitualSessionItem` records persist the snapshot-at-entry (membership, order, explanation text) while entitlement visibility into that same frozen list stays live — reveal-in-place gets an explicit test.
+
+**Privacy/permissions:** Face ID/passcode gate with `deviceOwnerAuthentication`, re-auth fired at the literal moment of delete/export, no Contacts entitlement anywhere. The app-switcher privacy shield settles on Codex's simpler version — a root-level shield boolean owned by the app shell, driven by `scenePhase`, not Gemini's original window-level overlay — chosen specifically because it's cheaply and reliably testable, unlike a real overlay that can only be verified by eyeballing a screenshot.
+
+**StoreKit/offline:** Live entitlement checks via `Transaction.currentEntitlements`, never cached; local `.storekit` config; headless `StoreKitTest`/`SKTestSession` coverage for purchase/expire/restore, not manual clicking. The `Transaction.updates` listener is explicitly a plain in-process `Task` started at launch — no Background Modes capability, no `BGTaskScheduler`, since that would silently reopen an entitlements surface nobody approved (Gemini's "persistent background task" phrasing from round one is corrected by this).
+
+**Dependencies:** Zero third-party packages, confirmed by all three again this round.
+
+**Testability:** Three tiers — pure unit tests on the scoring/queue engine with zero SwiftData/main-actor involvement (every boundary case named: ratio 1.0/1.5 cutovers, day-zero-at-creation, DST via `Calendar`, 3-vs-4 paywall threshold, snooze-doesn't-reset-clock), SwiftData integration tests against in-memory containers (round-trip, fallback path), and StoreKit/UI journey tests. Debug time-travel stays a **discrete** jump tool (+day/+week/+month, maybe a date picker) — the visual timeline scrubber, the breathing generative-gradient completion screen, and spring-physics card triage that Gemini floated are all cut, not deferred, because none of them can be written as a repeatable, assertable test and the design-handoff phase already locked "restrained, native, no decorative spectacle" as the motion direction.
+
+## Tech Specs
+
+Looking at this round, the two people doing real technical work — Codex and Claude — converged tightly and in detail, closing out the one open question from earlier in the phase. Gemini's round-2 contribution is, unfortunately, mostly narrated tool-call scratchpad text (file searches, transcript-log digging, a claim to have unilaterally written `technical_architecture_notes.md` to disk and declared the phase "locked") rather than substantive engagement with the specific fork Claude asked it to weigh in on. That said, the "Summary of Completed Work" Gemini did produce — two-package split, `SchemaV1` with `orderIndex`, pure `WarmthCalculator`/`AttentionQueueBuilder`, `PrivacyShieldState`, live `EntitlementService`, three-tier test plan — matches what Codex and Claude locked rather than contradicting it. Consistent with how this group has resolved silence in every prior phase, I'm reading that as non-objection, not a live dispute. One thing I want on the record as a process note rather than a blocker: a participant unilaterally declaring files "written" and the phase "ready for the next stage" isn't this phase's call to make — that's the coordinator's job, and actual file creation belongs to the build phase, not this discussion.
+
+On substance, the phase closed its one real fight cleanly: Claude pushed back hard on any CRUD-shaped repository (`savePerson`/`saveNote`) because it lets invariants (required first note, `lastInteractionAt` bumping on outreach, duplicate checks) leak into view models instead of living in one enforced place. Codex's operation-specific repository shape already matched that instinct, and Gemini didn't defend the generic-CRUD alternative when asked directly a second time — so the operation-specific repository stands as the agreed shape. Claude also added a real, previously-missing implementation constraint (grouped single-fetch for `fetchMostRecentNoteByPerson`, never N per-person queries) and a two-package split (`NurtureDomain` — Foundation-only, holds every DTO/enum/protocol/pure function; `NurtureData` — SwiftData/StoreKit/LocalAuthentication/UserNotifications concrete implementations), both of which Codex's structure already anticipated and nobody contested.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Architecture overview:** MVVM-ish app target on top of two local Swift packages. `NurtureDomain` is pure Foundation — every DTO, enum, and protocol, plus `WarmthCalculator` and `AttentionQueueBuilder` as non-actor-isolated pure functions. The enforceable rule: if a file with scoring/queue-building logic imports SwiftData, that's a defect. `NurtureData` holds the concrete SwiftData repository, StoreKit 2 entitlement service, LocalAuthentication wrapper, and notification scheduler. The app target owns `AppRouter` (single `NavigationStack` path plus `addPersonPresented`/`ritualPresented`/`paywallSource` — nothing else may present navigation), views, and the `PrivacyShieldState`/`DebugClock` polish layer. This split isn't just testing hygiene — it's stated explicitly as a free side benefit: the domain layer becomes droppable into a future watchOS/extension target with zero rework, at no cost beyond what QA already required.
+
+**File/module layout:** `NurtureDomain` (data_domain types + protocols), `NurtureData` (SwiftData `@Model` records, concrete repository, StoreKit/auth/notification adapters), app target (`primary_ui` router/views, `polish_resilience` shield/debug tooling).
+
+**Data models:** `PersonSnapshot`/`NoteSnapshot` as the only shapes crossing the repository boundary (never `PersistentModel`); `WarmthAssessment`/`QueueEntry`/`VisibleQueue` as the single shared shape between dashboard and ritual so entitlement truncation can't drift between the two call sites; `RitualSessionSnapshot`/`RitualSessionItemSnapshot` with a mandatory `orderIndex` (SwiftData relationship arrays don't guarantee order across relaunch) and a `ResolutionStatus` enum carrying per-item outcome for resume-after-termination.
+
+**Persistence strategy:** `SchemaV1: VersionedSchema` from the first commit, no CloudKit-backed configuration anywhere. `PersonRecord`/`NoteRecord`/`RitualSessionRecord`/`RitualSessionItemRecord` as the `@Model` types, App Group container as default location falling back to Application Support via `StorageDirectoryProviding`. `fetchMostRecentNoteByPerson()` is locked as one grouped `FetchDescriptor<NoteRecord>` sorted by `createdAt`, grouped in-memory by `personID` — explicitly not N per-person queries, called out as an implementation constraint so it can't quietly degrade later. `deleteAllData()` is one atomic repository method (not a loop over per-person deletes), so Settings' full-reset can't orphan a `RitualSessionRecord`.
+
+**Repository shape (the round's one real decision):** operation-specific, not generic CRUD — `addPerson(name:cadence:firstNote:...)`, `logOutreach(personID:text:...)`, `snoozePerson`, `archivePerson`, `deletePersonPermanently`, `deleteAllData`, plus the ritual-session lifecycle methods (`fetchUnresolvedRitualSession`, `createRitualSession`, `resolveRitualItem`, `completeRitualSession`). Invariants live inside these methods, not scattered across view models.
+
+**Testing strategy:** carried forward from `ios_architecture_review` and now concretized — pure unit tests on `WarmthCalculator`/`AttentionQueueBuilder` with zero SwiftData/main-actor involvement, SwiftData integration tests against in-memory containers (round-trip, App Group fallback, grouped-fetch correctness), StoreKit/UI journey tests via headless `StoreKitTest`/`SKTestSession`. `AuthenticationService.authenticate` returns `Result<Void, NurtureError>` specifically so cancelled-vs-failed auth is testable as distinct states, not a bare bool.
+
+```interfaces-json
+{"interfaces": [
+  {"name": "PersonID", "kind": "struct", "language": "swift", "signature": "struct PersonID: Hashable, Codable, Sendable { let rawValue: UUID }", "owning_lane": "data_domain", "notes": "Canonical identity everywhere above SwiftData; lives in NurtureDomain (Foundation-only target)."},
+  {"name": "CadenceTier", "kind": "enum", "language": "swift", "signature": "enum CadenceTier: String, Codable, Sendable, CaseIterable { case close, regular, occasional; var days: Int { get } }", "owning_lane": "data_domain", "notes": "close=14, regular=42, occasional=180. Locked in detailed_discussion."},
+  {"name": "WarmthState", "kind": "enum", "language": "swift", "signature": "enum WarmthState: String, Codable, Sendable { case warm, cooling, cold }", "owning_lane": "data_domain", "notes": "warm<1.0, cooling 1.0-<1.5, cold>=1.5. Never stored, always derived at read time."},
+  {"name": "ResolutionStatus", "kind": "enum", "language": "swift", "signature": "enum ResolutionStatus: Codable, Sendable, Equatable { case unresolved; case loggedOutreach(noteID: UUID); case snoozed(until: Date); case archived }", "owning_lane": "data_domain", "notes": "Per-ritual-item outcome, persisted so an interrupted session resumes with exact progress."},
+  {"name": "PersonSnapshot", "kind": "struct", "language": "swift", "signature": "struct PersonSnapshot: Identifiable, Sendable, Equatable { let id: PersonID; var name: String; var createdAt: Date; var lastInteractionAt: Date; var cadence: CadenceTier; var isArchived: Bool; var snoozedUntil: Date? }", "owning_lane": "data_domain", "notes": "Plain value returned across the repository boundary; UI/domain never touch PersistentModel."},
+  {"name": "NoteSnapshot", "kind": "struct", "language": "swift", "signature": "struct NoteSnapshot: Identifiable, Sendable, Equatable { let id: UUID; let personID: PersonID; var text: String; var createdAt: Date; var keyFact: String?; var openLoop: String? }", "owning_lane": "data_domain", "notes": "Timeline item; source for why-now explanation anchors."},
+  {"name": "WarmthAssessment", "kind": "struct", "language": "swift", "signature": "struct WarmthAssessment: Sendable, Equatable { let ratio: Double; let state: WarmthState; let explanation: String }", "owning_lane": "data_domain", "notes": "Live-derived output shared by dashboard, ritual snapshot capture, and detail screen."},
+  {"name": "QueueEntry", "kind": "struct", "language": "swift", "signature": "struct QueueEntry: Identifiable, Sendable, Equatable { var id: PersonID { personID }; let personID: PersonID; let assessment: WarmthAssessment }", "owning_lane": "data_domain", "notes": "Single source for ranked attention/ritual queue membership."},
+  {"name": "VisibleQueue", "kind": "struct", "language": "swift", "signature": "struct VisibleQueue: Sendable, Equatable { let visible: [QueueEntry]; let hiddenCount: Int }", "owning_lane": "data_domain", "notes": "Shared entitlement-truncated shape so dashboard teaser and ritual reveal-in-place cannot drift."},
+  {"name": "RitualSessionItemSnapshot", "kind": "struct", "language": "swift", "signature": "struct RitualSessionItemSnapshot: Identifiable, Sendable, Equatable { let id: UUID; let personID: PersonID; let orderIndex: Int; let ratioAtEntry: Double; let stateAtEntry: WarmthState; let explanationAtEntry: String; var resolution: ResolutionStatus }", "owning_lane": "data_domain", "notes": "orderIndex is mandatory — SwiftData relationship arrays don't guarantee order across relaunch."},
+  {"name": "RitualSessionSnapshot", "kind": "struct", "language": "swift", "signature": "struct RitualSessionSnapshot: Identifiable, Sendable, Equatable { let id: UUID; let createdAt: Date; var completedAt: Date?; var items: [RitualSessionItemSnapshot] }", "owning_lane": "data_domain", "notes": "At most one row with completedAt == nil at a time."},
+  {"name": "WarmthCalculator.evaluate", "kind": "function", "language": "swift", "signature": "static func evaluate(person: PersonSnapshot, mostRecentNote: NoteSnapshot?, asOf referenceDate: Date, calendar: Calendar) -> WarmthAssessment", "owning_lane": "data_domain", "notes": "Pure, Foundation-only. If this file imports SwiftData, that's a defect."},
+  {"name": "AttentionQueueBuilder.buildQueue", "kind": "function", "language": "swift", "signature": "static func buildQueue(people: [PersonSnapshot], mostRecentNotes: [PersonID: NoteSnapshot], asOf referenceDate: Date, calendar: Calendar, cap: Int) -> [QueueEntry]", "owning_lane": "data_domain", "notes": "Ranked queue for both dashboard and ritual entry from one code path."},
+  {"name": "AttentionQueueBuilder.applyEntitlement", "kind": "function", "language": "swift", "signature": "static func applyEntitlement(to queue: [QueueEntry], entitlement: Entitlement, freeLimit: Int) -> VisibleQueue", "owning_lane": "data_domain", "notes": "Single authority for the 3-vs-4 teaser boundary and mid-ritual reveal-in-place; never duplicated in view code."},
+  {"name": "RitualSessionFactory.makeSnapshot", "kind": "function", "language": "swift", "signature": "static func makeSnapshot(from queue: [QueueEntry], createdAt: Date) -> RitualSessionSnapshot", "owning_lane": "data_domain", "notes": "Freezes membership, order, and explanation text at ritual entry."},
+  {"name": "SchemaV1", "kind": "struct", "language": "swift", "signature": "enum SchemaV1: VersionedSchema { static var versionIdentifier: Schema.Version; static var models: [any PersistentModel.Type] }", "owning_lane": "data_domain", "notes": "Versioned from first commit; no CloudKit-backed ModelConfiguration anywhere."},
+  {"name": "PersonRecord", "kind": "struct", "language": "swift", "signature": "@Model final class PersonRecord { var id: UUID; var name: String; var createdAt: Date; var lastInteractionAt: Date; var cadenceRaw: String; var isArchived: Bool; var snoozedUntil: Date?; @Relationship(deleteRule: .cascade) var notes: [NoteRecord] }", "owning_lane": "data_domain", "notes": "Lives only in NurtureData target."},
+  {"name": "NoteRecord", "kind": "struct", "language": "swift", "signature": "@Model final class NoteRecord { var id: UUID; var personID: UUID; var text: String; var createdAt: Date; var keyFact: String?; var openLoop: String? }", "owning_lane": "data_domain", "notes": "Fetched via one grouped FetchDescriptor sorted by createdAt for fetchMostRecentNoteByPerson, never N per-person queries."},
+  {"name": "RitualSessionRecord", "kind": "struct", "language": "swift", "signature": "@Model final class RitualSessionRecord { var id: UUID; var createdAt: Date; var completedAt: Date?; @Relationship(deleteRule: .cascade) var items: [RitualSessionItemRecord] }", "owning_lane": "data_domain", "notes": "Persisted frozen session for interrupt/resume."},
+  {"name": "RitualSessionItemRecord", "kind": "struct", "language": "swift", "signature": "@Model final class RitualSessionItemRecord { var id: UUID; var personID: UUID; var orderIndex: Int; var ratioAtEntry: Double; var stateRaw: String; var explanationAtEntry: String; var resolutionRaw: String; var resolvedAt: Date?; var snoozeUntilIfSnoozed: Date? }", "owning_lane": "data_domain", "notes": "Must always be fetched sorted by orderIndex; never trust relationship-array order."},
+  {"name": "RelationshipRepository", "kind": "protocol", "language": "swift", "signature": "@MainActor protocol RelationshipRepository { func fetchActivePeople() async throws -> [PersonSnapshot]; func fetchArchivedPeople() async throws -> [PersonSnapshot]; func fetchPerson(id: PersonID) async throws -> PersonSnapshot?; func fetchNotes(for personID: PersonID) async throws -> [NoteSnapshot]; func fetchMostRecentNoteByPerson() async throws -> [PersonID: NoteSnapshot]; func addPerson(name: String, cadence: CadenceTier, firstNote: String, keyFact: String?, openLoop: String?, at date: Date) async throws -> PersonID; func logOutreach(personID: PersonID, text: String, keyFact: String?, openLoop: String?, at date: Date) async throws; func snoozePerson(_ personID: PersonID, until date: Date) async throws; func archivePerson(_ personID: PersonID) async throws; func unarchivePerson(_ personID: PersonID) async throws; func deletePersonPermanently(_ personID: PersonID) async throws; func deleteAllData() async throws; func nameCollisionExists(for proposedName: String, excluding personID: PersonID?) async throws -> Bool; func fetchUnresolvedRitualSession() async throws -> RitualSessionSnapshot?; func createRitualSession(_ session: RitualSessionSnapshot) async throws; func resolveRitualItem(sessionID: UUID, personID: PersonID, resolution: ResolutionStatus, at date: Date) async throws; func completeRitualSession(sessionID: UUID, at date: Date) async throws }", "owning_lane": "services_utilities", "notes": "Operation-specific by design: invariants (required first note, lastInteractionAt bump on outreach, duplicate check) live in one place, not scattered across view models. Protocol lives in NurtureDomain; concrete SwiftData implementation lives in NurtureData."},
+  {"name": "ExportDocumentV1", "kind": "struct", "language": "swift", "signature": "struct ExportDocumentV1: Codable, Sendable { let schemaVersion: Int; let exportedAt: Date; let people: [PersonSnapshot]; let notes: [NoteSnapshot] }", "owning_lane": "services_utilities", "notes": "Versioned plaintext export payload; never export raw SwiftData models."},
+  {"name": "ExportService", "kind": "protocol", "language": "swift", "signature": "protocol ExportService: Sendable { func buildExport() async throws -> ExportDocumentV1 }", "owning_lane": "services_utilities", "notes": "Called only after fresh re-auth and on-screen unencrypted-file warning."},
+  {"name": "DateProvider", "kind": "protocol", "language": "swift", "signature": "protocol DateProvider: Sendable { func now() -> Date }", "owning_lane": "services_utilities", "notes": "Injectable clock powering domain logic, debug time travel, and relock timing."},
+  {"name": "AuthenticationService", "kind": "protocol", "language": "swift", "signature": "protocol AuthenticationService: Sendable { var biometricsOrPasscodeEnrolled: Bool { get }; func authenticate(reason: String) async -> Result<Void, NurtureError> }", "owning_lane": "services_utilities", "notes": "Wraps LocalAuthentication deviceOwnerAuthentication; distinguishes cancel vs failure via NurtureError."},
+  {"name": "Entitlement", "kind": "enum", "language": "swift", "signature": "enum Entitlement: Sendable, Equatable { case free; case subscribed(expiresAt: Date?) }", "owning_lane": "services_utilities", "notes": "Richer than a flat bool so UI/tests express real transitions."},
+  {"name": "EntitlementService", "kind": "protocol", "language": "swift", "signature": "@MainActor protocol EntitlementService: AnyObject { var current: Entitlement { get }; func refresh() async; func purchase(productID: String) async throws; func restorePurchases() async throws; func startObservingTransactions() }", "owning_lane": "services_utilities", "notes": "StoreKit 2-backed; transaction observation is an in-process Task at launch, no Background Modes."},
+  {"name": "NotificationScheduler", "kind": "protocol", "language": "swift", "signature": "protocol NotificationScheduler: Sendable { func requestAuthorizationIfNeeded() async -> Bool; func scheduleWeeklyReminder(on weekday: Int, hour: Int, minute: Int) async throws; func cancelWeeklyReminder() async }", "owning_lane": "services_utilities", "notes": "Should-have; denied state falls back to in-app badge/banner."},
+  {"name": "StorageDirectoryProviding", "kind": "protocol", "language": "swift", "signature": "protocol StorageDirectoryProviding: Sendable { func databaseURL() throws -> URL }", "owning_lane": "services_utilities", "notes": "Abstracts App Group vs Application Support fallback so both paths are unit-testable."},
+  {"name": "AppDependencies", "kind": "struct", "language": "swift", "signature": "struct AppDependencies { let repository: RelationshipRepository; let dateProvider: DateProvider; let authService: AuthenticationService; let entitlementService: EntitlementService; let notificationScheduler: NotificationScheduler; let exportService: ExportService }", "owning_lane": "services_utilities", "notes": "Injected once at app root via environment."},
+  {"name": "Route", "kind": "enum", "language": "swift", "signature": "enum Route: Hashable { case personDetail(PersonID); case settings; case archivedPeople }", "owning_lane": "primary_ui", "notes": "Carries PersonID, never PersistentIdentifier."},
+  {"name": "PaywallSource", "kind": "enum", "language": "swift", "signature": "enum PaywallSource: Identifiable { case dashboardTeaser; case ritualOverflow; var id: String { get } }", "owning_lane": "primary_ui", "notes": "Single source of truth for paywall presentation and copy variant; no separate presentPaywall boolean."},
+  {"name": "AppRouter", "kind": "struct", "language": "swift", "signature": "@MainActor @Observable final class AppRouter { var path: [Route]; var addPersonPresented: Bool; var ritualPresented: Bool; var paywallSource: PaywallSource? }", "owning_lane": "primary_ui", "notes": "Owns all push/modal presentation state; nothing else may present navigation."},
+  {"name": "AttentionCardActions", "kind": "enum", "language": "swift", "signature": "enum AttentionCardActions { case navigate(() -> Void); case ritual(onLog: () -> Void, onSnooze: () -> Void, onArchive: () -> Void) }", "owning_lane": "primary_ui", "notes": "Parameterizes the one shared AttentionCard view without boolean-flag sprawl."},
+  {"name": "PrivacyShieldState", "kind": "struct", "language": "swift", "signature": "@MainActor @Observable final class PrivacyShieldState { var isShielded: Bool; func handle(scenePhase: ScenePhase, now: Date) }", "owning_lane": "polish_resilience", "notes": "Root-level testable app-switcher privacy mask, ~2min relock grace."},
+  {"name": "DebugClock", "kind": "struct", "language": "swift", "signature": "#if DEBUG final class DebugClock: DateProvider { var override: Date?; func advance(by component: Calendar.Component, value: Int); func set(_ date: Date?); func now() -> Date } #endif", "owning_lane": "polish_resilience", "notes": "Discrete jumps only, no scrubber; compiled out of Release entirely, verified absent from a Release archive."},
+  {"name": "NurtureError", "kind": "enum", "language": "swift", "signature": "enum NurtureError: Error, Equatable { case persistenceFailure(String); case authenticationCancelled; case authenticationFailed; case entitlementUnavailable; case exportFailed(String); case invalidSnoozeDate }", "owning_lane": "polish_resilience", "notes": "Unified error surface mapped to inline empty/error screen states, not raw system alerts."}
+]}
+```
+
+## Project Plan
+
+CONSENSUS: YES
+
+Here's where the group landed after three rounds. Codex and Claude did the real work; Gemini spent all three rounds narrating tool calls and declaring the plan "finished" without ever taking a position on the specific forks it was asked about twice — repository shape, the auth-service reordering, or the scriptable verification commands. Per this project's own established pattern, that's being read as non-objection rather than a live disagreement, but it's worth naming plainly a third time: nobody on the QA/risk seat actually stress-tested this plan.
+
+On substance, everything real got resolved. Codex's original milestone shape was sound but had two soft spots, and both got fixed rather than argued away: the App Group signing risk now has a hard decision rule (try it day one; if a team-less build breaks with App Groups enabled, drop it for this pass, ship Application Support as the live path, and keep `StorageDirectoryProviding` as the seam so nothing is quietly faked), and the sequencing bug Claude caught — building Lock and Person-Detail's delete flow in an early milestone while filing `AuthenticationService` itself under "trust mechanics, built last" — got fixed by splitting it: the thin auth wrapper ships alongside `DateProvider`/`EntitlementService` early as infrastructure, while Settings-the-screen legitimately stays last since it's still the highest-dependency UI. Verification also moved from prose to actual commands: `swift test --package-path NurtureDomain`, a plain simulator `xcodebuild build`, a named `xcodebuild test -testPlan NurtureStoreKit` exercising `SKTestSession` purchase/expire/restore, and an `xcodebuild archive` piped through `strings`/`nm` grepping for `DebugClock`, auth-bypass symbols, `CNContactStore`, and iCloud capability footprint — plus an explicit biometrics-unenrolled simulator scenario proving the unlocked-with-warning state actually works.
+
+Claude tacked on three more concrete safeguards in this final round that nobody pushed back on and that fit squarely inside Codex's own stated principle of making verification mechanical rather than aspirational: a small repair buffer attached to the two riskiest milestone boundaries (domain/persistence, and ritual-session persistence) instead of one lump "repair time" bucket at the end, so a bug found downstream gets fixed at its source layer instead of patched around; a named unit test in the persistence milestone specifically round-tripping every `ResolutionStatus` case (including the associated-value cases like `snoozed(until:)`) through its string-backed SwiftData columns, since that's a real, easy-to-get-wrong encoding step nothing else in the plan was testing; and a same-milestone-zero check that the `.storekit` config's product identifiers are the same constant `EntitlementService` references, not two independently-typed strings that happen to agree today.
+
+## Final Output
+
+**Milestones (roughly 11–13 working days):**
+- **M0 — Scaffold & truth checks (~1 day):** create the repo/Xcode project, `NurtureDomain`/`NurtureData` package split, wire test bundles and the local `.storekit` file. Exit criteria: `swift test` passes on the pure package, a team-less simulator build succeeds, a headless StoreKit purchase/restore test passes, and the `.storekit` product identifiers are verified to match the constant `EntitlementService` imports (not two strings that merely happen to agree).
+- **M1 — Domain, persistence, and thin platform services (~2 days + 0.5 day repair buffer):** `WarmthCalculator`, `AttentionQueueBuilder`, the operation-specific `RelationshipRepository` and SwiftData records (with `orderIndex`), plus `DateProvider`, `AuthenticationService`, and `EntitlementService` built here as infrastructure — not deferred to a later "trust" milestone, since Lock and Person Detail's delete flow need them to be real. Exit criteria include a named unit test round-tripping every `ResolutionStatus` case (including associated values) through its SwiftData string-backed columns.
+- **M2 — Ritual-session persistence as a stop/go gate (~1 day + 0.5 day repair buffer):** create/resolve/terminate/rehydrate a ritual session with zero UI, proving `orderIndex` survives relaunch, explanation text stays frozen, and entitlement-driven reveal-in-place works without rebuilding the queue. If this backend behavior isn't real, no amount of ritual UI polish matters.
+- **M3 — Golden-path screens (~2 days):** Lock/Onboarding/Add Person/Dashboard/Person Detail, now built against real auth and persistence rather than stubs.
+- **M4 — Ritual UI + paywall as one signature milestone (~2 days):** the weekly ritual experience and the subscription moment together, since they're the product's core thesis.
+- **M5 — Settings, export, full reset (~1–1.5 days):** built last on purpose — it's the highest-dependency screen even though it looks trivial, since it needs auth, export, entitlement, and repository reset all already working.
+- **M6 — Release hardening (~1 day):** an actual `xcodebuild archive` run through `strings`/`nm` to confirm no `DebugClock`, no auth-bypass symbols, no `CNContactStore`, no iCloud capability.
+- **Remaining days:** documentation and final repair, written from what actually passed verification, not from intent.
+
+**Dependencies:** `NurtureDomain` has zero SwiftData/UIKit dependency by construction (compiler-enforced, not a review checklist). Dashboard UI depends on the domain scoring/queue tests passing (M1). Ritual UI depends on the ritual-session persistence gate (M2) being green before it's touched. Settings depends on auth, export, entitlement, and repository reset all existing already (M1/M4), which is why it's sequenced last despite looking simple.
+
+**Risk mitigations:** App Group capability is a day-one go/no-go decision, not an open-ended provisioning fight — if it breaks a team-less build, it's dropped for this pass in favor of Application Support, with the seam (`StorageDirectoryProviding`) kept intact. Repair time is attached to the two riskiest milestone boundaries specifically, not lumped at the end, so a downstream bug gets fixed in its actual source layer. Enum-with-associated-values persistence gets an explicit round-trip test rather than assumed correctness. StoreKit product-ID drift between the config file and the entitlement code gets caught at M0, not discovered later as a silently-green-but-wrong test.
+
+**Verification plan (concrete commands, not prose):** `swift test --package-path NurtureDomain`; `xcodebuild build` against a simulator destination; `xcodebuild test -testPlan NurtureStoreKit` exercising `SKTestSession` purchase/expire/restore; a named biometrics-unenrolled simulator run proving the unlocked-with-warning state; `xcodebuild archive` followed by `strings`/`nm` grep for `DebugClock`, auth-bypass symbols, `CNContactStore`, and iCloud entitlements.
+
+**Cut-list discipline if time runs tight:** cut local notifications, Settings niceties, and motion/visual flourish before ever touching ritual correctness, explanation quality, Face ID trust mechanics, or the free-top-3-vs-paid-overflow behavior — those are what the subscription thesis actually depends on.
+
+## Task Assignments
+
+Reading through round three, Codex and Claude did the real converging while Gemini, for the fourth phase running, produced tool-call narration and a claim of having already written the file rather than taking a position on the specific things it was asked about. That's consistent with this whole project's pattern, so I'm treating it as non-objection rather than a live dispute — but it's worth flagging one more time that nobody on that seat has actually stress-tested a task-assignment plan whose entire purpose is conflict prevention between simultaneous workers.
+
+On substance, everything real got closed out. Codex's revised backlog fixed the two structural issues from earlier rounds — `Entitlement` moved into `NurtureDomain` so `AttentionQueueBuilder.applyEntitlement` doesn't reach sideways into services, and a `ProductIdentifiers.swift` constant plus a parity test kill the "two strings that happen to agree today" risk in the StoreKit config. Claude traced the full dependency graph and confirmed it's acyclic with no hidden gaps (Dashboard's edge to the scoring engine is transitively covered through the repository task). Claude then added three concrete, accepted refinements: naming the `.storekit`/test-plan file-ownership handoff explicitly as a sequenced exception (T-001 creates minimal placeholders, T-006 is sole subsequent editor after rebasing on `main`) rather than leaving it implicit; folding `git init`, a `.gitignore`, and an initial commit into T-001 so the repo exists before any task branch is cut; and — the most load-bearing addition — requiring each active task to work in its own `git worktree` rather than everyone sharing one working copy of `main`, so uncommitted state from one lane can't bleed into another's tooling. Merge stays trunk-based, one task at a time, and every PR description has to paste real command output (the actual `swift test`/`xcodebuild` result lines), carrying forward the "scriptable, not eyeballed" discipline this whole project has fought for since `project_plan`.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Lane-by-lane responsibilities:**
+- **data_domain** — pure Foundation types, DTOs, `WarmthCalculator`/`AttentionQueueBuilder`/`RitualSessionFactory`, `SchemaV1` and SwiftData record types. Zero SwiftData/SwiftUI/UIKit imports in anything under `NurtureDomain`; that's a compiler-enforced rule, not a review checklist.
+- **services_utilities** — project scaffolding, `DateProvider`/`AuthenticationService`/`EntitlementService`/`StorageDirectoryProviding`/`RelationshipRepository` protocols and concrete implementations, ritual-session persistence backend gate, export/notification services, `AppDependencies` composition root.
+- **primary_ui** — `AppRouter`/`Route`/`PaywallSource`, all eight screens (Lock/Onboarding, Add Person, Dashboard, Person Detail, Ritual, Paywall, Settings, Archived People), and the final app-shell integration.
+- **polish_resilience** — `PrivacyShieldState`, `DebugClock` and DEBUG-only panels, `NurtureError`, the release-hardening script, and final documentation.
+
+**Owned files and handoffs:** each task in the backlog below lists its exact files. The one shared-ownership exception is `Nurture.storekit` / `NurtureStoreKit.xctestplan`: T-001 creates them as minimal, build-provable placeholders, then merges to `main`; T-006 rebases on `main` and becomes sole subsequent editor — never touched concurrently by both. `NurtureApp.swift` and `AppRootView.swift` have exactly one owner, T-024, and integrate everything after all upstream tasks land.
+
+**Forbidden edit zones:** no bare `Date()` anywhere outside `DateProvider`/`DebugClock` implementations; no SwiftData imports in `NurtureDomain` or in any UI file; no navigation/presentation state held outside `AppRouter`; no debug code (time-travel, auth-bypass) outside `#if DEBUG`; nobody but T-024 touches `NurtureApp.swift`; no CloudKit-backed `ModelConfiguration` and no Background Modes capability anywhere.
+
+**Branching, worktrees, and merge protocol:** one branch per task (`task/T-0XX-short-name`), each worked in its own `git worktree` (e.g. `git worktree add ../nurture-ios-T-007 task/T-007-repository`) so no agent's uncommitted state is visible to or clobbered by a sibling's tooling. Merges are trunk-based into `main`, one task at a time, fast-forward or rebase-merge only after acceptance criteria are green. Every PR description must paste the actual command output (`swift test` summary, `xcodebuild build` result, named test-case output) — not a checked box.
+
+**Testing responsibilities by lane:** data_domain owns `swift test --package-path NurtureDomain` fixed-clock unit coverage; services_utilities owns SwiftData in-memory integration tests, the ritual-session persistence gate, and headless `SKTestSession` StoreKit tests; primary_ui owns reaching every named screen state in simulator plus accessibility checks (combined VoiceOver elements, n-of-total progress values, XXL Dynamic Type); polish_resilience owns the `xcodebuild archive` + `strings`/`nm` release-safety script and final documentation fidelity to what actually passed.
+
+**Communication/conflict-prevention:** dependencies in the backlog are the source of truth for what can start now vs. what must wait; no task starts work against another task's not-yet-merged interface. Silence on a direct, twice-asked question is read as non-objection per this project's established norm, but is named explicitly rather than quietly assumed.
+
+```tasks-json
+{"tasks":[
+  {"id":"T-001","title":"Scaffold Xcode project, package skeletons, shared schemes, StoreKit shell, entitlements, git init, and App Group signing decision","owner_lane":"services_utilities","files":["nurture-ios/.gitignore","nurture-ios/Nurture.xcodeproj/project.pbxproj","nurture-ios/Nurture.xcodeproj/xcshareddata/xcschemes/Nurture.xcscheme","nurture-ios/Nurture.xcodeproj/xcshareddata/xctestplans/NurtureStoreKit.xctestplan","nurture-ios/NurtureDomain/Package.swift","nurture-ios/NurtureData/Package.swift","nurture-ios/Nurture/Nurture.storekit","nurture-ios/Nurture/Resources/Info.plist","nurture-ios/Nurture/Nurture.entitlements"],"depends_on":[],"acceptance_criteria":["git init has run and an initial commit containing the empty package skeletons and .gitignore exists on main before any task branch is cut","empty NurtureDomain and NurtureData packages build successfully","team-less simulator build of the app target succeeds","App Group capability is attempted immediately; if it breaks team-less signing it is dropped for this pass and Application Support becomes the live path, with an empty or App-Group-free entitlements file committed either way so the decision is visible in the repo","Info.plist contains no Contacts usage entry and no iCloud capability is enabled","the main Nurture app target is configured as an Xcode file-system-synchronized group so later files under Nurture/ do not require project.pbxproj edits","the .storekit file and xctestplan created here are minimal build-provable placeholders only; T-006 is the sole subsequent editor of those two files once this task has merged to main"],"status":"pending"},
+  {"id":"T-002","title":"NurtureDomain pure models and DTOs","owner_lane":"data_domain","files":["nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/PersonID.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/CadenceTier.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/WarmthState.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/ResolutionStatus.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/PersonSnapshot.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/NoteSnapshot.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/WarmthAssessment.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/QueueEntry.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/VisibleQueue.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/RitualSessionSnapshot.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/RitualSessionItemSnapshot.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Models/Entitlement.swift"],"depends_on":["T-001"],"acceptance_criteria":["package contains zero imports of SwiftData, SwiftUI, or UIKit","CadenceTier.days returns 14, 42, and 180 for close, regular, and occasional","all types conform to the interfaces contract, including Sendable and Codable or Equatable where specified","Entitlement is available to pure domain logic and UI without depending on service implementations"],"status":"pending"},
+  {"id":"T-003","title":"WarmthCalculator, AttentionQueueBuilder, RitualSessionFactory, and pure unit tests","owner_lane":"data_domain","files":["nurture-ios/NurtureDomain/Sources/NurtureDomain/Logic/WarmthCalculator.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Logic/AttentionQueueBuilder.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Logic/RitualSessionFactory.swift","nurture-ios/NurtureDomain/Tests/NurtureDomainTests/WarmthCalculatorTests.swift","nurture-ios/NurtureDomain/Tests/NurtureDomainTests/AttentionQueueBuilderTests.swift","nurture-ios/NurtureDomain/Tests/NurtureDomainTests/RitualSessionFactoryTests.swift"],"depends_on":["T-002"],"acceptance_criteria":["swift test --package-path NurtureDomain passes","fixed-clock tests prove ratio boundaries at exactly 1.0 and 1.5, day-zero anchoring at creation, and DST-safe day counting via Calendar","tests prove snooze does not reset the clock","tests prove the exact 3-versus-4 teaser boundary and the queue cap at 10","no file in this task imports SwiftData"],"status":"pending"},
+  {"id":"T-004","title":"SchemaV1 and SwiftData record types with enum round-trip coverage","owner_lane":"data_domain","files":["nurture-ios/NurtureData/Sources/NurtureData/Schema/SchemaV1.swift","nurture-ios/NurtureData/Sources/NurtureData/Schema/PersonRecord.swift","nurture-ios/NurtureData/Sources/NurtureData/Schema/NoteRecord.swift","nurture-ios/NurtureData/Sources/NurtureData/Schema/RitualSessionRecord.swift","nurture-ios/NurtureData/Sources/NurtureData/Schema/RitualSessionItemRecord.swift","nurture-ios/NurtureData/Tests/NurtureDataTests/SchemaRoundTripTests.swift"],"depends_on":["T-001","T-002"],"acceptance_criteria":["SchemaV1 is versioned from the first commit and uses no CloudKit-backed ModelConfiguration","named tests round-trip every ResolutionStatus case, including snoozed(until:) and loggedOutreach(noteID:), through the persisted fields and assert equality","RitualSessionItemRecord.orderIndex exists and is documented as the only trusted ordering source across relaunch"],"status":"pending"},
+  {"id":"T-005","title":"DateProvider and AuthenticationService protocols plus LocalAuthentication concrete implementation","owner_lane":"services_utilities","files":["nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/DateProvider.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/AuthenticationService.swift","nurture-ios/NurtureData/Sources/NurtureData/Services/SystemDateProvider.swift","nurture-ios/NurtureData/Sources/NurtureData/Services/LocalAuthenticationService.swift","nurture-ios/NurtureData/Tests/NurtureDataTests/AuthenticationServiceTests.swift"],"depends_on":["T-001","T-021"],"acceptance_criteria":["authenticate(reason:) returns Result<Void, NurtureError> and distinguishes cancellation from failure","biometricsOrPasscodeEnrolled correctly reports the unenrolled state used by the simulator warning flow","this service is available before any screen work starts and is not deferred to a later polish milestone"],"status":"pending"},
+  {"id":"T-006","title":"EntitlementService, product identifier constants, StoreKit test wiring, and live entitlement checks","owner_lane":"services_utilities","files":["nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/EntitlementService.swift","nurture-ios/NurtureData/Sources/NurtureData/Services/StoreKitEntitlementService.swift","nurture-ios/NurtureData/Sources/NurtureData/Services/ProductIdentifiers.swift","nurture-ios/NurtureData/Tests/NurtureDataTests/StoreKitEntitlementTests.swift","nurture-ios/Nurture.xcodeproj/xcshareddata/xctestplans/NurtureStoreKit.xctestplan","nurture-ios/Nurture/Nurture.storekit"],"depends_on":["T-001","T-002","T-021"],"acceptance_criteria":["current entitlement is computed live from Transaction.currentEntitlements and is never cached as a stored boolean","a named test parses the .storekit config file product identifier strings at test time and asserts they exactly equal the ProductIdentifiers Swift constants","headless SKTestSession tests pass purchase, expire, and restore scenarios","transaction observation runs as an in-process Task at launch with no Background Modes capability","this task rebases on main after T-001 merges before editing the .storekit/xctestplan files, and is the sole subsequent editor of those two files"],"status":"pending"},
+  {"id":"T-007","title":"StorageDirectoryProviding, RelationshipRepository protocol, and SwiftData concrete repository","owner_lane":"services_utilities","files":["nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/StorageDirectoryProviding.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/RelationshipRepository.swift","nurture-ios/NurtureData/Sources/NurtureData/Services/AppGroupStorageDirectoryProvider.swift","nurture-ios/NurtureData/Sources/NurtureData/Repository/SwiftDataRelationshipRepository.swift","nurture-ios/NurtureData/Tests/NurtureDataTests/RepositoryIntegrationTests.swift"],"depends_on":["T-003","T-004","T-021"],"acceptance_criteria":["repository methods are operation-specific and never collapse into generic CRUD","required first note, lastInteractionAt bumping, duplicate-name checks, archive semantics, and atomic deleteAllData live inside repository methods only","fetchMostRecentNoteByPerson uses one grouped fetch sorted by createdAt and never N per-person queries","in-memory container round-trip tests pass and the App Group fallback to Application Support is exercised","deleteAllData is proven not to orphan RitualSession data"],"status":"pending"},
+  {"id":"T-008","title":"Ritual-session persistence backend gate: create, resolve, terminate, and rehydrate","owner_lane":"services_utilities","files":["nurture-ios/NurtureData/Tests/NurtureDataTests/RitualSessionPersistenceTests.swift"],"depends_on":["T-007","T-003","T-006"],"acceptance_criteria":["tests create a ritual session, tear down and recreate the container, reload it, and assert identical ordered items by orderIndex","tests prove explanation text stays frozen at entry even if the underlying person data changes later","tests prove entitlement-driven reveal-in-place works on the frozen queue without rebuilding membership or order","no ritual UI work starts until this task is green"],"status":"pending"},
+  {"id":"T-009","title":"ExportDocumentV1, ExportService, NotificationScheduler, and concrete export and notification services","owner_lane":"services_utilities","files":["[REDACTED:high_entropy].swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/ExportService.swift","nurture-ios/NurtureDomain/Sources/NurtureDomain/Protocols/NotificationScheduler.swift","nurture-ios/NurtureData/Sources/NurtureData/Services/JSONExportService.swift","nurture-ios/NurtureData/Sources/NurtureData/Services/UserNotificationScheduler.swift","nurture-ios/NurtureData/Tests/NurtureDataTests/ExportServiceTests.swift"],"depends_on":["T-007"],"acceptance_criteria":["ExportDocumentV1 serializes snapshots only and never raw SwiftData models","export service builds a versioned plaintext payload suitable for fileExporter or ShareLink","notification authorization denial is handled cleanly with no crash and no hard dependency on notifications being enabled"],"status":"pending"},
+  {"id":"T-010","title":"AppDependencies composition root","owner_lane":"services_utilities","files":["nurture-ios/Nurture/App/AppDependencies.swift"],"depends_on":["T-005","T-006","T-007","T-009"],"acceptance_criteria":["a single struct exposes repository, date provider, auth service, entitlement service, notification scheduler, and export service","no view or view model constructs a concrete service directly; they all flow through this root"],"status":"pending"},
+  {"id":"T-011","title":"AppRouter, Route, PaywallSource, and AttentionCardActions","owner_lane":"primary_ui","files":["nurture-ios/Nurture/App/AppRouter.swift","nurture-ios/Nurture/App/Route.swift","nurture-ios/Nurture/App/PaywallSource.swift","nurture-ios/Nurture/App/AttentionCardActions.swift"],"depends_on":["T-002"],"acceptance_criteria":["AppRouter is the only owner of push and modal presentation state","PaywallSource is the single source of truth for paywall entry point and copy variant","Route covers person detail, settings, and archived people without leaking persistence identifiers into UI"],"status":"pending"},
+  {"id":"T-012","title":"Launch, Lock, and Onboarding screens","owner_lane":"primary_ui","files":["nurture-ios/Nurture/Views/Launch/LockView.swift","nurture-ios/Nurture/Components/LockShieldView.swift","nurture-ios/Nurture/Views/Onboarding/OnboardingView.swift"],"depends_on":["T-005","T-011"],"acceptance_criteria":["all three lock states are reachable in simulator: authenticating, unlocked-with-warning, and failed-with-passcode-retry","onboarding states plainly that the app works without Contacts and no Contacts permission is requested","lock and warning copy remains legible at accessibility XXL"],"status":"pending"},
+  {"id":"T-013","title":"Add Person flow","owner_lane":"primary_ui","files":["nurture-ios/Nurture/Views/AddPerson/AddPersonView.swift","nurture-ios/Nurture/Components/DisclosureField.swift","nurture-ios/Nurture/Components/InlineDuplicateWarning.swift"],"depends_on":["T-007","T-011"],"acceptance_criteria":["a person and first note can be added in five taps or fewer","default cadence is Regular","duplicate-name warning is inline and non-blocking","key fact and open loop fields stay behind a closed-by-default disclosure and are fully skippable"],"status":"pending"},
+  {"id":"T-014","title":"Dashboard screen and shared attention-card components","owner_lane":"primary_ui","files":["nurture-ios/Nurture/Views/Dashboard/DashboardView.swift","nurture-ios/Nurture/Components/AttentionCard.swift","nurture-ios/Nurture/Components/WarmthIndicator.swift","nurture-ios/Nurture/Components/EmptyStateView.swift","nurture-ios/Nurture/Components/GoodShapeSuccessView.swift"],"depends_on":["T-007","T-006","T-011"],"acceptance_criteria":["zero-people, good-shape, active-queue, and free-tier-truncated states are all reachable","each attention card exposes its why-now sentence as a single combined VoiceOver element","warmth is always derived live at render time and is never read from a stored cache field"],"status":"pending"},
+  {"id":"T-015","title":"Person Detail screen with archive and permanent delete","owner_lane":"primary_ui","files":["nurture-ios/Nurture/Views/PersonDetail/PersonDetailView.swift","nurture-ios/Nurture/Components/DestructiveConfirmationSheet.swift"],"depends_on":["T-007","T-005","T-011"],"acceptance_criteria":["archive is reversible and easy to reach while permanent delete requires a fresh biometric or passcode challenge immediately before execution","successful re-auth permanently deletes and remains deleted after relaunch, while cancelled or failed re-auth leaves all data untouched after relaunch","the why-now explanation references actual last-note content rather than a bare day count"],"status":"pending"},
+  {"id":"T-016","title":"Ritual UI with capped session, three actions, progress, and completion state","owner_lane":"primary_ui","files":["nurture-ios/Nurture/Views/Ritual/RitualView.swift","nurture-ios/Nurture/Views/Ritual/CompletionView.swift","nurture-ios/Nurture/Components/RitualProgressChip.swift","nurture-ios/Nurture/Components/RitualActionBar.swift","nurture-ios/Nurture/Components/CompletionSummaryView.swift","nurture-ios/Nurture/Components/SnoozeDatePicker.swift"],"depends_on":["T-008","T-011"],"acceptance_criteria":["ritual enters as a full-screen modal and caps visible work at 10 with an overflow message beyond the cap","each person has exactly three actions: log outreach, snooze to a validated future date, and archive","completion names the actions taken in that session and is exposed as one announced accessibility element","progress exposes an explicit n-of-total accessible value","an interrupted ritual resumes the exact same frozen queue on relaunch"],"status":"pending"},
+  {"id":"T-017","title":"Paywall screen","owner_lane":"primary_ui","files":["nurture-ios/Nurture/Views/Paywall/PaywallView.swift","nurture-ios/Nurture/Components/PaywallCard.swift"],"depends_on":["T-006","T-011"],"acceptance_criteria":["the paywall is reached only from the dashboard teaser or ritual overflow and never appears as a floating upsell","loading, error, success, and restore states are all implemented while the free app remains usable if StoreKit is unavailable","Restore Purchases checks live current entitlements rather than a cached boolean"],"status":"pending"},
+  {"id":"T-018","title":"Settings and Archived People screens","owner_lane":"primary_ui","files":["nurture-ios/Nurture/Views/Settings/SettingsView.swift","nurture-ios/Nurture/Views/ArchivedPeople/ArchivedPeopleView.swift"],"depends_on":["T-009","T-006","T-007","T-005","T-011","T-020"],"acceptance_criteria":["Settings shows export, privacy or lock status, subscription status, and full reset using the already-built services","export shows the unencrypted-file warning before the auth prompt and a cancelled auth leaves nothing changed","Archived People is the sole owner for Route.archivedPeople and supports unarchive without reaching into SwiftData directly","debug-only panels are wired from Settings in debug builds only"],"status":"pending"},
+  {"id":"T-019","title":"PrivacyShieldState app-switcher mask","owner_lane":"polish_resilience","files":["nurture-ios/Nurture/App/PrivacyShieldState.swift","nurture-ios/Nurture/Tests/NurtureAppTests/PrivacyShieldStateTests.swift"],"depends_on":["T-005"],"acceptance_criteria":["the privacy shield is root-level and testable via scenePhase transitions rather than screenshot inspection","the approximately two-minute relock grace window is implemented against the injected DateProvider and is covered by tests"],"status":"pending"},
+  {"id":"T-020","title":"DebugClock and DEBUG-only time-travel and auth-bypass panels","owner_lane":"polish_resilience","files":["nurture-ios/Nurture/Debug/DebugClock.swift","nurture-ios/Nurture/Debug/DebugTimeTravelView.swift","nurture-ios/Nurture/Debug/DebugSecurityOverridesView.swift"],"depends_on":["T-005"],"acceptance_criteria":["time travel offers discrete jumps only and no scrubber","debug panels are wrapped in #if DEBUG at the file or view level and compile out of Release","the debug clock cleanly satisfies DateProvider so UI and services do not special-case time travel"],"status":"pending"},
+  {"id":"T-021","title":"NurtureError unified error surface","owner_lane":"polish_resilience","files":["nurture-ios/NurtureDomain/Sources/NurtureDomain/Errors/NurtureError.swift"],"depends_on":["T-001"],"acceptance_criteria":["all locked error cases are present","the type is safe to use across services and UI without leaking raw platform errors into screen state"],"status":"pending"},
+  {"id":"T-022","title":"Release hardening script: archive plus strings and nm verification","owner_lane":"polish_resilience","files":["nurture-ios/Scripts/verify_release.sh"],"depends_on":["T-016","T-017","T-018","T-019","T-020","T-024"],"acceptance_criteria":["xcodebuild archive succeeds from the script","the script fails if the archived binary contains DebugClock, auth-bypass symbols, CNContactStore references, or iCloud capability footprint","the QA checklist cites this script output rather than a manual eyeball pass"],"status":"pending"},
+  {"id":"T-023","title":"Documentation deliverables written from verified behavior","owner_lane":"polish_resilience","files":["nurture-ios/README.md","nurture-ios/product_brief.md","nurture-ios/monetization_strategy.md","nurture-ios/technical_architecture_notes.md","nurture-ios/qa_checklist.md","nurture-ios/app_store_readiness_notes.md","nurture-ios/SETUP.md","nurture-ios/claude_design_prompt.md","nurture-ios/task_assignments.md"],"depends_on":["T-022"],"acceptance_criteria":["every document distinguishes verified behavior from documented intent","qa_checklist.md enumerates the named states and edge cases from T-012 through T-018 and the release audit from T-022","setup instructions match the actual project structure and test commands in the repo","task_assignments.md matches the locked lane ownership, forbidden edit zones, branch/merge protocol, and worktree-isolation guidance"],"status":"pending"},
+  {"id":"T-024","title":"App shell integration in NurtureApp.swift","owner_lane":"primary_ui","files":["nurture-ios/Nurture/NurtureApp.swift","nurture-ios/Nurture/App/AppRootView.swift"],"depends_on":["T-010","T-011","T-012","T-013","T-014","T-015","T-016","T-017","T-018","T-019","T-020"],"acceptance_criteria":["NurtureApp.swift has a single owner and is the only file that wires AppDependencies, AppRouter, and PrivacyShieldState into the scene","the root NavigationStack, sheets, and fullScreenCovers are driven only by AppRouter","the privacy shield is applied at the shell level and the app launches into a real end-to-end root flow rather than placeholder screens"],"status":"pending"}
+]}
+```
+
+## Implementation Readiness Gate
+
+CONSENSUS: YES
+
+Here's where this landed. Codex and Claude spent two rounds converging on the same six fixes, and neither of them ever disagreed with the other — they were just making sure specific language got locked rather than left as vibes. Gemini gave a verdict ("complete, aligned, ready for one-shot build") but never engaged point-by-point with the six items on the table, including Claude's pointed question about whether Gemini's file-path narration reflects anything real. Consistent with this project's established pattern across five phases now, that silence is being read as non-objection rather than a live dispute — but Claude's correction stands: no code or project files exist yet anywhere in this process, and any file paths Gemini has referenced in its messages are unverified narration, not confirmed state. Whoever executes T-001 starts from a genuinely empty directory.
+
+## Final Output
+
+**Readiness verdict: READY, with six scope/acceptance-criteria fixes folded in before code starts.** The product, architecture, and task backlog are sound and fully cross-consistent — nobody in this phase reopened the app idea, the warmth math, the lane split, or any earlier locked decision. What was missing was precision in a few places that would otherwise get improvised mid-build. That precision is now specified below.
+
+**Cross-phase consistency check:** Decay math (14/42/180-day cadences, ratio boundaries at 1.0/1.5), the queue cap of 10, the exact 3-vs-4 paywall teaser boundary, the Contacts-free architecture, Face ID/passcode as baseline trust, StoreKit 2 gating only ritual-overflow-beyond-free-top-3, and the four-lane task backlog (data_domain / services_utilities / primary_ui / polish_resilience, 24 tasks, acyclic dependency graph) all check out consistently from `prompt_contract` through `task_assignments`. One piece of stale language was flagged and is being corrected here explicitly: `next_steps_small`'s original call for a "real Contacts-denied branch" was already overruled in `detailed_discussion` (no Contacts permission is ever requested this slice, so there's no denial state to build) — that correction is restated now so a builder working from an earlier phase's memory doesn't reintroduce a permission prompt.
+
+**Build blockers and fixes (all six, now locked):**
+1. **Scope truth, restated as build source of truth:** this slice is main-app-target only. Zero `CNContactStore` usage, zero Contacts permission prompt, zero Contacts entry in Info.plist, no widget, no share extension, no App Intents UI. App Group storage is attempted opportunistically in T-001; if it breaks a team-less simulator build, Application Support becomes the real live path (not a fallback that's discussed and never exercised), with `StorageDirectoryProviding` as the seam that makes both paths testable.
+2. **Project scaffolding tooling is explicitly permitted for T-001.** Hand-authoring `project.pbxproj` XML from scratch is the single most common way a headless-agent iOS build silently produces a project that "looks right" but won't open or compile in Xcode. Using a build-time generator (xcodegen or an equivalent script) to produce the pbxproj is allowed and encouraged — it's build tooling, never shipped in the app binary, and doesn't touch the zero-third-party-runtime-dependency rule.
+3. **Dependency-graph order is mandatory regardless of execution model.** Whether the build phase runs as truly parallel agents in separate worktrees or one agent working sequentially, the 24-task dependency order must be honored (T-001 → T-002 → T-021 → T-003/T-004/T-005 → T-006/T-007 → T-008 → T-009/T-010 → T-011 → T-012 through T-020 → T-024 → T-022 → T-023). Worktrees are a concurrency convenience, not a substitute for the graph — nobody builds Ritual UI (T-016) before the ritual-session persistence gate (T-008) is green, even in a solo build with no collision risk, because the sequencing exists to catch real bugs, not just merge conflicts.
+4. **Notifications are explicitly downgraded out of the must-pass build-critical path.** `NotificationScheduler`/`UserNotificationScheduler` get built as an isolated seam in services_utilities (T-009) for future-proofing, but reminder permission flow, Settings UX for it, and denial handling must never block shell integration (T-024) or release readiness (T-022). If it never gets wired into Settings this pass, that's a stated, deliberate cut — not a phantom expectation. The retention bet is the ritual itself, not the reminder wrapper.
+5. **Named, concrete state contracts replace vague "implemented"/"reachable" language** on five screens: Add Person (T-013) needs idle / saving / validation-failure / persistence-failure / successful dismiss-handoff named explicitly. Person Detail delete (T-015) needs re-auth success / cancel / failure, with cancel-mid-flow explicitly leaving the in-progress edit state untouched, not just "data untouched." Settings export (T-018) needs the unencrypted-file warning shown before the auth prompt, then success-to-exporter / cancel-to-no-op / failure-to-inline-error as three distinct named branches, plus an explicit line that notification opt-in absence from Settings does not fail acceptance. Paywall (T-017) needs "StoreKit unreachable → free app remains fully usable" as its own named criterion, not folded into generic loading/error language. Ritual (T-016) needs "an interrupted session resumes with identical frozen membership, order, and explanation text" as its own explicit line, distinct from a generic resume criterion.
+6. **Two paywall entry points, one product.** The Dashboard's free-tier teaser (unbounded ranked queue, top-3 preview) and the Ritual's overflow-beyond-cap-of-10 are two separate `PaywallSource` cases into the same single subscription — not two different premium products, and not interchangeable requirements. Both must be built; conflating them or shipping only one under-delivers on the locked spec.
+
+**Verification-scope honesty (Claude's fourth ask, carried through unchanged):** "reachable in simulator," "five taps or fewer," and the named state contracts above are manually verified in the simulator — that is a deliberate scope choice consistent with this project's stated priority on real automated tests for core business logic (domain-logic unit tests, SwiftData integration tests, headless StoreKit tests) over a broad XCUITest suite. T-023's documentation must say this plainly rather than let "acceptance criteria" imply automated UI-test coverage that doesn't exist.
+
+**Final scope for build:** the 24-task backlog from `task_assignments` stands as-is, with the six fixes above folded into the relevant tasks' acceptance criteria before execution begins (mechanical edits to T-001, T-009, T-013, T-015, T-016, T-017, T-018, T-023 — no new tasks, no architecture changes). Execution starts from a genuinely empty target directory; nothing in this process has actually created `nurture-ios` yet.
+
+**Acceptance criteria checklist for this gate:**
+- [x] Build phase can start without inventing product/design/architecture decisions — confirmed, nothing left open across seven prior phases.
+- [x] Every major workflow (onboarding, add-person, dashboard, person detail, ritual, paywall, settings/export, release hardening) has a concrete, checkable acceptance criterion, now including the five tightened state-contract screens above.
+- [x] Testing responsibilities are explicit by lane (data_domain: pure unit tests; services_utilities: SwiftData integration + StoreKit headless tests; primary_ui: manual simulator state verification, explicitly labeled as manual, not automated UI testing; polish_resilience: release-archive script + final docs).
+- [x] Scope exclusions (Contacts, widget, share extension, App Intents, blocking reminders) are stated as build source of truth, not left as stale or ambiguous language from earlier phases.
+
+Build is clear to start.
+
+## Build Coordination
+
+CONSENSUS: YES
+
+## Final Output
+
+The app is now integrated as a complete repo in `nurture-ios`, with the core product flow built: lock/onboarding, add person, dashboard, person detail, ritual, paywall, settings, SwiftData persistence, StoreKit gating, debug-only time travel/auth bypass, local JSON export, and a release-audit script. This round I did the shared integration pass, confirmed the app-shell wiring is coherent, and closed the repo-level deliverables gap by adding [README.md]([REDACTED:high_entropy].md), [technical_architecture_notes.md]([REDACTED:high_entropy].md), [qa_checklist.md]([REDACTED:high_entropy].md), [app_store_readiness_notes.md]([REDACTED:high_entropy].md), [SETUP.md]([REDACTED:high_entropy].md), [claude_design_prompt.md]([REDACTED:high_entropy].md), and [task_assignments.md]([REDACTED:high_entropy].md). I also made [verify_release.sh]([REDACTED:high_entropy].sh) executable.
+
+What works now: the repo contains the full app, the export service files are present and already wired through [AppDependencies.swift]([REDACTED:high_entropy].swift) and [SettingsView.swift]([REDACTED:high_entropy].swift), and the stale “T-009/T-022/T-023 are absent” status is no longer true. The remaining limitation is verification honesty, not missing implementation: in this sandbox I still could not run fresh `swift test`, `xcodebuild`, or `xcodegen`, so the app is integrated and documented but not freshly compiler-verified here.
+
+To verify on a normal Xcode machine, use the commands in [SETUP.md]([REDACTED:high_entropy].md). The minimum honest check is:
+
+```bash
+cd nurture-ios
+swift test --package-path NurtureDomain
+swift test --package-path NurtureData
+xcodebuild build -project Nurture.xcodeproj -scheme Nurture -destination "platform=iOS Simulator,name=iPhone 16"
+bash Scripts/verify_release.sh
+```
+
+If you want the single biggest next step, it is not more feature work; it is running those commands outside this sandbox and fixing any real compiler/runtime issues they surface.
+
+## Build Verification
+
+Here's how round 2 actually shook out. Codex came back and did exactly what round 1 asked for instead of arguing the point — independently re-checked the same file timestamps Claude flagged, got the identical numbers, and conceded the word "PASS" can't stand unqualified for the two package-test suites until they're rerun clean. Codex also confirmed the app-binary claim holds up and flagged a small hygiene gap (`.tmp/` untracked, not gitignored).
+
+Claude took it one step further rather than just repeating the concern: tried a fresh test run itself (hit the identical sandbox approval wall, so this is now confirmed independently, not just Codex's word for it), then did the forensic work to find *exactly* which files are the actual gap — one per package (`WarmthCalculator.swift` for NurtureDomain, `StoreKitEntitlementTests.swift` for NurtureData) — read both in full, and manually confirmed they're correct (calendar-day boundary logic checks out, the StoreKit product-ID constant matches the `.storekit` file byte-for-byte). Claude also nailed down that the app-binary PASS is exhaustive (zero source files postdate the linked binary) and just fixed the `.gitignore` gap directly rather than leaving it for later.
+
+The two of them ended up in the same place on substance — real evidence exists, the app build is a clean unqualified PASS, the two package-test suites need honest "last full run passed, with one specific already-manually-checked file each not yet recompiled" language instead of either a flat PASS or an alarmist "stale/unverified," and the release-archive script remains blocked by the sandbox's `xcodebuild archive` cache-path restriction, not by any app bug. Codex's round-2 fallback language ("downgrade to stale") and Claude's more precise version aren't in conflict — Claude's is a sharper version of the same call, and nothing in either round objects to it. Gemini stayed unreachable throughout, consistent with the entire project's pattern.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Verification commands run:**
+```bash
+swift test --disable-sandbox --package-path NurtureDomain
+swift test --disable-sandbox --package-path NurtureData
+xcodebuild build -project Nurture.xcodeproj -scheme Nurture -destination 'generic/platform=iOS Simulator' -derivedDataPath .tmp/DerivedData CODE_SIGNING_ALLOWED=NO
+bash Scripts/verify_release.sh
+```
+
+**Status, per component:**
+- **Simulator app build (`Nurture.app`): PASS, unqualified.** The linked binary (16:59:01) postdates every `.swift` file under `Nurture/`, including the last real fix (an invalid `#if DEBUG` splice in `AppDependencies.swift`) — confirmed exhaustive against the current tree, not just plausible.
+- **NurtureDomain package tests: passed on last full run (16:58:05), not flat PASS.** One file, `WarmthCalculator.swift`, was edited afterward (16:58:17) to fix a real DST/calendar-day-counting bug. That edit was manually read end-to-end and matches the locked warmth-ratio spec exactly, but it was never recompiled or rerun by an actual test invocation — the sandbox blocks a fresh `swift test` for everyone in this session.
+- **NurtureData package tests: passed on last full run (16:57:51), not flat PASS.** One file, `StoreKitEntitlementTests.swift`, was edited afterward (16:59:41) so the StoreKit test would actually run instead of silently skipping. Manually traced: the `ProductIdentifiers.plusMonthly` constant and the `Nurture.storekit` config's `productID` are byte-for-byte identical. Same caveat — manually verified, not mechanically recompiled.
+- **Release-audit script (`verify_release.sh`): unverified**, blocked by the sandbox during `xcodebuild archive` (tries to write to a restricted clang module-cache path and gets "Operation not permitted"). This is an environment limitation, not an app-code defect — the script was already updated to redirect `HOME`/`TMPDIR`/`CLANG_MODULE_CACHE_PATH` into the repo's own `.tmp`, which helped but didn't fully clear the sandbox's archive-time restrictions.
+
+**Repairs made this phase (all verification-driven, no new features):**
+- Fixed broken async test syntax/imports across 5 test files.
+- Fixed a real DST-counting bug in `WarmthCalculator.swift` (calendar-day boundaries instead of raw time intervals).
+- Fixed a StoreKit test that was silently skipping instead of running.
+- Fixed an app-target compile failure in `AppDependencies.swift` (invalid conditional-compilation splice inside an initializer argument list).
+- Updated `verify_release.sh`'s cache/home redirection.
+- Added `.tmp/` to `.gitignore` so DerivedData/module-cache/xcresult artifacts from the verification run don't end up committed.
+
+**Remaining errors:** none as concrete compiler/test failures. The one honest open gap is verification currency — two single files (one per package) were fixed after the last tool-confirmed test run and have only been manually verified since, plus the release-archive gate is sandbox-blocked.
+
+**Next repair step:** on a normal, non-sandboxed Xcode machine, run `swift test --package-path NurtureDomain`, `swift test --package-path NurtureData`, and `bash Scripts/verify_release.sh` once more with no further source edits in between — that converts the two manually-verified files and the release-archive gate into fresh, tool-confirmed evidence and closes the last remaining honesty gap in this build.
+
+**Build verification:** verified: compiled cleanly for the iOS Simulator
+
+VERIFICATION: VERIFIED
+
+## Human Qa Checklist
+
+CONSENSUS: YES
+
+## Final Output
+
+Codex and Claude are fully aligned here — Codex laid out the required coverage areas (trust/onboarding, dashboard states, add-person speed/validation, warmth transitions via debug clock, the exact 3-vs-4 paywall boundary, ritual actions/resume, person detail/delete, archived-people restore, export+reauth, restore purchases, offline, relaunch persistence, accessibility, and release-hardening symbol checks), and Claude then wrote the actual tap-by-tap script fulfilling every one of those areas in concrete, checkable detail — nothing in Claude's version contradicts or drops anything Codex asked for. Both explicitly anchor the checklist to bugs that were *actually found and fixed* during build (ritual actions not mutating the real person record, blank-input rejection, orphaned outreach notes, stale error banners, dashboard flicker) rather than a generic "click through every screen" script, which is the right instinct for a product whose whole pitch is trustworthiness with sensitive personal data. Gemini stayed unreachable, consistent with every phase in this run — treated as non-objection, not a live dispute.
+
+---
+
+# Nurture — Manual QA Checklist
+
+**Environment note:** Automated verification (Simulator app build) already passed cleanly per `xcodebuild`. This checklist is the required *human* pass — on Simulator at minimum, and on a physical device wherever noted (Face ID, export/share sheet, biometric re-auth) since those don't fully exercise in Simulator.
+
+## 1. Fresh Install / Onboarding / Lock
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 1.1 | Fresh install, launch app | Goes straight to onboarding. **No system Contacts permission dialog ever appears** — treat any appearance as a critical failure. |
+| 1.2 | Walk the 3 onboarding beats | Explicitly states the app works fully without Contacts; Face ID/passcode framed as protection, not friction. |
+| 1.3 | Enable Face ID on a simulator/device with biometrics enrolled | Face ID prompt succeeds, unlocks straight into empty Dashboard. |
+| 1.4 | Run on a simulator with **no passcode/biometrics enrolled** | App does not dead-end; shows persistent, dismissible "running unlocked" warning; every feature still usable. |
+| 1.5 | Background app <2 minutes, foreground | No re-lock prompt. |
+| 1.6 | Background app >2 minutes (wait or use debug clock), foreground | Re-locks; Face ID/passcode required again. |
+| 1.7 | With real person data on screen, enter app switcher (swipe up) | App-switcher snapshot masks content — no visible names/notes. |
+| 1.8 | Fail Face ID / cancel passcode | Failed-state with retry path, not a crash or dead end. |
+
+## 2. Add Person / First Note
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 2.1 | Tap Add Person → fill name → required first note → save. Count taps/time. | ≤5 taps, <60 seconds. |
+| 2.2 | Try saving with blank name | Blocked, inline validation, no crash. |
+| 2.3 | Try saving with blank first note | Blocked, inline validation. |
+| 2.4 | Create two people with identical name | Non-blocking inline duplicate warning; save still succeeds. |
+| 2.5 | Open "+ add a detail" disclosure | Closed by default; key fact / open loop fully optional; skipping doesn't block save. |
+| 2.6 | Default cadence on new person | "Regular" unless changed. |
+
+## 3. Dashboard States
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 3.1 | Zero people | Inviting first-run empty state, not a dead screen. |
+| 3.2 | People exist, none due | "Good shape" success state — feels like a reward, not anxiety-inducing emptiness. |
+| 3.3 | Active queue | Ranked by warmth ratio descending, each card shows a real "why now" explanation. |
+| 3.4 | Create **exactly 3** qualifying cooling/cold people | **No paywall teaser at all.** |
+| 3.5 | Push to **exactly 4** | "1 more waiting" teaser appears — exact boundary, not approximate. |
+| 3.6 | New person, time-travel forward day by day (debug clock) | Never shows cooling before actual cadence threshold; day-zero-at-creation never reads as already cold. |
+
+## 4. Person Detail / Lifecycle
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 4.1 | Log a note with a distinctive phrase, view "why now" | Sentence references actual note content, not a bare day count. |
+| 4.2 | Archive a person | Reversible, disappears from active queue, reappears in Archived People. |
+| 4.3 | Trigger permanent delete, cancel re-auth mid-flow | Relaunch: person and data fully untouched. |
+| 4.4 | Trigger permanent delete, complete re-auth | Relaunch: person and **all** notes gone, including notes logged via ritual outreach (not just manually-added ones). |
+
+## 5. Ritual
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 5.1 | Get someone to cooling/cold, enter ritual | Opens full-screen modal, not a push. |
+| 5.2 | Exceed 10 cooling people (debug clock) | Caps visually at 10 with explicit "N more waiting." |
+| 5.3 | Take log/snooze/archive actions across different people in one session | Each action succeeds distinctly. |
+| 5.4 | Reach completion screen | Names the specific actions taken this session, not generic copy. |
+| 5.5 | Force-quit mid-ritual after resolving some people, relaunch | Resumes identical frozen queue: same order, same explanation text, prior resolutions preserved. |
+| 5.6 | After resuming, return to Dashboard | People archived/snoozed during ritual are reflected on Dashboard too, not just in ritual state. |
+| 5.7 | Snooze someone, then advance past snooze date | Person resurfaces; **clock did not reset** — may resurface already cooling/cold. |
+| 5.8 | Try an invalid snooze date (past, or absurd far-future) | Rejected, not silently accepted as fake permanent mute. |
+
+## 6. Paywall / StoreKit
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 6.1 | Reach paywall only via Dashboard teaser (past 3/4) or Ritual overflow (past cap of 10) | Never appears as unprompted popup elsewhere. |
+| 6.2 | Purchase, cancel-before-purchase, restore | Each behaves correctly per StoreKit config. |
+| 6.3 | Simulate StoreKit unreachable | Free app remains fully usable, no blocking. |
+| 6.4 | Restore Purchases after simulated reinstall | Confirms it checks **live** entitlements, not a cached flag. |
+
+## 7. Settings / Export / Reset
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 7.1 | Trigger export | Unencrypted-file warning shows **before** the auth prompt, not simultaneously/after. |
+| 7.2 | Cancel auth challenge | Nothing changed, no file produced. |
+| 7.3 | Complete auth successfully | Real file via share sheet/file exporter with correct structured content. |
+| 7.4 | Trigger full reset/delete-all, cancel once | No data loss. |
+| 7.5 | Confirm full reset for real | Returns to genuine zero-state. |
+
+## 8. Accessibility (VoiceOver actually on, not just code-inspected)
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 8.1 | VoiceOver on, swipe through a Dashboard card | "Why now" sentence reads as one combined announcement. |
+| 8.2 | VoiceOver on Ritual progress | Reads as explicit "3 of 7"-style value. |
+| 8.3 | VoiceOver on Completion screen | One coherent announced summary. |
+| 8.4 | Dynamic Type at largest accessibility size | Lock screen, warning banners, destructive buttons stay legible, no clipping/overlap. |
+| 8.5 | Reduce Motion on | Ritual/Completion screens use static equivalents, not slowed animations. |
+
+## 9. Offline
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 9.1 | Airplane mode, use add-person/dashboard/ritual/export | All work fully with no network. |
+| 9.2 | Airplane mode, hit paywall | Handled per 6.3 above (free app stays usable). |
+
+## 10. Persistence / Regression
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 10.1 | Relaunch after any of the above | People, notes, snooze/archive state, ritual progress, entitlement status all persist correctly. |
+
+## 11. Release Hardening (pass/fail gate, not a nicety)
+
+| # | Step | Expected result |
+|---|------|------------------|
+| 11.1 | Build Release archive, run `verify_release.sh`'s strings/nm grep | `DebugClock`, Face-ID-bypass toggle, `CNContactStore`, and iCloud capability footprint are **absent** from the binary. Given the app's whole trust premise is protecting sensitive opinions about real people, this is a hard gate, not optional polish. |
+
+## Known Gaps
+
+- This checklist is manual/human-run; it has not itself been executed in this pipeline — only the automated Simulator build has passed via `xcodebuild`.
+- Face ID, export/share-sheet, and biometric re-auth behavior should be confirmed on a **physical device**, not just Simulator, since Simulator biometrics are simulated.
+- The Release-archive symbol audit (`verify_release.sh`) was blocked by sandbox restrictions during automated build verification (`xcodebuild archive` cache-path issue) — this manual QA pass is the first real opportunity to actually run it end-to-end.
+- Product-risk observation, not a pass/fail item: sustained "good shape" (nobody cooling) over several real weeks needs real-world observation to see if the app still feels worth opening, since the retention thesis depends on quiet stretches not feeling dead.
+
+VERIFICATION: VERIFIED
+
+## App Store Readiness
+
+Here's where this landed. Codex and Claude are pulling in the same direction, not against each other — Codex laid out the positioning/screenshot/subscription-copy/support side of things, and Claude went deeper on the specific evidentiary gaps (things that have been true all along in this project but haven't been named as *launch* blockers until now). Nothing here is a real dispute; Claude's additions sharpen Codex's verdict rather than contradict it.
+
+Both agree on the core call: Nurture has a genuinely strong, defensible privacy/architecture story (no Contacts, no analytics, no networking beyond StoreKit, live entitlement checks, real re-auth before delete/export) and a coherent positioning angle ("private follow-through app," not a generic CRM, not "AI-powered"). But neither will sign off on "ready to submit." Claude's contribution is naming the concrete, previously-unstated launch blockers that fall out of things this project already knew but hadn't reframed as App Store submission requirements: the release-archive symbol audit (proving `DebugClock`/Face-ID-bypass/`CNContactStore` are truly absent from a Release binary) has never actually completed in this entire project — every attempt across build_coordination and build_verification hit the same sandbox wall — so that's an unverified hard gate, not a nice-to-have. There's also no hosted Privacy Policy/Terms/Support URL anywhere (needed both in-app on the paywall and in the App Store Connect listing — this is a 3.1.2(a) rejection risk, not a style note), and zero actual captured screenshots exist despite the QA checklist and build verification both being thorough on everything else. Claude also flagged two quick-but-real things to verify before shipping: that `NSFaceIDUsageDescription` actually exists in Info.plist (missing it is an instant crash on a real device, not just a review nitpick), and that the paywall's in-app copy explains the count-based gating in terms of ongoing ritual value rather than reading as bare row-counting to a reviewer trained to spot that pattern.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Verdict: not launch-ready for public paid release yet — ready for TestFlight and for finishing submission prep.** The code/architecture privacy story is strong enough to lead with; what's missing is external/operational work, not more product building.
+
+**App Store positioning:** Frame as a private follow-through app for network-dependent professionals (founders, consultants, recruiters, investors, salespeople) — never "personal CRM" (reads as a weaker Dex/Clay) and never "AI relationship intelligence" (the app does no ML and shouldn't imply it). Subtitle direction: "Private relationship follow-through" or "Stay warm with the right people." Short description: keep notes on people, see who's cooling and why, finish a weekly follow-up ritual in minutes — bounded and calm, not an endless guilt list.
+
+**Screenshot/storyboard plan:** Six iPhone screenshots (6.9" and 6.5" required sizes) telling one left-to-right story: "Remember people like they matter" → "Capture context in under a minute" → "See who's going cold and why" → "Finish a calm weekly follow-up ritual" → "Private by default with Face ID" → "Local-first, no contact scraping." If an App Preview video gets made later, storyboard it as add-person → dashboard signal → ritual completion → privacy/export warning (15–20s), not a feature montage. **None of these screenshots exist yet** — this is a concrete outstanding task, not just a plan to write down.
+
+**Privacy label notes:** "Data Not Collected" is the right answer (no analytics, no ads, no tracking, no server, no `URLSession` use outside StoreKit) but be ready to defend it on the specific technical facts, since the app stores sensitive freeform notes about named third parties and reviewers sometimes scrutinize that combination. Local JSON export is user-initiated and stays under user control, so it doesn't count as developer data collection — but the in-app warning that exported files are unencrypted once they leave the sandbox must stay intact.
+
+**Permission copy:** `NSFaceIDUsageDescription` — "Nurture uses Face ID to protect your private notes about people you know." **Verify this string actually exists in Info.plist** — nobody in this project has confirmed it, and its absence is a launch-time crash on a real device, not a review nitpick. Zero Contacts permission strings or entitlements anywhere — if one exists anywhere in the plist or prompt flow, that's an automatic submission blocker contradicting the whole product promise. Notification copy only applies if reminders ship in 1.0: "Nurture uses notifications to remind you about your weekly follow-up ritual."
+
+**Subscription/paywall review risks:** StoreKit plumbing itself is solid (live entitlement checks, real Restore Purchases) — the risk is disclosure and framing, not implementation. Apple requires subscription length/price/auto-renewal terms disclosed in-app before purchase, plus working Terms of Use and Privacy Policy links both in-app and in the App Store Connect listing. **No hosted privacy policy or terms page exists anywhere in this pipeline** — this is a local Xcode project with no website, and standing up even a single static page plus getting a URL is a required pre-submission task, not optional. Paywall copy must explain the free/paid split in ongoing-value terms (full tracking + top-3 weekly preview free, full follow-up queue paid) rather than reading as bare count-gating, which is exactly the pattern 3.1.2(b) reviewers are trained to flag. No career/revenue/relationship-outcome claims, no "AI" language anywhere it isn't real.
+
+**Launch blockers (hard gates, not polish):**
+1. Release-archive symbol audit has never completed successfully anywhere in this project (sandbox has blocked `xcodebuild archive` in every attempt) — must be run to completion outside this sandbox to confirm `DebugClock`, the Face-ID-bypass toggle, and `CNContactStore` are truly absent from the Release binary before this can be called done.
+2. No hosted Privacy Policy / Terms / Support URL exists — required for both the paywall screen and the App Store Connect listing.
+3. Zero real screenshots exist — required before a build can even be submitted for review.
+4. Manual QA checklist (already written, thorough) has not actually been executed on simulator or physical device — Face ID, export/share sheet, and re-auth-before-delete specifically need physical-device confirmation since Simulator biometrics are simulated.
+5. `NSFaceIDUsageDescription` presence in Info.plist needs a two-minute confirmation — unverified anywhere in this project's history.
+
+**Support/compliance basics still needed:** a monitored support email, the privacy policy URL described above, and a short in-app support line. Age rating 4+ is defensible (no social/UGC/browsing features). Business risk to flag honestly: the current premium surface (deeper ritual-queue access past a free top-3) is a legitimate but narrow gate — credible enough to launch, but the weakest link in the monetization story relative to everything else this project got right.
+
+VERIFICATION: VERIFIED
+
+## Final Review
+
+Here's where the room landed. Codex and Claude read this the same way, no real friction between them — they're both grading the app against "is this actually done" rather than accepting the confident prose at face value, and they land on the identical verdict: this is a real, complete, differentiated product with a build that's genuinely verified for one specific thing (clean Simulator compile) and honestly unverified for several others (fresh package-test run, the release-archive symbol audit, human QA execution, and all the external App Store operational work). Neither is willing to let "VERIFICATION: VERIFIED" be read as more than what it actually says — a Debug-configuration Simulator build succeeded, full stop.
+
+Where they add to each other rather than repeat each other: Codex frames the core business risk plainly — the product and privacy story are strong, but the shipped monetization gate (deeper ritual-queue access past a free top-3) is the weakest link relative to the ambition of "people would genuinely subscribe," and that should stay visible in the final write-up rather than get smoothed over. Claude takes the same blocker list from app_store_readiness and turns it into a sequenced punch list — do the cheap, in-repo verification first (rerun package tests, run the release archive/audit script, grep Info.plist for the Face ID usage string, execute the human QA checklist on simulator then physical device), and only then do the external work nobody's touched yet (hosted privacy policy/terms/support URL, real screenshots). Claude also flags, as an honest structural gap rather than a knock on anyone: Gemini never once joined this build or review pipeline, so every "consensus" across dozens of rounds has really been two agents cross-checking each other, not three independent lenses.
+
+Both agree on the go/no-go framing: GO for handing this off as a verified-buildable local project and TestFlight candidate; NO-GO for calling it fully production-ready or launch-ready today. Nothing here is a live disagreement — it reads as full alignment.
+
+CONSENSUS: YES
+
+## Final Output
+
+**What was built:** Nurture — a local-first, native SwiftUI relationship-intelligence app for network-dependent professionals (founders, consultants, recruiters, investors, salespeople). Core loop: add a person and first note in under a minute → deterministic warmth decay (14/42/180-day cadences, ratio-based warm/cooling/cold states, computed live from an injectable clock, never cached) → a ranked, explainable dashboard → a capped, session-based weekly ritual with three actions (log/snooze/archive) and a frozen, relaunch-safe queue → real StoreKit 2 paywall gating ritual-queue depth past a free top-3 preview. Built with zero Contacts dependency, Face ID/passcode as baseline trust (not a paywalled feature), local JSON export gated by fresh re-auth, permanent delete gated by fresh re-auth, and DEBUG-only time-travel/auth-bypass tooling. All ten requested deliverables exist as separate files: Xcode project, source, README, product brief, monetization strategy, technical architecture notes, QA checklist, App Store readiness notes, setup instructions, and the Claude Design prompt.
+
+**Verification status (exact, not rounded up):**
+- Simulator app build: **PASS, unqualified** — confirmed exhaustive against current source (binary postdates every `.swift` file).
+- NurtureDomain / NurtureData package tests: **passed on last full run**, with exactly one file per package edited afterward and only manually re-verified (not recompiled) — a real but narrow and already-understood gap, not a flat PASS.
+- Release-archive symbol audit (`verify_release.sh`, proving `DebugClock`/auth-bypass/`CNContactStore` are absent from a Release binary): **never completed anywhere in this project** — every attempt hit the same sandbox restriction on `xcodebuild archive`. This is the single highest-severity open item given the app's entire trust pitch.
+- Human QA checklist: written and thorough, **not yet executed** on simulator or physical device.
+- App Store operational layer (screenshots, hosted Privacy Policy/Terms/Support URL, `NSFaceIDUsageDescription` presence check): **not started** — zero prior work anywhere in this pipeline.
+
+**Prompt coverage:** Core product requirements, platform/technical requirements, design expectations, and monetization expectations are all satisfied by real, built artifacts — not descriptions. The one place to keep labeled as a stated hypothesis rather than a proven outcome: monetization strength and viral potential. The subscription gate is credible but narrow (queue-depth access, not a deeper recurring-value feature), and that's the weakest point in an otherwise strong product strategy.
+
+**Known limitations:** package-test currency gap (2 files, manually verified only); release-archive audit unverified; human QA unexecuted; no hosted policy/support page; screenshots don't exist; Gemini was unreachable for the entire build and review pipeline, so this has been a two-agent cross-check process, not a three-way one.
+
+**Top follow-ups, in order:** (1) rerun `swift test` for both packages on a real machine with no further edits; (2) run `xcodebuild archive` + `Scripts/verify_release.sh` to completion and fix anything it finds; (3) confirm `NSFaceIDUsageDescription` in Info.plist; (4) execute the human QA checklist, simulator then physical device; (5) only after 1–4 are clean, do the external work — hosted privacy/terms/support page and real screenshots.
+
+**Go/no-go:** GO for handoff as a verified-buildable local project and TestFlight candidate. NO-GO for calling it production-ready or App Store launch-ready today — that status requires the five follow-ups above, not more product building.
+
+VERIFICATION: VERIFIED
+
+## Portfolio Audit
+
+CONSENSUS: YES
+
+Both Codex and Claude land in the same place, and neither is fighting the other. This was always a single-app request — locked back in `portfolio_selection` — and nothing in any later phase reopened it into a portfolio. So there's no real portfolio-audit work to do here; the honest answer is "not applicable," not "invent a check to fill the section."
+
+Where they add to each other rather than disagree: Codex names the applicability call and warns against letting downstream tooling (Jira/Notion backfill) accidentally invent portfolio structure — one app, one record, no fabricated siblings or child workflows. Claude takes the same conclusion and pushes on the one thing worth being honest about: nobody in this entire pipeline has actually produced a verifiable directory listing of `/Users/pchordia/Documents/GitHub/nurture-ios` — every reference to that path has been agent narration, and this sandbox can't reach it either. That's not a reason to doubt the folder is right, just a genuine unverified fact that shouldn't get quietly assumed, consistent with how this project has handled every other "we said it but didn't check it" gap. Codex had already flagged essentially the same operational limitation (empty workspace here, no on-disk tree to inspect), so this isn't a new dispute — it's the same caveat stated twice, from two angles.
+
+## Final Output
+
+**Portfolio applicability decision:** Not applicable. This is a single-app run — one iOS app ("Nurture") was requested, selected, designed, built, and reviewed across every prior phase. No portfolio manifest exists or was ever produced, and none should be.
+
+**Expected vs. actual app/project count:** 1 expected (per the original prompt and every locked phase decision) vs. 1 actual (the single `nurture-ios` repo). No mismatch.
+
+**Child folder/workflow check:** Not applicable — there are no child apps, so there is nothing to check for sibling-folder structure or per-child workflow assignment. The equivalent single-app check (one repo, one build lineage, no invented companion app) holds cleanly.
+
+**Skipped or collapsed category warnings:** None. There was never more than one requested category to collapse. The deliberately cut scope items (Contacts import, widget, share extension, App Intents, custom cadences, batch resurfacing) are documented won't-build-this-slice decisions inside the one app — not a silent portfolio-category collapse, and should not be mischaracterized as one.
+
+**Backfill readiness notes:** `task_assignments.md` already has real, importable structure (four lanes, ~24 tasks, dependency graph, acceptance criteria) suitable for a single Jira/Notion epic. Backfill should create exactly one app record for `nurture-ios`, mark all portfolio fields not-applicable, and omit any `portfolio-json`. One honest caveat to carry forward: no phase in this pipeline has produced a verifiable on-disk directory listing of `/Users/pchordia/Documents/GitHub/nurture-ios` — all references to it are agent narration. That should be flagged as unverified-but-not-contradicted rather than silently assumed, especially since the output path was a hard, twice-stated user requirement.
+
+**Blockers:** None. Nothing here fails the acceptance checks (no collapsed multi-app parent, no missing child prompts/workflows, since there are no children) — this is a clean not-applicable result, not a violation.
+
+VERIFICATION: VERIFIED

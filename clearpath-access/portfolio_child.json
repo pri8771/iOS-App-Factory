@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Clearpath Access",
+    "slug": "clearpath-access",
+    "category": "Navigation",
+    "promise": "Accessibility-aware pedestrian routing with community-sourced obstacle reporting",
+    "targetUser": "Wheelchair or mobility-impaired pedestrian underserved by mainstream turn-by-turn apps",
+    "mechanic": "physical-accessibility-constrained routing",
+    "build": true,
+    "one_sentence_promise": "Accessibility-aware pedestrian routing with community-sourced obstacle reporting",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

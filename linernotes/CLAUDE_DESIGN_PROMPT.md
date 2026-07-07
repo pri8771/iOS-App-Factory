@@ -1,0 +1,1 @@
+Design a premium, cassette-inspired mixtape app: an album-art-forward project view, a track-by-track liner-notes recording flow, and a warm, tactile finished-mixtape playback screen that feels like a keepsake.

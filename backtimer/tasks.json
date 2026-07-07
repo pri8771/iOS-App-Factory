@@ -1,0 +1,511 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define Plan/Dish/Step enums (PlanKind, PlanStatus, StepKind)",
+      "owner_lane": "data_domain",
+      "files": [
+        "BackTimer/Domain/Models/PlanKind.swift",
+        "BackTimer/Domain/Models/PlanStatus.swift",
+        "BackTimer/Domain/Models/StepKind.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All three enums compile as String, Codable exactly matching tech_specs' interfaces-json signatures",
+        "No SwiftData/UIKit/UserNotifications imports in these files"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "SwiftData models + PersistenceController",
+      "owner_lane": "data_domain",
+      "files": [
+        "BackTimer/Domain/Models/Plan.swift",
+        "BackTimer/Domain/Models/Dish.swift",
+        "BackTimer/Domain/Models/Step.swift",
+        "BackTimer/Domain/Persistence/PersistenceController.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Plan/Dish/Step are @Model classes with cascade delete rules exactly as specified in tech_specs",
+        "Only entry-data fields are stored -- no derived field such as isPastDue or currentStepID exists anywhere on these types",
+        "PersistenceController(inMemory: true) creates a working in-memory ModelContainer usable by tests and previews without touching disk"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Scheduling value types (framework-free)",
+      "owner_lane": "data_domain",
+      "files": [
+        "BackTimer/Scheduling/StepRuntimeStatus.swift",
+        "BackTimer/Scheduling/StepInput.swift",
+        "BackTimer/Scheduling/TimelineItem.swift",
+        "BackTimer/Scheduling/MergedTimeline.swift",
+        "BackTimer/Scheduling/LiveCountdownState.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Every file in Scheduling/ imports Foundation only -- zero SwiftData/UserNotifications/ActivityKit imports",
+        "TimelineItem and LiveCountdownState match the interfaces-json signatures field for field"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Implement SchedulingEngine",
+      "owner_lane": "data_domain",
+      "files": [
+        "BackTimer/Scheduling/SchedulingEngine.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "previewTimeline, commitSchedule, deriveLiveState, applyRunningLate, markStepDoneEarly all implemented with the exact signatures from tech_specs",
+        "commitSchedule's returned dictionary is documented in a doc comment as keyed by Step.id (UUID) so downstream lanes don't have to guess",
+        "applyRunningLate shifts all not-yet-started items AND the endAt of any in-progress passive item; markStepDoneEarly never recomputes other items' times",
+        "Zero non-Foundation imports in this file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "SchedulingEngineTests fixture suite",
+      "owner_lane": "data_domain",
+      "files": [
+        "BackTimerTests/SchedulingEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Tie-break by dish entry order is asserted for simultaneous step start times",
+        "DST spring-forward and fall-back fixtures pass, with the fall-back-ambiguous case resolving to the first occurrence per the locked product decision",
+        "Midnight-crossing plan fixture passes",
+        "Past-due-at-creation flag fires correctly on a fixture step that's already late when the plan is built",
+        "Running-late cascade fixture confirms an in-flight passive step's endAt shifts, not just future starts"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Xcode project + target scaffold",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer.xcodeproj/project.pbxproj",
+        "BackTimer/App/BackTimerApp.swift",
+        "BackTimer/Info.plist",
+        "BackTimer/BackTimer.entitlements",
+        "BackTimerWidgetExtension/Info.plist",
+        "BackTimerWidgetExtension/BackTimerWidgetExtension.entitlements"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Four targets exist and build: BackTimer app, BackTimerWidgetExtension, BackTimerTests, BackTimerUITests",
+        "BackTimerWidgetExtension's Info.plist declares NSSupportsLiveActivities = true",
+        "App launches to a blank screen with no crash",
+        "Bundle id and signing config are set so later lanes never touch project settings, only add file references to their own targets"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Service protocols + error enums + free tier limits",
+      "owner_lane": "services_utilities",
+      "files": [
+        "BackTimer/Services/NotificationScheduling.swift",
+        "BackTimer/Services/NotificationSchedulingError.swift",
+        "BackTimer/Services/LiveActivityManaging.swift",
+        "BackTimer/Services/LiveActivityError.swift",
+        "BackTimer/Services/EntitlementProviding.swift",
+        "BackTimer/Services/EntitlementError.swift",
+        "BackTimer/Services/FreeTierLimits.swift",
+        "BackTimer/Services/SubscriptionTier.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Protocol signatures match interfaces-json exactly",
+        "This task contains protocols and error enums only -- no concrete UNUserNotificationCenter/ActivityKit/StoreKit code -- so primary_ui can code against them immediately without waiting on real coordinators"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "AppModel + DeepLinkRouter orchestration",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/App/AppModel.swift",
+        "BackTimer/Services/DeepLinkRouter.swift",
+        "BackTimer/Services/AppRoute.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004",
+        "T-006",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "bootstrap/startPlan/applyRunningLate/markStepDoneEarly implemented against the protocol types from T-008, not concrete coordinators",
+        "startPlan writes Step.scheduledStartAt/scheduledEndAt exactly once from SchedulingEngine.commitSchedule's UUID-keyed output, per T-004's documented keying convention",
+        "A thrown NotificationSchedulingError during startPlan rolls the Plan back to .draft rather than leaving it half-started"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "AppModelTests against fake coordinators",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimerTests/AppModelTests.swift",
+        "BackTimerTests/Fakes/FakeNotificationScheduling.swift",
+        "BackTimerTests/Fakes/FakeLiveActivityManaging.swift",
+        "BackTimerTests/Fakes/FakeEntitlementProviding.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Fakes conform to the real protocols from T-008 without modifying those protocol files",
+        "Tests cover: successful startPlan, rollback-on-scheduling-failure, applyRunningLate cascade through AppModel, and markStepDoneEarly not cascading into other items"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "NotificationCoordinator (real UNUserNotificationCenter wrapper)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "BackTimer/Services/NotificationCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "scheduleWindow schedules a rolling ~16-20 item window, staying under the 64-pending-notification ceiling",
+        "reconcile diffs actual pending requests against expected TimelineItems and returns true when drift is detected",
+        "Reschedule is wired at: Start, every scenePhase -> .active, every notification delivery/response, every applyRunningLate call"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "LiveActivityCoordinator + widget extension renderer",
+      "owner_lane": "services_utilities",
+      "files": [
+        "BackTimer/Services/LiveActivityCoordinator.swift",
+        "BackTimerWidgetExtension/BackTimerActivityAttributes.swift",
+        "BackTimerWidgetExtension/BackTimerLiveActivity.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "BackTimerActivityAttributes.swift has dual target membership (app + extension), verified in project.pbxproj",
+        "Widget extension renders all five presentation contexts (lock screen, Dynamic Island compact-leading/trailing, minimal, expanded) purely from ContentState with zero SwiftData or business logic in the extension",
+        "detectForceEnded correctly reports a force-ended activity on foreground"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "EntitlementStore + StoreKit Testing config",
+      "owner_lane": "services_utilities",
+      "files": [
+        "BackTimer/Services/EntitlementStore.swift",
+        "BackTimer/Configuration/BackTimer.storekit"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Wraps StoreKit 2 Transaction/Product APIs; entitlement is cached at launch/foreground and gates canAddDish/canCreateConcurrentPlan/canUseTemplates fully offline from cache",
+        "BackTimer.storekit + SKTestSession wired into the test scheme"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Coordinator integration tests + locked-phone verification procedure",
+      "owner_lane": "services_utilities",
+      "files": [
+        "BackTimerUITests/PaywallUITests.swift",
+        "BackTimerTests/NotificationCoordinatorIntegrationTests.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "PaywallUITests exercises purchase, restore, and restore-found-nothing via StoreKit Testing",
+        "The locked-phone procedure is executed at least once and documented: lock phone, background app, cross a step boundary, confirm notification delivery + Live Activity update + a foreground reconcile call catching an artificially-induced drift"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Shared design tokens, banners, and accessibility helpers",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "BackTimer/Shared/DesignTokens.swift",
+        "BackTimer/Shared/PermissionBanner.swift",
+        "BackTimer/Shared/ErrorBannerModel.swift",
+        "BackTimer/Shared/BannerSeverity.swift",
+        "BackTimer/Shared/PermissionBannerKind.swift",
+        "BackTimer/Shared/Accessibility/ReduceMotionModifiers.swift",
+        "BackTimer/Shared/Accessibility/VoiceOverAnnouncer.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Warm dark/light neutral tokens, fixed 6-8 hue dish color palette, SF Pro Rounded numeral style, and spacing/radii constants are defined and importable by Features/",
+        "notificationsDenied, liveActivityDenied, and forceEndedRecovery each render as visually and textually distinct banners, never a generic merged banner",
+        "Dynamic Type and VoiceOver helpers are ready for Features/ to consume"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "First-launch explainer + Home surface",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/Features/Explainer/FirstLaunchExplainerView.swift",
+        "BackTimer/Features/Home/HomeView.swift",
+        "BackTimer/Features/Home/ActivePlanBanner.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Explainer shown exactly once via a local flag, no re-open path",
+        "Home implements real empty/loading/success/error states, including a corrupted-local-store error state with a path to start fresh"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Serve Time entry + Plan Builder",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/Features/ServeTime/ServeTimeEntryView.swift",
+        "BackTimer/Features/PlanBuilder/PlanBuilderView.swift",
+        "BackTimer/Features/PlanBuilder/DishCard.swift",
+        "BackTimer/Features/PlanBuilder/StepRow.swift",
+        "BackTimer/Features/PlanBuilder/TimelineStrip.swift",
+        "BackTimer/Features/AddEditStep/AddEditStepSheet.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-013",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Serve time entry blocks dish/step creation until set",
+        "Live merged countdown preview appears after dish #1's first step and re-sorts live as more steps/dishes are added",
+        "FreeTierLimits.canAddDish is enforced live using the real EntitlementStore from T-013, not a stub",
+        "Add/Edit Step sheet blocks dismiss on invalid input (empty label, zero/negative duration) via inline validation only"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Start Confirmation sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/Features/StartConfirmation/StartConfirmationView.swift",
+        "BackTimer/Features/StartConfirmation/FullTimeline.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Three real states implemented: loading (scheduling in flight), success (transitions into Live Countdown), and failure (rolls plan back to draft with a plain explanation and retry)",
+        "Permission banners render inline above the timeline when notifications or Live Activity are denied, never as a modal alert"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Live Countdown / execution screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/Features/LiveCountdown/LiveCountdownView.swift",
+        "BackTimer/Features/LiveCountdown/DominantStepCard.swift",
+        "BackTimer/Features/LiveCountdown/InProgressList.swift",
+        "BackTimer/Features/LiveCountdown/RunningLateButton.swift"
+      ],
+      "depends_on": [
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Dominant next-to-start step plus an always-visible secondary in-progress list are both shown, so a passive step never silently disappears once started",
+        "RunningLateButton is pinned/one-handed-usable and calls AppModel.applyRunningLate",
+        "A force-ended Live Activity detected on foreground surfaces the forceEndedRecovery banner",
+        "This screen does not reuse TimelineStrip or FullTimeline components"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Completion screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/Features/Completion/CompletionView.swift"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Reachable only after every step is completed",
+        "Success-only state with a single CTA back to Home, no manufactured error state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Settings/Paywall screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/Features/SettingsPaywall/SettingsPaywallView.swift",
+        "BackTimer/Features/SettingsPaywall/PaywallCard.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Loading state disables purchase/restore controls with no double-tap possible",
+        "Success updates entitlement live in place, no app restart needed",
+        "Two distinct error states: a retryable purchase failure, and restoreFoundNothing worded as an expected empty result rather than a failure"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "CoreFlowUITests end-to-end happy path",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimerUITests/CoreFlowUITests.swift"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-017",
+        "T-018",
+        "T-019",
+        "T-020",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "A single scripted UI test passes: first-launch -> serve time -> plan builder -> start -> live countdown -> completion -> home, on simulator"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Force-quit/restart resume + DST/midnight re-verification against finished build",
+      "owner_lane": "data_domain",
+      "files": [
+        "BackTimerTests/SchedulingEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Force-quitting and relaunching mid-plan shows the correct current step with zero drift",
+        "DST and midnight-crossing fixtures are re-run against the fully assembled app (not just the isolated Scheduling module) and still pass"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Permission-denial degraded mode verification",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/Features/StartConfirmation/StartConfirmationView.swift",
+        "BackTimer/Features/LiveCountdown/LiveCountdownView.swift",
+        "BackTimer/Features/SettingsPaywall/SettingsPaywallView.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-019",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Denying notifications, denying Live Activity, and denying both independently each produce the correct distinct banner (built by polish_resilience in T-015) with a working path to system Settings, verified on-device",
+        "Any fixups made here are small (banner wiring only), not new features",
+        "Reassigned to primary_ui from an earlier draft because these are primary_ui-owned Features/ files -- polish_resilience is consulted on banner behavior but does not edit these files directly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Real-device locked-phone notification retest against assembled app",
+      "owner_lane": "services_utilities",
+      "files": [
+        "BackTimer/Verification/notification-retest.md"
+      ],
+      "depends_on": [
+        "T-014",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "The T-014 locked-phone procedure is repeated on a physical device against the fully assembled app and passes with the same criteria as the isolated coordinator test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "CONTRIBUTING.md: branch layout, merge order, and cross-lane communication protocol",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/CONTRIBUTING.md"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "States the four lane branch names (lane/data-domain, lane/primary-ui, lane/services-utilities, lane/polish-resilience) and the merge order matching the milestone dependency chain: data_domain first, then services_utilities protocols, then the rest",
+        "States that project.pbxproj changes may only add file references to the editor's own target, never restructure targets/schemes, and any such change is called out explicitly in the PR description",
+        "States the contract-adjustment protocol: a lane discovering a tech_specs/interfaces-json mismatch posts it before changing any file outside its own owned folders, and gets the owning lane's explicit sign-off first",
+        "States the verification-task file-ownership rule: any task whose files span multiple lanes' folders is filed under whichever lane owns the majority of those files, not a separate ad hoc lane"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "CONTRIBUTING.md: merge order, branch names, and communication protocol",
+      "owner_lane": "primary_ui",
+      "files": [
+        "BackTimer/CONTRIBUTING.md"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "States the four lane branch names and the merge order matching the milestone dependency chain: data_domain first, then services_utilities protocols, then the rest",
+        "States that project.pbxproj conflicts are resolved by the lane that most recently added a target member, with the change flagged in the PR description, never silently force-pushed",
+        "States the contract-adjustment protocol: a lane discovering a tech_specs/interfaces-json mismatch posts it before changing any file outside its own owned folders, and gets the owning lane's explicit sign-off"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

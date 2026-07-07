@@ -1,0 +1,390 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "ItemCategory",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ItemCategory: String, Codable, CaseIterable { case watch, vinyl, card, wine, sneaker, other }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed six-category enum shared across capture, detail, export, and classification mapping."
+    },
+    {
+      "name": "ItemStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ItemStatus: String, Codable, Sendable { case draft, incomplete, complete }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted creation/completion state; separate from computed ItemDisplayState."
+    },
+    {
+      "name": "ConditionGrade",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ConditionGrade: String, Codable, CaseIterable, Comparable, Sendable { case poor, fair, good, veryGood, excellent, mint }",
+      "owning_lane": "data_domain",
+      "notes": "Ordered enum (not free text) so condition-change comparisons over time are meaningful."
+    },
+    {
+      "name": "ValueType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ValueType: String, Codable, CaseIterable, Sendable { case purchasePrice, appraisal, dealerOffer, marketObservation, insuredValue }",
+      "owning_lane": "data_domain",
+      "notes": "Hard constrained enum; ledger/chart rendering must visually distinguish each case, never one undifferentiated line."
+    },
+    {
+      "name": "PhotoAssetRef",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PhotoAssetRef: Codable, Hashable, Sendable { let originalRelativePath: String; let thumbnailRelativePath: String?; let pixelWidth: Int; let pixelHeight: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Settled over a bare String path -- stored dimensions let export decide downsample-vs-embed without re-decoding. All photo fields use this type."
+    },
+    {
+      "name": "PurchaseFacts",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PurchaseFacts: Codable, Hashable, Sendable { var purchaseDate: Date?; var purchaseAmount: Decimal?; var source: String?; var locationNote: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Decimal, not minor-unit Int, for every monetary value app-wide -- no parallel cents-convention to remember at each call site."
+    },
+    {
+      "name": "Item",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Item { @Attribute(.unique) var id: UUID; var title: String; var category: Category; var subtype: String; var status: ItemStatus; var createdAt: Date; var creationSequence: Int64; var deletedAt: Date?; var coverPhoto: PhotoAssetRef?; var conditionGrade: ConditionGrade?; var purchaseFacts: PurchaseFacts?; @Relationship(deleteRule: .cascade) var conditionEntries: [ConditionEntry]; @Relationship(deleteRule: .cascade) var valueEntries: [ValueEntry] }",
+      "owning_lane": "data_domain",
+      "notes": "creationSequence is the mandatory stable tiebreak for active-25 partition; never sort on createdAt alone."
+    },
+    {
+      "name": "ConditionEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ConditionEntry { @Attribute(.unique) var id: UUID; var itemID: UUID; var entryDate: Date; var note: String; var provenanceNote: String?; var conditionChange: ConditionGrade?; var photo: PhotoAssetRef? }",
+      "owning_lane": "data_domain",
+      "notes": "One photo max per entry, per locked scope."
+    },
+    {
+      "name": "ValueEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ValueEntry { @Attribute(.unique) var id: UUID; var itemID: UUID; var entryDate: Date; var amount: Decimal; var valueType: ValueType; var sourceNote: String?; var photo: PhotoAssetRef? }",
+      "owning_lane": "data_domain",
+      "notes": "Decimal amount, never Double, to avoid float drift in a financial ledger."
+    },
+    {
+      "name": "AppSettings",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class AppSettings { @Attribute(.unique) var id: Int; var installCurrencyCode: String; var appLockEnabled: Bool; var recentlyDeletedRetentionDays: Int; var installedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Singleton row (id fixed at 1); currencyCode stamped once at install from Locale.current, never re-derived."
+    },
+    {
+      "name": "EntitlementSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct EntitlementSnapshot: Codable, Equatable { var isProActive: Bool; var lastVerifiedAt: Date? }",
+      "owning_lane": "services_utilities",
+      "notes": "Cached last-known capability state for offline continuity."
+    },
+    {
+      "name": "ItemDisplayState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ItemDisplayState: Equatable, Sendable { case normal; case incomplete(reason: String); case locked; case deleted(purgeDate: Date) }",
+      "owning_lane": "data_domain",
+      "notes": "Associated-value shape so badges/VoiceOver strings build directly from the enum with no second lookup. Precedence: deleted > locked > incomplete > normal."
+    },
+    {
+      "name": "CollectionSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CollectionSummary: Equatable, Sendable { let activeItemCount: Int; let lockedItemCount: Int; let totalCollectionValue: Decimal?; let currencyCode: String; let lastComputedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Single source of truth for widget and any in-app aggregate value display; never computed twice independently."
+    },
+    {
+      "name": "ClassificationSuggestion",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ClassificationSuggestion: Sendable, Equatable { let category: Category; let confidence: Double; let sourceLabel: String }",
+      "owning_lane": "services_utilities",
+      "notes": "sourceLabel retained for auditing the Vision-label-to-Category mapping table; nil/absent entirely below the confidence floor."
+    },
+    {
+      "name": "ExportMode",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ExportMode: Sendable { case singleItem(UUID); case collection }",
+      "owning_lane": "data_domain",
+      "notes": "Declared once here, imported everywhere -- no per-lane redeclaration."
+    },
+    {
+      "name": "ExportPagePreview",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExportPagePreview: Equatable, Sendable { let pageIndex: Int; let totalPages: Int; let imageFileURL: URL }",
+      "owning_lane": "services_utilities",
+      "notes": "Carries page-position metadata directly so 'Page 2 of 5' VoiceOver announcement is explicit and testable, not inferred from a bare image array."
+    },
+    {
+      "name": "ItemRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ItemRepository: Sendable { func createDraft(coverPhoto: PhotoAssetRef?) async throws -> Item; func updateQuickLog(itemID: UUID, title: String, category: Category, subtype: String) async throws -> Item; func markItemIncomplete(itemID: UUID, reason: String) async throws; func loadActiveAndLocked(subscriptionActive: Bool) async throws -> (active: [Item], locked: [Item]); func loadItemDetail(itemID: UUID) async throws -> Item; func savePurchaseFacts(itemID: UUID, facts: PurchaseFacts?) async throws; func addConditionEntry(_ entry: ConditionEntry) async throws; func addValueEntry(_ entry: ValueEntry) async throws; func softDelete(_ itemID: UUID, deletedAt: Date) async throws; func restore(_ itemID: UUID) async throws; func purgeExpiredDeletedItems(now: Date) async throws; func loadRecentlyDeletedItems(now: Date) async throws -> [Item]; func collectionSummary(subscriptionActive: Bool) async throws -> CollectionSummary }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical persistence boundary, one method set. loadActiveAndLocked MUST delegate to partitionActiveAndLocked rather than reimplement the split -- closes the two-independently-written-truths risk."
+    },
+    {
+      "name": "PhotoStorageService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PhotoStorageService { func persistOriginalAndThumbnail(imageData: Data, itemID: UUID) async throws -> PhotoAssetRef; func persistEntryPhoto(imageData: Data, itemID: UUID, entryID: UUID) async throws -> PhotoAssetRef; func removeAssets(forItemID itemID: UUID) async throws; func removeAssets(forEntryID entryID: UUID, itemID: UUID) async throws; func makePreviewImage(for asset: PhotoAssetRef) async throws -> Data }",
+      "owning_lane": "services_utilities",
+      "notes": "Handles App Group file layout, thumbnail generation, and cleanup."
+    },
+    {
+      "name": "ClassificationService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ClassificationService: Sendable { func classify(imageData: Data) async -> ClassificationSuggestion? }",
+      "owning_lane": "services_utilities",
+      "notes": "VNClassifyImageRequest-backed impl maps Vision labels to Category via a reviewed lookup-table artifact, not an inline switch."
+    },
+    {
+      "name": "EntitlementProvider",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementProvider: Sendable { var current: EntitlementState { get async }; func purchase(_ product: Product) async throws; func restorePurchases() async throws; func startTransactionListener() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Gates from Transaction.currentEntitlements (local cache), never a live network call. Listener started once at app launch."
+    },
+    {
+      "name": "AppLockService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AppLockService: Sendable { func deviceAuthenticationAvailable() -> Bool; func authenticate() async -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "If device authentication is unavailable, access is allowed rather than trapping the user."
+    },
+    {
+      "name": "ExportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ExportService: Sendable { func buildDocumentModel(mode: ExportMode) async throws -> ExportDocumentModel; func renderPDF(_ document: ExportDocumentModel) async throws -> URL; func generatePreviewPages(for pdfURL: URL) async throws -> [ExportPagePreview]; func cleanupTemporaryExportFiles() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Real file rendered via UIGraphicsPDFRenderer off-main; preview generated separately from the file, never via PDFView. buildDocumentModel is the one mapping seam."
+    },
+    {
+      "name": "computeDisplayState",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func computeDisplayState(item: Item, subscriptionActive: Bool, activeItemIDs: Set<UUID>) -> ItemDisplayState",
+      "owning_lane": "data_domain",
+      "notes": "Pure function. Exhaustively unit tested (Swift Testing @Test(arguments:)) including tied creationSequence, restore-at-cap, delete-while-locked."
+    },
+    {
+      "name": "partitionActiveAndLocked",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func partitionActiveAndLocked(items: [Item], freeCapActive: Bool, capSize: Int) -> (active: [Item], locked: [Item])",
+      "owning_lane": "data_domain",
+      "notes": "O(n) single pass: filter non-deleted, sort by creationSequence, split at capSize. This is the ONLY place the active/locked split is computed -- ItemRepository.loadActiveAndLocked must delegate here, never reimplement it as an independent query."
+    },
+    {
+      "name": "CaptureWorkflowState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum CaptureWorkflowState: Equatable { case idle; case draftCreated(Item); case mediaProcessing(Item); case suggestionReady(Item, ClassificationSuggestion?); case saveReady(Item, ClassificationSuggestion?); case failedIncomplete(Item) }",
+      "owning_lane": "primary_ui",
+      "notes": "Single feature-model state machine for capture and quick log."
+    },
+    {
+      "name": "CatalogRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CatalogRoute: Hashable, Sendable { case itemDetail(UUID); case preservedList; case recentlyDeleted; case exportPreview(ExportMode); case settings }",
+      "owning_lane": "primary_ui",
+      "notes": "Typed NavigationStack path; pushes only, never used for sheet-presented focused tasks."
+    },
+    {
+      "name": "Category",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Category: String, Codable, CaseIterable, Sendable { case watch, vinyl, card, wine, sneaker, other }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed six-case enum, shared schema, free-text subtype carries specificity."
+    },
+    {
+      "name": "effectiveState",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func effectiveState(for item: Item, subscriptionActive: Bool, activeItemIDs: Set<UUID>) -> ItemDisplayState",
+      "owning_lane": "data_domain",
+      "notes": "Pure function, precedence: deleted > locked > incomplete > normal. Must be exhaustively unit tested including tied creationSequence values."
+    },
+    {
+      "name": "activeLockedPartition",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func activeLockedPartition(items: [Item], freeCapActive: Bool, capSize: Int) -> (active: [Item], locked: [Item])",
+      "owning_lane": "data_domain",
+      "notes": "O(n) single-pass: filter non-deleted, sort by creationSequence, split at capSize when freeCapActive. Never O(n^2) per-item recomputation."
+    },
+    {
+      "name": "EntitlementState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EntitlementState: Sendable, Equatable, Codable { case free; case subscribed(expiresAt: Date?); case unknownOffline(lastVerified: CachedEntitlement?) }",
+      "owning_lane": "services_utilities",
+      "notes": "Offline continuity must never silently collapse to free by omission; unknownOffline carries the flat cached snapshot, not another EntitlementState."
+    },
+    {
+      "name": "PhotoStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PhotoStore: Sendable { func persistOriginalAndThumbnail(imageData: Data, itemID: UUID) async throws -> PhotoAssetRef; func persistEntryPhoto(imageData: Data, itemID: UUID, entryID: UUID) async throws -> PhotoAssetRef; func removeAssets(forItemID itemID: UUID) async throws; func removeAssets(forEntryID entryID: UUID, itemID: UUID) async throws; func loadImage(_ ref: PhotoAssetRef, preview: Bool) async throws -> Data }",
+      "owning_lane": "services_utilities",
+      "notes": "All paths relative to App Group container root; thumbnails generated off-main via byPreparingThumbnail. Returns PhotoAssetRef, never a bare path string."
+    },
+    {
+      "name": "PDFExportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PDFExportService: Sendable { func renderSingleItem(_ itemID: UUID) async throws -> URL; func renderCollection() async throws -> URL; func rasterizedPreviewPages(for fileURL: URL) async throws -> [CGImage] }",
+      "owning_lane": "services_utilities",
+      "notes": "UIGraphicsPDFRenderer off-main for the real file; rasterizedPreviewPages feeds the native SwiftUI paged preview, never embed PDFView."
+    },
+    {
+      "name": "CaptureState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CaptureState: Sendable { case capturing; case draftCreated(itemID: UUID); case mediaProcessing(itemID: UUID); case awaitingDetails(itemID: UUID, coverPhoto: PhotoAssetRef, suggestion: ClassificationSuggestion?); case saveReady(itemID: UUID); case incomplete(itemID: UUID, reason: String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Single canonical name/shape. Owned exclusively by CaptureViewModel; Vision result only persists to Item.category if still selected at Save."
+    },
+    {
+      "name": "CaptureViewModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class CaptureViewModel { private(set) var state: CaptureState; func photoCaptured(data: Data) async; func selectCategory(_ category: Category); func save(title: String, subtype: String) async; func resumeDraft(itemID: UUID) async }",
+      "owning_lane": "primary_ui",
+      "notes": "Sole owner of capture state machine and draft mutation; nothing else writes to a draft Item."
+    },
+    {
+      "name": "CatalogViewModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class CatalogViewModel { private(set) var activeItems: [Item]; private(set) var lockedCount: Int; private(set) var loadState: LoadState; func load() async; func softDelete(_ itemID: UUID) async; func undoDelete(_ itemID: UUID) async }",
+      "owning_lane": "primary_ui",
+      "notes": "Renders ItemDisplayState per item via computeDisplayState; never its own ad hoc locked/incomplete checks."
+    },
+    {
+      "name": "LoadState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LoadState: Equatable, Sendable { case loading; case loaded; case empty; case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Shared four-state enum reused across Catalog, Export Preview, Preserved list, Recently Deleted."
+    },
+    {
+      "name": "ItemDetailViewModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ItemDetailViewModel { private(set) var item: Item; private(set) var displayState: ItemDisplayState; func addConditionEntry(note: String, provenanceNote: String?, photoData: Data?, conditionChange: ConditionGrade?) async; func addValueEntry(amount: Decimal, type: ValueType, sourceNote: String?, date: Date, photoData: Data?) async; func savePurchaseFacts(_ facts: PurchaseFacts?) async }",
+      "owning_lane": "primary_ui",
+      "notes": "Owns three-module state; Value module renders LockedTeaserCard vs live ledger vs read-only-preserved based on displayState + subscription."
+    },
+    {
+      "name": "ExportPreviewViewModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ExportPreviewViewModel { private(set) var pages: [ExportPagePreview]; private(set) var loadState: LoadState; func generate(mode: ExportMode) async; func share() -> URL? }",
+      "owning_lane": "primary_ui",
+      "notes": "Backed by ExportService.generatePreviewPages; TabView(.page) page-position accessibility sourced directly from ExportPagePreview fields, never PDFView."
+    },
+    {
+      "name": "PaywallViewModel",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class PaywallViewModel { private(set) var products: [Product]; private(set) var loadState: LoadState; func purchase(_ product: Product) async; func restore() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Reads/writes only through EntitlementProvider; never touches ItemRepository directly."
+    },
+    {
+      "name": "PrivacyOverlay",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct PrivacyOverlayModifier: ViewModifier { func body(content: Content) -> some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Root-level modifier applied once in App/, driven by scenePhase; covers app-switcher snapshot, not per-screen."
+    },
+    {
+      "name": "CollectionSummaryProvider",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor CollectionSummaryProvider { func current() async -> CollectionSummary; func invalidate() async }",
+      "owning_lane": "polish_resilience",
+      "notes": "Debounced recompute on repository write events; sole source for widget and aggregate displays."
+    },
+    {
+      "name": "WidgetReloadCoordinator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor WidgetReloadCoordinator { func scheduleReload() async }",
+      "owning_lane": "polish_resilience",
+      "notes": "Coalesces WidgetKit reloads to respect background budget."
+    },
+    {
+      "name": "RecoveryPurgeScheduler",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct RecoveryPurgeScheduler { func purgeEligibleItems(repository: any ItemRepository, now: Date) async throws }",
+      "owning_lane": "polish_resilience",
+      "notes": "Runs at launch/foreground only; no background task scheduler (no BGTaskScheduler)."
+    },
+    {
+      "name": "ExportDocumentModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExportDocumentModel: Sendable { let sections: [ExportSection]; let generatedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "The export-formatting boundary: domain models + AppSettings map into this exactly once; renderer and in-app preview both consume it so they can never disagree on dates/values."
+    },
+    {
+      "name": "ExportSection",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExportSection: Sendable { let title: String; let formattedEntries: [String]; let photoRefs: [PhotoAssetRef] }",
+      "owning_lane": "services_utilities",
+      "notes": "Plain rendering unit consumed by ExportService; never built ad hoc inline inside the renderer."
+    },
+    {
+      "name": "PrivacyOverlayModifier",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct PrivacyOverlayModifier: ViewModifier { func body(content: Content) -> some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Root-level privacy shield for app-switcher snapshots and background transitions."
+    },
+    {
+      "name": "CachedEntitlement",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CachedEntitlement: Codable, Equatable, Sendable { let isSubscribed: Bool; let expiresAt: Date?; let verifiedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "RESOLVED this round: flat snapshot replaces a rejected recursive EntitlementState.unknownOffline(lastKnown: EntitlementState?) design. Codex's fix, adopted since nobody defended the recursive shape."
+    },
+    {
+      "name": "isSubscriptionActive",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func isSubscriptionActive(_ state: EntitlementState) -> Bool",
+      "owning_lane": "services_utilities",
+      "notes": "The ONLY legal conversion from EntitlementState to the plain Bool that computeDisplayState/partitionActiveAndLocked/collectionSummary expect. No lane may inline its own switch over EntitlementState."
+    }
+  ],
+  "errors": []
+}

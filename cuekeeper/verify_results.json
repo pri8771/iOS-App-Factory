@@ -1,0 +1,19 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-06 23:09:46",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "aae21de485b9e7ed6e51537a7f7ed188c7aad405554d32f06dd1bff5f5aa228d",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "CueKeeper",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

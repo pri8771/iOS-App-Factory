@@ -1,0 +1,47 @@
+Build 2 completely separate iOS apps at the same time.
+
+Requirements:
+1. Each app must go from 0 to production-ready, not just a few features.
+2. Each app must be unique, useful, and commercially viable.
+3. Each app must be beautifully designed and feel premium.
+4. Each app must provide real end-user value.
+5. Each app should have a realistic path to monetization, with a subscription or paid offering that offers genuine value.
+6. Each app should have viral potential in general or within a niche, but virality must not come at the expense of usefulness.
+7. Each app should be better than its competitors in a meaningful way.
+8. Each app should be local-first, but architected so cloud support could be added later without rewriting everything.
+9. The two apps must not be similar to each other.
+10. Neither app can be similar to anything I have already built before.
+11. Do not reuse prior concepts, themes, or mechanics from earlier apps unless there is a strong, clearly justified reason.
+
+Bonus points:
+- Unique use of LLMs
+- Unique use of AR
+- Unique use of ML
+
+Important:
+- Bonus points are optional. Do not force them in if they would weaken the app.
+- If an LLM, AR, or ML feature is used, it must provide real value and be integral to the product.
+- Do not bias the ideas toward bonus points.
+- Do not make the app around novelty alone.
+- The final result for each app must be a full production-ready app, not a prototype.
+
+Build rules:
+- Run the two app efforts in parallel.
+- Keep the discussion and design phases separate for each app.
+- Each app should get its own full product direction, design direction, architecture, implementation plan, and build output.
+- Save all prompt discussion, phase discussion, and final decisions for each app.
+- At the end, combine the full transcript for each app into a .txt file.
+- If an app is liked, also prepare a Jira board and Notion project for it separately, including epics, tasks, fields, and all the implementation structure needed for backfilling later.
+- If the system supports multiple rounds per phase, use enough rounds to get high-quality discussion, but allow a phase to end early if consensus is reached.
+- Make the orchestrator resilient: if a phase stalls, recover cleanly instead of looping.
+- Report only important milestones, not every tiny step.
+
+Output:
+- Create one folder per app in the output directory.
+- If multiple apps are made, there must be one folder per app, not one folder containing all apps.
+- Keep the outputs clearly separated and organized.
+
+Output directory:
+- /Users/pchordia/Documents/GitHub
+
+Now generate the first two app ideas, discuss them thoroughly, choose the best two, and build both all the way to production quality.

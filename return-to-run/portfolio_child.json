@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-cat-b1",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Return To Run",
+    "slug": "return-to-run",
+    "category": "Health & Fitness",
+    "promise": "Enforces a physio-prescribed walk-run return-to-running progression with pain-signal discipline",
+    "targetUser": "Runner rehabbing a stress fracture or IT band injury on a graduated return plan",
+    "mechanic": "rehab plan enforcer",
+    "build": true,
+    "one_sentence_promise": "Enforces a physio-prescribed walk-run return-to-running progression with pain-signal discipline",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

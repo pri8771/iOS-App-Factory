@@ -1,0 +1,479 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Scaffold Xcode project, 4 targets, App Group, synchronized-group file layout",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/Choicepoint.xcodeproj",
+        "Choicepoint/Choicepoint/App.entitlements",
+        "Choicepoint/ChoicepointWidget/Info.plist",
+        "Choicepoint/ChoicepointIntents/Info.plist",
+        "Choicepoint/ChoicepointCore/Package.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Project builds empty targets for Choicepoint, ChoicepointWidget, ChoicepointIntents with ChoicepointCore linked into all three",
+        "App Group capability present and identical across all targets",
+        "Uses file-system-synchronized groups so new files added on disk appear in the target without manual pbxproj edits",
+        "project.pbxproj, Package.swift, entitlements, Info.plists, and target membership remain integrator-owned by services_utilities for the rest of the build"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "ChoicepointCore Models + DecisionPolicy + adversarial policy test suite",
+      "owner_lane": "data_domain",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Models/*.swift",
+        "Choicepoint/ChoicepointCore/Sources/Policy/*.swift",
+        "Choicepoint/ChoicepointCore/Tests/PolicyTests/*.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All locked data types from tech_specs (DecisionRecord, OutcomeRecord, DecisionDraft, OutcomeDraft, RevisitSchedule, DecisionStats, PendingRevisitSummary, NotificationPlan/Item, DecisionWriteError, enums) compile with zero SwiftData/Core Data imports",
+        "DecisionPolicy implementation takes Calendar/TimeZone as injected parameters, never .current",
+        "Unit tests cover cap math across all DecisionSurface values, active/resolved counting, DST-safe scheduling, notification rolling-window selection, low-sample stats threshold \u2014 all green",
+        "Package builds and tests standalone via swift test, with zero ModelContainer/NSPersistentStoreCoordinator dependency, and with no dependency on the Xcode project existing yet"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Persistence spike: SwiftData-vs-Core Data go/no-go",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Persistence/Spike/*.swift",
+        "Choicepoint/SpikeTargets/*",
+        "Choicepoint/docs/persistence-verdict.md"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Three trivial targets share one ModelContainer/store against the real App Group container URL (not simulator default)",
+        "Concurrent write-hammering test (~50 rapid writes across two processes, read-after-write-across-processes, delete/resolve/reschedule churn) produces zero crashes, zero corruption, zero stale reads",
+        "docs/persistence-verdict.md explicitly names SwiftData or Core Data as the chosen engine with the test results that justify it",
+        "Spike targets are removed or clearly isolated from shipping code once the verdict lands"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Concrete DecisionRepository + App Group round-trip checkpoint",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Persistence/DecisionRepository*.swift",
+        "Choicepoint/ChoicepointCore/Tests/PersistenceTests/*.swift",
+        "Choicepoint/docs/app-group-roundtrip.md"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Implements DecisionRepository per tech_specs using the engine T-003 selected, with zero policy logic leaking in",
+        "No pagination added \u2014 deliberate non-goal per locked decision",
+        "docs/app-group-roundtrip.md records a real write from one target read back from a second target and asserted equal, not assumed from correct-looking entitlements",
+        "fetchActive/fetchResolved/activeCount/nextEntryNumber/fetchOutcome all covered by tests against the real App Group container"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "EntitlementSnapshot/EntitlementStore + StoreKit 2 + eager fresh-install default",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Entitlements/*.swift",
+        "Choicepoint/Choicepoint/StoreKitConfig.storekit"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Main app writes EntitlementSnapshot(access: .free, refreshedAt: now) to the App Group eagerly at first successful launch, before any StoreKit fetch completes",
+        "refreshFromStoreKit reads Transaction.currentEntitlements only, no custom grace-period/TTL logic layered on top",
+        "Snapshot refreshed on every foreground",
+        "Extensions only ever read the cached snapshot, never call StoreKit directly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "NotificationScheduling implementation (rolling window, recompute-and-diff)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Notifications/NotificationScheduling.swift",
+        "Choicepoint/ChoicepointCore/Sources/Notifications/NotificationPlan.swift",
+        "Choicepoint/ChoicepointCore/Tests/NotificationTests/*.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Schedules real UNNotificationRequests for the nearest 30 active decisions using calendar-day-plus-local-time semantics",
+        "recomputeAndApply diffs against currently-pending requests and is callable from mutation and from app launch",
+        "authorizationStatus/requestAuthorization implemented against UNUserNotificationCenter",
+        "Notification title/body never contain decision content, count/due-ness copy only"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "WidgetRefreshing wrapper",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Notifications/WidgetRefreshing.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Thin wrapper over WidgetCenter.shared.reloadTimelines(ofKind:)",
+        "Mockable in tests, no direct WidgetKit dependency leaking into DecisionMutationService callers"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "DecisionMutationService (single write boundary, partial-failure rule)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Persistence/DecisionMutationService.swift",
+        "Choicepoint/ChoicepointCore/Tests/MutationServiceTests/*.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004",
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "createDecision/resolveDecision/rescheduleDecision/updateDecision each compose policy validation + repository persist + notification recompute + widget reload as one operation",
+        "If persist succeeds and notification-apply or widget-reload subsequently throws, the save is never rolled back \u2014 verified by an explicit test that forces the notification step to fail after a successful persist and asserts the record still reads back",
+        "activeDecisionCapReached is enforced identically regardless of which DecisionSurface calls it",
+        "entryNumber assigned only inside createDecision via repository.nextEntryNumber(), never client-supplied"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "WidgetDeepLink codec + CaptureDecisionIntent (Siri/App Intent)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Notifications/WidgetDeepLink.swift",
+        "Choicepoint/ChoicepointIntents/CaptureDecisionIntent.swift",
+        "Choicepoint/ChoicepointIntents/AppShortcutsProvider.swift"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "WidgetDeepLink.url(for:)/decisionID(from:) is the only place the custom URL scheme is encoded or decoded",
+        "CaptureDecisionIntent builds a DecisionDraft and calls DecisionMutationService.createDecision(surface: .appIntent), surfacing DecisionWriteError.activeDecisionCapReached identically to the in-app form",
+        "A 6th-decision attempt via the intent is blocked exactly like the in-app form"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "ExportService",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Choicepoint/ChoicepointCore/Sources/Entitlements/ExportService.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Produces a local file URL from decisions+outcomes, user-initiated only, no automatic or background export path exists"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "AppRouter, tab/sheet/route types, root TabView, deep-link wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/Choicepoint/App/AppRouter.swift",
+        "Choicepoint/Choicepoint/App/AppTab.swift",
+        "Choicepoint/Choicepoint/App/SheetRoute.swift",
+        "Choicepoint/Choicepoint/App/PaywallTrigger.swift",
+        "Choicepoint/Choicepoint/App/DeepLinkTarget.swift",
+        "Choicepoint/Choicepoint/App/RootTabView.swift",
+        "Choicepoint/Choicepoint/App/ChoicepointApp.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "AppRouter is a concrete @MainActor @Observable final class, not a protocol",
+        "routeToDecision(_:) is the single atomic entry point, sequencing sheet-dismiss -> tab-switch -> path-push in that order, with last-write-wins on pendingDestination",
+        "onOpenURL, the notification delegate, and AppIntent completion all funnel into routeToDecision identically",
+        "Unit test asserts the exact ordering and last-write-wins behavior under a simulated double deep-link"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Onboarding + notification permission flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/Choicepoint/Features/Onboarding/*.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "One honest explanation card precedes the system permission prompt, no swipeable tour",
+        "Denied state at onboarding shows an explicit in-app fallback, not a silent failure"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Capture feature (two-speed form)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/Choicepoint/Features/Capture/*.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-008",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Save enabled the instant decision text, prediction, and revisit date are present; context/options/confidence/what-would-change-my-mind behind an Add Detail disclosure",
+        "capBlocked checked synchronously on sheet appear and re-validated atomically inside createDecision",
+        "Empty-state-to-saved-record achievable in well under 20 seconds"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Ledger feature",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/Choicepoint/Features/Ledger/*.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Overdue/Due Soon/Upcoming grouping with a resolved filter, overdue never disappears",
+        "refreshOnForeground() wired to scenePhase so a backgrounded Siri/widget write appears without manual refresh",
+        "Real empty state when there are zero active decisions"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Decision Detail feature",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/Choicepoint/Features/DecisionDetail/*.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Active mode shows original record plus edit/revisit-now/reschedule actions; resolved mode is read-only",
+        "A stale notification pointing at an already-resolved decision lands here in read-only mode, never a broken/duplicate outcome form"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Revisit/Resolve feature",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/Choicepoint/Features/Revisit/*.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-008",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Opens directly onto the stamped Before block, fully visible, no gate or reveal tap",
+        "resolve(as:) and notYet(newSchedule:) are separate methods/actions, never a shared toggle",
+        "Held/Missed/Mixed resolve and free a cap slot; Not Yet only pushes the date forward and stays active"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Calibration feature (incl. locked confidence teaser)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/Choicepoint/Features/Calibration/*.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Computed fresh from resolved records only, honest empty state at zero resolved decisions",
+        "Raw fraction always shown alongside any percentage; headline percentage suppressed below the low-sample threshold",
+        "Confidence-weighted analytics locked behind an honest teaser card for free users, unlocked for paid via EntitlementStore"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Paywall sheet + Settings screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/Choicepoint/Features/Paywall/*.swift",
+        "Choicepoint/Choicepoint/Features/Settings/*.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-010",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Paywall only ever reached contextually (capCeiling or lockedAnalytics trigger), never as a standalone destination",
+        "Settings shows live notification permission status (including revoked-since-grant), subscription state, export action, privacy copy",
+        "Downgrade never hides/deletes/force-resolves existing decisions above the cap \u2014 only new creation is blocked"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Widget UI (ChoicepointWidget target)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Choicepoint/ChoicepointWidget/*.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Small/medium families show counts/nearest-due-date only, never decision content",
+        "Single tap target per widget deep-links via WidgetDeepLink into the same Revisit/Resolve screen",
+        "Timeline reloads correctly after WidgetRefreshing.reloadRevisitWidgets is invoked from a mutation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Shared DesignSystem module",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Choicepoint/Choicepoint/DesignSystem/*.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Light and dark paper-and-ink tokens, serif user-authored text style, monospacedDigit numeral style, single sparse accent color, defined once and reused everywhere",
+        "LoadState-driven empty/loading/error view components and PermissionBannerState banner component exist and are ready for feature screens to adopt as stable token names/lightweight placeholders early, hardened later",
+        "assembledAccessibilityLabel helper produces one combined VoiceOver sentence per ledger row"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Accessibility, dark mode, and empty/error/loading hardening pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Choicepoint/Choicepoint/Features/Ledger/*.swift",
+        "Choicepoint/Choicepoint/Features/DecisionDetail/*.swift",
+        "Choicepoint/Choicepoint/Features/Revisit/*.swift",
+        "Choicepoint/Choicepoint/Features/Calibration/*.swift",
+        "Choicepoint/Choicepoint/Features/Capture/*.swift",
+        "Choicepoint/Choicepoint/Features/Settings/*.swift"
+      ],
+      "depends_on": [
+        "T-020",
+        "T-013",
+        "T-014",
+        "T-015",
+        "T-016",
+        "T-017",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Dynamic Type reflows every ledger row and the Before block at accessibility sizes with no truncation, verified before sign-off",
+        "Every reachable screen wired to LoadState with real empty/loading/error states, no placeholders",
+        "Held/Missed/Mixed/overdue/permission states never rely on hue alone",
+        "Full dark mode parity verified on every screen touched here",
+        "This task is the sole editor of these files during its window \u2014 primary_ui lane treats them as handed off once this task starts"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Cross-surface cap-enforcement adversarial test + integration report",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Choicepoint/ChoicepointCoreTests/CrossSurfaceCapTests.swift",
+        "Choicepoint/docs/cross-surface-integration-report.md"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-009",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Attempting a 6th active decision through the in-app form, the widget path, and the Siri intent independently all produce the identical activeDecisionCapReached error, run against the real shared App Group container, not mocks",
+        "A stale notification/widget deep link is verified to open the safe resolved/missing-state path, never a broken form",
+        "docs/cross-surface-integration-report.md records that a backgrounded Siri/widget write is honestly reflected in Ledger and Calibration on next normal foreground, no manual refresh"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "XCUITest: fast capture + cold-launch deep-link routing",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Choicepoint/ChoicepointUITests/CaptureFlowTests.swift",
+        "Choicepoint/ChoicepointUITests/DeepLinkRoutingTests.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-013",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Automated test proves empty-state-to-saved-record path",
+        "Automated test proves a notification tap after a simulated cold launch lands on the exact target decision's Revisit screen",
+        "Stale-notification-to-already-resolved fallback verified to open read-only Decision Detail, not a broken form"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Real-device manual QA checklist",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Choicepoint/QA/manual-release-checklist.md"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-023",
+        "T-006",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Force-quit-then-notification-fires verified on a physical device",
+        "Permission-revoked-while-backgrounded verified to surface the in-app banner on next foreground",
+        "Downgrade-with-decisions-above-cap verified to block only new creation, never hide/delete existing records",
+        "Results recorded with pass/fail per item, not just a checklist template"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

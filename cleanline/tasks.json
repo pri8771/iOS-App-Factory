@@ -1,0 +1,661 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "CleanlineModels: core data-domain types",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/CleanlineModels/Package.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/TraceDocument.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/TraceStatus.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/TraceStage.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/WorkspaceMode.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/QualityGateResult.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/RejectionReason.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/VectorDocument.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/VectorPath.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/PathSegment.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/EditCommand.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/ExportFormat.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/ExportStatus.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/NewTraceOutcome.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/TraceMetadata.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/CaptureSource.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/CapturedImage.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/NormalizedImage.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All types compile with the exact signatures locked in tech_specs",
+        "Codable round-trip unit tests pass for TraceDocument and VectorDocument",
+        "Package builds standalone with zero dependency on any other Cleanline package"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Cross-cutting resilience & accessibility shared types",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Packages/CleanlineModels/Sources/CleanlineModels/ProcessingStage.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/InterruptionRecoveryState.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/PipelineError.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/AccessibilityPathAction.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Compiles as sibling files in the same target without modifying any T-001 file",
+        "PipelineError enumerates every stage failure named in tech_specs",
+        "ProcessingStage.allCases order matches the locked sequence exactly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Services-lane shared value types: QualityMetrics, ExportArtifact",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineModels/Sources/CleanlineModels/QualityMetrics.swift",
+        "Packages/CleanlineModels/Sources/CleanlineModels/ExportArtifact.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Compiles alongside T-001/T-002 files with zero edits to either",
+        "QualityMetrics carries all five locked metric fields",
+        "ExportArtifact exposes a file URL, never raw Data"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "CleanlineDesignSystem: tokens and shared components",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Packages/CleanlineDesignSystem/Package.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/Tokens.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/StatusChip.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/PathCanvas.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/ToolStrip.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/SegmentedToggle.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/RejectionCard.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/PrimaryButton.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/SecondaryButton.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/SourceCard.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/RecentTraceRow.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/ProcessingStageStack.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/ExportOptionRow.swift",
+        "Packages/CleanlineDesignSystem/Sources/CleanlineDesignSystem/EmptyStateHero.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Color/typography/spacing tokens match the locked values exactly (paper #F6F1E7, ink #17140F, teal #2F6F63, orange #C1531B)",
+        "PathCanvas is the single shared render surface reused by both Compare and Edit modes",
+        "Every component holds up at accessibility Dynamic Type sizes without truncation",
+        "No gradients or heavy drop shadows anywhere in the component set"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "CleanlinePersistence: TraceStore, atomic checkpoints, staging/reconciliation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlinePersistence/Package.swift",
+        "Packages/CleanlinePersistence/Sources/CleanlinePersistence/TraceStore.swift",
+        "Packages/CleanlinePersistence/Sources/CleanlinePersistence/AtomicCheckpointWriter.swift",
+        "Packages/CleanlinePersistence/Sources/CleanlinePersistence/StagingReconciliation.swift",
+        "Packages/CleanlinePersistence/Tests/CleanlinePersistenceTests/AtomicWriteTests.swift",
+        "Packages/CleanlinePersistence/Tests/CleanlinePersistenceTests/StagingReconciliationTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Kill-mid-write test proves the prior checkpoint survives untouched",
+        "Staging mechanism matches the locked design exactly: provisional-ID keyed staging, no TraceDocument or Recents visibility before the gate resolves",
+        "Startup reconciliation sweep scans staging only and deterministically promotes-on-accept or deletes-on-reject",
+        "listAllMetadata rebuilds purely by scanning per-trace folders, never trusting a separate index"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "App shell skeletons: AppRoute, AppRouter, AppModel, TraceSession",
+      "owner_lane": "primary_ui",
+      "files": [
+        "App/CleanlineApp.swift",
+        "App/AppRouter.swift",
+        "App/RootView.swift",
+        "App/AppModel.swift",
+        "App/TraceSession.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "AppRouter.route(for:) is the only function deciding where a reopened trace lands",
+        "AppModel.startNewTrace takes typed CapturedImage, never raw Data",
+        "TraceSession owns interruptionRecoveryState with acknowledgeInterruptionRecovery() clearing it to .none",
+        "zoomScale/panOffset/selectedPathIDs are transient and never checkpointed",
+        "Compiles against CleanlinePersistence's real TraceStore, not a stub"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Fixture production: locked sketches, bad-photo set, adversarial case",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Fixtures/Good/icon-sketch.*",
+        "Fixtures/Good/lettering.*",
+        "Fixtures/Good/closed-shape.*",
+        "Fixtures/Good/messy-notebook.*",
+        "Fixtures/Rejections/skewTooHigh.*",
+        "Fixtures/Rejections/shadowCoverageTooHigh.*",
+        "Fixtures/Rejections/blurTooHigh.*",
+        "Fixtures/Rejections/contrastTooLow.*",
+        "Fixtures/Rejections/sketchTooFaint.*",
+        "Fixtures/Rejections/noSketchRegionDetected.*",
+        "Fixtures/Rejections/ruledPaperInterference.*",
+        "Fixtures/Adversarial/nested-closed-loops.*",
+        "Fixtures/README.md"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Four good fixtures span the four locked acceptance-bar classes",
+        "One dedicated bad-photo fixture per each of the seven named rejection reasons, with the induced condition documented in the README",
+        "Nested-closed-loop adversarial case present for winding-rule testing"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Fake service implementations backed by fixtures",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineTestSupport/Package.swift",
+        "Packages/CleanlineTestSupport/Sources/CleanlineTestSupport/FakeCaptureService.swift",
+        "Packages/CleanlineTestSupport/Sources/CleanlineTestSupport/FakeImportService.swift",
+        "Packages/CleanlineTestSupport/Sources/CleanlineTestSupport/FakeQualityGateService.swift",
+        "Packages/CleanlineTestSupport/Sources/CleanlineTestSupport/FakeVectorizationEngine.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Each fake conforms exactly to its real protocol",
+        "Fakes return fixture-realistic results keyed by which fixture was passed in, not arbitrary canned data",
+        "UI, edit, and export lanes can build a full click-through demo using only these fakes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Capture and import services",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineCapture/Package.swift",
+        "Packages/CleanlineCapture/Sources/CleanlineCapture/CaptureService.swift",
+        "Packages/CleanlineCapture/Sources/CleanlineCapture/ImportService.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "CaptureService (AVFoundation) returns CapturedImage with correct CGImagePropertyOrientation",
+        "ImportService (PHPickerViewController) remains fully usable when camera permission is denied",
+        "Camera-permission-denied never dead-ends the flow"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Normalization service",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineNormalize/Package.swift",
+        "Packages/CleanlineNormalize/Sources/CleanlineNormalize/NormalizationService.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Orientation fix, perspective correction, and EXIF/location/timestamp strip all happen before the quality gate runs",
+        "HEIC orientation respected on all four fixtures with zero silent rotation/mirroring",
+        "Ruled/grid paper distinguished from foreground sketch lines on the messy-notebook fixture",
+        "Writes correctly into T-005's staging mechanism"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Quality gate service",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineQualityGate/Package.swift",
+        "Packages/CleanlineQualityGate/Sources/CleanlineQualityGate/QualityGateService.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-007",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Each of the seven named rejection reasons is independently triggerable against its dedicated fixture",
+        "All four good fixtures pass the gate",
+        "sketchTooFaint and contrastTooLow are distinctly triggered by different fixtures, never conflated",
+        "No deliberately-bad fixture silently passes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "New Trace Intake + Camera Capture screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/NewTraceIntake/NewTraceIntakeView.swift",
+        "Features/NewTraceIntake/NewTraceIntakeState.swift",
+        "Features/CameraCapture/CameraCaptureView.swift",
+        "Features/CameraCapture/CameraCaptureState.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Both camera and import entry points are reachable from this screen",
+        "Camera-permission-denied keeps the camera card visible with a same-screen 'Import a Photo Instead' escape hatch",
+        "Scope-defense copy ('dark linework on plain paper, one sketch at a time') is present",
+        "Unreadable/unsupported images produce a specific error state, never a crash"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Quality Gate + Correction Review screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/QualityGateCorrection/QualityGateCorrectionView.swift",
+        "Features/QualityGateCorrection/QualityGateCorrectionState.swift",
+        "Features/QualityGateCorrection/RejectionReasonPresentation.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-008",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "All five variants implemented: checking, rejected (all 7 reasons), corrected-preview-ready, correction-failed, resuming-from-checkpoint",
+        "Rejection cards use one safety-orange treatment differentiated only by icon glyph, each with a full-text accessibility label",
+        "Original/Corrected is a segmented switch, not a gesture",
+        "Large Dynamic Type never truncates rejection title/actions",
+        "Buildable and demoable entirely against T-008's fakes before T-011 lands for real"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Vectorization spike (single-fixture go/no-go)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineVectorize/Package.swift",
+        "Packages/CleanlineVectorize/Sources/CleanlineVectorize/ContourExtraction.swift",
+        "Packages/CleanlineVectorize/Sources/CleanlineVectorize/Simplification.swift",
+        "Packages/CleanlineVectorize/Sources/CleanlineVectorize/CurveFitting.swift",
+        "Packages/CleanlineVectorize/Tests/CleanlineVectorizeTests/SpikeTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "icon-sketch fixture runs end to end: normalized image to VectorDocument to rasterized-and-diffed SVG",
+        "Node count reported",
+        "A clear go/no-go verdict is recorded, not just a passing test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Production VectorizationEngine (all fixture classes)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineVectorize/Sources/CleanlineVectorize/VectorizationEngineImpl.swift",
+        "Packages/CleanlineVectorize/Sources/CleanlineVectorize/WindingClassification.swift",
+        "Packages/CleanlineVectorize/Tests/CleanlineVectorizeTests/FixtureAcceptanceTests.swift",
+        "Packages/CleanlineVectorize/Tests/CleanlineVectorizeTests/AdversarialWindingTests.swift"
+      ],
+      "depends_on": [
+        "T-014",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "All four fixture classes meet the locked clean-trace bar: bounded node counts, no sub-3pt orphan fragments, continuous strokes where expected, correct winding/fill, clean downstream-open in a mainstream vector tool",
+        "Progress callback emits named ProcessingStage values only, never a percent",
+        "Adversarial nested-loop fixture passes the winding-rule test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Processing screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Processing/ProcessingView.swift",
+        "Features/Processing/ProcessingState.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-008",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Named sequential stage labels shown, no percent progress bar",
+        "Tracing-paths stage reveals real completed path data in a ~40-60ms/path stagger capped at 900ms",
+        "Reduce Motion replaces the stagger with final state plus text labels, never a blank screen",
+        "Trace-failed state offers Retry and Adjust Photo as distinct actions",
+        "Buildable against T-008's fakes ahead of T-015 landing for real"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Trace Workspace: shared session state + Compare mode",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/TraceWorkspace/Shared/WorkspaceCanvasHost.swift",
+        "Features/TraceWorkspace/Compare/CompareModeView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-008",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "One canvas, one TraceSession-owned zoom/pan/selection state shared across both modes",
+        "Compare/Edit toggle is a 150ms crossfade of overlay controls only; canvas never re-lays-out",
+        "Wipe gesture arms only via a visible handle and only below ~1.15x zoom; above that, Original/Traced segmented toggle is the comparison method for everyone",
+        "No double-tap-to-zoom anywhere in the workspace",
+        "Reopened traces land here at their last committed state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "CleanlineEdit: pure reducer",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineEdit/Package.swift",
+        "Packages/CleanlineEdit/Sources/CleanlineEdit/EditEngine.swift",
+        "Packages/CleanlineEdit/Tests/CleanlineEditTests/ReducerTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "EditEngine.apply(_:to:) is a pure reducer with no side effects",
+        "Adversarial sequence tests pass: delete-all, merge-with-self throws the defensive precondition error, redo-after-new-edit invalidates the stale redo stack",
+        "Fully buildable and testable against T-008's fakes without waiting on T-015"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "CleanlineExport: SVG/PDF serializers",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/CleanlineExport/Package.swift",
+        "Packages/CleanlineExport/Sources/CleanlineExport/SVGExporter.swift",
+        "Packages/CleanlineExport/Sources/CleanlineExport/PDFExporter.swift",
+        "Packages/CleanlineExport/Tests/CleanlineExportTests/RasterizeDiffTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Both SVG and PDF contain real vector paths, never a flattened image",
+        "Rasterize-and-diff tests pass against fixtures, not just XML-validity checks",
+        "Winding/fill-rule verified correct on export",
+        "Fully buildable against T-008's fakes without waiting on T-015"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "Trace Workspace: Edit mode + accessible path list",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/TraceWorkspace/Edit/EditModeView.swift",
+        "Features/TraceWorkspace/Edit/ToolStripBinding.swift",
+        "Features/TraceWorkspace/PathList/PathListView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-017",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Fixed, always-visible bottom tool strip (Select/Delete, Simplify, Merge, Undo, Redo), never collapsed into a menu",
+        "Simplify slider previews on a downsampled render while dragging (debounced, cancel-aware), commits full-resolution only on release",
+        "Path-list rows expose select/delete/merge as direct .accessibilityAction entries, zero required canvas interaction",
+        "Tap-to-select only arms in Edit mode"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Export sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Export/ExportSheetView.swift",
+        "Features/Export/ExportSheetState.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-019",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Summonable as a modal sheet from either Workspace mode, not a navigation push",
+        "States ready/exporting/success(share sheet)/failed-but-saved all implemented",
+        "Failed-but-saved explicitly states the trace remains in Recents and can be re-exported later"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Recents Home + reopen/delete flows",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/RecentsHome/RecentsHomeView.swift",
+        "Features/RecentsHome/RecentsHomeState.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Empty and populated states both designed",
+        "Status chips match the three-value TraceStatus vocabulary exactly",
+        "Reopening a trace routes only through AppRouter.route(for:)",
+        "Delete is manual-only, unbounded count, no silent eviction"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Settings screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Features/Settings/SettingsView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Plain-language on-device/local-storage statement present",
+        "Non-purchasing 'Pro \u2014 coming soon' block names batch/fine-detail/pro-editing/cloud-backup",
+        "Zero purchasable surface, zero StoreKit code, zero locked toggles anywhere"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Resume banner wiring",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Features/Shared/ResumeBanner.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-013",
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Banner appears exactly once per real interruption recovery, driven only by TraceSession.interruptionRecoveryState",
+        "Correction-Review, Processing, and Workspace each call acknowledgeInterruptionRecovery() once displayed",
+        "Banner reappearing on a subsequent view of the same session is treated as a failing test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Full kill-and-relaunch integration matrix",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/CleanlineIntegrationTests/KillAndRelaunchTests.swift",
+        "Tests/CleanlineIntegrationTests/StagingReconciliationSystemTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-010",
+        "T-015",
+        "T-018",
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "Five interruption points proven end-to-end as a system: captured, normalized, traced, edited, mid-gate-evaluation staging gap",
+        "Each point tested for both camera and import sources",
+        "Resume banner shown exactly once per scripted kill-and-relaunch",
+        "No ghost Recents entries ever appear from a rejected or interrupted capture"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "Privacy manifest and audit",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "App/PrivacyInfo.xcprivacy"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-009",
+        "T-010",
+        "T-011",
+        "T-015",
+        "T-018",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Every required-reason API actually used by the shipped app is declared (file timestamps, UserDefaults, etc.)",
+        "Audit re-run against final API usage, not reconstructed from memory",
+        "Zero third-party SDK entries, since none exist"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Accessibility verification suite",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/CleanlineUITests/AccessibilityTests.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-020",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "A real VoiceOver session verifies path-list select/delete/merge with zero required canvas interaction",
+        "Dynamic Type tested at accessibility sizes on all seven rejection cards with no truncation",
+        "Reduce Motion and Reduce Transparency variants both verified, not just implemented"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Real-device performance and thermal validation",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/CleanlinePerformanceTests/DevicePerformanceTests.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Debounced simplify-slider interaction measured on real oldest-supported hardware, not simulator",
+        "Vectorize-under-load thermal behavior measured on physical device",
+        "Results recorded against a named pass/fail threshold"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-029",
+      "title": "Empty/loading/success/error state coverage audit",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tests/CleanlineStateCoverageTests/StateCoverageTests.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013",
+        "T-016",
+        "T-017",
+        "T-020",
+        "T-021",
+        "T-022",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Every screen's reachable empty/loading/success/error states are enumerated and asserted to exist and render without crashing",
+        "Any screen missing a reachable state fails this test, rather than depending on a manual checklist"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "apps": [
+    {
+      "name": "Aarti Path",
+      "slug": "aarti-path",
+      "category": "Digital temple",
+      "platform": "iOS",
+      "build": true,
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "BatchBridge",
+      "slug": "batchbridge",
+      "category": "PO-automation",
+      "platform": "web",
+      "build": true,
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Dharma Trail",
+      "slug": "dharma-trail",
+      "category": "Digital temple",
+      "platform": "iOS",
+      "build": true,
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "FastLane PO",
+      "slug": "fastlane-po",
+      "category": "PO-automation",
+      "platform": "web",
+      "build": true,
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Pattern Pulse",
+      "slug": "pattern-pulse",
+      "category": "Health/HealthKit",
+      "platform": "iOS",
+      "build": true,
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "Risk Compass",
+      "slug": "risk-compass",
+      "category": "Health/HealthKit",
+      "platform": "iOS",
+      "build": true,
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    },
+    {
+      "name": "TalkThrough",
+      "slug": "talkthrough",
+      "category": "PO-automation",
+      "platform": "web",
+      "build": true,
+      "core_workflows": [],
+      "ios_native_features": [],
+      "key_risks": [],
+      "build_priority": 0
+    }
+  ],
+  "parent": "batch-specials"
+}

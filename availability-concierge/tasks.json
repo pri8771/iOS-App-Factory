@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffold: Xcode target, Info.plist keys, privacy manifest, App entry skeleton",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AvailabilityConcierge.xcodeproj",
+        "AvailabilityConcierge/Info.plist",
+        "AvailabilityConcierge/PrivacyInfo.xcprivacy",
+        "AvailabilityConcierge/App/AvailabilityConciergeApp.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Project builds and launches to a blank screen with no crash",
+        "Info.plist contains both NSCalendarsFullAccessUsageDescription and the legacy NSCalendarsUsageDescription, with read-only-accurate copy",
+        "PrivacyInfo.xcprivacy present with a declared required-reason code for UserDefaults API use and an explicitly empty collected-data-types section",
+        "Bundle id and signing config set so the target is immediately runnable by other lanes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Data-domain value types (RootRoute, RulesPersona, BusyInterval, SlotOffer, ShareableSlot, DaySlotGroup, SlotComputationResult, CalendarAuthorizationState, CalendarSourceInfo)",
+      "owner_lane": "data_domain",
+      "files": [
+        "AvailabilityConcierge/DataDomain/RootRoute.swift",
+        "AvailabilityConcierge/DataDomain/CalendarAuthorizationState.swift",
+        "AvailabilityConcierge/DataDomain/RulesPersona.swift",
+        "AvailabilityConcierge/DataDomain/CalendarSourceInfo.swift",
+        "AvailabilityConcierge/DataDomain/BusyInterval.swift",
+        "AvailabilityConcierge/DataDomain/SlotOffer.swift",
+        "AvailabilityConcierge/DataDomain/ShareableSlot.swift",
+        "AvailabilityConcierge/DataDomain/DaySlotGroup.swift",
+        "AvailabilityConcierge/DataDomain/SlotComputationResult.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "All types compile with exactly the protocol conformances specified in tech_specs (Equatable/Codable/Identifiable as listed)",
+        "RulesPersona.default exists and is a fully-populated opinionated default",
+        "ShareableSlot has only start/end fields \u2014 no title/location/notes field reachable, verified by inspection",
+        "Zero import EventKit anywhere in DataDomain/"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "CalendarProviding protocol + fake conformance test double",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AvailabilityConcierge/ServicesUtilities/CalendarProviding.swift",
+        "AvailabilityConcierge/Tests/Support/FakeCalendarProviding.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Protocol signature matches tech_specs exactly (authorizationStatus, requestFullAccess, availableCalendars, computeSlots)",
+        "FakeCalendarProviding can be configured to return every one of the seven route-relevant states so primary_ui can build and preview all of them without touching EventKit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "SlotComputationEngine + full fixture test suite",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AvailabilityConcierge/ServicesUtilities/SlotComputationEngine.swift",
+        "AvailabilityConcierge/Tests/SlotComputationEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Pure, synchronous, zero EventKit import",
+        "Fixture tests cover buffer math, all-day-blocks-entire-day, minimum-notice math, and the three-way empty-state split (success/fullyBookedThisWeek/tooLateToday) each with a hardcoded reference date",
+        "All fixture tests green with no flakiness (no dependency on wall-clock time)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "EventKit recurrence spike: prove cancelled/moved recurring-instance enumeration is correct and repeatable",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AvailabilityConcierge/Tests/CalendarGatewayRecurrenceTests.swift",
+        "AvailabilityConcierge/Tests/Support/ScratchCalendarFactory.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "A real EKEventStore + scratch local calendar test proves a cancelled recurring instance reads free and a moved instance's old/new times both resolve correctly",
+        "If the test cannot run unattended in this build environment, that is explicitly documented as a manual-run fallback with steps, not silently skipped or deleted"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "CalendarGateway actor (sole EventKit import site)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AvailabilityConcierge/ServicesUtilities/CalendarGateway.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Only file in the entire app that imports EventKit (grep-verifiable)",
+        "Conforms to CalendarProviding; converts EKEvent occurrences into BusyInterval/allDayBlockedDays before calling SlotComputationEngine",
+        "Enumeration is simple/serial for this slice \u2014 TaskGroup fan-out is explicitly out of scope unless a later measured task adds it",
+        "authorizationStatus treats .fullAccess as granted, not the deprecated .authorized case"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "View model + root router + priming/denied screens (built against the fake provider)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AvailabilityConcierge/PrimaryUI/AvailabilityViewModel.swift",
+        "AvailabilityConcierge/PrimaryUI/PrimingView.swift",
+        "AvailabilityConcierge/PrimaryUI/PermissionDeniedView.swift",
+        "AvailabilityConcierge/App/RootRouterView.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Builds and runs entirely against CalendarProviding/FakeCalendarProviding \u2014 no dependency on the real CalendarGateway",
+        "All seven root states are reachable and previewable by configuring the fake provider",
+        "Priming shown exactly once (gated on PrimingSeenStore being available from T-010, injected as a dependency not hardcoded)",
+        "Denied screen deep-links to Settings via UIApplication.openSettingsURLString",
+        "Root-state transitions use the crossfade helper from T-014, not a slide/push"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Home content screens and slot-list components",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AvailabilityConcierge/PrimaryUI/HomeContainerView.swift",
+        "AvailabilityConcierge/PrimaryUI/Components/SlotRow.swift",
+        "AvailabilityConcierge/PrimaryUI/Components/SkeletonSlotRow.swift",
+        "AvailabilityConcierge/PrimaryUI/Components/DaySectionHeader.swift",
+        "AvailabilityConcierge/PrimaryUI/Components/NoCalendarsView.swift",
+        "AvailabilityConcierge/PrimaryUI/Components/FullyBookedCard.swift",
+        "AvailabilityConcierge/PrimaryUI/Components/NextAvailableBanner.swift",
+        "AvailabilityConcierge/PrimaryUI/Components/ShareBar.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Renders all six Home-container states off RootRoute's associated values",
+        "SlotRow's VoiceOver label speaks time range plus included/excluded state as a single combined phrase",
+        "Layout reflows correctly at the largest Dynamic Type accessibility size",
+        "ShareBar is present only in .slots and .tooLateToday states, hidden (not disabled) elsewhere"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "ShareTextFormatter + title-leak defense-in-depth tests",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AvailabilityConcierge/ServicesUtilities/ShareTextFormatter.swift",
+        "AvailabilityConcierge/Tests/ShareTextFormatterTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Formatter only accepts [ShareableSlot], never SlotOffer or any EventKit type",
+        "Runtime test injects a marker string into a fixture's discarded title field and asserts the formatted output never contains it"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "PrimingSeenStore persistence wrapper",
+      "owner_lane": "services_utilities",
+      "files": [
+        "AvailabilityConcierge/ServicesUtilities/PrimingSeenStore.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Wraps a single UserDefaults Bool",
+        "Value persists across relaunch",
+        "Matches the required-reason declaration added to PrivacyInfo.xcprivacy in T-001"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Integration: wire real CalendarGateway + PrimingSeenStore into the view model, add scenePhase re-check",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AvailabilityConcierge/PrimaryUI/AvailabilityViewModel.swift",
+        "AvailabilityConcierge/App/AvailabilityConciergeApp.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007",
+        "T-008",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Real CalendarGateway swapped in behind CalendarProviding, no other production code path still points at the fake",
+        "scenePhase == .active re-checks both authorization and calendars(for:), covering revoke-while-backgrounded and add-account-while-backgrounded",
+        "no-calendars is checked before slot computation runs, never inferred from an empty computation result",
+        "Share-sheet cancel-and-return preserves per-slot deselections rather than recomputing from source"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "SafeLog: compile-time-safe logging wrapper",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "AvailabilityConcierge/PolishResilience/SafeLog.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Message parameter is StaticString, so interpolating a live value into the message text is a compile error",
+        "Metadata dictionary values are restricted to non-sensitive counters/durations, never an event field"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "ShareSheetPresenter wrapper",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "AvailabilityConcierge/PolishResilience/ShareSheetPresenter.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "UIViewControllerRepresentable wrapping UIActivityViewController",
+        "Accepts only [String] activityItems; no reference back to any calendar/event type is reachable from this file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Crossfade transition helper + accessibility focus helpers",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "AvailabilityConcierge/PolishResilience/CrossfadeTransition.swift",
+        "AvailabilityConcierge/PolishResilience/AccessibilityFocusHelpers.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Provides a ~150-200ms crossfade transition modifier for root-state and skeleton-to-content changes",
+        "Provides a verified pattern ensuring only one branch of a state switch remains in the view hierarchy/VoiceOver-focusable at a time during a transition"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Pre-ship gate: accessibility contrast check + privacy/logging grep",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "AvailabilityConcierge/Scripts/preship_grep.sh"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-009",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Computed contrast ratio for the locked accent color passes in both light and dark mode against system background and slot-row fill",
+        "Grep confirms zero print()/os_log calls outside SafeLog usage",
+        "Grep confirms zero import EventKit outside CalendarGateway.swift",
+        "VoiceOver focus order verified: primary action button is first focus target on denied and no-calendars screens"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Manual/device verification across all seven root states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "AvailabilityConcierge/VERIFICATION.md"
+      ],
+      "depends_on": [
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Cold-open to share-ready message under 15 seconds against a real, messy calendar",
+        "All seven states (priming, checkingAuth, denied, noCalendars, slots, fullyBooked, tooLateToday) triggered and confirmed non-crashing on device or simulator, including the two hard-to-trigger ones",
+        "Recurrence spike (T-005) result recorded here as either automated-green or the documented manual-run fallback, not silently omitted"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": [
+    "task 'T-002' missing required field(s): status",
+    "task 'T-003' missing required field(s): status",
+    "task 'T-004' missing required field(s): status",
+    "task 'T-005' missing required field(s): status",
+    "task 'T-006' missing required field(s): status",
+    "task 'T-007' missing required field(s): status",
+    "task 'T-008' missing required field(s): status",
+    "task 'T-009' missing required field(s): status",
+    "task 'T-010' missing required field(s): status",
+    "task 'T-011' missing required field(s): status",
+    "task 'T-012' missing required field(s): status",
+    "task 'T-013' missing required field(s): status",
+    "task 'T-014' missing required field(s): status",
+    "task 'T-015' missing required field(s): status",
+    "task 'T-016' missing required field(s): status"
+  ]
+}

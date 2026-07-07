@@ -1,0 +1,417 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-000",
+      "title": "Toolchain/capability spike: confirm Xcode/simulator availability, App Group entitlement creation, and .storekit configuration support in this build environment",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/BUILD_ENVIRONMENT.md"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Document confirms or denies: Xcode/simulator boot, App Group entitlement attach to a scheme, .storekit config file attach to a scheme",
+        "If any capability is unavailable, it is named explicitly as a day-one environmental limitation, not silently assumed to work"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-001",
+      "title": "AfterglowCore package scaffold: PhotoAsset protocol, GeoCoordinate, PhotoMediaSubtype, DayClusterResult, ThemeID, ExportPageLayout",
+      "owner_lane": "data_domain",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Package.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/PhotoAsset.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/GeoCoordinate.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/PhotoMediaSubtype.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/DayClusterResult.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/ThemeID.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/ExportPageLayout.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "swift build succeeds for AfterglowCore",
+        "Zero imports besides Foundation anywhere in the package"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "ClusteringEngine, BurstCollapser, CoverPhotoHeuristic, ExportLayoutEngine plus timezone/DST/zero-GPS/burst fixtures",
+      "owner_lane": "data_domain",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/ClusteringEngine.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/BurstCollapser.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/CoverPhotoHeuristic.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Sources/AfterglowCore/ExportLayoutEngine.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Tests/AfterglowCoreTests/ClusteringEngineTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowCore/Tests/AfterglowCoreTests/Fixtures.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "swift test is green against timezone, DST, zero-GPS, and burst-duplicate fixtures",
+        "ClusteringEngine.cluster works off timestamp alone with zero location data",
+        "CoverPhotoHeuristic.selectCover is a pure function over precomputed qualityScore, no pixel decode inside"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "SwiftData models, versioned schema, migration plan",
+      "owner_lane": "data_domain",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Domain/Trip.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Domain/TripDay.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Domain/PhotoRef.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Domain/VoiceNote.swift",
+        "[REDACTED:high_entropy].swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Domain/AfterglowMigrationPlan.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Domain/JournalExportSidecar.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "In-memory ModelContainer initializes cleanly against AfterglowSchemaV1",
+        "SchemaMigrationPlan compiles with a single stage even though nothing yet migrates from it",
+        "PhotoRef.isMissing is persisted, not computed live"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "TripStore intent API, TripFlowStep, app entry point, NavigationPath wiring, --uitesting bootstrap",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Domain/TripStore.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/App/TripFlowStep.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/App/AfterglowApp.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/App/NavigationRoot.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "createTrip/reassignPhoto/updateCaption/chooseTheme/beginExport/markExported/resumeStep all unit-tested against an in-memory ModelContainer with no Photos access required",
+        "Views never touch ModelContext directly per this store's design",
+        "--uitesting launch argument swaps in an in-memory container plus fixture data"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "PermissionProviding protocol, real and fake implementations, PhotosAuthState",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/PhotosAdapter/PermissionProviding.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/PhotosAdapter/PhotosAuthState.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/PhotosAdapter/RealPermissionProvider.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/PhotosAdapter/FakePermissionProvider.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "FakePermissionProvider can force denied, limited, full, and revoked-mid-session states deterministically inside XCTest",
+        "Microphone and speech-recognition authorization are two separate, sequenced calls, each with independent state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "PhotosLibraryAdapter conforming PHAsset to PhotoAsset, precomputed qualityScore",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/PhotosAdapter/PhotosLibraryAdapter.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/PhotosAdapter/PHAssetWrapper.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "This is the only file outside permission code that imports Photos",
+        "qualityScore is computed once at ingestion via a downsampled-thumbnail sharpness pass, not decoded on every render",
+        "fetchAssets excludes screenshots/non-camera-source assets by default"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Trips Home and Trip Setup screens, three-state permission UI with Settings deep link",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/TripsHome/",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/TripSetup/"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Zero-photo date range shows an explicit empty state, not a blank screen or crash",
+        "Denied-permission state shows real copy and a working Settings deep link, not a generic alert",
+        "Suggested photos can be freely added or removed before proceeding",
+        "Dynamic Type up to accessibility sizes and VoiceOver labels present on this screen's interactive elements"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Shared error and asset-resolution types: AfterglowError, PermissionKind, AssetResolutionResult, MissingAssetTile.resolve",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Support/AfterglowError.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Support/PermissionKind.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Support/AssetResolutionResult.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Support/MissingAssetResolution.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "MissingAssetTile.resolve returns .missing rather than crashing when a PhotoRef's asset was deleted from the library",
+        "AfterglowError.shareCancelled is a distinct case from exportRenderFailed so callers can't conflate them"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Cluster Review screen: day strips, long-press reassign action sheet, missing-asset tile",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/ClusterReview/"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Reassigning a photo to an adjacent day updates both day strips immediately and persists across app restart",
+        "A deleted-from-library photo renders the defined missing-asset tile with a remove affordance, never a crash",
+        "Long-press reassign menu is the accessible alternative to drag-and-drop, VoiceOver-navigable"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Caption editor (text-only) with debounced autosave and hard scenePhase flush, skip-all button",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/CaptionEditor/"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Force-quitting mid-caption and reopening restores the exact draft text",
+        "A skip-all-captions action is visible immediately, not buried",
+        "Autosave uses both the ~400-500ms debounce path and a hard flush on scenePhase background/inactive"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "PDFExportRenderer actor consuming ExportLayoutEngine output, off-main-actor rendering with progress stream",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Services/PDFExportRenderer.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Renders via AsyncStream<ExportProgress> reporting page-by-page progress, never blocking the main actor",
+        "Export images are downsampled to their own defined ceiling, distinct from review-grid thumbnails",
+        "Verified that rasterized PDF page content contains no source GPS EXIF metadata"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Theme Preview and Export Preview screens: full-bleed cover reveal, true pre-commit PDF preview, share sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/ThemePreview/",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/ExportPreview/"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Export preview is pixel-equivalent to the actual generated PDF, not an approximation",
+        "Progress bar is determinate, driven by ExportProgress, never an indefinite spinner",
+        "A cancelled or failed share leaves Trip.status and all draft state completely unmutated"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "PDF pixel-equivalence test harness and large-library stress fixture",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowTests/PDFPixelEquivalenceTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowTests/Fixtures/LargeLibraryFixture.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Rasterize-and-diff test passes against a checked-in reference within a defined tolerance",
+        "Test run against a synthetic 1000+-photo library records actual memory and wall-clock time, not just pass/fail"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Voice recording and transcription services with sequenced mic-then-speech permission and interruption handling",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Services/AudioRecordingService.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Services/TranscriptionService.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "A phone call mid-recording either auto-saves the captured partial audio or cleanly discards it, never a corrupted file or hung state",
+        "Speech-recognition authorization is only requested when transcription is actually attempted, never bundled with the mic request"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Voice note controls wired into Caption Editor: record/stop, waveform, transcript display and edit",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/CaptionEditor/VoiceNoteControls.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/CaptionEditor/WaveformView.swift"
+      ],
+      "depends_on": [
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Mic-permission-denied state has its own copy, distinct from Photos denial copy",
+        "Recording uses a pulsing-opacity indicator, not a spinner",
+        "An interrupted recording's auto-saved partial content is visible and user-editable afterward"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "EntitlementStore backed by StoreKit 2 plus local .storekit configuration",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Services/EntitlementStore.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Configuration.storekit"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "Transaction.currentEntitlements is checked at launch and Transaction.updates is listened continuously, no polling",
+        "A lapsed subscription leaves all existing trips permanently viewable, editable, and re-exportable; only new-trip creation beyond the free slot gates on entitlement"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Paywall screen wired into Trips Home create-trip action",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Views/Paywall/"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Creating a second trip on the free tier surfaces a real paywall, never a silent failure",
+        "The one free trip remains full-quality: no watermark, no crippled editing"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "WidgetSnapshotWriter writing to App Group container, called synchronously inside markExported",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Services/WidgetSnapshotWriter.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-011",
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "Snapshot write and WidgetCenter.reloadTimelines happen synchronously before the trip flips to exported in SwiftData, no stale-widget window",
+        "Widget snapshot is a downsampled cover image plus a small JSON file, nothing widget-side ever touches PHAsset or SwiftData directly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "AfterglowWidget target: TimelineProvider, widget view, deep link resolution",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowWidget/AfterglowWidget.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowWidget/TimelineProvider.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowWidget/WidgetView.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Widget stays dark until a trip has actually exported, never shows an in-progress draft's cover photo",
+        "afterglow://trip/<id> deep link resolves via TripStore.resumeStep to the correct step or a read-only export view"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "PrivacyInfo.xcprivacy manifest and Info.plist scoping",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/PrivacyInfo.xcprivacy",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/Afterglow/Info.plist"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Required-reason APIs (e.g. file timestamps) have declared approved reason codes",
+        "Info.plist declares NSPhotoLibraryUsageDescription only, never the Add variant"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Final integration and repair pass across every named edge case",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowTests/IntegrationEdgeCaseTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/afterglow/AfterglowUITests/EdgeCaseUITests.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-013",
+        "T-015",
+        "T-017",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Zero-photo library, single-day trip, permission revoked mid-session, voice-note interrupted by a call, export failure/retry, and a thousands-of-photos library all pass in one combined run",
+        "Dedicated test confirms share-cancelled leaves zero Trip.status mutation",
+        "Dedicated test confirms widget reload fires exactly at the export-flip moment",
+        "Any remaining gap is named explicitly as a limitation rather than left implicit"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}
