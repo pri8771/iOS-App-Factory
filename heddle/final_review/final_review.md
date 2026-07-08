@@ -130,3 +130,32 @@ _Codex skipped — in cooldown (rate_limit)._
 **Claude (Product Strategist · User Advocate) — Round 1**
 
 You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
+
+**Coordinator (Claude) — decision after round 1**
+
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
+
+### Forced Vote (max rounds reached)
+
+
+**Claude — vote**
+
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
+
+**Coordinator (Claude) — vote tally & decision**
+
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
+
+## Coordinator Decision
+
+See the coordinator's message above.
+
+## Final Output
+
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
+
+VERIFICATION: UNVERIFIED
+
+---
+
+VOTE_DECISION: NO

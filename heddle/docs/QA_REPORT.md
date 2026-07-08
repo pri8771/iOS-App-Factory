@@ -4,7 +4,7 @@ _Deterministic render of the review phase's decision and the real verification r
 
 ## Review
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 VERIFICATION: UNVERIFIED
 ## Build Verification

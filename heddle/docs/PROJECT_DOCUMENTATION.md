@@ -10,40 +10,28 @@ _Generated deterministically from the orchestrator's phase outputs (workflow: `i
 
 ## Scope the change
 
-Confirmed — I'm sandboxed to `.agent_cwd`, same as the other agents, so I can't inspect `app_build` directly either. I'll finalize the decision based on the discussion.
+Given the sandboxing here, I can't inspect `app_build` directly — but that's fine, this phase is about deciding the plan, not executing it. Here's the call.
 
-Both takes agree on the core move: this phase is "make it compile," not "make it bigger." Codex is right that the mechanical piece — a real `.xcodeproj`, correct target membership, resources actually in the bundle — is non-negotiable and is probably where the literal failure lives. But my round-1 concern stands: in a 7-app parallel factory run, "existing sources" is very likely partial/inconsistent scaffolding rather than a coherent app, so "wire in existing sources" can't be the whole instruction — it has to come with an explicit fallback and an explicit scope line, or whoever builds this will either stall on incoherent fragments or quietly do a full rewrite. Codex's own fallback clause (state explicitly if sources aren't salvageable, then build the thinnest complete MVP around the decided concept) is the right tiebreaker, so I'm folding it in as a required step rather than an optional one.
+Three repair rounds have failed on the same thing: no `.xcodeproj`/`.xcworkspace` ever gets produced. That means the fix can't be "try harder at wiring things in" — it has to be a fundamentally more reliable path to a project file, plus a hard guardrail against the fix silently degenerating into a blank app that merely compiles. I agree with the skeptic's read: audit-first, then hand-build a minimal project, then prove it with an actual `xcodebuild` run — no claim of success without that log.
 
 CONSENSUS: YES
 
 ## Final Output
 
-**Scope for this phase: get Heddle compiling and running in the iOS Simulator as a real, playable puzzle-game MVP. Nothing else.**
+**Decision:** Do not attempt another "generate everything from scratch" pass. Instead: (1) inventory what's actually in `app_build` — enumerate every `.swift` file, note the type each one declares, and flag duplicate type names, orphaned references, or files that assume frameworks/assets that don't exist; (2) based on that inventory, hand-author a minimal, correct Xcode project (single `.xcodeproj` with `project.pbxproj`, one app target, iOS 17 deployment target, SwiftUI `@main` App lifecycle, one bundle id `com.iosappfactory.heddle` or similar, `Info.plist`, and a minimal `Assets.xcassets` with at least an `AppIcon` placeholder); (3) add every existing source file that compiles cleanly and is part of a coherent, non-conflicting data model to the target's Compile Sources — do not invent new gameplay logic, only patch what's strictly required to unblock compilation (missing `@main` entry point, a missing type a file references, a duplicate symbol that needs renaming/removing); (4) if the audit finds the existing sources are too tangled to include wholesale (conflicting model definitions, half-finished duplicate view hierarchies), prune down to the smallest consistent subset that still delivers one real playable loop, rather than trying to reconcile everything.
 
-1. **Audit first, don't assume.** Before writing any project file, enumerate every `.swift` file in `app_build`, check for a single consistent domain model, and check for competing/duplicate entry points (multiple `@main` App structs, orphaned view models, types referenced but never defined). Report this inventory plainly.
-   - If the sources are salvageable (one coherent model, one entry point, logic that's just unwired): proceed to step 2 as-is.
-   - If the sources are incoherent fragments: state that explicitly, keep only what's genuinely reusable (data models, isolated logic that compiles standalone), and discard/replace the rest. Do not attempt to force-integrate contradictory scaffolding.
+**Definition of done for this repair round:** `xcodebuild -scheme Heddle -destination 'platform=iOS Simulator,name=iPhone 15'` (or equivalent) succeeds, and the resulting app shows one real playable loop, not a placeholder: a puzzle/thread board renders using whatever existing loom/weaving mechanic sources already exist, the player can make a move that changes state, and there's a recognizable win/complete state. If no existing sources implement that loop coherently, build the smallest version of it that satisfies Heddle's "warm, tactile, thread/weaving puzzle, not match-3" premise — using SwiftUI, deterministic local state, no third-party dependencies, matching the global app-build rules (real user-visible behavior, empty/loading/success/error states where reachable, accessibility labels, 44pt targets, persistence).
 
-2. **Commit to one concrete core mechanic now**, not later: a thread/weave/loom-based logic puzzle — pulling, crossing, or tensioning threads through a warp to complete a pattern, evaluated deterministically each move (not physics-based, not real-time). This is the "tactile, not match-3" identity from the spec, kept simple enough to actually ship compiling. If the audited sources already implement something coherent and different but still warm/tactile and puzzle-appropriate, keep that instead of forcing this exact mechanic — but pick one and state it.
-
-3. **Build the project skeleton:**
-   - Create `Heddle.xcodeproj` with one iOS app target, deployment target iOS 17, bundle id `com.iosappfactory.heddle` (or whatever convention the other 6 sibling apps use — match it).
-   - Root entry point is the real game/puzzle root view (daily puzzle or first-level entry + local progress), never a placeholder `ContentView`.
-   - Attach every kept source file, asset catalog, and resource with correct target membership.
-   - Local persistence only (e.g. `UserDefaults`/on-disk JSON for progress/state) — deterministic, no network, no cloud stub required yet.
-
-4. **Explicitly out of scope this phase**, even though the original spec mentions them: subscriptions, IAP, season pass, cosmetics, daily-challenge infra, any idle-game crossover. Defer all of it. This phase ends when the app builds clean for Simulator and the one core puzzle loop is actually playable start-to-finish (empty/loading/success/error states can be minimal but must exist).
-
-5. **Definition of done:** `xcodebuild` succeeds for iOS Simulator with zero errors, app launches into the real puzzle root (not a stub), and one full puzzle can be played and solved locally. Report the file-level diff (created vs. kept vs. deleted) in the phase output — no vague "wired in existing sources" language.
+**Verification gate:** the build phase must attach the actual `xcodebuild` log as evidence. "Files look correct" is not sufficient — only a green Simulator build, confirmed by the log, closes this phase.
 
 ## Build the change
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 **Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)
 
 ## Review
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 VERIFICATION: UNVERIFIED
