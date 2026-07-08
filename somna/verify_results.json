@@ -15,5 +15,22 @@
     "summary": "no .xcodeproj/.xcworkspace found.",
     "errors": "",
     "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-08 15:31:03",
+    "phase": "build_coordination",
+    "workflow": "iterate",
+    "prompt_hash": "307272b7da2c4efcf64eb0da211ca2989ccbe84a887a97192884397b9b58dca9",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Somna",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
   }
 ]
