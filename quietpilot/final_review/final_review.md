@@ -201,3 +201,21 @@ You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 **Claude — vote**
 
 You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
+
+**Coordinator (Claude) — vote tally & decision**
+
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
+
+## Coordinator Decision
+
+See the coordinator's message above.
+
+## Final Output
+
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
+
+VERIFICATION: VERIFIED
+
+---
+
+VOTE_DECISION: NO
