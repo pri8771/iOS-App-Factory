@@ -106,9 +106,14 @@ The build produced sources but NO buildable Xcode project. Generate a complete w
 ## Change requested — BUILD DID NOT PRODUCE AN XCODE PROJECT
 The pipeline finished but app_build has NO buildable Xcode project. All design/spec work is done in this project's phase folders. Now actually BUILD the app: create a complete Xcode project wiring in any existing sources (write the rest per the specs and design system) and make it COMPILE cleanly for the iOS Simulator. Do not stop until the build succeeds.
 
+
+## Change requested (repair round 3)
+The build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.
+Latest failure: no .xcodeproj/.xcworkspace found.
+
 ## Phase Map
 
-- **Scope the change** (`iterate_scope`) — not run
+- **Scope the change** (`iterate_scope`) — consensus
 - **Build the change** (`build_coordination`) — consensus
 - **Review** (`final_review`) — completed
 
@@ -116,19 +121,43 @@ The pipeline finished but app_build has NO buildable Xcode project. All design/s
 
 ### Scope the change
 
-_Not applicable — this phase did not run._
+Given the sandbox here only exposes `.agent_cwd` (which is empty), I can't inspect the actual `app_build` source tree from this phase — which itself supports the round's core observation: this is a planning phase, and the actual repair work happens downstream with real repo access. I'll finalize the decision based on the discussion.
+
+Three repair rounds have now failed on the same symptom — "no buildable Xcode project" — despite each round being told to "generate the project, make it compile." Repeating the same instruction a fourth time won't fix it if the previous attempts silently failed to write/commit a project file, or wrote it to the wrong location. The fix has to be concrete and mechanical, not another vague "wire it up" directive, and it has to end in an actually-executed `xcodebuild` run, not just the presence of a `.xcodeproj`.
+
+CONSENSUS: YES
+
+## Final Output
+
+Scope for this repair round is strictly: produce one buildable Xcode project for the existing Marginalia sources and get a clean `xcodebuild` simulator build. No new features, no redesign, no re-litigating the journaling/annotation product concept.
+
+Concrete steps for the build phase:
+
+1. **Diagnose before generating.** First confirm where `app_build`'s Swift sources actually live on disk, and check whether a `.xcodeproj`/`project.yml` was ever produced by a prior round and just not committed/left outside `app_build`. If this is a tooling/write-access problem (e.g., project generation ran but output landed somewhere never persisted), fix that root cause instead of repeating the same generation step a fourth time.
+
+2. **Generate one real project.** Use XcodeGen (`project.yml`) or hand-write a `.pbxproj` — either is fine as long as it's committed inside `app_build`. Requirements:
+   - Single app target, single `@main` App struct as entry point (if multiple got generated across phases, pick one and remove/merge the rest).
+   - Every existing `.swift` file added to that target's membership — no silent exclusions.
+   - Deployment target set to match whatever APIs the sources actually use (check for anything newer than iOS 17 before defaulting to 17.0).
+   - Valid bundle id, Info.plist, entitlements, and asset catalog references that actually resolve (no dangling image/color set references).
+
+3. **Make it compile for real, not by deleting files.** If sources have compile errors — duplicate type names, a view referencing a renamed model, missing imports — fix those files so they type-check and link. Dropping a file from the target to get a green build is not acceptable; if a feature turns out to be a stub with no real persistence behind it, leave it in, note the gap, but don't silently amputate it to dodge a compile error.
+
+4. **Verify by actually running the build.** Done means an `xcodebuild -destination 'generic/platform=iOS Simulator' build` (or scheme-equivalent) was invoked and its output was read and confirms success — not "a `.xcodeproj` exists now." Paste/report the actual build result.
+
+5. **If gaps are found** (e.g., an "annotation" feature that's just a placeholder view with no persistence), record them as known limitations for a future scope round — do not expand this repair to fix them now.
 
 ### Build the change
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
-**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)
+**Build verification:** verified: compiled cleanly for the iOS Simulator
 
 ### Review
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
-VERIFICATION: UNVERIFIED
+VERIFICATION: VERIFIED
 
 ## Full Discussion Transcripts
 
@@ -136,7 +165,7 @@ VERIFICATION: UNVERIFIED
 
 # marginalia — Iterate Scope
 
-_Generated by the autonomous multi-agent orchestrator on 2026-07-07 18:32:22._
+_Generated by the autonomous multi-agent orchestrator on 2026-07-08 15:20:29._
 
 ## Original Prompt
 
@@ -242,6 +271,11 @@ The build produced sources but NO buildable Xcode project. Generate a complete w
 
 ## Change requested — BUILD DID NOT PRODUCE AN XCODE PROJECT
 The pipeline finished but app_build has NO buildable Xcode project. All design/spec work is done in this project's phase folders. Now actually BUILD the app: create a complete Xcode project wiring in any existing sources (write the rest per the specs and design system) and make it COMPILE cleanly for the iOS Simulator. Do not stop until the build succeeds.
+
+
+## Change requested (repair round 3)
+The build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.
+Latest failure: no .xcodeproj/.xcworkspace found.
 ```
 
 ## Phase Purpose
@@ -254,22 +288,56 @@ The app ALREADY exists and compiles in app_build. Decide exactly what to change 
 ### Round 1
 
 
-**Codex (Frontend Engineer · Visionary) — Round 1**
+**Codex — Round 1 (skipped: CLI unavailable)**
 
-I checked the actual Marginalia output, not just the prompt. The app does not merely lack an Xcode project; it only has three source files under `app_build/Marginalia/Models`: the domain model, persistence/store, and import/export codec. That changes the scope. The smallest honest fix is to preserve that existing data core and build a very thin but complete SwiftUI shell around it, then generate a single iOS app target that includes every file. Anything broader risks inventing a fake “finished” app from scratch.
+_Codex returned empty output — refusing to fabricate a response. See logs/._
 
-My direction is: create one app target at `marginalia/app_build/Marginalia.xcodeproj`, keep the existing `Models` folder untouched except for compile fixes if needed, and add only the minimum new source surface needed for real behavior. That means an `@main` app file, one root navigation container, a compact design-token/theme file, and four focused feature areas: a library screen for active/favorite/archived entries, an editor flow for create/edit, an insights/studio screen that exposes prompts/clusters/projects already supported by the store, and a settings/import-export screen. The store already gives us the real product wedge: journal entries become prompts, clusters, and writing projects. The UI should lean into that transformation instead of feeling like a generic notes app. Concretely, the home screen should foreground “patterns found” and “turn this into a thread” instead of burying the analysis behind settings. Free/studio can stay local and simulated: free gets journaling plus one project, studio unlocks multiple projects and the existing `hasUnlockedStudio` path.
+**Claude (Product Strategist · Skeptic) — Round 1**
 
-The biggest risk in this direction is underestimating source gaps inside `MarginaliaStore` and the models. I haven’t seen compile verification, and the store may still be missing small helpers or rely on APIs that were never exercised because no app target existed. So the final implementation scope must explicitly reserve time for compile-driven cleanup in the existing model layer, not just pbxproj wiring. Another risk is trying to honor the original “premium design” brief too literally; with only a data core present, the right move is a sharply art-directed MVP shell, not a sprawling screen count.
+This is round three of the same failure, which itself is the most important data point: twice now we've said "generate the project, make it compile" and gotten sources with no buildable target back. That tells me the actual failure mode probably isn't "forgot to run xcodegen" — it's that whatever produced the Swift files never had a real target membership story, and possibly the files themselves have interdependencies or naming collisions that make a naive project-stitch fail quietly. Before we describe this as a wiring task, I want us to be honest that we don't actually know the sources compile once they're in a target — nobody has verified that a full `xcodebuild -destination 'generic/platform=iOS Simulator'` run succeeds, only that no project exists to run it against.
 
-The detail the final output must preserve is the app’s actual value proposition already encoded in the source: local-first journaling that extracts recurring themes and turns notes into usable creative material. The implementation should not devolve into CRUD around `JournalEntry`. The files to touch should be minimal and probably look like this: create the `.xcodeproj` and `project.pbxproj`, add `Info.plist`, `MarginaliaApp.swift`, a root view, a design token/theme file, a handful of feature views/components, and only patch existing model/store files where compile errors demand it. Keep persistence JSON-based and simulator-safe, keep navigation simple, and make sure import/export, empty states, and the studio gate are visible in the shipped UI rather than latent in the store.
+Given that, my core position: the only acceptable definition of done this round is a green simulator build, verified by actually invoking xcodebuild and reading the output — not "I created a .xcodeproj." A checked-in .xcodeproj/.pbxproj (or an xcodegen project.yml plus its generated output committed) that has every existing Swift file under a single app target, a valid bundle id, a deployment target that matches what the sources actually use (check if anyone reached for an API newer than iOS 17), and no dangling references to assets or resources that don't exist. If any existing source file doesn't compile — duplicate type names across files, a view referencing a model that was renamed, whatever — the fix is to make that file correct enough to build, not to quietly drop it from the target to get a green checkmark. A build that "succeeds" because half the feature files got excluded is worse than an honest failure, because it'll look done and ship broken.
 
-**Claude — Round 1 (skipped: CLI unavailable)**
+The scope boundary I'd fight for: this round is not a redesign or a feature pass. We should not be rewriting the journaling flow, adding new screens, or reconciling every gap between the design doc and the code. Marginalia's product bet — journal entries you can annotate/revisit later, for people who write and never look back — is already decided; nothing here should re-litigate it. The only new work justified is the minimum glue to make existing sources type-check and link: stub or fix compile errors, add missing Info.plist/entitlements, resolve asset catalog references, pick one entry point (@main App struct) if multiple got generated by different phases. If we discover the sources are thin — say the "annotation" feature is just a placeholder view with no persistence — that's a real gap, but it's out of scope for this repair; note it, don't silently pad it out.
 
-_Claude timed out after 300s_
+The failure mode I'm most worried about for this round specifically: three repair attempts failing on "no project file" smells like the generation step itself doesn't have write access to create/commit a project file, or is generating it somewhere outside app_build. Whoever picks this up should first confirm where app_build's contents actually live and whether a project was created and lost, versus never created — because if it's an environment/tooling problem, band-aiding the sources again produces round four of the same complaint.
 
-### Forced Vote (max rounds reached)
+**Coordinator (Claude) — decision after round 1**
 
+Given the sandbox here only exposes `.agent_cwd` (which is empty), I can't inspect the actual `app_build` source tree from this phase — which itself supports the round's core observation: this is a planning phase, and the actual repair work happens downstream with real repo access. I'll finalize the decision based on the discussion.
+
+Three repair rounds have now failed on the same symptom — "no buildable Xcode project" — despite each round being told to "generate the project, make it compile." Repeating the same instruction a fourth time won't fix it if the previous attempts silently failed to write/commit a project file, or wrote it to the wrong location. The fix has to be concrete and mechanical, not another vague "wire it up" directive, and it has to end in an actually-executed `xcodebuild` run, not just the presence of a `.xcodeproj`.
+
+CONSENSUS: YES
+
+## Final Output
+
+Scope for this repair round is strictly: produce one buildable Xcode project for the existing Marginalia sources and get a clean `xcodebuild` simulator build. No new features, no redesign, no re-litigating the journaling/annotation product concept.
+
+Concrete steps for the build phase:
+
+1. **Diagnose before generating.** First confirm where `app_build`'s Swift sources actually live on disk, and check whether a `.xcodeproj`/`project.yml` was ever produced by a prior round and just not committed/left outside `app_build`. If this is a tooling/write-access problem (e.g., project generation ran but output landed somewhere never persisted), fix that root cause instead of repeating the same generation step a fourth time.
+
+2. **Generate one real project.** Use XcodeGen (`project.yml`) or hand-write a `.pbxproj` — either is fine as long as it's committed inside `app_build`. Requirements:
+   - Single app target, single `@main` App struct as entry point (if multiple got generated across phases, pick one and remove/merge the rest).
+   - Every existing `.swift` file added to that target's membership — no silent exclusions.
+   - Deployment target set to match whatever APIs the sources actually use (check for anything newer than iOS 17 before defaulting to 17.0).
+   - Valid bundle id, Info.plist, entitlements, and asset catalog references that actually resolve (no dangling image/color set references).
+
+3. **Make it compile for real, not by deleting files.** If sources have compile errors — duplicate type names, a view referencing a renamed model, missing imports — fix those files so they type-check and link. Dropping a file from the target to get a green build is not acceptable; if a feature turns out to be a stub with no real persistence behind it, leave it in, note the gap, but don't silently amputate it to dodge a compile error.
+
+4. **Verify by actually running the build.** Done means an `xcodebuild -destination 'generic/platform=iOS Simulator' build` (or scheme-equivalent) was invoked and its output was read and confirms success — not "a `.xcodeproj` exists now." Paste/report the actual build result.
+
+5. **If gaps are found** (e.g., an "annotation" feature that's just a placeholder view with no persistence), record them as known limitations for a future scope round — do not expand this repair to fix them now.
+
+**Quality Gate (Claude) — after round 1**
+
+QUALITY: PASS
+
+## Feedback
+The output is concrete and directly answers the round's actual problem: three prior rounds failed on the same "no buildable Xcode project" symptom despite similar instructions, and this output breaks that loop by (a) requiring root-cause diagnosis of *why* prior generation attempts didn't persist a project file before regenerating, (b) giving mechanical, checkable requirements for the project itself (single target, single `@main`, full file membership, correct deployment target, resolvable asset/Info.plist references), (c) explicitly forbidding the most likely shortcut failure mode — dropping non-compiling files from the target to fake a green build — and (d) gating "done" on an actually-executed and read `xcodebuild` simulator build rather than the mere existence of a `.xcodeproj`. That last point directly satisfies the rubric's "do not declare done until build verification... agree on what works."
+
+The scope boundary (no redesign, no new features, defer feature gaps like a stub annotation feature to a future round) is appropriate for a build-repair phase and consistent with "prefer a smaller finished app over a larger half-built one" — it prevents this round from re-litigating product decisions while still requiring honest reporting of any gaps surfaced. Rubric items about empty/loading/error states and accessibility aren't addressed, but they're not applicable to a project-wiring repair round and are correctly left for a future scope pass. This leaves the build phase with a usable, unambiguous checklist and a clear verification bar.
 
 ## Coordinator Decision
 
@@ -277,17 +345,41 @@ See the coordinator's message above.
 
 ## Final Output
 
+Given the sandbox here only exposes `.agent_cwd` (which is empty), I can't inspect the actual `app_build` source tree from this phase — which itself supports the round's core observation: this is a planning phase, and the actual repair work happens downstream with real repo access. I'll finalize the decision based on the discussion.
 
+Three repair rounds have now failed on the same symptom — "no buildable Xcode project" — despite each round being told to "generate the project, make it compile." Repeating the same instruction a fourth time won't fix it if the previous attempts silently failed to write/commit a project file, or wrote it to the wrong location. The fix has to be concrete and mechanical, not another vague "wire it up" directive, and it has to end in an actually-executed `xcodebuild` run, not just the presence of a `.xcodeproj`.
+
+CONSENSUS: YES
+
+## Final Output
+
+Scope for this repair round is strictly: produce one buildable Xcode project for the existing Marginalia sources and get a clean `xcodebuild` simulator build. No new features, no redesign, no re-litigating the journaling/annotation product concept.
+
+Concrete steps for the build phase:
+
+1. **Diagnose before generating.** First confirm where `app_build`'s Swift sources actually live on disk, and check whether a `.xcodeproj`/`project.yml` was ever produced by a prior round and just not committed/left outside `app_build`. If this is a tooling/write-access problem (e.g., project generation ran but output landed somewhere never persisted), fix that root cause instead of repeating the same generation step a fourth time.
+
+2. **Generate one real project.** Use XcodeGen (`project.yml`) or hand-write a `.pbxproj` — either is fine as long as it's committed inside `app_build`. Requirements:
+   - Single app target, single `@main` App struct as entry point (if multiple got generated across phases, pick one and remove/merge the rest).
+   - Every existing `.swift` file added to that target's membership — no silent exclusions.
+   - Deployment target set to match whatever APIs the sources actually use (check for anything newer than iOS 17 before defaulting to 17.0).
+   - Valid bundle id, Info.plist, entitlements, and asset catalog references that actually resolve (no dangling image/color set references).
+
+3. **Make it compile for real, not by deleting files.** If sources have compile errors — duplicate type names, a view referencing a renamed model, missing imports — fix those files so they type-check and link. Dropping a file from the target to get a green build is not acceptable; if a feature turns out to be a stub with no real persistence behind it, leave it in, note the gap, but don't silently amputate it to dodge a compile error.
+
+4. **Verify by actually running the build.** Done means an `xcodebuild -destination 'generic/platform=iOS Simulator' build` (or scheme-equivalent) was invoked and its output was read and confirms success — not "a `.xcodeproj` exists now." Paste/report the actual build result.
+
+5. **If gaps are found** (e.g., an "annotation" feature that's just a placeholder view with no persistence), record them as known limitations for a future scope round — do not expand this repair to fix them now.
 
 ---
 
-VOTE_DECISION: NO
+CONSENSUS: YES
 
 ### Build the change
 
 # marginalia — Build Coordination
 
-_Generated by the autonomous multi-agent orchestrator on 2026-07-07 18:50:39._
+_Generated by the autonomous multi-agent orchestrator on 2026-07-08 15:22:02._
 
 ## Original Prompt
 
@@ -393,6 +485,11 @@ The build produced sources but NO buildable Xcode project. Generate a complete w
 
 ## Change requested — BUILD DID NOT PRODUCE AN XCODE PROJECT
 The pipeline finished but app_build has NO buildable Xcode project. All design/spec work is done in this project's phase folders. Now actually BUILD the app: create a complete Xcode project wiring in any existing sources (write the rest per the specs and design system) and make it COMPILE cleanly for the iOS Simulator. Do not stop until the build succeeds.
+
+
+## Change requested (repair round 3)
+The build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.
+Latest failure: no .xcodeproj/.xcworkspace found.
 ```
 
 ## Phase Purpose
@@ -413,74 +510,70 @@ _Codex returned empty output — refusing to fabricate a response. See logs/._
 
 **Claude (Frontend Engineer · Pragmatist) — Iteration 1**
 
-I've built out the full primary UI on top of Codex's data core (`MarginaliaStore`/models/import-export). Here's what's in place:
+I did a full line-by-line pass over every file in my lane — `RootView`, `LibraryView`, `EntryRowView`, `EntryEditorView`, `InsightsView`, `ProjectComposerView`, `SettingsView`, `EmptyStateView`, `TagChip`, and `MarginaliaTheme` — cross-checked against Codex's model/store surface (`MarginaliaStore`, `MarginaliaModels`, `MarginaliaImportExport`). Given the last three repair rounds all died on "no buildable project" rather than a compile error, I wanted to rule out that the UI layer itself was the hidden reason a naive project stitch would fail (duplicate types, renamed-model references, dangling asset refs — the stuff called out explicitly in the repair-round decision).
 
-**Built this iteration:**
-- `Theme/MarginaliaTheme.swift` — the visual identity: warm paper/ink palette with light+dark variants (dynamic `UIColor`, no asset catalog needed), serif type for writing, sans-rounded for UI chrome, spacing/radius tokens, mood/energy → color+icon mapping
-- `Components/EmptyStateView.swift` — empty, loading, failed, and error-banner states, shared everywhere
-- `Components/TagChip.swift` — tag chips, mood/energy badges, studio badge
-- `Features/Library/{LibraryView,EntryRowView}.swift` — segmented Active/Favorites/Archived, tag-filter row, search, swipe-to-favorite/archive/restore, empty states per segment
-- `Features/Editor/EntryEditorView.swift` — one screen for both create and edit (I merged detail+edit rather than building a third screen — pragmatic MVP cut), mood/energy pickers, inline tag add/remove
-- `Features/Insights/{InsightsView,ProjectComposerView}.swift` — lens picker + prompt generation, pattern clusters, writing projects, a `StudioPaywallView` demo-unlock sheet (calls `store.unlockStudio()` directly — real StoreKit is explicitly flagged as follow-up, not faked)
-- `Features/Settings/SettingsView.swift` — plan status, entry/project counts, JSON export via `fileExporter`/import via `fileImporter` wired straight to the existing `LibraryTransferCodec`, about section
-- `RootView.swift` — owns the single `@StateObject MarginaliaStore`, switches on `loadState` (idle/loading → spinner, failed → retry, ready → `TabView` of Library/Studio/Settings), floats the error banner over everything
+Verdict: this lane is clean. Specifically checked and confirmed:
+- No `Image("...")` asset-catalog references anywhere — every icon is an SF Symbol, so there's no dangling asset-catalog entry to trip up project generation.
+- No API usage beyond iOS 16/17 baseline (no `@Observable`/Observation, no `ContentUnavailableView`, no `presentationDetents`) — `NavigationStack` + `TabView` + `.searchable` + `.swipeActions` + `.fileExporter`/`.fileImporter` all read cleanly against a 17.0 deployment target, consistent with what the decision asked me to verify.
+- Every store call the views make (`activeEntries`, `favoriteEntries`, `archivedEntries`, `availableTags`, `createEntry`, `updateEntry`, `toggleFavorite`, `archiveEntry`, `restoreEntry`, `generatePrompt`, `selectLens`, `createProject`, `unlockStudio`, `exportLibrary`, `importLibrary`, `clearError`) matches an actual method/property on `MarginaliaStore` with matching signature — no stale references to a renamed model.
+- Single entry point confirmed: `MarginaliaApp.swift` is the only `@main`, and it just does `WindowGroup { RootView() }` with `RootView` owning the one `@StateObject` store — no duplicate App structs floating around from earlier rounds for someone to accidentally include.
 
-I couldn't run `xcodebuild`/`xcrun` in this sandbox (permission-gated), so I did a careful manual pass on every file for type/API correctness instead of a live compile — worth a real build pass once wired in.
+I didn't touch anything because there was nothing broken to fix — no new files, no edits this round. Given the phase rule against expanding scope on a repair round, I'm not going to go add Dynamic-Type-scaling fonts or other polish right now (the Theme's `Font.system(size:)` calls are fixed-size and won't respond to Dynamic Type — that's a real gap, but it's cosmetic/accessibility polish, not a build blocker, so I'm flagging it as a known limitation for a future scope round rather than fixing it here).
 
-**Left for the integrator (Claude):** create `Marginalia.xcodeproj`/`project.pbxproj` with all 13 Swift files added to the target, `Info.plist`, and the `@main App` file doing `WindowGroup { RootView() }` — that's it, `RootView` needs zero setup from the app entry point. Also needs real code signing config (`CODE_SIGN_STYLE = Automatic`, a `DEVELOPMENT_TEAM`, reverse-DNS bundle id like `com.<you>.marginalia`) per the run-on-device requirement.
+What's left, squarely in the integrator's lane: there is still zero `.xcodeproj`/`project.yml` in this tree (confirmed via `find` at the top of this round) — that's the actual and only blocker left. Whoever wires the project needs one target containing all 14 files listed above, bundle id + Info.plist + entitlements with real code signing (`CODE_SIGN_STYLE = Automatic`, a real `DEVELOPMENT_TEAM`), deployment target 17.0 is safe per what I just verified, and then an actual `xcodebuild -destination 'generic/platform=iOS Simulator' build` run with the output read back, not just the file's existence.
 
 **Integrator (Claude) — after iteration 1**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 ### Iteration 2
 
 
 **Codex (QA & Risk · Skeptic) — Iteration 2 (skipped: CLI unavailable)**
 
-_Codex returned empty output — refusing to fabricate a response. See logs/._
+_Codex skipped — in cooldown (rate_limit)._
 
 **Claude (Frontend Engineer · Pragmatist) — Iteration 2**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 **Integrator (Claude) — after iteration 2**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 ### Iteration 3
 
 
 **Codex (QA & Risk · Skeptic) — Iteration 3 (skipped: CLI unavailable)**
 
-_Codex skipped — in cooldown (timeout)._
+_Codex skipped — in cooldown (rate_limit)._
 
 **Claude (Frontend Engineer · Pragmatist) — Iteration 3**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 **Integrator (Claude) — after iteration 3**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 ### Iteration 4
 
 
 **Codex (QA & Risk · Skeptic) — Iteration 4 (skipped: CLI unavailable)**
 
-_Codex skipped — in cooldown (timeout)._
+_Codex skipped — in cooldown (rate_limit)._
 
 **Claude (Frontend Engineer · Pragmatist) — Iteration 4**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 **Integrator (Claude) — after iteration 4**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 ### Verification
 
-⚠️ **Verification initial** — no .xcodeproj/.xcworkspace found. (xcodebuild)
+✅ **Verification initial** — compiled cleanly for the iOS Simulator (xcodebuild)
 
 ## Coordinator Decision
 
@@ -488,9 +581,9 @@ See the coordinator's message above.
 
 ## Final Output
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
-**Build verification:** build left unverified (no .xcodeproj/.xcworkspace found.)
+**Build verification:** verified: compiled cleanly for the iOS Simulator
 
 ---
 
@@ -500,7 +593,7 @@ CONSENSUS: YES
 
 # marginalia — Final Review
 
-_Generated by the autonomous multi-agent orchestrator on 2026-07-07 19:04:55._
+_Generated by the autonomous multi-agent orchestrator on 2026-07-08 15:30:39._
 
 ## Original Prompt
 
@@ -606,6 +699,11 @@ The build produced sources but NO buildable Xcode project. Generate a complete w
 
 ## Change requested — BUILD DID NOT PRODUCE AN XCODE PROJECT
 The pipeline finished but app_build has NO buildable Xcode project. All design/spec work is done in this project's phase folders. Now actually BUILD the app: create a complete Xcode project wiring in any existing sources (write the rest per the specs and design system) and make it COMPILE cleanly for the iOS Simulator. Do not stop until the build succeeds.
+
+
+## Change requested (repair round 3)
+The build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.
+Latest failure: no .xcodeproj/.xcworkspace found.
 ```
 
 ## Phase Purpose
@@ -620,26 +718,26 @@ Go/no-go on the change: what changed, what still works, and the top risks. One r
 
 **Codex — Round 1 (skipped: CLI unavailable)**
 
-_Codex skipped — in cooldown (timeout)._
+_Codex skipped — in cooldown (rate_limit)._
 
 **Claude (Product Strategist · User Advocate) — Round 1**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 **Coordinator (Claude) — decision after round 1**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 ### Forced Vote (max rounds reached)
 
 
 **Claude — vote**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 **Coordinator (Claude) — vote tally & decision**
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
 ## Coordinator Decision
 
@@ -647,9 +745,9 @@ See the coordinator's message above.
 
 ## Final Output
 
-You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+You've hit your weekly limit · resets Jul 12 at 1pm (America/New_York)
 
-VERIFICATION: UNVERIFIED
+VERIFICATION: VERIFIED
 
 ---
 
@@ -665,7 +763,7 @@ _N/A — no interfaces.json entries were recorded._
 
 ## Verification
 
-UNVERIFIED (no .xcodeproj/.xcworkspace found.)
+VERIFIED (compiled cleanly for the iOS Simulator)
 
 ## Findings
 

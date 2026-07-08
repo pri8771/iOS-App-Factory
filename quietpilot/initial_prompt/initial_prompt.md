@@ -159,3 +159,8 @@ The build produced sources but NO buildable Xcode project. Generate a complete w
 
 ## Change requested — BUILD DID NOT PRODUCE AN APP
 The pipeline finished but app_build has NO Xcode project and NO source files (the build workers were rate-limited). The full product/design/architecture work IS already done in this project's phase folders (design_discussion, design_handoff, tech_specs, ios_architecture_review, task_assignments). Now actually BUILD the app: create a complete, buildable Xcode project and implement the full app in Swift/SwiftUI per those specs and the design system — premium UI/UX and real feature depth as specified — until it COMPILES cleanly for the iOS Simulator. Do not stop until real source files exist and the build succeeds.
+
+
+## Change requested (repair round 3)
+The app currently FAILS to compile. Fix every compiler error until the build succeeds cleanly; do not drop features unless unavoidable.
+Latest failure: compile FAILED for the iOS Simulator

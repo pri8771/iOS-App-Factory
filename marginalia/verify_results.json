@@ -49,5 +49,22 @@
     "summary": "no .xcodeproj/.xcworkspace found.",
     "errors": "",
     "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-08 15:30:39",
+    "phase": "build_coordination",
+    "workflow": "iterate",
+    "prompt_hash": "3aa34ba5bb1a634cec8abe102719adaec5136592cf990a1326e451e1ccbd24fb",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Marginalia",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
   }
 ]

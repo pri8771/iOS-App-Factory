@@ -99,3 +99,8 @@ The build produced sources but NO buildable Xcode project. Generate a complete w
 
 ## Change requested — BUILD DID NOT PRODUCE AN XCODE PROJECT
 The pipeline finished but app_build has NO buildable Xcode project. All design/spec work is done in this project's phase folders. Now actually BUILD the app: create a complete Xcode project wiring in any existing sources (write the rest per the specs and design system) and make it COMPILE cleanly for the iOS Simulator. Do not stop until the build succeeds.
+
+
+## Change requested (repair round 3)
+The build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.
+Latest failure: no .xcodeproj/.xcworkspace found.
