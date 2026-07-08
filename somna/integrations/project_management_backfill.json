@@ -1,31 +1,1541 @@
 {
-  "current_phase": "portfolio_audit",
-  "current_round": 0,
-  "next_agent": null,
-  "prompt_hash": "37b7f0bd1f385e7ce983c486939395ae141b42bc2152e3357d371dcef23b6258",
-  "completed_phases": [
-    "prompt_contract",
-    "product_research",
-    "portfolio_selection",
-    "initial_discussion",
-    "per_app_product_brief",
-    "next_steps_small",
-    "detailed_discussion",
-    "app_features",
-    "design_discussion",
-    "design_handoff",
-    "ios_architecture_review",
-    "tech_specs",
-    "project_plan",
-    "task_assignments",
-    "implementation_readiness_gate",
-    "build_coordination",
-    "build_verification",
-    "human_qa_checklist",
-    "app_store_readiness",
-    "final_review",
-    "portfolio_audit"
-  ],
+  "schema_version": 1,
+  "project": {
+    "name": "somna",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: multi-app-exp7\nSelected app slug: somna\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Somna\n\nBuild mode: **MVP build**.\nBuild priority: **2**.\n\n## App Name\n\nSomna\n\n## Category\n\nSleep & Morning Energy\n\n## One-Sentence Promise\n\nLog your sleep and how you feel each morning, and Somna shows you exactly what actually helps you feel rested.\n\n## Target User\n\nAnyone who's tired and curious why some mornings feel great and others don't, without wanting to wear a sleep-tracking ring or let an app record audio all night \u2014 students, parents, shift workers, broadly anyone.\n\n## Painful Moment Solved\n\nWaking up exhausted despite 'enough' sleep with no idea whether it was the late coffee, the doomscrolling, or the stress \u2014 and existing sleep apps just show a graph with no explanation.\n\n## Why It Is Different\n\nPairs a 10-second bedtime/wake log with a 10-second morning mood+energy check-in, then surfaces plain-English on-device correlations ('you feel 34% more rested after 7+ hours') instead of raw sleep-stage graphs.\n\n## Why Users Would Pay\n\nFree tier covers logging, streaks, and the weekly recap card; Somna+ unlocks the full correlation engine (caffeine/exercise/screen-time tags vs. sleep quality), unlimited history, and a bedtime Live Activity.\n\n## Subscription Model\n\nFreemium, $4.99/mo or $29.99/yr for Somna+.\n\n## Local-First MVP Scope\n\nSwiftData for nightly logs and morning check-ins; correlation engine computed on-device; optional read-only HealthKit import of sleep duration, never a requirement.\n\n## Future Backend Roadmap\n\nRepository boundary allows swapping the local store for CloudKit sync later; correlation engine stays fully on-device regardless of sync status for privacy.\n\n## AR / Local ML / Local LLM Fit\n\nNone required; the correlation engine is simple on-device statistics, the honest and battery-safe choice over sensor-heavy sleep-staging.\n\n## Design Direction\n\nNocturnal calm gradient system \u2014 deep indigo-to-violet dusk gradients lightening toward soft dawn tones in daytime views, soft-glow rounded components, a moon-phase mark, restful rather than clinical.\n\n## App Store Positioning\n\nNot another sleep-stage graph \u2014 Somna tells you what actually helped you feel rested, no ring or overnight mic required.\n\n## Invalidation Criteria\n\nIf users keep the bedtime log but stop doing the morning check-in after week 2, the correlation engine has no fuel \u2014 signals the check-in flow needs to get shorter or gamified.\n\n## v1 Build Scope\n\nBedtime/wake logging, morning check-in, weekly recap card + widget, on-device rule-based correlation insights, Somna+ paywall with StoreKit.\n\n## Core Workflows\n\n- log bedtime & wake time\n- morning mood/energy check-in with optional tags\n- view weekly sleep recap card\n- browse plain-English correlation insights\n- optional read-only HealthKit import\n\n## iOS-Native Features\n\n- Live Activity for tonight's bedtime countdown\n- WidgetKit showing last night's score + tonight's target bedtime\n- HealthKit read-only (optional)\n- ShareLink for recap card\n\n## Key Risks\n\n- Correlation insights need weeks of data before they're meaningful \u2014 needs an honest 'still learning' partial state, not false-confidence insights early\n- Read-only HealthKit import is a bonus only \u2014 must fully function without HealthKit permission granted\n\n## Claude Design Handoff Prompt\n\nDesign a calm sleep & morning-energy app called Somna: deep indigo-to-violet gradient backgrounds that lighten toward soft dawn tones in daytime views, soft-glow rounded cards, a moon-phase mark as the icon motif, minimal typography, restful and quiet rather than clinical or data-dense.\n\n## Parent Portfolio Prompt\n\nBuild 5 completely separate, production-ready iOS apps at the same time.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app, never bundled together.\n\nPick any 5 categories/concepts \u2014 no fixed assignment. Choose the 5 strongest MASS-MARKET ideas.\n\nTOP PRIORITY \u2014 VIRAL, MASS-MARKET APPEAL (hard requirement):\n- Every app must target a BROAD, mainstream audience. NO niche-community apps (no hobbyist tools, no professional verticals, no special-interest utilities). If your parents, your barista, and a college student wouldn't all instantly get it, it fails.\n- Each app must have a built-in viral loop: something people naturally share, screenshot, send to friends, or compete over (shareable results/cards, streaks, challenges, comparisons, \"send this to a friend\" moments).\n- The concept must be explainable in one sentence and demo-able in 10 seconds.\n- Think the scale of habit trackers, photo tools, social utilities, everyday life tools, casual self-improvement, money, food, sleep, relationships, entertainment \u2014 things with tens of millions of potential users.\n\nSECOND PRIORITY \u2014 DESIGN & UI/UX:\n- World-class, distinctive visual identity per app: deliberate color system, type scale, spacing, iconography, motion language \u2014 not stock SwiftUI defaults.\n- \"Apple Design Award\" caliber polish. Every screen considered: empty, loading, error states, transitions, haptics, spring animations.\n- Dark mode, Dynamic Type, accessibility (VoiceOver, 44pt targets, WCAG AA contrast).\n- Each of the 5 apps must look clearly DIFFERENT from the other four \u2014 five distinct design directions.\n- Documented design system per app (tokens, components, states); built UI must match it.\n\nTHIRD PRIORITY \u2014 COMPLEXITY & DEPTH:\n- Genuinely substantial apps \u2014 interconnected features, real domain data model, non-trivial logic, offline persistence with sync-later architecture, robust settings, import/export, and at least one hard technical capability done well.\n- Depth that rewards daily use \u2014 but never at the expense of instant mass-market clarity.\n\nFOURTH PRIORITY \u2014 MONETIZATION:\n- Clear, sustainable revenue path per app (subscription tiers, IAP, premium) that feels native to the product, never punitive. Free tier hooks users; paid tier is compelling.\n\nGeneral Requirements:\n1. Each app goes from 0 to production-ready.\n2. Each app must be unique, useful, and commercially viable, better than competitors in a meaningful way.\n3. Local-first, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built in this workspace: Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, brinekeeper, chalkline, quietpilot, cistern, thicket, undersong, undertow, heddle, marginalia, skyglass, and the ~50 apps of prior batches (aarti-path, afterglow, backtimer, chapterly, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, flinch, heartline, kitbag, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas, and others).\n- Produce differentiated concepts even if a category overlaps.\n\nBonus points (optional, only when integral): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the five app efforts in parallel; keep phases separate per app.\n- TIME MATTERS on this batch: reach consensus quickly in discussion phases (end phases early on agreement), but never skip the build, and never mark an app done unless a real, compiling Xcode project with full source exists in app_build. An app without a buildable Xcode project is a FAILURE.\n- Save all phase discussions; combine each app's transcript into a .txt at the end.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.\n",
+    "verification": "UNVERIFIED (no .xcodeproj/.xcworkspace found.)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "SOMNA",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-PRODUCT",
+        "name": "Product Definition",
+        "phase_keys": [
+          "prompt_contract",
+          "product_research",
+          "portfolio_selection",
+          "initial_discussion",
+          "per_app_product_brief",
+          "next_steps_small",
+          "detailed_discussion",
+          "app_features"
+        ]
+      },
+      {
+        "external_id": "EPIC-DESIGN-ARCH",
+        "name": "Design & Architecture",
+        "phase_keys": [
+          "design_discussion",
+          "design_handoff",
+          "ios_architecture_review",
+          "tech_specs",
+          "project_plan"
+        ]
+      },
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "task_assignments",
+          "implementation_readiness_gate",
+          "build_coordination",
+          "build_verification"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "human_qa_checklist",
+          "app_store_readiness",
+          "final_review",
+          "portfolio_audit"
+        ]
+      }
+    ],
+    "issues": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Scaffold Xcode project: three targets building clean",
+        "description": "Generated from orchestrator task `T-001` for `somna`.\n\nOwner lane: `data_domain`\nFiles: Somna.xcodeproj, Somna/App/SomnaApp.swift, SomnaWidget/SomnaWidgetBundle.swift, SomnaTests/SomnaTests.swift, Somna/Info.plist, Somna/Somna.entitlements\n\nAcceptance criteria:\n- All three targets (Somna, SomnaWidget, SomnaTests) build clean on a fresh checkout\n- Empty app launches in the simulator\n- Widget extension stub compiles and is added as a target dependency of the app\n- Shared file group set up for the future ActivityAttributes struct so it can belong to both app and widget targets",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Somna.xcodeproj",
+            "Somna/App/SomnaApp.swift",
+            "SomnaWidget/SomnaWidgetBundle.swift",
+            "SomnaTests/SomnaTests.swift",
+            "Somna/Info.plist",
+            "Somna/Somna.entitlements"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "All three targets (Somna, SomnaWidget, SomnaTests) build clean on a fresh checkout",
+            "Empty app launches in the simulator",
+            "Widget extension stub compiles and is added as a target dependency of the app",
+            "Shared file group set up for the future ActivityAttributes struct so it can belong to both app and widget targets"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "SwiftData models, versioned schema, ModelContainer wiring",
+        "description": "Generated from orchestrator task `T-002` for `somna`.\n\nOwner lane: `data_domain`\nFiles: Somna/Models/SleepSession.swift, Somna/Models/CheckIn.swift, Somna/Models/EnergyLevel.swift, Somna/Models/SleepTag.swift, Somna/Models/SomnaSchema.swift, Somna/App/SomnaApp.swift\n\nAcceptance criteria:\n- ModelContainer is constructed with SomnaSchemaV1 and a SchemaMigrationPlan actually passed into its initializer, not just declared as types\n- SleepSession.endDate == nil is queryable via a real #Predicate\n- A smoke test confirms an open session round-trips correctly",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Somna/Models/SleepSession.swift",
+            "Somna/Models/CheckIn.swift",
+            "Somna/Models/EnergyLevel.swift",
+            "Somna/Models/SleepTag.swift",
+            "Somna/Models/SomnaSchema.swift",
+            "Somna/App/SomnaApp.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "ModelContainer is constructed with SomnaSchemaV1 and a SchemaMigrationPlan actually passed into its initializer, not just declared as types",
+            "SleepSession.endDate == nil is queryable via a real #Predicate",
+            "A smoke test confirms an open session round-trips correctly"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "Repository protocols, SwiftData implementations, in-memory fakes",
+        "description": "Generated from orchestrator task `T-003` for `somna`.\n\nOwner lane: `data_domain`\nFiles: Somna/Repositories/SleepSessionRepository.swift, Somna/Repositories/CheckInRepository.swift, Somna/Repositories/SwiftData/SwiftDataSleepSessionRepository.swift, Somna/Repositories/SwiftData/SwiftDataCheckInRepository.swift, SomnaTests/Fakes/InMemorySleepSessionRepository.swift, SomnaTests/Fakes/InMemoryCheckInRepository.swift\n\nAcceptance criteria:\n- Both protocols have a SwiftData-backed and an in-memory implementation\n- A second bedtime tap while a session is open updates that session in place rather than creating a second concurrent session\n- WidgetCenter.shared.reloadTimelines is called only from the repository write methods, never from a clock tick\n- In-memory fakes work standalone with zero ModelContainer, and are announced ready for primary_ui to build against",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Somna/Repositories/SleepSessionRepository.swift",
+            "Somna/Repositories/CheckInRepository.swift",
+            "Somna/Repositories/SwiftData/SwiftDataSleepSessionRepository.swift",
+            "Somna/Repositories/SwiftData/SwiftDataCheckInRepository.swift",
+            "SomnaTests/Fakes/InMemorySleepSessionRepository.swift",
+            "SomnaTests/Fakes/InMemoryCheckInRepository.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Both protocols have a SwiftData-backed and an in-memory implementation",
+            "A second bedtime tap while a session is open updates that session in place rather than creating a second concurrent session",
+            "WidgetCenter.shared.reloadTimelines is called only from the repository write methods, never from a clock tick",
+            "In-memory fakes work standalone with zero ModelContainer, and are announced ready for primary_ui to build against"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "NightRecord, NightRecordAssembler, pairing/edge-case tests",
+        "description": "Generated from orchestrator task `T-004` for `somna`.\n\nOwner lane: `data_domain`\nFiles: Somna/Models/NightRecord.swift, Somna/Models/NightSummary.swift, Somna/Models/NightRecordAssembler.swift, SomnaTests/NightRecordAssemblerTests.swift, SomnaTests/SessionPairingTests.swift\n\nAcceptance criteria:\n- 16-hour plausibility window, orphan-closing, duplicate-tap, and a DST-fallback case are all covered by parameterized @Test cases pinned to an explicit TimeZone (never Calendar.current/TimeZone.current)\n- Negative or implausible durations are discarded before a NightRecord is ever created\n- NightRecordAssembler has zero SwiftData/persistence access \u2014 pure function only",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Somna/Models/NightRecord.swift",
+            "Somna/Models/NightSummary.swift",
+            "Somna/Models/NightRecordAssembler.swift",
+            "SomnaTests/NightRecordAssemblerTests.swift",
+            "SomnaTests/SessionPairingTests.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "16-hour plausibility window, orphan-closing, duplicate-tap, and a DST-fallback case are all covered by parameterized @Test cases pinned to an explicit TimeZone (never Calendar.current/TimeZone.current)",
+            "Negative or implausible durations are discarded before a NightRecord is ever created",
+            "NightRecordAssembler has zero SwiftData/persistence access \u2014 pure function only"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "CorrelationEngine actor, InsightRule implementations, threshold-gating test",
+        "description": "Generated from orchestrator task `T-005` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/Engine/CorrelationEngine.swift, Somna/Engine/InsightRule.swift, Somna/Engine/DurationEnergyRule.swift, Somna/Engine/TagEnergyRule.swift, Somna/Engine/InsightResult.swift, Somna/Engine/InsightCardData.swift, SomnaTests/CorrelationEngineTests.swift\n\nAcceptance criteria:\n- Threshold-gating test passes both branches: minNightsThreshold-1 nights yields zero .scored results, minNightsThreshold nights yields at least one\n- All three InsightResult cases (stillLearning, scored, noSignal) are individually reachable against constructed test data\n- Headline copy is associational only, never causal\n- Engine's public API is announced ready for primary_ui's InsightsViewModel to consume",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/Engine/CorrelationEngine.swift",
+            "Somna/Engine/InsightRule.swift",
+            "Somna/Engine/DurationEnergyRule.swift",
+            "Somna/Engine/TagEnergyRule.swift",
+            "Somna/Engine/InsightResult.swift",
+            "Somna/Engine/InsightCardData.swift",
+            "SomnaTests/CorrelationEngineTests.swift"
+          ],
+          "depends_on": [
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "Threshold-gating test passes both branches: minNightsThreshold-1 nights yields zero .scored results, minNightsThreshold nights yields at least one",
+            "All three InsightResult cases (stillLearning, scored, noSignal) are individually reachable against constructed test data",
+            "Headline copy is associational only, never causal",
+            "Engine's public API is announced ready for primary_ui's InsightsViewModel to consume"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "Debug/seed-data path for synthetic nights",
+        "description": "Generated from orchestrator task `T-006` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/Engine/SeedDataGenerator.swift\n\nAcceptance criteria:\n- A debug-only entry point force-feeds N synthetic nights into a repository\n- Using it, the Insights screen can be demonstrated transitioning from still-learning to a real scored insight without waiting real calendar weeks",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/Engine/SeedDataGenerator.swift"
+          ],
+          "depends_on": [
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "A debug-only entry point force-feeds N synthetic nights into a repository",
+            "Using it, the Insights screen can be demonstrated transitioning from still-learning to a real scored insight without waiting real calendar weeks"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "StoreKit SubscriptionStore, PaywallViewModel, .storekit config",
+        "description": "Generated from orchestrator task `T-007` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/Subscriptions/SubscriptionStore.swift, Somna/Subscriptions/PaywallViewModel.swift, Somna/Subscriptions/SomnaProductID.swift, Somna/Subscriptions/EntitlementStatus.swift, Somna/Somna.storekit\n\nAcceptance criteria:\n- Entitlement status resolves once per active scenePhase transition into an in-memory flag, never re-queried inside a view body\n- Product-list load failure or a hung entitlement check fails open to .free with no blocking spinner anywhere on Today\n- Restore Purchases calls AppStore.sync() and re-scans currentEntitlements\n- Transaction.updates is observed from app launch and every transaction is finished",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/Subscriptions/SubscriptionStore.swift",
+            "Somna/Subscriptions/PaywallViewModel.swift",
+            "Somna/Subscriptions/SomnaProductID.swift",
+            "Somna/Subscriptions/EntitlementStatus.swift",
+            "Somna/Somna.storekit"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Entitlement status resolves once per active scenePhase transition into an in-memory flag, never re-queried inside a view body",
+            "Product-list load failure or a hung entitlement check fails open to .free with no blocking spinner anywhere on Today",
+            "Restore Purchases calls AppStore.sync() and re-scans currentEntitlements",
+            "Transaction.updates is observed from app launch and every transaction is finished"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "HealthKitImportService (read-only, opt-in)",
+        "description": "Generated from orchestrator task `T-008` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/HealthKit/HealthKitImportService.swift, Somna/Info.plist\n\nAcceptance criteria:\n- Denied vs not-determined is never distinguished in any UI-facing signal\n- Import is only invoked from an explicit Settings opt-in tap, never at first launch\n- App is fully functional with zero HealthKit permission granted\n- NSHealthShareUsageDescription is real, specific copy",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/HealthKit/HealthKitImportService.swift",
+            "Somna/Info.plist"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Denied vs not-determined is never distinguished in any UI-facing signal",
+            "Import is only invoked from an explicit Settings opt-in tap, never at first launch",
+            "App is fully functional with zero HealthKit permission granted",
+            "NSHealthShareUsageDescription is real, specific copy"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "Design tokens, GradientBackground/gradient(for:), shared components",
+        "description": "Generated from orchestrator task `T-009` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/Views/Components/GradientBackground.swift, Somna/Views/Components/DesignTokens.swift, Somna/Views/Components/FrostedCard.swift, Somna/Views/Components/PrimaryButton.swift, Somna/Views/Components/SecondaryButton.swift, Somna/Views/Components/StreakBadge.swift, Somna/Views/Components/TagChip.swift, Somna/Views/Components/MoonCrescentProgress.swift, Somna/Views/Components/EnergyScaleControl.swift, SomnaTests/GradientTests.swift\n\nAcceptance criteria:\n- gradient(for:) unit test asserts all four named band boundaries and the ~30 minute crossfade\n- EnergyScaleControl exposes accessibilityValue and the adjustable trait from day one, not retrofitted\n- All shared buttons/chips/controls enforce 44pt minimum targets structurally\n- Text-bearing components sit on the opaque cardSurface fill, never directly on the raw gradient",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/Views/Components/GradientBackground.swift",
+            "Somna/Views/Components/DesignTokens.swift",
+            "Somna/Views/Components/FrostedCard.swift",
+            "Somna/Views/Components/PrimaryButton.swift",
+            "Somna/Views/Components/SecondaryButton.swift",
+            "Somna/Views/Components/StreakBadge.swift",
+            "Somna/Views/Components/TagChip.swift",
+            "Somna/Views/Components/MoonCrescentProgress.swift",
+            "Somna/Views/Components/EnergyScaleControl.swift",
+            "SomnaTests/GradientTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "gradient(for:) unit test asserts all four named band boundaries and the ~30 minute crossfade",
+            "EnergyScaleControl exposes accessibilityValue and the adjustable trait from day one, not retrofitted",
+            "All shared buttons/chips/controls enforce 44pt minimum targets structurally",
+            "Text-bearing components sit on the opaque cardSurface fill, never directly on the raw gradient"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "TodayState, TodayViewModel, Today view",
+        "description": "Generated from orchestrator task `T-010` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/ViewModels/TodayViewModel.swift, Somna/ViewModels/TodayState.swift, Somna/Views/Today/TodayView.swift, SomnaTests/TodayStateMachineTests.swift\n\nAcceptance criteria:\n- state(at:) is a pure function of (openSession, todayCheckIn, now), unit-testable through empty\u2192preBedtime\u2192asleep\u2192doneForToday using in-memory repos\n- hasAnimatedDoneStateToday gates the checkmark animation to once per day\n- 'I'm Awake' is never disabled regardless of elapsed duration\n- Correct empty state on first launch with zero data",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/ViewModels/TodayViewModel.swift",
+            "Somna/ViewModels/TodayState.swift",
+            "Somna/Views/Today/TodayView.swift",
+            "SomnaTests/TodayStateMachineTests.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "state(at:) is a pure function of (openSession, todayCheckIn, now), unit-testable through empty\u2192preBedtime\u2192asleep\u2192doneForToday using in-memory repos",
+            "hasAnimatedDoneStateToday gates the checkmark animation to once per day",
+            "'I'm Awake' is never disabled regardless of elapsed duration",
+            "Correct empty state on first launch with zero data"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "InsightsViewModel, Insights view (three card compositions)",
+        "description": "Generated from orchestrator task `T-011` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/ViewModels/InsightsViewModel.swift, Somna/Views/Insights/InsightsView.swift, Somna/Views/Insights/StillLearningCard.swift, Somna/Views/Insights/InsightCard.swift, Somna/Views/Insights/NoSignalCard.swift\n\nAcceptance criteria:\n- NoSignalCard is a structurally distinct view, never a reskinned StillLearningCard\n- Locked per-tag cards blur bars and show an unlock affordance via an isLocked modifier on the same InsightCard type\n- refresh() runs off the main actor; the view keeps showing previous results until new ones land, no blocking spinner",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/ViewModels/InsightsViewModel.swift",
+            "Somna/Views/Insights/InsightsView.swift",
+            "Somna/Views/Insights/StillLearningCard.swift",
+            "Somna/Views/Insights/InsightCard.swift",
+            "Somna/Views/Insights/NoSignalCard.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-005",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "NoSignalCard is a structurally distinct view, never a reskinned StillLearningCard",
+            "Locked per-tag cards blur bars and show an unlock affordance via an isLocked modifier on the same InsightCard type",
+            "refresh() runs off the main actor; the view keeps showing previous results until new ones land, no blocking spinner"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "HistoryViewModel/History view, RecapViewModel/Recap card/RecapDetailView + ShareLink",
+        "description": "Generated from orchestrator task `T-012` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/ViewModels/HistoryViewModel.swift, Somna/ViewModels/RecapViewModel.swift, Somna/Views/History/HistoryView.swift, Somna/Views/Recap/RecapCardContent.swift, Somna/Views/Recap/RecapDetailView.swift, Somna/Models/RecapData.swift\n\nAcceptance criteria:\n- History is delete-only with its own first-launch empty state\n- RecapData renders correctly with fewer than 7 nights of data\n- RecapCardContent is the single shared source used by both the embedded Today card and the full-bleed ShareLink-exported RecapDetailView",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/ViewModels/HistoryViewModel.swift",
+            "Somna/ViewModels/RecapViewModel.swift",
+            "Somna/Views/History/HistoryView.swift",
+            "Somna/Views/Recap/RecapCardContent.swift",
+            "Somna/Views/Recap/RecapDetailView.swift",
+            "Somna/Models/RecapData.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "History is delete-only with its own first-launch empty state",
+            "RecapData renders correctly with fewer than 7 nights of data",
+            "RecapCardContent is the single shared source used by both the embedded Today card and the full-bleed ShareLink-exported RecapDetailView"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Settings view, Paywall entry points, root TabView/App wiring",
+        "description": "Generated from orchestrator task `T-013` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/Views/Settings/SettingsView.swift, Somna/App/RootTabView.swift, Somna/App/SomnaApp.swift\n\nAcceptance criteria:\n- Non-medical disclaimer reachable from Settings\n- Delete-all sits behind a confirmation alert\n- Settings reached via a gear icon in Today's nav bar, not a tab\n- App compiles with every view model and environment object wired through SomnaApp.swift",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/Views/Settings/SettingsView.swift",
+            "Somna/App/RootTabView.swift",
+            "Somna/App/SomnaApp.swift"
+          ],
+          "depends_on": [
+            "T-007",
+            "T-010",
+            "T-011",
+            "T-012"
+          ],
+          "acceptance_criteria": [
+            "Non-medical disclaimer reachable from Settings",
+            "Delete-all sits behind a confirmation alert",
+            "Settings reached via a gear icon in Today's nav bar, not a tab",
+            "App compiles with every view model and environment object wired through SomnaApp.swift"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "Paywall screen wiring",
+        "description": "Generated from orchestrator task `T-014` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/Views/Paywall/PaywallView.swift\n\nAcceptance criteria:\n- Covers loading/purchasable/purchased/restoring/load-failed states\n- Load-failed shows inline retry + dismiss, never a blocking spinner\n- Dismissing the paywall never leaves any part of Today gated",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/Views/Paywall/PaywallView.swift"
+          ],
+          "depends_on": [
+            "T-007",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Covers loading/purchasable/purchased/restoring/load-failed states",
+            "Load-failed shows inline retry + dismiss, never a blocking spinner",
+            "Dismissing the paywall never leaves any part of Today gated"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Live Activity (ActivityKit) lifecycle",
+        "description": "Generated from orchestrator task `T-015` for `somna`.\n\nOwner lane: `polish_resilience`\nFiles: Somna/LiveActivity/SomnaLiveActivityAttributes.swift, Somna/LiveActivity/LiveActivityController.swift\n\nAcceptance criteria:\n- Starting an Activity is wrapped in try/catch that silently no-ops if Live Activities are system-disabled\n- Lock-screen content is generic only (countdown/target bedtime), never mood/energy/insight text\n- SomnaLiveActivityAttributes.swift is added to both the app and widget extension target memberships",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Somna/LiveActivity/SomnaLiveActivityAttributes.swift",
+            "Somna/LiveActivity/LiveActivityController.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Starting an Activity is wrapped in try/catch that silently no-ops if Live Activities are system-disabled",
+            "Lock-screen content is generic only (countdown/target bedtime), never mood/energy/insight text",
+            "SomnaLiveActivityAttributes.swift is added to both the app and widget extension target memberships"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "WidgetKit extension: last-night's-score + target-bedtime widget",
+        "description": "Generated from orchestrator task `T-016` for `somna`.\n\nOwner lane: `polish_resilience`\nFiles: SomnaWidget/SomnaWidgetEntry.swift, SomnaWidget/SomnaWidgetProvider.swift, SomnaWidget/SomnaWidgetView.swift\n\nAcceptance criteria:\n- Timeline reload is triggered only by the existing repository write-path calls to WidgetCenter.shared.reloadTimelines, no independent clock-driven reload policy added\n- Widget never surfaces mood/energy/insight text, only score/duration/target time",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "SomnaWidget/SomnaWidgetEntry.swift",
+            "SomnaWidget/SomnaWidgetProvider.swift",
+            "SomnaWidget/SomnaWidgetView.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-010",
+            "T-015"
+          ],
+          "acceptance_criteria": [
+            "Timeline reload is triggered only by the existing repository write-path calls to WidgetCenter.shared.reloadTimelines, no independent clock-driven reload policy added",
+            "Widget never surfaces mood/energy/insight text, only score/duration/target time"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-016"
+        }
+      },
+      {
+        "external_id": "T-017",
+        "issue_type": "Task",
+        "summary": "Integration: swap in-memory fakes for real SwiftData repositories app-wide",
+        "description": "Generated from orchestrator task `T-017` for `somna`.\n\nOwner lane: `polish_resilience`\nFiles: Somna/App/SomnaApp.swift\n\nAcceptance criteria:\n- Shipped app target contains zero references to the in-memory fakes\n- Full core loop (bedtime \u2192 wake+check-in \u2192 recap \u2192 insights) is demonstrable end-to-end via the seed-data path against real persistence",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Somna/App/SomnaApp.swift"
+          ],
+          "depends_on": [
+            "T-013",
+            "T-014",
+            "T-016"
+          ],
+          "acceptance_criteria": [
+            "Shipped app target contains zero references to the in-memory fakes",
+            "Full core loop (bedtime \u2192 wake+check-in \u2192 recap \u2192 insights) is demonstrable end-to-end via the seed-data path against real persistence"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-017"
+        }
+      },
+      {
+        "external_id": "T-018",
+        "issue_type": "Task",
+        "summary": "Final verification pass",
+        "description": "Generated from orchestrator task `T-018` for `somna`.\n\nOwner lane: `polish_resilience`\nFiles: SomnaUITests/TodayStateMachineUITest.swift, SomnaTests/AccessibilityTests.swift\n\nAcceptance criteria:\n- Clean xcodebuild across app + widget targets on a fresh checkout\n- XCUITest Today state-machine smoke test (empty\u2192asleep\u2192doneForToday) passes\n- Manual VoiceOver pass on EnergyScaleControl confirmed, not just code inspection\n- Every screen's empty/loading/success/error state manually walked through\n- Simulated StoreKit product-load failure confirms fail-open to free tier\n- Simulated HealthKit permission denial confirms full functionality with zero degradation",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "SomnaUITests/TodayStateMachineUITest.swift",
+            "SomnaTests/AccessibilityTests.swift"
+          ],
+          "depends_on": [
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "Clean xcodebuild across app + widget targets on a fresh checkout",
+            "XCUITest Today state-machine smoke test (empty\u2192asleep\u2192doneForToday) passes",
+            "Manual VoiceOver pass on EnergyScaleControl confirmed, not just code inspection",
+            "Every screen's empty/loading/success/error state manually walked through",
+            "Simulated StoreKit product-load failure confirms fail-open to free tier",
+            "Simulated HealthKit permission denial confirms full functionality with zero degradation"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-018"
+        }
+      }
+    ]
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "somna",
+      "Status": "Needs review",
+      "Source": "Orchestrator",
+      "Workflow Phases": 21
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: multi-app-exp7\nSelected app slug: somna\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Somna\n\nBuild mode: **MVP build**.\nBuild priority: **2**.\n\n## App Name\n\nSomna\n\n## Category\n\nSleep & Morning Energy\n\n## One-Sentence Promise\n\nLog your sleep and how you feel each morning, and Somna shows you exactly what actually helps you feel rested.\n\n## Target User\n\nAnyone who's tired and curious why some mornings feel great and others don't, without wanting to wear a sleep-tracking ring or let an app record audio all night \u2014 students, parents, shift workers, broadly anyone.\n\n## Painful Moment Solved\n\nWaking up exhausted despite 'enough' sleep with no idea whether it was the late coffee, the doomscrolling, or the stress \u2014 and existing sleep apps just show a graph with no explanation.\n\n## Why It Is Different\n\nPairs a 10-second bedtime/wake log with a 10-second morning mood+energy check-in, then surfaces plain-English on-device correlations ('you feel 34% more rested after 7+ hours') instead of raw sleep-stage graphs.\n\n## Why Users Would Pay\n\nFree tier covers logging, streaks, and the weekly recap card; Somna+ unlocks the full correlation engine (caffeine/exercise/screen-time tags vs. sleep quality), unlimited history, and a bedtime Live Activity.\n\n## Subscription Model\n\nFreemium, $4.99/mo or $29.99/yr for Somna+.\n\n## Local-First MVP Scope\n\nSwiftData for nightly logs and morning check-ins; correlation engine computed on-device; optional read-only HealthKit import of sleep duration, never a requirement.\n\n## Future Backend Roadmap\n\nRepository boundary allows swapping the local store for CloudKit sync later; correlation engine stays fully on-device regardless of sync status for privacy.\n\n## AR / Local ML / Local LLM Fit\n\nNone required; the correlation engine is simple on-device statistics, the honest and battery-safe choice over sensor-heavy sleep-staging.\n\n## Design Direction\n\nNocturnal calm gradient system \u2014 deep indigo-to-violet dusk gradients lightening toward soft dawn tones in daytime views, soft-glow rounded components, a moon-phase mark, restful rather than clinical.\n\n## App Store Positioning\n\nNot another sleep-stage graph \u2014 Somna tells you what actually helped you feel rested, no ring or overnight mic required.\n\n## Invalidation Criteria\n\nIf users keep the bedtime log but stop doing the morning check-in after week 2, the correlation engine has no fuel \u2014 signals the check-in flow needs to get shorter or gamified.\n\n## v1 Build Scope\n\nBedtime/wake logging, morning check-in, weekly recap card + widget, on-device rule-based correlation insights, Somna+ paywall with StoreKit.\n\n## Core Workflows\n\n- log bedtime & wake time\n- morning mood/energy check-in with optional tags\n- view weekly sleep recap card\n- browse plain-English correlation insights\n- optional read-only HealthKit import\n\n## iOS-Native Features\n\n- Live Activity for tonight's bedtime countdown\n- WidgetKit showing last night's score + tonight's target bedtime\n- HealthKit read-only (optional)\n- ShareLink for recap card\n\n## Key Risks\n\n- Correlation insights need weeks of data before they're meaningful \u2014 needs an honest 'still learning' partial state, not false-confidence insights early\n- Read-only HealthKit import is a bonus only \u2014 must fully function without HealthKit permission granted\n\n## Claude Design Handoff Prompt\n\nDesign a calm sleep & morning-energy app called Somna: deep indigo-to-violet gradient backgrounds that lighten toward soft dawn tones in daytime views, soft-glow rounded cards, a moon-phase mark as the icon motif, minimal typography, restful and quiet rather than clinical or data-dense.\n\n## Parent Portfolio Prompt\n\nBuild 5 completely separate, production-ready iOS apps at the same time.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app, never bundled together.\n\nPick any 5 categories/concepts \u2014 no fixed assignment. Choose the 5 strongest MASS-MARKET ideas.\n\nTOP PRIORITY \u2014 VIRAL, MASS-MARKET APPEAL (hard requirement):\n- Every app must target a BROAD, mainstream audience. NO niche-community apps (no hobbyist tools, no professional verticals, no special-interest utilities). If your parents, your barista, and a college student wouldn't all instantly get it, it fails.\n- Each app must have a built-in viral loop: something people naturally share, screenshot, send to friends, or compete over (shareable results/cards, streaks, challenges, comparisons, \"send this to a friend\" moments).\n- The concept must be explainable in one sentence and demo-able in 10 seconds.\n- Think the scale of habit trackers, photo tools, social utilities, everyday life tools, casual self-improvement, money, food, sleep, relationships, entertainment \u2014 things with tens of millions of potential users.\n\nSECOND PRIORITY \u2014 DESIGN & UI/UX:\n- World-class, distinctive visual identity per app: deliberate color system, type scale, spacing, iconography, motion language \u2014 not stock SwiftUI defaults.\n- \"Apple Design Award\" caliber polish. Every screen considered: empty, loading, error states, transitions, haptics, spring animations.\n- Dark mode, Dynamic Type, accessibility (VoiceOver, 44pt targets, WCAG AA contrast).\n- Each of the 5 apps must look clearly DIFFERENT from the other four \u2014 five distinct design directions.\n- Documented design system per app (tokens, components, states); built UI must match it.\n\nTHIRD PRIORITY \u2014 COMPLEXITY & DEPTH:\n- Genuinely substantial apps \u2014 interconnected features, real domain data model, non-trivial logic, offline persistence with sync-later architecture, robust settings, import/export, and at least one hard technical capability done well.\n- Depth that rewards daily use \u2014 but never at the expense of instant mass-market clarity.\n\nFOURTH PRIORITY \u2014 MONETIZATION:\n- Clear, sustainable revenue path per app (subscription tiers, IAP, premium) that feels native to the product, never punitive. Free tier hooks users; paid tier is compelling.\n\nGeneral Requirements:\n1. Each app goes from 0 to production-ready.\n2. Each app must be unique, useful, and commercially viable, better than competitors in a meaningful way.\n3. Local-first, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built in this workspace: Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, brinekeeper, chalkline, quietpilot, cistern, thicket, undersong, undertow, heddle, marginalia, skyglass, and the ~50 apps of prior batches (aarti-path, afterglow, backtimer, chapterly, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, flinch, heartline, kitbag, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas, and others).\n- Produce differentiated concepts even if a category overlaps.\n\nBonus points (optional, only when integral): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the five app efforts in parallel; keep phases separate per app.\n- TIME MATTERS on this batch: reach consensus quickly in discussion phases (end phases early on agreement), but never skip the build, and never mark an app done unless a real, compiling Xcode project with full source exists in app_build. An app without a buildable Xcode project is a FAILURE.\n- Save all phase discussions; combine each app's transcript into a .txt at the end.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Scaffold Xcode project: three targets building clean",
+        "description": "Generated from orchestrator task `T-001` for `somna`.\n\nOwner lane: `data_domain`\nFiles: Somna.xcodeproj, Somna/App/SomnaApp.swift, SomnaWidget/SomnaWidgetBundle.swift, SomnaTests/SomnaTests.swift, Somna/Info.plist, Somna/Somna.entitlements\n\nAcceptance criteria:\n- All three targets (Somna, SomnaWidget, SomnaTests) build clean on a fresh checkout\n- Empty app launches in the simulator\n- Widget extension stub compiles and is added as a target dependency of the app\n- Shared file group set up for the future ActivityAttributes struct so it can belong to both app and widget targets",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Somna.xcodeproj",
+            "Somna/App/SomnaApp.swift",
+            "SomnaWidget/SomnaWidgetBundle.swift",
+            "SomnaTests/SomnaTests.swift",
+            "Somna/Info.plist",
+            "Somna/Somna.entitlements"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "All three targets (Somna, SomnaWidget, SomnaTests) build clean on a fresh checkout",
+            "Empty app launches in the simulator",
+            "Widget extension stub compiles and is added as a target dependency of the app",
+            "Shared file group set up for the future ActivityAttributes struct so it can belong to both app and widget targets"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "SwiftData models, versioned schema, ModelContainer wiring",
+        "description": "Generated from orchestrator task `T-002` for `somna`.\n\nOwner lane: `data_domain`\nFiles: Somna/Models/SleepSession.swift, Somna/Models/CheckIn.swift, Somna/Models/EnergyLevel.swift, Somna/Models/SleepTag.swift, Somna/Models/SomnaSchema.swift, Somna/App/SomnaApp.swift\n\nAcceptance criteria:\n- ModelContainer is constructed with SomnaSchemaV1 and a SchemaMigrationPlan actually passed into its initializer, not just declared as types\n- SleepSession.endDate == nil is queryable via a real #Predicate\n- A smoke test confirms an open session round-trips correctly",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Somna/Models/SleepSession.swift",
+            "Somna/Models/CheckIn.swift",
+            "Somna/Models/EnergyLevel.swift",
+            "Somna/Models/SleepTag.swift",
+            "Somna/Models/SomnaSchema.swift",
+            "Somna/App/SomnaApp.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "ModelContainer is constructed with SomnaSchemaV1 and a SchemaMigrationPlan actually passed into its initializer, not just declared as types",
+            "SleepSession.endDate == nil is queryable via a real #Predicate",
+            "A smoke test confirms an open session round-trips correctly"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "Repository protocols, SwiftData implementations, in-memory fakes",
+        "description": "Generated from orchestrator task `T-003` for `somna`.\n\nOwner lane: `data_domain`\nFiles: Somna/Repositories/SleepSessionRepository.swift, Somna/Repositories/CheckInRepository.swift, Somna/Repositories/SwiftData/SwiftDataSleepSessionRepository.swift, Somna/Repositories/SwiftData/SwiftDataCheckInRepository.swift, SomnaTests/Fakes/InMemorySleepSessionRepository.swift, SomnaTests/Fakes/InMemoryCheckInRepository.swift\n\nAcceptance criteria:\n- Both protocols have a SwiftData-backed and an in-memory implementation\n- A second bedtime tap while a session is open updates that session in place rather than creating a second concurrent session\n- WidgetCenter.shared.reloadTimelines is called only from the repository write methods, never from a clock tick\n- In-memory fakes work standalone with zero ModelContainer, and are announced ready for primary_ui to build against",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Somna/Repositories/SleepSessionRepository.swift",
+            "Somna/Repositories/CheckInRepository.swift",
+            "Somna/Repositories/SwiftData/SwiftDataSleepSessionRepository.swift",
+            "Somna/Repositories/SwiftData/SwiftDataCheckInRepository.swift",
+            "SomnaTests/Fakes/InMemorySleepSessionRepository.swift",
+            "SomnaTests/Fakes/InMemoryCheckInRepository.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Both protocols have a SwiftData-backed and an in-memory implementation",
+            "A second bedtime tap while a session is open updates that session in place rather than creating a second concurrent session",
+            "WidgetCenter.shared.reloadTimelines is called only from the repository write methods, never from a clock tick",
+            "In-memory fakes work standalone with zero ModelContainer, and are announced ready for primary_ui to build against"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "NightRecord, NightRecordAssembler, pairing/edge-case tests",
+        "description": "Generated from orchestrator task `T-004` for `somna`.\n\nOwner lane: `data_domain`\nFiles: Somna/Models/NightRecord.swift, Somna/Models/NightSummary.swift, Somna/Models/NightRecordAssembler.swift, SomnaTests/NightRecordAssemblerTests.swift, SomnaTests/SessionPairingTests.swift\n\nAcceptance criteria:\n- 16-hour plausibility window, orphan-closing, duplicate-tap, and a DST-fallback case are all covered by parameterized @Test cases pinned to an explicit TimeZone (never Calendar.current/TimeZone.current)\n- Negative or implausible durations are discarded before a NightRecord is ever created\n- NightRecordAssembler has zero SwiftData/persistence access \u2014 pure function only",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Somna/Models/NightRecord.swift",
+            "Somna/Models/NightSummary.swift",
+            "Somna/Models/NightRecordAssembler.swift",
+            "SomnaTests/NightRecordAssemblerTests.swift",
+            "SomnaTests/SessionPairingTests.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "16-hour plausibility window, orphan-closing, duplicate-tap, and a DST-fallback case are all covered by parameterized @Test cases pinned to an explicit TimeZone (never Calendar.current/TimeZone.current)",
+            "Negative or implausible durations are discarded before a NightRecord is ever created",
+            "NightRecordAssembler has zero SwiftData/persistence access \u2014 pure function only"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "CorrelationEngine actor, InsightRule implementations, threshold-gating test",
+        "description": "Generated from orchestrator task `T-005` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/Engine/CorrelationEngine.swift, Somna/Engine/InsightRule.swift, Somna/Engine/DurationEnergyRule.swift, Somna/Engine/TagEnergyRule.swift, Somna/Engine/InsightResult.swift, Somna/Engine/InsightCardData.swift, SomnaTests/CorrelationEngineTests.swift\n\nAcceptance criteria:\n- Threshold-gating test passes both branches: minNightsThreshold-1 nights yields zero .scored results, minNightsThreshold nights yields at least one\n- All three InsightResult cases (stillLearning, scored, noSignal) are individually reachable against constructed test data\n- Headline copy is associational only, never causal\n- Engine's public API is announced ready for primary_ui's InsightsViewModel to consume",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/Engine/CorrelationEngine.swift",
+            "Somna/Engine/InsightRule.swift",
+            "Somna/Engine/DurationEnergyRule.swift",
+            "Somna/Engine/TagEnergyRule.swift",
+            "Somna/Engine/InsightResult.swift",
+            "Somna/Engine/InsightCardData.swift",
+            "SomnaTests/CorrelationEngineTests.swift"
+          ],
+          "depends_on": [
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "Threshold-gating test passes both branches: minNightsThreshold-1 nights yields zero .scored results, minNightsThreshold nights yields at least one",
+            "All three InsightResult cases (stillLearning, scored, noSignal) are individually reachable against constructed test data",
+            "Headline copy is associational only, never causal",
+            "Engine's public API is announced ready for primary_ui's InsightsViewModel to consume"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "Debug/seed-data path for synthetic nights",
+        "description": "Generated from orchestrator task `T-006` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/Engine/SeedDataGenerator.swift\n\nAcceptance criteria:\n- A debug-only entry point force-feeds N synthetic nights into a repository\n- Using it, the Insights screen can be demonstrated transitioning from still-learning to a real scored insight without waiting real calendar weeks",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/Engine/SeedDataGenerator.swift"
+          ],
+          "depends_on": [
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "A debug-only entry point force-feeds N synthetic nights into a repository",
+            "Using it, the Insights screen can be demonstrated transitioning from still-learning to a real scored insight without waiting real calendar weeks"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "StoreKit SubscriptionStore, PaywallViewModel, .storekit config",
+        "description": "Generated from orchestrator task `T-007` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/Subscriptions/SubscriptionStore.swift, Somna/Subscriptions/PaywallViewModel.swift, Somna/Subscriptions/SomnaProductID.swift, Somna/Subscriptions/EntitlementStatus.swift, Somna/Somna.storekit\n\nAcceptance criteria:\n- Entitlement status resolves once per active scenePhase transition into an in-memory flag, never re-queried inside a view body\n- Product-list load failure or a hung entitlement check fails open to .free with no blocking spinner anywhere on Today\n- Restore Purchases calls AppStore.sync() and re-scans currentEntitlements\n- Transaction.updates is observed from app launch and every transaction is finished",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/Subscriptions/SubscriptionStore.swift",
+            "Somna/Subscriptions/PaywallViewModel.swift",
+            "Somna/Subscriptions/SomnaProductID.swift",
+            "Somna/Subscriptions/EntitlementStatus.swift",
+            "Somna/Somna.storekit"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Entitlement status resolves once per active scenePhase transition into an in-memory flag, never re-queried inside a view body",
+            "Product-list load failure or a hung entitlement check fails open to .free with no blocking spinner anywhere on Today",
+            "Restore Purchases calls AppStore.sync() and re-scans currentEntitlements",
+            "Transaction.updates is observed from app launch and every transaction is finished"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "HealthKitImportService (read-only, opt-in)",
+        "description": "Generated from orchestrator task `T-008` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/HealthKit/HealthKitImportService.swift, Somna/Info.plist\n\nAcceptance criteria:\n- Denied vs not-determined is never distinguished in any UI-facing signal\n- Import is only invoked from an explicit Settings opt-in tap, never at first launch\n- App is fully functional with zero HealthKit permission granted\n- NSHealthShareUsageDescription is real, specific copy",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/HealthKit/HealthKitImportService.swift",
+            "Somna/Info.plist"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Denied vs not-determined is never distinguished in any UI-facing signal",
+            "Import is only invoked from an explicit Settings opt-in tap, never at first launch",
+            "App is fully functional with zero HealthKit permission granted",
+            "NSHealthShareUsageDescription is real, specific copy"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "Design tokens, GradientBackground/gradient(for:), shared components",
+        "description": "Generated from orchestrator task `T-009` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/Views/Components/GradientBackground.swift, Somna/Views/Components/DesignTokens.swift, Somna/Views/Components/FrostedCard.swift, Somna/Views/Components/PrimaryButton.swift, Somna/Views/Components/SecondaryButton.swift, Somna/Views/Components/StreakBadge.swift, Somna/Views/Components/TagChip.swift, Somna/Views/Components/MoonCrescentProgress.swift, Somna/Views/Components/EnergyScaleControl.swift, SomnaTests/GradientTests.swift\n\nAcceptance criteria:\n- gradient(for:) unit test asserts all four named band boundaries and the ~30 minute crossfade\n- EnergyScaleControl exposes accessibilityValue and the adjustable trait from day one, not retrofitted\n- All shared buttons/chips/controls enforce 44pt minimum targets structurally\n- Text-bearing components sit on the opaque cardSurface fill, never directly on the raw gradient",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/Views/Components/GradientBackground.swift",
+            "Somna/Views/Components/DesignTokens.swift",
+            "Somna/Views/Components/FrostedCard.swift",
+            "Somna/Views/Components/PrimaryButton.swift",
+            "Somna/Views/Components/SecondaryButton.swift",
+            "Somna/Views/Components/StreakBadge.swift",
+            "Somna/Views/Components/TagChip.swift",
+            "Somna/Views/Components/MoonCrescentProgress.swift",
+            "Somna/Views/Components/EnergyScaleControl.swift",
+            "SomnaTests/GradientTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "gradient(for:) unit test asserts all four named band boundaries and the ~30 minute crossfade",
+            "EnergyScaleControl exposes accessibilityValue and the adjustable trait from day one, not retrofitted",
+            "All shared buttons/chips/controls enforce 44pt minimum targets structurally",
+            "Text-bearing components sit on the opaque cardSurface fill, never directly on the raw gradient"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "TodayState, TodayViewModel, Today view",
+        "description": "Generated from orchestrator task `T-010` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/ViewModels/TodayViewModel.swift, Somna/ViewModels/TodayState.swift, Somna/Views/Today/TodayView.swift, SomnaTests/TodayStateMachineTests.swift\n\nAcceptance criteria:\n- state(at:) is a pure function of (openSession, todayCheckIn, now), unit-testable through empty\u2192preBedtime\u2192asleep\u2192doneForToday using in-memory repos\n- hasAnimatedDoneStateToday gates the checkmark animation to once per day\n- 'I'm Awake' is never disabled regardless of elapsed duration\n- Correct empty state on first launch with zero data",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/ViewModels/TodayViewModel.swift",
+            "Somna/ViewModels/TodayState.swift",
+            "Somna/Views/Today/TodayView.swift",
+            "SomnaTests/TodayStateMachineTests.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "state(at:) is a pure function of (openSession, todayCheckIn, now), unit-testable through empty\u2192preBedtime\u2192asleep\u2192doneForToday using in-memory repos",
+            "hasAnimatedDoneStateToday gates the checkmark animation to once per day",
+            "'I'm Awake' is never disabled regardless of elapsed duration",
+            "Correct empty state on first launch with zero data"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "InsightsViewModel, Insights view (three card compositions)",
+        "description": "Generated from orchestrator task `T-011` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/ViewModels/InsightsViewModel.swift, Somna/Views/Insights/InsightsView.swift, Somna/Views/Insights/StillLearningCard.swift, Somna/Views/Insights/InsightCard.swift, Somna/Views/Insights/NoSignalCard.swift\n\nAcceptance criteria:\n- NoSignalCard is a structurally distinct view, never a reskinned StillLearningCard\n- Locked per-tag cards blur bars and show an unlock affordance via an isLocked modifier on the same InsightCard type\n- refresh() runs off the main actor; the view keeps showing previous results until new ones land, no blocking spinner",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/ViewModels/InsightsViewModel.swift",
+            "Somna/Views/Insights/InsightsView.swift",
+            "Somna/Views/Insights/StillLearningCard.swift",
+            "Somna/Views/Insights/InsightCard.swift",
+            "Somna/Views/Insights/NoSignalCard.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-005",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "NoSignalCard is a structurally distinct view, never a reskinned StillLearningCard",
+            "Locked per-tag cards blur bars and show an unlock affordance via an isLocked modifier on the same InsightCard type",
+            "refresh() runs off the main actor; the view keeps showing previous results until new ones land, no blocking spinner"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "HistoryViewModel/History view, RecapViewModel/Recap card/RecapDetailView + ShareLink",
+        "description": "Generated from orchestrator task `T-012` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/ViewModels/HistoryViewModel.swift, Somna/ViewModels/RecapViewModel.swift, Somna/Views/History/HistoryView.swift, Somna/Views/Recap/RecapCardContent.swift, Somna/Views/Recap/RecapDetailView.swift, Somna/Models/RecapData.swift\n\nAcceptance criteria:\n- History is delete-only with its own first-launch empty state\n- RecapData renders correctly with fewer than 7 nights of data\n- RecapCardContent is the single shared source used by both the embedded Today card and the full-bleed ShareLink-exported RecapDetailView",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/ViewModels/HistoryViewModel.swift",
+            "Somna/ViewModels/RecapViewModel.swift",
+            "Somna/Views/History/HistoryView.swift",
+            "Somna/Views/Recap/RecapCardContent.swift",
+            "Somna/Views/Recap/RecapDetailView.swift",
+            "Somna/Models/RecapData.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "History is delete-only with its own first-launch empty state",
+            "RecapData renders correctly with fewer than 7 nights of data",
+            "RecapCardContent is the single shared source used by both the embedded Today card and the full-bleed ShareLink-exported RecapDetailView"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Settings view, Paywall entry points, root TabView/App wiring",
+        "description": "Generated from orchestrator task `T-013` for `somna`.\n\nOwner lane: `primary_ui`\nFiles: Somna/Views/Settings/SettingsView.swift, Somna/App/RootTabView.swift, Somna/App/SomnaApp.swift\n\nAcceptance criteria:\n- Non-medical disclaimer reachable from Settings\n- Delete-all sits behind a confirmation alert\n- Settings reached via a gear icon in Today's nav bar, not a tab\n- App compiles with every view model and environment object wired through SomnaApp.swift",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Somna/Views/Settings/SettingsView.swift",
+            "Somna/App/RootTabView.swift",
+            "Somna/App/SomnaApp.swift"
+          ],
+          "depends_on": [
+            "T-007",
+            "T-010",
+            "T-011",
+            "T-012"
+          ],
+          "acceptance_criteria": [
+            "Non-medical disclaimer reachable from Settings",
+            "Delete-all sits behind a confirmation alert",
+            "Settings reached via a gear icon in Today's nav bar, not a tab",
+            "App compiles with every view model and environment object wired through SomnaApp.swift"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "Paywall screen wiring",
+        "description": "Generated from orchestrator task `T-014` for `somna`.\n\nOwner lane: `services_utilities`\nFiles: Somna/Views/Paywall/PaywallView.swift\n\nAcceptance criteria:\n- Covers loading/purchasable/purchased/restoring/load-failed states\n- Load-failed shows inline retry + dismiss, never a blocking spinner\n- Dismissing the paywall never leaves any part of Today gated",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Somna/Views/Paywall/PaywallView.swift"
+          ],
+          "depends_on": [
+            "T-007",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Covers loading/purchasable/purchased/restoring/load-failed states",
+            "Load-failed shows inline retry + dismiss, never a blocking spinner",
+            "Dismissing the paywall never leaves any part of Today gated"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Live Activity (ActivityKit) lifecycle",
+        "description": "Generated from orchestrator task `T-015` for `somna`.\n\nOwner lane: `polish_resilience`\nFiles: Somna/LiveActivity/SomnaLiveActivityAttributes.swift, Somna/LiveActivity/LiveActivityController.swift\n\nAcceptance criteria:\n- Starting an Activity is wrapped in try/catch that silently no-ops if Live Activities are system-disabled\n- Lock-screen content is generic only (countdown/target bedtime), never mood/energy/insight text\n- SomnaLiveActivityAttributes.swift is added to both the app and widget extension target memberships",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Somna/LiveActivity/SomnaLiveActivityAttributes.swift",
+            "Somna/LiveActivity/LiveActivityController.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Starting an Activity is wrapped in try/catch that silently no-ops if Live Activities are system-disabled",
+            "Lock-screen content is generic only (countdown/target bedtime), never mood/energy/insight text",
+            "SomnaLiveActivityAttributes.swift is added to both the app and widget extension target memberships"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "WidgetKit extension: last-night's-score + target-bedtime widget",
+        "description": "Generated from orchestrator task `T-016` for `somna`.\n\nOwner lane: `polish_resilience`\nFiles: SomnaWidget/SomnaWidgetEntry.swift, SomnaWidget/SomnaWidgetProvider.swift, SomnaWidget/SomnaWidgetView.swift\n\nAcceptance criteria:\n- Timeline reload is triggered only by the existing repository write-path calls to WidgetCenter.shared.reloadTimelines, no independent clock-driven reload policy added\n- Widget never surfaces mood/energy/insight text, only score/duration/target time",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "SomnaWidget/SomnaWidgetEntry.swift",
+            "SomnaWidget/SomnaWidgetProvider.swift",
+            "SomnaWidget/SomnaWidgetView.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-010",
+            "T-015"
+          ],
+          "acceptance_criteria": [
+            "Timeline reload is triggered only by the existing repository write-path calls to WidgetCenter.shared.reloadTimelines, no independent clock-driven reload policy added",
+            "Widget never surfaces mood/energy/insight text, only score/duration/target time"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-016"
+        }
+      },
+      {
+        "external_id": "T-017",
+        "issue_type": "Task",
+        "summary": "Integration: swap in-memory fakes for real SwiftData repositories app-wide",
+        "description": "Generated from orchestrator task `T-017` for `somna`.\n\nOwner lane: `polish_resilience`\nFiles: Somna/App/SomnaApp.swift\n\nAcceptance criteria:\n- Shipped app target contains zero references to the in-memory fakes\n- Full core loop (bedtime \u2192 wake+check-in \u2192 recap \u2192 insights) is demonstrable end-to-end via the seed-data path against real persistence",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Somna/App/SomnaApp.swift"
+          ],
+          "depends_on": [
+            "T-013",
+            "T-014",
+            "T-016"
+          ],
+          "acceptance_criteria": [
+            "Shipped app target contains zero references to the in-memory fakes",
+            "Full core loop (bedtime \u2192 wake+check-in \u2192 recap \u2192 insights) is demonstrable end-to-end via the seed-data path against real persistence"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-017"
+        }
+      },
+      {
+        "external_id": "T-018",
+        "issue_type": "Task",
+        "summary": "Final verification pass",
+        "description": "Generated from orchestrator task `T-018` for `somna`.\n\nOwner lane: `polish_resilience`\nFiles: SomnaUITests/TodayStateMachineUITest.swift, SomnaTests/AccessibilityTests.swift\n\nAcceptance criteria:\n- Clean xcodebuild across app + widget targets on a fresh checkout\n- XCUITest Today state-machine smoke test (empty\u2192asleep\u2192doneForToday) passes\n- Manual VoiceOver pass on EnergyScaleControl confirmed, not just code inspection\n- Every screen's empty/loading/success/error state manually walked through\n- Simulated StoreKit product-load failure confirms fail-open to free tier\n- Simulated HealthKit permission denial confirms full functionality with zero degradation",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "SomnaUITests/TodayStateMachineUITest.swift",
+            "SomnaTests/AccessibilityTests.swift"
+          ],
+          "depends_on": [
+            "T-017"
+          ],
+          "acceptance_criteria": [
+            "Clean xcodebuild across app + widget targets on a fresh checkout",
+            "XCUITest Today state-machine smoke test (empty\u2192asleep\u2192doneForToday) passes",
+            "Manual VoiceOver pass on EnergyScaleControl confirmed, not just code inspection",
+            "Every screen's empty/loading/success/error state manually walked through",
+            "Simulated StoreKit product-load failure confirms fail-open to free tier",
+            "Simulated HealthKit permission denial confirms full functionality with zero degradation"
+          ],
+          "source_project": "somna",
+          "source_task_id": "T-018"
+        }
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "SleepSession",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class SleepSession { var id: UUID; var startDate: Date; var endDate: Date? }",
+        "owning_lane": "data_domain",
+        "notes": "SwiftData model. endDate == nil means session is open. Queried via #Predicate, never a hand-reconstructed check."
+      },
+      {
+        "name": "CheckIn",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class CheckIn { var id: UUID; var timestamp: Date; var energyLevel: Int; var tagsRaw: [String]; var linkedSessionID: UUID? }",
+        "owning_lane": "data_domain",
+        "notes": "energyLevel stored 1-5, wrap with EnergyLevel enum at boundaries. tagsRaw stores SleepTag.rawValue strings. linkedSessionID is a soft FK set by pairing logic, not a SwiftData relationship."
+      },
+      {
+        "name": "EnergyLevel",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum EnergyLevel: Int, CaseIterable { case exhausted = 1, low, okay, good, rested; var label: String { get } }",
+        "owning_lane": "data_domain",
+        "notes": "Backs EnergyScaleControl and all display copy; VoiceOver spoken value comes from .label."
+      },
+      {
+        "name": "SleepTag",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SleepTag: String, CaseIterable, Codable { case caffeine, exercise, screenTime, stress, alcohol }",
+        "owning_lane": "data_domain",
+        "notes": "Fixed starter tag set. Adding a case is the only change needed to extend TagChip UI and the engine's per-tag rules."
+      },
+      {
+        "name": "NightRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct NightRecord: Equatable { let date: Date; let sessionDuration: TimeInterval?; let energyLevel: EnergyLevel; let tags: Set<SleepTag> }",
+        "owning_lane": "data_domain",
+        "notes": "Pure value type consumed by CorrelationEngine. Built by NightRecordAssembler, which discards implausible/negative durations before records are ever created. This is the required test seam \u2014 engine tests use arrays of this type with zero SwiftData/ModelContainer involvement."
+      },
+      {
+        "name": "NightRecordAssembler",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum NightRecordAssembler { static func assemble(sessions: [SleepSession], checkIns: [CheckIn], plausibilityWindow: TimeInterval = 16 * 3600) -> [NightRecord] }",
+        "owning_lane": "data_domain",
+        "notes": "Pure function: pairs open sessions to check-ins within the 16h window, orphans the rest, discards negative/implausible durations. No side effects, no persistence access."
+      },
+      {
+        "name": "SleepSessionRepository",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol SleepSessionRepository { func openSession() -> SleepSession?; func startOrUpdateSession(at date: Date) throws; func endSession(_ session: SleepSession, wakeDate: Date) throws; func allSessions() throws -> [SleepSession]; func delete(_ session: SleepSession) throws }",
+        "owning_lane": "data_domain",
+        "notes": "SwiftData-backed impl lives in Repositories/SwiftData; InMemoryRepository impl lives in test target. startOrUpdateSession implements 'second tap edits in place' rule. Write methods are the only call sites for WidgetCenter.shared.reloadTimelines."
+      },
+      {
+        "name": "CheckInRepository",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol CheckInRepository { func submit(timestamp: Date, energyLevel: EnergyLevel, tags: Set<SleepTag>, linkedSessionID: UUID?) throws; func checkIn(on date: Date) -> CheckIn?; func allCheckIns() throws -> [CheckIn]; func delete(_ checkIn: CheckIn) throws }",
+        "owning_lane": "data_domain",
+        "notes": "submit() is standalone-safe (linkedSessionID may be nil). checkIn(on:) used for once-per-local-day streak/update-in-place semantics."
+      },
+      {
+        "name": "InsightRule",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol InsightRule { var id: String { get }; var isPremium: Bool { get }; func evaluate(nights: [NightRecord]) -> InsightResult? }",
+        "owning_lane": "services_utilities",
+        "notes": "Exactly two concrete implementations ship: DurationEnergyRule (isPremium=false), TagEnergyRule(tag: .caffeine) (isPremium=true). Extensible without touching CorrelationEngine's iteration logic."
+      },
+      {
+        "name": "InsightResult",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum InsightResult { case stillLearning(nightsRemaining: Int); case scored(InsightCardData); case noSignal(reason: String) }",
+        "owning_lane": "services_utilities",
+        "notes": "The three required Insights-screen states, produced per-rule. UI maps each case to StillLearningCard / InsightCard / NoSignalCard 1:1 \u2014 no case is ever collapsed into another."
+      },
+      {
+        "name": "InsightCardData",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct InsightCardData: Equatable { let ruleID: String; let headline: String; let comparisonA: (label: String, value: Double); let comparisonB: (label: String, value: Double); let isPremium: Bool }",
+        "owning_lane": "services_utilities",
+        "notes": "headline text is associational only, never causal, per locked copy rule. Consumed by InsightCard(isLocked:) which blurs comparisonA/B bars when isPremium && !entitled."
+      },
+      {
+        "name": "CorrelationEngine",
+        "kind": "function",
+        "language": "swift",
+        "signature": "actor CorrelationEngine { init(rules: [InsightRule] = [DurationEnergyRule(), TagEnergyRule(tag: .caffeine)], minNightsThreshold: Int = 5); func computeInsights(nights: [NightRecord]) async -> [InsightResult] }",
+        "owning_lane": "services_utilities",
+        "notes": "Real actor for main-actor isolation safety. Takes plain NightRecord arrays only \u2014 never @Model objects. minNightsThreshold is the single hard gate value; unit test asserts threshold-1 nights yields zero .scored results and threshold nights yields at least one."
+      },
+      {
+        "name": "TodayState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum TodayState { case empty; case preBedtime(streak: Int, lastNight: NightSummary?); case asleep(startDate: Date, elapsed: TimeInterval); case doneForToday(NightSummary, streak: Int) }",
+        "owning_lane": "primary_ui",
+        "notes": "Produced by a pure function of (openSession, todayCheckIn, now) so it's unit-testable without rendering a view. hasAnimatedDoneStateToday flag lives in TodayViewModel, not this enum."
+      },
+      {
+        "name": "TodayViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable final class TodayViewModel { init(sessionRepo: SleepSessionRepository, checkInRepo: CheckInRepository); func state(at date: Date) -> TodayState; func logBedtime(at date: Date); func logWakeAndCheckIn(wake: Date, energy: EnergyLevel, tags: Set<SleepTag>) }",
+        "owning_lane": "primary_ui",
+        "notes": "Constructed with concrete repository instances (injected at the View via @Environment, passed in at init) \u2014 never pulls @Environment itself, so it's constructible in tests with InMemoryRepository."
+      },
+      {
+        "name": "InsightsViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable final class InsightsViewModel { init(sessionRepo: SleepSessionRepository, checkInRepo: CheckInRepository, engine: CorrelationEngine, entitlement: SubscriptionStore); func refresh() async }",
+        "owning_lane": "primary_ui",
+        "notes": "refresh() runs NightRecordAssembler + engine.computeInsights off main actor, called on scenePhase .active; view keeps showing previous results until new ones land (no blocking spinner)."
+      },
+      {
+        "name": "gradient(for:)",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func gradient(for date: Date, calendar: Calendar = .current) -> [Color]",
+        "owning_lane": "primary_ui",
+        "notes": "Pure function, four named bands (duskDeep/overnight/dawn/day) with ~30min linear crossfade at boundaries. Direct unit-testable band-boundary assertions required."
+      },
+      {
+        "name": "EntitlementStatus",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum EntitlementStatus { case free, subscribed, unknown }",
+        "owning_lane": "services_utilities",
+        "notes": "unknown is a real third state (brief post-launch resolution window), distinct from free. Gated features treat unknown as locked-but-not-blocking, never as an excuse to hang the UI."
+      },
+      {
+        "name": "SubscriptionStore",
+        "kind": "function",
+        "language": "swift",
+        "signature": "@Observable final class SubscriptionStore { private(set) var status: EntitlementStatus; func refresh() async; func purchase(_ product: Product) async throws; func restore() async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "refresh() resolves Transaction.currentEntitlements once per active scenePhase transition into `status`, never re-queried inside a view body. Fails open to .free on product-list load failure."
+      },
+      {
+        "name": "HealthKitImportService",
+        "kind": "function",
+        "language": "swift",
+        "signature": "final class HealthKitImportService { func isAuthorized() -> Bool; func requestAuthorization() async throws; func importSleepDurations(since: Date) async throws -> [SleepSession] }",
+        "owning_lane": "services_utilities",
+        "notes": "Only invoked from Settings' explicit opt-in tap, never at first launch. denied vs not-determined never distinguished in UI."
+      },
+      {
+        "name": "SomnaLiveActivityAttributes",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct SomnaLiveActivityAttributes: ActivityAttributes { struct ContentState: Codable, Hashable { var targetBedtime: Date; var isAsleep: Bool }; var startDate: Date }",
+        "owning_lane": "polish_resilience",
+        "notes": "Lock-screen content is generic only (countdown/target time) \u2014 never mood/energy/insight text, per locked privacy rule. Shared source file included in both app and widget extension targets."
+      },
+      {
+        "name": "SomnaWidgetEntry",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct SomnaWidgetEntry: TimelineEntry { let date: Date; let lastNightSummary: NightSummary?; let targetBedtime: Date? }",
+        "owning_lane": "polish_resilience",
+        "notes": "Provider's timeline is only reloaded via WidgetCenter.shared.reloadTimelines called from repository write paths, never a periodic policy tied to clock ticks."
+      },
+      {
+        "name": "NightSummary",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct NightSummary: Equatable { let duration: TimeInterval?; let energyLevel: EnergyLevel?; let date: Date }",
+        "owning_lane": "data_domain",
+        "notes": "Shared display-projection type used by Today's done state, Recap, History rows, and the widget entry \u2014 one type, not four ad hoc structs."
+      },
+      {
+        "name": "RecapData",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct RecapData { let nights: [NightRecord]; let averageDuration: TimeInterval?; let bestNight: NightSummary?; let checkInCompletionRate: Double; var isPartialWeek: Bool { get } }",
+        "owning_lane": "primary_ui",
+        "notes": "Built from the last 7 calendar days of NightRecords; renders correctly with fewer than 7 nights. Shared between embedded RecapCardContent and full-bleed RecapDetailView so ShareLink output can't drift."
+      },
+      {
+        "name": "HistoryViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable final class HistoryViewModel { init(sessionRepo: SleepSessionRepository, checkInRepo: CheckInRepository); var nights: [NightRecord] { get }; func delete(session: SleepSession) throws; func delete(checkIn: CheckIn) throws }",
+        "owning_lane": "primary_ui",
+        "notes": "Delete-only per locked edit-scope rule (editing stays confined to Today's asleep-state 'Update Bedtime'). Needs its own first-launch empty state."
+      },
+      {
+        "name": "RecapViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable final class RecapViewModel { init(sessionRepo: SleepSessionRepository, checkInRepo: CheckInRepository); func recapData(asOf date: Date) -> RecapData }",
+        "owning_lane": "primary_ui",
+        "notes": "Feeds both the compact Today card and the full-bleed RecapDetailView from the same RecapData so ShareLink output can't drift from what's on screen."
+      },
+      {
+        "name": "PaywallViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable final class PaywallViewModel { init(store: SubscriptionStore); private(set) var products: [Product]; func purchase(_ product: Product) async; func restore() async }",
+        "owning_lane": "services_utilities",
+        "notes": "Product-list load failure or hung entitlement check must fail open to free tier \u2014 no blocking spinner on Today, ever."
+      },
+      {
+        "name": "SomnaProductID",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SomnaProductID: String, CaseIterable { case monthly = \"com.somna.plus.monthly\", yearly = \"com.somna.plus.yearly\" }",
+        "owning_lane": "services_utilities",
+        "notes": "IDs used both by SubscriptionStore's Product.products(for:) call and the local .storekit config file for testing."
+      }
+    ]
+  },
   "phase_outputs": {
     "prompt_contract": "CONSENSUS: YES\n\nOnly one voice actually showed up this round (Codex's CLI wasn't available), but Claude's pass was thorough and self-consistent, and there's nothing here that's actually contested \u2014 it's a solo read of an unambiguous spec, not a live disagreement between parties. The scope is clean: this phase builds Somna only, not the 5-app portfolio ideation/selection that already happened upstream. Where the spec left things soft (MVP vs. \"production-ready,\" which iOS-native features are hard-required vs. bonus), Claude named the assumption explicitly rather than picking silently, which is exactly what this phase is supposed to do. Nothing here needs a second round of arguing \u2014 it's ready to lock in.\n\n## Final Output\n\n**Original prompt:** preserved verbatim above (Somna app spec + parent portfolio prompt for context only \u2014 the portfolio-level ideation/selection/uniqueness-against-5-apps work is out of scope for this child build; it was already done one level up).\n\n**Hard requirements:**\n- Real, compiling Xcode project with full SwiftUI source in `app_build` \u2014 no spec doc, no partial scaffold.\n- SwiftData persistence for nightly sleep logs and morning check-ins; fully local-first, no backend dependency.\n- All core workflows present and functional: bedtime/wake logging, morning mood/energy check-in with optional tags, weekly recap card, plain-English correlation insights, optional read-only HealthKit import.\n- Correlation engine: on-device rule-based/statistical only (no LLM, no hardcoded fake insights), with a real, sample-size-gated \"still learning\" state \u2014 not cosmetic, must actually suppress false-confidence output early on.\n- HealthKit: read-only, optional, app must be fully functional with zero permission granted \u2014 no crashes, no blocking, no infinite re-prompt loops.\n- StoreKit paywall (local `.storekit` config is acceptable for testing) gating: full tag-correlation engine, unlimited history, Live Activity. Free tier keeps logging, streaks, weekly recap.\n- Live Activity (bedtime countdown) and WidgetKit widget (last night's score + tonight's target) \u2014 treated as required v1 scope per the spec's own \"v1 Build Scope\"/\"iOS-Native Features\" listing, but allowed to degrade gracefully (placeholder/last-known state) rather than block ship if they get disproportionately fiddly.\n- ShareLink on the recap card.\n- Design system must actually match \"nocturnal calm\": indigo-to-violet dusk gradients lightening toward dawn by time-of-day, soft-glow rounded cards, moon-phase icon motif \u2014 default SwiftUI styling is non-compliant.\n- Real empty/loading/success/error states everywhere reachable, especially the insights screen's insufficient-data state.\n- Accessibility: Dynamic Type, VoiceOver, 44pt targets, WCAG AA contrast.\n\n**Non-goals:**\n- No CloudKit/server sync in v1 \u2014 only a repository boundary that allows it later.\n- No sleep-stage detection, audio recording, wearable/ring integration, ML sleep-staging.\n- No LLM-generated insight text \u2014 template strings driven by real computed stats.\n- No AR.\n- No re-running the 5-app ideation/selection \u2014 already decided upstream.\n\n**Production-readiness definition:** all v1-scope items work end-to-end on-device, no crashes, real persistence, a real (simple) correlation algorithm on real logged data, a functioning StoreKit paywall, polished UI matching the design direction. Live Activity/widget/HealthKit can be architecturally present but don't need to be flawless across every OS edge case \u2014 core logging/check-in/correlation/paywall loop is the non-negotiable bar.\n\n**Decision rules for later phases:**\n- If ambiguous, name the assumption in output rather than silently choosing \u2014 e.g., Live Activity/widget are hard-required, HealthKit is soft-required, exactly as reasoned above.\n- Core workflows and paywall ship no matter what; Live Activity/widget degrade gracefully rather than jeopardizing the core loop.\n- Explicitly test/reason about: zero-data first launch, wake-before-bedtime or incomplete log pairs, HealthKit permission denial, StoreKit product load failure (offline/sandbox), midnight-crossing/DST time math, and that the \"still learning\" threshold is a real gate, not just a label next to a bogus number.",
     "product_research": "CONSENSUS: YES\n\nCodex didn't weigh in again this round, but the single Claude pass is thorough, internally consistent, and directly answers everything this phase is supposed to produce \u2014 there's no live disagreement to resolve, just one solid take that names its own assumptions. It correctly treats the prior phase's comparable-apps knowledge as informed judgment rather than claiming real market research was done, flags concrete risks beyond what was already in the prompt contract (the \"still-learning gate set too strict\" failure mode, the cross-midnight orphaned-session problem, and the native-feature-scope-creep risk), and lands on a clear build-priority call: nail logging/check-in/recap/gated-insights/paywall first, treat HealthKit/Live Activity/widget as gracefully-degradable. That's consistent with what the prompt contract already decided, so nothing here contradicts it \u2014 it just adds texture. Good enough to lock in.\n\n## Final Output\n\n**Audience and use context:** People who are tired and curious why, not sleep-tech enthusiasts \u2014 most likely folks who tried Sleep Cycle, Apple Health's sleep tracking, or a Whoop/Oura and bounced off the cost, the hardware requirement, or a hypnogram they couldn't act on. The realistic usage pattern is two ~10-second taps a day: one right before bed, one right after waking, frequently done half-asleep. That implies large tap targets, no required typing on the common path, and tolerance for the user abandoning the screen mid-log and returning later without losing state or double-logging.\n\n**Comparable apps or patterns (drawn from general knowledge, not fresh research \u2014 labeled as such):**\n- *Sleep Cycle* \u2014 mic/motion sensing, graph-heavy, subscription-gated trends. Somna's whole pitch is not being this.\n- *AutoSleep / Pillow* \u2014 assume an Apple Watch is worn; breaks for a meaningful slice of Somna's stated target (students, parents, shift workers who may not own/wear a watch).\n- *Streaks / Way of Life* \u2014 the habit-streak mechanic Somna's free tier logging leans on.\n- *Bearable / Exist.io* \u2014 closest conceptual match for \"plain-English correlation instead of a graph,\" just applied to mood/symptoms broadly rather than sleep specifically. Their known failure mode \u2014 users quit the daily log before the insight engine has enough data to say anything useful \u2014 is exactly the invalidation criteria already named upstream, and should actively shape the build, not just be acknowledged.\n\n**Platform-specific opportunities:**\n- Live Activity / Dynamic Island as a low-friction on-ramp into the morning check-in (bedtime countdown flips to a \"log your wake-up\" tap target) \u2014 genuinely a good fit for this app's rhythm, but real ActivityKit footguns exist (activities can silently fail to start, background updates aren't guaranteed to land on time, simulator testing is unreliable \u2014 needs a real device to trust). Treat as an enhancement layered on a working in-app flow, not load-bearing.\n- WidgetKit's \"last night's score\" only updates reliably if `WidgetCenter.shared.reloadTimelines` is explicitly called from every write path (logging, check-in) \u2014 it won't refresh on its own just because app state changed. This is a concrete implementation requirement, not a detail to leave implicit.\n\n**Major assumptions and risks:**\n1. The \"still learning\" gate needs a concrete, testable numeric threshold decided now (e.g., minimum nights with a tag present vs. absent, minimum total nights logged) \u2014 set it too loose and you get false confidence (the risk already flagged upstream); set it too strict and consistent loggers never see a single insight for weeks, which kills trust just as fast. Both failure directions need guarding against, not just the first.\n2. Bedtime and wake are logged as separate taps, possibly on different calendar dates, possibly with one side skipped entirely for a night. The data model and correlation engine must handle orphaned/incomplete sessions across midnight and DST boundaries without silently dropping nights or crashing \u2014 this needs explicit handling, not an assumption that logs always arrive in tidy pairs.\n3. HealthKit, Live Activity, and WidgetKit are three separate pieces of native surface area that can each absorb disproportionate build time for marginal benefit versus the core loop. Consistent with the prompt contract's \"degrade gracefully\" call \u2014 if time is tight, these are the first things to simplify, not the logging/check-in/insight/paywall loop.\n\n**Implications for the first build:** Build order should prioritize logging \u2192 check-in \u2192 recap \u2192 a correctly-gated insight engine \u2192 paywall wiring, in that order of non-negotiability. Because the insight engine only proves itself against real accumulated data, the build should include a way to exercise it against more than zero nights immediately \u2014 either a debug-only seed-data path or unit tests against synthetic logs \u2014 so the \"still learning\" threshold and the transition into real insight text can actually be verified during development rather than assumed correct.",
@@ -48,58 +1558,5 @@
     "app_store_readiness": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED",
     "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED",
     "portfolio_audit": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: UNVERIFIED"
-  },
-  "last_processed": "2026-07-08 14:51:11",
-  "consensus_status": {
-    "prompt_contract": true,
-    "product_research": true,
-    "portfolio_selection": true,
-    "initial_discussion": true,
-    "per_app_product_brief": true,
-    "next_steps_small": true,
-    "detailed_discussion": true,
-    "app_features": true,
-    "design_discussion": true,
-    "design_handoff": true,
-    "ios_architecture_review": true,
-    "tech_specs": true,
-    "project_plan": true,
-    "task_assignments": true,
-    "implementation_readiness_gate": true,
-    "build_coordination": true,
-    "build_verification": false,
-    "human_qa_checklist": false,
-    "app_store_readiness": false,
-    "final_review": false,
-    "portfolio_audit": false
-  },
-  "vote_results": {
-    "build_verification": {
-      "decided": false,
-      "by": "claude"
-    },
-    "human_qa_checklist": {
-      "decided": false,
-      "by": "claude"
-    },
-    "app_store_readiness": {
-      "decided": false,
-      "by": "claude"
-    },
-    "final_review": {
-      "decided": false,
-      "by": "claude"
-    },
-    "portfolio_audit": {
-      "decided": false,
-      "by": "claude"
-    }
-  },
-  "runner_pid": 36343,
-  "done": true,
-  "error": null,
-  "status": "done",
-  "workflow": "app_build",
-  "blocked_conflict": null,
-  "awaiting_approval": null
+  }
 }
