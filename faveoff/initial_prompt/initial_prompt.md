@@ -146,3 +146,7 @@ Output directory:
 - /Users/pchordia/Documents/iOS-App-Factory
 
 Now generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.
+
+
+## Change requested
+The app currently FAILS to compile. Fix every compiler error until the build succeeds cleanly; do not drop features unless unavoidable.

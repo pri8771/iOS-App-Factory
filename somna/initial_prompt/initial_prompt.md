@@ -147,3 +147,7 @@ Output directory:
 - /Users/pchordia/Documents/iOS-App-Factory
 
 Now generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.
+
+
+## Change requested
+The build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.
