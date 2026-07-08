@@ -1,0 +1,1 @@
+Design a high-energy party/icebreaker game app called Campfire: saturated campfire-orange to hot-pink gradients, bold rounded slab typography, oversized tap targets for pass-the-phone play, playful spring/bounce transitions, a confetti-style reveal moment at the end of each round, feels like a fun physical party prop, not a utility app.

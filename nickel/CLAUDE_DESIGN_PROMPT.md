@@ -1,0 +1,1 @@
+Design a warm, editorial personal-finance app called Nickel: cream paper background, burnt-orange accent, serif numerals for money amounts, a 'money weather' recap card (sun/cloud/storm iconography) as the hero shareable artifact, soft paper-grain texture, generous whitespace, no corporate blue/green fintech clichés.

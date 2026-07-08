@@ -1,0 +1,494 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "TitleType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TitleType: String, Codable, CaseIterable, Sendable { case movie, tv }",
+      "owning_lane": "data_domain",
+      "notes": "Track boundary is by title type; movie is free ranked track, TV ranked only with entitlement."
+    },
+    {
+      "name": "RankingState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RankingState: String, Codable, Sendable { case unranked, insertionInProgress, ranked }",
+      "owning_lane": "data_domain",
+      "notes": "Uncontested across both rounds."
+    },
+    {
+      "name": "Genre",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Genre: String, Codable, CaseIterable, Sendable { case action, comedy, drama, horror, thriller, sciFi, fantasy, animation, documentary, romance, other }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed single-pick enum, never free text."
+    },
+    {
+      "name": "FilmTitle",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct FilmTitle: Identifiable, Equatable, Hashable, Sendable { let id: UUID; var name: String; var type: TitleType; var year: Int?; var genre: Genre?; var posterSeed: String; var rankingState: RankingState; var trackRankPosition: Int?; var createdAt: Date; var yearDecade: Int? { ... } }",
+      "owning_lane": "data_domain",
+      "notes": "Domain projection used across layers; keep separate from SwiftData persistence model."
+    },
+    {
+      "name": "StoredTitle",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StoredTitle: Codable, Sendable { let id: UUID; var name: String; var typeRaw: String; var year: Int?; var genreRaw: String?; var posterSeed: String; var rankingStateRaw: String; var position: Int; var insertedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData entity shape serialized through repository; defaults on all non-optional fields."
+    },
+    {
+      "name": "ComparisonRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ComparisonRecord: Identifiable, Sendable { let id: UUID; let flowID: UUID; let winnerID: UUID; let loserID: UUID; let track: TitleType; let wasSkipped: Bool; let timestamp: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Append-only comparison trail for auditability and future analytics-free troubleshooting."
+    },
+    {
+      "name": "InsertionContext",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class InsertionContext { var id: UUID; var titleID: UUID; var flowID: UUID; var mediaType: MediaType; var lo: Int; var hi: Int; var lastComparedTitleID: UUID?; var skipBudget: Int; var createdAt: Date; var updatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL: lastComparedTitleID is UUID?, not an index \u2014 both sides agreed in round 2. Single source of truth for crash-recoverable active insertion."
+    },
+    {
+      "name": "TitleRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol TitleRepository { func fetchAll(track: MediaType?) async throws -> [Title]; func fetchRanked(track: MediaType) async throws -> [Title]; func title(id: UUID) async throws -> Title?; func add(name: String, mediaType: MediaType, year: Int?, genre: Genre?) async throws -> Title; func delete(_ id: UUID) async throws; func applyPositions(_ updates: [(id: UUID, position: Int)], track: MediaType) async throws; func capReached(track: MediaType) async throws -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "applyPositions is one atomic write per insertion, bulk shift unanimated. capReached folded in from Codex round 2 for the 25-item movie cap check."
+    },
+    {
+      "name": "TitleFilter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TitleFilter: Equatable, Sendable { var genre: Genre?; var decade: Int? }",
+      "owning_lane": "data_domain",
+      "notes": "Decade derived from year at read time, never stored as free text."
+    },
+    {
+      "name": "RankingEngine",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RankingEngine { static func startInsertion(newID: UUID, rankedIDs: [UUID]) -> InsertionState; static func nextPair(state: InsertionState, rankedIDs: [UUID]) -> ComparisonPair?; static func applyChoice(state: InsertionState, chosenID: UUID, rankedIDs: [UUID]) -> InsertionStepResult; static func applySkip(state: InsertionState, rankedIDs: [UUID]) -> InsertionStepResult }",
+      "owning_lane": "services_utilities",
+      "notes": "FINAL: static-func enum, both sides agreed. Lives in the standalone FaveOffRanking local package (Foundation-only) so a SwiftData/SwiftUI import here is a compile error."
+    },
+    {
+      "name": "RankingStep",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RankingStep: Sendable { let context: InsertionContext; let leftID: UUID; let rightID: UUID; let isTerminal: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Defines compare pair surfaced to UI when not terminal."
+    },
+    {
+      "name": "RankingTransition",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RankingTransition: Sendable { let updatedContext: InsertionContext?; let placedID: UUID?; let newPosition: Int?; let fallbackReason: SkipFallbackReason?; let neighbors: (UUID?, UUID?) }",
+      "owning_lane": "services_utilities",
+      "notes": "Returned after each step; terminal transitions include placement payload and neighbors."
+    },
+    {
+      "name": "SkipFallbackReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SkipFallbackReason: String, Sendable { case twoSkips; case userCancelled; case deletedOpponent }",
+      "owning_lane": "services_utilities",
+      "notes": "Explicit transparency for copy and analytics-safe behavior."
+    },
+    {
+      "name": "MetadataProvider",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol MetadataProvider { func enrich(title: FilmTitle) async -> PosterMetadata; }",
+      "owning_lane": "services_utilities",
+      "notes": "Default implementation must be local/offline stub; remote provider optional and additive."
+    },
+    {
+      "name": "PosterMetadata",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PosterMetadata: Sendable { let resolvedName: String; let year: Int?; let genre: Genre?; let posterImageData: Data?; let posterColorHex: String; let textSeed: String }",
+      "owning_lane": "data_domain",
+      "notes": "Keep fallback deterministic from local stub."
+    },
+    {
+      "name": "PurchaseService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PurchaseService { var state: PurchaseState { get }; func loadProducts() async throws -> [PurchaseProduct]; func purchase(_ productID: ProductID) async throws; func restore() async throws; func isEntitled(to feature: PremiumFeature) -> Bool; func startEntitlementListener() async; func stopEntitlementListener() }",
+      "owning_lane": "services_utilities",
+      "notes": "Both sides converged on this exact merged shape in round 2. startEntitlementListener runs Transaction.currentEntitlements as a persistent launch-time Task."
+    },
+    {
+      "name": "PurchaseResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PurchaseResult: Sendable { case purchased; case pending; case cancelled; case failed(Error) }",
+      "owning_lane": "services_utilities",
+      "notes": "Sheet state machine should map from this to non-blocking UI transitions."
+    },
+    {
+      "name": "TasteCardRenderer",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor struct TasteCardRenderer { func renderCard(titles: [Title]) async throws -> Image }",
+      "owning_lane": "services_utilities",
+      "notes": "Returns Image, matching TasteCardRenderState.ready(Image) directly. Only fires once every source poster image is confirmed loaded \u2014 no ImageRenderer snapshot race."
+    },
+    {
+      "name": "LibraryViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class LibraryViewModel { var titles: [Title]; var selectedTrack: MediaType; var activeFilters: FilterState; var pendingResume: ActiveInsertionFlow?; var isAtCap: Bool; func load() async; func addTitle(name: String, mediaType: MediaType, year: Int?, genre: Genre?) async throws -> ActiveInsertionFlow?; func removeTitle(_ id: UUID) async throws; func resumeFlow() async throws -> ActiveInsertionFlow? }",
+      "owning_lane": "primary_ui",
+      "notes": "@Observable (not ObservableObject) for property-level invalidation. addTitle/resumeFlow both produce the identical ActiveInsertionFlow shape, matching the single-cover invariant."
+    },
+    {
+      "name": "CompareFlowViewModel",
+      "kind": "class",
+      "language": "swift",
+      "signature": "final class CompareFlowViewModel: ObservableObject { @MainActor func loadNextPair() async; @MainActor func choose(_ id: UUID) async; @MainActor func skip() async; @MainActor func cancelBecauseDeletedOpponent() }",
+      "owning_lane": "primary_ui",
+      "notes": "Single-screen ritual inside one full-screen cover; fetches both titles by persistent ID before each action."
+    },
+    {
+      "name": "PaywallViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class PaywallViewModel { var state: PurchaseState; var products: [PurchaseProduct]; var openFrom: PaywallTrigger; func loadProducts() async; func purchase(_ id: ProductID) async; func restore() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Dismissal handled by @Environment(\\.dismiss) at the view layer, not a view-model method \u2014 the sheet owns its own presentation lifecycle. openFrom folded in from Codex round 2 to drive contextual copy."
+    },
+    {
+      "name": "PrivacyManifestSpec",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func buildPrivacyManifestEntry() -> [String: Any]",
+      "owning_lane": "polish_resilience",
+      "notes": "Adopted from Codex's round-1 addition as-is \u2014 CI-checked helper keeping xcprivacy fields explicit and stable."
+    },
+    {
+      "name": "Title",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Title { var id: UUID; var name: String; var mediaType: MediaType; var year: Int?; var genre: Genre?; var posterColorSeed: String; var posterInitials: String; var rankingState: RankingState; var position: Int?; var createdAt: Date; var comparisonCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL: no separate domain/persistence DTO layer; used directly through TitleRepository. No @Relationship, no @Attribute(.unique) on id \u2014 deliberately dropped from Codex's round-2 draft since unique attributes break CloudKit-sync compatibility per ios_architecture_review; UUID() generation already gives practical uniqueness. Reference type despite kind=struct (schema has no 'class' option)."
+    },
+    {
+      "name": "Comparison",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Comparison { var id: UUID; var winnerID: UUID; var loserID: UUID; var mediaType: MediaType; var timestamp: Date; var wasSkipped: Bool; var flowID: UUID }",
+      "owning_lane": "data_domain",
+      "notes": "Append-only audit trail; stays valid after the referenced Title is deleted."
+    },
+    {
+      "name": "MediaType",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MediaType: String, Codable, CaseIterable, Sendable { case movie, tv }",
+      "owning_lane": "data_domain",
+      "notes": "Track discriminator; movie is free-ranked, tv is addable but ranking-gated until entitled."
+    },
+    {
+      "name": "FaveOffSchemaV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum FaveOffSchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Title.self, Comparison.self, InsertionContext.self] }; static var versionIdentifier: Schema.Version { Schema.Version(1, 0, 0) } }",
+      "owning_lane": "data_domain",
+      "notes": "Locked from day one so the first real schema change is non-destructive."
+    },
+    {
+      "name": "FaveOffMigrationPlan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum FaveOffMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [FaveOffSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+      "owning_lane": "data_domain",
+      "notes": ""
+    },
+    {
+      "name": "ComparisonRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ComparisonRepository { func record(winnerID: UUID, loserID: UUID, mediaType: MediaType, wasSkipped: Bool, flowID: UUID) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "Kept as its own focused protocol, not folded into TitleRepository."
+    },
+    {
+      "name": "InsertionRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol InsertionRepository { func pendingContext() async throws -> InsertionContext?; func save(_ context: InsertionContext) async throws; func clear(flowID: UUID) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "pendingContext() drives the Library resume banner at launch."
+    },
+    {
+      "name": "RepositoryError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RepositoryError: Error { case notFound; case notEntitled(PremiumFeature); case saveFailed(underlying: Error); case interrupted }",
+      "owning_lane": "data_domain",
+      "notes": "Merged: notEntitled case folded in from Codex's round-2 addition for feature-gated write attempts."
+    },
+    {
+      "name": "InsertionState",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct InsertionState: Equatable, Codable, Sendable { var targetID: UUID; var lo: Int; var hi: Int; var lastComparedID: UUID?; var skipBudget: Int }",
+      "owning_lane": "services_utilities",
+      "notes": "Pure in-memory mirror of InsertionContext; ID-based for the same drift reasons."
+    },
+    {
+      "name": "ComparisonPair",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ComparisonPair: Equatable, Sendable { var candidateID: UUID; var midIndex: Int }",
+      "owning_lane": "services_utilities",
+      "notes": ""
+    },
+    {
+      "name": "InsertionStepResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum InsertionStepResult: Equatable, Sendable { case continueComparing(InsertionState); case placed(index: Int, placement: PlacementKind) }",
+      "owning_lane": "services_utilities",
+      "notes": "FINAL shape both sides converged on in round 2, replacing Codex's original RankingTransition/SkipFallbackReason \u2014 placement and cancellation are not representable on the same type."
+    },
+    {
+      "name": "PlacementKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PlacementKind: Equatable, Sendable { case exact(aboveID: UUID?, belowID: UUID?); case fallbackBottom; case coldStart }",
+      "owning_lane": "services_utilities",
+      "notes": "Drives Placed screen's honest copy variant; never represents an interruption \u2014 see InterruptionReason."
+    },
+    {
+      "name": "InsertionCoordinator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor final class InsertionCoordinator { func beginInsertion(for titleID: UUID, mediaType: MediaType) async throws -> ActiveInsertionFlow; func resumePending() async throws -> ActiveInsertionFlow?; func choose(_ chosenID: UUID, in flow: ActiveInsertionFlow) async throws -> ActiveInsertionFlow; func skip(in flow: ActiveInsertionFlow) async throws -> ActiveInsertionFlow; func cancel(flow: ActiveInsertionFlow, reason: InterruptionReason) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Persists InsertionContext after every step; re-fetches both compared titles by persistent ID immediately before choose()/skip() act."
+    },
+    {
+      "name": "InterruptionReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum InterruptionReason: String, Sendable { case titleDeleted, userCancelled }",
+      "owning_lane": "polish_resilience",
+      "notes": "Fully separate from PlacementKind by design."
+    },
+    {
+      "name": "MetadataLookupService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol MetadataLookupService { func lookup(title: String, mediaType: MediaType, year: Int?) async -> MetadataResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Never throws; offline stub always succeeds, remote lookup is additive-only enrichment."
+    },
+    {
+      "name": "MetadataResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MetadataResult: Sendable { var posterColorSeed: String; var posterInitials: String; var resolvedYear: Int?; var resolvedGenre: Genre? }",
+      "owning_lane": "services_utilities",
+      "notes": ""
+    },
+    {
+      "name": "OfflineMetadataProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct OfflineMetadataProvider: MetadataLookupService { func lookup(title: String, mediaType: MediaType, year: Int?) async -> MetadataResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Deterministic hash-of-title-string, synchronous, no network \u2014 default happy-path implementation."
+    },
+    {
+      "name": "PurchaseState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PurchaseState: Equatable, Sendable { case idle, loadingProducts, purchasePending, purchaseFailed(String), restored, entitled, notEntitled }",
+      "owning_lane": "services_utilities",
+      "notes": ""
+    },
+    {
+      "name": "ProductID",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ProductID: String, CaseIterable, Sendable { case monthly = \"com.faveoff.plus.monthly\"; case yearly = \"com.faveoff.plus.yearly\" }",
+      "owning_lane": "services_utilities",
+      "notes": "Must match the local .storekit config exactly."
+    },
+    {
+      "name": "PremiumFeature",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PremiumFeature: Sendable { case tvRanking, unlimitedMovieRanking }",
+      "owning_lane": "services_utilities",
+      "notes": ""
+    },
+    {
+      "name": "PurchaseProduct",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PurchaseProduct: Identifiable, Sendable { var id: ProductID; var displayPrice: String; var period: String }",
+      "owning_lane": "services_utilities",
+      "notes": ""
+    },
+    {
+      "name": "ContrastValidator",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ContrastValidator { static func contrastRatio(_ fg: Color, _ bg: Color) -> Double; static func meetsAA(fg: Color, bg: Color, isLargeText: Bool) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Real WCAG relative-luminance formula, asserted numerically in tests against every locked token pair."
+    },
+    {
+      "name": "AppEnvironment",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor final class AppEnvironment { let titleRepository: TitleRepository; let comparisonRepository: ComparisonRepository; let insertionRepository: InsertionRepository; let insertionCoordinator: InsertionCoordinator; let metadataService: MetadataLookupService; let purchaseService: PurchaseService; let tasteCardRenderer: TasteCardRenderer }",
+      "owning_lane": "services_utilities",
+      "notes": "Composition root built once in FaveOffApp.init, injected via .environment."
+    },
+    {
+      "name": "ActiveInsertionFlow",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ActiveInsertionFlow: Identifiable, Equatable, Sendable { var id: UUID { flowID }; var flowID: UUID; var targetTitleID: UUID; var mediaType: MediaType; var state: InsertionState; var stage: InsertionStage }",
+      "owning_lane": "primary_ui",
+      "notes": "The single value driving Library's one .fullScreenCover(item:); a fresh add and a resume-banner tap construct it identically."
+    },
+    {
+      "name": "InsertionStage",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum InsertionStage: Equatable, Sendable { case comparing(ComparisonPair); case placed(PlacementKind) }",
+      "owning_lane": "primary_ui",
+      "notes": "Internal sub-state swapped inside the one shared cover; never a second cover."
+    },
+    {
+      "name": "SheetKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SheetKind: Identifiable { case addTitle, tasteCard, paywall(PaywallTrigger) }",
+      "owning_lane": "primary_ui",
+      "notes": "Library owns exactly one activeSheet of this type."
+    },
+    {
+      "name": "PaywallTrigger",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PaywallTrigger: Sendable { case tvLock, capReached, toolbarUpgrade }",
+      "owning_lane": "primary_ui",
+      "notes": "Same PaywallView instance regardless of entry point."
+    },
+    {
+      "name": "FilterState",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct FilterState: Equatable, Sendable { var genre: Genre?; var decade: Int? }",
+      "owning_lane": "primary_ui",
+      "notes": ""
+    },
+    {
+      "name": "AddTitleViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class AddTitleViewModel { var name: String; var mediaType: MediaType; var year: String; var genre: Genre?; var saveState: SaveState; func save() async -> ActiveInsertionFlow? }",
+      "owning_lane": "primary_ui",
+      "notes": "Failed save preserves typed content, never clears the form."
+    },
+    {
+      "name": "SaveState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SaveState: Equatable, Sendable { case idle, saving, saved, failed(String) }",
+      "owning_lane": "primary_ui",
+      "notes": ""
+    },
+    {
+      "name": "InsertionFlowViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class InsertionFlowViewModel { var flow: ActiveInsertionFlow; var isTransitioning: Bool; func choose(_ id: UUID) async; func skip() async; func keepGoing() }",
+      "owning_lane": "primary_ui",
+      "notes": "Backs the single Compare+Placed cover content view. isTransitioning folded in from Codex round 2 to gate the internal wipe animation."
+    },
+    {
+      "name": "TasteCardViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class TasteCardViewModel { var renderState: TasteCardRenderState; func prepare(track: MediaType) async; func share() }",
+      "owning_lane": "primary_ui",
+      "notes": ""
+    },
+    {
+      "name": "TasteCardRenderState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TasteCardRenderState: Equatable { case resolvingArt, ready(Image), renderFailed(String), sharing }",
+      "owning_lane": "primary_ui",
+      "notes": "renderFailed carries a reason string per Codex round 2's refinement."
+    },
+    {
+      "name": "ToastCenter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ToastCenter { var current: ToastMessage?; func show(_ text: String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Carries 'Title removed, comparison canceled' across the dismiss-back-to-Library boundary."
+    },
+    {
+      "name": "ToastMessage",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ToastMessage: Identifiable, Equatable, Sendable { var id: UUID; var text: String }",
+      "owning_lane": "polish_resilience",
+      "notes": ""
+    },
+    {
+      "name": "SwiftDataContainerFactory",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SwiftDataContainerFactory { func makeContainer() throws -> ModelContainer }",
+      "owning_lane": "services_utilities",
+      "notes": "Injectable seam; real app uses on-disk store, tests/previews use isStoredInMemoryOnly."
+    },
+    {
+      "name": "AccessibilityIdentifiers",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AccessibilityIdentifiers { case libraryList, comparePosterLeft, comparePosterRight, compareSkip, placedKeepGoing, addSaveButton, paywallPurchase, toastBanner }",
+      "owning_lane": "polish_resilience",
+      "notes": "Stable IDs for XCUITest targeting the core flow, folded in from Codex round 2."
+    },
+    {
+      "name": "buildPrivacyManifest",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func buildPrivacyManifest() -> [String: Any]",
+      "owning_lane": "polish_resilience",
+      "notes": "CI-checked helper keeping the required PrivacyInfo.xcprivacy fields explicit and stable; must be in the project from the first build, not added before archiving."
+    },
+    {
+      "name": "createSampleTitles",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func createSampleTitles(_ names: [String], mediaType: MediaType) -> [(String, UUID)]",
+      "owning_lane": "services_utilities",
+      "notes": "Optional fixture helper for deterministic UI/flow tests, folded in from Codex round 2."
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,372 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "SwiftData models + versioned schema",
+      "owner_lane": "data_domain",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Domain/Models/Habit.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Domain/Models/RelapseEvent.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Domain/Models/CravingSession.swift",
+        "[REDACTED:high_entropy].swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Compiles with cascade-delete relationships via @Relationship(deleteRule: .cascade) with correct non-mangled inverse keypaths",
+        "Habit.streakStartAt is non-optional; cleanDaysBeforeCurrentStreak and cumulativeSavingsBeforeRateChange are forward-only accumulator fields",
+        "VersionedSchema + SchemaMigrationPlan scaffolding present even though initial migration is trivial"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Pure domain engines",
+      "owner_lane": "data_domain",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Domain/Engines/StreakEngine.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Domain/Engines/SavingsEngine.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Domain/Engines/CravingSessionEngine.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Domain/Engines/MilestoneEngine.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Zero SwiftData imports, zero internal Date() calls \u2014 all take now/calendar as explicit parameters",
+        "Signatures match tech_specs interfaces-json exactly",
+        "Negative/zero clamps applied (streak never negative on clock skew)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Engine unit test matrix",
+      "owner_lane": "data_domain",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/FreedayTests/StreakEngineTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/FreedayTests/SavingsEngineTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/FreedayTests/CravingSessionEngineTests.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/FreedayTests/MilestoneEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Midnight rollover both directions covered",
+        "Clock skew (now before streakStartAt) clamps to zero, tested",
+        "DST spring-forward and fall-back covered",
+        "Force-quit-past-90s resolves to abandoned, never completed, tested",
+        "Overlapping active-session force-resolve tested",
+        "Milestone threshold idempotency tested (5 opens past day 3 fires exactly once)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Design tokens + primitive components",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/DesignSystem/Tokens.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/DesignSystem/GradientBackground.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/DesignSystem/StatCard.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/DesignSystem/PrimaryActionButton.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/DesignSystem/SkeletonStatCard.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/DesignSystem/SunriseCounterMotif.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/DesignSystem/AppLevelErrorView.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Hex/spacing/radius values match design_handoff exactly (mint #B9F2DE to sky #8ED0F0, radii 12/20/28, spacing 4/8/12/16/24/32/48)",
+        "SunriseCounterMotif has one accessibilityElement stating the real day count, never decorative-only",
+        "Every component has a #Preview"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "App bootstrap and root wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/App/FreedayApp.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/App/AppBootstrap.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/App/AppRootView.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "ModelContainer constructed via explicit do/catch against SchemaV1/MigrationPlan, never .modelContainer(for:)",
+        "AppBootstrapState given a custom Equatable conformance comparing on case tag only",
+        "Root view branches on opening/ready/failed before TabView is constructed",
+        "Corrupt-store fallback manually verified to render AppLevelErrorView with no tab bar underneath"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Persistence + cascade-delete tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/FreedayTests/PersistenceTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "In-memory ModelContainer test: deleting a Habit removes all its RelapseEvent and CravingSession rows with no orphans",
+        "Migration plan scaffolding compiles and loads cleanly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Habit setup/edit feature",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/HabitForm/HabitFormView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/HabitForm/HabitFormViewModel.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Non-positive quantity or cost rejected inline, Save disabled until valid",
+        "Editing an existing habit past day 0 shows the forward-only recompute disclosure banner only once a field differs from its originally loaded value",
+        "Save calls SavingsEngine.applyRateChange rather than mutating savings fields directly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "EntitlementStore + StoreKit config",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Services/EntitlementStore.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Resources/Freeday.storekit"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Transaction.updates listener started and kept alive for app lifetime",
+        "checkVerified failure hard-blocks entitlement, never soft-grants",
+        "restorePurchases() re-scans Transaction.currentEntitlements, not a cached flag",
+        "EntitlementState matches the locked six-case enum (unknown/free/pro/expired/revoked/verificationFailed)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Paywall + habit-#2 gating wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Paywall/PaywallView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Paywall/PaywallViewModel.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Attempting to create habit #2 as a free-tier user shows the paywall before any HabitForm field renders",
+        "verificationFailed renders explicit hard-block copy, never a silent timeout",
+        "Restore Purchases button present and wired to EntitlementStore.restorePurchases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Today/Home screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Today/TodayView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Today/TodayViewModel.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-004",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Implements empty (onboarding prompt), loading (skeleton), success, and app-level store-failure states",
+        "Streak/lifetime-days/savings/cravings-survived numbers come only from StreakEngine/SavingsEngine calls, no inline calendar math",
+        "No multi-habit chrome renders when exactly one habit exists"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Relapse/reset flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Relapse/RelapseView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Relapse/RelapseViewModel.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Single fullScreenCover screen, pre-tap and post-tap states in the same view via spring-animated swap, no navigation between them",
+        "Post-tap view shows reset streak and the untouched lifetime total together, no red/warning color, no 'broken' language",
+        "confirmRelapse writes RelapseEvent and updates streakStartAt/cleanDaysBeforeCurrentStreak in one ModelContext save"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Craving timer flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/CravingTimer/CravingTimerView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/CravingTimer/CravingTimerViewModel.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Countdown always derived from persisted startedAt, recalculated on appear/scenePhase change",
+        "Relaunch with startedAt + 90s already elapsed resolves to abandoned, no retroactive credit",
+        "Backgrounded at second 40 and foregrounded 2 minutes later reads zero remaining with completion already resolved",
+        "Only a full 90s completion increments lifetimeCravingsSurvived, exactly once, guarded against double-fire",
+        "New session request force-resolves any existing active session for the same habit to abandoned first"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013a",
+      "title": "Milestones/history list screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Milestones/MilestonesListView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Milestones/MilestonesListViewModel.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Milestones/MilestoneCardView.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Chronological list backed by RelapseEvent-derived milestones with empty/loading/success/error states",
+        "MilestoneCardView renders live in a sheet, reused by the renderer for export"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013b",
+      "title": "Milestone card image export + ShareLink",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Services/MilestoneCardRenderer.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004",
+        "T-013a"
+      ],
+      "acceptance_criteria": [
+        "Renders without clipping the day count or dollar figure at max Dynamic Type, light and dark",
+        "Per-habit lastShownMilestoneThreshold flag prevents re-triggering on repeated app opens past a threshold",
+        "Exports at a fixed capped type size, feeding ShareLink's Transferable payload"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Haptics service",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Services/HapticsService.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Checks CHHapticEngine.capabilitiesForHardware().supportsHaptics before firing",
+        "Absent hardware is a silent no-op, never an error path",
+        "Called from relapse confirm and craving-timer completion"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Settings screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Settings/SettingsView.swift",
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Features/Settings/SettingsViewModel.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Habit edit entry point, restore-purchases action, one-step delete-with-confirmation",
+        "deleteHabit relies on the declarative cascade rule \u2014 no manual cascade logic in the view model"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Accessibility and state-coverage audit",
+      "owner_lane": "polish_resilience",
+      "files": [],
+      "depends_on": [
+        "T-007",
+        "T-009",
+        "T-010",
+        "T-011",
+        "T-012",
+        "T-013a",
+        "T-013b",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "44pt minimum on all interactive targets, 56pt+ on the two primary Today actions",
+        "2x2 stat grid reflows to one column at accessibility Dynamic Type sizes without clipping",
+        "WCAG AA contrast verified in both light and dark",
+        "Every reachable screen confirmed to implement its full state matrix (empty/loading/success/error where applicable)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "StoreKit failure and restore verification checkpoint",
+      "owner_lane": "services_utilities",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/FreedayTests/EntitlementStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Forced unverified-transaction case via .storekit config hard-blocks entitlement, documented and tested, not just the happy purchase path",
+        "Restore-with-nothing-to-restore case handled without crash or false grant"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "End-to-end smoke checklist and release gate",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "/Users/pchordia/Documents/iOS-App-Factory/freeday/app_build/Freeday/Docs/ScopeAndDeferrals.md"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012",
+        "T-013b",
+        "T-009",
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Fresh install through one relapse, one full timer completion, one milestone share, one second-habit paywall attempt, and one restore attempt all pass in sequence",
+        "Explicit 'what ships / what's deferred' note written naming Live Activity, WidgetKit, the TimelineView upgrade, and the App Group container identifier as cut for this pass"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Habit",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Habit { @Attribute(.unique) var id: UUID; var name: String; var unitLabel: String; var dailyQuantity: Double; var costPerUnit: Decimal; var createdAt: Date; var streakStartAt: Date; var cleanDaysBeforeCurrentStreak: Int; var rateEffectiveFrom: Date; var cumulativeSavingsBeforeRateChange: Decimal; var lifetimeCravingsSurvived: Int; var lastShownMilestoneThreshold: Int?; var lastInteractedAt: Date; @Relationship(deleteRule: .cascade, inverse: \\RelapseEvent.habit) var relapseEvents: [RelapseEvent]; @Relationship(deleteRule: .cascade, inverse: \\CravingSession.habit) var cravingSessions: [CravingSession] }",
+      "owning_lane": "data_domain",
+      "notes": "N habits supported unconditionally from day one; only UI/entitlement layer enforces the one-habit-free gate. streakStartAt is non-optional (initialized to createdAt, overwritten to now on relapse) so no nullable-branch duplication at call sites. cleanDaysBeforeCurrentStreak + cumulativeSavingsBeforeRateChange are forward-only accumulators, same pattern applied to both days and money."
+    },
+    {
+      "name": "RelapseEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class RelapseEvent { @Attribute(.unique) var id: UUID; var timestamp: Date; var streakLengthAtReset: Int; var savingsAtReset: Decimal; var habit: Habit? }",
+      "owning_lane": "data_domain",
+      "notes": "Immutable historical row, timestamp always now (no backdating). Written by RelapseViewModel in the same ModelContext save that updates Habit.streakStartAt/cleanDaysBeforeCurrentStreak. Substantiates the Milestones/history tab."
+    },
+    {
+      "name": "CravingSession",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class CravingSession { @Attribute(.unique) var id: UUID; var startedAt: Date; var completedAt: Date?; var outcome: CravingOutcome; var habit: Habit? }",
+      "owning_lane": "data_domain",
+      "notes": "outcome starts .active. Creating a new session for a habit force-resolves any existing active session for that habit to .abandoned first \u2014 at most one active session per habit by construction."
+    },
+    {
+      "name": "CravingOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CravingOutcome: String, Codable { case active, completed, abandoned }",
+      "owning_lane": "data_domain",
+      "notes": "Persisted, not runtime-inferred, so relaunch resolution, duplicate-session resolution, and completion all read/write the same field."
+    },
+    {
+      "name": "StreakEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum StreakEngine { static func currentStreakDays(streakStartAt: Date, now: Date, calendar: Calendar) -> Int; static func lifetimeDaysFree(cleanDaysBeforeCurrentStreak: Int, streakStartAt: Date, now: Date, calendar: Calendar) -> Int }",
+      "owning_lane": "data_domain",
+      "notes": "Pure, stateless, injectable clock \u2014 no Date() or SwiftData calls internally. Result clamps to >= 0 for clock-skew (now < streakStartAt)."
+    },
+    {
+      "name": "SavingsEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SavingsEngine { static func currentSavings(cumulativeBeforeRateChange: Decimal, dailyQuantity: Double, costPerUnit: Decimal, rateEffectiveFrom: Date, now: Date, calendar: Calendar) -> Decimal; static func applyRateChange(existingSavings: Decimal, newDailyQuantity: Double, newCostPerUnit: Decimal, now: Date) -> (cumulativeBeforeRateChange: Decimal, rateEffectiveFrom: Date) }",
+      "owning_lane": "data_domain",
+      "notes": "applyRateChange called by HabitFormViewModel on save when quantity/cost changed; captures pre-edit savings as new baseline so forward-only recompute is structurally guaranteed."
+    },
+    {
+      "name": "CravingSessionEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum CravingSessionEngine { static let duration: TimeInterval = 90; static func remainingSeconds(startedAt: Date, now: Date) -> TimeInterval; static func resolveOnAppear(startedAt: Date, now: Date, currentOutcome: CravingOutcome) -> CravingOutcome }",
+      "owning_lane": "data_domain",
+      "notes": "resolveOnAppear never returns .completed from a stale/relaunch check (no retroactive credit) \u2014 only the live foreground countdown reaching zero while CravingTimerView is presented triggers an explicit .completed write, guarded to fire exactly once."
+    },
+    {
+      "name": "MilestoneEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum MilestoneEngine { static let thresholds: [Int] = [1, 3, 7, 30, 90, 180, 365]; static func nextUnshownThreshold(currentStreakDays: Int, lastShownThreshold: Int?) -> Int? }",
+      "owning_lane": "data_domain",
+      "notes": "Called from TodayViewModel.onAppearCheckMilestone; non-nil result triggers the milestone sheet exactly once per threshold via Habit.lastShownMilestoneThreshold."
+    },
+    {
+      "name": "AppBootstrapState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppBootstrapState: Equatable { case opening; case ready(ModelContainer); case failed(Error) }",
+      "owning_lane": "primary_ui",
+      "notes": "Held in FreedayApp @State; constructed via explicit do/catch against FreedaySchemaV1 + FreedayMigrationPlan, never .modelContainer(for:). Branches root view before TabView exists."
+    },
+    {
+      "name": "AppLevelErrorView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AppLevelErrorView: View { let error: Error; let retry: () -> Void }",
+      "owning_lane": "polish_resilience",
+      "notes": "Rendered instead of AppRootView when AppBootstrapState == .failed; plain-language copy + Try Again, no tab bar underneath."
+    },
+    {
+      "name": "TodayViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class TodayViewModel { var habit: Habit?; var bootstrapState: AppBootstrapState; func startCravingSession(); func openRelapseFlow(); func onAppearCheckMilestone() -> Int? }",
+      "owning_lane": "primary_ui",
+      "notes": "Reads via @Query, delegates all math to StreakEngine/SavingsEngine/MilestoneEngine \u2014 never computes calendar math inline."
+    },
+    {
+      "name": "CravingTimerViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class CravingTimerViewModel { var session: CravingSession; func remaining(now: Date) -> TimeInterval; func handleAppear(now: Date); func dismissBeforeCompletion() }",
+      "owning_lane": "primary_ui",
+      "notes": "handleAppear calls CravingSessionEngine.resolveOnAppear. Countdown may render via a simple Timer.publish(every: 1) for the first functional pass; TimelineView(.animation)-driven continuous rendering is an approved fast-follow polish pass, not a blocking requirement."
+    },
+    {
+      "name": "RelapseViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class RelapseViewModel { var habit: Habit; var confirmed: Bool; func confirmRelapse() }",
+      "owning_lane": "primary_ui",
+      "notes": "confirmRelapse writes RelapseEvent and updates streakStartAt/cleanDaysBeforeCurrentStreak in one ModelContext save, then flips confirmed for the in-place spring-animated state swap (same screen, no navigation)."
+    },
+    {
+      "name": "HabitFormViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class HabitFormViewModel { var name: String; var dailyQuantity: String; var costPerUnit: String; var isEditingExisting: Bool; var showsRecomputeDisclosure: Bool; func validate() -> Bool; func save() }",
+      "owning_lane": "primary_ui",
+      "notes": "showsRecomputeDisclosure flips true only once a field differs from its originally loaded value. validate() rejects non-positive quantity/cost inline."
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class EntitlementStore { var entitlementState: EntitlementState; func startTransactionListener() -> Task<Void, Never>; func refreshEntitlements() async; func purchase(_ product: Product) async throws; func restorePurchases() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "startTransactionListener runs from FreedayApp init, kept alive for app lifetime. checkVerified failure hard-blocks entitlement, never soft-grants. refreshEntitlements re-scans Transaction.currentEntitlements on launch and on explicit Restore tap."
+    },
+    {
+      "name": "HapticsService",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum HapticsService { static func notifySuccess(); static func notifyStreakDay() }",
+      "owning_lane": "services_utilities",
+      "notes": "Internally checks CHHapticEngine.capabilitiesForHardware().supportsHaptics; absent hardware is a silent no-op, never an error path."
+    },
+    {
+      "name": "MilestoneCardRenderer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum MilestoneCardRenderer { static func renderImage(days: Int, savings: Decimal, colorScheme: ColorScheme) -> Image? }",
+      "owning_lane": "services_utilities",
+      "notes": "Wraps ImageRenderer at a fixed capped type size (deliberate exception to live Dynamic Type), feeds ShareLink's Transferable payload."
+    },
+    {
+      "name": "MilestoneCardView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MilestoneCardView: View { let days: Int; let savings: Decimal; let habitName: String }",
+      "owning_lane": "primary_ui",
+      "notes": "Dual-purpose: rendered live in the sheet and passed to MilestoneCardRenderer.renderImage for export."
+    },
+    {
+      "name": "Tokens",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum Tokens { enum Gradient { static let mintTop: Color; static let skyBottom: Color; static let posterMintTop: Color; static let posterSkyBottom: Color }; enum Spacing { static let xs: CGFloat; static let s: CGFloat; static let m: CGFloat; static let l: CGFloat; static let xl: CGFloat }; enum Radius { static let component: CGFloat; static let card: CGFloat; static let sheet: CGFloat } }",
+      "owning_lane": "polish_resilience",
+      "notes": "Concrete values from design_handoff: mint #B9F2DE to sky #8ED0F0, poster gradient #7EE8C3 to #6BB8F0, radii 12/20/28."
+    },
+    {
+      "name": "SunriseCounterMotif",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SunriseCounterMotif: View { let streakDays: Int; var body: some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Single accessibilityElement with label stating the real day count (e.g. '47 days free'), never decorative-only. Gradient tone shifts with streakDays."
+    },
+    {
+      "name": "FreedaySchemaV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum FreedaySchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { get }; static var versionIdentifier: Schema.Version { get } }",
+      "owning_lane": "data_domain",
+      "notes": "Stood up from first commit even though initial migration plan is trivial."
+    },
+    {
+      "name": "FreedayMigrationPlan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum FreedayMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { get }; static var stages: [MigrationStage] { get } }",
+      "owning_lane": "data_domain",
+      "notes": "Pre-provisioned migration scaffolding paired with FreedaySchemaV1."
+    },
+    {
+      "name": "MilestonesListViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class MilestonesListViewModel { var habit: Habit?; var earnedMilestones: [RelapseEvent]; var isLoading: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": "Backs the Milestones/history tab \u2014 chronological substantiation list only, not a journal. Empty/loading/success/error states."
+    },
+    {
+      "name": "PaywallViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class PaywallViewModel { var entitlementState: EntitlementState; func purchase(_ product: Product) async; func restore() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Triggered before any second-habit setup field renders. verificationFailed state hard-blocks with explicit copy, never a silent timeout."
+    },
+    {
+      "name": "SettingsViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class SettingsViewModel { var habits: [Habit]; var entitlementState: EntitlementState; func deleteHabit(_ habit: Habit); func restore() async }",
+      "owning_lane": "primary_ui",
+      "notes": "deleteHabit relies on Habit's declarative cascade delete rule \u2014 no manual cascade logic here."
+    },
+    {
+      "name": "EntitlementState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EntitlementState: Equatable { case unknown, free, pro, expired, revoked, verificationFailed }",
+      "owning_lane": "services_utilities",
+      "notes": "expired vs revoked distinction needed for the subscription-lapse read-only rule (data preserved, most-recently-active habit stays interactive)."
+    }
+  ],
+  "errors": [
+    "block #1 in `interfaces-json` has no closing fence"
+  ]
+}

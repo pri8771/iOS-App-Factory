@@ -1,0 +1,149 @@
+PORTFOLIO_CHILD_PROJECT: true
+Parent portfolio: multi-app-exp7
+Selected app slug: freeday
+
+Build this app as a working local-first SwiftUI MVP.
+
+## Selected App Spec
+
+# Freeday
+
+Build mode: **MVP build**.
+Build priority: **5**.
+
+## App Name
+
+Freeday
+
+## Category
+
+Habit Quitting / Craving Tracker
+
+## One-Sentence Promise
+
+Track any habit you're quitting — cigarettes, vaping, sugar, doomscrolling — and watch your clean streak and money saved grow, one Freeday at a time.
+
+## Target User
+
+The enormous population trying to quit or cut back on something — smokers, vapers, people cutting sugar or alcohol, people breaking a doomscrolling habit — a mass-market need spanning age and background.
+
+## Painful Moment Solved
+
+Wanting to quit something and having only single-purpose apps that don't talk to each other, plus feeling alone in the moment of a craving with no quick, non-judgmental tool to ride it out.
+
+## Why It Is Different
+
+One flexible engine works for any habit instead of a dozen single-purpose cessation apps — name your habit, log a cost-per-use, and Freeday tracks streak and running savings, with a 90-second guided 'ride the craving' moment when tempted, ending in a shareable milestone card ('47 days, $310 saved') tuned for social sharing rather than clinical tracking.
+
+## Why Users Would Pay
+
+Free tier covers one habit, streak tracking, and milestone cards; Freeday+ unlocks unlimited simultaneous habits, the full craving-support toolkit, and a Lock Screen craving-timer Live Activity.
+
+## Subscription Model
+
+Freemium, $4.99/mo or $29.99/yr — positioned as cheaper than one week of the habit itself, stated explicitly in the paywall copy.
+
+## Local-First MVP Scope
+
+SwiftData store for habits, relapse/reset events, and craving-session logs; savings math computed on-device; all guided craving-support content bundled locally, no network dependency.
+
+## Future Backend Roadmap
+
+Repository boundary allows CloudKit sync later; an opt-in anonymous community layer is a plausible v2 but explicitly out of scope for v1 to avoid backend/moderation overhead.
+
+## AR / Local ML / Local LLM Fit
+
+None; explicitly not using LLM chat-based coaching — the craving-support flow is a fixed, well-designed guided sequence that must work instantly and offline.
+
+## Design Direction
+
+Clean, encouraging, and light — soft mint-to-sky-blue gradient system, rounded friendly iconography, a sunrise/counter motif for 'days free,' deliberately non-clinical, non-shaming tone.
+
+## App Store Positioning
+
+One app for quitting anything — not just cigarettes. Track your streak, watch your savings grow, and get through the next craving without white-knuckling it alone.
+
+## Invalidation Criteria
+
+If most users who log a relapse never open the app again within a week, the reset/relapse flow is driving shame-based abandonment and needs a redesign before any other feature work.
+
+## v1 Build Scope
+
+Habit setup with cost-per-use, daily streak tracking with non-punitive reset, craving-timer guided flow, milestone recap card + ShareLink, widget, Freeday+ paywall with StoreKit.
+
+## Core Workflows
+
+- set up a habit with cost-per-use
+- daily check-in / streak tracking with one-tap non-punitive relapse-and-restart
+- in-the-moment craving timer with guided ride-it-out flow
+- milestone streak + savings recap card
+- manage multiple concurrent habits (paid tier)
+
+## iOS-Native Features
+
+- Live Activity for an active craving-timer session
+- WidgetKit showing current streak + savings
+- ShareLink for milestone card
+- haptics for streak-day and craving-timer completion
+
+## Key Risks
+
+- Relapse handling is the make-or-break UX moment — punitive 'streak broken, back to zero' framing will cause uninstalls; needs a genuinely non-shaming reset flow with a preserved lifetime-total stat from day one
+- This category brushes against health claims — copy must stay in the 'personal tracking tool' lane, not present as medical/addiction treatment advice
+
+## Claude Design Handoff Prompt
+
+Design an encouraging habit-quitting app called Freeday: soft mint-to-sky-blue gradient system, rounded friendly iconography, a sunrise/counter motif representing 'days free,' warm and non-judgmental tone throughout, avoid clinical white/red or guilt-inducing imagery, a milestone streak+savings card as the hero shareable artifact, calm and supportive rather than gamified-aggressive.
+
+## Parent Portfolio Prompt
+
+Build 5 completely separate, production-ready iOS apps at the same time.
+
+This is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project — one folder per app, never bundled together.
+
+Pick any 5 categories/concepts — no fixed assignment. Choose the 5 strongest MASS-MARKET ideas.
+
+TOP PRIORITY — VIRAL, MASS-MARKET APPEAL (hard requirement):
+- Every app must target a BROAD, mainstream audience. NO niche-community apps (no hobbyist tools, no professional verticals, no special-interest utilities). If your parents, your barista, and a college student wouldn't all instantly get it, it fails.
+- Each app must have a built-in viral loop: something people naturally share, screenshot, send to friends, or compete over (shareable results/cards, streaks, challenges, comparisons, "send this to a friend" moments).
+- The concept must be explainable in one sentence and demo-able in 10 seconds.
+- Think the scale of habit trackers, photo tools, social utilities, everyday life tools, casual self-improvement, money, food, sleep, relationships, entertainment — things with tens of millions of potential users.
+
+SECOND PRIORITY — DESIGN & UI/UX:
+- World-class, distinctive visual identity per app: deliberate color system, type scale, spacing, iconography, motion language — not stock SwiftUI defaults.
+- "Apple Design Award" caliber polish. Every screen considered: empty, loading, error states, transitions, haptics, spring animations.
+- Dark mode, Dynamic Type, accessibility (VoiceOver, 44pt targets, WCAG AA contrast).
+- Each of the 5 apps must look clearly DIFFERENT from the other four — five distinct design directions.
+- Documented design system per app (tokens, components, states); built UI must match it.
+
+THIRD PRIORITY — COMPLEXITY & DEPTH:
+- Genuinely substantial apps — interconnected features, real domain data model, non-trivial logic, offline persistence with sync-later architecture, robust settings, import/export, and at least one hard technical capability done well.
+- Depth that rewards daily use — but never at the expense of instant mass-market clarity.
+
+FOURTH PRIORITY — MONETIZATION:
+- Clear, sustainable revenue path per app (subscription tiers, IAP, premium) that feels native to the product, never punitive. Free tier hooks users; paid tier is compelling.
+
+General Requirements:
+1. Each app goes from 0 to production-ready.
+2. Each app must be unique, useful, and commercially viable, better than competitors in a meaningful way.
+3. Local-first, architected so cloud support can be added later without rewriting.
+
+UNIQUENESS (hard rule, non-negotiable):
+- No app in this batch may be similar to another app in this batch.
+- No app may be similar to anything already built in this workspace: Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, brinekeeper, chalkline, quietpilot, cistern, thicket, undersong, undertow, heddle, marginalia, skyglass, and the ~50 apps of prior batches (aarti-path, afterglow, backtimer, chapterly, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, flinch, heartline, kitbag, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas, and others).
+- Produce differentiated concepts even if a category overlaps.
+
+Bonus points (optional, only when integral): unique use of LLMs, AR, or ML.
+
+Build rules:
+- Run the five app efforts in parallel; keep phases separate per app.
+- TIME MATTERS on this batch: reach consensus quickly in discussion phases (end phases early on agreement), but never skip the build, and never mark an app done unless a real, compiling Xcode project with full source exists in app_build. An app without a buildable Xcode project is a FAILURE.
+- Save all phase discussions; combine each app's transcript into a .txt at the end.
+- Recover cleanly from stalls; report only important milestones.
+
+Output:
+- One folder per app in the output directory — never one folder containing all apps.
+Output directory:
+- /Users/pchordia/Documents/iOS-App-Factory
+
+Now generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp7",
+  "build": true,
+  "build_priority": 5,
+  "app": {
+    "name": "Freeday",
+    "slug": "freeday",
+    "category": "Habit Quitting / Craving Tracker",
+    "one_sentence_promise": "Track any habit you're quitting \u2014 cigarettes, vaping, sugar, doomscrolling \u2014 and watch your clean streak and money saved grow, one Freeday at a time.",
+    "target_user": "The enormous population trying to quit or cut back on something \u2014 smokers, vapers, people cutting sugar or alcohol, people breaking a doomscrolling habit \u2014 a mass-market need spanning age and background.",
+    "painful_moment": "Wanting to quit something and having only single-purpose apps that don't talk to each other, plus feeling alone in the moment of a craving with no quick, non-judgmental tool to ride it out.",
+    "why_different": "One flexible engine works for any habit instead of a dozen single-purpose cessation apps \u2014 name your habit, log a cost-per-use, and Freeday tracks streak and running savings, with a 90-second guided 'ride the craving' moment when tempted, ending in a shareable milestone card ('47 days, $310 saved') tuned for social sharing rather than clinical tracking.",
+    "why_users_pay": "Free tier covers one habit, streak tracking, and milestone cards; Freeday+ unlocks unlimited simultaneous habits, the full craving-support toolkit, and a Lock Screen craving-timer Live Activity.",
+    "subscription_model": "Freemium, $4.99/mo or $29.99/yr \u2014 positioned as cheaper than one week of the habit itself, stated explicitly in the paywall copy.",
+    "local_first_mvp_scope": "SwiftData store for habits, relapse/reset events, and craving-session logs; savings math computed on-device; all guided craving-support content bundled locally, no network dependency.",
+    "future_backend_roadmap": "Repository boundary allows CloudKit sync later; an opt-in anonymous community layer is a plausible v2 but explicitly out of scope for v1 to avoid backend/moderation overhead.",
+    "core_workflows": [
+      "set up a habit with cost-per-use",
+      "daily check-in / streak tracking with one-tap non-punitive relapse-and-restart",
+      "in-the-moment craving timer with guided ride-it-out flow",
+      "milestone streak + savings recap card",
+      "manage multiple concurrent habits (paid tier)"
+    ],
+    "ios_native_features": [
+      "Live Activity for an active craving-timer session",
+      "WidgetKit showing current streak + savings",
+      "ShareLink for milestone card",
+      "haptics for streak-day and craving-timer completion"
+    ],
+    "ar_ml_llm_fit": "None; explicitly not using LLM chat-based coaching \u2014 the craving-support flow is a fixed, well-designed guided sequence that must work instantly and offline.",
+    "design_direction": "Clean, encouraging, and light \u2014 soft mint-to-sky-blue gradient system, rounded friendly iconography, a sunrise/counter motif for 'days free,' deliberately non-clinical, non-shaming tone.",
+    "claude_design_prompt": "Design an encouraging habit-quitting app called Freeday: soft mint-to-sky-blue gradient system, rounded friendly iconography, a sunrise/counter motif representing 'days free,' warm and non-judgmental tone throughout, avoid clinical white/red or guilt-inducing imagery, a milestone streak+savings card as the hero shareable artifact, calm and supportive rather than gamified-aggressive.",
+    "app_store_positioning": "One app for quitting anything \u2014 not just cigarettes. Track your streak, watch your savings grow, and get through the next craving without white-knuckling it alone.",
+    "key_risks": [
+      "Relapse handling is the make-or-break UX moment \u2014 punitive 'streak broken, back to zero' framing will cause uninstalls; needs a genuinely non-shaming reset flow with a preserved lifetime-total stat from day one",
+      "This category brushes against health claims \u2014 copy must stay in the 'personal tracking tool' lane, not present as medical/addiction treatment advice"
+    ],
+    "invalidation_criteria": "If most users who log a relapse never open the app again within a week, the reset/relapse flow is driving shame-based abandonment and needs a redesign before any other feature work.",
+    "v1_build_scope": "Habit setup with cost-per-use, daily streak tracking with non-punitive reset, craving-timer guided flow, milestone recap card + ShareLink, widget, Freeday+ paywall with StoreKit.",
+    "build": true,
+    "build_priority": 5
+  }
+}

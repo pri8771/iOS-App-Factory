@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp7",
+  "build": true,
+  "build_priority": 2,
+  "app": {
+    "name": "Somna",
+    "slug": "somna",
+    "category": "Sleep & Morning Energy",
+    "one_sentence_promise": "Log your sleep and how you feel each morning, and Somna shows you exactly what actually helps you feel rested.",
+    "target_user": "Anyone who's tired and curious why some mornings feel great and others don't, without wanting to wear a sleep-tracking ring or let an app record audio all night \u2014 students, parents, shift workers, broadly anyone.",
+    "painful_moment": "Waking up exhausted despite 'enough' sleep with no idea whether it was the late coffee, the doomscrolling, or the stress \u2014 and existing sleep apps just show a graph with no explanation.",
+    "why_different": "Pairs a 10-second bedtime/wake log with a 10-second morning mood+energy check-in, then surfaces plain-English on-device correlations ('you feel 34% more rested after 7+ hours') instead of raw sleep-stage graphs.",
+    "why_users_pay": "Free tier covers logging, streaks, and the weekly recap card; Somna+ unlocks the full correlation engine (caffeine/exercise/screen-time tags vs. sleep quality), unlimited history, and a bedtime Live Activity.",
+    "subscription_model": "Freemium, $4.99/mo or $29.99/yr for Somna+.",
+    "local_first_mvp_scope": "SwiftData for nightly logs and morning check-ins; correlation engine computed on-device; optional read-only HealthKit import of sleep duration, never a requirement.",
+    "future_backend_roadmap": "Repository boundary allows swapping the local store for CloudKit sync later; correlation engine stays fully on-device regardless of sync status for privacy.",
+    "core_workflows": [
+      "log bedtime & wake time",
+      "morning mood/energy check-in with optional tags",
+      "view weekly sleep recap card",
+      "browse plain-English correlation insights",
+      "optional read-only HealthKit import"
+    ],
+    "ios_native_features": [
+      "Live Activity for tonight's bedtime countdown",
+      "WidgetKit showing last night's score + tonight's target bedtime",
+      "HealthKit read-only (optional)",
+      "ShareLink for recap card"
+    ],
+    "ar_ml_llm_fit": "None required; the correlation engine is simple on-device statistics, the honest and battery-safe choice over sensor-heavy sleep-staging.",
+    "design_direction": "Nocturnal calm gradient system \u2014 deep indigo-to-violet dusk gradients lightening toward soft dawn tones in daytime views, soft-glow rounded components, a moon-phase mark, restful rather than clinical.",
+    "claude_design_prompt": "Design a calm sleep & morning-energy app called Somna: deep indigo-to-violet gradient backgrounds that lighten toward soft dawn tones in daytime views, soft-glow rounded cards, a moon-phase mark as the icon motif, minimal typography, restful and quiet rather than clinical or data-dense.",
+    "app_store_positioning": "Not another sleep-stage graph \u2014 Somna tells you what actually helped you feel rested, no ring or overnight mic required.",
+    "key_risks": [
+      "Correlation insights need weeks of data before they're meaningful \u2014 needs an honest 'still learning' partial state, not false-confidence insights early",
+      "Read-only HealthKit import is a bonus only \u2014 must fully function without HealthKit permission granted"
+    ],
+    "invalidation_criteria": "If users keep the bedtime log but stop doing the morning check-in after week 2, the correlation engine has no fuel \u2014 signals the check-in flow needs to get shorter or gamified.",
+    "v1_build_scope": "Bedtime/wake logging, morning check-in, weekly recap card + widget, on-device rule-based correlation insights, Somna+ paywall with StoreKit.",
+    "build": true,
+    "build_priority": 2
+  }
+}

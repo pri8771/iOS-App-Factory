@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "parent": "multi-app-exp7",
+  "build": true,
+  "build_priority": 4,
+  "app": {
+    "name": "FaveOff",
+    "slug": "faveoff",
+    "category": "Entertainment / Taste Ranking",
+    "one_sentence_promise": "Rank the movies and shows you've watched head-to-head, and FaveOff builds your real, personal top 10 \u2014 then turns it into a shareable taste card.",
+    "target_user": "Anyone who watches movies/shows and has opinions but finds star ratings meaningless and social-network movie apps like overhead \u2014 mass-market watchers, not cinephile completionists.",
+    "painful_moment": "Rating a movie 1-5 stars and realizing that number means nothing next to the 40 other movies you've also rated 4 stars \u2014 you genuinely don't know your own top 10.",
+    "why_different": "Instead of star ratings, shows two watched titles and asks which was better, building an Elo-style ranked list from a handful of quick head-to-head picks \u2014 far more decisive than star ratings, ending in a poster-grid 'Taste Card' built for sharing, with zero social graph or account required to get value.",
+    "why_users_pay": "Free tier ranks movies only with a capped list length; FaveOff+ unlocks TV shows and music/albums as separate ranking tracks, unlimited list length, genre-filtered sub-rankings, and periodic 'Wrapped'-style recap cards.",
+    "subscription_model": "Freemium, $3.99/mo or $24.99/yr.",
+    "local_first_mvp_scope": "SwiftData store for titles, comparisons, and computed rankings; ranking algorithm runs fully on-device; title/poster metadata lookup is the one network dependency, isolated behind a protocol.",
+    "future_backend_roadmap": "Repository boundary allows CloudKit sync across devices and, later, an optional social taste-comparison layer without touching the core ranking engine.",
+    "core_workflows": [
+      "add a watched title",
+      "head-to-head comparison rounds",
+      "browse computed ranked list",
+      "generate & share Taste Card (poster grid of top 10)",
+      "filter rankings by genre/decade"
+    ],
+    "ios_native_features": [
+      "ShareLink for Taste Card",
+      "ImageRenderer for poster-grid card generation",
+      "WidgetKit small widget showing current #1"
+    ],
+    "ar_ml_llm_fit": "None load-bearing; the hard technical capability is a proper Elo/merge-sort-style pairwise ranking engine, not ML.",
+    "design_direction": "Cinematic dark-mode-first system \u2014 near-black backgrounds, marquee-red accent, bold condensed poster-style typography, poster artwork as the dominant visual element, film-reel-inspired transitions.",
+    "claude_design_prompt": "Design a cinematic entertainment-ranking app called FaveOff: near-black dark-mode-first backgrounds, marquee-red accent, bold condensed poster-style typography, movie/show poster art as the dominant visual content, film-reel-inspired swipe/transition motion for head-to-head comparison screens, feels like a red-carpet awards show, not a spreadsheet.",
+    "app_store_positioning": "Star ratings lie to you. FaveOff makes you pick, one match-up at a time, until your real top 10 falls out.",
+    "key_risks": [
+      "The one network touchpoint (title/poster lookup) must degrade gracefully offline (initials/color-block placeholder), never blocking the core ranking loop",
+      "Comparison fatigue on large libraries \u2014 needs a smart pairing algorithm scaling ~n log n, not full round-robin n\u00b2"
+    ],
+    "invalidation_criteria": "If users abandon mid-ranking after only a handful of comparisons and never reach a shareable top-10, the comparison flow is too tedious and needs a faster convergence algorithm or smaller default list size.",
+    "v1_build_scope": "Add titles (movies+TV), head-to-head ranking engine, ranked list view, Taste Card generation + ShareLink, FaveOff+ paywall with StoreKit.",
+    "build": true,
+    "build_priority": 4
+  }
+}

@@ -1,0 +1,1 @@
+Design a cinematic entertainment-ranking app called FaveOff: near-black dark-mode-first backgrounds, marquee-red accent, bold condensed poster-style typography, movie/show poster art as the dominant visual content, film-reel-inspired swipe/transition motion for head-to-head comparison screens, feels like a red-carpet awards show, not a spreadsheet.

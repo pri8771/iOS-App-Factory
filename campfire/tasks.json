@@ -1,0 +1,342 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Xcode project scaffold + domain/model type contract freeze",
+      "owner_lane": "data_domain",
+      "files": [
+        "Campfire.xcodeproj/project.pbxproj",
+        "Campfire/Domain/RoundPhase.swift",
+        "Campfire/Domain/PlayerRecord.swift",
+        "Campfire/Domain/RevealedRoundRecord.swift",
+        "Campfire/Domain/RecapOutcome.swift",
+        "Campfire/Domain/CampfireError.swift",
+        "Campfire/Models/PromptRecord.swift",
+        "Campfire/Models/PromptPackRecord.swift",
+        "Campfire/DesignSystem/Tokens.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Xcode project + app target + CampfireTests target build with an empty scaffold that compiles",
+        "every type in the tech_specs interfaces-json exists with the exact locked signature",
+        "Resources/, Features/, Services/, Polish/, DesignSystem/ folder groups exist and are added to the target so later tasks only append file refs, never restructure groups",
+        "design token baseline (gradient stops, scrim, typography, spacing, motion timings) is present as a compiling file other lanes can import"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "GameRulesEngine + PlayerSetupValidation + domain tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "Campfire/Domain/GameRulesEngine.swift",
+        "Campfire/Domain/PlayerSetupValidation.swift",
+        "CampfireTests/GameRulesEngineTests.swift",
+        "CampfireTests/RecapDerivationTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "nextActivePlayerIndex and nextTarget pass tests at 2, 3, 4, and 15 players with zero self-target and zero immediate-repeat violations",
+        "shufflePromptOrder produces a deterministic-length sequence covering all prompt IDs exactly once",
+        "deriveRecap correctly returns standout, tie, lowVariance, and zeroData cases against constructed revealedRounds fixtures",
+        "PlayerSetupValidation rejects blank/whitespace names per-row and enforces the 2-15 bound with no auto-fix",
+        "zero SwiftData or SwiftUI imports anywhere in this task's files"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "TransitionGuard + DebugFailureInjector (standalone, decoupled)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Campfire/Polish/TransitionGuard.swift",
+        "Campfire/Polish/DebugFailureInjector.swift",
+        "CampfireTests/TransitionGuardTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "TransitionGuard.tryLock() returns true exactly once until unlock() is called; a unit test fires it twice rapidly and asserts only the first succeeds",
+        "DebugFailureInjector exposes toggleable flags (forceEmptyPromptPack, forceRecapRenderFailure) defaulting to false/off in release builds",
+        "zero dependency on SessionViewModel, ModelContainer, or any SwiftUI type so services_utilities tasks can consult the failure-injector seam from day one"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Session SwiftData model finalize + persistence round-trip spike",
+      "owner_lane": "data_domain",
+      "files": [
+        "Campfire/Models/Session.swift",
+        "CampfireTests/RecapOutcomePersistenceSpikeTests.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Session is a concrete @Model class matching the locked interfaces-json shape exactly",
+        "spike test writes a Session containing a non-trivial RecapOutcome (tie or standout case) via one ModelContainer and reads it back via a second, independently constructed ModelContainer against the same store URL",
+        "pass/fail result and, if failed, the chosen fallback is recorded in a comment at the top of Session.swift; no fallback-conversion file is created anywhere in this task \u2014 any needed conversion lives only inside SessionViewModel (T-007), never in a services_utilities adapter"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "ModelContainerProvider with in-memory fallback",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Campfire/Services/ModelContainerProvider.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "makeContainer() returns .success or .failure, never throws uncaught",
+        "on simulated store failure, caller can construct a valid in-memory-only container so the app still reaches Entry with a visible starting-fresh notice",
+        "no reference to AppCoordinator or any Features/ type"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "AppRoute + AppCoordinator",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Campfire/App/AppRoute.swift",
+        "Campfire/App/AppCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "AppRoute is exactly {entry, setup, session, recap} with no NavigationStack anywhere in the session flow",
+        "resumeInProgressSessionIfAny(context:) is its own tested path: given a persisted mid-round Session fixture, it routes straight to .session with the exact persisted phase, not .entry",
+        "activeError surfaces CampfireError.storeUnavailable distinctly from the other two cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "SessionViewModel: transitions, synchronous save, termination proof, double-tap integration, persistence-fallback conversion (if needed)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Campfire/Features/Session/SessionViewModel.swift",
+        "CampfireTests/SessionViewModelTests.swift",
+        "CampfireTests/SessionTerminationRestoreTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-004",
+        "T-005",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "every mutating method (beginHandoff, advancePastHandoff, revealTarget, advanceRound, endSessionEarly) calls try context.save() synchronously immediately after mutation, no Task-wrapped saves",
+        "two-independent-ModelContainer termination test: write mid-round state through container A, reopen container B from the same file URL, assert exact roundPhase/activePlayerIndex/revealedRounds equivalence",
+        "revealTarget is wrapped by TransitionGuard from T-003; a rapid double-invocation test asserts exactly one revealedRounds append and one haptic-trigger call",
+        "target selection and recap derivation are delegated entirely to GameRulesEngine calls, no reimplemented logic in the view model; if T-004's spike failed, the scalar-conversion step lives here and only here"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Curated prompt pack content + PromptRepository + ContentAccessProvider wiring + editorial QA sign-off",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Campfire/Resources/PromptPacks/free_pack.json",
+        "Campfire/Services/PromptRepository.swift",
+        "Campfire/Services/ContentAccessProvider.swift",
+        "Campfire/Resources/PackQA.md"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "free_pack.json contains at least 40 genuinely distinct, editorially-reviewed reveal prompts appropriate for a mixed-generation room, no repeated/templated phrasing",
+        "loadDefaultPackIfNeeded decodes the bundle into PromptPackRecord on first launch and throws CampfireError.emptyPromptPack (surfaced via DebugFailureInjector.forceEmptyPromptPack or a genuinely empty decode) rather than crashing",
+        "isPackUnlocked(_:) is actually called at the real prompt-retrieval call site in activePrompts(for:context:), not merely declared",
+        "PackQA.md is signed off with a duplicate check, tone matrix, and family-safe edge-case review before this task is marked done, and recap copy may not be marked complete until this artifact exists"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "HapticsService + RecapCardRenderer",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Campfire/Services/HapticsService.swift",
+        "Campfire/Services/RecapCardRenderer.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-003",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "handoffBuzz() and revealBeat() fire distinct, correctly-typed haptic generators; setEnabled(false) suppresses both",
+        "renderImage(for:) renders RecapCardView at a fixed 9:16 frame via ImageRenderer at 3x scale after a confirmed layout pass, returning .success(imageData) or .failure",
+        "DebugFailureInjector.forceRecapRenderFailure deterministically forces the .failure branch for testing",
+        "no persisted image blob written anywhere \u2014 render is on-demand only"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Shared design components + ConfettiOverlay",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Campfire/DesignSystem/CampfireGradientSurface.swift",
+        "Campfire/DesignSystem/ModeTile.swift",
+        "Campfire/DesignSystem/ErrorStateView.swift",
+        "Campfire/Polish/ConfettiOverlay.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "gradient stops and the scrim token pass WCAG AA contrast against white text at the pink end specifically, not just the orange end",
+        "ModeTile has an active/tappable variant and a non-interactive coming-soon variant with accessibilityHint(\"Not available yet\") and no tap target",
+        "ConfettiOverlay tears itself down within 700ms of isActive going true and never redraws on a subsequent round without a fresh trigger",
+        "ErrorStateView(message:, retryAction:) is the one reusable error component every screen uses; primary_ui screens consume these components but never edit these files"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Entry + Setup screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Campfire/Features/Entry/EntryView.swift",
+        "Campfire/Features/Setup/SetupView.swift",
+        "Campfire/Features/Setup/NameRow.swift",
+        "Campfire/Features/Setup/AddPlayerButton.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-006",
+        "T-008",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Entry renders Reveal as tappable and the other two tiles as ModeTile's non-interactive coming-soon variant",
+        "Setup rejects blank/whitespace names with an inline per-row error, disables continue with a stated reason below 2 or above 15 players, and never auto-fixes",
+        "cold launch to Entry renders in under 1 second in a manual timing check"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Session round screen (handoff / ready / revealed)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Campfire/Features/Session/SessionView.swift",
+        "Campfire/Features/Session/RoundStateHeader.swift",
+        "Campfire/Features/Session/HandoffBanner.swift",
+        "Campfire/Features/Session/RevealActionButton.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "target identity is never rendered before the reveal tap fires; the reveal tap and the confetti/haptic beat happen on the same frame",
+        "HandoffBanner auto-advances after ~1.5s with a haptic buzz and is skippable by a tap anywhere before then",
+        "isIdleTimerDisabled is true from setup-complete through session-end and reset to false on every exit path including early-exit-on-empty-pack",
+        "RoundStateHeader truncates correctly at accessibility-size Dynamic Type with a long all-caps test name, verified against a defined wrap rule, not an assumed fit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Recap screen + ShareLink",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Campfire/Features/Recap/RecapView.swift",
+        "Campfire/Features/Recap/RecapCardView.swift",
+        "Campfire/Features/Recap/ShareRow.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-012",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "loading state is a real spinner (not a blank flash) while renderImage(for:) runs",
+        "on RecapRenderResult.failure, a readable fallback text summary plus a Retry action is shown, remaining shareable even without the image",
+        "a pre-share note states player names leave the device once shared",
+        "ShareLink opens the system share sheet with the rendered image, verified on a physical device"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "App entry glue (CampfireApp.swift)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Campfire/App/CampfireApp.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "@main App struct constructs the ModelContainer via ModelContainerProvider, calls resumeInProgressSessionIfAny on launch, and hosts AppCoordinator's route as the single root switch",
+        "a forced ModelContainerProvider failure still reaches Entry with a visible starting-fresh notice instead of crashing"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Error-injection reachability, accessibility, and stability manual sweep",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Campfire/Docs/AccessibilityAudit.md",
+        "Campfire/Docs/StabilitySweepChecklist.md"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "documents a real, performed 2-player and 12-15-player playthrough each including one background and one force-quit at each of handoff/ready/revealed, with zero ambiguous state on resume",
+        "documents the emptyPromptPack and recapRenderFailure paths fired via DebugFailureInjector and confirms each reaches a recoverable, non-dead-end screen",
+        "documents VoiceOver reading order on the round-screen header and confirms both coming-soon tiles are announced as unavailable, never as live controls",
+        "any bug found is logged with the owning task id, not silently patched in this task's own files"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Integration audit + release package",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Campfire/Docs/RELEASE_NOTES.md",
+        "Campfire/Docs/GoNoGo.md"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-009",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "signed pass/fail log covering every gate from project_plan with an explicit go/no-go per item",
+        "written known-limitations note stating StoreKit entitlement is deferred and isPackUnlocked remains a stub",
+        "confirms a full offline session (all CampfireError-relevant paths plus the happy path) reaches recap with a working on-device share, with no unreachable or dead-end error state"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

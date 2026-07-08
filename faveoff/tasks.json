@@ -1,0 +1,384 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Repo scaffold: Xcode project, FaveOffRanking package skeleton, .storekit config, PrivacyInfo.xcprivacy stub, bootstrap spike tests",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FaveOff.xcodeproj",
+        "FaveOff/App/FaveOffApp.swift",
+        "FaveOff/App/AppEnvironment.swift",
+        "Packages/FaveOffRanking/Package.swift",
+        "Configuration/FaveOff.storekit",
+        "FaveOff/PrivacyInfo.xcprivacy",
+        "FaveOffTests/BootstrapSpikeTests.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Clean checkout builds and launches on simulator from /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/",
+        "App-target test calls a public FaveOffRanking function across the package boundary and gets a correct result back",
+        "Throwaway test against the real simulator StoreKit environment loads both product IDs and drives one purchase to an observed Transaction.currentEntitlements transition",
+        "PrivacyInfo.xcprivacy exists in the project"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "FaveOffRanking pure engine: startInsertion/nextPair/applyChoice/applySkip",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/FaveOffRanking/Sources/FaveOffRanking/RankingEngine.swift",
+        "Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionState.swift",
+        "Packages/FaveOffRanking/Sources/FaveOffRanking/ComparisonPair.swift",
+        "Packages/FaveOffRanking/Sources/FaveOffRanking/PlacementKind.swift",
+        "Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionStepResult.swift",
+        "Packages/FaveOffRanking/Tests/FaveOffRankingTests/RankingEngineTests.swift",
+        "Packages/FaveOffRanking/Tests/FaveOffRankingTests/Fixtures.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Zero SwiftData/SwiftUI imports anywhere in the package",
+        "Tests cover bounded-insertion ordering, transitivity, duplicate-ID stability, 0/1-item cold start",
+        "testTwoSkipFallbackBottomPlacement passes at the pure-engine level"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "SwiftData container factory (real disk + in-memory seam)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FaveOff/Services/SwiftDataContainerFactory.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Factory produces a working on-disk container and a working isStoredInMemoryOnly container from the same schema",
+        "No view or view model constructs its own ModelContext"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Metadata lookup service + offline stub provider",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FaveOff/Services/MetadataLookupService.swift",
+        "FaveOff/Services/MetadataResult.swift",
+        "FaveOff/Services/OfflineMetadataProvider.swift",
+        "FaveOffTests/MetadataServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "OfflineMetadataProvider never throws and never awaits network",
+        "Deterministic initials/color-block output for a given title string",
+        "Protocol allows a future remote provider without changing call sites"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "ContrastValidator: real WCAG relative-luminance formula",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FaveOff/Services/ContrastValidator.swift",
+        "FaveOffTests/ContrastValidatorTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "contrastRatio/meetsAA implement the real WCAG formula, not an approximation",
+        "Numeric test asserts >=4.5:1 body and >=3:1 large-bold against every locked design-token pair"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Cross-cutting scaffolding: ToastCenter, AccessibilityIdentifiers, InterruptionReason, privacy manifest helper",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "FaveOff/Support/ToastCenter.swift",
+        "FaveOff/Support/ToastMessage.swift",
+        "FaveOff/Support/AccessibilityIdentifiers.swift",
+        "FaveOff/Support/InterruptionReason.swift",
+        "FaveOff/Support/PrivacyManifest.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "ToastCenter can carry a message across a dismiss-back-to-Library transition",
+        "AccessibilityIdentifiers enum covers every control named in the design handoff (library list, compare posters, skip, placed keep-going, add save, paywall purchase, toast banner)",
+        "buildPrivacyManifest() produces the fields the manifest actually needs, checked by a test not a hand read"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Models & schema: Title, Comparison, InsertionContext, versioned schema + migration plan",
+      "owner_lane": "data_domain",
+      "files": [
+        "FaveOff/Models/Title.swift",
+        "FaveOff/Models/Comparison.swift",
+        "FaveOff/Models/InsertionContext.swift",
+        "FaveOff/Models/MediaType.swift",
+        "FaveOff/Models/Genre.swift",
+        "FaveOff/Models/RankingState.swift",
+        "FaveOff/Models/FaveOffSchemaV1.swift",
+        "FaveOff/Models/FaveOffMigrationPlan.swift",
+        "FaveOff/Models/TitleFilter.swift",
+        "FaveOff/Models/RepositoryError.swift",
+        "FaveOffTests/ModelsTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "No @Relationship properties anywhere; all cross-entity links are plain UUIDs",
+        "No @Attribute(.unique) on any id",
+        "FaveOffMigrationPlan compiles with a single registered schema version",
+        "decade is derived from year at read time, never stored"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Repositories: Title/Comparison/Insertion, CRUD, atomic applyPositions, cap check",
+      "owner_lane": "data_domain",
+      "files": [
+        "FaveOff/Repositories/TitleRepository.swift",
+        "FaveOff/Repositories/ComparisonRepository.swift",
+        "FaveOff/Repositories/InsertionRepository.swift",
+        "FaveOffTests/RepositoryTests.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "applyPositions is one atomic write per insertion with the bulk shift unanimated",
+        "capReached(track:) fires exactly at 25 ranked movies and never blocks further adds",
+        "Container opens in both real-disk and in-memory modes against these repositories"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "InsertionCoordinator: bridges pure engine to persistence, crash/delete safety",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FaveOff/Services/InsertionCoordinator.swift",
+        "FaveOffTests/InsertionCoordinatorTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "InsertionCoordinatorTests.testResumeAfterKillMidInsertion passes",
+        "InsertionCoordinatorTests.testDeleteOpponentDuringCompareCancelsCleanly passes",
+        "A stale-InsertionContext reconciliation test passes",
+        "testTwoSkipFallbackBottomPlacement passes at the coordinator-integration level",
+        "Both compared titles are re-fetched by UUID immediately before any choose/skip action executes",
+        "rankedIDs are recomputed by position from the repository every step, no pagination"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Core Ritual UI: Library, Add Title, Compare, Placed as one shared full-screen flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "FaveOff/Navigation/ActiveInsertionFlow.swift",
+        "FaveOff/Navigation/InsertionStage.swift",
+        "FaveOff/Navigation/SheetKind.swift",
+        "FaveOff/Navigation/PaywallTrigger.swift",
+        "FaveOff/ViewModels/LibraryViewModel.swift",
+        "FaveOff/ViewModels/AddTitleViewModel.swift",
+        "FaveOff/ViewModels/InsertionFlowViewModel.swift",
+        "FaveOff/Views/LibraryView.swift",
+        "FaveOff/Views/AddTitleView.swift",
+        "FaveOff/Views/CompareView.swift",
+        "FaveOff/Views/PlacedView.swift",
+        "FaveOff/Views/Components/PosterTile.swift",
+        "FaveOff/Views/Components/CompareDivider.swift",
+        "FaveOff/Views/Components/SkipButton.swift",
+        "FaveOffTests/CoreRitualTapCountTests.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-004",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Library owns exactly one activeSheet and one activeFlow, never competing presentations",
+        "0/1-item cold-start Placed copy is coherent, never a broken '#1 of 1' string",
+        "CoreRitualTapCountTests proves 0->3 movies through add->compare->placed->back-to-list with zero unprompted policy screens",
+        "Deleting the opposing title mid-Compare shows the toast and returns to Library without a crash",
+        "Poster tap targets and CompareDivider read as obviously interactive with no instructional copy needed"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "List Intelligence: genre/decade filter chips and no-match nudge",
+      "owner_lane": "primary_ui",
+      "files": [
+        "FaveOff/Navigation/FilterState.swift",
+        "FaveOff/Views/Components/FilterChip.swift",
+        "FaveOffTests/FilterTests.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "No-match filter state shows a nudge, never a blank screen",
+        "Filtering never blocks or gates the base ranked list",
+        "CoreRitualTapCountTests from T-010 still passes unmodified"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Taste Card renderer with resolvingArt gate",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FaveOff/Services/TasteCardRenderer.swift",
+        "FaveOffTests/TasteCardRendererResolvingArtTests.swift"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Render never fires until every source poster is confirmed loaded, proven against a deliberately slow fake metadata provider",
+        "Output is a static Image, safe against later title deletion"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Taste Card UI: preview sheet + ShareLink",
+      "owner_lane": "primary_ui",
+      "files": [
+        "FaveOff/ViewModels/TasteCardViewModel.swift",
+        "FaveOff/Views/TasteCardView.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "resolvingArt/ready/renderFailed/sharing states all present",
+        "ShareLink export verified under airplane mode",
+        "Card legible with brand mark at iMessage-thumbnail scale"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "StoreKit 2 purchase service: products, purchase, restore, entitlement listener",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FaveOff/Services/PurchaseService.swift",
+        "FaveOff/Services/ProductID.swift",
+        "FaveOff/Services/PurchaseProduct.swift",
+        "FaveOff/Services/PremiumFeature.swift",
+        "FaveOff/Services/PurchaseState.swift",
+        "FaveOffTests/PurchaseServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Automated tests drive product load, purchase, restore, and Transaction.currentEntitlements transitions as the real pass bar",
+        "Manual sandbox click-through is documented as a smoke test only, not the acceptance method",
+        "startEntitlementListener runs as a persistent launch-time Task, not a one-shot call"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Monetization Surfaces UI: TV-lock row, 25-cap banner, paywall sheet, upgrade CTAs",
+      "owner_lane": "primary_ui",
+      "files": [
+        "FaveOff/ViewModels/PaywallViewModel.swift",
+        "FaveOff/Views/PaywallView.swift",
+        "FaveOff/Views/Components/LockedTVRow.swift",
+        "FaveOff/Views/Components/InlineBanner.swift",
+        "FaveOffTests/MonetizationSurfacesRegressionTests.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "CoreRitualTapCountTests from T-010 is re-run unmodified and green",
+        "TV add never blocks or alters movie ranking state",
+        "Cap banner appears exactly at the 25th ranked movie and never blocks further adds",
+        "Same PaywallView instance used regardless of entry point (tvLock/capReached/toolbarUpgrade)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Accessibility + contrast final gate",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "FaveOffUITests/AccessibilityGateTests.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-013",
+        "T-015",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Compare and Placed measure >=4.5:1 body / >=3:1 large-bold across the full Dynamic Type range",
+        "Every actionable control has a VoiceOver label and a 44x44pt target",
+        "No color-only status cues on locked/capped rows"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Hardening + release prep: full E2E, full-suite regression re-run, privacy manifest confirmation",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "FaveOffUITests/EndToEndFlowTests.swift",
+        "FaveOff/App/FaveOffApp.swift",
+        "FaveOff/PrivacyInfo.xcprivacy"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-007",
+        "T-008",
+        "T-009",
+        "T-010",
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-014",
+        "T-015",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "EndToEndFlowTests walks add->compare->placed->browse->share, resume-banner recovery, and a forced purchase failure with ranking unaffected",
+        "The entire existing test suite (engine, coordinator, contrast, taste-card resolvingArt, monetization regression) is re-run and green, not just the E2E path",
+        "Clean build from clean checkout at /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/; PrivacyInfo.xcprivacy confirmed present and correct"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

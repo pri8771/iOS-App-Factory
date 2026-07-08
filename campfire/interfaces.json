@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Equatable { case entry, setup, session, recap }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED: root switch, no NavigationStack anywhere in the session flow \u2014 interactive back-swipe explicitly disabled."
+    },
+    {
+      "name": "RoundPhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RoundPhase: String, Codable { case handoff, ready, revealed }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: persisted on Session, not transient @State \u2014 required for true termination-and-relaunch resume."
+    },
+    {
+      "name": "Player",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Player: Identifiable, Codable, Hashable { let id: UUID; var name: String; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Display and stable identity for all session transitions; names can duplicate but cannot be blank/whitespace."
+    },
+    {
+      "name": "PromptPack",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PromptPack: Identifiable, Codable { let id: String; let title: String; let version: Int; let mode: String; let isBuiltIn: Bool; let prompts: [Prompt] }",
+      "owning_lane": "data_domain",
+      "notes": "Source content model loaded from bundled JSON and versioned for migration checks."
+    },
+    {
+      "name": "Prompt",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Prompt: Identifiable, Codable, Hashable { let id: UUID; let packId: String; let mode: String; let text: String }",
+      "owning_lane": "data_domain",
+      "notes": "Single immutable prompt item consumed by rounds in-order."
+    },
+    {
+      "name": "SessionState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct SessionState: Identifiable, Codable, Hashable { let id: UUID; var packId: String; var playerIDs: [UUID]; var roundOrder: [UUID]; var activePlayerID: UUID; var targetHistory: [UUID]; var tally: [UUID:Int]; var promptCursor: Int; var currentRound: Int; var totalRounds: Int; var phase: RoundPhase; var isCompleted: Bool; var startedAt: Date; var completedAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "Source of truth for gameplay and resume safety. playerIDs and targetHistory must remain ordered arrays, never to-many relationships."
+    },
+    {
+      "name": "GameRulesEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum GameRulesEngine { static func nextActivePlayerIndex(players: [PlayerRecord], currentActiveIndex: Int) -> Int; static func nextTarget(players: [PlayerRecord], activeID: UUID, revealedRounds: [RevealedRoundRecord]) -> UUID; static func shufflePromptOrder(prompts: [PromptRecord]) -> [String]; static func deriveRecap(players: [PlayerRecord], revealedRounds: [RevealedRoundRecord]) -> RecapOutcome }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: static-function enum, not protocol \u2014 pure math, no state, no swappable implementations needed. shufflePromptOrder closes the prompt-variety gap (session's prompt sequence is randomized once at creation, not fixed bundled-JSON order). Fully unit-testable at 2/3/4/15 players with zero view hierarchy involved."
+    },
+    {
+      "name": "RecapResult",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RecapResult { case standout([UUID]), tie([UUID]), lowVariance(String), zeroData(String) }",
+      "owning_lane": "data_domain",
+      "notes": "Four-case recap semantics (clear standout, tie, low-variance/funny, zero-data) used for card generation and fallback."
+    },
+    {
+      "name": "SessionRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol SessionRepository { func loadInProgress() throws -> SessionState?; func save(_ state: SessionState) throws; func delete(_ stateID: UUID) throws; func loadRecap(sessionID: UUID) throws -> RecapRow?; func saveRecap(_ recap: RecapRow) throws }",
+      "owning_lane": "data_domain",
+      "notes": "Persistence seam backed by SwiftData; all mutations are synchronous and write immediately."
+    },
+    {
+      "name": "PackRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PackRepository { func loadPacks() throws -> [PromptPack]; func loadPack(id: String) throws -> PromptPack?; func ensureSeedDataVersion() throws -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Loads only bundled JSON packs for v1; future remote catalog can swap implementation without changing callers."
+    },
+    {
+      "name": "ContentAccessProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ContentAccessProviding { func isPackUnlocked(_ packID: String) -> Bool; func canSaveUnlimitedRecaps() -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: stub always returns true, explicitly flagged provisional, not real entitlement policy."
+    },
+    {
+      "name": "RecapRenderer",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol RecapRenderer { func renderImage(for recap: RecapSnapshot, palette: PaletteTokenSet, size: CGSize) throws -> Data }",
+      "owning_lane": "services_utilities",
+      "notes": "Isolated service for ImageRenderer output at fixed frame and scale with deterministic snapshot pipeline."
+    },
+    {
+      "name": "HapticsService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol HapticsService { func triggerReveal(); func triggerReadyHint(); func triggerError(); func setEnabled(_ isEnabled: Bool) }",
+      "owning_lane": "services_utilities",
+      "notes": "UI-only side effects service; guarded to one-shot per transition."
+    },
+    {
+      "name": "SessionViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class SessionViewModel { private(set) var session: Session; private(set) var isTransitioning: Bool; func beginHandoff(); func advancePastHandoff(); func revealTarget(); func advanceRound(); func endSessionEarly() }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED: wraps the persisted Session @Model directly and calls context.save() itself \u2014 no SessionStoreProviding seam (explicitly cut both agents agreed). Unit tests use an in-memory ModelConfiguration, not a mock protocol, so the real save path is what's actually exercised."
+    },
+    {
+      "name": "CampfireError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CampfireError: Error, Equatable { case storeUnavailable; case emptyPromptPack; case recapRenderFailure }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: exactly the three recoverable states locked across prior phases. No associated payload strings \u2014 the UI layer owns copy per case."
+    },
+    {
+      "name": "PlayerRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlayerRecord: Codable, Identifiable, Equatable { let id: UUID; var name: String }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: single ordered array element for player identity/order \u2014 one array, no parallel name lookup that could drift."
+    },
+    {
+      "name": "TargetHistoryEntry",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TargetHistoryEntry: Codable, Equatable { let roundIndex: Int; let targetPlayerID: UUID }",
+      "owning_lane": "data_domain",
+      "notes": "Lightweight history event for recap derivation, and supports low-variance copy fallback."
+    },
+    {
+      "name": "RevealedRoundRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RevealedRoundRecord: Codable, Equatable { let roundIndex: Int; let activePlayerID: UUID; let targetPlayerID: UUID; let promptID: String; let promptText: String }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: sole history array \u2014 no separate targetHistory/TargetHistoryEntry, no stored tally. nextTarget derives recency from revealedRounds.map(\\.targetPlayerID); deriveRecap derives tally, tie, and the specific low-variance moment from this same array."
+    },
+    {
+      "name": "RecapOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecapOutcome: Codable, Equatable { case standout(playerID: UUID, line: String); case tie(playerIDs: [UUID], line: String); case lowVariance(momentLine: String); case zeroData(line: String) }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: embedded directly on Session, not a separate RecapEntry model. Doubles as card headline content and the always-available fallback text on render failure. No persisted image blob \u2014 card is re-rendered on demand, including after resume-from-kill."
+    },
+    {
+      "name": "Session",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Session { var id: UUID; var players: [PlayerRecord]; var currentRoundIndex: Int; var activePlayerIndex: Int; var roundPhase: RoundPhase; var promptOrder: [String]; var revealedRounds: [RevealedRoundRecord]; var packID: String; var isComplete: Bool; var recapOutcome: RecapOutcome? }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: direct SwiftData model, no repository/state-struct split. activePlayerIndex is an Int into the fixed players array. promptOrder is the shuffled prompt-ID sequence locked at session creation; revealedRounds.count is the cursor into it (no separate stored cursor field)."
+    },
+    {
+      "name": "PromptRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PromptRecord: Codable, Identifiable, Equatable { let id: String; var text: String }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: decoded from bundled JSON, stored as a value-type array on PromptPackRecord."
+    },
+    {
+      "name": "PromptPackRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PromptPackRecord { var id: String; var displayName: String; var version: Int; var prompts: [PromptRecord] }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: version:Int folded directly onto the pack, no separate PackVersion row for one bundled pack."
+    },
+    {
+      "name": "PlayerSetupValidation",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum PlayerSetupValidation { static func validate(rawNames: [String]) -> PlayerSetupValidationResult }; enum PlayerSetupValidationResult: Equatable { case valid([String]); case invalid(rowErrors: [Int: String], continueDisabledReason: String?) }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: 2-15 players, blank/whitespace rejected per-row, no auto-fix."
+    },
+    {
+      "name": "RecoverableError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecoverableError: Equatable { case emptyPromptPack; case recapRenderFailure; case storeUnavailable }",
+      "owning_lane": "data_domain",
+      "notes": "CONVERGED: matches Codex's CampfireError cases (modelContainerUnavailable/emptyPack/renderFailure map 1:1); naming needs a final pick round 2 but the three cases are agreed."
+    },
+    {
+      "name": "AppCoordinator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AppCoordinator { var route: AppRoute; var activeError: CampfireError?; func startSetup(); func beginSession(with players: [PlayerRecord]); func finishToRecap(); func exitToEntry(); func resumeInProgressSessionIfAny(context: ModelContext) }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED: concrete class, not a protocol \u2014 exactly one real implementation exists. Owns navigation/route only; resumeInProgressSessionIfAny is its own separately tested launch path, not a fallthrough of the fresh-start path."
+    },
+    {
+      "name": "PromptRepositoryProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PromptRepositoryProviding { func loadDefaultPackIfNeeded(context: ModelContext) throws; func activePrompts(for packID: String, context: ModelContext) throws -> [PromptRecord] }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: throws surface as CampfireError.emptyPromptPack at the call site if decode/load fails or yields zero prompts. This protocol earns its keep \u2014 a future remote-catalog implementation is a named future requirement that would genuinely conform to it."
+    },
+    {
+      "name": "ModelContainerProvider",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ModelContainerProvider { static func makeContainer() -> ModelContainerResult }; enum ModelContainerResult { case success(ModelContainer); case failure(Error) }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: failure path feeds CampfireError.storeUnavailable and an in-memory fallback container, never a crash."
+    },
+    {
+      "name": "HapticsServicing",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol HapticsServicing { func handoffBuzz(); func revealBeat(); func setEnabled(_ isEnabled: Bool) }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: only the two locked haptic moments (handoff auto-advance, reveal beat) plus the optional on/off toggle from app_features' 'could' list."
+    },
+    {
+      "name": "RecapCardRendering",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol RecapCardRendering { @MainActor func renderImage(for session: Session) async -> RecapRenderResult }; enum RecapRenderResult { case success(imageData: Data); case failure }",
+      "owning_lane": "services_utilities",
+      "notes": "LOCKED: fixed 9:16 portrait render frame, capped '+N more' player footer, rendered via ImageRenderer at 3x scale after a confirmed layout pass. Not persisted as a blob \u2014 re-rendered on demand from Session, including after resume-from-kill. Must be verified on a physical device."
+    },
+    {
+      "name": "TransitionGuard",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class TransitionGuard { private(set) var isLocked: Bool; func tryLock() -> Bool; func unlock() }",
+      "owning_lane": "polish_resilience",
+      "notes": "LOCKED: silent double-tap guard, no user-visible 'blocked' messaging \u2014 the control just disables itself."
+    },
+    {
+      "name": "ConfettiOverlay",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ConfettiOverlay: View { let isActive: Bool }",
+      "owning_lane": "polish_resilience",
+      "notes": "LOCKED: hard-capped 500-700ms lifecycle, torn down immediately after burst, never redraws into later rounds."
+    },
+    {
+      "name": "RecapEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecapEntry: Identifiable { let id: UUID; let sessionID: UUID; let packId: String; let promptCount: Int; let winnerText: String; let standings: [RecapPlayerStat]; let createdAt: Date; let cardImageData: Data?; let fallbackText: String }",
+      "owning_lane": "data_domain",
+      "notes": "Codex's separate persisted recap row \u2014 OPEN CONFLICT with Claude's embedded Session.recapOutcome. Round 2 must pick exactly one recap-persistence shape."
+    },
+    {
+      "name": "PlayerSetupValidationResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PlayerSetupValidationResult: Equatable { case valid([String]); case invalid(rowErrors: [Int: String], continueDisabledReason: String?) }",
+      "owning_lane": "data_domain",
+      "notes": "No auto-fix suggestions; UI blocks Continue with a specific reason."
+    },
+    {
+      "name": "SessionStoreProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SessionStoreProviding { func loadInProgressSession() throws -> Session?; func saveSession(_ session: Session) throws; func deleteSession(_ id: UUID) throws; func loadPromptPack(id: String) throws -> PromptPackRecord?; func ensureSeedPackLoaded() throws }",
+      "owning_lane": "services_utilities",
+      "notes": "OPEN: Codex wants this as a thin persistence seam; Claude argues it's unearned complexity since the real termination test must go through actual SwiftData anyway. Round 3 decides keep-or-cut."
+    },
+    {
+      "name": "ConfettiLifecycle",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ConfettiLifecycle { case stopped; case active(start: Date, durationMs: Int = 650) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Hard cap 500\u2013700ms, self-teardown at phase transition to avoid redraw leaks."
+    },
+    {
+      "name": "ModelContainerProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ModelContainerProviding { func makeContainer() -> ModelContainerResult }; enum ModelContainerResult { case success(ModelContainer); case failure(Error) }",
+      "owning_lane": "services_utilities",
+      "notes": "Build-time/fallback startup branch: model-container failure is non-fatal and visible."
+    },
+    {
+      "name": "ModelContainerResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ModelContainerResult { case success(ModelContainer); case failure(Error) }",
+      "owning_lane": "services_utilities",
+      "notes": "Container bootstrap contract. failure path must show user-visible recovery and use in-memory fallback."
+    },
+    {
+      "name": "RecapRenderResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecapRenderResult { case success(imageData: Data); case failure }",
+      "owning_lane": "services_utilities",
+      "notes": "Render result from ImageRenderer service. On failure, fallback text path is always available via Session.recapOutcome."
+    }
+  ],
+  "errors": []
+}
