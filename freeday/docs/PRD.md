@@ -4,75 +4,83 @@ _Deterministic render of the discovery/scoping phases' final decisions. Non-AI; 
 
 ## Prompt Contract
 
-Both of them landed in the same place — Claude's contribution isn't a disagreement with Codex's contract, it's sharpening it with the specific edge cases a rushed build would otherwise fumble. Nobody is contesting scope, priorities, or the shape of the output. This reads as a converged phase.
+Here's the plain-English recap of round 1.
 
-Where they agree: preserve the prompt verbatim, treat the five core workflows (habit setup, non-punitive streak/relapse, craving timer, milestone card, multi-habit paid tier) as the non-negotiable bar, keep it fully local-first with no network dependency, no LLM coaching, no clinical/medical framing, and require a real compiling StoreKit-backed app rather than a mocked shell. Both also agree Live Activity/widget are real v1 scope but are the first things allowed to degrade under time pressure, since the five core workflows are what "production-ready" actually hinges on.
+Codex didn't weigh in (CLI unavailable), so this round is Claude's read alone — but it's thorough, internally consistent, and directly follows the phase playbook's required output shape, and there's nothing left contested to hash out. Time matters on this batch, so I'm calling it here rather than spinning a redundant round 2 just to get a second voice to say "agreed."
 
-Claude's additions that Codex didn't contradict and that tighten the contract rather than change it:
-- The invalidation criteria ("relapse-loggers don't return within a week") can't be measured with real telemetry because there's no network layer — so it gets verified via a written non-shaming UX checklist instead (no "streak broken" language, no red/warning colors, lifetime-total stat always visible through resets, no punitive confirmation friction), not through data that will never exist.
-- "Cost-per-use" alone doesn't yield a savings rate — habit setup needs both a usage-frequency input and a cost-per-unit input, plus an explicit, non-silent rule for what happens to historical savings when a user edits those inputs later.
-- The SwiftData model must support multiple habits unconditionally from day one; only the UI/entitlement layer enforces the one-habit-free gate, so there's no fake single-habit schema requiring a breaking migration later.
-- Uniqueness against sibling apps in this same portfolio run can't be self-verified here since this app doesn't see the other four — flag it as a check to run when sibling concepts are known, not silently assume no overlap.
-
-No open disagreement remains — this is refinement, not conflict.
+The core landing points: preserve the prompt verbatim (done above), then turn the spec's own warnings into hard, testable requirements rather than vibes — especially the relapse/reset flow, which the user explicitly flagged as the make-or-break UX moment. Several scope ambiguities (cost-optional habits, downgrade data handling, what to thin under time pressure) got resolved by naming an assumption rather than leaving them for later phases to each guess differently.
 
 CONSENSUS: YES
 
 ## Final Output
 
-**Original prompt:** preserved verbatim above (Freeday — habit-quitting/craving-tracker MVP, child of the multi-app-exp7 portfolio batch, build priority 5).
+**Original prompt**: Preserved verbatim above (full Freeday app spec + parent multi-app-exp7 portfolio prompt). This is the source of truth for every later phase; nothing below replaces it.
 
-**Hard requirements:**
-- One SwiftUI app, local-first, SwiftData-backed, zero network dependency in v1, deployed to its own `freeday/app_build` folder only.
-- Five core workflows must be fully functional, not mocked: (1) habit setup capturing **quantity-per-day** and **cost-per-unit** (not just "cost-per-use") so savings math is well-defined; (2) daily streak tracking with one-tap **non-punitive** relapse-and-restart that preserves a lifetime-total stat unaffected by reset; (3) a 90-second guided craving-timer "ride it out" flow, fixed content, works fully offline; (4) a shareable milestone streak+savings recap card via ShareLink; (5) multi-habit management gated to the paid tier.
-- Data layer supports N habits unconditionally from day one; only the UI/entitlement layer enforces the free-tier one-habit limit — no breaking migration deferred to later.
-- Editing cost/frequency inputs after streak accrual must have an explicit, documented, non-silent recompute rule (retroactive vs. forward-only — pick one and state it).
-- StoreKit 2 paywall: real entitlement gating, restore purchases, local `.storekit` config — not a toggle.
-- Live Activity (craving-timer) and WidgetKit (streak+savings) are in scope but are the first pieces allowed to degrade/stub if time runs short — core workflows are not.
-- Haptics on streak-day and craving-timer completion.
-- Every screen that can reach empty/loading/success/error states must implement all four.
-- Accessibility baseline: Dynamic Type, VoiceOver, 44pt hit targets, WCAG AA contrast.
-- Design system: soft mint-to-sky-blue gradients, rounded iconography, sunrise/counter "days free" motif, non-clinical/non-shaming visual language, documented as a design system (tokens/components/states), and visually distinct from the other four sibling apps in this batch.
-- Copy throughout must stay in "personal tracking tool" territory — never medical/clinical/addiction-treatment framing.
+**Hard requirements**
+1. Relapse/reset flow must never be punitive: no "streak broken / reset to zero / you failed" framing without the lifetime-total stat visible on the same screen, same glance. Testable check: does the default relapse-flow state show a shame-coded word or a zeroed number with no compensating lifetime stat in view? If yes, it fails regardless of visual polish.
+2. User-facing copy defaults to non-clinical language ("reset," "starting fresh," "day one again") — avoid AA/medical terms like "relapse," "addiction," "withdrawal" in UI text even though "relapse" is fine as an internal/technical event name. No physiological claims stated as fact (e.g., timed withdrawal-symptom copy). This stays in "personal tracking tool" lane per the spec's own key-risks section.
+3. Cost-per-use is optional at habit setup. Every surface showing savings (widget, Live Activity, milestone card, home screen) needs a defined, intentional behavior when cost is unset — not a bare $0.00/NaN. E.g., hide the savings row or show a streak-only card.
+4. Downgrading from Freeday+ to free never deletes existing habit data. Only gating is on adding new habits / using premium craving tools going forward.
+5. SwiftData persists habits, relapse/reset events, and craving-session logs locally; savings math computed on-device; guided craving content fully bundled, zero network dependency.
+6. Core v1 workflows are non-negotiable: habit setup with cost-per-use, streak tracking with non-punitive reset, craving-timer guided flow, milestone recap card + ShareLink. Multi-habit management is the paid-tier gate.
+7. StoreKit paywall must gate real features using an actual `.storekit` config, not a hardcoded bypass.
 
-**Non-goals:** LLM chat coaching, AR/ML features, CloudKit sync or any backend dependency in v1 (architecture should leave the door open, no sync code shipped), anonymous community/social feed, analytics/telemetry pipeline, punitive streak-reset messaging, re-running app ideation (app is already selected as Freeday for this child project).
+**Non-goals**
+- No LLM-based chat coaching — craving support is a fixed, offline guided sequence.
+- No AR/local ML.
+- No cloud sync / backend / community layer in v1 (CloudKit sync is a future-roadmap boundary only; anonymous community layer is explicitly out of scope for v1).
+- Not presenting as medical/addiction-treatment advice.
 
-**Production-readiness definition:** a real compiling Xcode project with SwiftData models for Habit/RelapseEvent/CravingSession; all five core workflows wired end-to-end with no hardcoded/mocked data; empty/loading/success/error states everywhere reachable; StoreKit 2 entitlement logic actually gating multi-habit access with a working restore flow; relapse-flow copy and visuals audited against the non-shaming checklist; accessibility baseline met. A UI shell with static data, a fake paywall toggle, or a craving timer with no real completion state is a demo, not done, and must be reported as such rather than rounded up.
+**Production-readiness definition** (for this app specifically)
+- Builds and runs on a fresh simulator with zero crashes across all five core workflows.
+- SwiftData state (streak, savings, events) survives force-quit/relaunch.
+- Relapse-reset flow passes the non-shaming check above.
+- StoreKit paywall gates correctly via a real `.storekit` file.
+- Empty/loading/error/success states exist for every reachable screen (first-launch-no-habit, craving timer interrupted mid-session, Live Activity denied entitlement, etc).
+- If time runs short, Live Activity and widget are the first candidates to simplify (e.g., static/simplified Live Activity, single widget size) — but not to a broken or half-wired state; a crashing feature is worse than a simplified one. Core five workflows are never cut. Per parent prompt: no buildable Xcode project = failure, full stop.
 
-**Decision rules for later phases:**
-1. The invalidation criterion (relapse-loggers abandoning within a week) is verified via a written non-shaming UX checklist, not via telemetry — no analytics pipeline gets added to chase this, since that would break local-first.
-2. If any interpretation conflicts with local-first, default to local-only unless the user explicitly approves a network dependency.
-3. If mass-market clarity/design distinctiveness conflicts with niche feature depth, preserve mass-market clarity and defer the complexity.
-4. If paywall/pricing copy conflicts with the non-shaming tone, empathy and trust win over conversion optics.
-5. Under time pressure, Live Activity and widget degrade or get stubbed first; the five core workflows are never cut or faked.
-6. Any copy or feature readable as medical/clinical advice gets rewritten or removed — no exceptions.
-7. If a sibling app in this same portfolio run turns out to also be a streak/habit tracker, that's a hard uniqueness conflict per the parent prompt and must be reported, not silently waved through.
-8. Smaller, fully complete app beats a larger, partially-built one.
+**Decision rules for later phases**
+- When spec ambiguity appears, name the assumption explicitly in that phase's output rather than silently picking one.
+- Later design/build phases should verify Freeday's actual mechanic (streak + cost-savings tracking) against Waylay's real scope before finalizing, to confirm category-name difference is actually sufficient — a check, not an assumed blocker.
+- "Relapse" as a word may appear in code/data-model naming; it should not leak into user-facing copy without a deliberate, reasoned override in the design phase.
 
 ## Product Research
 
+Since Codex isn't available this round either, this is Claude talking to itself across two passes — but the second pass (Pragmatist) didn't just repeat the first, it added real substance: named the actual competitors (Quit That!, I Am Sober, Smoke Free), pointed out the doomscrolling/cost-per-use mismatch more sharply, and flagged concrete engineering risks (day-boundary math, Live Activity budget limits, fat-finger reset with no undo). Nothing here contradicts the prompt_contract phase's decisions — it's additive research and risk-surfacing, which is exactly what this phase is for. Nothing is left hanging that needs a round 2.
+
 CONSENSUS: YES
 
 ## Final Output
 
-Both agents converged fast here — no real disagreement, just Codex framing the product philosophy and Claude naming the sharp edges that would otherwise bite during build. Nobody contested the direction.
+**Audience and use context**
+Freeday's addressable audience is broad but not homogeneous — it splits into two behaviorally different groups: (1) spend-based habits with a real per-use cost (cigarettes, vaping, alcohol, takeout coffee) where the "money saved" hook lands perfectly, and (2) non-monetizable habits (doomscrolling, sugar for many users) where streak is the only real signal and "savings" either doesn't apply or is a fuzzy estimate at best. Usage happens in two very different contexts: calm daily check-ins (morning/evening ritual, low-stakes) and acute craving moments (high-stress, one-handed, often in public/hiding, needs to work instantly with zero load time or friction). Design and copy need to serve both without feeling schizophrenic.
 
-**Audience and use context:** Mass-market opportunistic users — people cutting cigarettes, vaping, sugar, alcohol, or doomscrolling who bounce in and out based on stress spikes rather than committing to a dramatic life-change program. Cravings hit at inconvenient, often public moments (mid-meeting, on a date, driving), so the "I'm craving right now" entry point must be one tap from the home screen, not buried in navigation — especially since Live Activity/widget are the first things allowed to degrade under time pressure per the prompt contract.
+**Comparable apps or patterns to learn from**
+- **Quit That!** — closest direct analog: generic multi-habit cost/streak tracker. Proves the core mechanic works, but is dated/rough — Freeday's differentiation has to come from actual craft (native feel, design system, guided craving flow), not from claiming genericness as a moat, since a rougher app already ships that idea.
+- **I Am Sober** — streak + money-saved + milestone badges at real scale; validates that this exact loop (days + dollars + shareable milestone) retains users. Good pattern to study for the milestone-card mechanic specifically.
+- **Smoke Free / QuitNow! / Kwit** — single-purpose cessation apps with more clinical/gamified framing (badges, health-timeline claims); useful as a "what not to do" reference for the shame/clinical-tone risk already flagged in prompt_contract, and a reminder that timed physiological claims ("your lungs recover in X days") are a category norm Freeday should explicitly avoid per its own non-goals.
+- Pattern worth borrowing regardless of niche: glanceable widget + shareable recap card is what turns a tracker into a passive daily habit loop rather than an app people forget to open.
 
-**Comparable apps/patterns:** I Am Sober (closest analog — multi-vice, streak, money-saved math — but its retention engine is a social check-in feed, which this spec deliberately excludes; that's a named tradeoff, not a free lunch), Smoke Free/QuitNow! (single-substance, so Freeday's cross-habit engine is a real differentiator), Kwit (cutesy pet-gamification aesthetic to explicitly avoid, since the spec wants calm/non-gamified), Streaks (validates the home-screen-widget-as-daily-reminder pattern).
+**Platform-specific opportunities**
+- **Live Activity / Dynamic Island** for the craving timer is the single best-fit native feature here — literally built for "something to glance at on your lock screen while riding out an urge in your pocket." Highest-leverage iOS-native touch in the whole spec.
+- **WidgetKit** (streak + savings, home screen and lock screen) matters more than usual for this category — passive visibility is the retention mechanism, not just a nice-to-have.
+- **ShareLink** on the milestone card is the built-in viral loop the parent portfolio prompt requires — no custom share-sheet plumbing needed.
+- **Haptics** (`CHHapticEngine` after a capability check) for streak-day and craving-timer completion — cheap to build, disproportionately affects how "cared for" a soft, encouraging app like this feels.
+- Explicitly **not** using Screen Time / DeviceActivity APIs for auto-detecting doomscrolling in v1 — tempting, genuinely differentiated, but out of scope per the contract's local-first/no-added-complexity boundary. Worth logging as a real v2 idea, not sneaking into this build.
 
-**Platform-specific opportunities:** Lean on native trust-builders — widget for glanceable momentum, haptics and motion for calm delight, ShareLink for the milestone card. Live Activity is "optional delight" not core; treat it as opt-in/degradable, not a foundation the core experience depends on.
+**Major assumptions and risks**
+1. *Assumption:* cost-per-use is optional and every habit needs a coherent unit model decided at setup time (per-use price × frequency, or flat daily estimate) — resolved in prompt_contract, but the data model needs to encode this deliberately rather than bolt savings math on after the fact.
+2. *Risk:* day-boundary streak logic (timezone travel, DST, manual clock changes) is a classic bug nest, and here a wrong streak-break reading directly triggers the exact abandonment failure mode the user named in the invalidation criteria. Must use calendar-day comparison in the user's current timezone, not elapsed-seconds math.
+3. *Risk:* "one-tap non-punitive relapse-and-restart" cuts both ways — one-tap encourages honest logging, but with no undo it's one fat-finger away from wiping a real streak. Needs a brief undo window (snackbar-style), not a scary confirm dialog and not silent irreversibility.
+4. *Risk:* Live Activities have OS-enforced lifetime budgets and can be force-ended by the system mid-session — if the craving timer's reassurance depends on the Live Activity surviving, a killed one reads as "the app crashed" at the worst possible emotional moment. The in-app timer must be the standalone source of truth; Live Activity is strictly a bonus layer.
+5. *Risk:* as build-priority-5 of five parallel apps, this is the most likely to get its polish phase compressed — the core loop (add habit → see streak → hit craving button → ride timer → completion) must work perfectly with zero dependency on widget/Live Activity landing.
 
-**Major assumptions and risks named:**
-- Removing the community/social layer (per contract) means the app has to earn retention entirely through streak/widget visibility and craving-support quality — untested assumption, flagged not assumed safe.
-- The 90-second craving timer must survive backgrounding — anchor to a stored wall-clock start time and compute elapsed/remaining from `Date()` on every appearance, not a naive pausing `Timer`, since a broken session during a real craving is the worst possible failure moment.
-- Streak-day math is an off-by-one/timezone/DST minefield and is the most-scrutinized number in the app (shown on main screen, widget, share card) — decided now: streak = full calendar days elapsed in the device's current local timezone, computed fresh from stored event timestamps on every read, never a cached incrementing counter.
-- The one-habit-free paywall boundary needs to be visible *before* a user invests setup effort in a second habit, not sprung on them after — consistent with the non-shaming/trust tone already locked into the contract.
-- Money-saved formula transparency beats sophistication: if a user edits cost/frequency inputs, the recompute rule must be visibly stated at the point of edit (ties back to the prompt-contract phase's decision to require an explicit, non-silent recompute rule).
-- Milestone share card must hold up under Dynamic Type and dark/light export — a broken share card kills the viral loop that's the whole point of the artifact.
-- Local daily-reminder notifications (`UNUserNotificationCenter`) are a plausible, fully local-first-compatible addition used by every comparable app, but they're not in the five core workflows — if cut for time, that's a named tradeoff, not an oversight; if built, it needs its own permission-denied/settings-redirect state like any other reachable state.
-
-**Implication for the first build:** get streak/day-boundary logic and the non-shaming relapse flow airtight before touching Live Activity or widget polish — those two are invisible when correct and glaringly wrong every single day when not, whereas Live Activity/widget can degrade gracefully per the existing decision rules.
+**Implications for the first build**
+- Data model must support cost being nil/optional per habit, with every savings-displaying surface (widget, Live Activity, milestone card, home screen) having a defined non-broken behavior when cost is unset (streak-only card, hidden savings row) — not a bare $0.00.
+- Streak/date logic should be centralized in one calendar-day-aware utility, not reimplemented ad hoc per screen, given how much rides on it being correct.
+- Reset/relapse action needs a short undo affordance baked into the interaction design from the start, not added later.
+- Craving timer + guided flow is the true core deliverable and must work fully standalone (no Live Activity, no widget) before either of those additive features gets touched.
+- Given time pressure across the portfolio, build order should be: habit setup + streak/reset core loop → craving timer flow → milestone card + ShareLink → StoreKit paywall → widget → Live Activity, so that if anything gets thinned, it's from the back of that list, matching the production-readiness definition already locked in prompt_contract.
 
 ## Portfolio Selection
 
@@ -80,16 +88,20 @@ CONSENSUS: YES
 
 ## Final Output
 
-Quick, no drama on this one: both of them landed exactly where they had to. This is a child project inside the multi-app-exp7 portfolio — the actual 5-app selection already happened one level up, and Freeday was one of the picks. There's nothing left to select here.
+This one's straightforward — it's a single-app child project, not a portfolio parent, so there's no fan-out decision to make here at all.
 
-So the decision for this phase is simple:
+**Single-app vs portfolio-parent decision**: Single app. The `PORTFOLIO_CHILD_PROJECT: true` flag tells us the "pick 5 out of 10 ideas" selection already happened one level up in the parent `multi-app-exp7` orchestration. This project only received its one already-selected app (freeday) to build. No portfolio-json manifest is needed or produced here — that artifact belongs to the parent run, not this child.
 
-- **No portfolio split needed.** Freeday is a single independent app, not a portfolio parent. No portfolio-json manifest, no sibling child folders, no additional app-selection work.
-- Output stays as one app project at `freeday/app_build`.
-- Selection lock (already fixed by the parent): slug `freeday`, category Habit Quitting / Craving Tracker, promise "track any habit you're quitting, watch your clean streak and savings grow," target user is the broad mass-market population cutting cigarettes/vaping/sugar/alcohol/doomscrolling, build flag = true.
-- Rejected alternatives: none considered this phase — re-running ideation would be redoing work the parent portfolio phase already finished, and is explicitly out of scope for a child project.
+**Selected app list**:
+| slug | category | promise | target user | build |
+|---|---|---|---|---|
+| freeday | Habit Quitting / Craving Tracker | Track any habit you're quitting and watch your clean streak and money saved grow, one Freeday at a time | Mass-market population trying to quit or cut back on something (smoking, vaping, sugar, alcohol, doomscrolling) | true |
 
-Claude's user-advocate framing (the "craving hits at your desk, one tap or you lose them" scenario) didn't change this decision — it's a reinforcement of priorities already locked in prompt_contract and product_research (one-tap craving entry, non-shaming reset, free tier as a genuinely complete product rather than a crippled trial), not a new scope decision for this phase. Worth carrying forward into build, but it doesn't change the answer here: single app, no split, move to the next phase.
+**Selection rationale and rejected alternatives**: N/A at this level — no candidate-idea contest runs inside a portfolio child project; that competition already concluded upstream when the parent chose Freeday as one of its 5 winners. Nothing was rejected here because nothing was up for selection here.
+
+**One guardrail worth stating explicitly for later phases**: Freeday's "one flexible engine for any habit" pitch (cigarettes, vaping, sugar, doomscrolling) is a single app with a flexible data model — not grounds for spinning up per-habit-type sub-projects, separate schemas, or additional sibling folders. One app, one Xcode project, one target user population. Later phases should read "supports multiple habit types" as a data-model requirement, not a splitting instruction.
+
+**portfolio-json manifest**: Not applicable — this phase is not a portfolio parent.
 
 ## Initial Discussion
 
@@ -97,173 +109,149 @@ CONSENSUS: YES
 
 ## Final Output
 
-Both agents landed in the same place and just built on each other rather than disagreeing.
+Only one voice in the room this round (Codex is still on cooldown), but it's a thorough, decisive pass that hits every required element cleanly and doesn't contradict anything locked in prompt_contract or product_research — so there's no reason to spin a second round just for an echo. Time matters on this batch, calling it here.
 
-**The product promise:** Freeday is one app where naming any habit you're quitting gives you a non-shaming daily streak, a running savings total, and a 90-second in-the-moment tool to survive a craving — and if you relapse, only the current streak resets, never your lifetime history.
+**One-sentence product promise**: Freeday lets you name anything you're trying to quit, then turns each clean day into a visible, growing win — a streak and a running savings number — with a 90-second guided moment to lean on when a craving hits.
 
-**Primary user/scenario:** someone days into cutting a habit (vaping, sugar, doomscrolling, whatever), checking in most of the time in a low-stakes "just glancing at my streak" mode, but occasionally opening the app in a high-stakes "craving right now, need help in 3 seconds" mode. Both moods have to live on one home screen without the emergency path getting buried.
+**Primary user and scenario**: Not one persona but two recurring moments the same person lives through — the calm, low-stakes daily check-in (a few seconds, almost ambient, "still going") and the acute craving moment (high-stakes, one-handed, often in public or hiding, needs the right screen instantly with zero navigation hunting). The app has to serve both without feeling like two apps stapled together, and it fails at its actual job if craving support is ever buried behind a menu.
 
-**Core loop:** open app → see today's status (streak, lifetime days free, money saved) → either nothing, or tap into the 90-second craving ride-out (which logs its own always-positive "cravings survived" counter, separate from streak, so there's still a win to point to right after a relapse), or tap the one-tap relapse/reset that shows the reset and the untouched lifetime stats in the same glance, not a tap-through. Milestones periodically surface the shareable card, plus a "share progress" option available any time.
+**Core loop**: Open app → see today's status (day count + optional savings, framed positively) → either nothing happens (passive win) or tap the always-visible craving button → 90-second guided ride-it-out → land back on "you got through it" with the streak reinforced → periodically get offered a shareable milestone card. Reset is a low-visual-weight escape hatch, not a big red button — and critically, tapping it doesn't produce a dedicated "sorry, you failed" interstitial; it transitions straight into the same home screen state as any other day, just with day count reset to 1 and the lifetime-total stat still visibly present. Making reset boring, not consoling, is the deliberate design choice here — a warm message on its own dead-end screen still reads as a consequence screen no matter the copy.
 
-**New scope decisions that came out of this round (nobody contested them):**
-- No backdated relapse logging — timestamp is always "now," to keep streak math simple and avoid a date-picker/recompute rabbit hole.
-- Craving-timer flow has one ending, period — no "did this help?" branching into relapse logging. Keeps the most emotionally loaded screen from tripling its state count.
-- No journaling/notes, no photos, no customizable reminder schedules, no "why did you crave" prompts — this is a tracker and a timer, not a diary.
-- Flat navigation: home/today, history/milestones, settings. Craving timer and relapse logging are full-screen modals off home, not tabs — tab bar stays at 3 items even for paid multi-habit users.
-- Free-tier users with one habit shouldn't see any multi-habit chrome (switcher, grayed "add habit" button) at all — that UI only renders once a second habit exists. This is an IA decision to bake in now, not something to retrofit behind a paywall flag later.
+**Hard scope boundaries**: No LLM chat coaching (craving flow is fixed, pre-scripted content — this is a feature, not a limitation, since it means the tone can be tested and locked, not generated live). No Screen Time/DeviceActivity auto-tracking. No cloud sync or account system in v1. No social feed or community layer — sharing is outbound-only via ShareLink. No "why did you relapse" journaling/analytics prompt in v1 — genuinely useful but adds an optional-text-entry UX problem mid emotionally-loaded-moment that isn't in the locked build scope; half-building it is worse than skipping it. Free tier is architecturally one habit, paid tier is many — but the data layer and navigation stack must support N habits from day one, with the free UI simply not exposing a switcher, so upgrading later is unlocking latent capability rather than a rewrite.
 
-**Hard scope boundaries:** local-first SwiftData for N habits/relapse events/craving sessions, on-device savings math, the five core workflows fully real (setup with quantity+cost, non-punitive one-tap reset, fixed 90-second craving sequence, milestone share, paid multi-habit gating). Widget/Live Activity degrade first under time pressure. No network, no medical framing, no LLM coaching, no community feed, no backend sync, no hidden analytics, no punitive tone, no backdating, no journaling.
-
-**Measurable success criteria:** cold-open to started craving timer in one tap; cold-open to a completed relapse-log with lifetime stats visible in one tap plus at most one confirmation; every other core screen reachable within two taps of home; milestone share card renders cleanly at max Dynamic Type size in both light and dark mode; setup-to-first-streak-state achievable in under 90 seconds.
-
-No open disagreement — this phase is ready to close.
+**Measurable success criteria**:
+1. Zero to a running habit (name + optional cost + streak showing day 1) in under 60 seconds, three or fewer screens.
+2. Craving button reachable and guided flow begins in exactly one tap from home — no intermediate confirmation screen.
+3. A user who taps reset lands on a normal, non-terminal home screen — nothing about it visually reads as a dead end or scoreboard-wipe (direct test of the prompt_contract invalidation criteria).
+4. Every savings-displaying surface (home, milestone card, widget) has a verified, intentional non-broken state when cost is left nil at setup — no bare $0.00, no blank hole.
 
 ## Per App Product Brief
 
 CONSENSUS: YES
 
+Codex is still on cooldown, so this is a single-voice round again — but it's a tight, decisive pass that hits every required element from the phase playbook (target user, paid value, core loop, competitive wedge, growth angle, local-first/cloud-ready plan) and it builds directly on top of everything already locked in prompt_contract, product_research, and initial_discussion without contradicting any of it. The one new substantive addition this round is on monetization: paid tier shouldn't just be "more habits," it should be functionally richer craving support (multiple guided-flow variants, not one script reused) so the subscription actually sells something beyond a habit-count tax — that's a real, checkable requirement, not just restating the spec. No open disagreement to hash out, so calling it here.
+
 ## Final Output
 
-Both Codex and Claude wrote essentially the same brief from different angles and nothing here is in conflict — Codex laid out the product vision, Claude stress-tested it for gaps, and everything Claude added sharpens rather than contradicts.
+**Target user and use case**: The person mid-craving who's already bounced off single-purpose quit apps because none of them fit everything they're trying to cut out — one install, name the habit, go. The use case that actually drives retention isn't the calm daily check-in, it's the acute moment (couch at 9pm, gas-station parking lot) where they open the app one tap from caving. Hard build constraint: cold-launch-to-craving-timer-running must be under 2 seconds and one tap, verified on a base-model device, not just the simulator.
 
-**Target user and use case:** Someone actively mid-fight with one specific habit right now (cigarettes, vaping, sugar, alcohol, doomscrolling) — not a "reflect on my relationship with X" wellness user. They want exactly two things: a daily number proving they're winning, and a tool for the sixty seconds they're about to lose. If a flow ever asks them to journal or read more than a sentence during a craving, it's failed.
+**Paid value and subscription value**: Free = one habit, streak, milestone card, a basic craving timer. Freeday+ ($4.99/mo or $29.99/yr) = unlimited concurrent habits, the full craving toolkit, and the Lock Screen Live Activity. The toolkit itself needs real breadth to make the subscription functional rather than cosmetic — at least 3–4 distinct guided flows (breathing-paced, distraction-redirect, "text someone," delay-and-reassess), not one script gated only by habit count. A single reused script tests "do you have two bad habits," not "would you pay for better support" — that's the wrong test to build toward.
 
-**Paid value / subscription value — the one real addition this round:** Free tier gets one habit, streak/lifetime tracking, milestone cards, and **one solid guided craving sequence**. Freeday+ ($4.99/mo, $29.99/yr) unlocks unlimited concurrent habits, the Lock Screen Live Activity, and — this is the concrete build requirement that came out of this round — **2-3 interchangeable guided craving-timer variants** (e.g. breathing-paced, distraction/counting, body-scan), so "full craving-support toolkit" is an actual toolkit and not just a relabeled multi-habit gate. Everyone agreed this needs to be locked now as a build requirement, not left to design to improvise.
+**Core loop**: Launch → home shows day count + savings-if-set (accumulation framing, not scoreboard) → craving button is the dominant tap target → guided flow runs standalone, zero network, zero dependency on Live Activity/widget landing → completion reinforces the streak with no new UI → reset is a small, unshamed affordance that immediately renders the exact same home screen shape (day count at 1, lifetime-total still visible), no interstitial, no "that's okay!" screen. QA gate before ship: log a reset, screenshot one second later — it must be visually indistinguishable from a normal daily-open screenshot except the number.
 
-**Core loop:** open → today's card (streak, lifetime days free, money saved, cravings-survived count) → nothing, or one-tap craving timer, or one-tap non-punitive relapse/reset. New rule nailed down this round: only a full 90-second completion increments "cravings survived" — an abandoned session (call interrupted, phone dies) writes nothing, no partial credit and no penalty, so nobody building the timer has to invent that behavior on the spot.
+**Competitive wedge**: Not "we're generic" (Quit That! and I Am Sober already are). The wedge is craft plus one real structural difference — a genuinely native, multi-modal craving companion (Live Activity as the actual point of difference, since neither major competitor has a real lock-screen presence) and a milestone card designed to be the best-looking artifact in the category, since that card is the only thing that leaves the app and markets it for free.
 
-**Competitive wedge:** one flexible engine across habits vs. every competitor being single-substance, plus a non-shaming reset most competitors get wrong. Both agents flagged this wedge as fragile — it lives entirely in relapse-flow execution quality, not the pitch, so that screen gets the highest scrutiny in build and review.
+**Viral/growth angle**: The milestone card via ShareLink, tuned for "I need to brag about this" — big number, dollar amount, clean enough to screenshot even unshared. Concrete constraint: the card must render and be shareable at day 1, not just at day 7/30/100 milestones — otherwise every user who churns in week one generates zero viral surface, which is the exact cohort we're least confident about retaining.
 
-**Viral/growth angle:** the milestone share card is the whole engine, no social feed. New decision this round: don't wait for big round-number milestones (7/30/90/365 days) to show a card — include an early, cheap milestone (day 1 or day 3) so brand-new users see the shareable artifact almost immediately, since most churn happens before day 7. Also locked in: a visible, tappable "how we calculate this" affordance near the savings number, since a silently-computed number that a user distrusts erodes the app's core hook with no natural correction moment (unlike a streak day, which self-corrects at midnight).
+**Local-first and cloud-ready plan**: SwiftData is the sole source of truth for v1 — every number on every surface (home, widget, Live Activity, milestone card) must be derivable from local data in airplane mode from first launch, tested literally, not just described. Cloud-readiness means routing all persistence through a small repository/service layer now rather than scattering SwiftData queries through views, so a CloudKit container can be swapped in later without touching business logic or view code — worth the extra structure now given how expensive it'd be to retrofit later.
 
-**Local-first / cloud-ready plan:** everything (habit config, event log, craving sessions, savings computation) lives in SwiftData, zero network calls in v1. Repository/store boundary is written so a CloudKit-backed implementation of the same protocol can swap in later without touching view/view-model code — an architecture discipline decision for this build, not a deferred promise.
-
-No open disagreement — Claude's additions (craving-toolkit variety requirement, abandoned-session rule, early milestone timing, visible savings-formula affordance) are concrete tightenings that Codex's framing already implied but hadn't nailed down. Ready to close.
+**Standing non-negotiable carried into build**: the whole bet of this product is avoiding the invalidation criteria. A two-step reset confirmation or any shame-adjacent empty state is a shipped failure, full stop — this needs to be a literal pass/fail gate at review time, not a hoped-for design intention.
 
 ## Next Steps Small
 
-Both agents landed on essentially the same shape and Claude's round-1 pushback was more of a "make sure we polish this, not shrink it" reframe than an actual disagreement — Codex proposed a specific minimal loop, Claude accepted its bones but argued to keep the milestone share card and backgrounding-safe timer inside the slice rather than treating them as trimmable. Nobody contested the cut list in substance, just the emphasis on why the card matters.
-
 CONSENSUS: YES
+
+Only one voice this round (Codex still on cooldown), but it's a complete, decisive pass that satisfies the phase's required output shape (MVP slice, must-haves, cut list, validation criteria) and builds cleanly on everything locked in the four prior phases — no contradictions, nothing left to contest. The one real judgment call made this round: whether the milestone card belongs in the "smallest slice" or can be deferred. The Visionary argued it must be in, since a version without a shareable artifact doesn't actually test the thing this whole portfolio is betting on (viral, mass-market shareability), even though that makes the slice slightly bigger than a pure-minimalist cut would be. That's a reasoned trade-off, explicitly named as such rather than snuck in, and it doesn't conflict with anything the earlier phases decided — if anything it operationalizes what per_app_product_brief already flagged (the card must work at day 1, not just at big milestones). Calling consensus here rather than spinning a second round to re-litigate a well-argued, self-aware trade-off.
 
 ## Final Output
 
-**MVP slice:** One complete emotional loop, not a feature checklist. A fresh install can: create one habit (name, quantity-per-day, cost-per-unit) → see the today screen (streak, lifetime days free, money saved, cravings-survived) → run the one default 90-second craving timer (wall-clock-anchored so it survives backgrounding, only a full completion increments the counter) → trigger the one-tap relapse/reset that shows the reset and the untouched lifetime stat in the same screen → reach an early milestone (day 1 or day 3) that renders a real ShareLink milestone card. That's the whole arc of the product compressed into one sitting, and it's the thing that has to feel good before anything else gets built.
+**MVP slice**: A single, complete emotional loop — first launch → name a habit (cost-per-use optional/skippable) → home screen shows day count starting at 1 with a dominant, always-visible craving button → tap it → one real, fully-scripted, well-produced guided ride-it-out flow runs start to finish (not four thin variants — one polished flow) → completion reinforces the streak with no new screen → a low-visual-weight reset affordance exists, and tapping it renders the exact same home screen shape at day 1 with the lifetime-total stat still visible, no interstitial, no consolation screen → a shareable milestone card renders and opens a real share sheet, working correctly on day 1 even when cost was left unset.
 
-**Must-have interactions:**
-- Habit creation/edit capturing quantity-per-day + cost-per-unit, with the recompute rule (forward-only from edit time) visibly enforced, not silently applied.
-- Today screen with real empty/loading/success/error states.
-- Streak computed fresh from stored event timestamps using local-timezone calendar days — never a cached counter.
-- Craving timer anchored to a stored start timestamp, resumable correctly after backgrounding; only full completion counts, abandoned sessions write nothing.
-- Relapse/reset as one tap, with the reset confirmation and lifetime-stat reassurance rendered in the same screen, not a tap-through.
-- Milestone share card firing early (day 1 or 3), rendering cleanly via ShareLink at max Dynamic Type in both light and dark mode.
-- A basic StoreKit boundary that blocks a second habit and can unlock via subscribe/restore — but its only job this slice is gating habit #2, not the full toolkit behind it.
-- Free-tier boundary visible before a user invests effort setting up a habit they can't have.
+**Must-have interactions**:
+1. Habit setup: name + optional cost-per-use, skippable, under a minute, three screens or fewer.
+2. Home screen: day count + optional savings (accumulation framing), craving button as the dominant tap target.
+3. Craving-timer guided flow: one real polished script, runs standalone, zero network dependency, completes back to the reinforced streak view.
+4. Reset: one tap, no confirm dialog, transitions straight into a normal-looking home screen at day 1 with lifetime-total visible — this is the single interaction worth hand-testing pixel-by-pixel before touching anything else, since the whole invalidation criteria hangs on it.
+5. Milestone card + ShareLink: renders and shares correctly at day 1, including when cost is unset (no $0.00, no blank hole).
 
-**Cut list (explicit, not implicit):** multi-habit switcher/management UI beyond the single paywall gate check, the 2-3 interchangeable craving-timer content variants (ship one default sequence only), Live Activity, WidgetKit, daily reminder notifications, history/calendar detail screens beyond what substantiates the milestone card, settings beyond habit-edit and restore purchases, community/social features, backdating, journaling. These are real v1 scope per the contract, but this phase proves the loop first — consistent with the standing rule that Live Activity/widget degrade before core workflows.
+**Cut list** (deferred, not abandoned): multi-habit management/switcher UI (architecture stays N-habit-ready per earlier phases, free UI only ever shows one); WidgetKit; Live Activity; the StoreKit paywall itself (code structured so gating slots in later without a rewire); three of the four promised guided-flow variants (ship one real one, not four stubs); any settings beyond editing/deleting the one habit — no export, theming, or notification preferences yet.
 
-**Validation criteria:**
-1. Fresh install → tapping only the core loop → a rendered milestone share card in under two minutes.
-2. Relapse screen passes the non-shaming checklist on sight: no red/warning color, no "streak broken" language, lifetime stat visible without a second tap.
-3. Craving timer survives being backgrounded mid-session and resumes with correct remaining time.
-4. Streak is never negative and never erases lifetime history; savings value matches the stated forward-only formula after a cost/frequency edit.
-5. Milestone share card renders without clipping at max Dynamic Type size, in both light and dark mode.
+**Validation criteria** (all human-clickable, no analytics needed):
+1. Fresh install → running streak at day 1 in under a minute.
+2. Craving button is one tap from home; the guided flow runs start to finish with real content, not a placeholder timer.
+3. A screenshot taken one second after tapping reset is visually indistinguishable from a normal day-one screenshot except the number — direct test of the invalidation criteria.
+4. The milestone card renders and opens a real share sheet on day 1, using a habit with no cost set, proving the optional-cost path never produces a broken or blank card.
 
-If all five hold, the concept is proven for real — even though multi-habit UI, extra craving variants, Live Activity, and widget don't exist yet in this slice.
+If all four hold up under a real click-through, the concept is proven; widget, Live Activity, multi-habit, and paywall are additive from here.
 
 ## Detailed Discussion
 
-Both of them are pulling in the same direction — Codex laid out the full resolved-requirements picture (multi-habit schema from day one, one-tap relapse/timer, streak-from-timestamps math, forward-only savings recompute, StoreKit as the one paywall unlock), and Claude's contribution is entirely additive: naming specific unresolved edge cases that Codex's brief didn't cover and proposing concrete resolutions for each rather than disputing anything already locked. Nothing here is contested — it's the same "sharpen, don't argue" pattern as every prior phase in this app's history.
-
 CONSENSUS: YES
+
+Only one voice showed up this round too (Codex still on cooldown), but the Skeptic pass earned its keep — it didn't just restate prior phases, it closed out several things that had been left as vague intentions across four rounds: the cost-per-use/frequency math gap, the exact day-1 convention, the undo-window mechanics, the craving-timer's abandoned-session handling, the downgrade-which-habit-shows question, and widget/Live Activity staleness on reset. None of it contradicts anything locked in prompt_contract, product_research, initial_discussion, per_app_product_brief, or next_steps_small — it's the detailed-discussion phase doing exactly its job of turning "we'll figure that out later" into a concrete, buildable rule. Nothing here is contested; it's all additive resolution. Calling consensus rather than spinning a redundant round.
 
 ## Final Output
 
-**Resolved requirements** (carrying forward and finalizing everything locked in prior phases, plus this round's new decisions):
-- SwiftData supports N habits from day one; free tier UI/entitlement blocks habit #2 creation before setup effort is invested, not after.
-- Habit setup requires name + quantity-per-day + cost-per-unit; no backdated relapse logging; relapse is one tap, timestamped "now," resets only the current streak, never touches lifetime totals — reset confirmation and lifetime-stat reassurance render in the same screen.
-- Streak = full clean calendar days since last relapse timestamp, computed fresh on every read in the device's current local timezone — never a cached counter.
-- Craving timer is wall-clock-anchored (stored start time, not a naive `Timer`); only a full 90-second completion increments "cravings survived"; abandoned sessions write nothing.
-- **New this round — force-quit recovery, decided:** on relaunch, if a stored session's start-time + 90s has already elapsed, treat it as abandoned (no retroactive auto-credit); if not yet elapsed, resume the countdown from the stored timestamp without replaying content from the start.
-- **New — habit deletion, previously unaddressed:** allowed, one confirmation step, cascades to delete that habit's craving sessions and relapse events too. No orphaned rows, no "recover a deleted habit" feature in v1.
-- **New — subscription expiration behavior, previously unaddressed:** data for every habit is preserved forever; on lapse, only one habit (most recently active) stays interactive, others go read-only until resubscribed. Never deleted, never silently reset — this is a hard trust rule, not a paywall-copy nuance.
-- StoreKit 2: unverified transactions (`checkVerified` failure) hard-block entitlement, never soft-warn; `Transaction.updates` listened to from app launch; real "Restore Purchases" affordance in settings (App Review requirement).
-- Milestone card fires early (day 1 or 3); **new** — needs an explicit "already shown this threshold" flag per habit so it doesn't retrigger every app open past that day, since streak is recomputed fresh rather than event-driven.
-- Forward-only savings recompute on cost/frequency edits, visibly enforced with a "how we calculate this" affordance.
-- Every reachable screen (Home, setup, paywall, timer, relapse, milestone) implements empty/loading/success/error states; **new** — the app also needs an app-level store-load-failure state (corrupt store, disk full, migration failure), since that failure happens before any screen exists to host a per-screen error.
+**Resolved requirements**
+1. **Savings math needs two inputs, not one.** Habit setup asks for cost-per-use AND typical uses-per-day as a linked optional pair. If either is left blank, the app shows a streak-only card — no savings figure, never a guessed frequency. This prevents a confidently-wrong number (e.g. assuming "once per day" and understating a pack-a-day smoker's savings by ~20x).
+2. **Day-1 convention, fixed:** the day you finish setup is day 1 (same-day framing), and the count increments at the next local-midnight rollover. Reset follows the identical rule — tapping reset makes *today* day 1 again, never day 0 counting up.
+3. **Craving timer uses monotonic elapsed time**, not wall-clock `Date` math, so DST shifts or manual clock changes can't instantly complete or hang the timer. Craving sessions get a real state (started/completed/abandoned) rather than only ever writing "completed," so an interrupted session (call, backgrounding, force-quit) doesn't lie in the data or leave a stuck 0:00 timer on relaunch.
+4. **Undo window on reset, pinned to a number:** a 5-second "Day 1 · Undo" snackbar. Nothing is committed to SwiftData (no relapse event, no lifetime-total mutation) until the window closes — tapping Undo means nothing was ever persisted, avoiding write-then-delete inconsistency. VoiceOver's announcement on reset says "Day 1," not "streak reset," so accessibility users don't get shame-coded language the visual design deliberately avoids.
+5. **Freeday+ downgrade with multiple habits:** free UI shows whichever habit was most recently interacted with; the rest stay fully intact in storage and reappear instantly on resubscribe. No picker UI in v1 — not worth new screens for a small lapsed-subscriber edge case.
+6. **Widget/Live Activity must reflect a reset immediately** — `WidgetCenter.shared.reloadAllTimelines()` fires synchronously with the reset write; a stale "Day 47" widget after reset is worse than no widget, since it visibly contradicts the whole non-punitive design goal.
+7. **Live Activity starts defensively:** check `ActivityAuthorizationInfo().areActivitiesEnabled` before every `Activity.request` (not just at first launch, since users can disable it later in Settings), and a failed start must not visibly break the standalone in-app timer.
+8. **Currency is locale-derived** (`NumberFormatter` with `.currency` style + device locale), not a hardcoded `$`.
+9. **Sanity ceiling on cost-per-use input** (e.g., reject/double-confirm above ~$500) to stop a fat-fingered decimal producing an absurd, embarrassing milestone-card number.
+10. **"Text someone" guided-flow variant** is scoped narrowly: opens the system Messages composer to a user-picked contact. No built-in crisis-line numbers, no hotline integration, no "are you in danger" branching — that would sharpen the health-claims risk this app is explicitly staying away from.
 
-**Edge cases enumerated:** first launch with zero habits; force-quit mid-timer (resolved above); app backgrounded/foregrounded across midnight or a timezone change; relapse and day-boundary rollover in the same session; editing habit economics after days have accrued; free user attempting habit #2; zero/negative/decimal cost values; devices without haptic support; VoiceOver + max Dynamic Type on the milestone card and the sunrise/counter motif specifically (needs an accessible label stating the actual number, not just a decorative glyph); stale entitlement after restore/cancel/reinstall; duplicate/overlapping timer sessions; subscription lapse with 2+ habits active (resolved above); habit deletion (resolved above); SwiftData store failure at launch (resolved above).
+**Edge cases**
+- Setup completed seconds before local midnight (day count must still read "Day 1," not flip to 2 within minutes).
+- Craving session interrupted by a phone call, app backgrounding under memory pressure, or force-quit mid-flow.
+- Reset tapped, then Undo tapped within the 5-second window.
+- Freeday+ subscriber with 3 active habits downgrades to free, then later resubscribes.
+- Cost-per-use entered without uses-per-day (or vice versa) — must degrade to streak-only, not a broken number.
+- Live Activity disabled by the user mid-way through app usage, then a craving session is started.
+- Non-US locale currency formatting.
 
-**Data and privacy implications:** fully local, SwiftData-only, zero telemetry/analytics/crash reporting, zero network calls except StoreKit itself. Named and accepted as an explicit v1 exclusion (not an oversight): no Face ID/passcode app-lock, even though habit/relapse/craving data is sensitive personal information that could be seen by anyone who picks up the device. No export/secondary persistence beyond an opt-in export path. No notification/HealthKit/calendar permissions requested in this slice — if reminders get added later, permission-denied gets its own first-class state like any other reachable state.
+**Data and privacy implications**
+- All data stays local/on-device with zero network dependency (already locked); the residual privacy risk is physical device access, not exfiltration, since a habit like "quitting drinking" sitting visible in an unlocked phone is a real, foreseeable concern.
+- App-lock/Face ID gating is explicitly named as a known limitation for this version rather than silently absent — new scope this late isn't being snuck in, but the gap shouldn't go unstated either.
+- A one-line non-medical disclaimer belongs in an About/Settings screen (not a dismiss-me modal), giving prompt_contract's "personal tracking tool, not medical advice" requirement an actual concrete home instead of just being a copywriting guideline that could get missed screen by screen.
 
-**Risk register:**
-1. Timezone travel can jump the streak count forward or backward by a day with no relapse involved — accepted as a **named limitation** of the already-locked "local timezone, recomputed fresh" streak rule, not a bug to silently fix later.
-2. Retention without a social/community layer is unproven — mitigation is making the two critical moments (one-tap rescue, non-shaming relapse) unquestionably good, since that's the only lever left.
-3. Savings-math trust erosion if the formula ever feels invented — mitigated by the visible recompute rule and "how we calculate this" affordance.
-4. Relapse-flow execution quality is the entire competitive wedge — any regression here breaks the pitch, not just the screen.
-5. Milestone re-triggering without an idempotency flag would spam the share prompt — mitigated by the per-habit "already shown" flag decided this round.
-6. Subscription-lapse data loss would break the "we never erase your history" promise — mitigated by the read-only-not-deleted rule decided this round.
+**Risk register**
+- *Wrong savings math from an unspecified frequency model* → mitigated by requiring the linked cost/frequency pair, defaulting to streak-only when incomplete.
+- *Wall-clock-based craving timer breaking under DST/clock changes* → mitigated by monotonic elapsed-time measurement.
+- *Fat-fingered reset with no recovery* → mitigated by the 5-second uncommitted undo window.
+- *Stale widget/Live Activity contradicting a reset* → mitigated by synchronous timeline reload tied to the reset write.
+- *Silent Live Activity failure breaking perceived reliability* → mitigated by authorization check before every request and a standalone in-app timer that never depends on it.
+- *Crisis-adjacent scope creep in the "text someone" flow sharpening health-claims exposure* → mitigated by scoping it to a bare system contact/Messages composer, nothing more.
+- *Device-access privacy exposure for sensitive habit data* → named as a known v1 limitation, not solved this round.
 
-**Final assumptions:** local device timezone is the sole source of truth for calendar-day streak math; a "day" is a full clean calendar day, not a wall-duration window; cost-per-unit/quantity-per-day are user-estimated, not verified figures; local-only storage is acceptable for v1 launch with no app-lock; paid craving-sequence variants can be staged as a fast-follow within the same build batch without an architecture rewrite.
-
-No open disagreement — ready to close this phase.
+**Final assumptions**
+- Cost-per-use and uses-per-day are collected as a linked optional pair at setup; savings are never shown from a guessed frequency.
+- Day 1 = day of setup or day of reset, incrementing at local midnight.
+- Reset has a 5-second undo window with deferred persistence (nothing written until it expires).
+- Downgrade-to-free habit selection uses "most recently interacted with," no picker UI.
+- App-lock/biometric gating and crisis-hotline integration are out of scope for this version, stated as explicit limitations rather than silent gaps.
 
 ## App Features
 
+Only one voice again this round (Codex still on cooldown), but this pass did real work rather than just re-stating the locked slice — it made an explicit, reasoned call to escalate the StoreKit paywall from next_steps_small's "cut list" back into this phase's must-have list, since prompt_contract had already named it a hard requirement and this phase's job (final feature scope) is a different bar than the earlier "smallest validation slice" phase. It also surfaced a real, honest gap rather than quietly papering over it: shipping only one guided-flow variant means the paywall would have nothing functionally real to gate on the craving-support side, which per_app_product_brief already flagged as the wrong test to build toward. Nothing here contradicts any prior phase — it's the "prioritize ruthlessly" job the phase playbook actually asks for, done with acceptance criteria attached to every item. There's no live disagreement to hash out, so I'm calling consensus rather than spinning a redundant round.
+
 CONSENSUS: YES
 
 ## Final Output
 
-Codex and Claude both drew the line in the same place — the five core workflows plus the infrastructure that keeps them honest are Must, everything else is Should/Could, and the explicit Won't-list from earlier phases carries forward untouched. Claude's round added real value by converting Codex's acceptance criteria from feature descriptions into actual test cases (screenshots, specific timings, specific store queries) — that's a sharpening, not a disagreement. Nobody contested the MoSCoW placement of anything.
+**Must-have features** (each with acceptance criteria):
 
-### Must-have features (with acceptance criteria)
+1. **Habit setup** — name + linked optional cost-per-use/uses-per-day pair, skippable together, three screens or fewer, under a minute. *Acceptance:* create a habit with no cost entered; confirm no screen anywhere shows $0.00 or a blank hole — a streak-only card renders instead.
+2. **Home/streak screen** — day count + optional savings (accumulation framing), dominant always-visible craving button; data layer supports N habits even though free UI renders one. *Acceptance:* force-quit and relaunch — streak/savings survive intact; SwiftData model has no hardcoded single-habit assumption.
+3. **Non-punitive reset with 5-second undo** — deferred persistence, no confirm dialog. *Acceptance:* screenshot one second after reset is pixel-indistinguishable from a normal day-one screenshot except the number; tap reset then Undo within the window and confirm zero rows written to the event table.
+4. **Craving-timer guided flow** — one fully-scripted flow, monotonic elapsed time, real session state (started/completed/abandoned). *Acceptance:* force-background mid-session and relaunch — no crash, no frozen 0:00, session logs "abandoned" rather than lying.
+5. **Milestone card + ShareLink** — renders and shares correctly on day 1 even with cost skipped. *Acceptance:* fresh no-cost habit, tap share on day 1, real share sheet opens with a rendered card.
+6. **StoreKit paywall** — escalated from next_steps_small's deferred list back to must-have, because prompt_contract already named it a hard, non-optional requirement and this phase governs final ship scope, not the smallest validation slice. Gates adding habit #2+; real `.storekit` config, no hardcoded bypass; downgrade never deletes existing habit data. *Acceptance:* a real `.storekit` file exists in the project; a free user hitting habit #2 sees a genuine gate; downgrading a 3-habit Freeday+ user to free preserves all 3 habits in storage.
+7. **About/Settings screen with the one-line non-medical disclaimer** — folded into must-have (it's cheap and the screen likely exists anyway for habit edit/delete). *Acceptance:* disclaimer text is visible without a dismiss-me modal.
 
-1. **Habit setup** (name, quantity-per-day, cost-per-unit)
-   - Zero/negative/invalid cost or quantity rejected inline at entry, never silently accepted.
-   - Editing cost/frequency after days have accrued visibly shows the forward-only recompute rule at the moment of edit; historical savings before the edit point do not change.
-   - Habit deletion (one confirmation) cascades to delete that habit's relapse events and craving sessions — verified by no orphaned rows, not just UI disappearance.
+**Should-have** (attempt, simplify if needed, never ship half-wired or crashing):
+- WidgetKit (streak + savings), reset-synchronized via `reloadAllTimelines()`.
+- Live Activity for craving sessions, with defensive authorization checks.
+- A second guided-flow variant (breathing-paced recommended — cheapest to build well, no contact picker/MessageUI needed) so the paywall gates something functionally real on the craving-support side, not just habit count. Explicitly flagged: if this doesn't make it in, the "full craving toolkit" promise is a stated v1.1 gap in review, not faked with stub content.
 
-2. **Today/Home screen** (streak, lifetime days free, money saved, cravings-survived)
-   - Four explicit states: zero habits (empty), SwiftData still loading on cold launch, steady-state success, and app-level store-open failure (corrupt store/disk full/migration failure) — the last one written down as its own numbered state, not assumed to be "some screen's problem."
-   - Free tier: no multi-habit chrome renders with exactly one habit.
+**Could-have:**
+- Additional guided-flow variants beyond the second.
+- Habit switcher UI for paid multi-habit users (gating logic is must-have; a polished switcher isn't — a plain list push suffices).
+- Extra non-US currency spot-checks beyond the already-correct locale-derived formatter.
 
-3. **Non-punitive relapse/reset (one tap)**
-   - The very next frame after tapping reset shows both "streak reset to day 0" and the untouched lifetime total in the same view — no red, no "broken" language, no second navigation to find the reassurance. Screenshot-testable in five seconds.
+**Won't-build** (unchanged from earlier phases): LLM chat coaching, Screen Time/DeviceActivity auto-detection, cloud sync/accounts, social/community feed, relapse-reason journaling, built-in crisis hotline integration, app-lock/biometric gating (named limitation, not a silent gap), data export/import, habit-type-specific sub-schemas.
 
-4. **Craving-timer rescue flow (90s, wall-clock anchored)**
-   - Force-quit mid-session, relaunch: if stored start + 90s already elapsed → treated as abandoned, no retroactive credit; if not yet elapsed → resumes countdown from stored timestamp, doesn't replay content from the start.
-   - Backgrounded mid-session and returned: remaining time computed from stored start timestamp, not a suspended/paused counter. Concrete test: background at second 40, wait 2 real minutes, foreground → reads zero remaining, completion already fired.
-   - Only a full 90-second completion increments "cravings survived"; abandoned sessions write nothing.
-
-5. **Milestone recap card + ShareLink** (fires early, day 1 or day 3)
-   - Renders without clipping the dollar figure or day count at max Dynamic Type, in both light and dark mode.
-   - Per-habit "already shown this threshold" flag: opening the app 5 times after crossing day 3 fires the milestone prompt exactly once.
-
-6. **StoreKit 2 entitlement gating habit #2** (real, not a toggle)
-   - Attempting habit #2 as free tier shows the paywall before any setup fields are shown.
-   - Unverified transaction (`checkVerified` failure) hard-blocks entitlement, never partially grants.
-   - Restore Purchases is reachable from settings and actually re-scans entitlements via `Transaction.currentEntitlements`, not a cached flag.
-
-7. **App-level and per-screen state coverage**
-   - Every reachable screen (Home, setup, paywall, timer, relapse, milestone) implements empty/loading/success/error states.
-   - Accessibility baseline: 44pt targets, VoiceOver labels stating actual numbers on the sunrise/counter motif and milestone card, WCAG AA contrast.
-
-### Should-have (real value, build survives without it this pass — cut must be reported, not silent)
-- Second/third craving-timer content variant beyond the one default sequence.
-- Live Activity and WidgetKit (standing degrade-first rule).
-- Multi-habit switcher UI for paid users past habit #2, and subscription-lapse read-only degradation (both decided in prior phases, but unreachable in a single-habit QA pass).
-- "How we calculate this" savings-formula affordance.
-
-### Could-have
-- Daily reminder notification (with its own permission-denied state if built).
-- Settings beyond habit-edit and restore-purchases.
-- History/calendar screen beyond what substantiates the milestone card.
-- Haptic customization, alternate app icons.
-
-### Won't-build (restated so it doesn't get reopened mid-build)
-- Backdated relapse logging, "did this help?" branching inside the craving timer, journaling/notes, photo attachments.
-- Community/social feed, CloudKit sync, LLM-based coaching.
-- Face ID/passcode app-lock, analytics/telemetry/crash reporting.
-- Customizable reminder schedules, clinical/medical framing, punitive streak-shame visuals.
-
-No open disagreement — this phase is ready to close.
+**Process note carried into build:** streak/milestone logic can't be verified by manually waiting out real calendar days during the build cycle — the repository layer needs an injectable date provider (internal only, not a user-facing debug menu) so day-31/milestone paths are actually testable before ship. Without this seam, several of the acceptance criteria above aren't verifiable in the time available.
