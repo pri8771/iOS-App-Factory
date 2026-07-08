@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "SpendEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class SpendEntry { var id: UUID; var amount: Decimal; var category: Category?; var loggedDate: Date; var weekOfYear: Int; var weekYear: Int; var note: String?; var receiptPhotoRelativePath: String?; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "No @Attribute(.unique). weekOfYear/weekYear snapshotted at insert via WeekCalculator, never recomputed live. category relationship optional with inverse for CloudKit compatibility."
+    },
+    {
+      "name": "Category",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Category { var id: UUID; var name: String; var glyphName: String; var sortOrder: Int; var isCustom: Bool; var createdAt: Date; @Relationship(inverse: \\SpendEntry.category) var entries: [SpendEntry]? }",
+      "owning_lane": "data_domain",
+      "notes": "Free tier ships ~9 fixed non-custom categories seeded on first launch."
+    },
+    {
+      "name": "WeeklyTarget",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class WeeklyTarget { var id: UUID; var category: Category?; var amountLimit: Decimal; var isActive: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Visual-only, no notification scheduling anywhere in the type or its consumers."
+    },
+    {
+      "name": "SpendRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SpendRepository { func fetchEntries(weekStart: Date) async throws -> [SpendEntry]; func fetchEntries(categoryID: UUID) async throws -> [SpendEntry]; func addEntry(amount: Decimal, categoryID: UUID, date: Date, receiptPhotoPath: String?) async throws -> SpendEntry; func updateEntry(id: UUID, amount: Decimal, categoryID: UUID) async throws; func deleteEntry(id: UUID) async throws; func fetchCategories() async throws -> [Category]; func addCategory(name: String, glyphName: String) async throws -> Category; func recapData(weekStart: Date) async throws -> RecapCardData; func importCSV(data: Data) async throws -> CSVImportResult; func exportCSV() async throws -> Data }",
+      "owning_lane": "data_domain",
+      "notes": "The whole future-CloudKit/bank-import promise depends on every View/App-Intent call site going through this protocol, never ModelContext directly."
+    },
+    {
+      "name": "SwiftDataSpendRepository",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class SwiftDataSpendRepository: SpendRepository { init(modelContainer: ModelContainer) }",
+      "owning_lane": "data_domain",
+      "notes": "Only concrete implementation in v1. CSV dedupe is an application-level Set<UUID> check against fetched entries, never a DB uniqueness constraint."
+    },
+    {
+      "name": "RecapCardData",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecapCardData: Equatable, Codable { let weekStart: Date; let weekEnd: Date; let totalAmount: Decimal; let entryCount: Int; let categoryBreakdown: [CategoryTotal]; let weatherReading: WeatherReading; let generatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Plain value type only, zero @Query/@Environment dependency, so it can feed both the on-screen Recap view and the ImageRenderer export identically."
+    },
+    {
+      "name": "CategoryTotal",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CategoryTotal: Equatable, Codable { let categoryID: UUID; let categoryName: String; let glyphName: String; let amount: Decimal }",
+      "owning_lane": "data_domain",
+      "notes": "Element type inside RecapCardData.categoryBreakdown."
+    },
+    {
+      "name": "WeatherReading",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum WeatherReading: Equatable, Codable { case notEnoughData; case insufficientHistory(totalAmount: Decimal, entryCount: Int); case sunny(totalAmount: Decimal); case cloudy(totalAmount: Decimal); case stormy(totalAmount: Decimal) }",
+      "owning_lane": "data_domain",
+      "notes": "notEnoughData when entryCount < 3 regardless of amount. insufficientHistory when entryCount >= 3 but fewer than 2 comparable prior weeks exist to baseline against \u2014 shows total only, no relative claim."
+    },
+    {
+      "name": "WidgetState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum WidgetState { case uninitialized; case empty(weekStart: Date); case data(RecapCardData) }",
+      "owning_lane": "data_domain",
+      "notes": "TimelineProvider must switch exhaustively over this; .uninitialized only reachable via a thrown/caught store-open error, never a fallback from try?."
+    },
+    {
+      "name": "WeekCalculator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum WeekCalculator { static func weekBounds(containing date: Date, calendar: Calendar) -> (start: Date, end: Date); static func weekOfYear(for date: Date, calendar: Calendar) -> (week: Int, year: Int) }",
+      "owning_lane": "services_utilities",
+      "notes": "Must respect calendar.firstWeekday (locale-aware), not hardcode Sunday/Monday. Pure function, unit-tested across locales."
+    },
+    {
+      "name": "WeatherAlgorithm",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum WeatherAlgorithm { static func reading(for currentWeek: (totalAmount: Decimal, entryCount: Int), priorWeeks: [RecapCardData]) -> WeatherReading }",
+      "owning_lane": "services_utilities",
+      "notes": "Baseline is trailing average of prior logged weeks, not a fixed dollar threshold. Degrades to .insufficientHistory below 2 comparable prior weeks."
+    },
+    {
+      "name": "CSVService",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum CSVService { static func parse(data: Data) -> Result<CSVParseResult, CSVImportError>; static func serialize(entries: [SpendEntry], categories: [Category]) -> Data }",
+      "owning_lane": "services_utilities",
+      "notes": "Hand-rolled parser, no third-party dependency. Export includes a stable UUID column used for import dedupe."
+    },
+    {
+      "name": "CSVParseResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CSVParseResult { let newEntries: [ParsedCSVEntry]; let duplicateCount: Int; let totalRowCount: Int }",
+      "owning_lane": "polish_resilience",
+      "notes": "Feeds the CSV Import Preview screen's counts UI."
+    },
+    {
+      "name": "ParsedCSVEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ParsedCSVEntry: Identifiable { let id: UUID; let amount: Decimal; let categoryName: String; let date: Date }",
+      "owning_lane": "polish_resilience",
+      "notes": "Row-level parsed record shown in the import preview table before commit."
+    },
+    {
+      "name": "CSVImportError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CSVImportError: Error, LocalizedError { case emptyFile; case missingRequiredColumn(String); case malformedRow(line: Int, reason: String); case unreadableEncoding }",
+      "owning_lane": "polish_resilience",
+      "notes": "Every case must produce a specific human-readable errorDescription, never a generic 'import failed'."
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class EntitlementStore { private(set) var isPlusActive: Bool; func refresh() async; func purchase(_ product: Product) async throws; func restore() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Defaults isPlusActive = false on any unknown/unreachable entitlement state; never blocks UI with a spinner."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Identifiable { case logSheet(prefill: LogPrefill?); case entryDetail(UUID); case categoryDetail(UUID); case paywall(trigger: PaywallTrigger); case csvImportPreview(CSVParseResult) }",
+      "owning_lane": "primary_ui",
+      "notes": "Single router owns this; driven identically by in-app taps, widget deep link URL, and App Intent completion."
+    },
+    {
+      "name": "LogPrefill",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LogPrefill { let amount: Decimal?; let categoryID: UUID? }",
+      "owning_lane": "primary_ui",
+      "notes": "Used when a deep link arrives with partial data pre-filled."
+    },
+    {
+      "name": "PaywallTrigger",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PaywallTrigger { case newCategoryLimit; case widgetConfig; case customTag; case trendCharts }",
+      "owning_lane": "primary_ui",
+      "notes": "Determines paywall copy context; every trigger must resolve to a dismissible sheet with a working Not Now."
+    },
+    {
+      "name": "RecapCardView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecapCardView: View { let data: RecapCardData; init(data: RecapCardData) }",
+      "owning_lane": "primary_ui",
+      "notes": "Plain value-driven View, zero @Query/@Environment access, safe to feed directly into ImageRenderer for both on-screen display and ShareLink export."
+    },
+    {
+      "name": "DayCard",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DayCard: View { enum State { case logged(entries: [SpendEntry]); case noEntry }; let date: Date; let state: State }",
+      "owning_lane": "primary_ui",
+      "notes": "Single component with a state enum, not two views, so the logged-vs-no-entry honesty distinction can't drift out of sync."
+    },
+    {
+      "name": "MoneyText",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MoneyText: View { enum Size { case display, large, small }; let amount: Decimal; let size: Size }",
+      "owning_lane": "primary_ui",
+      "notes": "Only sanctioned way to render a dollar amount; always applies serif token, never used for non-money numbers."
+    },
+    {
+      "name": "LogSpendIntent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LogSpendIntent: AppIntent { static var title: LocalizedStringResource; @Parameter var amount: Double; @Parameter var category: CategoryEntity; func perform() async throws -> some IntentResult }",
+      "owning_lane": "services_utilities",
+      "notes": "Calls SpendRepository.addEntry directly; proves the write path independent of Siri-facing phrasing polish."
+    },
+    {
+      "name": "CategoryEntity",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CategoryEntity: AppEntity { var id: UUID; var name: String; static var typeDisplayRepresentation: TypeDisplayRepresentation; static var defaultQuery: CategoryEntityQuery }",
+      "owning_lane": "services_utilities",
+      "notes": "AppEntity wrapper resolving Category rows for Shortcuts/Siri parameter selection."
+    },
+    {
+      "name": "SpendWidgetProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SpendWidgetProvider: TimelineProvider { func placeholder(in: Context) -> WidgetState; func getSnapshot(in: Context, completion: @escaping (WidgetState) -> Void); func getTimeline(in: Context, completion: @escaping (Timeline<WidgetState>) -> Void) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Store-open wrapped in explicit do/catch; must never let try? collapse .uninitialized into .empty."
+    },
+    {
+      "name": "CSVImportResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CSVImportResult { let importedCount: Int; let skippedDuplicateCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Returned by SpendRepository.importCSV after commit; feeds a post-import confirmation summary."
+    }
+  ],
+  "errors": []
+}

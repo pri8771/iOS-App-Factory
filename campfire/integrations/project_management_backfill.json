@@ -1,31 +1,1491 @@
 {
-  "current_phase": "portfolio_audit",
-  "current_round": 0,
-  "next_agent": null,
-  "prompt_hash": "772b76486ea00444294b4afff3520f5b42c2968dc08fb282245d5b7034ee6664",
-  "completed_phases": [
-    "prompt_contract",
-    "product_research",
-    "portfolio_selection",
-    "initial_discussion",
-    "per_app_product_brief",
-    "next_steps_small",
-    "detailed_discussion",
-    "app_features",
-    "design_discussion",
-    "design_handoff",
-    "ios_architecture_review",
-    "tech_specs",
-    "project_plan",
-    "task_assignments",
-    "implementation_readiness_gate",
-    "build_coordination",
-    "build_verification",
-    "human_qa_checklist",
-    "app_store_readiness",
-    "final_review",
-    "portfolio_audit"
-  ],
+  "schema_version": 1,
+  "project": {
+    "name": "campfire",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: multi-app-exp7\nSelected app slug: campfire\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Campfire\n\nBuild mode: **MVP build**.\nBuild priority: **3**.\n\n## App Name\n\nCampfire\n\n## Category\n\nSocial Party / Icebreaker Game\n\n## One-Sentence Promise\n\nPass one phone around a group and Campfire runs the icebreaker game, tallies the votes, and hands you a shareable results card.\n\n## Target User\n\nGroups of friends, family at a holiday gathering, a first date, new roommates, a work team at happy hour \u2014 anyone in a room together who wants a quick, no-download, no-account party game.\n\n## Painful Moment Solved\n\nAwkward silence at a group hangout, or reaching for a party-game app only to realize everyone needs to download it and make an account before the game can even start.\n\n## Why It Is Different\n\nSingle-device pass-and-play \u2014 zero accounts, zero other installs, zero networking. One person opens it, picks a game mode, and the phone gets passed around; results render into a shareable recap card that acts as its own invite to next time.\n\n## Why Users Would Pay\n\nFree tier includes a rotating set of prompt packs; Campfire+ unlocks all prompt packs (family-friendly, spicy, work-safe, couples), custom prompt creation, and unlimited saved session recap cards.\n\n## Subscription Model\n\nFreemium, $2.99/mo or $19.99/yr \u2014 deliberately cheap as an impulse/occasion purchase.\n\n## Local-First MVP Scope\n\nAll prompt packs and session history stored locally; no accounts or networking needed for the core loop at all.\n\n## Future Backend Roadmap\n\nRepository boundary allows an optional future server-hosted seasonal prompt pack downloader and, later, an opt-in synchronous multi-device mode \u2014 neither required for v1 value.\n\n## AR / Local ML / Local LLM Fit\n\nNone \u2014 intentionally excluded; LLM-generated prompts would break the offline-anywhere promise for no real gain over a well-curated static prompt library.\n\n## Design Direction\n\nHigh-energy saturated party palette \u2014 campfire-orange to hot-pink gradients, bold rounded slab type, oversized tap targets for pass-the-phone play, playful bounce transitions, confetti-style haptic-synced reveals.\n\n## App Store Positioning\n\nThe party game that starts in 5 seconds on one phone \u2014 no downloads for your friends, no account, just pass it around.\n\n## Invalidation Criteria\n\nIf session recap cards get generated but essentially never shared, the viral loop isn't firing and the card design/moment needs rework before anything else.\n\n## v1 Build Scope\n\n3-4 game modes with real curated prompt packs, pass-and-play flow, end-of-session recap card + ShareLink, Campfire+ paywall with StoreKit.\n\n## Core Workflows\n\n- pick a game mode and player count/names\n- run pass-the-phone rounds with prompts\n- tally votes/answers per round\n- generate & share end-of-session recap card\n- browse/unlock prompt packs\n\n## iOS-Native Features\n\n- ShareLink for the recap card\n- haptics tuned per game mode\n- fully on-device, airplane-mode-proof by design\n\n## Key Risks\n\n- Prompt content quality/appropriateness is the entire product \u2014 needs genuinely well-written, tested prompt packs at launch, not placeholder text\n- One-off occasion-based usage makes retention harder than daily-habit apps \u2014 recap-card sharing is the main lever to bring people back\n\n## Claude Design Handoff Prompt\n\nDesign a high-energy party/icebreaker game app called Campfire: saturated campfire-orange to hot-pink gradients, bold rounded slab typography, oversized tap targets for pass-the-phone play, playful spring/bounce transitions, a confetti-style reveal moment at the end of each round, feels like a fun physical party prop, not a utility app.\n\n## Parent Portfolio Prompt\n\nBuild 5 completely separate, production-ready iOS apps at the same time.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app, never bundled together.\n\nPick any 5 categories/concepts \u2014 no fixed assignment. Choose the 5 strongest MASS-MARKET ideas.\n\nTOP PRIORITY \u2014 VIRAL, MASS-MARKET APPEAL (hard requirement):\n- Every app must target a BROAD, mainstream audience. NO niche-community apps (no hobbyist tools, no professional verticals, no special-interest utilities). If your parents, your barista, and a college student wouldn't all instantly get it, it fails.\n- Each app must have a built-in viral loop: something people naturally share, screenshot, send to friends, or compete over (shareable results/cards, streaks, challenges, comparisons, \"send this to a friend\" moments).\n- The concept must be explainable in one sentence and demo-able in 10 seconds.\n- Think the scale of habit trackers, photo tools, social utilities, everyday life tools, casual self-improvement, money, food, sleep, relationships, entertainment \u2014 things with tens of millions of potential users.\n\nSECOND PRIORITY \u2014 DESIGN & UI/UX:\n- World-class, distinctive visual identity per app: deliberate color system, type scale, spacing, iconography, motion language \u2014 not stock SwiftUI defaults.\n- \"Apple Design Award\" caliber polish. Every screen considered: empty, loading, error states, transitions, haptics, spring animations.\n- Dark mode, Dynamic Type, accessibility (VoiceOver, 44pt targets, WCAG AA contrast).\n- Each of the 5 apps must look clearly DIFFERENT from the other four \u2014 five distinct design directions.\n- Documented design system per app (tokens, components, states); built UI must match it.\n\nTHIRD PRIORITY \u2014 COMPLEXITY & DEPTH:\n- Genuinely substantial apps \u2014 interconnected features, real domain data model, non-trivial logic, offline persistence with sync-later architecture, robust settings, import/export, and at least one hard technical capability done well.\n- Depth that rewards daily use \u2014 but never at the expense of instant mass-market clarity.\n\nFOURTH PRIORITY \u2014 MONETIZATION:\n- Clear, sustainable revenue path per app (subscription tiers, IAP, premium) that feels native to the product, never punitive. Free tier hooks users; paid tier is compelling.\n\nGeneral Requirements:\n1. Each app goes from 0 to production-ready.\n2. Each app must be unique, useful, and commercially viable, better than competitors in a meaningful way.\n3. Local-first, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built in this workspace: Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, brinekeeper, chalkline, quietpilot, cistern, thicket, undersong, undertow, heddle, marginalia, skyglass, and the ~50 apps of prior batches (aarti-path, afterglow, backtimer, chapterly, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, flinch, heartline, kitbag, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas, and others).\n- Produce differentiated concepts even if a category overlaps.\n\nBonus points (optional, only when integral): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the five app efforts in parallel; keep phases separate per app.\n- TIME MATTERS on this batch: reach consensus quickly in discussion phases (end phases early on agreement), but never skip the build, and never mark an app done unless a real, compiling Xcode project with full source exists in app_build. An app without a buildable Xcode project is a FAILURE.\n- Save all phase discussions; combine each app's transcript into a .txt at the end.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.\n",
+    "verification": "VERIFIED (compiled cleanly for the iOS Simulator)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "CAMPFIRE",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-PRODUCT",
+        "name": "Product Definition",
+        "phase_keys": [
+          "prompt_contract",
+          "product_research",
+          "portfolio_selection",
+          "initial_discussion",
+          "per_app_product_brief",
+          "next_steps_small",
+          "detailed_discussion",
+          "app_features"
+        ]
+      },
+      {
+        "external_id": "EPIC-DESIGN-ARCH",
+        "name": "Design & Architecture",
+        "phase_keys": [
+          "design_discussion",
+          "design_handoff",
+          "ios_architecture_review",
+          "tech_specs",
+          "project_plan"
+        ]
+      },
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "task_assignments",
+          "implementation_readiness_gate",
+          "build_coordination",
+          "build_verification"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "human_qa_checklist",
+          "app_store_readiness",
+          "final_review",
+          "portfolio_audit"
+        ]
+      }
+    ],
+    "issues": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Xcode project scaffold + domain/model type contract freeze",
+        "description": "Generated from orchestrator task `T-001` for `campfire`.\n\nOwner lane: `data_domain`\nFiles: Campfire.xcodeproj/project.pbxproj, Campfire/Domain/RoundPhase.swift, Campfire/Domain/PlayerRecord.swift, Campfire/Domain/RevealedRoundRecord.swift, Campfire/Domain/RecapOutcome.swift, Campfire/Domain/CampfireError.swift, Campfire/Models/PromptRecord.swift, Campfire/Models/PromptPackRecord.swift, Campfire/DesignSystem/Tokens.swift\n\nAcceptance criteria:\n- Xcode project + app target + CampfireTests target build with an empty scaffold that compiles\n- every type in the tech_specs interfaces-json exists with the exact locked signature\n- Resources/, Features/, Services/, Polish/, DesignSystem/ folder groups exist and are added to the target so later tasks only append file refs, never restructure groups\n- design token baseline (gradient stops, scrim, typography, spacing, motion timings) is present as a compiling file other lanes can import",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Campfire.xcodeproj/project.pbxproj",
+            "Campfire/Domain/RoundPhase.swift",
+            "Campfire/Domain/PlayerRecord.swift",
+            "Campfire/Domain/RevealedRoundRecord.swift",
+            "Campfire/Domain/RecapOutcome.swift",
+            "Campfire/Domain/CampfireError.swift",
+            "Campfire/Models/PromptRecord.swift",
+            "Campfire/Models/PromptPackRecord.swift",
+            "Campfire/DesignSystem/Tokens.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Xcode project + app target + CampfireTests target build with an empty scaffold that compiles",
+            "every type in the tech_specs interfaces-json exists with the exact locked signature",
+            "Resources/, Features/, Services/, Polish/, DesignSystem/ folder groups exist and are added to the target so later tasks only append file refs, never restructure groups",
+            "design token baseline (gradient stops, scrim, typography, spacing, motion timings) is present as a compiling file other lanes can import"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "GameRulesEngine + PlayerSetupValidation + domain tests",
+        "description": "Generated from orchestrator task `T-002` for `campfire`.\n\nOwner lane: `data_domain`\nFiles: Campfire/Domain/GameRulesEngine.swift, Campfire/Domain/PlayerSetupValidation.swift, CampfireTests/GameRulesEngineTests.swift, CampfireTests/RecapDerivationTests.swift\n\nAcceptance criteria:\n- nextActivePlayerIndex and nextTarget pass tests at 2, 3, 4, and 15 players with zero self-target and zero immediate-repeat violations\n- shufflePromptOrder produces a deterministic-length sequence covering all prompt IDs exactly once\n- deriveRecap correctly returns standout, tie, lowVariance, and zeroData cases against constructed revealedRounds fixtures\n- PlayerSetupValidation rejects blank/whitespace names per-row and enforces the 2-15 bound with no auto-fix\n- zero SwiftData or SwiftUI imports anywhere in this task's files",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Campfire/Domain/GameRulesEngine.swift",
+            "Campfire/Domain/PlayerSetupValidation.swift",
+            "CampfireTests/GameRulesEngineTests.swift",
+            "CampfireTests/RecapDerivationTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "nextActivePlayerIndex and nextTarget pass tests at 2, 3, 4, and 15 players with zero self-target and zero immediate-repeat violations",
+            "shufflePromptOrder produces a deterministic-length sequence covering all prompt IDs exactly once",
+            "deriveRecap correctly returns standout, tie, lowVariance, and zeroData cases against constructed revealedRounds fixtures",
+            "PlayerSetupValidation rejects blank/whitespace names per-row and enforces the 2-15 bound with no auto-fix",
+            "zero SwiftData or SwiftUI imports anywhere in this task's files"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "TransitionGuard + DebugFailureInjector (standalone, decoupled)",
+        "description": "Generated from orchestrator task `T-003` for `campfire`.\n\nOwner lane: `polish_resilience`\nFiles: Campfire/Polish/TransitionGuard.swift, Campfire/Polish/DebugFailureInjector.swift, CampfireTests/TransitionGuardTests.swift\n\nAcceptance criteria:\n- TransitionGuard.tryLock() returns true exactly once until unlock() is called; a unit test fires it twice rapidly and asserts only the first succeeds\n- DebugFailureInjector exposes toggleable flags (forceEmptyPromptPack, forceRecapRenderFailure) defaulting to false/off in release builds\n- zero dependency on SessionViewModel, ModelContainer, or any SwiftUI type so services_utilities tasks can consult the failure-injector seam from day one",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Campfire/Polish/TransitionGuard.swift",
+            "Campfire/Polish/DebugFailureInjector.swift",
+            "CampfireTests/TransitionGuardTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "TransitionGuard.tryLock() returns true exactly once until unlock() is called; a unit test fires it twice rapidly and asserts only the first succeeds",
+            "DebugFailureInjector exposes toggleable flags (forceEmptyPromptPack, forceRecapRenderFailure) defaulting to false/off in release builds",
+            "zero dependency on SessionViewModel, ModelContainer, or any SwiftUI type so services_utilities tasks can consult the failure-injector seam from day one"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "Session SwiftData model finalize + persistence round-trip spike",
+        "description": "Generated from orchestrator task `T-004` for `campfire`.\n\nOwner lane: `data_domain`\nFiles: Campfire/Models/Session.swift, CampfireTests/RecapOutcomePersistenceSpikeTests.swift\n\nAcceptance criteria:\n- Session is a concrete @Model class matching the locked interfaces-json shape exactly\n- spike test writes a Session containing a non-trivial RecapOutcome (tie or standout case) via one ModelContainer and reads it back via a second, independently constructed ModelContainer against the same store URL\n- pass/fail result and, if failed, the chosen fallback is recorded in a comment at the top of Session.swift; no fallback-conversion file is created anywhere in this task \u2014 any needed conversion lives only inside SessionViewModel (T-007), never in a services_utilities adapter",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Campfire/Models/Session.swift",
+            "CampfireTests/RecapOutcomePersistenceSpikeTests.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Session is a concrete @Model class matching the locked interfaces-json shape exactly",
+            "spike test writes a Session containing a non-trivial RecapOutcome (tie or standout case) via one ModelContainer and reads it back via a second, independently constructed ModelContainer against the same store URL",
+            "pass/fail result and, if failed, the chosen fallback is recorded in a comment at the top of Session.swift; no fallback-conversion file is created anywhere in this task \u2014 any needed conversion lives only inside SessionViewModel (T-007), never in a services_utilities adapter"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "ModelContainerProvider with in-memory fallback",
+        "description": "Generated from orchestrator task `T-005` for `campfire`.\n\nOwner lane: `services_utilities`\nFiles: Campfire/Services/ModelContainerProvider.swift\n\nAcceptance criteria:\n- makeContainer() returns .success or .failure, never throws uncaught\n- on simulated store failure, caller can construct a valid in-memory-only container so the app still reaches Entry with a visible starting-fresh notice\n- no reference to AppCoordinator or any Features/ type",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Campfire/Services/ModelContainerProvider.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "makeContainer() returns .success or .failure, never throws uncaught",
+            "on simulated store failure, caller can construct a valid in-memory-only container so the app still reaches Entry with a visible starting-fresh notice",
+            "no reference to AppCoordinator or any Features/ type"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "AppRoute + AppCoordinator",
+        "description": "Generated from orchestrator task `T-006` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/App/AppRoute.swift, Campfire/App/AppCoordinator.swift\n\nAcceptance criteria:\n- AppRoute is exactly {entry, setup, session, recap} with no NavigationStack anywhere in the session flow\n- resumeInProgressSessionIfAny(context:) is its own tested path: given a persisted mid-round Session fixture, it routes straight to .session with the exact persisted phase, not .entry\n- activeError surfaces CampfireError.storeUnavailable distinctly from the other two cases",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/App/AppRoute.swift",
+            "Campfire/App/AppCoordinator.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "AppRoute is exactly {entry, setup, session, recap} with no NavigationStack anywhere in the session flow",
+            "resumeInProgressSessionIfAny(context:) is its own tested path: given a persisted mid-round Session fixture, it routes straight to .session with the exact persisted phase, not .entry",
+            "activeError surfaces CampfireError.storeUnavailable distinctly from the other two cases"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "SessionViewModel: transitions, synchronous save, termination proof, double-tap integration, persistence-fallback conversion (if needed)",
+        "description": "Generated from orchestrator task `T-007` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/Features/Session/SessionViewModel.swift, CampfireTests/SessionViewModelTests.swift, CampfireTests/SessionTerminationRestoreTests.swift\n\nAcceptance criteria:\n- every mutating method (beginHandoff, advancePastHandoff, revealTarget, advanceRound, endSessionEarly) calls try context.save() synchronously immediately after mutation, no Task-wrapped saves\n- two-independent-ModelContainer termination test: write mid-round state through container A, reopen container B from the same file URL, assert exact roundPhase/activePlayerIndex/revealedRounds equivalence\n- revealTarget is wrapped by TransitionGuard from T-003; a rapid double-invocation test asserts exactly one revealedRounds append and one haptic-trigger call\n- target selection and recap derivation are delegated entirely to GameRulesEngine calls, no reimplemented logic in the view model; if T-004's spike failed, the scalar-conversion step lives here and only here",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/Features/Session/SessionViewModel.swift",
+            "CampfireTests/SessionViewModelTests.swift",
+            "CampfireTests/SessionTerminationRestoreTests.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-003",
+            "T-004",
+            "T-005",
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "every mutating method (beginHandoff, advancePastHandoff, revealTarget, advanceRound, endSessionEarly) calls try context.save() synchronously immediately after mutation, no Task-wrapped saves",
+            "two-independent-ModelContainer termination test: write mid-round state through container A, reopen container B from the same file URL, assert exact roundPhase/activePlayerIndex/revealedRounds equivalence",
+            "revealTarget is wrapped by TransitionGuard from T-003; a rapid double-invocation test asserts exactly one revealedRounds append and one haptic-trigger call",
+            "target selection and recap derivation are delegated entirely to GameRulesEngine calls, no reimplemented logic in the view model; if T-004's spike failed, the scalar-conversion step lives here and only here"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "Curated prompt pack content + PromptRepository + ContentAccessProvider wiring + editorial QA sign-off",
+        "description": "Generated from orchestrator task `T-008` for `campfire`.\n\nOwner lane: `services_utilities`\nFiles: Campfire/Resources/PromptPacks/free_pack.json, Campfire/Services/PromptRepository.swift, Campfire/Services/ContentAccessProvider.swift, Campfire/Resources/PackQA.md\n\nAcceptance criteria:\n- free_pack.json contains at least 40 genuinely distinct, editorially-reviewed reveal prompts appropriate for a mixed-generation room, no repeated/templated phrasing\n- loadDefaultPackIfNeeded decodes the bundle into PromptPackRecord on first launch and throws CampfireError.emptyPromptPack (surfaced via DebugFailureInjector.forceEmptyPromptPack or a genuinely empty decode) rather than crashing\n- isPackUnlocked(_:) is actually called at the real prompt-retrieval call site in activePrompts(for:context:), not merely declared\n- PackQA.md is signed off with a duplicate check, tone matrix, and family-safe edge-case review before this task is marked done, and recap copy may not be marked complete until this artifact exists",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Campfire/Resources/PromptPacks/free_pack.json",
+            "Campfire/Services/PromptRepository.swift",
+            "Campfire/Services/ContentAccessProvider.swift",
+            "Campfire/Resources/PackQA.md"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "free_pack.json contains at least 40 genuinely distinct, editorially-reviewed reveal prompts appropriate for a mixed-generation room, no repeated/templated phrasing",
+            "loadDefaultPackIfNeeded decodes the bundle into PromptPackRecord on first launch and throws CampfireError.emptyPromptPack (surfaced via DebugFailureInjector.forceEmptyPromptPack or a genuinely empty decode) rather than crashing",
+            "isPackUnlocked(_:) is actually called at the real prompt-retrieval call site in activePrompts(for:context:), not merely declared",
+            "PackQA.md is signed off with a duplicate check, tone matrix, and family-safe edge-case review before this task is marked done, and recap copy may not be marked complete until this artifact exists"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "HapticsService + RecapCardRenderer",
+        "description": "Generated from orchestrator task `T-009` for `campfire`.\n\nOwner lane: `services_utilities`\nFiles: Campfire/Services/HapticsService.swift, Campfire/Services/RecapCardRenderer.swift\n\nAcceptance criteria:\n- handoffBuzz() and revealBeat() fire distinct, correctly-typed haptic generators; setEnabled(false) suppresses both\n- renderImage(for:) renders RecapCardView at a fixed 9:16 frame via ImageRenderer at 3x scale after a confirmed layout pass, returning .success(imageData) or .failure\n- DebugFailureInjector.forceRecapRenderFailure deterministically forces the .failure branch for testing\n- no persisted image blob written anywhere \u2014 render is on-demand only",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Campfire/Services/HapticsService.swift",
+            "Campfire/Services/RecapCardRenderer.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-003",
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "handoffBuzz() and revealBeat() fire distinct, correctly-typed haptic generators; setEnabled(false) suppresses both",
+            "renderImage(for:) renders RecapCardView at a fixed 9:16 frame via ImageRenderer at 3x scale after a confirmed layout pass, returning .success(imageData) or .failure",
+            "DebugFailureInjector.forceRecapRenderFailure deterministically forces the .failure branch for testing",
+            "no persisted image blob written anywhere \u2014 render is on-demand only"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "Shared design components + ConfettiOverlay",
+        "description": "Generated from orchestrator task `T-010` for `campfire`.\n\nOwner lane: `polish_resilience`\nFiles: Campfire/DesignSystem/CampfireGradientSurface.swift, Campfire/DesignSystem/ModeTile.swift, Campfire/DesignSystem/ErrorStateView.swift, Campfire/Polish/ConfettiOverlay.swift\n\nAcceptance criteria:\n- gradient stops and the scrim token pass WCAG AA contrast against white text at the pink end specifically, not just the orange end\n- ModeTile has an active/tappable variant and a non-interactive coming-soon variant with accessibilityHint(\"Not available yet\") and no tap target\n- ConfettiOverlay tears itself down within 700ms of isActive going true and never redraws on a subsequent round without a fresh trigger\n- ErrorStateView(message:, retryAction:) is the one reusable error component every screen uses; primary_ui screens consume these components but never edit these files",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Campfire/DesignSystem/CampfireGradientSurface.swift",
+            "Campfire/DesignSystem/ModeTile.swift",
+            "Campfire/DesignSystem/ErrorStateView.swift",
+            "Campfire/Polish/ConfettiOverlay.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "gradient stops and the scrim token pass WCAG AA contrast against white text at the pink end specifically, not just the orange end",
+            "ModeTile has an active/tappable variant and a non-interactive coming-soon variant with accessibilityHint(\"Not available yet\") and no tap target",
+            "ConfettiOverlay tears itself down within 700ms of isActive going true and never redraws on a subsequent round without a fresh trigger",
+            "ErrorStateView(message:, retryAction:) is the one reusable error component every screen uses; primary_ui screens consume these components but never edit these files"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "Entry + Setup screens",
+        "description": "Generated from orchestrator task `T-011` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/Features/Entry/EntryView.swift, Campfire/Features/Setup/SetupView.swift, Campfire/Features/Setup/NameRow.swift, Campfire/Features/Setup/AddPlayerButton.swift\n\nAcceptance criteria:\n- Entry renders Reveal as tappable and the other two tiles as ModeTile's non-interactive coming-soon variant\n- Setup rejects blank/whitespace names with an inline per-row error, disables continue with a stated reason below 2 or above 15 players, and never auto-fixes\n- cold launch to Entry renders in under 1 second in a manual timing check",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/Features/Entry/EntryView.swift",
+            "Campfire/Features/Setup/SetupView.swift",
+            "Campfire/Features/Setup/NameRow.swift",
+            "Campfire/Features/Setup/AddPlayerButton.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-006",
+            "T-008",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Entry renders Reveal as tappable and the other two tiles as ModeTile's non-interactive coming-soon variant",
+            "Setup rejects blank/whitespace names with an inline per-row error, disables continue with a stated reason below 2 or above 15 players, and never auto-fixes",
+            "cold launch to Entry renders in under 1 second in a manual timing check"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Session round screen (handoff / ready / revealed)",
+        "description": "Generated from orchestrator task `T-012` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/Features/Session/SessionView.swift, Campfire/Features/Session/RoundStateHeader.swift, Campfire/Features/Session/HandoffBanner.swift, Campfire/Features/Session/RevealActionButton.swift\n\nAcceptance criteria:\n- target identity is never rendered before the reveal tap fires; the reveal tap and the confetti/haptic beat happen on the same frame\n- HandoffBanner auto-advances after ~1.5s with a haptic buzz and is skippable by a tap anywhere before then\n- isIdleTimerDisabled is true from setup-complete through session-end and reset to false on every exit path including early-exit-on-empty-pack\n- RoundStateHeader truncates correctly at accessibility-size Dynamic Type with a long all-caps test name, verified against a defined wrap rule, not an assumed fit",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/Features/Session/SessionView.swift",
+            "Campfire/Features/Session/RoundStateHeader.swift",
+            "Campfire/Features/Session/HandoffBanner.swift",
+            "Campfire/Features/Session/RevealActionButton.swift"
+          ],
+          "depends_on": [
+            "T-007",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "target identity is never rendered before the reveal tap fires; the reveal tap and the confetti/haptic beat happen on the same frame",
+            "HandoffBanner auto-advances after ~1.5s with a haptic buzz and is skippable by a tap anywhere before then",
+            "isIdleTimerDisabled is true from setup-complete through session-end and reset to false on every exit path including early-exit-on-empty-pack",
+            "RoundStateHeader truncates correctly at accessibility-size Dynamic Type with a long all-caps test name, verified against a defined wrap rule, not an assumed fit"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Recap screen + ShareLink",
+        "description": "Generated from orchestrator task `T-013` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/Features/Recap/RecapView.swift, Campfire/Features/Recap/RecapCardView.swift, Campfire/Features/Recap/ShareRow.swift\n\nAcceptance criteria:\n- loading state is a real spinner (not a blank flash) while renderImage(for:) runs\n- on RecapRenderResult.failure, a readable fallback text summary plus a Retry action is shown, remaining shareable even without the image\n- a pre-share note states player names leave the device once shared\n- ShareLink opens the system share sheet with the rendered image, verified on a physical device",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/Features/Recap/RecapView.swift",
+            "Campfire/Features/Recap/RecapCardView.swift",
+            "Campfire/Features/Recap/ShareRow.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-012",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "loading state is a real spinner (not a blank flash) while renderImage(for:) runs",
+            "on RecapRenderResult.failure, a readable fallback text summary plus a Retry action is shown, remaining shareable even without the image",
+            "a pre-share note states player names leave the device once shared",
+            "ShareLink opens the system share sheet with the rendered image, verified on a physical device"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "App entry glue (CampfireApp.swift)",
+        "description": "Generated from orchestrator task `T-014` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/App/CampfireApp.swift\n\nAcceptance criteria:\n- @main App struct constructs the ModelContainer via ModelContainerProvider, calls resumeInProgressSessionIfAny on launch, and hosts AppCoordinator's route as the single root switch\n- a forced ModelContainerProvider failure still reaches Entry with a visible starting-fresh notice instead of crashing",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/App/CampfireApp.swift"
+          ],
+          "depends_on": [
+            "T-005",
+            "T-006",
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "@main App struct constructs the ModelContainer via ModelContainerProvider, calls resumeInProgressSessionIfAny on launch, and hosts AppCoordinator's route as the single root switch",
+            "a forced ModelContainerProvider failure still reaches Entry with a visible starting-fresh notice instead of crashing"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Error-injection reachability, accessibility, and stability manual sweep",
+        "description": "Generated from orchestrator task `T-015` for `campfire`.\n\nOwner lane: `polish_resilience`\nFiles: Campfire/Docs/AccessibilityAudit.md, Campfire/Docs/StabilitySweepChecklist.md\n\nAcceptance criteria:\n- documents a real, performed 2-player and 12-15-player playthrough each including one background and one force-quit at each of handoff/ready/revealed, with zero ambiguous state on resume\n- documents the emptyPromptPack and recapRenderFailure paths fired via DebugFailureInjector and confirms each reaches a recoverable, non-dead-end screen\n- documents VoiceOver reading order on the round-screen header and confirms both coming-soon tiles are announced as unavailable, never as live controls\n- any bug found is logged with the owning task id, not silently patched in this task's own files",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Campfire/Docs/AccessibilityAudit.md",
+            "Campfire/Docs/StabilitySweepChecklist.md"
+          ],
+          "depends_on": [
+            "T-011",
+            "T-012",
+            "T-013",
+            "T-014"
+          ],
+          "acceptance_criteria": [
+            "documents a real, performed 2-player and 12-15-player playthrough each including one background and one force-quit at each of handoff/ready/revealed, with zero ambiguous state on resume",
+            "documents the emptyPromptPack and recapRenderFailure paths fired via DebugFailureInjector and confirms each reaches a recoverable, non-dead-end screen",
+            "documents VoiceOver reading order on the round-screen header and confirms both coming-soon tiles are announced as unavailable, never as live controls",
+            "any bug found is logged with the owning task id, not silently patched in this task's own files"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "Integration audit + release package",
+        "description": "Generated from orchestrator task `T-016` for `campfire`.\n\nOwner lane: `polish_resilience`\nFiles: Campfire/Docs/RELEASE_NOTES.md, Campfire/Docs/GoNoGo.md\n\nAcceptance criteria:\n- signed pass/fail log covering every gate from project_plan with an explicit go/no-go per item\n- written known-limitations note stating StoreKit entitlement is deferred and isPackUnlocked remains a stub\n- confirms a full offline session (all CampfireError-relevant paths plus the happy path) reaches recap with a working on-device share, with no unreachable or dead-end error state",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Campfire/Docs/RELEASE_NOTES.md",
+            "Campfire/Docs/GoNoGo.md"
+          ],
+          "depends_on": [
+            "T-008",
+            "T-009",
+            "T-015"
+          ],
+          "acceptance_criteria": [
+            "signed pass/fail log covering every gate from project_plan with an explicit go/no-go per item",
+            "written known-limitations note stating StoreKit entitlement is deferred and isPackUnlocked remains a stub",
+            "confirms a full offline session (all CampfireError-relevant paths plus the happy path) reaches recap with a working on-device share, with no unreachable or dead-end error state"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-016"
+        }
+      }
+    ]
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "campfire",
+      "Status": "Done",
+      "Source": "Orchestrator",
+      "Workflow Phases": 21
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: multi-app-exp7\nSelected app slug: campfire\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Campfire\n\nBuild mode: **MVP build**.\nBuild priority: **3**.\n\n## App Name\n\nCampfire\n\n## Category\n\nSocial Party / Icebreaker Game\n\n## One-Sentence Promise\n\nPass one phone around a group and Campfire runs the icebreaker game, tallies the votes, and hands you a shareable results card.\n\n## Target User\n\nGroups of friends, family at a holiday gathering, a first date, new roommates, a work team at happy hour \u2014 anyone in a room together who wants a quick, no-download, no-account party game.\n\n## Painful Moment Solved\n\nAwkward silence at a group hangout, or reaching for a party-game app only to realize everyone needs to download it and make an account before the game can even start.\n\n## Why It Is Different\n\nSingle-device pass-and-play \u2014 zero accounts, zero other installs, zero networking. One person opens it, picks a game mode, and the phone gets passed around; results render into a shareable recap card that acts as its own invite to next time.\n\n## Why Users Would Pay\n\nFree tier includes a rotating set of prompt packs; Campfire+ unlocks all prompt packs (family-friendly, spicy, work-safe, couples), custom prompt creation, and unlimited saved session recap cards.\n\n## Subscription Model\n\nFreemium, $2.99/mo or $19.99/yr \u2014 deliberately cheap as an impulse/occasion purchase.\n\n## Local-First MVP Scope\n\nAll prompt packs and session history stored locally; no accounts or networking needed for the core loop at all.\n\n## Future Backend Roadmap\n\nRepository boundary allows an optional future server-hosted seasonal prompt pack downloader and, later, an opt-in synchronous multi-device mode \u2014 neither required for v1 value.\n\n## AR / Local ML / Local LLM Fit\n\nNone \u2014 intentionally excluded; LLM-generated prompts would break the offline-anywhere promise for no real gain over a well-curated static prompt library.\n\n## Design Direction\n\nHigh-energy saturated party palette \u2014 campfire-orange to hot-pink gradients, bold rounded slab type, oversized tap targets for pass-the-phone play, playful bounce transitions, confetti-style haptic-synced reveals.\n\n## App Store Positioning\n\nThe party game that starts in 5 seconds on one phone \u2014 no downloads for your friends, no account, just pass it around.\n\n## Invalidation Criteria\n\nIf session recap cards get generated but essentially never shared, the viral loop isn't firing and the card design/moment needs rework before anything else.\n\n## v1 Build Scope\n\n3-4 game modes with real curated prompt packs, pass-and-play flow, end-of-session recap card + ShareLink, Campfire+ paywall with StoreKit.\n\n## Core Workflows\n\n- pick a game mode and player count/names\n- run pass-the-phone rounds with prompts\n- tally votes/answers per round\n- generate & share end-of-session recap card\n- browse/unlock prompt packs\n\n## iOS-Native Features\n\n- ShareLink for the recap card\n- haptics tuned per game mode\n- fully on-device, airplane-mode-proof by design\n\n## Key Risks\n\n- Prompt content quality/appropriateness is the entire product \u2014 needs genuinely well-written, tested prompt packs at launch, not placeholder text\n- One-off occasion-based usage makes retention harder than daily-habit apps \u2014 recap-card sharing is the main lever to bring people back\n\n## Claude Design Handoff Prompt\n\nDesign a high-energy party/icebreaker game app called Campfire: saturated campfire-orange to hot-pink gradients, bold rounded slab typography, oversized tap targets for pass-the-phone play, playful spring/bounce transitions, a confetti-style reveal moment at the end of each round, feels like a fun physical party prop, not a utility app.\n\n## Parent Portfolio Prompt\n\nBuild 5 completely separate, production-ready iOS apps at the same time.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app, never bundled together.\n\nPick any 5 categories/concepts \u2014 no fixed assignment. Choose the 5 strongest MASS-MARKET ideas.\n\nTOP PRIORITY \u2014 VIRAL, MASS-MARKET APPEAL (hard requirement):\n- Every app must target a BROAD, mainstream audience. NO niche-community apps (no hobbyist tools, no professional verticals, no special-interest utilities). If your parents, your barista, and a college student wouldn't all instantly get it, it fails.\n- Each app must have a built-in viral loop: something people naturally share, screenshot, send to friends, or compete over (shareable results/cards, streaks, challenges, comparisons, \"send this to a friend\" moments).\n- The concept must be explainable in one sentence and demo-able in 10 seconds.\n- Think the scale of habit trackers, photo tools, social utilities, everyday life tools, casual self-improvement, money, food, sleep, relationships, entertainment \u2014 things with tens of millions of potential users.\n\nSECOND PRIORITY \u2014 DESIGN & UI/UX:\n- World-class, distinctive visual identity per app: deliberate color system, type scale, spacing, iconography, motion language \u2014 not stock SwiftUI defaults.\n- \"Apple Design Award\" caliber polish. Every screen considered: empty, loading, error states, transitions, haptics, spring animations.\n- Dark mode, Dynamic Type, accessibility (VoiceOver, 44pt targets, WCAG AA contrast).\n- Each of the 5 apps must look clearly DIFFERENT from the other four \u2014 five distinct design directions.\n- Documented design system per app (tokens, components, states); built UI must match it.\n\nTHIRD PRIORITY \u2014 COMPLEXITY & DEPTH:\n- Genuinely substantial apps \u2014 interconnected features, real domain data model, non-trivial logic, offline persistence with sync-later architecture, robust settings, import/export, and at least one hard technical capability done well.\n- Depth that rewards daily use \u2014 but never at the expense of instant mass-market clarity.\n\nFOURTH PRIORITY \u2014 MONETIZATION:\n- Clear, sustainable revenue path per app (subscription tiers, IAP, premium) that feels native to the product, never punitive. Free tier hooks users; paid tier is compelling.\n\nGeneral Requirements:\n1. Each app goes from 0 to production-ready.\n2. Each app must be unique, useful, and commercially viable, better than competitors in a meaningful way.\n3. Local-first, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built in this workspace: Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, brinekeeper, chalkline, quietpilot, cistern, thicket, undersong, undertow, heddle, marginalia, skyglass, and the ~50 apps of prior batches (aarti-path, afterglow, backtimer, chapterly, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, flinch, heartline, kitbag, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas, and others).\n- Produce differentiated concepts even if a category overlaps.\n\nBonus points (optional, only when integral): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the five app efforts in parallel; keep phases separate per app.\n- TIME MATTERS on this batch: reach consensus quickly in discussion phases (end phases early on agreement), but never skip the build, and never mark an app done unless a real, compiling Xcode project with full source exists in app_build. An app without a buildable Xcode project is a FAILURE.\n- Save all phase discussions; combine each app's transcript into a .txt at the end.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Xcode project scaffold + domain/model type contract freeze",
+        "description": "Generated from orchestrator task `T-001` for `campfire`.\n\nOwner lane: `data_domain`\nFiles: Campfire.xcodeproj/project.pbxproj, Campfire/Domain/RoundPhase.swift, Campfire/Domain/PlayerRecord.swift, Campfire/Domain/RevealedRoundRecord.swift, Campfire/Domain/RecapOutcome.swift, Campfire/Domain/CampfireError.swift, Campfire/Models/PromptRecord.swift, Campfire/Models/PromptPackRecord.swift, Campfire/DesignSystem/Tokens.swift\n\nAcceptance criteria:\n- Xcode project + app target + CampfireTests target build with an empty scaffold that compiles\n- every type in the tech_specs interfaces-json exists with the exact locked signature\n- Resources/, Features/, Services/, Polish/, DesignSystem/ folder groups exist and are added to the target so later tasks only append file refs, never restructure groups\n- design token baseline (gradient stops, scrim, typography, spacing, motion timings) is present as a compiling file other lanes can import",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Campfire.xcodeproj/project.pbxproj",
+            "Campfire/Domain/RoundPhase.swift",
+            "Campfire/Domain/PlayerRecord.swift",
+            "Campfire/Domain/RevealedRoundRecord.swift",
+            "Campfire/Domain/RecapOutcome.swift",
+            "Campfire/Domain/CampfireError.swift",
+            "Campfire/Models/PromptRecord.swift",
+            "Campfire/Models/PromptPackRecord.swift",
+            "Campfire/DesignSystem/Tokens.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Xcode project + app target + CampfireTests target build with an empty scaffold that compiles",
+            "every type in the tech_specs interfaces-json exists with the exact locked signature",
+            "Resources/, Features/, Services/, Polish/, DesignSystem/ folder groups exist and are added to the target so later tasks only append file refs, never restructure groups",
+            "design token baseline (gradient stops, scrim, typography, spacing, motion timings) is present as a compiling file other lanes can import"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "GameRulesEngine + PlayerSetupValidation + domain tests",
+        "description": "Generated from orchestrator task `T-002` for `campfire`.\n\nOwner lane: `data_domain`\nFiles: Campfire/Domain/GameRulesEngine.swift, Campfire/Domain/PlayerSetupValidation.swift, CampfireTests/GameRulesEngineTests.swift, CampfireTests/RecapDerivationTests.swift\n\nAcceptance criteria:\n- nextActivePlayerIndex and nextTarget pass tests at 2, 3, 4, and 15 players with zero self-target and zero immediate-repeat violations\n- shufflePromptOrder produces a deterministic-length sequence covering all prompt IDs exactly once\n- deriveRecap correctly returns standout, tie, lowVariance, and zeroData cases against constructed revealedRounds fixtures\n- PlayerSetupValidation rejects blank/whitespace names per-row and enforces the 2-15 bound with no auto-fix\n- zero SwiftData or SwiftUI imports anywhere in this task's files",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Campfire/Domain/GameRulesEngine.swift",
+            "Campfire/Domain/PlayerSetupValidation.swift",
+            "CampfireTests/GameRulesEngineTests.swift",
+            "CampfireTests/RecapDerivationTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "nextActivePlayerIndex and nextTarget pass tests at 2, 3, 4, and 15 players with zero self-target and zero immediate-repeat violations",
+            "shufflePromptOrder produces a deterministic-length sequence covering all prompt IDs exactly once",
+            "deriveRecap correctly returns standout, tie, lowVariance, and zeroData cases against constructed revealedRounds fixtures",
+            "PlayerSetupValidation rejects blank/whitespace names per-row and enforces the 2-15 bound with no auto-fix",
+            "zero SwiftData or SwiftUI imports anywhere in this task's files"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "TransitionGuard + DebugFailureInjector (standalone, decoupled)",
+        "description": "Generated from orchestrator task `T-003` for `campfire`.\n\nOwner lane: `polish_resilience`\nFiles: Campfire/Polish/TransitionGuard.swift, Campfire/Polish/DebugFailureInjector.swift, CampfireTests/TransitionGuardTests.swift\n\nAcceptance criteria:\n- TransitionGuard.tryLock() returns true exactly once until unlock() is called; a unit test fires it twice rapidly and asserts only the first succeeds\n- DebugFailureInjector exposes toggleable flags (forceEmptyPromptPack, forceRecapRenderFailure) defaulting to false/off in release builds\n- zero dependency on SessionViewModel, ModelContainer, or any SwiftUI type so services_utilities tasks can consult the failure-injector seam from day one",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Campfire/Polish/TransitionGuard.swift",
+            "Campfire/Polish/DebugFailureInjector.swift",
+            "CampfireTests/TransitionGuardTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "TransitionGuard.tryLock() returns true exactly once until unlock() is called; a unit test fires it twice rapidly and asserts only the first succeeds",
+            "DebugFailureInjector exposes toggleable flags (forceEmptyPromptPack, forceRecapRenderFailure) defaulting to false/off in release builds",
+            "zero dependency on SessionViewModel, ModelContainer, or any SwiftUI type so services_utilities tasks can consult the failure-injector seam from day one"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "Session SwiftData model finalize + persistence round-trip spike",
+        "description": "Generated from orchestrator task `T-004` for `campfire`.\n\nOwner lane: `data_domain`\nFiles: Campfire/Models/Session.swift, CampfireTests/RecapOutcomePersistenceSpikeTests.swift\n\nAcceptance criteria:\n- Session is a concrete @Model class matching the locked interfaces-json shape exactly\n- spike test writes a Session containing a non-trivial RecapOutcome (tie or standout case) via one ModelContainer and reads it back via a second, independently constructed ModelContainer against the same store URL\n- pass/fail result and, if failed, the chosen fallback is recorded in a comment at the top of Session.swift; no fallback-conversion file is created anywhere in this task \u2014 any needed conversion lives only inside SessionViewModel (T-007), never in a services_utilities adapter",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "Campfire/Models/Session.swift",
+            "CampfireTests/RecapOutcomePersistenceSpikeTests.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Session is a concrete @Model class matching the locked interfaces-json shape exactly",
+            "spike test writes a Session containing a non-trivial RecapOutcome (tie or standout case) via one ModelContainer and reads it back via a second, independently constructed ModelContainer against the same store URL",
+            "pass/fail result and, if failed, the chosen fallback is recorded in a comment at the top of Session.swift; no fallback-conversion file is created anywhere in this task \u2014 any needed conversion lives only inside SessionViewModel (T-007), never in a services_utilities adapter"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "ModelContainerProvider with in-memory fallback",
+        "description": "Generated from orchestrator task `T-005` for `campfire`.\n\nOwner lane: `services_utilities`\nFiles: Campfire/Services/ModelContainerProvider.swift\n\nAcceptance criteria:\n- makeContainer() returns .success or .failure, never throws uncaught\n- on simulated store failure, caller can construct a valid in-memory-only container so the app still reaches Entry with a visible starting-fresh notice\n- no reference to AppCoordinator or any Features/ type",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Campfire/Services/ModelContainerProvider.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "makeContainer() returns .success or .failure, never throws uncaught",
+            "on simulated store failure, caller can construct a valid in-memory-only container so the app still reaches Entry with a visible starting-fresh notice",
+            "no reference to AppCoordinator or any Features/ type"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "AppRoute + AppCoordinator",
+        "description": "Generated from orchestrator task `T-006` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/App/AppRoute.swift, Campfire/App/AppCoordinator.swift\n\nAcceptance criteria:\n- AppRoute is exactly {entry, setup, session, recap} with no NavigationStack anywhere in the session flow\n- resumeInProgressSessionIfAny(context:) is its own tested path: given a persisted mid-round Session fixture, it routes straight to .session with the exact persisted phase, not .entry\n- activeError surfaces CampfireError.storeUnavailable distinctly from the other two cases",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/App/AppRoute.swift",
+            "Campfire/App/AppCoordinator.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "AppRoute is exactly {entry, setup, session, recap} with no NavigationStack anywhere in the session flow",
+            "resumeInProgressSessionIfAny(context:) is its own tested path: given a persisted mid-round Session fixture, it routes straight to .session with the exact persisted phase, not .entry",
+            "activeError surfaces CampfireError.storeUnavailable distinctly from the other two cases"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "SessionViewModel: transitions, synchronous save, termination proof, double-tap integration, persistence-fallback conversion (if needed)",
+        "description": "Generated from orchestrator task `T-007` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/Features/Session/SessionViewModel.swift, CampfireTests/SessionViewModelTests.swift, CampfireTests/SessionTerminationRestoreTests.swift\n\nAcceptance criteria:\n- every mutating method (beginHandoff, advancePastHandoff, revealTarget, advanceRound, endSessionEarly) calls try context.save() synchronously immediately after mutation, no Task-wrapped saves\n- two-independent-ModelContainer termination test: write mid-round state through container A, reopen container B from the same file URL, assert exact roundPhase/activePlayerIndex/revealedRounds equivalence\n- revealTarget is wrapped by TransitionGuard from T-003; a rapid double-invocation test asserts exactly one revealedRounds append and one haptic-trigger call\n- target selection and recap derivation are delegated entirely to GameRulesEngine calls, no reimplemented logic in the view model; if T-004's spike failed, the scalar-conversion step lives here and only here",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/Features/Session/SessionViewModel.swift",
+            "CampfireTests/SessionViewModelTests.swift",
+            "CampfireTests/SessionTerminationRestoreTests.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-003",
+            "T-004",
+            "T-005",
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "every mutating method (beginHandoff, advancePastHandoff, revealTarget, advanceRound, endSessionEarly) calls try context.save() synchronously immediately after mutation, no Task-wrapped saves",
+            "two-independent-ModelContainer termination test: write mid-round state through container A, reopen container B from the same file URL, assert exact roundPhase/activePlayerIndex/revealedRounds equivalence",
+            "revealTarget is wrapped by TransitionGuard from T-003; a rapid double-invocation test asserts exactly one revealedRounds append and one haptic-trigger call",
+            "target selection and recap derivation are delegated entirely to GameRulesEngine calls, no reimplemented logic in the view model; if T-004's spike failed, the scalar-conversion step lives here and only here"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "Curated prompt pack content + PromptRepository + ContentAccessProvider wiring + editorial QA sign-off",
+        "description": "Generated from orchestrator task `T-008` for `campfire`.\n\nOwner lane: `services_utilities`\nFiles: Campfire/Resources/PromptPacks/free_pack.json, Campfire/Services/PromptRepository.swift, Campfire/Services/ContentAccessProvider.swift, Campfire/Resources/PackQA.md\n\nAcceptance criteria:\n- free_pack.json contains at least 40 genuinely distinct, editorially-reviewed reveal prompts appropriate for a mixed-generation room, no repeated/templated phrasing\n- loadDefaultPackIfNeeded decodes the bundle into PromptPackRecord on first launch and throws CampfireError.emptyPromptPack (surfaced via DebugFailureInjector.forceEmptyPromptPack or a genuinely empty decode) rather than crashing\n- isPackUnlocked(_:) is actually called at the real prompt-retrieval call site in activePrompts(for:context:), not merely declared\n- PackQA.md is signed off with a duplicate check, tone matrix, and family-safe edge-case review before this task is marked done, and recap copy may not be marked complete until this artifact exists",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Campfire/Resources/PromptPacks/free_pack.json",
+            "Campfire/Services/PromptRepository.swift",
+            "Campfire/Services/ContentAccessProvider.swift",
+            "Campfire/Resources/PackQA.md"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "free_pack.json contains at least 40 genuinely distinct, editorially-reviewed reveal prompts appropriate for a mixed-generation room, no repeated/templated phrasing",
+            "loadDefaultPackIfNeeded decodes the bundle into PromptPackRecord on first launch and throws CampfireError.emptyPromptPack (surfaced via DebugFailureInjector.forceEmptyPromptPack or a genuinely empty decode) rather than crashing",
+            "isPackUnlocked(_:) is actually called at the real prompt-retrieval call site in activePrompts(for:context:), not merely declared",
+            "PackQA.md is signed off with a duplicate check, tone matrix, and family-safe edge-case review before this task is marked done, and recap copy may not be marked complete until this artifact exists"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "HapticsService + RecapCardRenderer",
+        "description": "Generated from orchestrator task `T-009` for `campfire`.\n\nOwner lane: `services_utilities`\nFiles: Campfire/Services/HapticsService.swift, Campfire/Services/RecapCardRenderer.swift\n\nAcceptance criteria:\n- handoffBuzz() and revealBeat() fire distinct, correctly-typed haptic generators; setEnabled(false) suppresses both\n- renderImage(for:) renders RecapCardView at a fixed 9:16 frame via ImageRenderer at 3x scale after a confirmed layout pass, returning .success(imageData) or .failure\n- DebugFailureInjector.forceRecapRenderFailure deterministically forces the .failure branch for testing\n- no persisted image blob written anywhere \u2014 render is on-demand only",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Campfire/Services/HapticsService.swift",
+            "Campfire/Services/RecapCardRenderer.swift"
+          ],
+          "depends_on": [
+            "T-001",
+            "T-003",
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "handoffBuzz() and revealBeat() fire distinct, correctly-typed haptic generators; setEnabled(false) suppresses both",
+            "renderImage(for:) renders RecapCardView at a fixed 9:16 frame via ImageRenderer at 3x scale after a confirmed layout pass, returning .success(imageData) or .failure",
+            "DebugFailureInjector.forceRecapRenderFailure deterministically forces the .failure branch for testing",
+            "no persisted image blob written anywhere \u2014 render is on-demand only"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "Shared design components + ConfettiOverlay",
+        "description": "Generated from orchestrator task `T-010` for `campfire`.\n\nOwner lane: `polish_resilience`\nFiles: Campfire/DesignSystem/CampfireGradientSurface.swift, Campfire/DesignSystem/ModeTile.swift, Campfire/DesignSystem/ErrorStateView.swift, Campfire/Polish/ConfettiOverlay.swift\n\nAcceptance criteria:\n- gradient stops and the scrim token pass WCAG AA contrast against white text at the pink end specifically, not just the orange end\n- ModeTile has an active/tappable variant and a non-interactive coming-soon variant with accessibilityHint(\"Not available yet\") and no tap target\n- ConfettiOverlay tears itself down within 700ms of isActive going true and never redraws on a subsequent round without a fresh trigger\n- ErrorStateView(message:, retryAction:) is the one reusable error component every screen uses; primary_ui screens consume these components but never edit these files",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Campfire/DesignSystem/CampfireGradientSurface.swift",
+            "Campfire/DesignSystem/ModeTile.swift",
+            "Campfire/DesignSystem/ErrorStateView.swift",
+            "Campfire/Polish/ConfettiOverlay.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "gradient stops and the scrim token pass WCAG AA contrast against white text at the pink end specifically, not just the orange end",
+            "ModeTile has an active/tappable variant and a non-interactive coming-soon variant with accessibilityHint(\"Not available yet\") and no tap target",
+            "ConfettiOverlay tears itself down within 700ms of isActive going true and never redraws on a subsequent round without a fresh trigger",
+            "ErrorStateView(message:, retryAction:) is the one reusable error component every screen uses; primary_ui screens consume these components but never edit these files"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "Entry + Setup screens",
+        "description": "Generated from orchestrator task `T-011` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/Features/Entry/EntryView.swift, Campfire/Features/Setup/SetupView.swift, Campfire/Features/Setup/NameRow.swift, Campfire/Features/Setup/AddPlayerButton.swift\n\nAcceptance criteria:\n- Entry renders Reveal as tappable and the other two tiles as ModeTile's non-interactive coming-soon variant\n- Setup rejects blank/whitespace names with an inline per-row error, disables continue with a stated reason below 2 or above 15 players, and never auto-fixes\n- cold launch to Entry renders in under 1 second in a manual timing check",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/Features/Entry/EntryView.swift",
+            "Campfire/Features/Setup/SetupView.swift",
+            "Campfire/Features/Setup/NameRow.swift",
+            "Campfire/Features/Setup/AddPlayerButton.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-006",
+            "T-008",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "Entry renders Reveal as tappable and the other two tiles as ModeTile's non-interactive coming-soon variant",
+            "Setup rejects blank/whitespace names with an inline per-row error, disables continue with a stated reason below 2 or above 15 players, and never auto-fixes",
+            "cold launch to Entry renders in under 1 second in a manual timing check"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Session round screen (handoff / ready / revealed)",
+        "description": "Generated from orchestrator task `T-012` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/Features/Session/SessionView.swift, Campfire/Features/Session/RoundStateHeader.swift, Campfire/Features/Session/HandoffBanner.swift, Campfire/Features/Session/RevealActionButton.swift\n\nAcceptance criteria:\n- target identity is never rendered before the reveal tap fires; the reveal tap and the confetti/haptic beat happen on the same frame\n- HandoffBanner auto-advances after ~1.5s with a haptic buzz and is skippable by a tap anywhere before then\n- isIdleTimerDisabled is true from setup-complete through session-end and reset to false on every exit path including early-exit-on-empty-pack\n- RoundStateHeader truncates correctly at accessibility-size Dynamic Type with a long all-caps test name, verified against a defined wrap rule, not an assumed fit",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/Features/Session/SessionView.swift",
+            "Campfire/Features/Session/RoundStateHeader.swift",
+            "Campfire/Features/Session/HandoffBanner.swift",
+            "Campfire/Features/Session/RevealActionButton.swift"
+          ],
+          "depends_on": [
+            "T-007",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "target identity is never rendered before the reveal tap fires; the reveal tap and the confetti/haptic beat happen on the same frame",
+            "HandoffBanner auto-advances after ~1.5s with a haptic buzz and is skippable by a tap anywhere before then",
+            "isIdleTimerDisabled is true from setup-complete through session-end and reset to false on every exit path including early-exit-on-empty-pack",
+            "RoundStateHeader truncates correctly at accessibility-size Dynamic Type with a long all-caps test name, verified against a defined wrap rule, not an assumed fit"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Recap screen + ShareLink",
+        "description": "Generated from orchestrator task `T-013` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/Features/Recap/RecapView.swift, Campfire/Features/Recap/RecapCardView.swift, Campfire/Features/Recap/ShareRow.swift\n\nAcceptance criteria:\n- loading state is a real spinner (not a blank flash) while renderImage(for:) runs\n- on RecapRenderResult.failure, a readable fallback text summary plus a Retry action is shown, remaining shareable even without the image\n- a pre-share note states player names leave the device once shared\n- ShareLink opens the system share sheet with the rendered image, verified on a physical device",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/Features/Recap/RecapView.swift",
+            "Campfire/Features/Recap/RecapCardView.swift",
+            "Campfire/Features/Recap/ShareRow.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-012",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "loading state is a real spinner (not a blank flash) while renderImage(for:) runs",
+            "on RecapRenderResult.failure, a readable fallback text summary plus a Retry action is shown, remaining shareable even without the image",
+            "a pre-share note states player names leave the device once shared",
+            "ShareLink opens the system share sheet with the rendered image, verified on a physical device"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "App entry glue (CampfireApp.swift)",
+        "description": "Generated from orchestrator task `T-014` for `campfire`.\n\nOwner lane: `primary_ui`\nFiles: Campfire/App/CampfireApp.swift\n\nAcceptance criteria:\n- @main App struct constructs the ModelContainer via ModelContainerProvider, calls resumeInProgressSessionIfAny on launch, and hosts AppCoordinator's route as the single root switch\n- a forced ModelContainerProvider failure still reaches Entry with a visible starting-fresh notice instead of crashing",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Campfire/App/CampfireApp.swift"
+          ],
+          "depends_on": [
+            "T-005",
+            "T-006",
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "@main App struct constructs the ModelContainer via ModelContainerProvider, calls resumeInProgressSessionIfAny on launch, and hosts AppCoordinator's route as the single root switch",
+            "a forced ModelContainerProvider failure still reaches Entry with a visible starting-fresh notice instead of crashing"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Error-injection reachability, accessibility, and stability manual sweep",
+        "description": "Generated from orchestrator task `T-015` for `campfire`.\n\nOwner lane: `polish_resilience`\nFiles: Campfire/Docs/AccessibilityAudit.md, Campfire/Docs/StabilitySweepChecklist.md\n\nAcceptance criteria:\n- documents a real, performed 2-player and 12-15-player playthrough each including one background and one force-quit at each of handoff/ready/revealed, with zero ambiguous state on resume\n- documents the emptyPromptPack and recapRenderFailure paths fired via DebugFailureInjector and confirms each reaches a recoverable, non-dead-end screen\n- documents VoiceOver reading order on the round-screen header and confirms both coming-soon tiles are announced as unavailable, never as live controls\n- any bug found is logged with the owning task id, not silently patched in this task's own files",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Campfire/Docs/AccessibilityAudit.md",
+            "Campfire/Docs/StabilitySweepChecklist.md"
+          ],
+          "depends_on": [
+            "T-011",
+            "T-012",
+            "T-013",
+            "T-014"
+          ],
+          "acceptance_criteria": [
+            "documents a real, performed 2-player and 12-15-player playthrough each including one background and one force-quit at each of handoff/ready/revealed, with zero ambiguous state on resume",
+            "documents the emptyPromptPack and recapRenderFailure paths fired via DebugFailureInjector and confirms each reaches a recoverable, non-dead-end screen",
+            "documents VoiceOver reading order on the round-screen header and confirms both coming-soon tiles are announced as unavailable, never as live controls",
+            "any bug found is logged with the owning task id, not silently patched in this task's own files"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "Integration audit + release package",
+        "description": "Generated from orchestrator task `T-016` for `campfire`.\n\nOwner lane: `polish_resilience`\nFiles: Campfire/Docs/RELEASE_NOTES.md, Campfire/Docs/GoNoGo.md\n\nAcceptance criteria:\n- signed pass/fail log covering every gate from project_plan with an explicit go/no-go per item\n- written known-limitations note stating StoreKit entitlement is deferred and isPackUnlocked remains a stub\n- confirms a full offline session (all CampfireError-relevant paths plus the happy path) reaches recap with a working on-device share, with no unreachable or dead-end error state",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Campfire/Docs/RELEASE_NOTES.md",
+            "Campfire/Docs/GoNoGo.md"
+          ],
+          "depends_on": [
+            "T-008",
+            "T-009",
+            "T-015"
+          ],
+          "acceptance_criteria": [
+            "signed pass/fail log covering every gate from project_plan with an explicit go/no-go per item",
+            "written known-limitations note stating StoreKit entitlement is deferred and isPackUnlocked remains a stub",
+            "confirms a full offline session (all CampfireError-relevant paths plus the happy path) reaches recap with a working on-device share, with no unreachable or dead-end error state"
+          ],
+          "source_project": "campfire",
+          "source_task_id": "T-016"
+        }
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "AppRoute",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AppRoute: Equatable { case entry, setup, session, recap }",
+        "owning_lane": "primary_ui",
+        "notes": "LOCKED: root switch, no NavigationStack anywhere in the session flow \u2014 interactive back-swipe explicitly disabled."
+      },
+      {
+        "name": "RoundPhase",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RoundPhase: String, Codable { case handoff, ready, revealed }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: persisted on Session, not transient @State \u2014 required for true termination-and-relaunch resume."
+      },
+      {
+        "name": "Player",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct Player: Identifiable, Codable, Hashable { let id: UUID; var name: String; let createdAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "Display and stable identity for all session transitions; names can duplicate but cannot be blank/whitespace."
+      },
+      {
+        "name": "PromptPack",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct PromptPack: Identifiable, Codable { let id: String; let title: String; let version: Int; let mode: String; let isBuiltIn: Bool; let prompts: [Prompt] }",
+        "owning_lane": "data_domain",
+        "notes": "Source content model loaded from bundled JSON and versioned for migration checks."
+      },
+      {
+        "name": "Prompt",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct Prompt: Identifiable, Codable, Hashable { let id: UUID; let packId: String; let mode: String; let text: String }",
+        "owning_lane": "data_domain",
+        "notes": "Single immutable prompt item consumed by rounds in-order."
+      },
+      {
+        "name": "SessionState",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct SessionState: Identifiable, Codable, Hashable { let id: UUID; var packId: String; var playerIDs: [UUID]; var roundOrder: [UUID]; var activePlayerID: UUID; var targetHistory: [UUID]; var tally: [UUID:Int]; var promptCursor: Int; var currentRound: Int; var totalRounds: Int; var phase: RoundPhase; var isCompleted: Bool; var startedAt: Date; var completedAt: Date? }",
+        "owning_lane": "data_domain",
+        "notes": "Source of truth for gameplay and resume safety. playerIDs and targetHistory must remain ordered arrays, never to-many relationships."
+      },
+      {
+        "name": "GameRulesEngine",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum GameRulesEngine { static func nextActivePlayerIndex(players: [PlayerRecord], currentActiveIndex: Int) -> Int; static func nextTarget(players: [PlayerRecord], activeID: UUID, revealedRounds: [RevealedRoundRecord]) -> UUID; static func shufflePromptOrder(prompts: [PromptRecord]) -> [String]; static func deriveRecap(players: [PlayerRecord], revealedRounds: [RevealedRoundRecord]) -> RecapOutcome }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: static-function enum, not protocol \u2014 pure math, no state, no swappable implementations needed. shufflePromptOrder closes the prompt-variety gap (session's prompt sequence is randomized once at creation, not fixed bundled-JSON order). Fully unit-testable at 2/3/4/15 players with zero view hierarchy involved."
+      },
+      {
+        "name": "RecapResult",
+        "kind": "enum",
+        "language": "Swift",
+        "signature": "enum RecapResult { case standout([UUID]), tie([UUID]), lowVariance(String), zeroData(String) }",
+        "owning_lane": "data_domain",
+        "notes": "Four-case recap semantics (clear standout, tie, low-variance/funny, zero-data) used for card generation and fallback."
+      },
+      {
+        "name": "SessionRepository",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol SessionRepository { func loadInProgress() throws -> SessionState?; func save(_ state: SessionState) throws; func delete(_ stateID: UUID) throws; func loadRecap(sessionID: UUID) throws -> RecapRow?; func saveRecap(_ recap: RecapRow) throws }",
+        "owning_lane": "data_domain",
+        "notes": "Persistence seam backed by SwiftData; all mutations are synchronous and write immediately."
+      },
+      {
+        "name": "PackRepository",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol PackRepository { func loadPacks() throws -> [PromptPack]; func loadPack(id: String) throws -> PromptPack?; func ensureSeedDataVersion() throws -> Bool }",
+        "owning_lane": "data_domain",
+        "notes": "Loads only bundled JSON packs for v1; future remote catalog can swap implementation without changing callers."
+      },
+      {
+        "name": "ContentAccessProviding",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol ContentAccessProviding { func isPackUnlocked(_ packID: String) -> Bool; func canSaveUnlimitedRecaps() -> Bool }",
+        "owning_lane": "services_utilities",
+        "notes": "LOCKED: stub always returns true, explicitly flagged provisional, not real entitlement policy."
+      },
+      {
+        "name": "RecapRenderer",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol RecapRenderer { func renderImage(for recap: RecapSnapshot, palette: PaletteTokenSet, size: CGSize) throws -> Data }",
+        "owning_lane": "services_utilities",
+        "notes": "Isolated service for ImageRenderer output at fixed frame and scale with deterministic snapshot pipeline."
+      },
+      {
+        "name": "HapticsService",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol HapticsService { func triggerReveal(); func triggerReadyHint(); func triggerError(); func setEnabled(_ isEnabled: Bool) }",
+        "owning_lane": "services_utilities",
+        "notes": "UI-only side effects service; guarded to one-shot per transition."
+      },
+      {
+        "name": "SessionViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class SessionViewModel { private(set) var session: Session; private(set) var isTransitioning: Bool; func beginHandoff(); func advancePastHandoff(); func revealTarget(); func advanceRound(); func endSessionEarly() }",
+        "owning_lane": "primary_ui",
+        "notes": "LOCKED: wraps the persisted Session @Model directly and calls context.save() itself \u2014 no SessionStoreProviding seam (explicitly cut both agents agreed). Unit tests use an in-memory ModelConfiguration, not a mock protocol, so the real save path is what's actually exercised."
+      },
+      {
+        "name": "CampfireError",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum CampfireError: Error, Equatable { case storeUnavailable; case emptyPromptPack; case recapRenderFailure }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: exactly the three recoverable states locked across prior phases. No associated payload strings \u2014 the UI layer owns copy per case."
+      },
+      {
+        "name": "PlayerRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PlayerRecord: Codable, Identifiable, Equatable { let id: UUID; var name: String }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: single ordered array element for player identity/order \u2014 one array, no parallel name lookup that could drift."
+      },
+      {
+        "name": "TargetHistoryEntry",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct TargetHistoryEntry: Codable, Equatable { let roundIndex: Int; let targetPlayerID: UUID }",
+        "owning_lane": "data_domain",
+        "notes": "Lightweight history event for recap derivation, and supports low-variance copy fallback."
+      },
+      {
+        "name": "RevealedRoundRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct RevealedRoundRecord: Codable, Equatable { let roundIndex: Int; let activePlayerID: UUID; let targetPlayerID: UUID; let promptID: String; let promptText: String }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: sole history array \u2014 no separate targetHistory/TargetHistoryEntry, no stored tally. nextTarget derives recency from revealedRounds.map(\\.targetPlayerID); deriveRecap derives tally, tie, and the specific low-variance moment from this same array."
+      },
+      {
+        "name": "RecapOutcome",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RecapOutcome: Codable, Equatable { case standout(playerID: UUID, line: String); case tie(playerIDs: [UUID], line: String); case lowVariance(momentLine: String); case zeroData(line: String) }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: embedded directly on Session, not a separate RecapEntry model. Doubles as card headline content and the always-available fallback text on render failure. No persisted image blob \u2014 card is re-rendered on demand, including after resume-from-kill."
+      },
+      {
+        "name": "Session",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class Session { var id: UUID; var players: [PlayerRecord]; var currentRoundIndex: Int; var activePlayerIndex: Int; var roundPhase: RoundPhase; var promptOrder: [String]; var revealedRounds: [RevealedRoundRecord]; var packID: String; var isComplete: Bool; var recapOutcome: RecapOutcome? }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: direct SwiftData model, no repository/state-struct split. activePlayerIndex is an Int into the fixed players array. promptOrder is the shuffled prompt-ID sequence locked at session creation; revealedRounds.count is the cursor into it (no separate stored cursor field)."
+      },
+      {
+        "name": "PromptRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PromptRecord: Codable, Identifiable, Equatable { let id: String; var text: String }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: decoded from bundled JSON, stored as a value-type array on PromptPackRecord."
+      },
+      {
+        "name": "PromptPackRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class PromptPackRecord { var id: String; var displayName: String; var version: Int; var prompts: [PromptRecord] }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: version:Int folded directly onto the pack, no separate PackVersion row for one bundled pack."
+      },
+      {
+        "name": "PlayerSetupValidation",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum PlayerSetupValidation { static func validate(rawNames: [String]) -> PlayerSetupValidationResult }; enum PlayerSetupValidationResult: Equatable { case valid([String]); case invalid(rowErrors: [Int: String], continueDisabledReason: String?) }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: 2-15 players, blank/whitespace rejected per-row, no auto-fix."
+      },
+      {
+        "name": "RecoverableError",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RecoverableError: Equatable { case emptyPromptPack; case recapRenderFailure; case storeUnavailable }",
+        "owning_lane": "data_domain",
+        "notes": "CONVERGED: matches Codex's CampfireError cases (modelContainerUnavailable/emptyPack/renderFailure map 1:1); naming needs a final pick round 2 but the three cases are agreed."
+      },
+      {
+        "name": "AppCoordinator",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class AppCoordinator { var route: AppRoute; var activeError: CampfireError?; func startSetup(); func beginSession(with players: [PlayerRecord]); func finishToRecap(); func exitToEntry(); func resumeInProgressSessionIfAny(context: ModelContext) }",
+        "owning_lane": "primary_ui",
+        "notes": "LOCKED: concrete class, not a protocol \u2014 exactly one real implementation exists. Owns navigation/route only; resumeInProgressSessionIfAny is its own separately tested launch path, not a fallthrough of the fresh-start path."
+      },
+      {
+        "name": "PromptRepositoryProviding",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol PromptRepositoryProviding { func loadDefaultPackIfNeeded(context: ModelContext) throws; func activePrompts(for packID: String, context: ModelContext) throws -> [PromptRecord] }",
+        "owning_lane": "services_utilities",
+        "notes": "LOCKED: throws surface as CampfireError.emptyPromptPack at the call site if decode/load fails or yields zero prompts. This protocol earns its keep \u2014 a future remote-catalog implementation is a named future requirement that would genuinely conform to it."
+      },
+      {
+        "name": "ModelContainerProvider",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum ModelContainerProvider { static func makeContainer() -> ModelContainerResult }; enum ModelContainerResult { case success(ModelContainer); case failure(Error) }",
+        "owning_lane": "services_utilities",
+        "notes": "LOCKED: failure path feeds CampfireError.storeUnavailable and an in-memory fallback container, never a crash."
+      },
+      {
+        "name": "HapticsServicing",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol HapticsServicing { func handoffBuzz(); func revealBeat(); func setEnabled(_ isEnabled: Bool) }",
+        "owning_lane": "services_utilities",
+        "notes": "LOCKED: only the two locked haptic moments (handoff auto-advance, reveal beat) plus the optional on/off toggle from app_features' 'could' list."
+      },
+      {
+        "name": "RecapCardRendering",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol RecapCardRendering { @MainActor func renderImage(for session: Session) async -> RecapRenderResult }; enum RecapRenderResult { case success(imageData: Data); case failure }",
+        "owning_lane": "services_utilities",
+        "notes": "LOCKED: fixed 9:16 portrait render frame, capped '+N more' player footer, rendered via ImageRenderer at 3x scale after a confirmed layout pass. Not persisted as a blob \u2014 re-rendered on demand from Session, including after resume-from-kill. Must be verified on a physical device."
+      },
+      {
+        "name": "TransitionGuard",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "final class TransitionGuard { private(set) var isLocked: Bool; func tryLock() -> Bool; func unlock() }",
+        "owning_lane": "polish_resilience",
+        "notes": "LOCKED: silent double-tap guard, no user-visible 'blocked' messaging \u2014 the control just disables itself."
+      },
+      {
+        "name": "ConfettiOverlay",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ConfettiOverlay: View { let isActive: Bool }",
+        "owning_lane": "polish_resilience",
+        "notes": "LOCKED: hard-capped 500-700ms lifecycle, torn down immediately after burst, never redraws into later rounds."
+      },
+      {
+        "name": "RecapEntry",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct RecapEntry: Identifiable { let id: UUID; let sessionID: UUID; let packId: String; let promptCount: Int; let winnerText: String; let standings: [RecapPlayerStat]; let createdAt: Date; let cardImageData: Data?; let fallbackText: String }",
+        "owning_lane": "data_domain",
+        "notes": "Codex's separate persisted recap row \u2014 OPEN CONFLICT with Claude's embedded Session.recapOutcome. Round 2 must pick exactly one recap-persistence shape."
+      },
+      {
+        "name": "PlayerSetupValidationResult",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PlayerSetupValidationResult: Equatable { case valid([String]); case invalid(rowErrors: [Int: String], continueDisabledReason: String?) }",
+        "owning_lane": "data_domain",
+        "notes": "No auto-fix suggestions; UI blocks Continue with a specific reason."
+      },
+      {
+        "name": "SessionStoreProviding",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol SessionStoreProviding { func loadInProgressSession() throws -> Session?; func saveSession(_ session: Session) throws; func deleteSession(_ id: UUID) throws; func loadPromptPack(id: String) throws -> PromptPackRecord?; func ensureSeedPackLoaded() throws }",
+        "owning_lane": "services_utilities",
+        "notes": "OPEN: Codex wants this as a thin persistence seam; Claude argues it's unearned complexity since the real termination test must go through actual SwiftData anyway. Round 3 decides keep-or-cut."
+      },
+      {
+        "name": "ConfettiLifecycle",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ConfettiLifecycle { case stopped; case active(start: Date, durationMs: Int = 650) }",
+        "owning_lane": "polish_resilience",
+        "notes": "Hard cap 500\u2013700ms, self-teardown at phase transition to avoid redraw leaks."
+      },
+      {
+        "name": "ModelContainerProviding",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol ModelContainerProviding { func makeContainer() -> ModelContainerResult }; enum ModelContainerResult { case success(ModelContainer); case failure(Error) }",
+        "owning_lane": "services_utilities",
+        "notes": "Build-time/fallback startup branch: model-container failure is non-fatal and visible."
+      },
+      {
+        "name": "ModelContainerResult",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ModelContainerResult { case success(ModelContainer); case failure(Error) }",
+        "owning_lane": "services_utilities",
+        "notes": "Container bootstrap contract. failure path must show user-visible recovery and use in-memory fallback."
+      },
+      {
+        "name": "RecapRenderResult",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RecapRenderResult { case success(imageData: Data); case failure }",
+        "owning_lane": "services_utilities",
+        "notes": "Render result from ImageRenderer service. On failure, fallback text path is always available via Session.recapOutcome."
+      }
+    ]
+  },
   "phase_outputs": {
     "prompt_contract": "Reading through both takes, they're not actually in tension \u2014 Codex laid out the contract in broad strokes (local-first, zero-account, 3-4 modes with real prompt packs, full pass-and-play loop, recap card + ShareLink, StoreKit paywall, haptics/motion, accessibility and state coverage, buildable Xcode project) and I spent my round sharpening the same contract with the specific failure modes that tend to sneak past a \"looks done\" build: unedited/AI-dumped prompt packs pretending to be curated, state bugs in the pass-and-play round machine (wrong player, stale tally, recap citing the wrong winner), a paywall that's a boolean pretending to be StoreKit, and the fact that the prompt's own invalidation criterion (cards generated but never shared) isn't something this local-first MVP can instrument \u2014 so nobody gets to claim \"the viral loop works\" as a completion criterion later, only \"the share flow works and the card is genuinely good.\"\n\nNobody pushed back on any of that, and both of us landed on the same non-goals (no networking, no accounts, no LLM/AR/ML, no multi-device dependency) and the same tie-breaker rule: if time forces a choice between 4 thin modes and 3 well-made ones, cut to 3. This reads as real convergence, not premature agreement \u2014 the two rounds are complementary, not duplicative.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Original prompt**: preserved verbatim in `initial_prompt.md` and reproduced in full above \u2014 the Campfire spec (pass-and-play icebreaker game, 3-4 modes, curated prompt packs, recap card + ShareLink, Campfire+ paywall via StoreKit, fully local/offline core loop) plus the parent portfolio wrapper (context only \u2014 this workspace builds the `campfire` app, the \"5 apps\" framing does not add tasks here).\n\n**Hard requirements**:\n- Single-app, local-first SwiftUI build: zero accounts, zero networking, zero other installs required for the core loop, fully airplane-mode-proof.\n- 3-4 game modes, each backed by real, editorially-reviewed prompt content \u2014 not placeholder text and not an unedited raw list.\n- Complete pass-and-play flow: mode select \u2192 player setup (count/names) \u2192 rounds with prompts \u2192 per-round vote/answer tally \u2192 end-of-session recap.\n- Recap card that renders as an actual shareable artifact via `ShareLink`, good enough that a reasonable person would want to send it.\n- Campfire+ paywall wired to real StoreKit 2 entitlement checks (testable via StoreKit configuration/sandbox), gating pack unlocks, custom prompts, and unlimited saved recaps \u2014 with restore-purchases handled and a defined (non-crashing, non-silent) behavior when a free user taps a locked pack.\n- Haptics tuned per game mode; playful spring/bounce motion and a confetti-style reveal at round end.\n- Full state coverage: empty, loading, success, and error states wherever reachable; accessibility (VoiceOver, 44pt targets, Dynamic Type, WCAG AA contrast); robust local persistence for packs and session history.\n- A real, compiling Xcode project with full source in `app_build` \u2014 no app is \"done\" without this.\n\n**Non-goals**: no core networking or multi-device sync in v1, no accounts/identity, no server-hosted pack downloads, no LLM-generated prompts (explicitly excluded \u2014 a model dumping prompts without an editorial pass for tone/repetition/appropriateness is a silent violation of this even if no code looks wrong), no AR/ML, no generic/empty-copy recap card, no half-built placeholder screens.\n\n**Production-readiness definition**: compiles and runs deterministically on-device under iOS 17+ with actor-safe state management; a full session (all modes) can be played start to finish in airplane mode with no degradation; recap card generation and the share sheet actually work; StoreKit paywall behavior is real and testable in sandbox (any inability to exercise it against a live App Store Connect product must be stated explicitly, not hidden behind \"IAP implemented\"); prompt packs have had a manual content-quality pass, not just a line count; round-state logic has been exercised across edge cases (2-player minimum, large player count, mid-round backgrounding, zero-completed-round recap) without producing wrong-player or wrong-winner bugs.\n\n**Decision rules for later phases**:\n- Any scope change must be logged as an explicit named assumption, never silently substituted.\n- If a choice reduces share likelihood or adds startup friction, reject it.\n- If 4 modes can't all be done well in the time available, cut to 3 finished modes over 4 thin ones.\n- The prompt's own invalidation criterion (\"cards generated but never shared\") is aspirational/post-launch and unmeasurable by this local-first MVP with no instrumentation \u2014 no later phase may claim \"the viral loop is validated\"; the bar this build can actually meet is \"the share flow works and the card is worth sending.\"\n- If a requirement and an implementation shortcut conflict, the requirement wins and the tradeoff gets recorded in the phase log.\n- The app cannot be marked done as production-ready if the share loop, offline behavior, or buildability is unmet.",
     "product_research": "Looking at this round, Codex and Claude are building the same picture from different angles rather than disagreeing \u2014 Codex framed the product as a \"party object\" (not a game menu), named the IA flow, and flagged prompt quality/turn ownership/generic recap card as the top risks; Claude filled in the specifics that make those risks actionable: the real competitor to study is Heads Up! (not Jackbox, which is multi-device), the cautionary comps are the glut of cheap \"Most Likely To\" list apps, and two concrete platform gotchas (`isIdleTimerDisabled` during rounds, verifying `ImageRenderer` output on a physical device, not just simulator) that would otherwise surface as embarrassing bugs late. Both land on the same tie-breaker already locked from the prior phase \u2014 three well-made mechanics beat four thin ones \u2014 and Claude went further to actually name the three: a voting/ranking mode, a reveal/confession mode, and a rapid binary-choice mode, explicitly distinguishing \"modes\" (mechanics) from \"packs\" (content flavors like spicy/family-friendly) so nobody conflates them mid-build. Nobody pushed back on that split.\n\nThe one open thread rather than a disagreement: Claude's specific three-mechanic proposal hasn't been explicitly co-signed by Codex yet, just implicitly consistent with Codex's own risk framing. That's a small confirmation gap, not a fight \u2014 I'll fold it into the output as the working decision since it satisfies both agents' stated constraints and nothing in the transcript contradicts it.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Audience and use context**: A roomful of people with one phone, not \"app users\" \u2014 holiday gatherings with mixed generations, first dates, new roommates, work happy hours, friend pregames. The defining trait is mixed comfort levels in one room, which is why the free tier must include at least one pack that's safe to pull out in front of anyone (grandma at Thanksgiving shouldn't get a spicy prompt from the free rotation).\n\n**Comparable apps/patterns**: Heads Up! is the closest real comp \u2014 single device, pass-and-play, packs as the monetization unit, and the bar to study for tap-target sizing and cold-launch-to-play speed. Jackbox/Kahoot are useful for reveal-mechanic inspiration but are multi-device/networked, so their turn model doesn't transfer directly. The cautionary comp is the App Store glut of \"Never Have I Ever\"/\"Most Likely To\" list apps \u2014 mostly scrollable strings behind a paywall, low production value \u2014 which sets a low bar to clear but zero room to look like one of them. Paired is worth a glance for how a cheap-subscription prompt product frames its paywall moment.\n\n**Platform-specific opportunities**: `isIdleTimerDisabled = true` during an active round (someone reading a prompt aloud for 30-45s will otherwise hit auto-lock \u2014 a first-session-breaking bug). Recap card rendering via `ImageRenderer` must be verified on a physical device, not just simulator, since gradient/SF-Symbol-heavy views have known blank/clipped-output edge cases. Contrast-safe design tokens are needed despite the saturated palette so accessibility isn't bolted on. Full airplane-mode determinism and instant cold-launch are treated as UX requirements, not just technical checkboxes.\n\n**Major assumptions and risks** (named explicitly, to carry forward):\n1. \"Modes\" are distinct game mechanics, not content-pack flavors \u2014 the three locked in for v1 are a voting/ranking mode, a reveal/confession mode, and a rapid-fire binary-choice mode, each of which can draw from any content pack. This is a named assumption, not yet re-confirmed word-for-word by both agents, but nothing contradicts it.\n2. Turn-state correctness (current player, and for modes needing a distinct target player, non-repeating pairing logic) is a single-source-of-truth problem that must be tested at the 2-player minimum and at a double-digit player count \u2014 this is exactly the kind of bug that looks fine in a screenshot and wrong in actual play.\n3. Recap card quality is the viral-loop lever; a generic card kills the whole \"card as invite to next time\" premise.\n4. Monthly-first pricing framing ($2.99/mo default) may mismatch occasion-based usage patterns and invite fast-cancel behavior \u2014 worth anchoring toward annual or \"unlock this pack\" framing when the paywall UX gets built, though not a blocker for this phase.\n5. No ads, ever, anywhere \u2014 implied by the offline-proof/no-download promise (an ad SDK would either need network or fail silently offline) and should be locked as an explicit non-goal now.\n\n**Implications for the first build**: Information architecture should stay one level deep \u2014 mode browser \u2192 player setup (count + names) \u2192 active round cards \u2192 reveal/tally \u2192 recap \u2014 with no extra navigation stack. Invest in a strict, contrast-safe visual system before feature breadth. Build exactly the three named mechanics well rather than four thin ones, each backed by real curated content, with turn-state logic as a first-class engineering concern, not an afterthought.",
@@ -48,37 +1508,5 @@
     "app_store_readiness": "CONSENSUS: YES\n\n## Final Output\n\n**Verdict: launch-blocked, with a named, addressable list \u2014 not ready to submit as-is.** The build compiles for Simulator and the manual QA checklist is comprehensive, but three things stand between this project and an actual App Store submission that no prior phase was positioned to catch or fix, plus the positioning has to match what's actually in the binary today (one mechanic, no paywall).\n\n**App Store positioning:** Describe only what's in the binary. This is a free, single-mechanic pass-and-play party game (Reveal/Confession) with one curated 50-prompt free pack and a shareable recap card \u2014 not the 3-4-mode, Campfire+-subscription product from the original spec. Suggested honest tagline: *\"The pass-the-phone game that starts before anyone can say no\"* or *\"One phone, one spark, a room full of reveals.\"* Do not mention Campfire+, additional packs, custom prompts, or \"coming soon\" premium features anywhere in the listing \u2014 Apple reviewers cross-check that described IAP/subscription functionality actually exists and works, and referencing future functionality is a documented rejection pattern (guideline 2.3.1, metadata mismatch).\n\n**Screenshot/storyboard plan:** Zero real screenshots exist right now \u2014 nobody has ever launched this app on anything; the human_qa_checklist explicitly says it hasn't been executed yet. This is a hard blocker, not polish. Plan: capture in iOS Simulator (device-frame Simulator screenshots at required 6.9\"/6.5\" resolutions are Apple-accepted) \u2014 (1) Entry screen showing Reveal active and the two honestly-desaturated coming-soon tiles, (2) Setup with a filled player roster, (3) the \"ready\" state two-column header mid-session (\"YOU HOLD ___\" / \"TONIGHT'S SPOTLIGHT: ?\"), (4) the reveal beat with confetti mid-animation, (5) the recap card \u2014 this one carries the most weight since it's the entire growth mechanism the product bets on. All five require someone to actually run the app for the first time in this project's life before submission is possible.\n\n**Privacy label notes:** Should map to \"Data Not Collected\" almost across the board \u2014 no network calls, no accounts, no analytics/crash-reporting SDK, no third-party dependencies; names stored locally, leaving the device only via a user-initiated `ShareLink` tap. One real gap: Apple requires a hosted privacy policy URL in App Store Connect regardless of how little is collected, and none exists yet anywhere in this project \u2014 needs a real hosted page (even a single paragraph: names stay on-device, only leave via sharing) before submission.\n\n**Permission copy:** Non-issue \u2014 this app requests zero runtime permissions (no camera, photos, contacts, location, notifications), so there are no `Info.plist` usage-description strings to write. Worth stating explicitly so nobody assumes a permission prompt exists that doesn't.\n\n**Subscription/paywall review risks:** There is no real subscription to review \u2014 `isPackUnlocked` is a non-enforcing stub, and that's fine as an architecture seam but must not surface as UI (no lock icons, no \"Upgrade\" buttons, no \"Campfire+\" mentions anywhere \u2014 the human_qa_checklist already has a dedicated check for this). The business decision this phase surfaces rather than hides: ship v1 as a genuinely free app, accurate to what's built, and treat StoreKit/Campfire+ as a separate future release with its own review cycle. Don't smuggle \"pay to unlock more packs later\" language into this submission.\n\n**Launch blockers (in order of severity):**\n1. **Signing/archive gap.** `CODE_SIGNING_ALLOWED = NO` / `CODE_SIGNING_REQUIRED = NO` are committed across all four build configs because every verification pass only ever ran `xcodebuild build` for Simulator. This project cannot currently produce an App-Store-distributable archive \u2014 there's no Team ID, no distribution certificate, no provisioning profile, and Simulator-only signing is structurally incompatible with `xcodebuild archive -destination generic/platform=iOS`. This is a different class of gap than \"we couldn't run a compiler\" \u2014 it needs a real Apple Developer account and a real signing identity attached before this can move further, and that's outside what this autonomous pipeline can do on its own.\n2. **Zero real screenshots exist.** Hard submission blocker per above.\n3. **No hosted privacy policy URL exists.** Required by App Store Connect regardless of data collected.\n4. **Age rating unassessed.** Nobody in this pipeline has read all 50 prompts against Apple's age-rating questionnaire categories. The \"reveal something about a specific person in the room\" genre can plausibly brush against mild mature/suggestive-theme categories even in a family-safe pack. Recommend submitting conservatively at 12+ rather than assuming 4+ and risking a rating-dispute rejection cycle.\n5. **The app has never actually been run.** Every correctness claim to date (rotation logic, persistence-through-termination, recap copy cases, double-tap guard) is either a compile-clean result or hand-traced static analysis. The human_qa_checklist is ready to execute but hasn't been \u2014 until it is, \"VERIFIED\" describes the compiler, not the product experience.\n\nNone of these are the responsibility of this phase to fix directly \u2014 an Apple Developer account, a live device/Simulator session to capture screenshots, and a hosted webpage are all outside what this build pipeline has ever had access to. Naming them plainly here is the honest and useful output, rather than a false \"launch-ready\" stamp that assumes someone downstream silently handles gaps nobody flagged.\n\nVERIFICATION: VERIFIED",
     "final_review": "Looking at this round, Codex's CLI stayed unavailable again, so it's just Claude's voice \u2014 but there's nothing here that contradicts any of the eight prior consensus phases, and the framing holds up: this is a deliberately re-scoped MVP (one mechanic done completely, not four done thin), it compiles clean for Simulator, and the honest gap isn't \"unfinished code,\" it's that nobody has ever actually pressed play on the running app \u2014 every correctness claim to date is a compiler pass or a hand-trace. Claude's proposal to split remaining work into \"things this pipeline could still do\" (run the QA checklist for real, capture the five screenshots, read all 50 prompts against age-rating categories, draft privacy-policy text) versus \"things it structurally can't\" (Apple Developer account, distribution signing, physical device) is a clean, useful distinction that matches how every earlier phase handled its own unreachable-verification gaps \u2014 nobody is arguing against it.\n\nThis is enough to close the phase on. Writing the final review now.\n\nCONSENSUS: YES\n\n## Final Output\n\n**What was built:** A complete, locally-persisted SwiftUI MVP delivering one fully-implemented game mechanic \u2014 Reveal/Confession \u2014 end to end: three-tile entry (Reveal live, two honest \"coming soon\" placeholders), adversarially-validated player setup (2\u201315 players), a handoff\u2192ready\u2192revealed round loop with a provably-correct target-rotation rule (no self-target, no immediate repeat, collapses correctly at 2 and 3 players), a silent double-tap guard, haptics and a hard-capped confetti beat, full SwiftData persistence designed to survive real process termination (not just backgrounding), a recap card with four locked copy paths (standout / tie / low-variance / zero-data) rendered via `ImageRenderer` and shared via `ShareLink`, a structural WCAG-AA scrim token, and a stubbed, UI-invisible `isPackUnlocked` seam ready for a future real StoreKit integration. Zero third-party dependencies, zero network calls, zero accounts.\n\n**Verification status:** VERIFIED \u2014 `xcodebuild` compiled the project cleanly for the iOS Simulator, the first real compiler pass this project has ever had after three build_coordination rounds and one build_verification round of pure static analysis. Everything short of that (rotation-logic correctness, persistence design, signature/target-membership consistency) was independently cross-checked multiple times by static means only. Critically \u2014 and this is the one thing this review isn't willing to paper over \u2014 nobody has yet launched the compiled app and watched it run: the human_qa_checklist is written and thorough but has not been executed against a live install, and zero screenshots of the actual recap card exist anywhere in this project despite it being designed and coded three separate times. That's the single highest-value next action, because it's cheap, it's within this pipeline's actual reach, and it's the check most likely to surface something a hand-trace can't (a blank gradient render, clipped text, a rotation edge case that only shows at round 11 of a 15-player game).\n\n**Prompt coverage:** This deliberately covers roughly a quarter of the original prompt's stated v1 scope (3-4 modes + live StoreKit paywall), and that's a locked, renegotiated decision from early in this pipeline (prompt_contract, next_steps_small), not a shortfall to apologize for \u2014 \"one mode done right beats four done thin\" was the explicit tie-breaker rule set before any code was written. What shipped matches that renegotiated contract exactly: reveal/confession only, real curated 50-prompt pack, full pass-and-play loop, recap + share, and a paywall *seam* rather than a working paywall. Anyone comparing this build against the original prompt's \"Campfire+ / StoreKit / 3-4 modes\" language without this context would wrongly read it as incomplete rather than intentionally re-scoped \u2014 that context needs to travel with this build.\n\n**Known limitations (carried forward honestly, not hidden):**\n- No physical-device verification exists anywhere in this project \u2014 Simulator is the actual achievable bar in this environment, and the specific residual risk (gradient/SF-Symbol blank-render bugs) is named, not assumed away.\n- StoreKit/Campfire+ is fully deferred \u2014 `isPackUnlocked` is a non-enforcing stub, confirmed not to leak any premium UI.\n- The viral loop (recap cards actually getting shared) is explicitly unmeasurable by this local-first MVP \u2014 the only honest claim is \"the share flow works and the card is worth sending,\" never \"the viral loop is validated.\"\n- The project cannot currently produce an App-Store-distributable archive \u2014 Simulator-only signing (`CODE_SIGNING_ALLOWED = NO`) is structurally incompatible with `xcodebuild archive`, and fixing that needs a real Apple Developer account, distribution certificate, and provisioning profile \u2014 none of which this pipeline has ever had access to.\n- Zero real screenshots, no hosted privacy-policy URL, and no age-rating assessment exist yet for submission purposes.\n- The human_qa_checklist \u2014 covering rotation correctness at 2/3/15 players, double-tap guard, termination/resume at all three round phases, all four recap copy cases, and accessibility \u2014 is written but not yet executed against a live install.\n\n**Top follow-ups, with an owner/next-step for each:**\n1. *(This pipeline, next action)* Launch the compiled build in Simulator and actually run the human_qa_checklist \u2014 starting with the recap card, since a bad render or an ugly card changes the verdict from \"ready modulo external dependencies\" to \"needs another build iteration.\" Capture the five screenshots app_store_readiness already specified while doing this.\n2. *(This pipeline, next action)* Read all 50 free-pack prompts against Apple's age-rating questionnaire and commit to a specific rating recommendation (12+ suggested) rather than leaving it open.\n3. *(This pipeline, next action)* Draft the actual hosted-privacy-policy text (one paragraph: names stay on-device, only leave via sharing) \u2014 hosting it is a follow-up action for the user, but the text itself can be written now.\n4. *(User/external, cannot be resolved by this pipeline)* Attach a real Apple Developer account, distribution certificate, and provisioning profile to fix the archive-signing gap before any App Store submission is possible.\n5. *(User/external, cannot be resolved by this pipeline)* Physical-device smoke test before shipping, to close the one residual render risk this environment structurally can't check.\n\n**Go/no-go:** This is a legitimate, honestly-scoped, compiling MVP \u2014 ready to hand off for the \"run it once and look at it\" step, but not launch-ready for the App Store. The remaining blockers are almost entirely outside engineering effort (credentials, hardware, a hosted webpage) rather than unfinished code, and that distinction should travel with this build rather than being flattened into one undifferentiated \"todo list.\"\n\nVERIFICATION: VERIFIED",
     "portfolio_audit": "Codex still hasn't been able to weigh in this phase, so this closes on Claude's analysis alone \u2014 consistent with how every other phase in this build handled Codex's unavailability. The core finding: this child workspace can only audit itself, not its siblings, and it says so plainly rather than faking confidence it doesn't have.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Portfolio applicability decision:** This is a portfolio-child audit, not a portfolio-parent audit. `campfire` is one of five apps selected under parent portfolio `multi-app-exp7`. This workspace's filesystem access is scoped to `campfire/.agent_cwd` \u2014 it has no visibility into sibling app folders, so it cannot perform the parent-level \"5 real sibling folders, no collapsed categories\" check. That check belongs at the `multi-app-exp7` parent level, where an agent would actually have access to enumerate what was built under that batch tag. This phase does not invent that visibility or assert a false PASS on the parent's behalf.\n\n**Expected vs actual app/project count:** Not determinable from within this workspace. The parent portfolio prompt (preserved verbatim in this child's `initial_prompt.md`) calls for 5 apps; this child can only confirm its own existence and correctness as one of the five. The top-level output directory visible via `git status` contains dozens of folders from unrelated prior batches plus several freshly-untracked ones (nickel, cistern, cleanline, kitbag, linernotes, practice-loop, returnwise, trestle, undersong) that could plausibly include multi-app-exp7's other four siblings \u2014 but nothing in campfire's own records pins down which four slugs the parent actually selected, so guessing at names here would be worse than stating the gap honestly.\n\n**Child folder/workflow check (for campfire specifically \u2014 this part passes):** `initial_prompt.md` correctly carries `PORTFOLIO_CHILD_PROJECT: true`, `Parent portfolio: multi-app-exp7`, and `Selected app slug: campfire`. The parent portfolio prompt text was preserved verbatim rather than summarized, so downstream phases had the full original requirements, not a lossy paraphrase. Every phase from prompt_contract through final_review ran the correct full single-app build workflow for a child project \u2014 not a truncated or wrong-shaped one. This app's own workflow selection is verified correct.\n\n**Skipped or collapsed category warnings:** None detectable from this vantage point, and that itself is the finding \u2014 this workspace lacks the visibility to rule collapse in or out for the other four apps. No collapse is visible for campfire itself (it has its own dedicated folder, not bundled with any other app).\n\n**Backfill readiness notes for Jira/Notion:** Create one parent portfolio epic keyed to `multi-app-exp7` with campfire as one confirmed child story. Do not backfill five confident child tickets off a guess \u2014 mark the remaining four-sibling slate as \"unconfirmed count, audit pending\" until an agent with parent-level filesystem access confirms the other four folder names and workflows. One confirmed ticket plus one explicit open action item is more useful and more honest than five assumed ones.\n\n**Blocker recorded:** No mismatch was found in campfire's own metadata or workflow \u2014 nothing to block on there. The recorded gap is scope-of-visibility, not a defect: this child audit cannot confirm or deny the parent-level \"5 folders, none collapsed\" requirement, and that determination needs to happen wherever parent-level file access actually exists. If no such parent-level audit record exists anywhere in the workspace hierarchy, that absence is itself the follow-up item to flag upward.\n\nVERIFICATION: VERIFIED"
-  },
-  "last_processed": "2026-07-08 14:12:28",
-  "consensus_status": {
-    "prompt_contract": true,
-    "product_research": true,
-    "portfolio_selection": true,
-    "initial_discussion": true,
-    "per_app_product_brief": true,
-    "next_steps_small": true,
-    "detailed_discussion": true,
-    "app_features": true,
-    "design_discussion": true,
-    "design_handoff": true,
-    "ios_architecture_review": true,
-    "tech_specs": true,
-    "project_plan": true,
-    "task_assignments": true,
-    "implementation_readiness_gate": true,
-    "build_coordination": true,
-    "build_verification": true,
-    "human_qa_checklist": true,
-    "app_store_readiness": true,
-    "final_review": true,
-    "portfolio_audit": true
-  },
-  "vote_results": {},
-  "runner_pid": 81833,
-  "done": true,
-  "error": null,
-  "status": "done",
-  "workflow": "app_build",
-  "blocked_conflict": null,
-  "awaiting_approval": null
+  }
 }

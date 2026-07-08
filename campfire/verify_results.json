@@ -1,0 +1,19 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-08 14:04:22",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "772b76486ea00444294b4afff3520f5b42c2968dc08fb282245d5b7034ee6664",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Campfire",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]

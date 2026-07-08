@@ -1,0 +1,434 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Xcode project scaffold: three targets, App Group entitlements, .storekit config wired to scheme",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/Nickel.xcodeproj",
+        "app_build/NickelApp/NickelApp.entitlements",
+        "app_build/NickelWidget/NickelWidget.entitlements",
+        "app_build/Nickel.storekit",
+        "app_build/NickelKit/Package.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Project opens in Xcode with NickelApp, NickelWidgetExtension, NickelKitTests, NickelUITests targets all present",
+        "App Group entitlement identical on NickelApp and NickelWidgetExtension targets",
+        ".storekit file exists and is referenced by the active scheme",
+        "Empty project builds and runs on simulator with zero warnings"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "CloudKit-safe SwiftData models + value types (SpendEntry, Category, WeeklyTarget, RecapCardData, CategoryTotal, WeatherReading, WidgetState, CSVImportResult)",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/NickelKit/Sources/NickelKit/Models/SpendEntry.swift",
+        "app_build/NickelKit/Sources/NickelKit/Models/Category.swift",
+        "app_build/NickelKit/Sources/NickelKit/Models/WeeklyTarget.swift",
+        "app_build/NickelKit/Sources/NickelKit/Models/RecapCardData.swift",
+        "app_build/NickelKit/Sources/NickelKit/Models/WeatherReading.swift",
+        "app_build/NickelKit/Sources/NickelKit/Models/WidgetState.swift",
+        "app_build/NickelKit/Sources/NickelKit/Models/CSVImportResult.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "No @Attribute(.unique) anywhere in the schema",
+        "Every relationship is Optional with an explicit inverse",
+        "Every non-relationship attribute is Optional or has a default value",
+        "Package compiles standalone via swift build"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "WeekCalculator: locale-aware week bounds/week-of-year, unit tested across 3+ firstWeekday locales",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/NickelKit/Sources/NickelKit/Services/WeekCalculator.swift",
+        "app_build/NickelKitTests/WeekCalculatorTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "weekBounds and weekOfYear respect calendar.firstWeekday, never hardcode Sunday/Monday",
+        "Unit tests pass for a Sunday-start locale, a Monday-start (ISO) locale, and a Saturday-start locale",
+        "Pure function, zero SwiftData/SwiftUI import"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "SpendRepository protocol + SwiftDataSpendRepository, default category seeding, widget reload wiring",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/NickelKit/Sources/NickelKit/Persistence/SpendRepository.swift",
+        "app_build/NickelKit/Sources/NickelKit/Persistence/SwiftDataSpendRepository.swift",
+        "app_build/NickelKit/Sources/NickelKit/Persistence/SchemaMigrationPlan.swift",
+        "app_build/NickelKit/Sources/NickelKit/Seed/DefaultCategories.swift",
+        "app_build/NickelKitTests/RepositoryTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "addEntry rejects amount <= 0, never persists a zero-amount entry",
+        "weekOfYear/weekYear computed once at insert via WeekCalculator, never recomputed live on read",
+        "CSV/import dedupe is an application-level Set<UUID> check against fetched entries, no DB uniqueness constraint used",
+        "Every mutating call triggers WidgetCenter.reloadTimelines(ofKind:) immediately; importCSV triggers exactly one reload after the whole batch commits",
+        "~9 default categories seeded on first launch of an empty store",
+        "All CRUD + recapData(weekStart:) methods covered by tests against an in-memory ModelContainer"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "WeatherAlgorithm: trailing-baseline weather reading with honest degrade states",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/NickelKit/Sources/NickelKit/Services/WeatherAlgorithm.swift",
+        "app_build/NickelKitTests/WeatherAlgorithmTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Returns .notEnoughData when entryCount < 3 regardless of amount, no override path",
+        "Returns .insufficientHistory when entryCount >= 3 but fewer than 2 comparable prior weeks exist",
+        "Baseline is a trailing average of prior logged weeks, never a fixed dollar threshold",
+        "Empty priorWeeks array does not crash or divide by zero \u2014 covered by an explicit test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "CSVService: locale-independent parse/serialize with malformed-file detection",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/NickelKit/Sources/NickelKit/Services/CSVService.swift",
+        "app_build/NickelKitTests/CSVServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Serialize always emits period decimal separator and ISO-8601 dates regardless of device locale",
+        "Parse assumes the same fixed format regardless of device locale",
+        "Each CSVImportError case produces a specific, human-readable errorDescription, never a generic failure message",
+        "Round-trip test: two entries with identical amount/category/date both survive export-delete-reimport without being wrongly collapsed by dedupe"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "EntitlementStore: StoreKit 2 wrapper defaulting to free tier",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/NickelKit/Sources/NickelKit/Services/EntitlementStore.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "isPlusActive defaults false on any unknown/unreachable entitlement state",
+        "refresh()/purchase()/restore() never block the UI with a spinner",
+        "Verified against the checked-in .storekit config via StoreKitTest/SKTestSession"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "AppRoute/AppRouter + app entry wiring the shared App Group ModelContainer",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/NickelApp/App/NickelApp.swift",
+        "app_build/NickelApp/App/AppRoute.swift",
+        "app_build/NickelApp/App/AppRouter.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Single @Observable router owns AppRoute state near the app root, no scattered @State booleans",
+        "ModelContainer configured against the shared App Group ModelConfiguration, identical schema version widget will use",
+        "AppRoute enum shape frozen and broadcast before T-011/T-013 begin consuming it"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Design tokens + core shared components (MoneyText, DayCard, CategoryGlyph, WeatherIcon, paper-grain background)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/NickelApp/DesignSystem/Tokens.swift",
+        "app_build/NickelApp/DesignSystem/PaperBackground.swift",
+        "app_build/NickelApp/Components/MoneyText.swift",
+        "app_build/NickelApp/Components/DayCard.swift",
+        "app_build/NickelApp/Components/CategoryGlyph.swift",
+        "app_build/NickelApp/Components/WeatherIcon.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "MoneyText is the only place serif numerals are applied; never used for non-money numbers",
+        "DayCard is one component with a State enum (logged/noEntry), not two views",
+        "accentText token measured at real 4.5:1 contrast against paperCream",
+        "Dark mode counterpart present for every color token, not an inverted system gray"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Log Sheet + Week view: the sacred core loop wired to the real repository",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/NickelApp/Views/LogSheet/LogSheetView.swift",
+        "app_build/NickelApp/Views/Week/WeekView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-008",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Keypad focused via .onAppear with zero intermediate screen",
+        "Category row is a single visible row, one tap both selects and dismisses, no separate save button",
+        "Save is unreachable/disabled on zero or blank amount",
+        "Cold-run tap-to-saved-entry measured under 5 seconds by hand",
+        "Week view shows logged vs no-entry days as visually and VoiceOver-distinct states"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "App Intent write path: LogSpendIntent, CategoryEntity, AppShortcutsProvider",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/NickelApp/Intents/LogSpendIntent.swift",
+        "app_build/NickelApp/Intents/CategoryEntity.swift",
+        "app_build/NickelApp/Intents/NickelShortcuts.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "perform() calls SpendRepository.addEntry directly, no duplicated write logic",
+        "A fixed test case (known amount + category) logs correctly via the intent, verified by hand",
+        "Discoverable in the Shortcuts app via AppShortcutsProvider"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Recap screen: RecapCardView + ImageRenderer + ShareLink, three honest states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/NickelApp/Views/Recap/RecapCardView.swift",
+        "app_build/NickelApp/Views/Recap/RecapView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "RecapCardView takes only RecapCardData, zero @Query/@Environment access",
+        "0 / 1-2 (thin week) / 3+ entries render three visibly distinct cards, confirmed by hand",
+        "ShareLink produces a real ImageRenderer PNG that opens correctly in the share sheet",
+        "Can render any past week on demand from stored data, not just the live current week"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Widget extension: three-state SpendWidgetProvider + widget views + tap-to-deep-link",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/NickelWidget/SpendWidgetProvider.swift",
+        "app_build/NickelWidget/NickelWidgetBundle.swift",
+        "app_build/NickelWidget/Views/WidgetViews.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-004",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Store-open wrapped in explicit do/catch, never try?, so .uninitialized can never collapse into .empty",
+        "uninitialized / empty(weekStart) / data(RecapCardData) render as three visually distinct states, confirmed by hand on a real device/simulator",
+        "Tapping the widget in any state deep-links to the Log Sheet via AppRoute",
+        "#Preview fixtures exist for all three states"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "History screen (week/category toggle), Category Detail, Entry Detail/Edit with delete confirmation",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/NickelApp/Views/History/HistoryView.swift",
+        "app_build/NickelApp/Views/History/CategoryDetailView.swift",
+        "app_build/NickelApp/Views/History/EntryDetailView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-009",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Segmented control for week/category is large and labeled at the top, not a small icon",
+        "Every logged entry is editable and deletable; edits immediately update recap totals",
+        "Delete requires exactly one confirmation tap, the sole exception to no-confirmation-screens"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "CSV Import Preview: parse types + preview/error/success UI",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/NickelKit/Sources/NickelKit/Models/CSVParseResult.swift",
+        "app_build/NickelKit/Sources/NickelKit/Models/ParsedCSVEntry.swift",
+        "app_build/NickelKit/Sources/NickelKit/Models/CSVImportError.swift",
+        "app_build/NickelApp/Views/CSVImport/ImportPreviewView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Malformed file always produces a specific visible error, never a silent partial import",
+        "Preview shows new/duplicate/total counts before commit",
+        "Post-import confirmation summary shown from CSVImportResult"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "PaywallSheet UI wired to EntitlementStore and PaywallTrigger contexts",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/NickelApp/Views/Paywall/PaywallSheet.swift",
+        "app_build/NickelApp/App/PaywallTrigger.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Every trigger (newCategoryLimit, widgetConfig, customTag, trendCharts) resolves to a dismissible sheet",
+        "A genuine Not Now control returns the user exactly where they were, no forced interstitial",
+        "Downgrade path never hides existing custom-category entries, gates only new-category creation"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Settings, Categories Management, Targets screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/NickelApp/Views/Settings/SettingsView.swift",
+        "app_build/NickelApp/Views/Settings/CategoriesManagementView.swift",
+        "app_build/NickelApp/Views/Settings/TargetsView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-009",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Soft targets are visual-only, zero local/push notification scheduling anywhere in this screen or its call paths",
+        "Custom category creation gates behind Nickel+; historical entries on old custom categories stay visible and labeled after downgrade",
+        "CSV export/import and Nickel+ entry points present and reachable"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Onboarding screen + true first-launch empty state",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/NickelApp/Views/Onboarding/OnboardingView.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Single screen, kinesthetic \u2014 drops user into empty Week with log button pulsing once, no carousel",
+        "Shown exactly once on true first launch, never again after first entry or dismissal"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "Accessibility and privacy audit",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/NickelApp/Info.plist"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-010",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "VoiceOver announces logged vs no-entry days as distinct, not generic",
+        "Log Sheet keypad + category row tested at accessibility Dynamic Type sizes, category row wraps to a second line rather than shrinking below 44pt",
+        "Info.plist inspected by hand and contains zero permission usage-description keys",
+        "accentText-on-cream contrast measured and confirmed at or above 4.5:1"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "XCUITest suite for the load-bearing hand-verification behaviors",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/NickelUITests/CoreLoopTests.swift",
+        "app_build/NickelUITests/CSVRoundTripTests.swift",
+        "app_build/NickelUITests/EditDeleteTests.swift"
+      ],
+      "depends_on": [
+        "T-010",
+        "T-014",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Cold-launch-to-saved-entry timing test exists and passes",
+        "Edit/delete round-trip test exists and passes",
+        "CSV export-delete-reimport test confirms zero duplicates and zero data loss on the identical-entry case"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Full integration re-verification pass across all lanes",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/NickelUITests/IntegrationRegressionTests.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013",
+        "T-016",
+        "T-017",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Widget three-state check re-run after CSV import and targets features exist, not just in isolation at their own milestone",
+        "Recap card three-state honesty re-confirmed against real repository data end to end",
+        "Any must-have from app_features found missing or regressed is reported explicitly as a limitation, not silently passed"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}
