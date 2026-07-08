@@ -1,0 +1,387 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Scaffold Xcode project: three targets building clean",
+      "owner_lane": "data_domain",
+      "files": [
+        "Somna.xcodeproj",
+        "Somna/App/SomnaApp.swift",
+        "SomnaWidget/SomnaWidgetBundle.swift",
+        "SomnaTests/SomnaTests.swift",
+        "Somna/Info.plist",
+        "Somna/Somna.entitlements"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "All three targets (Somna, SomnaWidget, SomnaTests) build clean on a fresh checkout",
+        "Empty app launches in the simulator",
+        "Widget extension stub compiles and is added as a target dependency of the app",
+        "Shared file group set up for the future ActivityAttributes struct so it can belong to both app and widget targets"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "SwiftData models, versioned schema, ModelContainer wiring",
+      "owner_lane": "data_domain",
+      "files": [
+        "Somna/Models/SleepSession.swift",
+        "Somna/Models/CheckIn.swift",
+        "Somna/Models/EnergyLevel.swift",
+        "Somna/Models/SleepTag.swift",
+        "Somna/Models/SomnaSchema.swift",
+        "Somna/App/SomnaApp.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "ModelContainer is constructed with SomnaSchemaV1 and a SchemaMigrationPlan actually passed into its initializer, not just declared as types",
+        "SleepSession.endDate == nil is queryable via a real #Predicate",
+        "A smoke test confirms an open session round-trips correctly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Repository protocols, SwiftData implementations, in-memory fakes",
+      "owner_lane": "data_domain",
+      "files": [
+        "Somna/Repositories/SleepSessionRepository.swift",
+        "Somna/Repositories/CheckInRepository.swift",
+        "Somna/Repositories/SwiftData/SwiftDataSleepSessionRepository.swift",
+        "Somna/Repositories/SwiftData/SwiftDataCheckInRepository.swift",
+        "SomnaTests/Fakes/InMemorySleepSessionRepository.swift",
+        "SomnaTests/Fakes/InMemoryCheckInRepository.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Both protocols have a SwiftData-backed and an in-memory implementation",
+        "A second bedtime tap while a session is open updates that session in place rather than creating a second concurrent session",
+        "WidgetCenter.shared.reloadTimelines is called only from the repository write methods, never from a clock tick",
+        "In-memory fakes work standalone with zero ModelContainer, and are announced ready for primary_ui to build against"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "NightRecord, NightRecordAssembler, pairing/edge-case tests",
+      "owner_lane": "data_domain",
+      "files": [
+        "Somna/Models/NightRecord.swift",
+        "Somna/Models/NightSummary.swift",
+        "Somna/Models/NightRecordAssembler.swift",
+        "SomnaTests/NightRecordAssemblerTests.swift",
+        "SomnaTests/SessionPairingTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "16-hour plausibility window, orphan-closing, duplicate-tap, and a DST-fallback case are all covered by parameterized @Test cases pinned to an explicit TimeZone (never Calendar.current/TimeZone.current)",
+        "Negative or implausible durations are discarded before a NightRecord is ever created",
+        "NightRecordAssembler has zero SwiftData/persistence access \u2014 pure function only"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "CorrelationEngine actor, InsightRule implementations, threshold-gating test",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Somna/Engine/CorrelationEngine.swift",
+        "Somna/Engine/InsightRule.swift",
+        "Somna/Engine/DurationEnergyRule.swift",
+        "Somna/Engine/TagEnergyRule.swift",
+        "Somna/Engine/InsightResult.swift",
+        "Somna/Engine/InsightCardData.swift",
+        "SomnaTests/CorrelationEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Threshold-gating test passes both branches: minNightsThreshold-1 nights yields zero .scored results, minNightsThreshold nights yields at least one",
+        "All three InsightResult cases (stillLearning, scored, noSignal) are individually reachable against constructed test data",
+        "Headline copy is associational only, never causal",
+        "Engine's public API is announced ready for primary_ui's InsightsViewModel to consume"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Debug/seed-data path for synthetic nights",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Somna/Engine/SeedDataGenerator.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "A debug-only entry point force-feeds N synthetic nights into a repository",
+        "Using it, the Insights screen can be demonstrated transitioning from still-learning to a real scored insight without waiting real calendar weeks"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "StoreKit SubscriptionStore, PaywallViewModel, .storekit config",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Somna/Subscriptions/SubscriptionStore.swift",
+        "Somna/Subscriptions/PaywallViewModel.swift",
+        "Somna/Subscriptions/SomnaProductID.swift",
+        "Somna/Subscriptions/EntitlementStatus.swift",
+        "Somna/Somna.storekit"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Entitlement status resolves once per active scenePhase transition into an in-memory flag, never re-queried inside a view body",
+        "Product-list load failure or a hung entitlement check fails open to .free with no blocking spinner anywhere on Today",
+        "Restore Purchases calls AppStore.sync() and re-scans currentEntitlements",
+        "Transaction.updates is observed from app launch and every transaction is finished"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "HealthKitImportService (read-only, opt-in)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Somna/HealthKit/HealthKitImportService.swift",
+        "Somna/Info.plist"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Denied vs not-determined is never distinguished in any UI-facing signal",
+        "Import is only invoked from an explicit Settings opt-in tap, never at first launch",
+        "App is fully functional with zero HealthKit permission granted",
+        "NSHealthShareUsageDescription is real, specific copy"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Design tokens, GradientBackground/gradient(for:), shared components",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Somna/Views/Components/GradientBackground.swift",
+        "Somna/Views/Components/DesignTokens.swift",
+        "Somna/Views/Components/FrostedCard.swift",
+        "Somna/Views/Components/PrimaryButton.swift",
+        "Somna/Views/Components/SecondaryButton.swift",
+        "Somna/Views/Components/StreakBadge.swift",
+        "Somna/Views/Components/TagChip.swift",
+        "Somna/Views/Components/MoonCrescentProgress.swift",
+        "Somna/Views/Components/EnergyScaleControl.swift",
+        "SomnaTests/GradientTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "gradient(for:) unit test asserts all four named band boundaries and the ~30 minute crossfade",
+        "EnergyScaleControl exposes accessibilityValue and the adjustable trait from day one, not retrofitted",
+        "All shared buttons/chips/controls enforce 44pt minimum targets structurally",
+        "Text-bearing components sit on the opaque cardSurface fill, never directly on the raw gradient"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "TodayState, TodayViewModel, Today view",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Somna/ViewModels/TodayViewModel.swift",
+        "Somna/ViewModels/TodayState.swift",
+        "Somna/Views/Today/TodayView.swift",
+        "SomnaTests/TodayStateMachineTests.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "state(at:) is a pure function of (openSession, todayCheckIn, now), unit-testable through empty\u2192preBedtime\u2192asleep\u2192doneForToday using in-memory repos",
+        "hasAnimatedDoneStateToday gates the checkmark animation to once per day",
+        "'I'm Awake' is never disabled regardless of elapsed duration",
+        "Correct empty state on first launch with zero data"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "InsightsViewModel, Insights view (three card compositions)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Somna/ViewModels/InsightsViewModel.swift",
+        "Somna/Views/Insights/InsightsView.swift",
+        "Somna/Views/Insights/StillLearningCard.swift",
+        "Somna/Views/Insights/InsightCard.swift",
+        "Somna/Views/Insights/NoSignalCard.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-005",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "NoSignalCard is a structurally distinct view, never a reskinned StillLearningCard",
+        "Locked per-tag cards blur bars and show an unlock affordance via an isLocked modifier on the same InsightCard type",
+        "refresh() runs off the main actor; the view keeps showing previous results until new ones land, no blocking spinner"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "HistoryViewModel/History view, RecapViewModel/Recap card/RecapDetailView + ShareLink",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Somna/ViewModels/HistoryViewModel.swift",
+        "Somna/ViewModels/RecapViewModel.swift",
+        "Somna/Views/History/HistoryView.swift",
+        "Somna/Views/Recap/RecapCardContent.swift",
+        "Somna/Views/Recap/RecapDetailView.swift",
+        "Somna/Models/RecapData.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "History is delete-only with its own first-launch empty state",
+        "RecapData renders correctly with fewer than 7 nights of data",
+        "RecapCardContent is the single shared source used by both the embedded Today card and the full-bleed ShareLink-exported RecapDetailView"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Settings view, Paywall entry points, root TabView/App wiring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Somna/Views/Settings/SettingsView.swift",
+        "Somna/App/RootTabView.swift",
+        "Somna/App/SomnaApp.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-010",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Non-medical disclaimer reachable from Settings",
+        "Delete-all sits behind a confirmation alert",
+        "Settings reached via a gear icon in Today's nav bar, not a tab",
+        "App compiles with every view model and environment object wired through SomnaApp.swift"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Paywall screen wiring",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Somna/Views/Paywall/PaywallView.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Covers loading/purchasable/purchased/restoring/load-failed states",
+        "Load-failed shows inline retry + dismiss, never a blocking spinner",
+        "Dismissing the paywall never leaves any part of Today gated"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Live Activity (ActivityKit) lifecycle",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Somna/LiveActivity/SomnaLiveActivityAttributes.swift",
+        "Somna/LiveActivity/LiveActivityController.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Starting an Activity is wrapped in try/catch that silently no-ops if Live Activities are system-disabled",
+        "Lock-screen content is generic only (countdown/target bedtime), never mood/energy/insight text",
+        "SomnaLiveActivityAttributes.swift is added to both the app and widget extension target memberships"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "WidgetKit extension: last-night's-score + target-bedtime widget",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "SomnaWidget/SomnaWidgetEntry.swift",
+        "SomnaWidget/SomnaWidgetProvider.swift",
+        "SomnaWidget/SomnaWidgetView.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-010",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Timeline reload is triggered only by the existing repository write-path calls to WidgetCenter.shared.reloadTimelines, no independent clock-driven reload policy added",
+        "Widget never surfaces mood/energy/insight text, only score/duration/target time"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Integration: swap in-memory fakes for real SwiftData repositories app-wide",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Somna/App/SomnaApp.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-014",
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Shipped app target contains zero references to the in-memory fakes",
+        "Full core loop (bedtime \u2192 wake+check-in \u2192 recap \u2192 insights) is demonstrable end-to-end via the seed-data path against real persistence"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "Final verification pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "SomnaUITests/TodayStateMachineUITest.swift",
+        "SomnaTests/AccessibilityTests.swift"
+      ],
+      "depends_on": [
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Clean xcodebuild across app + widget targets on a fresh checkout",
+        "XCUITest Today state-machine smoke test (empty\u2192asleep\u2192doneForToday) passes",
+        "Manual VoiceOver pass on EnergyScaleControl confirmed, not just code inspection",
+        "Every screen's empty/loading/success/error state manually walked through",
+        "Simulated StoreKit product-load failure confirms fail-open to free tier",
+        "Simulated HealthKit permission denial confirms full functionality with zero degradation"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

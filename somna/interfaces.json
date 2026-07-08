@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "SleepSession",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class SleepSession { var id: UUID; var startDate: Date; var endDate: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData model. endDate == nil means session is open. Queried via #Predicate, never a hand-reconstructed check."
+    },
+    {
+      "name": "CheckIn",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class CheckIn { var id: UUID; var timestamp: Date; var energyLevel: Int; var tagsRaw: [String]; var linkedSessionID: UUID? }",
+      "owning_lane": "data_domain",
+      "notes": "energyLevel stored 1-5, wrap with EnergyLevel enum at boundaries. tagsRaw stores SleepTag.rawValue strings. linkedSessionID is a soft FK set by pairing logic, not a SwiftData relationship."
+    },
+    {
+      "name": "EnergyLevel",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EnergyLevel: Int, CaseIterable { case exhausted = 1, low, okay, good, rested; var label: String { get } }",
+      "owning_lane": "data_domain",
+      "notes": "Backs EnergyScaleControl and all display copy; VoiceOver spoken value comes from .label."
+    },
+    {
+      "name": "SleepTag",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SleepTag: String, CaseIterable, Codable { case caffeine, exercise, screenTime, stress, alcohol }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed starter tag set. Adding a case is the only change needed to extend TagChip UI and the engine's per-tag rules."
+    },
+    {
+      "name": "NightRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NightRecord: Equatable { let date: Date; let sessionDuration: TimeInterval?; let energyLevel: EnergyLevel; let tags: Set<SleepTag> }",
+      "owning_lane": "data_domain",
+      "notes": "Pure value type consumed by CorrelationEngine. Built by NightRecordAssembler, which discards implausible/negative durations before records are ever created. This is the required test seam \u2014 engine tests use arrays of this type with zero SwiftData/ModelContainer involvement."
+    },
+    {
+      "name": "NightRecordAssembler",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum NightRecordAssembler { static func assemble(sessions: [SleepSession], checkIns: [CheckIn], plausibilityWindow: TimeInterval = 16 * 3600) -> [NightRecord] }",
+      "owning_lane": "data_domain",
+      "notes": "Pure function: pairs open sessions to check-ins within the 16h window, orphans the rest, discards negative/implausible durations. No side effects, no persistence access."
+    },
+    {
+      "name": "SleepSessionRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SleepSessionRepository { func openSession() -> SleepSession?; func startOrUpdateSession(at date: Date) throws; func endSession(_ session: SleepSession, wakeDate: Date) throws; func allSessions() throws -> [SleepSession]; func delete(_ session: SleepSession) throws }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData-backed impl lives in Repositories/SwiftData; InMemoryRepository impl lives in test target. startOrUpdateSession implements 'second tap edits in place' rule. Write methods are the only call sites for WidgetCenter.shared.reloadTimelines."
+    },
+    {
+      "name": "CheckInRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CheckInRepository { func submit(timestamp: Date, energyLevel: EnergyLevel, tags: Set<SleepTag>, linkedSessionID: UUID?) throws; func checkIn(on date: Date) -> CheckIn?; func allCheckIns() throws -> [CheckIn]; func delete(_ checkIn: CheckIn) throws }",
+      "owning_lane": "data_domain",
+      "notes": "submit() is standalone-safe (linkedSessionID may be nil). checkIn(on:) used for once-per-local-day streak/update-in-place semantics."
+    },
+    {
+      "name": "InsightRule",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol InsightRule { var id: String { get }; var isPremium: Bool { get }; func evaluate(nights: [NightRecord]) -> InsightResult? }",
+      "owning_lane": "services_utilities",
+      "notes": "Exactly two concrete implementations ship: DurationEnergyRule (isPremium=false), TagEnergyRule(tag: .caffeine) (isPremium=true). Extensible without touching CorrelationEngine's iteration logic."
+    },
+    {
+      "name": "InsightResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum InsightResult { case stillLearning(nightsRemaining: Int); case scored(InsightCardData); case noSignal(reason: String) }",
+      "owning_lane": "services_utilities",
+      "notes": "The three required Insights-screen states, produced per-rule. UI maps each case to StillLearningCard / InsightCard / NoSignalCard 1:1 \u2014 no case is ever collapsed into another."
+    },
+    {
+      "name": "InsightCardData",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct InsightCardData: Equatable { let ruleID: String; let headline: String; let comparisonA: (label: String, value: Double); let comparisonB: (label: String, value: Double); let isPremium: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "headline text is associational only, never causal, per locked copy rule. Consumed by InsightCard(isLocked:) which blurs comparisonA/B bars when isPremium && !entitled."
+    },
+    {
+      "name": "CorrelationEngine",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor CorrelationEngine { init(rules: [InsightRule] = [DurationEnergyRule(), TagEnergyRule(tag: .caffeine)], minNightsThreshold: Int = 5); func computeInsights(nights: [NightRecord]) async -> [InsightResult] }",
+      "owning_lane": "services_utilities",
+      "notes": "Real actor for main-actor isolation safety. Takes plain NightRecord arrays only \u2014 never @Model objects. minNightsThreshold is the single hard gate value; unit test asserts threshold-1 nights yields zero .scored results and threshold nights yields at least one."
+    },
+    {
+      "name": "TodayState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TodayState { case empty; case preBedtime(streak: Int, lastNight: NightSummary?); case asleep(startDate: Date, elapsed: TimeInterval); case doneForToday(NightSummary, streak: Int) }",
+      "owning_lane": "primary_ui",
+      "notes": "Produced by a pure function of (openSession, todayCheckIn, now) so it's unit-testable without rendering a view. hasAnimatedDoneStateToday flag lives in TodayViewModel, not this enum."
+    },
+    {
+      "name": "TodayViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class TodayViewModel { init(sessionRepo: SleepSessionRepository, checkInRepo: CheckInRepository); func state(at date: Date) -> TodayState; func logBedtime(at date: Date); func logWakeAndCheckIn(wake: Date, energy: EnergyLevel, tags: Set<SleepTag>) }",
+      "owning_lane": "primary_ui",
+      "notes": "Constructed with concrete repository instances (injected at the View via @Environment, passed in at init) \u2014 never pulls @Environment itself, so it's constructible in tests with InMemoryRepository."
+    },
+    {
+      "name": "InsightsViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class InsightsViewModel { init(sessionRepo: SleepSessionRepository, checkInRepo: CheckInRepository, engine: CorrelationEngine, entitlement: SubscriptionStore); func refresh() async }",
+      "owning_lane": "primary_ui",
+      "notes": "refresh() runs NightRecordAssembler + engine.computeInsights off main actor, called on scenePhase .active; view keeps showing previous results until new ones land (no blocking spinner)."
+    },
+    {
+      "name": "gradient(for:)",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func gradient(for date: Date, calendar: Calendar = .current) -> [Color]",
+      "owning_lane": "primary_ui",
+      "notes": "Pure function, four named bands (duskDeep/overnight/dawn/day) with ~30min linear crossfade at boundaries. Direct unit-testable band-boundary assertions required."
+    },
+    {
+      "name": "EntitlementStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EntitlementStatus { case free, subscribed, unknown }",
+      "owning_lane": "services_utilities",
+      "notes": "unknown is a real third state (brief post-launch resolution window), distinct from free. Gated features treat unknown as locked-but-not-blocking, never as an excuse to hang the UI."
+    },
+    {
+      "name": "SubscriptionStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@Observable final class SubscriptionStore { private(set) var status: EntitlementStatus; func refresh() async; func purchase(_ product: Product) async throws; func restore() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "refresh() resolves Transaction.currentEntitlements once per active scenePhase transition into `status`, never re-queried inside a view body. Fails open to .free on product-list load failure."
+    },
+    {
+      "name": "HealthKitImportService",
+      "kind": "function",
+      "language": "swift",
+      "signature": "final class HealthKitImportService { func isAuthorized() -> Bool; func requestAuthorization() async throws; func importSleepDurations(since: Date) async throws -> [SleepSession] }",
+      "owning_lane": "services_utilities",
+      "notes": "Only invoked from Settings' explicit opt-in tap, never at first launch. denied vs not-determined never distinguished in UI."
+    },
+    {
+      "name": "SomnaLiveActivityAttributes",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SomnaLiveActivityAttributes: ActivityAttributes { struct ContentState: Codable, Hashable { var targetBedtime: Date; var isAsleep: Bool }; var startDate: Date }",
+      "owning_lane": "polish_resilience",
+      "notes": "Lock-screen content is generic only (countdown/target time) \u2014 never mood/energy/insight text, per locked privacy rule. Shared source file included in both app and widget extension targets."
+    },
+    {
+      "name": "SomnaWidgetEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SomnaWidgetEntry: TimelineEntry { let date: Date; let lastNightSummary: NightSummary?; let targetBedtime: Date? }",
+      "owning_lane": "polish_resilience",
+      "notes": "Provider's timeline is only reloaded via WidgetCenter.shared.reloadTimelines called from repository write paths, never a periodic policy tied to clock ticks."
+    },
+    {
+      "name": "NightSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NightSummary: Equatable { let duration: TimeInterval?; let energyLevel: EnergyLevel?; let date: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Shared display-projection type used by Today's done state, Recap, History rows, and the widget entry \u2014 one type, not four ad hoc structs."
+    },
+    {
+      "name": "RecapData",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecapData { let nights: [NightRecord]; let averageDuration: TimeInterval?; let bestNight: NightSummary?; let checkInCompletionRate: Double; var isPartialWeek: Bool { get } }",
+      "owning_lane": "primary_ui",
+      "notes": "Built from the last 7 calendar days of NightRecords; renders correctly with fewer than 7 nights. Shared between embedded RecapCardContent and full-bleed RecapDetailView so ShareLink output can't drift."
+    },
+    {
+      "name": "HistoryViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class HistoryViewModel { init(sessionRepo: SleepSessionRepository, checkInRepo: CheckInRepository); var nights: [NightRecord] { get }; func delete(session: SleepSession) throws; func delete(checkIn: CheckIn) throws }",
+      "owning_lane": "primary_ui",
+      "notes": "Delete-only per locked edit-scope rule (editing stays confined to Today's asleep-state 'Update Bedtime'). Needs its own first-launch empty state."
+    },
+    {
+      "name": "RecapViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class RecapViewModel { init(sessionRepo: SleepSessionRepository, checkInRepo: CheckInRepository); func recapData(asOf date: Date) -> RecapData }",
+      "owning_lane": "primary_ui",
+      "notes": "Feeds both the compact Today card and the full-bleed RecapDetailView from the same RecapData so ShareLink output can't drift from what's on screen."
+    },
+    {
+      "name": "PaywallViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class PaywallViewModel { init(store: SubscriptionStore); private(set) var products: [Product]; func purchase(_ product: Product) async; func restore() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Product-list load failure or hung entitlement check must fail open to free tier \u2014 no blocking spinner on Today, ever."
+    },
+    {
+      "name": "SomnaProductID",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SomnaProductID: String, CaseIterable { case monthly = \"com.somna.plus.monthly\", yearly = \"com.somna.plus.yearly\" }",
+      "owning_lane": "services_utilities",
+      "notes": "IDs used both by SubscriptionStore's Product.products(for:) call and the local .storekit config file for testing."
+    }
+  ],
+  "errors": []
+}

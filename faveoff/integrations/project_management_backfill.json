@@ -1,31 +1,1783 @@
 {
-  "current_phase": "portfolio_audit",
-  "current_round": 0,
-  "next_agent": null,
-  "prompt_hash": "13104e80ead2e1ff04d28e97b5fae8669bd34bda6fa14fc55a6466ae0fa346e9",
-  "completed_phases": [
-    "prompt_contract",
-    "product_research",
-    "portfolio_selection",
-    "initial_discussion",
-    "per_app_product_brief",
-    "next_steps_small",
-    "detailed_discussion",
-    "app_features",
-    "design_discussion",
-    "design_handoff",
-    "ios_architecture_review",
-    "tech_specs",
-    "project_plan",
-    "task_assignments",
-    "implementation_readiness_gate",
-    "build_coordination",
-    "build_verification",
-    "human_qa_checklist",
-    "app_store_readiness",
-    "final_review",
-    "portfolio_audit"
-  ],
+  "schema_version": 1,
+  "project": {
+    "name": "faveoff",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: multi-app-exp7\nSelected app slug: faveoff\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# FaveOff\n\nBuild mode: **MVP build**.\nBuild priority: **4**.\n\n## App Name\n\nFaveOff\n\n## Category\n\nEntertainment / Taste Ranking\n\n## One-Sentence Promise\n\nRank the movies and shows you've watched head-to-head, and FaveOff builds your real, personal top 10 \u2014 then turns it into a shareable taste card.\n\n## Target User\n\nAnyone who watches movies/shows and has opinions but finds star ratings meaningless and social-network movie apps like overhead \u2014 mass-market watchers, not cinephile completionists.\n\n## Painful Moment Solved\n\nRating a movie 1-5 stars and realizing that number means nothing next to the 40 other movies you've also rated 4 stars \u2014 you genuinely don't know your own top 10.\n\n## Why It Is Different\n\nInstead of star ratings, shows two watched titles and asks which was better, building an Elo-style ranked list from a handful of quick head-to-head picks \u2014 far more decisive than star ratings, ending in a poster-grid 'Taste Card' built for sharing, with zero social graph or account required to get value.\n\n## Why Users Would Pay\n\nFree tier ranks movies only with a capped list length; FaveOff+ unlocks TV shows and music/albums as separate ranking tracks, unlimited list length, genre-filtered sub-rankings, and periodic 'Wrapped'-style recap cards.\n\n## Subscription Model\n\nFreemium, $3.99/mo or $24.99/yr.\n\n## Local-First MVP Scope\n\nSwiftData store for titles, comparisons, and computed rankings; ranking algorithm runs fully on-device; title/poster metadata lookup is the one network dependency, isolated behind a protocol.\n\n## Future Backend Roadmap\n\nRepository boundary allows CloudKit sync across devices and, later, an optional social taste-comparison layer without touching the core ranking engine.\n\n## AR / Local ML / Local LLM Fit\n\nNone load-bearing; the hard technical capability is a proper Elo/merge-sort-style pairwise ranking engine, not ML.\n\n## Design Direction\n\nCinematic dark-mode-first system \u2014 near-black backgrounds, marquee-red accent, bold condensed poster-style typography, poster artwork as the dominant visual element, film-reel-inspired transitions.\n\n## App Store Positioning\n\nStar ratings lie to you. FaveOff makes you pick, one match-up at a time, until your real top 10 falls out.\n\n## Invalidation Criteria\n\nIf users abandon mid-ranking after only a handful of comparisons and never reach a shareable top-10, the comparison flow is too tedious and needs a faster convergence algorithm or smaller default list size.\n\n## v1 Build Scope\n\nAdd titles (movies+TV), head-to-head ranking engine, ranked list view, Taste Card generation + ShareLink, FaveOff+ paywall with StoreKit.\n\n## Core Workflows\n\n- add a watched title\n- head-to-head comparison rounds\n- browse computed ranked list\n- generate & share Taste Card (poster grid of top 10)\n- filter rankings by genre/decade\n\n## iOS-Native Features\n\n- ShareLink for Taste Card\n- ImageRenderer for poster-grid card generation\n- WidgetKit small widget showing current #1\n\n## Key Risks\n\n- The one network touchpoint (title/poster lookup) must degrade gracefully offline (initials/color-block placeholder), never blocking the core ranking loop\n- Comparison fatigue on large libraries \u2014 needs a smart pairing algorithm scaling ~n log n, not full round-robin n\u00b2\n\n## Claude Design Handoff Prompt\n\nDesign a cinematic entertainment-ranking app called FaveOff: near-black dark-mode-first backgrounds, marquee-red accent, bold condensed poster-style typography, movie/show poster art as the dominant visual content, film-reel-inspired swipe/transition motion for head-to-head comparison screens, feels like a red-carpet awards show, not a spreadsheet.\n\n## Parent Portfolio Prompt\n\nBuild 5 completely separate, production-ready iOS apps at the same time.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app, never bundled together.\n\nPick any 5 categories/concepts \u2014 no fixed assignment. Choose the 5 strongest MASS-MARKET ideas.\n\nTOP PRIORITY \u2014 VIRAL, MASS-MARKET APPEAL (hard requirement):\n- Every app must target a BROAD, mainstream audience. NO niche-community apps (no hobbyist tools, no professional verticals, no special-interest utilities). If your parents, your barista, and a college student wouldn't all instantly get it, it fails.\n- Each app must have a built-in viral loop: something people naturally share, screenshot, send to friends, or compete over (shareable results/cards, streaks, challenges, comparisons, \"send this to a friend\" moments).\n- The concept must be explainable in one sentence and demo-able in 10 seconds.\n- Think the scale of habit trackers, photo tools, social utilities, everyday life tools, casual self-improvement, money, food, sleep, relationships, entertainment \u2014 things with tens of millions of potential users.\n\nSECOND PRIORITY \u2014 DESIGN & UI/UX:\n- World-class, distinctive visual identity per app: deliberate color system, type scale, spacing, iconography, motion language \u2014 not stock SwiftUI defaults.\n- \"Apple Design Award\" caliber polish. Every screen considered: empty, loading, error states, transitions, haptics, spring animations.\n- Dark mode, Dynamic Type, accessibility (VoiceOver, 44pt targets, WCAG AA contrast).\n- Each of the 5 apps must look clearly DIFFERENT from the other four \u2014 five distinct design directions.\n- Documented design system per app (tokens, components, states); built UI must match it.\n\nTHIRD PRIORITY \u2014 COMPLEXITY & DEPTH:\n- Genuinely substantial apps \u2014 interconnected features, real domain data model, non-trivial logic, offline persistence with sync-later architecture, robust settings, import/export, and at least one hard technical capability done well.\n- Depth that rewards daily use \u2014 but never at the expense of instant mass-market clarity.\n\nFOURTH PRIORITY \u2014 MONETIZATION:\n- Clear, sustainable revenue path per app (subscription tiers, IAP, premium) that feels native to the product, never punitive. Free tier hooks users; paid tier is compelling.\n\nGeneral Requirements:\n1. Each app goes from 0 to production-ready.\n2. Each app must be unique, useful, and commercially viable, better than competitors in a meaningful way.\n3. Local-first, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built in this workspace: Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, brinekeeper, chalkline, quietpilot, cistern, thicket, undersong, undertow, heddle, marginalia, skyglass, and the ~50 apps of prior batches (aarti-path, afterglow, backtimer, chapterly, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, flinch, heartline, kitbag, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas, and others).\n- Produce differentiated concepts even if a category overlaps.\n\nBonus points (optional, only when integral): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the five app efforts in parallel; keep phases separate per app.\n- TIME MATTERS on this batch: reach consensus quickly in discussion phases (end phases early on agreement), but never skip the build, and never mark an app done unless a real, compiling Xcode project with full source exists in app_build. An app without a buildable Xcode project is a FAILURE.\n- Save all phase discussions; combine each app's transcript into a .txt at the end.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.\n",
+    "verification": "FAILED (compile FAILED for the iOS Simulator)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "FAVEOFF",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-PRODUCT",
+        "name": "Product Definition",
+        "phase_keys": [
+          "prompt_contract",
+          "product_research",
+          "portfolio_selection",
+          "initial_discussion",
+          "per_app_product_brief",
+          "next_steps_small",
+          "detailed_discussion",
+          "app_features"
+        ]
+      },
+      {
+        "external_id": "EPIC-DESIGN-ARCH",
+        "name": "Design & Architecture",
+        "phase_keys": [
+          "design_discussion",
+          "design_handoff",
+          "ios_architecture_review",
+          "tech_specs",
+          "project_plan"
+        ]
+      },
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "task_assignments",
+          "implementation_readiness_gate",
+          "build_coordination",
+          "build_verification"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "human_qa_checklist",
+          "app_store_readiness",
+          "final_review",
+          "portfolio_audit"
+        ]
+      }
+    ],
+    "issues": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Repo scaffold: Xcode project, FaveOffRanking package skeleton, .storekit config, PrivacyInfo.xcprivacy stub, bootstrap spike tests",
+        "description": "Generated from orchestrator task `T-001` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff.xcodeproj, FaveOff/App/FaveOffApp.swift, FaveOff/App/AppEnvironment.swift, Packages/FaveOffRanking/Package.swift, Configuration/FaveOff.storekit, FaveOff/PrivacyInfo.xcprivacy, FaveOffTests/BootstrapSpikeTests.swift\n\nAcceptance criteria:\n- Clean checkout builds and launches on simulator from /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/\n- App-target test calls a public FaveOffRanking function across the package boundary and gets a correct result back\n- Throwaway test against the real simulator StoreKit environment loads both product IDs and drives one purchase to an observed Transaction.currentEntitlements transition\n- PrivacyInfo.xcprivacy exists in the project",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff.xcodeproj",
+            "FaveOff/App/FaveOffApp.swift",
+            "FaveOff/App/AppEnvironment.swift",
+            "Packages/FaveOffRanking/Package.swift",
+            "Configuration/FaveOff.storekit",
+            "FaveOff/PrivacyInfo.xcprivacy",
+            "FaveOffTests/BootstrapSpikeTests.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Clean checkout builds and launches on simulator from /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/",
+            "App-target test calls a public FaveOffRanking function across the package boundary and gets a correct result back",
+            "Throwaway test against the real simulator StoreKit environment loads both product IDs and drives one purchase to an observed Transaction.currentEntitlements transition",
+            "PrivacyInfo.xcprivacy exists in the project"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "FaveOffRanking pure engine: startInsertion/nextPair/applyChoice/applySkip",
+        "description": "Generated from orchestrator task `T-002` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: Packages/FaveOffRanking/Sources/FaveOffRanking/RankingEngine.swift, Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionState.swift, Packages/FaveOffRanking/Sources/FaveOffRanking/ComparisonPair.swift, Packages/FaveOffRanking/Sources/FaveOffRanking/PlacementKind.swift, Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionStepResult.swift, Packages/FaveOffRanking/Tests/FaveOffRankingTests/RankingEngineTests.swift, Packages/FaveOffRanking/Tests/FaveOffRankingTests/Fixtures.swift\n\nAcceptance criteria:\n- Zero SwiftData/SwiftUI imports anywhere in the package\n- Tests cover bounded-insertion ordering, transitivity, duplicate-ID stability, 0/1-item cold start\n- testTwoSkipFallbackBottomPlacement passes at the pure-engine level",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/RankingEngine.swift",
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionState.swift",
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/ComparisonPair.swift",
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/PlacementKind.swift",
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionStepResult.swift",
+            "Packages/FaveOffRanking/Tests/FaveOffRankingTests/RankingEngineTests.swift",
+            "Packages/FaveOffRanking/Tests/FaveOffRankingTests/Fixtures.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Zero SwiftData/SwiftUI imports anywhere in the package",
+            "Tests cover bounded-insertion ordering, transitivity, duplicate-ID stability, 0/1-item cold start",
+            "testTwoSkipFallbackBottomPlacement passes at the pure-engine level"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "SwiftData container factory (real disk + in-memory seam)",
+        "description": "Generated from orchestrator task `T-003` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/SwiftDataContainerFactory.swift\n\nAcceptance criteria:\n- Factory produces a working on-disk container and a working isStoredInMemoryOnly container from the same schema\n- No view or view model constructs its own ModelContext",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/SwiftDataContainerFactory.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Factory produces a working on-disk container and a working isStoredInMemoryOnly container from the same schema",
+            "No view or view model constructs its own ModelContext"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "Metadata lookup service + offline stub provider",
+        "description": "Generated from orchestrator task `T-004` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/MetadataLookupService.swift, FaveOff/Services/MetadataResult.swift, FaveOff/Services/OfflineMetadataProvider.swift, FaveOffTests/MetadataServiceTests.swift\n\nAcceptance criteria:\n- OfflineMetadataProvider never throws and never awaits network\n- Deterministic initials/color-block output for a given title string\n- Protocol allows a future remote provider without changing call sites",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/MetadataLookupService.swift",
+            "FaveOff/Services/MetadataResult.swift",
+            "FaveOff/Services/OfflineMetadataProvider.swift",
+            "FaveOffTests/MetadataServiceTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "OfflineMetadataProvider never throws and never awaits network",
+            "Deterministic initials/color-block output for a given title string",
+            "Protocol allows a future remote provider without changing call sites"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "ContrastValidator: real WCAG relative-luminance formula",
+        "description": "Generated from orchestrator task `T-005` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/ContrastValidator.swift, FaveOffTests/ContrastValidatorTests.swift\n\nAcceptance criteria:\n- contrastRatio/meetsAA implement the real WCAG formula, not an approximation\n- Numeric test asserts >=4.5:1 body and >=3:1 large-bold against every locked design-token pair",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/ContrastValidator.swift",
+            "FaveOffTests/ContrastValidatorTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "contrastRatio/meetsAA implement the real WCAG formula, not an approximation",
+            "Numeric test asserts >=4.5:1 body and >=3:1 large-bold against every locked design-token pair"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "Cross-cutting scaffolding: ToastCenter, AccessibilityIdentifiers, InterruptionReason, privacy manifest helper",
+        "description": "Generated from orchestrator task `T-006` for `faveoff`.\n\nOwner lane: `polish_resilience`\nFiles: FaveOff/Support/ToastCenter.swift, FaveOff/Support/ToastMessage.swift, FaveOff/Support/AccessibilityIdentifiers.swift, FaveOff/Support/InterruptionReason.swift, FaveOff/Support/PrivacyManifest.swift\n\nAcceptance criteria:\n- ToastCenter can carry a message across a dismiss-back-to-Library transition\n- AccessibilityIdentifiers enum covers every control named in the design handoff (library list, compare posters, skip, placed keep-going, add save, paywall purchase, toast banner)\n- buildPrivacyManifest() produces the fields the manifest actually needs, checked by a test not a hand read",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "FaveOff/Support/ToastCenter.swift",
+            "FaveOff/Support/ToastMessage.swift",
+            "FaveOff/Support/AccessibilityIdentifiers.swift",
+            "FaveOff/Support/InterruptionReason.swift",
+            "FaveOff/Support/PrivacyManifest.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "ToastCenter can carry a message across a dismiss-back-to-Library transition",
+            "AccessibilityIdentifiers enum covers every control named in the design handoff (library list, compare posters, skip, placed keep-going, add save, paywall purchase, toast banner)",
+            "buildPrivacyManifest() produces the fields the manifest actually needs, checked by a test not a hand read"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "Models & schema: Title, Comparison, InsertionContext, versioned schema + migration plan",
+        "description": "Generated from orchestrator task `T-007` for `faveoff`.\n\nOwner lane: `data_domain`\nFiles: FaveOff/Models/Title.swift, FaveOff/Models/Comparison.swift, FaveOff/Models/InsertionContext.swift, FaveOff/Models/MediaType.swift, FaveOff/Models/Genre.swift, FaveOff/Models/RankingState.swift, FaveOff/Models/FaveOffSchemaV1.swift, FaveOff/Models/FaveOffMigrationPlan.swift, FaveOff/Models/TitleFilter.swift, FaveOff/Models/RepositoryError.swift, FaveOffTests/ModelsTests.swift\n\nAcceptance criteria:\n- No @Relationship properties anywhere; all cross-entity links are plain UUIDs\n- No @Attribute(.unique) on any id\n- FaveOffMigrationPlan compiles with a single registered schema version\n- decade is derived from year at read time, never stored",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "FaveOff/Models/Title.swift",
+            "FaveOff/Models/Comparison.swift",
+            "FaveOff/Models/InsertionContext.swift",
+            "FaveOff/Models/MediaType.swift",
+            "FaveOff/Models/Genre.swift",
+            "FaveOff/Models/RankingState.swift",
+            "FaveOff/Models/FaveOffSchemaV1.swift",
+            "FaveOff/Models/FaveOffMigrationPlan.swift",
+            "FaveOff/Models/TitleFilter.swift",
+            "FaveOff/Models/RepositoryError.swift",
+            "FaveOffTests/ModelsTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "No @Relationship properties anywhere; all cross-entity links are plain UUIDs",
+            "No @Attribute(.unique) on any id",
+            "FaveOffMigrationPlan compiles with a single registered schema version",
+            "decade is derived from year at read time, never stored"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "Repositories: Title/Comparison/Insertion, CRUD, atomic applyPositions, cap check",
+        "description": "Generated from orchestrator task `T-008` for `faveoff`.\n\nOwner lane: `data_domain`\nFiles: FaveOff/Repositories/TitleRepository.swift, FaveOff/Repositories/ComparisonRepository.swift, FaveOff/Repositories/InsertionRepository.swift, FaveOffTests/RepositoryTests.swift\n\nAcceptance criteria:\n- applyPositions is one atomic write per insertion with the bulk shift unanimated\n- capReached(track:) fires exactly at 25 ranked movies and never blocks further adds\n- Container opens in both real-disk and in-memory modes against these repositories",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "FaveOff/Repositories/TitleRepository.swift",
+            "FaveOff/Repositories/ComparisonRepository.swift",
+            "FaveOff/Repositories/InsertionRepository.swift",
+            "FaveOffTests/RepositoryTests.swift"
+          ],
+          "depends_on": [
+            "T-007",
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "applyPositions is one atomic write per insertion with the bulk shift unanimated",
+            "capReached(track:) fires exactly at 25 ranked movies and never blocks further adds",
+            "Container opens in both real-disk and in-memory modes against these repositories"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "InsertionCoordinator: bridges pure engine to persistence, crash/delete safety",
+        "description": "Generated from orchestrator task `T-009` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/InsertionCoordinator.swift, FaveOffTests/InsertionCoordinatorTests.swift\n\nAcceptance criteria:\n- InsertionCoordinatorTests.testResumeAfterKillMidInsertion passes\n- InsertionCoordinatorTests.testDeleteOpponentDuringCompareCancelsCleanly passes\n- A stale-InsertionContext reconciliation test passes\n- testTwoSkipFallbackBottomPlacement passes at the coordinator-integration level\n- Both compared titles are re-fetched by UUID immediately before any choose/skip action executes\n- rankedIDs are recomputed by position from the repository every step, no pagination",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/InsertionCoordinator.swift",
+            "FaveOffTests/InsertionCoordinatorTests.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-008"
+          ],
+          "acceptance_criteria": [
+            "InsertionCoordinatorTests.testResumeAfterKillMidInsertion passes",
+            "InsertionCoordinatorTests.testDeleteOpponentDuringCompareCancelsCleanly passes",
+            "A stale-InsertionContext reconciliation test passes",
+            "testTwoSkipFallbackBottomPlacement passes at the coordinator-integration level",
+            "Both compared titles are re-fetched by UUID immediately before any choose/skip action executes",
+            "rankedIDs are recomputed by position from the repository every step, no pagination"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "Core Ritual UI: Library, Add Title, Compare, Placed as one shared full-screen flow",
+        "description": "Generated from orchestrator task `T-010` for `faveoff`.\n\nOwner lane: `primary_ui`\nFiles: FaveOff/Navigation/ActiveInsertionFlow.swift, FaveOff/Navigation/InsertionStage.swift, FaveOff/Navigation/SheetKind.swift, FaveOff/Navigation/PaywallTrigger.swift, FaveOff/ViewModels/LibraryViewModel.swift, FaveOff/ViewModels/AddTitleViewModel.swift, FaveOff/ViewModels/InsertionFlowViewModel.swift, FaveOff/Views/LibraryView.swift, FaveOff/Views/AddTitleView.swift, FaveOff/Views/CompareView.swift, FaveOff/Views/PlacedView.swift, FaveOff/Views/Components/PosterTile.swift, FaveOff/Views/Components/CompareDivider.swift, FaveOff/Views/Components/SkipButton.swift, FaveOffTests/CoreRitualTapCountTests.swift\n\nAcceptance criteria:\n- Library owns exactly one activeSheet and one activeFlow, never competing presentations\n- 0/1-item cold-start Placed copy is coherent, never a broken '#1 of 1' string\n- CoreRitualTapCountTests proves 0->3 movies through add->compare->placed->back-to-list with zero unprompted policy screens\n- Deleting the opposing title mid-Compare shows the toast and returns to Library without a crash\n- Poster tap targets and CompareDivider read as obviously interactive with no instructional copy needed",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "FaveOff/Navigation/ActiveInsertionFlow.swift",
+            "FaveOff/Navigation/InsertionStage.swift",
+            "FaveOff/Navigation/SheetKind.swift",
+            "FaveOff/Navigation/PaywallTrigger.swift",
+            "FaveOff/ViewModels/LibraryViewModel.swift",
+            "FaveOff/ViewModels/AddTitleViewModel.swift",
+            "FaveOff/ViewModels/InsertionFlowViewModel.swift",
+            "FaveOff/Views/LibraryView.swift",
+            "FaveOff/Views/AddTitleView.swift",
+            "FaveOff/Views/CompareView.swift",
+            "FaveOff/Views/PlacedView.swift",
+            "FaveOff/Views/Components/PosterTile.swift",
+            "FaveOff/Views/Components/CompareDivider.swift",
+            "FaveOff/Views/Components/SkipButton.swift",
+            "FaveOffTests/CoreRitualTapCountTests.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-004",
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "Library owns exactly one activeSheet and one activeFlow, never competing presentations",
+            "0/1-item cold-start Placed copy is coherent, never a broken '#1 of 1' string",
+            "CoreRitualTapCountTests proves 0->3 movies through add->compare->placed->back-to-list with zero unprompted policy screens",
+            "Deleting the opposing title mid-Compare shows the toast and returns to Library without a crash",
+            "Poster tap targets and CompareDivider read as obviously interactive with no instructional copy needed"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "List Intelligence: genre/decade filter chips and no-match nudge",
+        "description": "Generated from orchestrator task `T-011` for `faveoff`.\n\nOwner lane: `primary_ui`\nFiles: FaveOff/Navigation/FilterState.swift, FaveOff/Views/Components/FilterChip.swift, FaveOffTests/FilterTests.swift\n\nAcceptance criteria:\n- No-match filter state shows a nudge, never a blank screen\n- Filtering never blocks or gates the base ranked list\n- CoreRitualTapCountTests from T-010 still passes unmodified",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "FaveOff/Navigation/FilterState.swift",
+            "FaveOff/Views/Components/FilterChip.swift",
+            "FaveOffTests/FilterTests.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "No-match filter state shows a nudge, never a blank screen",
+            "Filtering never blocks or gates the base ranked list",
+            "CoreRitualTapCountTests from T-010 still passes unmodified"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Taste Card renderer with resolvingArt gate",
+        "description": "Generated from orchestrator task `T-012` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/TasteCardRenderer.swift, FaveOffTests/TasteCardRendererResolvingArtTests.swift\n\nAcceptance criteria:\n- Render never fires until every source poster is confirmed loaded, proven against a deliberately slow fake metadata provider\n- Output is a static Image, safe against later title deletion",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/TasteCardRenderer.swift",
+            "FaveOffTests/TasteCardRendererResolvingArtTests.swift"
+          ],
+          "depends_on": [
+            "T-008"
+          ],
+          "acceptance_criteria": [
+            "Render never fires until every source poster is confirmed loaded, proven against a deliberately slow fake metadata provider",
+            "Output is a static Image, safe against later title deletion"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Taste Card UI: preview sheet + ShareLink",
+        "description": "Generated from orchestrator task `T-013` for `faveoff`.\n\nOwner lane: `primary_ui`\nFiles: FaveOff/ViewModels/TasteCardViewModel.swift, FaveOff/Views/TasteCardView.swift\n\nAcceptance criteria:\n- resolvingArt/ready/renderFailed/sharing states all present\n- ShareLink export verified under airplane mode\n- Card legible with brand mark at iMessage-thumbnail scale",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "FaveOff/ViewModels/TasteCardViewModel.swift",
+            "FaveOff/Views/TasteCardView.swift"
+          ],
+          "depends_on": [
+            "T-012",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "resolvingArt/ready/renderFailed/sharing states all present",
+            "ShareLink export verified under airplane mode",
+            "Card legible with brand mark at iMessage-thumbnail scale"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "StoreKit 2 purchase service: products, purchase, restore, entitlement listener",
+        "description": "Generated from orchestrator task `T-014` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/PurchaseService.swift, FaveOff/Services/ProductID.swift, FaveOff/Services/PurchaseProduct.swift, FaveOff/Services/PremiumFeature.swift, FaveOff/Services/PurchaseState.swift, FaveOffTests/PurchaseServiceTests.swift\n\nAcceptance criteria:\n- Automated tests drive product load, purchase, restore, and Transaction.currentEntitlements transitions as the real pass bar\n- Manual sandbox click-through is documented as a smoke test only, not the acceptance method\n- startEntitlementListener runs as a persistent launch-time Task, not a one-shot call",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/PurchaseService.swift",
+            "FaveOff/Services/ProductID.swift",
+            "FaveOff/Services/PurchaseProduct.swift",
+            "FaveOff/Services/PremiumFeature.swift",
+            "FaveOff/Services/PurchaseState.swift",
+            "FaveOffTests/PurchaseServiceTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Automated tests drive product load, purchase, restore, and Transaction.currentEntitlements transitions as the real pass bar",
+            "Manual sandbox click-through is documented as a smoke test only, not the acceptance method",
+            "startEntitlementListener runs as a persistent launch-time Task, not a one-shot call"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Monetization Surfaces UI: TV-lock row, 25-cap banner, paywall sheet, upgrade CTAs",
+        "description": "Generated from orchestrator task `T-015` for `faveoff`.\n\nOwner lane: `primary_ui`\nFiles: FaveOff/ViewModels/PaywallViewModel.swift, FaveOff/Views/PaywallView.swift, FaveOff/Views/Components/LockedTVRow.swift, FaveOff/Views/Components/InlineBanner.swift, FaveOffTests/MonetizationSurfacesRegressionTests.swift\n\nAcceptance criteria:\n- CoreRitualTapCountTests from T-010 is re-run unmodified and green\n- TV add never blocks or alters movie ranking state\n- Cap banner appears exactly at the 25th ranked movie and never blocks further adds\n- Same PaywallView instance used regardless of entry point (tvLock/capReached/toolbarUpgrade)",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "FaveOff/ViewModels/PaywallViewModel.swift",
+            "FaveOff/Views/PaywallView.swift",
+            "FaveOff/Views/Components/LockedTVRow.swift",
+            "FaveOff/Views/Components/InlineBanner.swift",
+            "FaveOffTests/MonetizationSurfacesRegressionTests.swift"
+          ],
+          "depends_on": [
+            "T-010",
+            "T-014"
+          ],
+          "acceptance_criteria": [
+            "CoreRitualTapCountTests from T-010 is re-run unmodified and green",
+            "TV add never blocks or alters movie ranking state",
+            "Cap banner appears exactly at the 25th ranked movie and never blocks further adds",
+            "Same PaywallView instance used regardless of entry point (tvLock/capReached/toolbarUpgrade)"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "Accessibility + contrast final gate",
+        "description": "Generated from orchestrator task `T-016` for `faveoff`.\n\nOwner lane: `polish_resilience`\nFiles: FaveOffUITests/AccessibilityGateTests.swift\n\nAcceptance criteria:\n- Compare and Placed measure >=4.5:1 body / >=3:1 large-bold across the full Dynamic Type range\n- Every actionable control has a VoiceOver label and a 44x44pt target\n- No color-only status cues on locked/capped rows",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "FaveOffUITests/AccessibilityGateTests.swift"
+          ],
+          "depends_on": [
+            "T-010",
+            "T-013",
+            "T-015",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "Compare and Placed measure >=4.5:1 body / >=3:1 large-bold across the full Dynamic Type range",
+            "Every actionable control has a VoiceOver label and a 44x44pt target",
+            "No color-only status cues on locked/capped rows"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-016"
+        }
+      },
+      {
+        "external_id": "T-017",
+        "issue_type": "Task",
+        "summary": "Hardening + release prep: full E2E, full-suite regression re-run, privacy manifest confirmation",
+        "description": "Generated from orchestrator task `T-017` for `faveoff`.\n\nOwner lane: `polish_resilience`\nFiles: FaveOffUITests/EndToEndFlowTests.swift, FaveOff/App/FaveOffApp.swift, FaveOff/PrivacyInfo.xcprivacy\n\nAcceptance criteria:\n- EndToEndFlowTests walks add->compare->placed->browse->share, resume-banner recovery, and a forced purchase failure with ranking unaffected\n- The entire existing test suite (engine, coordinator, contrast, taste-card resolvingArt, monetization regression) is re-run and green, not just the E2E path\n- Clean build from clean checkout at /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/; PrivacyInfo.xcprivacy confirmed present and correct",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "FaveOffUITests/EndToEndFlowTests.swift",
+            "FaveOff/App/FaveOffApp.swift",
+            "FaveOff/PrivacyInfo.xcprivacy"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-003",
+            "T-004",
+            "T-005",
+            "T-006",
+            "T-007",
+            "T-008",
+            "T-009",
+            "T-010",
+            "T-011",
+            "T-012",
+            "T-013",
+            "T-014",
+            "T-015",
+            "T-016"
+          ],
+          "acceptance_criteria": [
+            "EndToEndFlowTests walks add->compare->placed->browse->share, resume-banner recovery, and a forced purchase failure with ranking unaffected",
+            "The entire existing test suite (engine, coordinator, contrast, taste-card resolvingArt, monetization regression) is re-run and green, not just the E2E path",
+            "Clean build from clean checkout at /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/; PrivacyInfo.xcprivacy confirmed present and correct"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-017"
+        }
+      }
+    ]
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "faveoff",
+      "Status": "Needs review",
+      "Source": "Orchestrator",
+      "Workflow Phases": 21
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: multi-app-exp7\nSelected app slug: faveoff\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# FaveOff\n\nBuild mode: **MVP build**.\nBuild priority: **4**.\n\n## App Name\n\nFaveOff\n\n## Category\n\nEntertainment / Taste Ranking\n\n## One-Sentence Promise\n\nRank the movies and shows you've watched head-to-head, and FaveOff builds your real, personal top 10 \u2014 then turns it into a shareable taste card.\n\n## Target User\n\nAnyone who watches movies/shows and has opinions but finds star ratings meaningless and social-network movie apps like overhead \u2014 mass-market watchers, not cinephile completionists.\n\n## Painful Moment Solved\n\nRating a movie 1-5 stars and realizing that number means nothing next to the 40 other movies you've also rated 4 stars \u2014 you genuinely don't know your own top 10.\n\n## Why It Is Different\n\nInstead of star ratings, shows two watched titles and asks which was better, building an Elo-style ranked list from a handful of quick head-to-head picks \u2014 far more decisive than star ratings, ending in a poster-grid 'Taste Card' built for sharing, with zero social graph or account required to get value.\n\n## Why Users Would Pay\n\nFree tier ranks movies only with a capped list length; FaveOff+ unlocks TV shows and music/albums as separate ranking tracks, unlimited list length, genre-filtered sub-rankings, and periodic 'Wrapped'-style recap cards.\n\n## Subscription Model\n\nFreemium, $3.99/mo or $24.99/yr.\n\n## Local-First MVP Scope\n\nSwiftData store for titles, comparisons, and computed rankings; ranking algorithm runs fully on-device; title/poster metadata lookup is the one network dependency, isolated behind a protocol.\n\n## Future Backend Roadmap\n\nRepository boundary allows CloudKit sync across devices and, later, an optional social taste-comparison layer without touching the core ranking engine.\n\n## AR / Local ML / Local LLM Fit\n\nNone load-bearing; the hard technical capability is a proper Elo/merge-sort-style pairwise ranking engine, not ML.\n\n## Design Direction\n\nCinematic dark-mode-first system \u2014 near-black backgrounds, marquee-red accent, bold condensed poster-style typography, poster artwork as the dominant visual element, film-reel-inspired transitions.\n\n## App Store Positioning\n\nStar ratings lie to you. FaveOff makes you pick, one match-up at a time, until your real top 10 falls out.\n\n## Invalidation Criteria\n\nIf users abandon mid-ranking after only a handful of comparisons and never reach a shareable top-10, the comparison flow is too tedious and needs a faster convergence algorithm or smaller default list size.\n\n## v1 Build Scope\n\nAdd titles (movies+TV), head-to-head ranking engine, ranked list view, Taste Card generation + ShareLink, FaveOff+ paywall with StoreKit.\n\n## Core Workflows\n\n- add a watched title\n- head-to-head comparison rounds\n- browse computed ranked list\n- generate & share Taste Card (poster grid of top 10)\n- filter rankings by genre/decade\n\n## iOS-Native Features\n\n- ShareLink for Taste Card\n- ImageRenderer for poster-grid card generation\n- WidgetKit small widget showing current #1\n\n## Key Risks\n\n- The one network touchpoint (title/poster lookup) must degrade gracefully offline (initials/color-block placeholder), never blocking the core ranking loop\n- Comparison fatigue on large libraries \u2014 needs a smart pairing algorithm scaling ~n log n, not full round-robin n\u00b2\n\n## Claude Design Handoff Prompt\n\nDesign a cinematic entertainment-ranking app called FaveOff: near-black dark-mode-first backgrounds, marquee-red accent, bold condensed poster-style typography, movie/show poster art as the dominant visual content, film-reel-inspired swipe/transition motion for head-to-head comparison screens, feels like a red-carpet awards show, not a spreadsheet.\n\n## Parent Portfolio Prompt\n\nBuild 5 completely separate, production-ready iOS apps at the same time.\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app, never bundled together.\n\nPick any 5 categories/concepts \u2014 no fixed assignment. Choose the 5 strongest MASS-MARKET ideas.\n\nTOP PRIORITY \u2014 VIRAL, MASS-MARKET APPEAL (hard requirement):\n- Every app must target a BROAD, mainstream audience. NO niche-community apps (no hobbyist tools, no professional verticals, no special-interest utilities). If your parents, your barista, and a college student wouldn't all instantly get it, it fails.\n- Each app must have a built-in viral loop: something people naturally share, screenshot, send to friends, or compete over (shareable results/cards, streaks, challenges, comparisons, \"send this to a friend\" moments).\n- The concept must be explainable in one sentence and demo-able in 10 seconds.\n- Think the scale of habit trackers, photo tools, social utilities, everyday life tools, casual self-improvement, money, food, sleep, relationships, entertainment \u2014 things with tens of millions of potential users.\n\nSECOND PRIORITY \u2014 DESIGN & UI/UX:\n- World-class, distinctive visual identity per app: deliberate color system, type scale, spacing, iconography, motion language \u2014 not stock SwiftUI defaults.\n- \"Apple Design Award\" caliber polish. Every screen considered: empty, loading, error states, transitions, haptics, spring animations.\n- Dark mode, Dynamic Type, accessibility (VoiceOver, 44pt targets, WCAG AA contrast).\n- Each of the 5 apps must look clearly DIFFERENT from the other four \u2014 five distinct design directions.\n- Documented design system per app (tokens, components, states); built UI must match it.\n\nTHIRD PRIORITY \u2014 COMPLEXITY & DEPTH:\n- Genuinely substantial apps \u2014 interconnected features, real domain data model, non-trivial logic, offline persistence with sync-later architecture, robust settings, import/export, and at least one hard technical capability done well.\n- Depth that rewards daily use \u2014 but never at the expense of instant mass-market clarity.\n\nFOURTH PRIORITY \u2014 MONETIZATION:\n- Clear, sustainable revenue path per app (subscription tiers, IAP, premium) that feels native to the product, never punitive. Free tier hooks users; paid tier is compelling.\n\nGeneral Requirements:\n1. Each app goes from 0 to production-ready.\n2. Each app must be unique, useful, and commercially viable, better than competitors in a meaningful way.\n3. Local-first, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built in this workspace: Waylay, TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, brinekeeper, chalkline, quietpilot, cistern, thicket, undersong, undertow, heddle, marginalia, skyglass, and the ~50 apps of prior batches (aarti-path, afterglow, backtimer, chapterly, cleanline, clearpath-access, crockwatch, crosswire, crux-cycle, curio, dayframe, dharma-trail, docket, flinch, heartline, kitbag, night-sky-logbook, pattern-pulse, pillcheck, referral-loop, risk-compass, rollcall, runway, scenario-ledger, shelf, sincerely, tabzero, talkthrough, tessella, throughline, trestle, triptally, umbra, wordsmith-atlas, and others).\n- Produce differentiated concepts even if a category overlaps.\n\nBonus points (optional, only when integral): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the five app efforts in parallel; keep phases separate per app.\n- TIME MATTERS on this batch: reach consensus quickly in discussion phases (end phases early on agreement), but never skip the build, and never mark an app done unless a real, compiling Xcode project with full source exists in app_build. An app without a buildable Xcode project is a FAILURE.\n- Save all phase discussions; combine each app's transcript into a .txt at the end.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nNow generate at least 10 candidate ideas, judge them primarily on mass-market viral potential, choose the best 5, and build all 5 to production quality with exceptional UI/UX.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Repo scaffold: Xcode project, FaveOffRanking package skeleton, .storekit config, PrivacyInfo.xcprivacy stub, bootstrap spike tests",
+        "description": "Generated from orchestrator task `T-001` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff.xcodeproj, FaveOff/App/FaveOffApp.swift, FaveOff/App/AppEnvironment.swift, Packages/FaveOffRanking/Package.swift, Configuration/FaveOff.storekit, FaveOff/PrivacyInfo.xcprivacy, FaveOffTests/BootstrapSpikeTests.swift\n\nAcceptance criteria:\n- Clean checkout builds and launches on simulator from /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/\n- App-target test calls a public FaveOffRanking function across the package boundary and gets a correct result back\n- Throwaway test against the real simulator StoreKit environment loads both product IDs and drives one purchase to an observed Transaction.currentEntitlements transition\n- PrivacyInfo.xcprivacy exists in the project",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff.xcodeproj",
+            "FaveOff/App/FaveOffApp.swift",
+            "FaveOff/App/AppEnvironment.swift",
+            "Packages/FaveOffRanking/Package.swift",
+            "Configuration/FaveOff.storekit",
+            "FaveOff/PrivacyInfo.xcprivacy",
+            "FaveOffTests/BootstrapSpikeTests.swift"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Clean checkout builds and launches on simulator from /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/",
+            "App-target test calls a public FaveOffRanking function across the package boundary and gets a correct result back",
+            "Throwaway test against the real simulator StoreKit environment loads both product IDs and drives one purchase to an observed Transaction.currentEntitlements transition",
+            "PrivacyInfo.xcprivacy exists in the project"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "FaveOffRanking pure engine: startInsertion/nextPair/applyChoice/applySkip",
+        "description": "Generated from orchestrator task `T-002` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: Packages/FaveOffRanking/Sources/FaveOffRanking/RankingEngine.swift, Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionState.swift, Packages/FaveOffRanking/Sources/FaveOffRanking/ComparisonPair.swift, Packages/FaveOffRanking/Sources/FaveOffRanking/PlacementKind.swift, Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionStepResult.swift, Packages/FaveOffRanking/Tests/FaveOffRankingTests/RankingEngineTests.swift, Packages/FaveOffRanking/Tests/FaveOffRankingTests/Fixtures.swift\n\nAcceptance criteria:\n- Zero SwiftData/SwiftUI imports anywhere in the package\n- Tests cover bounded-insertion ordering, transitivity, duplicate-ID stability, 0/1-item cold start\n- testTwoSkipFallbackBottomPlacement passes at the pure-engine level",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/RankingEngine.swift",
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionState.swift",
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/ComparisonPair.swift",
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/PlacementKind.swift",
+            "Packages/FaveOffRanking/Sources/FaveOffRanking/InsertionStepResult.swift",
+            "Packages/FaveOffRanking/Tests/FaveOffRankingTests/RankingEngineTests.swift",
+            "Packages/FaveOffRanking/Tests/FaveOffRankingTests/Fixtures.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Zero SwiftData/SwiftUI imports anywhere in the package",
+            "Tests cover bounded-insertion ordering, transitivity, duplicate-ID stability, 0/1-item cold start",
+            "testTwoSkipFallbackBottomPlacement passes at the pure-engine level"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "SwiftData container factory (real disk + in-memory seam)",
+        "description": "Generated from orchestrator task `T-003` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/SwiftDataContainerFactory.swift\n\nAcceptance criteria:\n- Factory produces a working on-disk container and a working isStoredInMemoryOnly container from the same schema\n- No view or view model constructs its own ModelContext",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/SwiftDataContainerFactory.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Factory produces a working on-disk container and a working isStoredInMemoryOnly container from the same schema",
+            "No view or view model constructs its own ModelContext"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "Metadata lookup service + offline stub provider",
+        "description": "Generated from orchestrator task `T-004` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/MetadataLookupService.swift, FaveOff/Services/MetadataResult.swift, FaveOff/Services/OfflineMetadataProvider.swift, FaveOffTests/MetadataServiceTests.swift\n\nAcceptance criteria:\n- OfflineMetadataProvider never throws and never awaits network\n- Deterministic initials/color-block output for a given title string\n- Protocol allows a future remote provider without changing call sites",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/MetadataLookupService.swift",
+            "FaveOff/Services/MetadataResult.swift",
+            "FaveOff/Services/OfflineMetadataProvider.swift",
+            "FaveOffTests/MetadataServiceTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "OfflineMetadataProvider never throws and never awaits network",
+            "Deterministic initials/color-block output for a given title string",
+            "Protocol allows a future remote provider without changing call sites"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "ContrastValidator: real WCAG relative-luminance formula",
+        "description": "Generated from orchestrator task `T-005` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/ContrastValidator.swift, FaveOffTests/ContrastValidatorTests.swift\n\nAcceptance criteria:\n- contrastRatio/meetsAA implement the real WCAG formula, not an approximation\n- Numeric test asserts >=4.5:1 body and >=3:1 large-bold against every locked design-token pair",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/ContrastValidator.swift",
+            "FaveOffTests/ContrastValidatorTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "contrastRatio/meetsAA implement the real WCAG formula, not an approximation",
+            "Numeric test asserts >=4.5:1 body and >=3:1 large-bold against every locked design-token pair"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "Cross-cutting scaffolding: ToastCenter, AccessibilityIdentifiers, InterruptionReason, privacy manifest helper",
+        "description": "Generated from orchestrator task `T-006` for `faveoff`.\n\nOwner lane: `polish_resilience`\nFiles: FaveOff/Support/ToastCenter.swift, FaveOff/Support/ToastMessage.swift, FaveOff/Support/AccessibilityIdentifiers.swift, FaveOff/Support/InterruptionReason.swift, FaveOff/Support/PrivacyManifest.swift\n\nAcceptance criteria:\n- ToastCenter can carry a message across a dismiss-back-to-Library transition\n- AccessibilityIdentifiers enum covers every control named in the design handoff (library list, compare posters, skip, placed keep-going, add save, paywall purchase, toast banner)\n- buildPrivacyManifest() produces the fields the manifest actually needs, checked by a test not a hand read",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "FaveOff/Support/ToastCenter.swift",
+            "FaveOff/Support/ToastMessage.swift",
+            "FaveOff/Support/AccessibilityIdentifiers.swift",
+            "FaveOff/Support/InterruptionReason.swift",
+            "FaveOff/Support/PrivacyManifest.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "ToastCenter can carry a message across a dismiss-back-to-Library transition",
+            "AccessibilityIdentifiers enum covers every control named in the design handoff (library list, compare posters, skip, placed keep-going, add save, paywall purchase, toast banner)",
+            "buildPrivacyManifest() produces the fields the manifest actually needs, checked by a test not a hand read"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "Models & schema: Title, Comparison, InsertionContext, versioned schema + migration plan",
+        "description": "Generated from orchestrator task `T-007` for `faveoff`.\n\nOwner lane: `data_domain`\nFiles: FaveOff/Models/Title.swift, FaveOff/Models/Comparison.swift, FaveOff/Models/InsertionContext.swift, FaveOff/Models/MediaType.swift, FaveOff/Models/Genre.swift, FaveOff/Models/RankingState.swift, FaveOff/Models/FaveOffSchemaV1.swift, FaveOff/Models/FaveOffMigrationPlan.swift, FaveOff/Models/TitleFilter.swift, FaveOff/Models/RepositoryError.swift, FaveOffTests/ModelsTests.swift\n\nAcceptance criteria:\n- No @Relationship properties anywhere; all cross-entity links are plain UUIDs\n- No @Attribute(.unique) on any id\n- FaveOffMigrationPlan compiles with a single registered schema version\n- decade is derived from year at read time, never stored",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "FaveOff/Models/Title.swift",
+            "FaveOff/Models/Comparison.swift",
+            "FaveOff/Models/InsertionContext.swift",
+            "FaveOff/Models/MediaType.swift",
+            "FaveOff/Models/Genre.swift",
+            "FaveOff/Models/RankingState.swift",
+            "FaveOff/Models/FaveOffSchemaV1.swift",
+            "FaveOff/Models/FaveOffMigrationPlan.swift",
+            "FaveOff/Models/TitleFilter.swift",
+            "FaveOff/Models/RepositoryError.swift",
+            "FaveOffTests/ModelsTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "No @Relationship properties anywhere; all cross-entity links are plain UUIDs",
+            "No @Attribute(.unique) on any id",
+            "FaveOffMigrationPlan compiles with a single registered schema version",
+            "decade is derived from year at read time, never stored"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "Repositories: Title/Comparison/Insertion, CRUD, atomic applyPositions, cap check",
+        "description": "Generated from orchestrator task `T-008` for `faveoff`.\n\nOwner lane: `data_domain`\nFiles: FaveOff/Repositories/TitleRepository.swift, FaveOff/Repositories/ComparisonRepository.swift, FaveOff/Repositories/InsertionRepository.swift, FaveOffTests/RepositoryTests.swift\n\nAcceptance criteria:\n- applyPositions is one atomic write per insertion with the bulk shift unanimated\n- capReached(track:) fires exactly at 25 ranked movies and never blocks further adds\n- Container opens in both real-disk and in-memory modes against these repositories",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "FaveOff/Repositories/TitleRepository.swift",
+            "FaveOff/Repositories/ComparisonRepository.swift",
+            "FaveOff/Repositories/InsertionRepository.swift",
+            "FaveOffTests/RepositoryTests.swift"
+          ],
+          "depends_on": [
+            "T-007",
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "applyPositions is one atomic write per insertion with the bulk shift unanimated",
+            "capReached(track:) fires exactly at 25 ranked movies and never blocks further adds",
+            "Container opens in both real-disk and in-memory modes against these repositories"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "InsertionCoordinator: bridges pure engine to persistence, crash/delete safety",
+        "description": "Generated from orchestrator task `T-009` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/InsertionCoordinator.swift, FaveOffTests/InsertionCoordinatorTests.swift\n\nAcceptance criteria:\n- InsertionCoordinatorTests.testResumeAfterKillMidInsertion passes\n- InsertionCoordinatorTests.testDeleteOpponentDuringCompareCancelsCleanly passes\n- A stale-InsertionContext reconciliation test passes\n- testTwoSkipFallbackBottomPlacement passes at the coordinator-integration level\n- Both compared titles are re-fetched by UUID immediately before any choose/skip action executes\n- rankedIDs are recomputed by position from the repository every step, no pagination",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/InsertionCoordinator.swift",
+            "FaveOffTests/InsertionCoordinatorTests.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-008"
+          ],
+          "acceptance_criteria": [
+            "InsertionCoordinatorTests.testResumeAfterKillMidInsertion passes",
+            "InsertionCoordinatorTests.testDeleteOpponentDuringCompareCancelsCleanly passes",
+            "A stale-InsertionContext reconciliation test passes",
+            "testTwoSkipFallbackBottomPlacement passes at the coordinator-integration level",
+            "Both compared titles are re-fetched by UUID immediately before any choose/skip action executes",
+            "rankedIDs are recomputed by position from the repository every step, no pagination"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "Core Ritual UI: Library, Add Title, Compare, Placed as one shared full-screen flow",
+        "description": "Generated from orchestrator task `T-010` for `faveoff`.\n\nOwner lane: `primary_ui`\nFiles: FaveOff/Navigation/ActiveInsertionFlow.swift, FaveOff/Navigation/InsertionStage.swift, FaveOff/Navigation/SheetKind.swift, FaveOff/Navigation/PaywallTrigger.swift, FaveOff/ViewModels/LibraryViewModel.swift, FaveOff/ViewModels/AddTitleViewModel.swift, FaveOff/ViewModels/InsertionFlowViewModel.swift, FaveOff/Views/LibraryView.swift, FaveOff/Views/AddTitleView.swift, FaveOff/Views/CompareView.swift, FaveOff/Views/PlacedView.swift, FaveOff/Views/Components/PosterTile.swift, FaveOff/Views/Components/CompareDivider.swift, FaveOff/Views/Components/SkipButton.swift, FaveOffTests/CoreRitualTapCountTests.swift\n\nAcceptance criteria:\n- Library owns exactly one activeSheet and one activeFlow, never competing presentations\n- 0/1-item cold-start Placed copy is coherent, never a broken '#1 of 1' string\n- CoreRitualTapCountTests proves 0->3 movies through add->compare->placed->back-to-list with zero unprompted policy screens\n- Deleting the opposing title mid-Compare shows the toast and returns to Library without a crash\n- Poster tap targets and CompareDivider read as obviously interactive with no instructional copy needed",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "FaveOff/Navigation/ActiveInsertionFlow.swift",
+            "FaveOff/Navigation/InsertionStage.swift",
+            "FaveOff/Navigation/SheetKind.swift",
+            "FaveOff/Navigation/PaywallTrigger.swift",
+            "FaveOff/ViewModels/LibraryViewModel.swift",
+            "FaveOff/ViewModels/AddTitleViewModel.swift",
+            "FaveOff/ViewModels/InsertionFlowViewModel.swift",
+            "FaveOff/Views/LibraryView.swift",
+            "FaveOff/Views/AddTitleView.swift",
+            "FaveOff/Views/CompareView.swift",
+            "FaveOff/Views/PlacedView.swift",
+            "FaveOff/Views/Components/PosterTile.swift",
+            "FaveOff/Views/Components/CompareDivider.swift",
+            "FaveOff/Views/Components/SkipButton.swift",
+            "FaveOffTests/CoreRitualTapCountTests.swift"
+          ],
+          "depends_on": [
+            "T-009",
+            "T-004",
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "Library owns exactly one activeSheet and one activeFlow, never competing presentations",
+            "0/1-item cold-start Placed copy is coherent, never a broken '#1 of 1' string",
+            "CoreRitualTapCountTests proves 0->3 movies through add->compare->placed->back-to-list with zero unprompted policy screens",
+            "Deleting the opposing title mid-Compare shows the toast and returns to Library without a crash",
+            "Poster tap targets and CompareDivider read as obviously interactive with no instructional copy needed"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "List Intelligence: genre/decade filter chips and no-match nudge",
+        "description": "Generated from orchestrator task `T-011` for `faveoff`.\n\nOwner lane: `primary_ui`\nFiles: FaveOff/Navigation/FilterState.swift, FaveOff/Views/Components/FilterChip.swift, FaveOffTests/FilterTests.swift\n\nAcceptance criteria:\n- No-match filter state shows a nudge, never a blank screen\n- Filtering never blocks or gates the base ranked list\n- CoreRitualTapCountTests from T-010 still passes unmodified",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "FaveOff/Navigation/FilterState.swift",
+            "FaveOff/Views/Components/FilterChip.swift",
+            "FaveOffTests/FilterTests.swift"
+          ],
+          "depends_on": [
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "No-match filter state shows a nudge, never a blank screen",
+            "Filtering never blocks or gates the base ranked list",
+            "CoreRitualTapCountTests from T-010 still passes unmodified"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Taste Card renderer with resolvingArt gate",
+        "description": "Generated from orchestrator task `T-012` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/TasteCardRenderer.swift, FaveOffTests/TasteCardRendererResolvingArtTests.swift\n\nAcceptance criteria:\n- Render never fires until every source poster is confirmed loaded, proven against a deliberately slow fake metadata provider\n- Output is a static Image, safe against later title deletion",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/TasteCardRenderer.swift",
+            "FaveOffTests/TasteCardRendererResolvingArtTests.swift"
+          ],
+          "depends_on": [
+            "T-008"
+          ],
+          "acceptance_criteria": [
+            "Render never fires until every source poster is confirmed loaded, proven against a deliberately slow fake metadata provider",
+            "Output is a static Image, safe against later title deletion"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Taste Card UI: preview sheet + ShareLink",
+        "description": "Generated from orchestrator task `T-013` for `faveoff`.\n\nOwner lane: `primary_ui`\nFiles: FaveOff/ViewModels/TasteCardViewModel.swift, FaveOff/Views/TasteCardView.swift\n\nAcceptance criteria:\n- resolvingArt/ready/renderFailed/sharing states all present\n- ShareLink export verified under airplane mode\n- Card legible with brand mark at iMessage-thumbnail scale",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "FaveOff/ViewModels/TasteCardViewModel.swift",
+            "FaveOff/Views/TasteCardView.swift"
+          ],
+          "depends_on": [
+            "T-012",
+            "T-010"
+          ],
+          "acceptance_criteria": [
+            "resolvingArt/ready/renderFailed/sharing states all present",
+            "ShareLink export verified under airplane mode",
+            "Card legible with brand mark at iMessage-thumbnail scale"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "StoreKit 2 purchase service: products, purchase, restore, entitlement listener",
+        "description": "Generated from orchestrator task `T-014` for `faveoff`.\n\nOwner lane: `services_utilities`\nFiles: FaveOff/Services/PurchaseService.swift, FaveOff/Services/ProductID.swift, FaveOff/Services/PurchaseProduct.swift, FaveOff/Services/PremiumFeature.swift, FaveOff/Services/PurchaseState.swift, FaveOffTests/PurchaseServiceTests.swift\n\nAcceptance criteria:\n- Automated tests drive product load, purchase, restore, and Transaction.currentEntitlements transitions as the real pass bar\n- Manual sandbox click-through is documented as a smoke test only, not the acceptance method\n- startEntitlementListener runs as a persistent launch-time Task, not a one-shot call",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "FaveOff/Services/PurchaseService.swift",
+            "FaveOff/Services/ProductID.swift",
+            "FaveOff/Services/PurchaseProduct.swift",
+            "FaveOff/Services/PremiumFeature.swift",
+            "FaveOff/Services/PurchaseState.swift",
+            "FaveOffTests/PurchaseServiceTests.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Automated tests drive product load, purchase, restore, and Transaction.currentEntitlements transitions as the real pass bar",
+            "Manual sandbox click-through is documented as a smoke test only, not the acceptance method",
+            "startEntitlementListener runs as a persistent launch-time Task, not a one-shot call"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-014"
+        }
+      },
+      {
+        "external_id": "T-015",
+        "issue_type": "Task",
+        "summary": "Monetization Surfaces UI: TV-lock row, 25-cap banner, paywall sheet, upgrade CTAs",
+        "description": "Generated from orchestrator task `T-015` for `faveoff`.\n\nOwner lane: `primary_ui`\nFiles: FaveOff/ViewModels/PaywallViewModel.swift, FaveOff/Views/PaywallView.swift, FaveOff/Views/Components/LockedTVRow.swift, FaveOff/Views/Components/InlineBanner.swift, FaveOffTests/MonetizationSurfacesRegressionTests.swift\n\nAcceptance criteria:\n- CoreRitualTapCountTests from T-010 is re-run unmodified and green\n- TV add never blocks or alters movie ranking state\n- Cap banner appears exactly at the 25th ranked movie and never blocks further adds\n- Same PaywallView instance used regardless of entry point (tvLock/capReached/toolbarUpgrade)",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "FaveOff/ViewModels/PaywallViewModel.swift",
+            "FaveOff/Views/PaywallView.swift",
+            "FaveOff/Views/Components/LockedTVRow.swift",
+            "FaveOff/Views/Components/InlineBanner.swift",
+            "FaveOffTests/MonetizationSurfacesRegressionTests.swift"
+          ],
+          "depends_on": [
+            "T-010",
+            "T-014"
+          ],
+          "acceptance_criteria": [
+            "CoreRitualTapCountTests from T-010 is re-run unmodified and green",
+            "TV add never blocks or alters movie ranking state",
+            "Cap banner appears exactly at the 25th ranked movie and never blocks further adds",
+            "Same PaywallView instance used regardless of entry point (tvLock/capReached/toolbarUpgrade)"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-015"
+        }
+      },
+      {
+        "external_id": "T-016",
+        "issue_type": "Task",
+        "summary": "Accessibility + contrast final gate",
+        "description": "Generated from orchestrator task `T-016` for `faveoff`.\n\nOwner lane: `polish_resilience`\nFiles: FaveOffUITests/AccessibilityGateTests.swift\n\nAcceptance criteria:\n- Compare and Placed measure >=4.5:1 body / >=3:1 large-bold across the full Dynamic Type range\n- Every actionable control has a VoiceOver label and a 44x44pt target\n- No color-only status cues on locked/capped rows",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "FaveOffUITests/AccessibilityGateTests.swift"
+          ],
+          "depends_on": [
+            "T-010",
+            "T-013",
+            "T-015",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "Compare and Placed measure >=4.5:1 body / >=3:1 large-bold across the full Dynamic Type range",
+            "Every actionable control has a VoiceOver label and a 44x44pt target",
+            "No color-only status cues on locked/capped rows"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-016"
+        }
+      },
+      {
+        "external_id": "T-017",
+        "issue_type": "Task",
+        "summary": "Hardening + release prep: full E2E, full-suite regression re-run, privacy manifest confirmation",
+        "description": "Generated from orchestrator task `T-017` for `faveoff`.\n\nOwner lane: `polish_resilience`\nFiles: FaveOffUITests/EndToEndFlowTests.swift, FaveOff/App/FaveOffApp.swift, FaveOff/PrivacyInfo.xcprivacy\n\nAcceptance criteria:\n- EndToEndFlowTests walks add->compare->placed->browse->share, resume-banner recovery, and a forced purchase failure with ranking unaffected\n- The entire existing test suite (engine, coordinator, contrast, taste-card resolvingArt, monetization regression) is re-run and green, not just the E2E path\n- Clean build from clean checkout at /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/; PrivacyInfo.xcprivacy confirmed present and correct",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "FaveOffUITests/EndToEndFlowTests.swift",
+            "FaveOff/App/FaveOffApp.swift",
+            "FaveOff/PrivacyInfo.xcprivacy"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-003",
+            "T-004",
+            "T-005",
+            "T-006",
+            "T-007",
+            "T-008",
+            "T-009",
+            "T-010",
+            "T-011",
+            "T-012",
+            "T-013",
+            "T-014",
+            "T-015",
+            "T-016"
+          ],
+          "acceptance_criteria": [
+            "EndToEndFlowTests walks add->compare->placed->browse->share, resume-banner recovery, and a forced purchase failure with ranking unaffected",
+            "The entire existing test suite (engine, coordinator, contrast, taste-card resolvingArt, monetization regression) is re-run and green, not just the E2E path",
+            "Clean build from clean checkout at /Users/pchordia/Documents/iOS-App-Factory/faveoff/app_build/; PrivacyInfo.xcprivacy confirmed present and correct"
+          ],
+          "source_project": "faveoff",
+          "source_task_id": "T-017"
+        }
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "TitleType",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum TitleType: String, Codable, CaseIterable, Sendable { case movie, tv }",
+        "owning_lane": "data_domain",
+        "notes": "Track boundary is by title type; movie is free ranked track, TV ranked only with entitlement."
+      },
+      {
+        "name": "RankingState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RankingState: String, Codable, Sendable { case unranked, insertionInProgress, ranked }",
+        "owning_lane": "data_domain",
+        "notes": "Uncontested across both rounds."
+      },
+      {
+        "name": "Genre",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum Genre: String, Codable, CaseIterable, Sendable { case action, comedy, drama, horror, thriller, sciFi, fantasy, animation, documentary, romance, other }",
+        "owning_lane": "data_domain",
+        "notes": "Fixed single-pick enum, never free text."
+      },
+      {
+        "name": "FilmTitle",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct FilmTitle: Identifiable, Equatable, Hashable, Sendable { let id: UUID; var name: String; var type: TitleType; var year: Int?; var genre: Genre?; var posterSeed: String; var rankingState: RankingState; var trackRankPosition: Int?; var createdAt: Date; var yearDecade: Int? { ... } }",
+        "owning_lane": "data_domain",
+        "notes": "Domain projection used across layers; keep separate from SwiftData persistence model."
+      },
+      {
+        "name": "StoredTitle",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct StoredTitle: Codable, Sendable { let id: UUID; var name: String; var typeRaw: String; var year: Int?; var genreRaw: String?; var posterSeed: String; var rankingStateRaw: String; var position: Int; var insertedAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "SwiftData entity shape serialized through repository; defaults on all non-optional fields."
+      },
+      {
+        "name": "ComparisonRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ComparisonRecord: Identifiable, Sendable { let id: UUID; let flowID: UUID; let winnerID: UUID; let loserID: UUID; let track: TitleType; let wasSkipped: Bool; let timestamp: Date }",
+        "owning_lane": "data_domain",
+        "notes": "Append-only comparison trail for auditability and future analytics-free troubleshooting."
+      },
+      {
+        "name": "InsertionContext",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class InsertionContext { var id: UUID; var titleID: UUID; var flowID: UUID; var mediaType: MediaType; var lo: Int; var hi: Int; var lastComparedTitleID: UUID?; var skipBudget: Int; var createdAt: Date; var updatedAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "FINAL: lastComparedTitleID is UUID?, not an index \u2014 both sides agreed in round 2. Single source of truth for crash-recoverable active insertion."
+      },
+      {
+        "name": "TitleRepository",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol TitleRepository { func fetchAll(track: MediaType?) async throws -> [Title]; func fetchRanked(track: MediaType) async throws -> [Title]; func title(id: UUID) async throws -> Title?; func add(name: String, mediaType: MediaType, year: Int?, genre: Genre?) async throws -> Title; func delete(_ id: UUID) async throws; func applyPositions(_ updates: [(id: UUID, position: Int)], track: MediaType) async throws; func capReached(track: MediaType) async throws -> Bool }",
+        "owning_lane": "data_domain",
+        "notes": "applyPositions is one atomic write per insertion, bulk shift unanimated. capReached folded in from Codex round 2 for the 25-item movie cap check."
+      },
+      {
+        "name": "TitleFilter",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TitleFilter: Equatable, Sendable { var genre: Genre?; var decade: Int? }",
+        "owning_lane": "data_domain",
+        "notes": "Decade derived from year at read time, never stored as free text."
+      },
+      {
+        "name": "RankingEngine",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RankingEngine { static func startInsertion(newID: UUID, rankedIDs: [UUID]) -> InsertionState; static func nextPair(state: InsertionState, rankedIDs: [UUID]) -> ComparisonPair?; static func applyChoice(state: InsertionState, chosenID: UUID, rankedIDs: [UUID]) -> InsertionStepResult; static func applySkip(state: InsertionState, rankedIDs: [UUID]) -> InsertionStepResult }",
+        "owning_lane": "services_utilities",
+        "notes": "FINAL: static-func enum, both sides agreed. Lives in the standalone FaveOffRanking local package (Foundation-only) so a SwiftData/SwiftUI import here is a compile error."
+      },
+      {
+        "name": "RankingStep",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct RankingStep: Sendable { let context: InsertionContext; let leftID: UUID; let rightID: UUID; let isTerminal: Bool }",
+        "owning_lane": "services_utilities",
+        "notes": "Defines compare pair surfaced to UI when not terminal."
+      },
+      {
+        "name": "RankingTransition",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct RankingTransition: Sendable { let updatedContext: InsertionContext?; let placedID: UUID?; let newPosition: Int?; let fallbackReason: SkipFallbackReason?; let neighbors: (UUID?, UUID?) }",
+        "owning_lane": "services_utilities",
+        "notes": "Returned after each step; terminal transitions include placement payload and neighbors."
+      },
+      {
+        "name": "SkipFallbackReason",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SkipFallbackReason: String, Sendable { case twoSkips; case userCancelled; case deletedOpponent }",
+        "owning_lane": "services_utilities",
+        "notes": "Explicit transparency for copy and analytics-safe behavior."
+      },
+      {
+        "name": "MetadataProvider",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol MetadataProvider { func enrich(title: FilmTitle) async -> PosterMetadata; }",
+        "owning_lane": "services_utilities",
+        "notes": "Default implementation must be local/offline stub; remote provider optional and additive."
+      },
+      {
+        "name": "PosterMetadata",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PosterMetadata: Sendable { let resolvedName: String; let year: Int?; let genre: Genre?; let posterImageData: Data?; let posterColorHex: String; let textSeed: String }",
+        "owning_lane": "data_domain",
+        "notes": "Keep fallback deterministic from local stub."
+      },
+      {
+        "name": "PurchaseService",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol PurchaseService { var state: PurchaseState { get }; func loadProducts() async throws -> [PurchaseProduct]; func purchase(_ productID: ProductID) async throws; func restore() async throws; func isEntitled(to feature: PremiumFeature) -> Bool; func startEntitlementListener() async; func stopEntitlementListener() }",
+        "owning_lane": "services_utilities",
+        "notes": "Both sides converged on this exact merged shape in round 2. startEntitlementListener runs Transaction.currentEntitlements as a persistent launch-time Task."
+      },
+      {
+        "name": "PurchaseResult",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PurchaseResult: Sendable { case purchased; case pending; case cancelled; case failed(Error) }",
+        "owning_lane": "services_utilities",
+        "notes": "Sheet state machine should map from this to non-blocking UI transitions."
+      },
+      {
+        "name": "TasteCardRenderer",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor struct TasteCardRenderer { func renderCard(titles: [Title]) async throws -> Image }",
+        "owning_lane": "services_utilities",
+        "notes": "Returns Image, matching TasteCardRenderState.ready(Image) directly. Only fires once every source poster image is confirmed loaded \u2014 no ImageRenderer snapshot race."
+      },
+      {
+        "name": "LibraryViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class LibraryViewModel { var titles: [Title]; var selectedTrack: MediaType; var activeFilters: FilterState; var pendingResume: ActiveInsertionFlow?; var isAtCap: Bool; func load() async; func addTitle(name: String, mediaType: MediaType, year: Int?, genre: Genre?) async throws -> ActiveInsertionFlow?; func removeTitle(_ id: UUID) async throws; func resumeFlow() async throws -> ActiveInsertionFlow? }",
+        "owning_lane": "primary_ui",
+        "notes": "@Observable (not ObservableObject) for property-level invalidation. addTitle/resumeFlow both produce the identical ActiveInsertionFlow shape, matching the single-cover invariant."
+      },
+      {
+        "name": "CompareFlowViewModel",
+        "kind": "class",
+        "language": "swift",
+        "signature": "final class CompareFlowViewModel: ObservableObject { @MainActor func loadNextPair() async; @MainActor func choose(_ id: UUID) async; @MainActor func skip() async; @MainActor func cancelBecauseDeletedOpponent() }",
+        "owning_lane": "primary_ui",
+        "notes": "Single-screen ritual inside one full-screen cover; fetches both titles by persistent ID before each action."
+      },
+      {
+        "name": "PaywallViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class PaywallViewModel { var state: PurchaseState; var products: [PurchaseProduct]; var openFrom: PaywallTrigger; func loadProducts() async; func purchase(_ id: ProductID) async; func restore() async }",
+        "owning_lane": "primary_ui",
+        "notes": "Dismissal handled by @Environment(\\.dismiss) at the view layer, not a view-model method \u2014 the sheet owns its own presentation lifecycle. openFrom folded in from Codex round 2 to drive contextual copy."
+      },
+      {
+        "name": "PrivacyManifestSpec",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func buildPrivacyManifestEntry() -> [String: Any]",
+        "owning_lane": "polish_resilience",
+        "notes": "Adopted from Codex's round-1 addition as-is \u2014 CI-checked helper keeping xcprivacy fields explicit and stable."
+      },
+      {
+        "name": "Title",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class Title { var id: UUID; var name: String; var mediaType: MediaType; var year: Int?; var genre: Genre?; var posterColorSeed: String; var posterInitials: String; var rankingState: RankingState; var position: Int?; var createdAt: Date; var comparisonCount: Int }",
+        "owning_lane": "data_domain",
+        "notes": "FINAL: no separate domain/persistence DTO layer; used directly through TitleRepository. No @Relationship, no @Attribute(.unique) on id \u2014 deliberately dropped from Codex's round-2 draft since unique attributes break CloudKit-sync compatibility per ios_architecture_review; UUID() generation already gives practical uniqueness. Reference type despite kind=struct (schema has no 'class' option)."
+      },
+      {
+        "name": "Comparison",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Model final class Comparison { var id: UUID; var winnerID: UUID; var loserID: UUID; var mediaType: MediaType; var timestamp: Date; var wasSkipped: Bool; var flowID: UUID }",
+        "owning_lane": "data_domain",
+        "notes": "Append-only audit trail; stays valid after the referenced Title is deleted."
+      },
+      {
+        "name": "MediaType",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum MediaType: String, Codable, CaseIterable, Sendable { case movie, tv }",
+        "owning_lane": "data_domain",
+        "notes": "Track discriminator; movie is free-ranked, tv is addable but ranking-gated until entitled."
+      },
+      {
+        "name": "FaveOffSchemaV1",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "enum FaveOffSchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Title.self, Comparison.self, InsertionContext.self] }; static var versionIdentifier: Schema.Version { Schema.Version(1, 0, 0) } }",
+        "owning_lane": "data_domain",
+        "notes": "Locked from day one so the first real schema change is non-destructive."
+      },
+      {
+        "name": "FaveOffMigrationPlan",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "enum FaveOffMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [FaveOffSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+        "owning_lane": "data_domain",
+        "notes": ""
+      },
+      {
+        "name": "ComparisonRepository",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol ComparisonRepository { func record(winnerID: UUID, loserID: UUID, mediaType: MediaType, wasSkipped: Bool, flowID: UUID) async throws }",
+        "owning_lane": "data_domain",
+        "notes": "Kept as its own focused protocol, not folded into TitleRepository."
+      },
+      {
+        "name": "InsertionRepository",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol InsertionRepository { func pendingContext() async throws -> InsertionContext?; func save(_ context: InsertionContext) async throws; func clear(flowID: UUID) async throws }",
+        "owning_lane": "data_domain",
+        "notes": "pendingContext() drives the Library resume banner at launch."
+      },
+      {
+        "name": "RepositoryError",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RepositoryError: Error { case notFound; case notEntitled(PremiumFeature); case saveFailed(underlying: Error); case interrupted }",
+        "owning_lane": "data_domain",
+        "notes": "Merged: notEntitled case folded in from Codex's round-2 addition for feature-gated write attempts."
+      },
+      {
+        "name": "InsertionState",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct InsertionState: Equatable, Codable, Sendable { var targetID: UUID; var lo: Int; var hi: Int; var lastComparedID: UUID?; var skipBudget: Int }",
+        "owning_lane": "services_utilities",
+        "notes": "Pure in-memory mirror of InsertionContext; ID-based for the same drift reasons."
+      },
+      {
+        "name": "ComparisonPair",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ComparisonPair: Equatable, Sendable { var candidateID: UUID; var midIndex: Int }",
+        "owning_lane": "services_utilities",
+        "notes": ""
+      },
+      {
+        "name": "InsertionStepResult",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum InsertionStepResult: Equatable, Sendable { case continueComparing(InsertionState); case placed(index: Int, placement: PlacementKind) }",
+        "owning_lane": "services_utilities",
+        "notes": "FINAL shape both sides converged on in round 2, replacing Codex's original RankingTransition/SkipFallbackReason \u2014 placement and cancellation are not representable on the same type."
+      },
+      {
+        "name": "PlacementKind",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PlacementKind: Equatable, Sendable { case exact(aboveID: UUID?, belowID: UUID?); case fallbackBottom; case coldStart }",
+        "owning_lane": "services_utilities",
+        "notes": "Drives Placed screen's honest copy variant; never represents an interruption \u2014 see InterruptionReason."
+      },
+      {
+        "name": "InsertionCoordinator",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor final class InsertionCoordinator { func beginInsertion(for titleID: UUID, mediaType: MediaType) async throws -> ActiveInsertionFlow; func resumePending() async throws -> ActiveInsertionFlow?; func choose(_ chosenID: UUID, in flow: ActiveInsertionFlow) async throws -> ActiveInsertionFlow; func skip(in flow: ActiveInsertionFlow) async throws -> ActiveInsertionFlow; func cancel(flow: ActiveInsertionFlow, reason: InterruptionReason) async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "Persists InsertionContext after every step; re-fetches both compared titles by persistent ID immediately before choose()/skip() act."
+      },
+      {
+        "name": "InterruptionReason",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum InterruptionReason: String, Sendable { case titleDeleted, userCancelled }",
+        "owning_lane": "polish_resilience",
+        "notes": "Fully separate from PlacementKind by design."
+      },
+      {
+        "name": "MetadataLookupService",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol MetadataLookupService { func lookup(title: String, mediaType: MediaType, year: Int?) async -> MetadataResult }",
+        "owning_lane": "services_utilities",
+        "notes": "Never throws; offline stub always succeeds, remote lookup is additive-only enrichment."
+      },
+      {
+        "name": "MetadataResult",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct MetadataResult: Sendable { var posterColorSeed: String; var posterInitials: String; var resolvedYear: Int?; var resolvedGenre: Genre? }",
+        "owning_lane": "services_utilities",
+        "notes": ""
+      },
+      {
+        "name": "OfflineMetadataProvider",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct OfflineMetadataProvider: MetadataLookupService { func lookup(title: String, mediaType: MediaType, year: Int?) async -> MetadataResult }",
+        "owning_lane": "services_utilities",
+        "notes": "Deterministic hash-of-title-string, synchronous, no network \u2014 default happy-path implementation."
+      },
+      {
+        "name": "PurchaseState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PurchaseState: Equatable, Sendable { case idle, loadingProducts, purchasePending, purchaseFailed(String), restored, entitled, notEntitled }",
+        "owning_lane": "services_utilities",
+        "notes": ""
+      },
+      {
+        "name": "ProductID",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ProductID: String, CaseIterable, Sendable { case monthly = \"com.faveoff.plus.monthly\"; case yearly = \"com.faveoff.plus.yearly\" }",
+        "owning_lane": "services_utilities",
+        "notes": "Must match the local .storekit config exactly."
+      },
+      {
+        "name": "PremiumFeature",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PremiumFeature: Sendable { case tvRanking, unlimitedMovieRanking }",
+        "owning_lane": "services_utilities",
+        "notes": ""
+      },
+      {
+        "name": "PurchaseProduct",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct PurchaseProduct: Identifiable, Sendable { var id: ProductID; var displayPrice: String; var period: String }",
+        "owning_lane": "services_utilities",
+        "notes": ""
+      },
+      {
+        "name": "ContrastValidator",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ContrastValidator { static func contrastRatio(_ fg: Color, _ bg: Color) -> Double; static func meetsAA(fg: Color, bg: Color, isLargeText: Bool) -> Bool }",
+        "owning_lane": "services_utilities",
+        "notes": "Real WCAG relative-luminance formula, asserted numerically in tests against every locked token pair."
+      },
+      {
+        "name": "AppEnvironment",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor final class AppEnvironment { let titleRepository: TitleRepository; let comparisonRepository: ComparisonRepository; let insertionRepository: InsertionRepository; let insertionCoordinator: InsertionCoordinator; let metadataService: MetadataLookupService; let purchaseService: PurchaseService; let tasteCardRenderer: TasteCardRenderer }",
+        "owning_lane": "services_utilities",
+        "notes": "Composition root built once in FaveOffApp.init, injected via .environment."
+      },
+      {
+        "name": "ActiveInsertionFlow",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ActiveInsertionFlow: Identifiable, Equatable, Sendable { var id: UUID { flowID }; var flowID: UUID; var targetTitleID: UUID; var mediaType: MediaType; var state: InsertionState; var stage: InsertionStage }",
+        "owning_lane": "primary_ui",
+        "notes": "The single value driving Library's one .fullScreenCover(item:); a fresh add and a resume-banner tap construct it identically."
+      },
+      {
+        "name": "InsertionStage",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum InsertionStage: Equatable, Sendable { case comparing(ComparisonPair); case placed(PlacementKind) }",
+        "owning_lane": "primary_ui",
+        "notes": "Internal sub-state swapped inside the one shared cover; never a second cover."
+      },
+      {
+        "name": "SheetKind",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SheetKind: Identifiable { case addTitle, tasteCard, paywall(PaywallTrigger) }",
+        "owning_lane": "primary_ui",
+        "notes": "Library owns exactly one activeSheet of this type."
+      },
+      {
+        "name": "PaywallTrigger",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PaywallTrigger: Sendable { case tvLock, capReached, toolbarUpgrade }",
+        "owning_lane": "primary_ui",
+        "notes": "Same PaywallView instance regardless of entry point."
+      },
+      {
+        "name": "FilterState",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct FilterState: Equatable, Sendable { var genre: Genre?; var decade: Int? }",
+        "owning_lane": "primary_ui",
+        "notes": ""
+      },
+      {
+        "name": "AddTitleViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class AddTitleViewModel { var name: String; var mediaType: MediaType; var year: String; var genre: Genre?; var saveState: SaveState; func save() async -> ActiveInsertionFlow? }",
+        "owning_lane": "primary_ui",
+        "notes": "Failed save preserves typed content, never clears the form."
+      },
+      {
+        "name": "SaveState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SaveState: Equatable, Sendable { case idle, saving, saved, failed(String) }",
+        "owning_lane": "primary_ui",
+        "notes": ""
+      },
+      {
+        "name": "InsertionFlowViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class InsertionFlowViewModel { var flow: ActiveInsertionFlow; var isTransitioning: Bool; func choose(_ id: UUID) async; func skip() async; func keepGoing() }",
+        "owning_lane": "primary_ui",
+        "notes": "Backs the single Compare+Placed cover content view. isTransitioning folded in from Codex round 2 to gate the internal wipe animation."
+      },
+      {
+        "name": "TasteCardViewModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class TasteCardViewModel { var renderState: TasteCardRenderState; func prepare(track: MediaType) async; func share() }",
+        "owning_lane": "primary_ui",
+        "notes": ""
+      },
+      {
+        "name": "TasteCardRenderState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum TasteCardRenderState: Equatable { case resolvingArt, ready(Image), renderFailed(String), sharing }",
+        "owning_lane": "primary_ui",
+        "notes": "renderFailed carries a reason string per Codex round 2's refinement."
+      },
+      {
+        "name": "ToastCenter",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class ToastCenter { var current: ToastMessage?; func show(_ text: String) }",
+        "owning_lane": "polish_resilience",
+        "notes": "Carries 'Title removed, comparison canceled' across the dismiss-back-to-Library boundary."
+      },
+      {
+        "name": "ToastMessage",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ToastMessage: Identifiable, Equatable, Sendable { var id: UUID; var text: String }",
+        "owning_lane": "polish_resilience",
+        "notes": ""
+      },
+      {
+        "name": "SwiftDataContainerFactory",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol SwiftDataContainerFactory { func makeContainer() throws -> ModelContainer }",
+        "owning_lane": "services_utilities",
+        "notes": "Injectable seam; real app uses on-disk store, tests/previews use isStoredInMemoryOnly."
+      },
+      {
+        "name": "AccessibilityIdentifiers",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AccessibilityIdentifiers { case libraryList, comparePosterLeft, comparePosterRight, compareSkip, placedKeepGoing, addSaveButton, paywallPurchase, toastBanner }",
+        "owning_lane": "polish_resilience",
+        "notes": "Stable IDs for XCUITest targeting the core flow, folded in from Codex round 2."
+      },
+      {
+        "name": "buildPrivacyManifest",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func buildPrivacyManifest() -> [String: Any]",
+        "owning_lane": "polish_resilience",
+        "notes": "CI-checked helper keeping the required PrivacyInfo.xcprivacy fields explicit and stable; must be in the project from the first build, not added before archiving."
+      },
+      {
+        "name": "createSampleTitles",
+        "kind": "function",
+        "language": "swift",
+        "signature": "func createSampleTitles(_ names: [String], mediaType: MediaType) -> [(String, UUID)]",
+        "owning_lane": "services_utilities",
+        "notes": "Optional fixture helper for deterministic UI/flow tests, folded in from Codex round 2."
+      }
+    ]
+  },
   "phase_outputs": {
     "prompt_contract": "Both of you clearly overlap on the fundamentals \u2014 this isn't a fight, it's Claude sharpening screws Codex left loose. Let me recap where things actually stand.\n\n**What everyone agrees on:** This is a real local-first SwiftUI build, not a concept exercise. SwiftData owns titles/comparisons/rankings, ranking math runs entirely on-device, network touches only metadata/poster lookup and must never block the core loop. Production-ready means it compiles and behaves end-to-end \u2014 full screen states, real persistence across relaunch, working share flow, non-blocking paywall \u2014 not a spec or a demo reel. Non-goals are settled: no accounts, no social graph, no live backend, no music/album track in v1. Both of you also independently landed on the same instinct about pacing: Codex wants \"fast-converging adaptive pairing\" so the first few minutes feel like a bracket, not a form; Claude wants ranking done incrementally via binary-insertion as titles are added, rather than a big upfront round. These are the same idea stated two ways, not a conflict.\n\n**What Claude added that Codex hadn't nailed down yet, and that doesn't contradict anything Codex said:**\n- The spec's \"Elo-style\" and \"merge-sort-style\" language is internally inconsistent \u2014 Claude's fix is to commit to bounded merge-insertion (Ford-Johnson-style binary insertion), which gives a real n\u00b7log(n) guarantee and fits \"rank from a handful of comparisons\" far better than Elo, which needs repeated play to converge. This becomes a decision rule: defaulting to raw Elo scoring is treated as a contract violation.\n- Metadata lookup: default provider must be a local/offline stub (manual entry + initials/color-block art), with any real API treated as optional and additive \u2014 never the happy path.\n- StoreKit: real gating logic and purchase flow using a local `.storekit` config for testing is in-scope; actual App Store commerce is explicitly out of scope for \"production-ready\" and shouldn't be claimed as live.\n- WidgetKit isn't in the Core Workflows list (only in \"iOS-native features\"), so it's flagged as the first thing allowed to slip under time pressure \u2014 ranking engine and share flow are not allowed to slip.\n- Cold-start states need to be pinned: 0/1/2-title states, and comparisons happen continuously as the library grows, not as a one-time gauntlet.\n\nNone of this walks back Codex's contract \u2014 it fills in the gaps Codex's draft left open, and it's consistent with Codex's own stated decision rule (\"if a feature proposal adds comparison fatigue, replace it with faster convergence logic before adding depth\"). No open disagreement remains for this phase's scope.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Original prompt:** preserved verbatim above by both speakers (FaveOff MVP spec + parent multi-app-exp7 portfolio prompt).\n\n**Hard requirements:**\n- Real compiling Xcode project in `app_build`, not mocks or a spec.\n- SwiftData persistence for titles, comparisons, computed rankings; ranking computed fully on-device.\n- Ranking algorithm is bounded merge-insertion / binary-insertion (Ford-Johnson-style), not classic repeated-play Elo \u2014 comparisons happen incrementally as titles are added, not as a single upfront round.\n- Metadata/poster lookup isolated behind a protocol; default/offline provider (manual entry + initials/color-block placeholder art) must fully support the core loop with networking off; any real API is optional and additive.\n- Core workflows must all be real and functional: add title, head-to-head comparison, ranked list view, Taste Card generation (`ImageRenderer`) + `ShareLink`, genre/decade filtering.\n- FaveOff+ gating and StoreKit 2 purchase flow must be real, tested via local `.storekit` config \u2014 not claimed as live App Store commerce.\n- WidgetKit small widget is in-scope but lowest priority \u2014 first to slip under time pressure; ranking engine, comparison flow, and share flow are never allowed to slip.\n- Every reachable screen has empty/loading/success/error states; accessibility (VoiceOver, Dynamic Type, 44pt targets, contrast) is a requirement, not polish.\n- Cinematic dark-mode-first design system (near-black, marquee-red accent, condensed poster typography, film-reel transitions) applied consistently.\n- Distinct from all other apps in this batch and from ~50+ prior workspace apps.\n\n**Non-goals:** no accounts/auth, no social graph/feed, no live backend or CloudKit wiring (protocol boundary only), no music/album ranking track in v1, no live/production App Store commerce claims, no full round-robin (n\u00b2) comparison matching.\n\n**Production-readiness definition:** compiles clean from a fresh checkout; persists across relaunch; ranking is deterministic and verifiably bounded (not \"looks plausible\"); works fully offline; Taste Card renders and shares; paywall gating logic is real but sandbox-only; accessible on every screen; widget can be added without crashing but may be the first thing cut for time.\n\n**Decision rules for later phases:** under time pressure, cut in this order \u2014 widget first, then design polish, never the ranking engine, comparison loop, offline behavior, or share flow. Any conflict between spec ambiguity (Elo vs merge-sort wording) resolves to bounded merge-insertion. Metadata network dependency is always additive, never load-bearing. Monetization/sharing must never block free-tier core value delivery.",
     "product_research": "Looking at where Codex and Claude landed, they're not disagreeing \u2014 Claude is putting a sharper point on things Codex sketched in broad strokes, the same pattern as the previous phase.\n\n**Where they agree:** The audience is the same in both takes \u2014 casual watchers with opinions, not cinephiles or people who already keep a Letterboxd diary. The mechanic (Beli-style pairwise picks) is inherently game-like, not form-like, and that's the whole point \u2014 it needs to feel like a fast, low-stakes tap-tap decision with visible progress after every single comparison, not an admin task. Both want a light IA (Codex: Rank / Browse / Share tabs), single-task-focused comparison screens, offline-first behavior that feels intentional rather than degraded, and accessibility treated as core, not decoration. Both also flag that the paywall/premium gating must never feel like it's blocking the free core loop.\n\n**What Claude sharpened without contradicting Codex:** Claude names Beli specifically as the real proof-of-concept for this mechanic at consumer scale (rather than Letterboxd/IMDb, which are the wrong comps \u2014 those are archive tools for people who already know their opinions). Claude also surfaces one genuine spec gap Codex hadn't resolved: the contract between \"add titles (movies+TV)\" and \"FaveOff+ unlocks TV as a separate track\" is ambiguous, and Claude proposes a specific resolution (track-level gate: TV titles can be added/logged for free but only ranked after upgrade). Claude also adds two build-relevant risks Codex's draft touched on more loosely: a named \"skip/can't compare\" escape hatch for the ranking algorithm (so odd pairings don't break trust), and a heads-up that the condensed cinematic typography plus red-on-black accent needs real contrast/Dynamic-Type verification, not just aesthetic intent. None of this walks back Codex's framing \u2014 it fills gaps and turns \"risks to watch\" into concrete decision rules.\n\nNo open fight remains \u2014 this reads as convergence.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Audience & use context:** Mass-market casual viewers who watch a lot of movies/TV and have opinions, but aren't cinephiles and don't want a logging/critique app. The psychographic is \"I liked both, but if you make me pick...\" \u2014 someone who finds head-to-head comparison fun rather than effortful, and who has never had a way to discover their own real top 10.\n\n**Comparable apps/patterns (assumption, not verified research):** Beli is the closest real-world proof that pairwise \"which was better\" comparisons work at mass-market scale with a shareable score card as the growth loop \u2014 treat it as the reference for pacing and lightness of interaction. Letterboxd/IMDb/Rotten Tomatoes are the wrong comps to imitate (archive/critique tools for people who already have opinions); useful only as a contrast case. Personality-quiz and bracket-style apps are the right pattern to borrow for onboarding clarity and the \"ritualized choice\" feel of each comparison screen.\n\n**Platform-specific opportunities:** Light IA (Rank / Browse / Share), single primary action per comparison screen, offline-first with local fallback artwork so day-one value doesn't depend on network, ShareLink + ImageRenderer for a native-feeling Taste Card export, VoiceOver labels that describe the choice being made (\"select this title over \u2014\"), and widget value treated as fully optional bonus, never a blocker.\n\n**Major assumptions & risks:**\n1. Movies-free/TV-paid ambiguity in the spec is resolved as: free users can add and watch-log TV titles, but only the movies track is ranked/shareable for free \u2014 FaveOff+ unlocks a second TV ranking track through the same engine. This needs to be a build assumption, not something the build phase guesses at.\n2. The binary-insertion ranking algorithm needs a first-class \"too close to call / haven't thought about it\" skip path that doesn't corrupt the sort invariant (insert adjacent to the most recently compared item) \u2014 without it, arbitrary-feeling pairings (rom-com vs. slasher) will erode trust in the \"real top 10\" promise and trigger the exact abandonment risk the spec's own invalidation criteria warns about.\n3. Comparison-fatigue ceiling is unknown \u2014 needs bounded, incremental (rank-on-add) comparisons, not a big upfront gauntlet, with visible progress/confidence cues after each tap.\n4. Cinematic condensed typography + marquee-red-on-black is a contrast/Dynamic-Type risk: condensed display faces degrade at accessibility sizes and low-weight red-on-black can fail WCAG AA. Resolution: condensed face reserved for short display strings (titles, rank numbers), normal-width system style for anything that must scale, contrast-checked before any screen is called done.\n5. Metadata scarcity/offline mismatch \u2014 genre/decade filters must work off whatever the local/offline provider or manual entry supplies, since a real API isn't guaranteed to be wired.\n6. WidgetKit requires an App Group container (real plumbing: entitlements, shared container, cross-target schema) \u2014 sequence it dead last and don't let the main app's architecture take on complexity for its sake, consistent with it already being flagged lowest-priority.\n\n**Implications for the first build:** Rank-on-add with bounded, incremental comparisons (no big-bang round); explicit empty/cold-start states for 0/1/2 titles; a named skip/tie escape hatch in the ranking engine; a track-level (not feature-level) free/paid gate between movies and TV; offline-safe metadata lookup as the default happy path; accessibility and contrast verified against the condensed typography before screens are considered finished; widget scoped and built last, isolated so its absence doesn't block anything else.",
@@ -48,54 +1800,5 @@
     "app_store_readiness": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: FAILED",
     "final_review": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: FAILED",
     "portfolio_audit": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage\n\nVERIFICATION: FAILED"
-  },
-  "last_processed": "2026-07-08 14:50:34",
-  "consensus_status": {
-    "prompt_contract": true,
-    "product_research": true,
-    "portfolio_selection": true,
-    "initial_discussion": true,
-    "per_app_product_brief": true,
-    "next_steps_small": true,
-    "detailed_discussion": true,
-    "app_features": true,
-    "design_discussion": true,
-    "design_handoff": true,
-    "ios_architecture_review": true,
-    "tech_specs": true,
-    "project_plan": true,
-    "task_assignments": true,
-    "implementation_readiness_gate": true,
-    "build_coordination": true,
-    "build_verification": true,
-    "human_qa_checklist": false,
-    "app_store_readiness": false,
-    "final_review": false,
-    "portfolio_audit": false
-  },
-  "vote_results": {
-    "human_qa_checklist": {
-      "decided": false,
-      "by": "claude"
-    },
-    "app_store_readiness": {
-      "decided": false,
-      "by": "claude"
-    },
-    "final_review": {
-      "decided": false,
-      "by": "claude"
-    },
-    "portfolio_audit": {
-      "decided": false,
-      "by": "claude"
-    }
-  },
-  "runner_pid": 82015,
-  "done": true,
-  "error": null,
-  "status": "done",
-  "workflow": "app_build",
-  "blocked_conflict": null,
-  "awaiting_approval": null
+  }
 }
