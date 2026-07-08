@@ -199,3 +199,8 @@
 {"schema_version": 1, "ts": "2026-07-08T14:51:06", "lane": "portfolio_audit", "agent": "claude", "kind": "agent_turn_completed", "summary": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage"}
 {"schema_version": 1, "ts": "2026-07-08T14:51:09", "lane": "portfolio_audit", "agent": "claude", "kind": "agent_turn_completed", "summary": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage"}
 {"schema_version": 1, "ts": "2026-07-08T14:51:11", "lane": "portfolio_audit", "agent": "claude", "kind": "agent_turn_completed", "summary": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage"}
+{"schema_version": 1, "ts": "2026-07-08T14:51:14", "lane": "portfolio_audit", "agent": "claude", "kind": "agent_turn_completed", "summary": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage"}
+{"schema_version": 1, "ts": "2026-07-08T14:51:16", "lane": "portfolio_audit", "agent": "claude", "kind": "agent_turn_completed", "summary": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage"}
+{"schema_version": 1, "ts": "2026-07-08T14:51:18", "lane": "portfolio_audit", "agent": "claude", "kind": "agent_turn_completed", "summary": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage"}
+{"schema_version": 1, "ts": "2026-07-08T14:51:20", "lane": "portfolio_audit", "agent": "claude", "kind": "agent_turn_completed", "summary": "You've hit your monthly spend limit \u00b7 raise it at claude.ai/settings/usage"}
+{"schema_version": 1, "ts": "2026-07-08T14:51:26", "lane": "portfolio_audit", "agent": "orchestrator", "kind": "phase_completed", "summary": "phase 'portfolio_audit' complete (VOTE_DECISION: NO)"}
