@@ -1,0 +1,16 @@
+{
+  "current_phase": "prompt_contract",
+  "current_round": 1,
+  "next_agent": "claude",
+  "prompt_hash": "5137f997f54769bc5bcf994c5299e9d5458db6e368ebcc2e954c02e295d6ecfa",
+  "completed_phases": [],
+  "phase_outputs": {},
+  "last_processed": "2026-07-09 10:33:01",
+  "consensus_status": {},
+  "vote_results": {},
+  "runner_pid": 67719,
+  "done": false,
+  "error": null,
+  "status": "running",
+  "workflow": "app_build"
+}
