@@ -1,31 +1,1505 @@
 {
-  "current_phase": "portfolio_audit",
-  "current_round": 0,
-  "next_agent": null,
-  "prompt_hash": "5137f997f54769bc5bcf994c5299e9d5458db6e368ebcc2e954c02e295d6ecfa",
-  "completed_phases": [
-    "prompt_contract",
-    "product_research",
-    "portfolio_selection",
-    "initial_discussion",
-    "per_app_product_brief",
-    "next_steps_small",
-    "detailed_discussion",
-    "app_features",
-    "design_discussion",
-    "design_handoff",
-    "ios_architecture_review",
-    "tech_specs",
-    "project_plan",
-    "task_assignments",
-    "implementation_readiness_gate",
-    "build_coordination",
-    "build_verification",
-    "human_qa_checklist",
-    "app_store_readiness",
-    "final_review",
-    "portfolio_audit"
-  ],
+  "schema_version": 1,
+  "project": {
+    "name": "drinking-games-test",
+    "source": "orchestrator",
+    "original_prompt": "Build Kings \u2014 a multiplayer drinking game app for iOS (local pass-and-play).\n\nCore mechanics:\n- 2\u20136 players draw cards from a deck in turn order\n- Each card (A\u2013K, plus Joker) triggers a rule: e.g. \"2 = You\" (drinker picks someone), \"5 = Guys\", \"K = King's Cup\" (build communal cup with dares), \"Joker = Make a rule\"\n- Players drink per the card rule; when the cup is empty or 10 turns pass, game ends with a recap\n- Pass phone between players; each player sees only their own card until they pass\n\nKey features:\n- Local only (no server, no login)\n- Customizable rules: edit card meanings before each game, save rulesets\n- Game history: recap shows who drank most, funniest rule, timeline of rounds\n- Sober mode toggle (default): uses \"dare\" language instead of drinking; activating drinking mode (17+ gate) swaps copy to drinking references but same mechanics\n\nTech:\n- SwiftUI, local-first with CoreData for game history\n- Phone must stay face-down while other player holds it; privacy shield until handoff\n- Export game recap as a sharable image (name, date, player list, highlights)\n\nScope: MVP with Kings rules only (not Hearts, Asshole, or other variants). One ruleset bundled; let users customize before start.",
+    "verification": "UNVERIFIED (no .xcodeproj/.xcworkspace found.)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "DRINKINGGA",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-PRODUCT",
+        "name": "Product Definition",
+        "phase_keys": [
+          "prompt_contract",
+          "product_research",
+          "portfolio_selection",
+          "initial_discussion",
+          "per_app_product_brief",
+          "next_steps_small",
+          "detailed_discussion",
+          "app_features"
+        ]
+      },
+      {
+        "external_id": "EPIC-DESIGN-ARCH",
+        "name": "Design & Architecture",
+        "phase_keys": [
+          "design_discussion",
+          "design_handoff",
+          "ios_architecture_review",
+          "tech_specs",
+          "project_plan"
+        ]
+      },
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "task_assignments",
+          "implementation_readiness_gate",
+          "build_coordination",
+          "build_verification"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "human_qa_checklist",
+          "app_store_readiness",
+          "final_review",
+          "portfolio_audit"
+        ]
+      }
+    ],
+    "issues": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Project scaffold: single drinking-games-test target, six-folder layout, CoreData model shell, engine import-guard build script",
+        "description": "Generated from orchestrator task `T-001` for `drinking-games-test`.\n\nOwner lane: `data_domain`\nFiles: app_build/drinking-games-test.xcodeproj/project.pbxproj, app_build/drinking-games-test/DrinkingGamesTestApp.swift, app_build/drinking-games-test/Domain/.gitkeep, app_build/drinking-games-test/Engine/.gitkeep, app_build/drinking-games-test/Persistence/.gitkeep, app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld, app_build/drinking-games-test/Services/.gitkeep, app_build/drinking-games-test/UI/.gitkeep, app_build/drinking-games-test/Resilience/.gitkeep, app_build/drinking-games-testTests/.gitkeep, app_build/drinking-games-test/build-scripts/engine-import-guard.sh\n\nAcceptance criteria:\n- Project builds and runs a blank app on simulator from app_build/\n- engine-import-guard.sh is wired into an actual Xcode build phase, not just present on disk\n- A deliberately committed forbidden import (CoreData/UIKit/SwiftUI) inside Engine/ makes the build fail; reverting it makes the build pass again \u2014 both states verified before this task is marked done\n- In-memory drinking-games-testTests target exists and runs a trivial passing test\n- No non-Foundation dependency appears in Engine/ outside the explicitly allowed system boundaries",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "app_build/drinking-games-test.xcodeproj/project.pbxproj",
+            "app_build/drinking-games-test/DrinkingGamesTestApp.swift",
+            "app_build/drinking-games-test/Domain/.gitkeep",
+            "app_build/drinking-games-test/Engine/.gitkeep",
+            "app_build/drinking-games-test/Persistence/.gitkeep",
+            "app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld",
+            "app_build/drinking-games-test/Services/.gitkeep",
+            "app_build/drinking-games-test/UI/.gitkeep",
+            "app_build/drinking-games-test/Resilience/.gitkeep",
+            "app_build/drinking-games-testTests/.gitkeep",
+            "app_build/drinking-games-test/build-scripts/engine-import-guard.sh"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Project builds and runs a blank app on simulator from app_build/",
+            "engine-import-guard.sh is wired into an actual Xcode build phase, not just present on disk",
+            "A deliberately committed forbidden import (CoreData/UIKit/SwiftUI) inside Engine/ makes the build fail; reverting it makes the build pass again \u2014 both states verified before this task is marked done",
+            "In-memory drinking-games-testTests target exists and runs a trivial passing test",
+            "No non-Foundation dependency appears in Engine/ outside the explicitly allowed system boundaries"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "Domain types: Card, Rank, Suit, RuleKey, RuleDefinition, Ruleset (+isComplete), GameMode, EndReason, TurnEvent, TurnDraw, GamePhase, GameSessionRecord, FunniestRuleResult, schemaVersion migration-safe decode path",
+        "description": "Generated from orchestrator task `T-002` for `drinking-games-test`.\n\nOwner lane: `data_domain`\nFiles: app_build/drinking-games-test/Domain/Card.swift, app_build/drinking-games-test/Domain/Rank.swift, app_build/drinking-games-test/Domain/Suit.swift, app_build/drinking-games-test/Domain/RuleKey.swift, app_build/drinking-games-test/Domain/RuleDefinition.swift, app_build/drinking-games-test/Domain/Ruleset.swift, app_build/drinking-games-test/Domain/GameMode.swift, app_build/drinking-games-test/Domain/EndReason.swift, app_build/drinking-games-test/Domain/TurnEvent.swift, app_build/drinking-games-test/Domain/TurnDraw.swift, app_build/drinking-games-test/Domain/GamePhase.swift, app_build/drinking-games-test/Domain/GameSessionRecord.swift, app_build/drinking-games-test/Domain/FunniestRuleResult.swift, app_build/drinking-games-test/Domain/SchemaVersioning.swift\n\nAcceptance criteria:\n- Every type matches the ratified interfaces-json signature exactly (names, cases, field types)\n- GameSessionRecord's kingsDrawnCount/cardsRemainingAtEnd/mostDrinksPlayerIndex are computed from timeline, never separately stored\n- A schemaVersion v1 decode path exists and is unit-tested with a hand-built v1 JSON fixture, not deferred until a v2 exists\n- Ruleset.isComplete correctly flags all 14 RuleKey cases as required",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "app_build/drinking-games-test/Domain/Card.swift",
+            "app_build/drinking-games-test/Domain/Rank.swift",
+            "app_build/drinking-games-test/Domain/Suit.swift",
+            "app_build/drinking-games-test/Domain/RuleKey.swift",
+            "app_build/drinking-games-test/Domain/RuleDefinition.swift",
+            "app_build/drinking-games-test/Domain/Ruleset.swift",
+            "app_build/drinking-games-test/Domain/GameMode.swift",
+            "app_build/drinking-games-test/Domain/EndReason.swift",
+            "app_build/drinking-games-test/Domain/TurnEvent.swift",
+            "app_build/drinking-games-test/Domain/TurnDraw.swift",
+            "app_build/drinking-games-test/Domain/GamePhase.swift",
+            "app_build/drinking-games-test/Domain/GameSessionRecord.swift",
+            "app_build/drinking-games-test/Domain/FunniestRuleResult.swift",
+            "app_build/drinking-games-test/Domain/SchemaVersioning.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Every type matches the ratified interfaces-json signature exactly (names, cases, field types)",
+            "GameSessionRecord's kingsDrawnCount/cardsRemainingAtEnd/mostDrinksPlayerIndex are computed from timeline, never separately stored",
+            "A schemaVersion v1 decode path exists and is unit-tested with a hand-built v1 JSON fixture, not deferred until a v2 exists",
+            "Ruleset.isComplete correctly flags all 14 RuleKey cases as required"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "Engine reducer: Deck.standard53, GameEngineState/Event/Effect, GameEngineReducer, GameEngine wrapper, HUDSnapshot, full unit-test matrix",
+        "description": "Generated from orchestrator task `T-003` for `drinking-games-test`.\n\nOwner lane: `data_domain`\nFiles: app_build/drinking-games-test/Engine/Deck.swift, app_build/drinking-games-test/Engine/GameEngineState.swift, app_build/drinking-games-test/Engine/GameEngineEvent.swift, app_build/drinking-games-test/Engine/GameEngineEffect.swift, app_build/drinking-games-test/Engine/GameEngineReducer.swift, app_build/drinking-games-test/Engine/GameEngine.swift, app_build/drinking-games-test/Engine/HUDSnapshot.swift, app_build/drinking-games-testTests/EngineReducerTests.swift\n\nAcceptance criteria:\n- Deck.standard53 always produces exactly 53 unique Card values\n- Unit tests cover end-condition precedence at every player count 2-6, including cup-full winning a simultaneous tie against deck-exhaustion\n- Unit test proves confirmReveal is idempotent: five rapid calls in one runloop tick advance exactly one turn\n- HUDSnapshot.currentRoundDisplay is nil whenever 10 rounds is mathematically unreachable at the active player count\n- GameEngineReducer.reduce has zero imports outside Domain/Engine and is fully callable with no CoreData/SwiftUI/UIKit in scope",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "app_build/drinking-games-test/Engine/Deck.swift",
+            "app_build/drinking-games-test/Engine/GameEngineState.swift",
+            "app_build/drinking-games-test/Engine/GameEngineEvent.swift",
+            "app_build/drinking-games-test/Engine/GameEngineEffect.swift",
+            "app_build/drinking-games-test/Engine/GameEngineReducer.swift",
+            "app_build/drinking-games-test/Engine/GameEngine.swift",
+            "app_build/drinking-games-test/Engine/HUDSnapshot.swift",
+            "app_build/drinking-games-testTests/EngineReducerTests.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Deck.standard53 always produces exactly 53 unique Card values",
+            "Unit tests cover end-condition precedence at every player count 2-6, including cup-full winning a simultaneous tie against deck-exhaustion",
+            "Unit test proves confirmReveal is idempotent: five rapid calls in one runloop tick advance exactly one turn",
+            "HUDSnapshot.currentRoundDisplay is nil whenever 10 rounds is mathematically unreachable at the active player count",
+            "GameEngineReducer.reduce has zero imports outside Domain/Engine and is fully callable with no CoreData/SwiftUI/UIKit in scope"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "Persistence core: PersistenceController, RulesetStore, GameHistoryStore, PersistenceError, CoreData entities (Ruleset/RulesetCard/GameSession/TurnEvent)",
+        "description": "Generated from orchestrator task `T-004` for `drinking-games-test`.\n\nOwner lane: `services_utilities`\nFiles: app_build/drinking-games-test/Persistence/PersistenceController.swift, app_build/drinking-games-test/Persistence/RulesetStore.swift, app_build/drinking-games-test/Persistence/GameHistoryStore.swift, app_build/drinking-games-test/Persistence/PersistenceError.swift, app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld/drinking-games-test.xcdatamodel, app_build/drinking-games-testTests/PersistenceTests.swift\n\nAcceptance criteria:\n- In-memory CoreData test target covers save/load/delete for both stores plus schemaVersion fallback decoding\n- Writes happen on a background NSManagedObjectContext with viewContext auto-merge; a test proves this doesn't block the main actor\n- bootstrapBundledRulesetIfNeeded seeds exactly one complete 14-key default ruleset on first launch and is idempotent on relaunch",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "app_build/drinking-games-test/Persistence/PersistenceController.swift",
+            "app_build/drinking-games-test/Persistence/RulesetStore.swift",
+            "app_build/drinking-games-test/Persistence/GameHistoryStore.swift",
+            "app_build/drinking-games-test/Persistence/PersistenceError.swift",
+            "app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld/drinking-games-test.xcdatamodel",
+            "app_build/drinking-games-testTests/PersistenceTests.swift"
+          ],
+          "depends_on": [
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "In-memory CoreData test target covers save/load/delete for both stores plus schemaVersion fallback decoding",
+            "Writes happen on a background NSManagedObjectContext with viewContext auto-merge; a test proves this doesn't block the main actor",
+            "bootstrapBundledRulesetIfNeeded seeds exactly one complete 14-key default ruleset on first launch and is idempotent on relaunch"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "Mandatory game-end persistence contract: awaited save-before-navigate plus pendingCompletedSession salvage file",
+        "description": "Generated from orchestrator task `T-005` for `drinking-games-test`.\n\nOwner lane: `services_utilities`\nFiles: app_build/drinking-games-test/Persistence/GameEndPersistenceCoordinator.swift, app_build/drinking-games-test/Persistence/PendingCompletedSession.swift, app_build/drinking-games-testTests/GameEndPersistenceTests.swift\n\nAcceptance criteria:\n- On GameEngineEffect.gameDidEnd, a pendingCompletedSession file is written synchronously before the awaited GameHistoryStore.save call, fire-and-forget so it never blocks the save\n- A test simulates the save throwing and confirms the in-memory GameSessionRecord is still available to render plus a non-blocking failure signal is emitted\n- A test simulates a pending file left over from a prior force-quit and confirms it is salvage-checked and either recovered into history or cleanly discarded on next launch\n- This task is treated as non-optional scope per the ratified project plan \u2014 it cannot be marked done as a stub\n- No silent drop of a completed game is possible when force-quit occurs between game-end and the persistence write landing",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "app_build/drinking-games-test/Persistence/GameEndPersistenceCoordinator.swift",
+            "app_build/drinking-games-test/Persistence/PendingCompletedSession.swift",
+            "app_build/drinking-games-testTests/GameEndPersistenceTests.swift"
+          ],
+          "depends_on": [
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "On GameEngineEffect.gameDidEnd, a pendingCompletedSession file is written synchronously before the awaited GameHistoryStore.save call, fire-and-forget so it never blocks the save",
+            "A test simulates the save throwing and confirms the in-memory GameSessionRecord is still available to render plus a non-blocking failure signal is emitted",
+            "A test simulates a pending file left over from a prior force-quit and confirms it is salvage-checked and either recovered into history or cleanly discarded on next launch",
+            "This task is treated as non-optional scope per the ratified project plan \u2014 it cannot be marked done as a stub",
+            "No silent drop of a completed game is possible when force-quit occurs between game-end and the persistence write landing"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "Export and supporting services: ExportCoordinator, PhotoPermissionService, AttestationService, HapticsService",
+        "description": "Generated from orchestrator task `T-006` for `drinking-games-test`.\n\nOwner lane: `services_utilities`\nFiles: app_build/drinking-games-test/Services/ExportCoordinator.swift, app_build/drinking-games-test/Services/PhotoPermissionService.swift, app_build/drinking-games-test/Services/AttestationService.swift, app_build/drinking-games-test/Services/HapticsService.swift, app_build/drinking-games-testTests/ExportCoordinatorTests.swift, app_build/drinking-games-test/Info.plist\n\nAcceptance criteria:\n- ExportCoordinator renders via ImageRenderer and maps UIActivityViewController's completionWithItemsHandler to exactly the four ExportOutcome cases, tested with a mocked completion handler for all four paths\n- PhotoPermissionService requests .addOnly only, never .readWrite, with NSPhotoLibraryAddUsageDescription set in Info.plist\n- AttestationService.recordAttestation is a synchronous non-throwing UserDefaults write; toggling back to sober does not clear it\n- HapticsService no-ops silently when CHHapticEngine.capabilitiesForHardware().supportsHaptics is false",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "app_build/drinking-games-test/Services/ExportCoordinator.swift",
+            "app_build/drinking-games-test/Services/PhotoPermissionService.swift",
+            "app_build/drinking-games-test/Services/AttestationService.swift",
+            "app_build/drinking-games-test/Services/HapticsService.swift",
+            "app_build/drinking-games-testTests/ExportCoordinatorTests.swift",
+            "app_build/drinking-games-test/Info.plist"
+          ],
+          "depends_on": [
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "ExportCoordinator renders via ImageRenderer and maps UIActivityViewController's completionWithItemsHandler to exactly the four ExportOutcome cases, tested with a mocked completion handler for all four paths",
+            "PhotoPermissionService requests .addOnly only, never .readWrite, with NSPhotoLibraryAddUsageDescription set in Info.plist",
+            "AttestationService.recordAttestation is a synchronous non-throwing UserDefaults write; toggling back to sober does not clear it",
+            "HapticsService no-ops silently when CHHapticEngine.capabilitiesForHardware().supportsHaptics is false"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "Privacy shield coordinator and reusable shield modifier",
+        "description": "Generated from orchestrator task `T-007` for `drinking-games-test`.\n\nOwner lane: `polish_resilience`\nFiles: app_build/drinking-games-test/Resilience/PrivacyShieldCoordinator.swift, app_build/drinking-games-test/Resilience/SceneLifecycleEvent.swift, app_build/drinking-games-test/Resilience/PrivacyShieldedModifier.swift\n\nAcceptance criteria:\n- isForceShielded becomes true on didEnterBackground/willResignActive/orientationChanged/rapidTapDetected regardless of what sheet (including .midSession Mode/Settings) is currently presented\n- backgroundedOrInterrupted is forwarded into GameEngine only when a game is active\n- A reusable .privacyShielded() view modifier is exposed for primary_ui to apply at the app root without needing to import anything else from Resilience/",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "app_build/drinking-games-test/Resilience/PrivacyShieldCoordinator.swift",
+            "app_build/drinking-games-test/Resilience/SceneLifecycleEvent.swift",
+            "app_build/drinking-games-test/Resilience/PrivacyShieldedModifier.swift"
+          ],
+          "depends_on": [
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "isForceShielded becomes true on didEnterBackground/willResignActive/orientationChanged/rapidTapDetected regardless of what sheet (including .midSession Mode/Settings) is currently presented",
+            "backgroundedOrInterrupted is forwarded into GameEngine only when a game is active",
+            "A reusable .privacyShielded() view modifier is exposed for primary_ui to apply at the app root without needing to import anything else from Resilience/"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "Shield Hardening Checklist artifact (six named adversarial scenarios)",
+        "description": "Generated from orchestrator task `T-008` for `drinking-games-test`.\n\nOwner lane: `polish_resilience`\nFiles: app_build/drinking-games-test/QA/ShieldHardeningChecklist.md\n\nAcceptance criteria:\n- Checklist has exactly six rows: incoming call during reveal, Face ID/passcode prompt during reveal, notification banner during reveal, rotation mid-flow, rapid confirm taps, backgrounding while Mode/Settings (.midSession) sheet is open\n- Each row has expected behavior, a pass/fail column, and a tester-initials column\n- File exists and is referenced as a gating artifact for both this task's own exit and T-014's signoff \u2014 no row may be left blank at either gate",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "app_build/drinking-games-test/QA/ShieldHardeningChecklist.md"
+          ],
+          "depends_on": [
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "Checklist has exactly six rows: incoming call during reveal, Face ID/passcode prompt during reveal, notification banner during reveal, rotation mid-flow, rapid confirm taps, backgrounding while Mode/Settings (.midSession) sheet is open",
+            "Each row has expected behavior, a pass/fail column, and a tester-initials column",
+            "File exists and is referenced as a gating artifact for both this task's own exit and T-014's signoff \u2014 no row may be left blank at either gate"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "Shared resilience-owned view components: EmptyStateView, ErrorBanner",
+        "description": "Generated from orchestrator task `T-009` for `drinking-games-test`.\n\nOwner lane: `polish_resilience`\nFiles: app_build/drinking-games-test/Resilience/SharedViews/EmptyStateView.swift, app_build/drinking-games-test/Resilience/SharedViews/ErrorBanner.swift\n\nAcceptance criteria:\n- EmptyStateView and ErrorBanner match the ratified interfaces-json signatures exactly\n- ErrorBanner renders dismiss-only when retry is nil and a Retry button when non-nil\n- Both are usable from UI/ screens via a plain import with no other Resilience/ dependency required",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "app_build/drinking-games-test/Resilience/SharedViews/EmptyStateView.swift",
+            "app_build/drinking-games-test/Resilience/SharedViews/ErrorBanner.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "EmptyStateView and ErrorBanner match the ratified interfaces-json signatures exactly",
+            "ErrorBanner renders dismiss-only when retry is nil and a Retry button when non-nil",
+            "Both are usable from UI/ screens via a plain import with no other Resilience/ dependency required"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "Setup/Home screen and Ruleset Editor sheet",
+        "description": "Generated from orchestrator task `T-010` for `drinking-games-test`.\n\nOwner lane: `primary_ui`\nFiles: app_build/drinking-games-test/UI/Setup/SetupHomeView.swift, app_build/drinking-games-test/UI/Setup/PlayerNameEntryRow.swift, app_build/drinking-games-test/UI/Setup/SetupToolbarIcon.swift, app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorView.swift, app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorRow.swift, app_build/drinking-games-test/UI/RulesetEditor/RulesetPickerChip.swift\n\nAcceptance criteria:\n- Setup validates exactly 2-6 non-empty player names before Start is enabled\n- Ruleset Editor blocks Save when Ruleset.isComplete is false and points at the specific missing RuleKey rows\n- Setup/RulesetEditor loading and error states use PersistenceError via ScreenState<T, PersistenceError>, rendered through the shared EmptyStateView/ErrorBanner from T-009",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "app_build/drinking-games-test/UI/Setup/SetupHomeView.swift",
+            "app_build/drinking-games-test/UI/Setup/PlayerNameEntryRow.swift",
+            "app_build/drinking-games-test/UI/Setup/SetupToolbarIcon.swift",
+            "app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorView.swift",
+            "app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorRow.swift",
+            "app_build/drinking-games-test/UI/RulesetEditor/RulesetPickerChip.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "Setup validates exactly 2-6 non-empty player names before Start is enabled",
+            "Ruleset Editor blocks Save when Ruleset.isComplete is false and points at the specific missing RuleKey rows",
+            "Setup/RulesetEditor loading and error states use PersistenceError via ScreenState<T, PersistenceError>, rendered through the shared EmptyStateView/ErrorBanner from T-009"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "Active Game screen: shield-first handoff, confirm/reveal, Joker capture, HUD",
+        "description": "Generated from orchestrator task `T-011` for `drinking-games-test`.\n\nOwner lane: `primary_ui`\nFiles: app_build/drinking-games-test/UI/ActiveGame/ActiveGameView.swift, app_build/drinking-games-test/UI/ActiveGame/ShieldOverlayView.swift, app_build/drinking-games-test/UI/ActiveGame/RevealActionButton.swift, app_build/drinking-games-test/UI/ActiveGame/CardFaceView.swift, app_build/drinking-games-test/UI/ActiveGame/RuleTextBlock.swift, app_build/drinking-games-test/UI/ActiveGame/JokerCaptureField.swift, app_build/drinking-games-test/UI/ActiveGame/HUDStrip.swift, app_build/drinking-games-test/UI/ActiveGame/CupFillView.swift\n\nAcceptance criteria:\n- No Card content is instantiated in the view hierarchy while shielded (early-return, not a covered overlay)\n- Shield renders before any pass-to UI on every transition; reveal requires an explicit confirm-tap\n- Only primary_ui code ever renders card-facing content, and only after confirm\n- Shielded card content is fully removed from the accessibility tree while Pass to [Name] and Reveal stay announced, verified with VoiceOver on\n- RuleTextBlock scrolls and never truncates at largest Dynamic Type size\n- Reduce Motion shows a static cup-fill indicator instead of the animated pour",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "app_build/drinking-games-test/UI/ActiveGame/ActiveGameView.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/ShieldOverlayView.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/RevealActionButton.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/CardFaceView.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/RuleTextBlock.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/JokerCaptureField.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/HUDStrip.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/CupFillView.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "No Card content is instantiated in the view hierarchy while shielded (early-return, not a covered overlay)",
+            "Shield renders before any pass-to UI on every transition; reveal requires an explicit confirm-tap",
+            "Only primary_ui code ever renders card-facing content, and only after confirm",
+            "Shielded card content is fully removed from the accessibility tree while Pass to [Name] and Reveal stay announced, verified with VoiceOver on",
+            "RuleTextBlock scrolls and never truncates at largest Dynamic Type size",
+            "Reduce Motion shows a static cup-fill indicator instead of the animated pour"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Recap screen (justFinished/historical) and History List",
+        "description": "Generated from orchestrator task `T-012` for `drinking-games-test`.\n\nOwner lane: `primary_ui`\nFiles: app_build/drinking-games-test/UI/Recap/RecapView.swift, app_build/drinking-games-test/UI/Recap/RecapTimelineRow.swift, app_build/drinking-games-test/UI/Recap/FunniestRulePanel.swift, app_build/drinking-games-test/UI/Recap/ExportStatusView.swift, app_build/drinking-games-test/UI/History/HistoryListView.swift, app_build/drinking-games-test/UI/History/HistoryRow.swift\n\nAcceptance criteria:\n- Recap loads strictly from the persisted GameSessionRecord (or the T-005 in-memory fallback), never live engine state\n- End-reason ribbon text is distinct per EndReason case with no generic fallback copy\n- Funniest-rule panel shows the ballot winner or the explicit no-custom-or-Joker-rules-played empty state, with no third silent state\n- Export inline states (loading, success/share, cancelled, permission-denied-with-Settings-link, failure-with-retry) are all independently triggerable in a preview/test harness\n- History List supports swipe-to-delete with confirmation and shows loading/empty/success/error states",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "app_build/drinking-games-test/UI/Recap/RecapView.swift",
+            "app_build/drinking-games-test/UI/Recap/RecapTimelineRow.swift",
+            "app_build/drinking-games-test/UI/Recap/FunniestRulePanel.swift",
+            "app_build/drinking-games-test/UI/Recap/ExportStatusView.swift",
+            "app_build/drinking-games-test/UI/History/HistoryListView.swift",
+            "app_build/drinking-games-test/UI/History/HistoryRow.swift"
+          ],
+          "depends_on": [
+            "T-005",
+            "T-006",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Recap loads strictly from the persisted GameSessionRecord (or the T-005 in-memory fallback), never live engine state",
+            "End-reason ribbon text is distinct per EndReason case with no generic fallback copy",
+            "Funniest-rule panel shows the ballot winner or the explicit no-custom-or-Joker-rules-played empty state, with no third silent state",
+            "Export inline states (loading, success/share, cancelled, permission-denied-with-Settings-link, failure-with-retry) are all independently triggerable in a preview/test harness",
+            "History List supports swipe-to-delete with confirmation and shows loading/empty/success/error states"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Mode/Settings screen, Onboarding, and app-root wiring (NavigationStack + privacy shield modifier)",
+        "description": "Generated from orchestrator task `T-013` for `drinking-games-test`.\n\nOwner lane: `primary_ui`\nFiles: app_build/drinking-games-test/UI/ModeSettings/ModeSettingsView.swift, app_build/drinking-games-test/UI/ModeSettings/ModeBadgePill.swift, app_build/drinking-games-test/UI/Onboarding/OnboardingView.swift, app_build/drinking-games-test/UI/Onboarding/OnboardingPageView.swift, app_build/drinking-games-test/DrinkingGamesTestApp.swift\n\nAcceptance criteria:\n- Drinking mode requires the one-time AttestationService gate and is reversible anytime without clearing attestation\n- The replay-fidelity explainer copy is present verbatim: changing mode later does not rewrite old games\n- Onboarding auto-fires on first launch only and is reopenable from Mode/Settings in both preGame and midSession contexts\n- DrinkingGamesTestApp.swift applies the T-007 .privacyShielded() modifier at the NavigationStack root, with a test or explicit polish_resilience reviewer sign-off confirming the modifier is actually present \u2014 this is the only task that edits DrinkingGamesTestApp.swift after T-001's scaffold",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "app_build/drinking-games-test/UI/ModeSettings/ModeSettingsView.swift",
+            "app_build/drinking-games-test/UI/ModeSettings/ModeBadgePill.swift",
+            "app_build/drinking-games-test/UI/Onboarding/OnboardingView.swift",
+            "app_build/drinking-games-test/UI/Onboarding/OnboardingPageView.swift",
+            "app_build/drinking-games-test/DrinkingGamesTestApp.swift"
+          ],
+          "depends_on": [
+            "T-006",
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "Drinking mode requires the one-time AttestationService gate and is reversible anytime without clearing attestation",
+            "The replay-fidelity explainer copy is present verbatim: changing mode later does not rewrite old games",
+            "Onboarding auto-fires on first launch only and is reopenable from Mode/Settings in both preGame and midSession contexts",
+            "DrinkingGamesTestApp.swift applies the T-007 .privacyShielded() modifier at the NavigationStack root, with a test or explicit polish_resilience reviewer sign-off confirming the modifier is actually present \u2014 this is the only task that edits DrinkingGamesTestApp.swift after T-001's scaffold"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "Integration hardening and release gate",
+        "description": "Generated from orchestrator task `T-014` for `drinking-games-test`.\n\nOwner lane: `polish_resilience`\nFiles: app_build/drinking-games-test/QA/IntegrationHardeningReport.md\n\nAcceptance criteria:\n- A full 2-player and a full 6-player game each complete end-to-end on-device with zero crashes across all three end conditions\n- The save-fail branch is exercised on-device and still renders a full recap from memory with the couldn't-save-to-history banner visible\n- A completed game is present and correctly displayed after an on-device force-quit and relaunch\n- The six-row Shield Hardening Checklist from T-008 is re-run on-device with every row marked pass before this task can close\n- One full pass through every screen's empty/loading/success/error states is recorded with no unhandled gaps",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "app_build/drinking-games-test/QA/IntegrationHardeningReport.md"
+          ],
+          "depends_on": [
+            "T-008",
+            "T-010",
+            "T-012",
+            "T-013"
+          ],
+          "acceptance_criteria": [
+            "A full 2-player and a full 6-player game each complete end-to-end on-device with zero crashes across all three end conditions",
+            "The save-fail branch is exercised on-device and still renders a full recap from memory with the couldn't-save-to-history banner visible",
+            "A completed game is present and correctly displayed after an on-device force-quit and relaunch",
+            "The six-row Shield Hardening Checklist from T-008 is re-run on-device with every row marked pass before this task can close",
+            "One full pass through every screen's empty/loading/success/error states is recorded with no unhandled gaps"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-014"
+        }
+      }
+    ]
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "drinking-games-test",
+      "Status": "Needs review",
+      "Source": "Orchestrator",
+      "Workflow Phases": 21
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "Build Kings \u2014 a multiplayer drinking game app for iOS (local pass-and-play).\n\nCore mechanics:\n- 2\u20136 players draw cards from a deck in turn order\n- Each card (A\u2013K, plus Joker) triggers a rule: e.g. \"2 = You\" (drinker picks someone), \"5 = Guys\", \"K = King's Cup\" (build communal cup with dares), \"Joker = Make a rule\"\n- Players drink per the card rule; when the cup is empty or 10 turns pass, game ends with a recap\n- Pass phone between players; each player sees only their own card until they pass\n\nKey features:\n- Local only (no server, no login)\n- Customizable rules: edit card meanings before each game, save rulesets\n- Game history: recap shows who drank most, funniest rule, timeline of rounds\n- Sober mode toggle (default): uses \"dare\" language instead of drinking; activating drinking mode (17+ gate) swaps copy to drinking references but same mechanics\n\nTech:\n- SwiftUI, local-first with CoreData for game history\n- Phone must stay face-down while other player holds it; privacy shield until handoff\n- Export game recap as a sharable image (name, date, player list, highlights)\n\nScope: MVP with Kings rules only (not Hearts, Asshole, or other variants). One ruleset bundled; let users customize before start."
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Project scaffold: single drinking-games-test target, six-folder layout, CoreData model shell, engine import-guard build script",
+        "description": "Generated from orchestrator task `T-001` for `drinking-games-test`.\n\nOwner lane: `data_domain`\nFiles: app_build/drinking-games-test.xcodeproj/project.pbxproj, app_build/drinking-games-test/DrinkingGamesTestApp.swift, app_build/drinking-games-test/Domain/.gitkeep, app_build/drinking-games-test/Engine/.gitkeep, app_build/drinking-games-test/Persistence/.gitkeep, app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld, app_build/drinking-games-test/Services/.gitkeep, app_build/drinking-games-test/UI/.gitkeep, app_build/drinking-games-test/Resilience/.gitkeep, app_build/drinking-games-testTests/.gitkeep, app_build/drinking-games-test/build-scripts/engine-import-guard.sh\n\nAcceptance criteria:\n- Project builds and runs a blank app on simulator from app_build/\n- engine-import-guard.sh is wired into an actual Xcode build phase, not just present on disk\n- A deliberately committed forbidden import (CoreData/UIKit/SwiftUI) inside Engine/ makes the build fail; reverting it makes the build pass again \u2014 both states verified before this task is marked done\n- In-memory drinking-games-testTests target exists and runs a trivial passing test\n- No non-Foundation dependency appears in Engine/ outside the explicitly allowed system boundaries",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "app_build/drinking-games-test.xcodeproj/project.pbxproj",
+            "app_build/drinking-games-test/DrinkingGamesTestApp.swift",
+            "app_build/drinking-games-test/Domain/.gitkeep",
+            "app_build/drinking-games-test/Engine/.gitkeep",
+            "app_build/drinking-games-test/Persistence/.gitkeep",
+            "app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld",
+            "app_build/drinking-games-test/Services/.gitkeep",
+            "app_build/drinking-games-test/UI/.gitkeep",
+            "app_build/drinking-games-test/Resilience/.gitkeep",
+            "app_build/drinking-games-testTests/.gitkeep",
+            "app_build/drinking-games-test/build-scripts/engine-import-guard.sh"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Project builds and runs a blank app on simulator from app_build/",
+            "engine-import-guard.sh is wired into an actual Xcode build phase, not just present on disk",
+            "A deliberately committed forbidden import (CoreData/UIKit/SwiftUI) inside Engine/ makes the build fail; reverting it makes the build pass again \u2014 both states verified before this task is marked done",
+            "In-memory drinking-games-testTests target exists and runs a trivial passing test",
+            "No non-Foundation dependency appears in Engine/ outside the explicitly allowed system boundaries"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "Domain types: Card, Rank, Suit, RuleKey, RuleDefinition, Ruleset (+isComplete), GameMode, EndReason, TurnEvent, TurnDraw, GamePhase, GameSessionRecord, FunniestRuleResult, schemaVersion migration-safe decode path",
+        "description": "Generated from orchestrator task `T-002` for `drinking-games-test`.\n\nOwner lane: `data_domain`\nFiles: app_build/drinking-games-test/Domain/Card.swift, app_build/drinking-games-test/Domain/Rank.swift, app_build/drinking-games-test/Domain/Suit.swift, app_build/drinking-games-test/Domain/RuleKey.swift, app_build/drinking-games-test/Domain/RuleDefinition.swift, app_build/drinking-games-test/Domain/Ruleset.swift, app_build/drinking-games-test/Domain/GameMode.swift, app_build/drinking-games-test/Domain/EndReason.swift, app_build/drinking-games-test/Domain/TurnEvent.swift, app_build/drinking-games-test/Domain/TurnDraw.swift, app_build/drinking-games-test/Domain/GamePhase.swift, app_build/drinking-games-test/Domain/GameSessionRecord.swift, app_build/drinking-games-test/Domain/FunniestRuleResult.swift, app_build/drinking-games-test/Domain/SchemaVersioning.swift\n\nAcceptance criteria:\n- Every type matches the ratified interfaces-json signature exactly (names, cases, field types)\n- GameSessionRecord's kingsDrawnCount/cardsRemainingAtEnd/mostDrinksPlayerIndex are computed from timeline, never separately stored\n- A schemaVersion v1 decode path exists and is unit-tested with a hand-built v1 JSON fixture, not deferred until a v2 exists\n- Ruleset.isComplete correctly flags all 14 RuleKey cases as required",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "app_build/drinking-games-test/Domain/Card.swift",
+            "app_build/drinking-games-test/Domain/Rank.swift",
+            "app_build/drinking-games-test/Domain/Suit.swift",
+            "app_build/drinking-games-test/Domain/RuleKey.swift",
+            "app_build/drinking-games-test/Domain/RuleDefinition.swift",
+            "app_build/drinking-games-test/Domain/Ruleset.swift",
+            "app_build/drinking-games-test/Domain/GameMode.swift",
+            "app_build/drinking-games-test/Domain/EndReason.swift",
+            "app_build/drinking-games-test/Domain/TurnEvent.swift",
+            "app_build/drinking-games-test/Domain/TurnDraw.swift",
+            "app_build/drinking-games-test/Domain/GamePhase.swift",
+            "app_build/drinking-games-test/Domain/GameSessionRecord.swift",
+            "app_build/drinking-games-test/Domain/FunniestRuleResult.swift",
+            "app_build/drinking-games-test/Domain/SchemaVersioning.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Every type matches the ratified interfaces-json signature exactly (names, cases, field types)",
+            "GameSessionRecord's kingsDrawnCount/cardsRemainingAtEnd/mostDrinksPlayerIndex are computed from timeline, never separately stored",
+            "A schemaVersion v1 decode path exists and is unit-tested with a hand-built v1 JSON fixture, not deferred until a v2 exists",
+            "Ruleset.isComplete correctly flags all 14 RuleKey cases as required"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "Engine reducer: Deck.standard53, GameEngineState/Event/Effect, GameEngineReducer, GameEngine wrapper, HUDSnapshot, full unit-test matrix",
+        "description": "Generated from orchestrator task `T-003` for `drinking-games-test`.\n\nOwner lane: `data_domain`\nFiles: app_build/drinking-games-test/Engine/Deck.swift, app_build/drinking-games-test/Engine/GameEngineState.swift, app_build/drinking-games-test/Engine/GameEngineEvent.swift, app_build/drinking-games-test/Engine/GameEngineEffect.swift, app_build/drinking-games-test/Engine/GameEngineReducer.swift, app_build/drinking-games-test/Engine/GameEngine.swift, app_build/drinking-games-test/Engine/HUDSnapshot.swift, app_build/drinking-games-testTests/EngineReducerTests.swift\n\nAcceptance criteria:\n- Deck.standard53 always produces exactly 53 unique Card values\n- Unit tests cover end-condition precedence at every player count 2-6, including cup-full winning a simultaneous tie against deck-exhaustion\n- Unit test proves confirmReveal is idempotent: five rapid calls in one runloop tick advance exactly one turn\n- HUDSnapshot.currentRoundDisplay is nil whenever 10 rounds is mathematically unreachable at the active player count\n- GameEngineReducer.reduce has zero imports outside Domain/Engine and is fully callable with no CoreData/SwiftUI/UIKit in scope",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "app_build/drinking-games-test/Engine/Deck.swift",
+            "app_build/drinking-games-test/Engine/GameEngineState.swift",
+            "app_build/drinking-games-test/Engine/GameEngineEvent.swift",
+            "app_build/drinking-games-test/Engine/GameEngineEffect.swift",
+            "app_build/drinking-games-test/Engine/GameEngineReducer.swift",
+            "app_build/drinking-games-test/Engine/GameEngine.swift",
+            "app_build/drinking-games-test/Engine/HUDSnapshot.swift",
+            "app_build/drinking-games-testTests/EngineReducerTests.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Deck.standard53 always produces exactly 53 unique Card values",
+            "Unit tests cover end-condition precedence at every player count 2-6, including cup-full winning a simultaneous tie against deck-exhaustion",
+            "Unit test proves confirmReveal is idempotent: five rapid calls in one runloop tick advance exactly one turn",
+            "HUDSnapshot.currentRoundDisplay is nil whenever 10 rounds is mathematically unreachable at the active player count",
+            "GameEngineReducer.reduce has zero imports outside Domain/Engine and is fully callable with no CoreData/SwiftUI/UIKit in scope"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "Persistence core: PersistenceController, RulesetStore, GameHistoryStore, PersistenceError, CoreData entities (Ruleset/RulesetCard/GameSession/TurnEvent)",
+        "description": "Generated from orchestrator task `T-004` for `drinking-games-test`.\n\nOwner lane: `services_utilities`\nFiles: app_build/drinking-games-test/Persistence/PersistenceController.swift, app_build/drinking-games-test/Persistence/RulesetStore.swift, app_build/drinking-games-test/Persistence/GameHistoryStore.swift, app_build/drinking-games-test/Persistence/PersistenceError.swift, app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld/drinking-games-test.xcdatamodel, app_build/drinking-games-testTests/PersistenceTests.swift\n\nAcceptance criteria:\n- In-memory CoreData test target covers save/load/delete for both stores plus schemaVersion fallback decoding\n- Writes happen on a background NSManagedObjectContext with viewContext auto-merge; a test proves this doesn't block the main actor\n- bootstrapBundledRulesetIfNeeded seeds exactly one complete 14-key default ruleset on first launch and is idempotent on relaunch",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "app_build/drinking-games-test/Persistence/PersistenceController.swift",
+            "app_build/drinking-games-test/Persistence/RulesetStore.swift",
+            "app_build/drinking-games-test/Persistence/GameHistoryStore.swift",
+            "app_build/drinking-games-test/Persistence/PersistenceError.swift",
+            "app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld/drinking-games-test.xcdatamodel",
+            "app_build/drinking-games-testTests/PersistenceTests.swift"
+          ],
+          "depends_on": [
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "In-memory CoreData test target covers save/load/delete for both stores plus schemaVersion fallback decoding",
+            "Writes happen on a background NSManagedObjectContext with viewContext auto-merge; a test proves this doesn't block the main actor",
+            "bootstrapBundledRulesetIfNeeded seeds exactly one complete 14-key default ruleset on first launch and is idempotent on relaunch"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "Mandatory game-end persistence contract: awaited save-before-navigate plus pendingCompletedSession salvage file",
+        "description": "Generated from orchestrator task `T-005` for `drinking-games-test`.\n\nOwner lane: `services_utilities`\nFiles: app_build/drinking-games-test/Persistence/GameEndPersistenceCoordinator.swift, app_build/drinking-games-test/Persistence/PendingCompletedSession.swift, app_build/drinking-games-testTests/GameEndPersistenceTests.swift\n\nAcceptance criteria:\n- On GameEngineEffect.gameDidEnd, a pendingCompletedSession file is written synchronously before the awaited GameHistoryStore.save call, fire-and-forget so it never blocks the save\n- A test simulates the save throwing and confirms the in-memory GameSessionRecord is still available to render plus a non-blocking failure signal is emitted\n- A test simulates a pending file left over from a prior force-quit and confirms it is salvage-checked and either recovered into history or cleanly discarded on next launch\n- This task is treated as non-optional scope per the ratified project plan \u2014 it cannot be marked done as a stub\n- No silent drop of a completed game is possible when force-quit occurs between game-end and the persistence write landing",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "app_build/drinking-games-test/Persistence/GameEndPersistenceCoordinator.swift",
+            "app_build/drinking-games-test/Persistence/PendingCompletedSession.swift",
+            "app_build/drinking-games-testTests/GameEndPersistenceTests.swift"
+          ],
+          "depends_on": [
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "On GameEngineEffect.gameDidEnd, a pendingCompletedSession file is written synchronously before the awaited GameHistoryStore.save call, fire-and-forget so it never blocks the save",
+            "A test simulates the save throwing and confirms the in-memory GameSessionRecord is still available to render plus a non-blocking failure signal is emitted",
+            "A test simulates a pending file left over from a prior force-quit and confirms it is salvage-checked and either recovered into history or cleanly discarded on next launch",
+            "This task is treated as non-optional scope per the ratified project plan \u2014 it cannot be marked done as a stub",
+            "No silent drop of a completed game is possible when force-quit occurs between game-end and the persistence write landing"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "Export and supporting services: ExportCoordinator, PhotoPermissionService, AttestationService, HapticsService",
+        "description": "Generated from orchestrator task `T-006` for `drinking-games-test`.\n\nOwner lane: `services_utilities`\nFiles: app_build/drinking-games-test/Services/ExportCoordinator.swift, app_build/drinking-games-test/Services/PhotoPermissionService.swift, app_build/drinking-games-test/Services/AttestationService.swift, app_build/drinking-games-test/Services/HapticsService.swift, app_build/drinking-games-testTests/ExportCoordinatorTests.swift, app_build/drinking-games-test/Info.plist\n\nAcceptance criteria:\n- ExportCoordinator renders via ImageRenderer and maps UIActivityViewController's completionWithItemsHandler to exactly the four ExportOutcome cases, tested with a mocked completion handler for all four paths\n- PhotoPermissionService requests .addOnly only, never .readWrite, with NSPhotoLibraryAddUsageDescription set in Info.plist\n- AttestationService.recordAttestation is a synchronous non-throwing UserDefaults write; toggling back to sober does not clear it\n- HapticsService no-ops silently when CHHapticEngine.capabilitiesForHardware().supportsHaptics is false",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "app_build/drinking-games-test/Services/ExportCoordinator.swift",
+            "app_build/drinking-games-test/Services/PhotoPermissionService.swift",
+            "app_build/drinking-games-test/Services/AttestationService.swift",
+            "app_build/drinking-games-test/Services/HapticsService.swift",
+            "app_build/drinking-games-testTests/ExportCoordinatorTests.swift",
+            "app_build/drinking-games-test/Info.plist"
+          ],
+          "depends_on": [
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "ExportCoordinator renders via ImageRenderer and maps UIActivityViewController's completionWithItemsHandler to exactly the four ExportOutcome cases, tested with a mocked completion handler for all four paths",
+            "PhotoPermissionService requests .addOnly only, never .readWrite, with NSPhotoLibraryAddUsageDescription set in Info.plist",
+            "AttestationService.recordAttestation is a synchronous non-throwing UserDefaults write; toggling back to sober does not clear it",
+            "HapticsService no-ops silently when CHHapticEngine.capabilitiesForHardware().supportsHaptics is false"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "Privacy shield coordinator and reusable shield modifier",
+        "description": "Generated from orchestrator task `T-007` for `drinking-games-test`.\n\nOwner lane: `polish_resilience`\nFiles: app_build/drinking-games-test/Resilience/PrivacyShieldCoordinator.swift, app_build/drinking-games-test/Resilience/SceneLifecycleEvent.swift, app_build/drinking-games-test/Resilience/PrivacyShieldedModifier.swift\n\nAcceptance criteria:\n- isForceShielded becomes true on didEnterBackground/willResignActive/orientationChanged/rapidTapDetected regardless of what sheet (including .midSession Mode/Settings) is currently presented\n- backgroundedOrInterrupted is forwarded into GameEngine only when a game is active\n- A reusable .privacyShielded() view modifier is exposed for primary_ui to apply at the app root without needing to import anything else from Resilience/",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "app_build/drinking-games-test/Resilience/PrivacyShieldCoordinator.swift",
+            "app_build/drinking-games-test/Resilience/SceneLifecycleEvent.swift",
+            "app_build/drinking-games-test/Resilience/PrivacyShieldedModifier.swift"
+          ],
+          "depends_on": [
+            "T-003"
+          ],
+          "acceptance_criteria": [
+            "isForceShielded becomes true on didEnterBackground/willResignActive/orientationChanged/rapidTapDetected regardless of what sheet (including .midSession Mode/Settings) is currently presented",
+            "backgroundedOrInterrupted is forwarded into GameEngine only when a game is active",
+            "A reusable .privacyShielded() view modifier is exposed for primary_ui to apply at the app root without needing to import anything else from Resilience/"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "Shield Hardening Checklist artifact (six named adversarial scenarios)",
+        "description": "Generated from orchestrator task `T-008` for `drinking-games-test`.\n\nOwner lane: `polish_resilience`\nFiles: app_build/drinking-games-test/QA/ShieldHardeningChecklist.md\n\nAcceptance criteria:\n- Checklist has exactly six rows: incoming call during reveal, Face ID/passcode prompt during reveal, notification banner during reveal, rotation mid-flow, rapid confirm taps, backgrounding while Mode/Settings (.midSession) sheet is open\n- Each row has expected behavior, a pass/fail column, and a tester-initials column\n- File exists and is referenced as a gating artifact for both this task's own exit and T-014's signoff \u2014 no row may be left blank at either gate",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "app_build/drinking-games-test/QA/ShieldHardeningChecklist.md"
+          ],
+          "depends_on": [
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "Checklist has exactly six rows: incoming call during reveal, Face ID/passcode prompt during reveal, notification banner during reveal, rotation mid-flow, rapid confirm taps, backgrounding while Mode/Settings (.midSession) sheet is open",
+            "Each row has expected behavior, a pass/fail column, and a tester-initials column",
+            "File exists and is referenced as a gating artifact for both this task's own exit and T-014's signoff \u2014 no row may be left blank at either gate"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-009",
+        "issue_type": "Task",
+        "summary": "Shared resilience-owned view components: EmptyStateView, ErrorBanner",
+        "description": "Generated from orchestrator task `T-009` for `drinking-games-test`.\n\nOwner lane: `polish_resilience`\nFiles: app_build/drinking-games-test/Resilience/SharedViews/EmptyStateView.swift, app_build/drinking-games-test/Resilience/SharedViews/ErrorBanner.swift\n\nAcceptance criteria:\n- EmptyStateView and ErrorBanner match the ratified interfaces-json signatures exactly\n- ErrorBanner renders dismiss-only when retry is nil and a Retry button when non-nil\n- Both are usable from UI/ screens via a plain import with no other Resilience/ dependency required",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "app_build/drinking-games-test/Resilience/SharedViews/EmptyStateView.swift",
+            "app_build/drinking-games-test/Resilience/SharedViews/ErrorBanner.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "EmptyStateView and ErrorBanner match the ratified interfaces-json signatures exactly",
+            "ErrorBanner renders dismiss-only when retry is nil and a Retry button when non-nil",
+            "Both are usable from UI/ screens via a plain import with no other Resilience/ dependency required"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-009"
+        }
+      },
+      {
+        "external_id": "T-010",
+        "issue_type": "Task",
+        "summary": "Setup/Home screen and Ruleset Editor sheet",
+        "description": "Generated from orchestrator task `T-010` for `drinking-games-test`.\n\nOwner lane: `primary_ui`\nFiles: app_build/drinking-games-test/UI/Setup/SetupHomeView.swift, app_build/drinking-games-test/UI/Setup/PlayerNameEntryRow.swift, app_build/drinking-games-test/UI/Setup/SetupToolbarIcon.swift, app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorView.swift, app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorRow.swift, app_build/drinking-games-test/UI/RulesetEditor/RulesetPickerChip.swift\n\nAcceptance criteria:\n- Setup validates exactly 2-6 non-empty player names before Start is enabled\n- Ruleset Editor blocks Save when Ruleset.isComplete is false and points at the specific missing RuleKey rows\n- Setup/RulesetEditor loading and error states use PersistenceError via ScreenState<T, PersistenceError>, rendered through the shared EmptyStateView/ErrorBanner from T-009",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "app_build/drinking-games-test/UI/Setup/SetupHomeView.swift",
+            "app_build/drinking-games-test/UI/Setup/PlayerNameEntryRow.swift",
+            "app_build/drinking-games-test/UI/Setup/SetupToolbarIcon.swift",
+            "app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorView.swift",
+            "app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorRow.swift",
+            "app_build/drinking-games-test/UI/RulesetEditor/RulesetPickerChip.swift"
+          ],
+          "depends_on": [
+            "T-002",
+            "T-004",
+            "T-009"
+          ],
+          "acceptance_criteria": [
+            "Setup validates exactly 2-6 non-empty player names before Start is enabled",
+            "Ruleset Editor blocks Save when Ruleset.isComplete is false and points at the specific missing RuleKey rows",
+            "Setup/RulesetEditor loading and error states use PersistenceError via ScreenState<T, PersistenceError>, rendered through the shared EmptyStateView/ErrorBanner from T-009"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-010"
+        }
+      },
+      {
+        "external_id": "T-011",
+        "issue_type": "Task",
+        "summary": "Active Game screen: shield-first handoff, confirm/reveal, Joker capture, HUD",
+        "description": "Generated from orchestrator task `T-011` for `drinking-games-test`.\n\nOwner lane: `primary_ui`\nFiles: app_build/drinking-games-test/UI/ActiveGame/ActiveGameView.swift, app_build/drinking-games-test/UI/ActiveGame/ShieldOverlayView.swift, app_build/drinking-games-test/UI/ActiveGame/RevealActionButton.swift, app_build/drinking-games-test/UI/ActiveGame/CardFaceView.swift, app_build/drinking-games-test/UI/ActiveGame/RuleTextBlock.swift, app_build/drinking-games-test/UI/ActiveGame/JokerCaptureField.swift, app_build/drinking-games-test/UI/ActiveGame/HUDStrip.swift, app_build/drinking-games-test/UI/ActiveGame/CupFillView.swift\n\nAcceptance criteria:\n- No Card content is instantiated in the view hierarchy while shielded (early-return, not a covered overlay)\n- Shield renders before any pass-to UI on every transition; reveal requires an explicit confirm-tap\n- Only primary_ui code ever renders card-facing content, and only after confirm\n- Shielded card content is fully removed from the accessibility tree while Pass to [Name] and Reveal stay announced, verified with VoiceOver on\n- RuleTextBlock scrolls and never truncates at largest Dynamic Type size\n- Reduce Motion shows a static cup-fill indicator instead of the animated pour",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "app_build/drinking-games-test/UI/ActiveGame/ActiveGameView.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/ShieldOverlayView.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/RevealActionButton.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/CardFaceView.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/RuleTextBlock.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/JokerCaptureField.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/HUDStrip.swift",
+            "app_build/drinking-games-test/UI/ActiveGame/CupFillView.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "No Card content is instantiated in the view hierarchy while shielded (early-return, not a covered overlay)",
+            "Shield renders before any pass-to UI on every transition; reveal requires an explicit confirm-tap",
+            "Only primary_ui code ever renders card-facing content, and only after confirm",
+            "Shielded card content is fully removed from the accessibility tree while Pass to [Name] and Reveal stay announced, verified with VoiceOver on",
+            "RuleTextBlock scrolls and never truncates at largest Dynamic Type size",
+            "Reduce Motion shows a static cup-fill indicator instead of the animated pour"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-011"
+        }
+      },
+      {
+        "external_id": "T-012",
+        "issue_type": "Task",
+        "summary": "Recap screen (justFinished/historical) and History List",
+        "description": "Generated from orchestrator task `T-012` for `drinking-games-test`.\n\nOwner lane: `primary_ui`\nFiles: app_build/drinking-games-test/UI/Recap/RecapView.swift, app_build/drinking-games-test/UI/Recap/RecapTimelineRow.swift, app_build/drinking-games-test/UI/Recap/FunniestRulePanel.swift, app_build/drinking-games-test/UI/Recap/ExportStatusView.swift, app_build/drinking-games-test/UI/History/HistoryListView.swift, app_build/drinking-games-test/UI/History/HistoryRow.swift\n\nAcceptance criteria:\n- Recap loads strictly from the persisted GameSessionRecord (or the T-005 in-memory fallback), never live engine state\n- End-reason ribbon text is distinct per EndReason case with no generic fallback copy\n- Funniest-rule panel shows the ballot winner or the explicit no-custom-or-Joker-rules-played empty state, with no third silent state\n- Export inline states (loading, success/share, cancelled, permission-denied-with-Settings-link, failure-with-retry) are all independently triggerable in a preview/test harness\n- History List supports swipe-to-delete with confirmation and shows loading/empty/success/error states",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "app_build/drinking-games-test/UI/Recap/RecapView.swift",
+            "app_build/drinking-games-test/UI/Recap/RecapTimelineRow.swift",
+            "app_build/drinking-games-test/UI/Recap/FunniestRulePanel.swift",
+            "app_build/drinking-games-test/UI/Recap/ExportStatusView.swift",
+            "app_build/drinking-games-test/UI/History/HistoryListView.swift",
+            "app_build/drinking-games-test/UI/History/HistoryRow.swift"
+          ],
+          "depends_on": [
+            "T-005",
+            "T-006",
+            "T-011"
+          ],
+          "acceptance_criteria": [
+            "Recap loads strictly from the persisted GameSessionRecord (or the T-005 in-memory fallback), never live engine state",
+            "End-reason ribbon text is distinct per EndReason case with no generic fallback copy",
+            "Funniest-rule panel shows the ballot winner or the explicit no-custom-or-Joker-rules-played empty state, with no third silent state",
+            "Export inline states (loading, success/share, cancelled, permission-denied-with-Settings-link, failure-with-retry) are all independently triggerable in a preview/test harness",
+            "History List supports swipe-to-delete with confirmation and shows loading/empty/success/error states"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-012"
+        }
+      },
+      {
+        "external_id": "T-013",
+        "issue_type": "Task",
+        "summary": "Mode/Settings screen, Onboarding, and app-root wiring (NavigationStack + privacy shield modifier)",
+        "description": "Generated from orchestrator task `T-013` for `drinking-games-test`.\n\nOwner lane: `primary_ui`\nFiles: app_build/drinking-games-test/UI/ModeSettings/ModeSettingsView.swift, app_build/drinking-games-test/UI/ModeSettings/ModeBadgePill.swift, app_build/drinking-games-test/UI/Onboarding/OnboardingView.swift, app_build/drinking-games-test/UI/Onboarding/OnboardingPageView.swift, app_build/drinking-games-test/DrinkingGamesTestApp.swift\n\nAcceptance criteria:\n- Drinking mode requires the one-time AttestationService gate and is reversible anytime without clearing attestation\n- The replay-fidelity explainer copy is present verbatim: changing mode later does not rewrite old games\n- Onboarding auto-fires on first launch only and is reopenable from Mode/Settings in both preGame and midSession contexts\n- DrinkingGamesTestApp.swift applies the T-007 .privacyShielded() modifier at the NavigationStack root, with a test or explicit polish_resilience reviewer sign-off confirming the modifier is actually present \u2014 this is the only task that edits DrinkingGamesTestApp.swift after T-001's scaffold",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "app_build/drinking-games-test/UI/ModeSettings/ModeSettingsView.swift",
+            "app_build/drinking-games-test/UI/ModeSettings/ModeBadgePill.swift",
+            "app_build/drinking-games-test/UI/Onboarding/OnboardingView.swift",
+            "app_build/drinking-games-test/UI/Onboarding/OnboardingPageView.swift",
+            "app_build/drinking-games-test/DrinkingGamesTestApp.swift"
+          ],
+          "depends_on": [
+            "T-006",
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "Drinking mode requires the one-time AttestationService gate and is reversible anytime without clearing attestation",
+            "The replay-fidelity explainer copy is present verbatim: changing mode later does not rewrite old games",
+            "Onboarding auto-fires on first launch only and is reopenable from Mode/Settings in both preGame and midSession contexts",
+            "DrinkingGamesTestApp.swift applies the T-007 .privacyShielded() modifier at the NavigationStack root, with a test or explicit polish_resilience reviewer sign-off confirming the modifier is actually present \u2014 this is the only task that edits DrinkingGamesTestApp.swift after T-001's scaffold"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-013"
+        }
+      },
+      {
+        "external_id": "T-014",
+        "issue_type": "Task",
+        "summary": "Integration hardening and release gate",
+        "description": "Generated from orchestrator task `T-014` for `drinking-games-test`.\n\nOwner lane: `polish_resilience`\nFiles: app_build/drinking-games-test/QA/IntegrationHardeningReport.md\n\nAcceptance criteria:\n- A full 2-player and a full 6-player game each complete end-to-end on-device with zero crashes across all three end conditions\n- The save-fail branch is exercised on-device and still renders a full recap from memory with the couldn't-save-to-history banner visible\n- A completed game is present and correctly displayed after an on-device force-quit and relaunch\n- The six-row Shield Hardening Checklist from T-008 is re-run on-device with every row marked pass before this task can close\n- One full pass through every screen's empty/loading/success/error states is recorded with no unhandled gaps",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "app_build/drinking-games-test/QA/IntegrationHardeningReport.md"
+          ],
+          "depends_on": [
+            "T-008",
+            "T-010",
+            "T-012",
+            "T-013"
+          ],
+          "acceptance_criteria": [
+            "A full 2-player and a full 6-player game each complete end-to-end on-device with zero crashes across all three end conditions",
+            "The save-fail branch is exercised on-device and still renders a full recap from memory with the couldn't-save-to-history banner visible",
+            "A completed game is present and correctly displayed after an on-device force-quit and relaunch",
+            "The six-row Shield Hardening Checklist from T-008 is re-run on-device with every row marked pass before this task can close",
+            "One full pass through every screen's empty/loading/success/error states is recorded with no unhandled gaps"
+          ],
+          "source_project": "drinking-games-test",
+          "source_task_id": "T-014"
+        }
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "CardSuit",
+        "kind": "enum",
+        "language": "Swift 5.9",
+        "signature": "enum CardSuit: String, Codable, CaseIterable { case clubs, diamonds, hearts, spades }",
+        "owning_lane": "data_domain",
+        "notes": "Use 4 suits with standard deck rows; Joker has nil suit."
+      },
+      {
+        "name": "CardRank",
+        "kind": "enum",
+        "language": "Swift 5.9",
+        "signature": "enum CardRank: Int, Codable, CaseIterable { case ace = 1, two, three, four, five, six, seven, eight, nine, ten, jack, queen, king, joker = 14 }",
+        "owning_lane": "data_domain",
+        "notes": "13 ranks plus Joker identity for deterministic card-keying."
+      },
+      {
+        "name": "Card",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct Card: Identifiable, Hashable, Codable, Sendable { let id: UUID; let rank: Rank?; let suit: Suit?; let isJoker: Bool }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. isJoker == true implies rank == nil && suit == nil. Exactly 53 Card values in a fresh deck."
+      },
+      {
+        "name": "GameMode",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum GameMode: String, Codable, Sendable { case sober, drinking }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. Stored per TurnEvent for replay-fidelity; sober is default."
+      },
+      {
+        "name": "EnginePhase",
+        "kind": "enum",
+        "language": "Swift 5.9",
+        "signature": "enum EnginePhase: Equatable { case idle, shielded, confirmArmed, revealed, jokerCapturePending, applyingRule, handoffLocked, gameOver }",
+        "owning_lane": "data_domain",
+        "notes": "UI binds directly to this; shielded is default and must be fail-safe on interruption."
+      },
+      {
+        "name": "EndReason",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum EndReason: String, Codable, Sendable { case cupFull, roundLimitReached, deckExhausted }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. cupFull wins any simultaneous tie against deckExhausted, per prompt_contract."
+      },
+      {
+        "name": "RuleDefinition",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct RuleDefinition: Codable, Hashable, Sendable { var soberText: String; var drinkingText: String }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED by both round-3 outputs. Two genuinely distinct authored voices per card. Ruleset Editor shows one field bound to the active mode; forking/copying a ruleset seeds both fields so editing one mode never blanks the other."
+      },
+      {
+        "name": "Ruleset",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct Ruleset: Identifiable, Codable, Sendable, Equatable { let id: UUID; var name: String; var rules: [RuleKey: RuleDefinition]; let isBundledDefault: Bool; var createdAt: Date; var updatedAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. Must contain all 14 RuleKey cases with both text fields non-empty before Save is allowed."
+      },
+      {
+        "name": "TurnEvent",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TurnEvent: Identifiable, Codable, Sendable, Equatable { let id: UUID; let playerIndex: Int; let turnIndex: Int; let roundNumber: Int; let card: Card; let mode: GameMode; let ruleKey: RuleKey; let ruleTextSnapshot: String; let jokerCustomText: String?; let isCustomOrJokerRule: Bool; let unitsAssigned: Int; let timestamp: Date }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED by both round-3 outputs, naming included. ruleTextSnapshot frozen at draw time. unitsAssigned (default 1, mode-neutral naming) is what 'most drinks/dares' sums. Cup-fill is never stored per-turn \u2014 derived as (kings drawn)/4."
+      },
+      {
+        "name": "GameSessionRecord",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct GameSessionRecord: Identifiable, Codable, Sendable, Equatable { let id: UUID; let schemaVersion: Int; var name: String?; let startedAt: Date; let endedAt: Date; let players: [String]; let rulesetName: String; let endReason: EndReason; let timeline: [TurnEvent]; let funniestRule: FunniestRuleResult; var kingsDrawnCount: Int { get }; var cardsRemainingAtEnd: Int { get }; var mostDrinksPlayerIndex: Int? { get } }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. kingsDrawnCount/cardsRemainingAtEnd/mostDrinksPlayerIndex are computed from timeline (automatic Codable synthesis skips them; recomputed on decode) \u2014 makes 'recap can never diverge from turn events' true by construction."
+      },
+      {
+        "name": "GameEngineState",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct GameEngineState: Equatable, Sendable { var phase: GamePhase; var deck: [Card]; var players: [String]; var ruleset: Ruleset; var mode: GameMode; var turnIndex: Int; var timeline: [TurnEvent] }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. No stored kingsDrawn field \u2014 derived from timeline, avoiding a second source of truth alongside GameSessionRecord's computed properties."
+      },
+      {
+        "name": "TurnResolution",
+        "kind": "struct",
+        "language": "Swift 5.9",
+        "signature": "struct TurnResolution { let event: TurnEvent; let nextState: GameEngineState; let endReason: EndReason?; let requiresJokerCapture: Bool }",
+        "owning_lane": "data_domain",
+        "notes": "Returned from confirmReveal; engine never mutates UI directly."
+      },
+      {
+        "name": "SceneLifecycleEvent",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SceneLifecycleEvent: Sendable { case didEnterBackground; case willResignActive; case didBecomeActive; case orientationChanged; case rapidTapDetected }",
+        "owning_lane": "polish_resilience",
+        "notes": "AGREED. Mapped from scenePhase + willResignActiveNotification/didBecomeActiveNotification at the app root; feeds PrivacyShieldCoordinator, not the engine directly."
+      },
+      {
+        "name": "GameEngine",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class GameEngine { private(set) var state: GameEngineState; var hud: HUDSnapshot { get }; func start(players: [String], ruleset: Ruleset, mode: GameMode); func send(_ event: GameEngineEvent); func reset() }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. Thin wrapper: calls GameEngineReducer.reduce, republishes state, dispatches returned effects. Lives in Engine/ folder; a build-phase script fails the build if any file under Engine/ imports CoreData, UIKit, or SwiftUI \u2014 enforces isolation without SPM package ceremony (the module-boundary fork from rounds 1-2 is now closed on this resolution)."
+      },
+      {
+        "name": "PersistedRulesetStore",
+        "kind": "protocol",
+        "language": "Swift 5.9",
+        "signature": "protocol PersistedRulesetStore { func fetchAll() async throws -> [Ruleset]; func save(_ ruleset: Ruleset) async throws -> UUID; func delete(_ id: UUID) async throws; func fetchBundled() async throws -> Ruleset }",
+        "owning_lane": "services_utilities",
+        "notes": "Used only in Setup and Ruleset Editor flows."
+      },
+      {
+        "name": "GameHistoryStore",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol GameHistoryStore: Sendable { func fetchAll() async throws -> [GameSessionRecord]; func fetch(id: UUID) async throws -> GameSessionRecord?; func save(_ session: GameSessionRecord) async throws; func delete(id: UUID) async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED. save is called exactly once, at game-end (triggered by GameEngineEffect.gameDidEnd), before Recap renders."
+      },
+      {
+        "name": "RecapRenderer",
+        "kind": "protocol",
+        "language": "Swift 5.9",
+        "signature": "protocol RecapRenderer { func renderImage(from session: GameSessionRecord) async throws -> UIImage }",
+        "owning_lane": "services_utilities",
+        "notes": "Uses ImageRenderer output; no direct dependency on CoreData."
+      },
+      {
+        "name": "PhotoPermissionService",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum PhotoPermissionService { static func requestAddOnlyAuthorization() async -> PHAuthorizationStatus; static func openSettingsDeepLink() }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED. .addOnly only, never .readWrite \u2014 app never reads the library."
+      },
+      {
+        "name": "ShareExportService",
+        "kind": "protocol",
+        "language": "Swift 5.9",
+        "signature": "protocol ShareExportService { func presentShareSheet(image: UIImage, completion: @escaping (Bool, Error?) -> Void) }",
+        "owning_lane": "services_utilities",
+        "notes": "Must be UIActivityViewController-backed to resolve completed/cancelled/failure states."
+      },
+      {
+        "name": "AppRoute",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AppRoute: Hashable, Sendable { case activeGame; case recap(RecapContext) }",
+        "owning_lane": "primary_ui",
+        "notes": "AGREED. Setup is the NavigationStack root, never a path case; RulesetEditor and both ModeSettings contexts are sheets. Path always resets to empty on cold launch."
+      },
+      {
+        "name": "ScreenState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ScreenState<T, E: Error>: Sendable where T: Sendable { case empty; case loading; case success(T); case failure(E) }",
+        "owning_lane": "primary_ui",
+        "notes": "AGREED. Scoped to CRUD-shaped screens only \u2014 Ruleset Editor list load, History List fetch, Setup's ruleset-loading (E == PersistenceError). GamePhase and ExportOutcome keep their own richer, named types."
+      },
+      {
+        "name": "PrivacyShieldCoordinator",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class PrivacyShieldCoordinator { private(set) var isForceShielded: Bool; func handle(_ event: SceneLifecycleEvent, engine: GameEngine?) }",
+        "owning_lane": "polish_resilience",
+        "notes": "AGREED by both round-3 outputs \u2014 closes the rounds 1-2 fork. Root-level, independent of GameEngine and of whatever sheet is presented. On any interruption: forwards .backgroundedOrInterrupted into the engine if a game is active, AND sets isForceShielded so the root view hard-blocks revealed content even if a Mode/Settings sheet (.midSession) is what's actually on screen."
+      },
+      {
+        "name": "Suit",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum Suit: String, Codable, CaseIterable, Sendable { case spades, hearts, diamonds, clubs }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. Card-face rendering only, never used for rule lookup. Lives in Domain/, single app target, no SPM packages."
+      },
+      {
+        "name": "Rank",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum Rank: Int, Codable, CaseIterable, Sendable { case ace = 1, two, three, four, five, six, seven, eight, nine, ten, jack, queen, king }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. 13 standard ranks; Joker lives on Card.isJoker, not as a Rank case."
+      },
+      {
+        "name": "RuleKey",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RuleKey: String, Codable, CaseIterable, Sendable { case ace, two, three, four, five, six, seven, eight, nine, ten, jack, queen, king, joker }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. Ruleset lookup key; RuleKey(card:) maps a Card to its key including the joker case."
+      },
+      {
+        "name": "Ruleset.isComplete",
+        "kind": "function",
+        "language": "swift",
+        "signature": "extension Ruleset { var isComplete: Bool { get }; var missingKeys: [RuleKey] { get } }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. Ruleset Editor's invalid-mapping error state reads missingKeys to point at the unmapped row."
+      },
+      {
+        "name": "FunniestRuleResult",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum FunniestRuleResult: Codable, Sendable, Equatable { case winner(turnEventID: UUID); case noCustomRulesPlayed }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. Winner is a captured end-of-game ballot outcome (or default-to-last-custom-rule) \u2014 not derivable from timeline alone, so it's stored on GameSessionRecord unlike the other recap metrics."
+      },
+      {
+        "name": "GameSessionRecord.init(from:endedAt:)",
+        "kind": "function",
+        "language": "swift",
+        "signature": "extension GameSessionRecord { init(from state: GameEngineState, endedAt: Date) }",
+        "owning_lane": "data_domain",
+        "notes": "Single mapping point from terminal engine state to persisted recap summary."
+      },
+      {
+        "name": "GamePhase",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum GamePhase: Equatable, Sendable { case shielded(incomingPlayerIndex: Int); case confirmArmed(incomingPlayerIndex: Int); case revealed(TurnDraw); case jokerCapturePending(TurnDraw); case applyingRule(TurnDraw); case handoffLocked; case gameOver(GameSessionRecord) }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. shielded is default/universal fail-safe target; UI must early-return with no Card content instantiated while shielded, not a covered overlay. Every case is a plain value, directly constructible in a SwiftUI Preview."
+      },
+      {
+        "name": "TurnDraw",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TurnDraw: Identifiable, Equatable, Sendable { let id: UUID; let playerIndex: Int; let turnIndex: Int; let roundNumber: Int; let card: Card; let ruleText: String; let mode: GameMode }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. In-flight, not-yet-committed draw before it becomes a persisted TurnEvent."
+      },
+      {
+        "name": "GameEngineEvent",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum GameEngineEvent: Sendable { case confirmReveal; case pass; case jokerTextSubmitted(String?); case skipJokerCapture; case backgroundedOrInterrupted; case modeToggled(GameMode) }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED, resolving one small round-3 divergence: orientationChanged is intentionally NOT a GameEngineEvent case (Codex's draft had it duplicated on both this enum and SceneLifecycleEvent) \u2014 orientation only needs to reach PrivacyShieldCoordinator, not the engine directly, since shielding already covers it. backgroundedOrInterrupted is sent by PrivacyShieldCoordinator, not derived from raw scenePhase inside the engine."
+      },
+      {
+        "name": "GameEngineReducer",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum GameEngineReducer { static func reduce(_ state: GameEngineState, _ event: GameEngineEvent) -> (state: GameEngineState, effects: [GameEngineEffect]) }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED \u2014 the core fork from rounds 1-2 is closed. Pure, static, no side effects. Primary unit-test surface: deck exhaustion at every player count 2-6, cup-full-wins-tie, idempotent confirmReveal (5 rapid calls -> exactly 1 turn advance), funniest-rule default/empty paths."
+      },
+      {
+        "name": "HUDSnapshot",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct HUDSnapshot: Equatable, Sendable { let kingsDrawn: Int; let cardsRemaining: Int; let currentRoundDisplay: Int?; let currentPlayerName: String }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. currentRoundDisplay is nil when 10 rounds isn't mathematically reachable at the current player count."
+      },
+      {
+        "name": "RulesetStore",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol RulesetStore: Sendable { func fetchAll() async throws -> [Ruleset]; func save(_ ruleset: Ruleset) async throws; func delete(id: UUID) async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED. Implemented by PersistenceController in Persistence/. Returns/accepts plain Ruleset values, never a managed object."
+      },
+      {
+        "name": "PersistenceController",
+        "kind": "class",
+        "language": "swift",
+        "signature": "final class PersistenceController: RulesetStore, GameHistoryStore { static let shared: PersistenceController; init(inMemory: Bool = false); func bootstrapBundledRulesetIfNeeded() async throws }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED. CoreData stack (RulesetEntity/RulesetCardEntity/GameSessionEntity/TurnEventEntity, schemaVersion from v1, background NSManagedObjectContext with viewContext auto-merge). inMemory:true backs the test target."
+      },
+      {
+        "name": "RecapContext",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum RecapContext: Hashable, Sendable { case justFinished(sessionID: UUID); case historical(sessionID: UUID) }",
+        "owning_lane": "primary_ui",
+        "notes": "AGREED. Drives RecapView's Export+PlayAgain vs Export-only rendering; both load GameSessionRecord strictly from GameHistoryStore, never live GameEngine state."
+      },
+      {
+        "name": "ModeSettingsContext",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ModeSettingsContext: Sendable { case preGame; case midSession }",
+        "owning_lane": "primary_ui",
+        "notes": "AGREED. preGame shows the reopen-onboarding link; midSession is reached from the Active Game HUD's small gearshape icon and omits it."
+      },
+      {
+        "name": "ExportOutcome",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ExportOutcome: Equatable, Sendable { case success; case cancelled; case permissionDenied; case failure(String) }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED. Maps UIActivityViewController's completionWithItemsHandler: completed==true -> success, completed==false && error==nil -> cancelled, error!=nil -> failure."
+      },
+      {
+        "name": "ExportCoordinator",
+        "kind": "class",
+        "language": "swift",
+        "signature": "@Observable @MainActor final class ExportCoordinator { private(set) var outcome: ExportOutcome?; func export(recap: GameSessionRecord) async }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED. Renders recap via ImageRenderer, requests PHPhotoLibrary .addOnly authorization before presenting UIActivityViewController, maps completion to ExportOutcome."
+      },
+      {
+        "name": "AttestationService",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct AttestationService: Sendable { func hasAttested() -> Bool; func recordAttestation() }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED IN SUBSTANCE \u2014 resolving a trivial round-3 signature diff (Codex's draft had recordAttestation() as async throws; kept as the simpler synchronous non-throwing form since it's a local UserDefaults write with nothing to await or fail on). UserDefaults-backed one-time reversible gate for drinking mode; toggling back to sober does not clear attestation."
+      },
+      {
+        "name": "HapticsService",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum HapticsService { static func playConfirmReveal(); static func playKingOrCupFill() }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED. No-ops silently if CHHapticEngine.capabilitiesForHardware().supportsHaptics is false. Called by GameEngine in response to GameEngineEffect, never directly by views."
+      },
+      {
+        "name": "EmptyStateView",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct EmptyStateView: View { let title: String; let message: String; let systemImage: String }",
+        "owning_lane": "polish_resilience",
+        "notes": "AGREED \u2014 lane kept as polish_resilience (consistent across rounds 1-2 and the design_handoff component inventory); Codex's round-3 draft briefly moved it to primary_ui, resolved back for consistency. Shared across History List (\"no games yet\") and Recap's funniest-rule empty state."
+      },
+      {
+        "name": "ErrorBanner",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct ErrorBanner: View { let message: String; let retry: (() -> Void)? }",
+        "owning_lane": "polish_resilience",
+        "notes": "AGREED \u2014 lane kept as polish_resilience for the same consistency reason as EmptyStateView. retry == nil renders a non-blocking dismiss-only banner; non-nil renders a Retry button."
+      },
+      {
+        "name": "Ruleset.hasAllMappings",
+        "kind": "function",
+        "language": "swift",
+        "signature": "extension Ruleset { func hasAllMappings() -> Bool }",
+        "owning_lane": "data_domain",
+        "notes": "Used by Ruleset Editor and validation paths before starting or saving."
+      },
+      {
+        "name": "Ruleset.missingKeys",
+        "kind": "function",
+        "language": "swift",
+        "signature": "extension Ruleset { func missingKeys() -> [RuleKey] }",
+        "owning_lane": "data_domain",
+        "notes": "Returns explicit unmapped keys for focused validation UI."
+      },
+      {
+        "name": "PersistenceError",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum PersistenceError: Error, LocalizedError { case notFound; case loadFailed(String); case saveFailed(String); case deleteFailed(String); case migrationFallbackUsed }",
+        "owning_lane": "services_utilities",
+        "notes": "AGREED by both round-3 outputs. Canonical error type surfaced to ScreenState<T, PersistenceError> failures and ErrorBanner messages."
+      },
+      {
+        "name": "GameEngineEffect",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum GameEngineEffect: Equatable, Sendable { case hapticConfirm; case hapticKingOrCupFill; case gameDidEnd(GameSessionRecord) }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED by both round-3 outputs. Declarative signals returned alongside new state so the reducer stays pure \u2014 the @Observable wrapper is the only place that calls HapticsService or GameHistoryStore.save."
+      },
+      {
+        "name": "Deck",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum Deck { static func standard53(shuffled: Bool = true) -> [Card] }",
+        "owning_lane": "data_domain",
+        "notes": "AGREED. Single source of the fixed 53-card deck (52 + Joker)."
+      }
+    ]
+  },
   "phase_outputs": {
     "prompt_contract": "Round three actually closed the two open items from last time \u2014 and then surfaced that the real disagreement isn't a gap to fill, it's Gemma3 pushing to delete things the user explicitly asked for.\n\n**Deck exhaustion is ratified.** Codex, Gemini, and I all landed on the same three-way end condition: the game ends on whichever comes first \u2014 the 4th King drunk, 10 full rounds completed, or the 53-card deck running dry. Gemini did the math out loud and signed off without hedging. This closes the gap that's been open since round one.\n\n**Image export and funniest-rule stay in scope.** Codex, Gemini, and I all made the same point independently: \"Export game recap as a sharable image\" is sitting verbatim in the user's own prompt under both \"Key features\" and \"Tech\" \u2014 it's not ours to cut in a contract phase. Funniest-rule already has a fully specified, deterministic design (end-of-game ballot from rules that actually fired, defaulting to the last custom/Joker rule if skipped, explicit \"no custom rules this game\" empty state if nothing fired) that three people converged on independently across two rounds.\n\n**Where it's not resolved:** Gemma3 used round three to reject all three of these again \u2014 cut funniest-rule, cut image export, and go back to plain \"10 turns or cup empty\" without the deck-exhaustion condition \u2014 without engaging with the specific counterarguments (the verbatim-prompt point, the working vote-mechanism design, or the 60-draws-against-a-53-card-deck arithmetic). That's a real, repeated objection, not nothing, but it's now a lone dissent against four aligned voices (Codex, Gemini, me, and Qwen's restated list \u2014 which, tellingly, already includes funniest-rule and image export straight from the prompt without Qwen even weighing in on the debate). Since the panel's own decision rule is that the original prompt outranks any single contributor's risk preference, and Gemma3's objections don't identify an actual ambiguity in the prompt \u2014 they argue for removing stated requirements \u2014 I don't think this blocks calling the phase done. It's worth carrying forward as a flagged risk (Gemma3's specific worry about unmoderated UGC in an exported image), not as an open scope question.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Original prompt:** preserved verbatim in `initial_prompt.md` \u2014 Kings, local pass-and-play, 2\u20136 players, SwiftUI + CoreData, no server/login, customizable/saveable rulesets, game history with recap, sober-mode-default with gated drinking mode, face-down privacy shield, shareable recap image export, Kings-only MVP scope. This text is binding; nothing below overrides it.\n\n**Hard requirements**\n1. Single SwiftUI iOS app, local pass-and-play for exactly 2\u20136 players on one device, sequential turn order.\n2. Standard 53-card deck (52 + 1 Joker); bundled default Kings ruleset.\n3. Deterministic end condition \u2014 game ends the instant any of the following is true, whichever comes first: (a) 4th King drawn (cup fills \u00bc per King, full on the 4th), (b) 10 full rounds completed (every player has drawn 10 times), (c) deck exhausted. Each condition writes its own distinct end-reason to the recap (e.g. \"cup finished,\" \"round limit reached,\" \"ran out of cards\") \u2014 no generic/blended messaging.\n4. Game engine is a pure Swift state machine, decoupled from SwiftUI and CoreData, fully unit-testable.\n5. Mandatory handoff privacy shield between turns: card is fully hidden, requires an explicit confirmation tap from the incoming player to reveal, fails safe to hidden on backgrounding/rotation/rapid taps. Optional sensor-based face-down detection is allowed only alongside a manual override button (simulators and flat-table use must still work).\n6. Rulesets are editable pre-game and persist locally via CoreData across relaunches.\n7. CoreData-backed game history: players, full round timeline, and recap highlights (most drinks/dares, funniest rule, end-reason).\n8. Funniest rule: end-of-game ballot over rules actually triggered that session; defaults to the last custom/Joker rule if skipped; shows an explicit empty state (\"no custom rules played this game\") if none fired.\n9. Sober mode is the default and only changes copy. Drinking mode unlocks via a one-time in-app self-attestation dialog (no ID/OS-level check), reversible anytime. App Store age rating is set for alcohol content regardless of current toggle state, since Apple rates the binary, not runtime state.\n10. Recap exports as a shareable image (name, date, player list, highlights) via `ImageRenderer`, with a visible error/blocked state if Photos/share permission is denied.\n11. Every reachable flow (history load/save, rule edits, export, handoff, end-of-game) has explicit empty, loading, success, and error states \u2014 no silent failures.\n\n**Non-goals:** no server/backend/accounts/login; no networking, multiplayer, or cross-device sync; no other card-game variants (Hearts, Asshole, etc.); no monetization or IAP; no biometric/ID age verification; no content moderation or filtering of custom rule text (accepted local-UGC risk, extends to the export image); no analytics/telemetry, and therefore no usage-percentage success metrics.\n\n**Production-readiness definition:** no placeholder screens or stubbed flows; zero card leakage across handoff under any timing/gesture/backgrounding scenario; crash-free at min (2) and max (6) player counts including the deck-exhaustion path; ruleset and history persistence survive relaunch; CoreData or export failures degrade to a visible, actionable error rather than losing game state; 44\u00d744pt minimum tap targets and accessibility labels on core controls; sober/drinking copy sets are fully distinct with no cross-mode placeholder strings. Success is measured by binary QA pass/fail per flow (e.g. \"a full 6-player game completes end-to-end without crash,\" \"rule edits survive relaunch,\" \"export succeeds and also degrades gracefully when permission is denied\") \u2014 never by user-percentage metrics, since no telemetry exists to measure them.\n\n**Decision rules for later phases:** the original prompt outranks any single contributor's preference \u2014 features stated in it (image export, funniest rule, etc.) cannot be silently cut, only implemented, deferred with a named reason, or flagged as a risk. When ambiguous, choose the stricter, more deterministic, more privacy-preserving interpretation and write the assumption down explicitly rather than picking silently. Anything that improves polish but weakens privacy, safety, or reliability is deferred. Changes to core loop math, recap metrics, or gating must preserve backward-compatible reads of already-saved histories and rulesets. Accepted, named risk going forward: unmoderated custom Joker-rule text can appear in the exported image \u2014 this is a deliberate local-only-app tradeoff, not an open defect.",
     "product_research": "CONSENSUS: YES\n\nHere's how this actually shook out. For the second round running, three of the five seats didn't produce usable product research: the Gemini seat came back broken/off-topic again (this is now twice), Qwen2.5Vl declined to answer rather than fabricate something (better than noise, but no signal), and Gemma3 drifted into describing what sounds like a different app entirely (\"trust it to handle their money\"), then spent its turn arguing to reopen things the prompt-contract phase already ratified with explicit consensus \u2014 reinstating deck-exhaustion ambiguity, adding an auto-correcting rules engine, and proposing usage-metrics collection that directly contradicts the contract's no-telemetry non-goal. None of that is new research; it's litigating settled scope in the wrong phase, so it's not carrying forward.\n\nThe real work happened between Codex and Claude, and they've converged into a coherent, usable picture:\n\n**Audience:** in-the-room, synchronous groups of adults who already know Kings \u2014 including sober friends and designated drivers playing alongside drinkers. Not a discovery app, not something opened daily; the whole value is \"we just pulled this out at a party, zero confusion.\" That means onboarding needs to be close to instant \u2014 a handful of taps from launch to first card draw, sensible defaults, minimal required setup.\n\n**Comparables (labeled as assumptions, no live market research done):** this looks and feels more like a local turn-by-turn utility \u2014 score trackers, pass-and-play timers, minimal \"reveal\" flows \u2014 than a flashy social app. Existing drinking-game apps in this space tend to lose trust through card leakage, ad clutter, and friction; the differentiator here is being the boring, predictable, trustworthy option.\n\n**Platform opportunities:** SwiftUI state-driven screens built around the deterministic engine, `ImageRenderer` + native ShareSheet for the recap export, light haptic feedback on card draw and cup-fill (with the required hardware capability check), and real accessibility defaults (Dynamic Type, 44\u00d744 tap targets, VoiceOver labels, high contrast). If any sensor-based face-down detection gets used, it always ships with a manual override and fails closed rather than clever.\n\n**Two concrete build decisions that came out of this round, both small and testable:**\n1. Sober mode is a first-class voice, not a word-substitution pass on drinking-mode copy \u2014 whoever writes the ruleset text needs to write two genuinely distinct tracks, and it should be QA-checked for zero cross-mode leakage.\n2. Mid-game interruption is resolved: an in-progress game does not persist across an app relaunch or kill. `isIdleTimerDisabled` stays true during active play to minimize auto-lock in the first place, but if the app does get killed mid-round anyway, the game is simply gone \u2014 no partial/orphaned history row, just a clean setup screen on relaunch. Codex's round-2 comment left a little more room for a \"resume to same turn\" option; going with the stricter, simpler, lower-privacy-risk version here (no resume, ever) per the standing decision rule from the contract phase that ambiguity gets resolved toward the stricter/more deterministic/more privacy-preserving choice.\n\n**Risks carried forward for the build phase**, per Codex and Claude both: the handoff privacy shield is the single highest-stakes surface in the app \u2014 real failure modes to specifically hunt for are notification banners sliding over a \"hidden\" card, one-frame leaks during SwiftUI transitions, and rapid-tap bypass; there's a genuine UX tension between confirmation-tap friction (protects privacy) and reveal speed (protects a group's willingness to keep using the app mid-session), which needs an actual six-player playtest rather than being reasoned out in the abstract; and the export/share-sheet path is the one flow most likely to behave differently on a real device than in the simulator, so it needs explicit on-device testing, not just simulator coverage.\n\n## Final Output\n\n**Audience and use context:** Small in-person friend groups (mixed drinkers and sober/designated-driver players) who already know Kings, playing a single synchronous session with a phone passed around the table. Not a discovery or daily-use app \u2014 success is \"does it survive tonight,\" and onboarding must get from launch to first card draw in just a few taps with sensible defaults.\n\n**Comparable apps or patterns to learn from (assumptions, not verified market research):** Local turn-by-turn utilities \u2014 pass-and-play score trackers, board-game timers, minimal reveal-style companions \u2014 rather than social/discovery apps. The broader \"drinking game app\" category on the App Store is assumed to skew cluttered, ad-driven, and untrustworthy (leaky card reveals, forced ads between turns); this app's edge is being fast, private, and predictable instead of feature-heavy.\n\n**Platform-specific opportunities:** SwiftUI state-driven navigation matching the deterministic game engine; `ImageRenderer` + native ShareSheet for the recap export; light haptic feedback on card draw/cup-fill (behind a hardware capability check); Dynamic Type, dark mode, and full accessibility (44\u00d744 tap targets, VoiceOver labels) coming for free if SwiftUI defaults aren't fought; any sensor-assisted face-down detection always paired with a manual override, failing closed rather than relying on timing cleverness.\n\n**Major assumptions and risks:**\n1. Assumption: audience already knows the rules of Kings and wants facilitation, not teaching \u2014 so onboarding should stay minimal.\n2. Assumption: the competitive landscape is weak on trust/privacy/ad-cleanliness; this is unverified but shapes the differentiation bet.\n3. Risk (highest priority): the handoff privacy shield can leak via notification banners, screen rotation, backgrounding, animation-frame gaps, or rapid double-taps \u2014 this needs to be a dedicated adversarial QA pass, not folded into general testing.\n4. Risk: confirmation-tap friction on every handoff creates a real tension between privacy safety and in-session retention (people tapping through reflexively by round 6) \u2014 needs an actual multi-player playtest to tune, not a design guess.\n5. Risk: export/share-sheet behavior diverges between simulator (fake permission dialogs) and real devices (actual Photos/Screen Time restrictions) \u2014 needs explicit on-device test coverage as its own QA scenario.\n6. Risk (accepted, carried from the contract phase): unmoderated custom Joker-rule text can appear in the exported image; this phase adds that the app's copy/onboarding should surface this plainly to users rather than let it be a silent surprise.\n\n**Implications for the first build:**\n- Sober mode and drinking mode need two actually distinct copy voices written from scratch, not a search-and-replace pass \u2014 and should be checked for zero cross-mode string leakage as a discrete QA item.\n- Mid-game state is intentionally disposable: no relaunch/resume of an in-progress game. `isIdleTimerDisabled` is set true during active play to reduce the auto-lock case; if the app is killed anyway, relaunch lands cleanly on a fresh setup screen with no orphaned or corrupted history entry. This is the smaller, safer, more testable choice over building real crash-safe mid-turn state recovery.\n- Engineering priority order for the first build: the deterministic state machine and the zero-leak privacy shield come first and get the most scrutiny; ruleset editing and image export are contractually required and must work, but can ship functionally plain before they get visual polish.\n- Screen flow stays deliberately narrow: Setup \u2192 Game (shielded reveal \u2192 rule \u2192 pass) \u2192 End-of-game recap (with funniest-rule vote/empty-state) \u2192 Share/History \u2014 no extra branches added beyond what the contract already scopes.",
@@ -48,58 +1522,5 @@
     "app_store_readiness": "You've hit your weekly limit \u00b7 resets Jul 12 at 1pm (America/New_York)\n\nVERIFICATION: UNVERIFIED",
     "final_review": "You've hit your weekly limit \u00b7 resets Jul 12 at 1pm (America/New_York)\n\nVERIFICATION: UNVERIFIED",
     "portfolio_audit": "API Error: Unable to connect to API (ConnectionRefused)\n\nVERIFICATION: UNVERIFIED"
-  },
-  "last_processed": "2026-07-09 18:16:30",
-  "consensus_status": {
-    "prompt_contract": true,
-    "product_research": true,
-    "portfolio_selection": true,
-    "initial_discussion": true,
-    "per_app_product_brief": true,
-    "next_steps_small": true,
-    "detailed_discussion": true,
-    "app_features": true,
-    "design_discussion": true,
-    "design_handoff": true,
-    "ios_architecture_review": true,
-    "tech_specs": true,
-    "project_plan": true,
-    "task_assignments": true,
-    "implementation_readiness_gate": true,
-    "build_coordination": true,
-    "build_verification": false,
-    "human_qa_checklist": false,
-    "app_store_readiness": false,
-    "final_review": false,
-    "portfolio_audit": false
-  },
-  "vote_results": {
-    "build_verification": {
-      "decided": false,
-      "by": "claude"
-    },
-    "human_qa_checklist": {
-      "decided": false,
-      "by": "claude"
-    },
-    "app_store_readiness": {
-      "decided": false,
-      "by": "claude"
-    },
-    "final_review": {
-      "decided": false,
-      "by": "claude"
-    },
-    "portfolio_audit": {
-      "decided": false,
-      "by": "claude"
-    }
-  },
-  "runner_pid": 69088,
-  "done": true,
-  "error": null,
-  "status": "done",
-  "workflow": "app_build",
-  "blocked_conflict": null,
-  "awaiting_approval": null
+  }
 }

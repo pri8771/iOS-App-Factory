@@ -1,0 +1,390 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "CardSuit",
+      "kind": "enum",
+      "language": "Swift 5.9",
+      "signature": "enum CardSuit: String, Codable, CaseIterable { case clubs, diamonds, hearts, spades }",
+      "owning_lane": "data_domain",
+      "notes": "Use 4 suits with standard deck rows; Joker has nil suit."
+    },
+    {
+      "name": "CardRank",
+      "kind": "enum",
+      "language": "Swift 5.9",
+      "signature": "enum CardRank: Int, Codable, CaseIterable { case ace = 1, two, three, four, five, six, seven, eight, nine, ten, jack, queen, king, joker = 14 }",
+      "owning_lane": "data_domain",
+      "notes": "13 ranks plus Joker identity for deterministic card-keying."
+    },
+    {
+      "name": "Card",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Card: Identifiable, Hashable, Codable, Sendable { let id: UUID; let rank: Rank?; let suit: Suit?; let isJoker: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. isJoker == true implies rank == nil && suit == nil. Exactly 53 Card values in a fresh deck."
+    },
+    {
+      "name": "GameMode",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum GameMode: String, Codable, Sendable { case sober, drinking }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. Stored per TurnEvent for replay-fidelity; sober is default."
+    },
+    {
+      "name": "EnginePhase",
+      "kind": "enum",
+      "language": "Swift 5.9",
+      "signature": "enum EnginePhase: Equatable { case idle, shielded, confirmArmed, revealed, jokerCapturePending, applyingRule, handoffLocked, gameOver }",
+      "owning_lane": "data_domain",
+      "notes": "UI binds directly to this; shielded is default and must be fail-safe on interruption."
+    },
+    {
+      "name": "EndReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EndReason: String, Codable, Sendable { case cupFull, roundLimitReached, deckExhausted }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. cupFull wins any simultaneous tie against deckExhausted, per prompt_contract."
+    },
+    {
+      "name": "RuleDefinition",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RuleDefinition: Codable, Hashable, Sendable { var soberText: String; var drinkingText: String }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED by both round-3 outputs. Two genuinely distinct authored voices per card. Ruleset Editor shows one field bound to the active mode; forking/copying a ruleset seeds both fields so editing one mode never blanks the other."
+    },
+    {
+      "name": "Ruleset",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Ruleset: Identifiable, Codable, Sendable, Equatable { let id: UUID; var name: String; var rules: [RuleKey: RuleDefinition]; let isBundledDefault: Bool; var createdAt: Date; var updatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. Must contain all 14 RuleKey cases with both text fields non-empty before Save is allowed."
+    },
+    {
+      "name": "TurnEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TurnEvent: Identifiable, Codable, Sendable, Equatable { let id: UUID; let playerIndex: Int; let turnIndex: Int; let roundNumber: Int; let card: Card; let mode: GameMode; let ruleKey: RuleKey; let ruleTextSnapshot: String; let jokerCustomText: String?; let isCustomOrJokerRule: Bool; let unitsAssigned: Int; let timestamp: Date }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED by both round-3 outputs, naming included. ruleTextSnapshot frozen at draw time. unitsAssigned (default 1, mode-neutral naming) is what 'most drinks/dares' sums. Cup-fill is never stored per-turn \u2014 derived as (kings drawn)/4."
+    },
+    {
+      "name": "GameSessionRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct GameSessionRecord: Identifiable, Codable, Sendable, Equatable { let id: UUID; let schemaVersion: Int; var name: String?; let startedAt: Date; let endedAt: Date; let players: [String]; let rulesetName: String; let endReason: EndReason; let timeline: [TurnEvent]; let funniestRule: FunniestRuleResult; var kingsDrawnCount: Int { get }; var cardsRemainingAtEnd: Int { get }; var mostDrinksPlayerIndex: Int? { get } }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. kingsDrawnCount/cardsRemainingAtEnd/mostDrinksPlayerIndex are computed from timeline (automatic Codable synthesis skips them; recomputed on decode) \u2014 makes 'recap can never diverge from turn events' true by construction."
+    },
+    {
+      "name": "GameEngineState",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct GameEngineState: Equatable, Sendable { var phase: GamePhase; var deck: [Card]; var players: [String]; var ruleset: Ruleset; var mode: GameMode; var turnIndex: Int; var timeline: [TurnEvent] }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. No stored kingsDrawn field \u2014 derived from timeline, avoiding a second source of truth alongside GameSessionRecord's computed properties."
+    },
+    {
+      "name": "TurnResolution",
+      "kind": "struct",
+      "language": "Swift 5.9",
+      "signature": "struct TurnResolution { let event: TurnEvent; let nextState: GameEngineState; let endReason: EndReason?; let requiresJokerCapture: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Returned from confirmReveal; engine never mutates UI directly."
+    },
+    {
+      "name": "SceneLifecycleEvent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SceneLifecycleEvent: Sendable { case didEnterBackground; case willResignActive; case didBecomeActive; case orientationChanged; case rapidTapDetected }",
+      "owning_lane": "polish_resilience",
+      "notes": "AGREED. Mapped from scenePhase + willResignActiveNotification/didBecomeActiveNotification at the app root; feeds PrivacyShieldCoordinator, not the engine directly."
+    },
+    {
+      "name": "GameEngine",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class GameEngine { private(set) var state: GameEngineState; var hud: HUDSnapshot { get }; func start(players: [String], ruleset: Ruleset, mode: GameMode); func send(_ event: GameEngineEvent); func reset() }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. Thin wrapper: calls GameEngineReducer.reduce, republishes state, dispatches returned effects. Lives in Engine/ folder; a build-phase script fails the build if any file under Engine/ imports CoreData, UIKit, or SwiftUI \u2014 enforces isolation without SPM package ceremony (the module-boundary fork from rounds 1-2 is now closed on this resolution)."
+    },
+    {
+      "name": "PersistedRulesetStore",
+      "kind": "protocol",
+      "language": "Swift 5.9",
+      "signature": "protocol PersistedRulesetStore { func fetchAll() async throws -> [Ruleset]; func save(_ ruleset: Ruleset) async throws -> UUID; func delete(_ id: UUID) async throws; func fetchBundled() async throws -> Ruleset }",
+      "owning_lane": "services_utilities",
+      "notes": "Used only in Setup and Ruleset Editor flows."
+    },
+    {
+      "name": "GameHistoryStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol GameHistoryStore: Sendable { func fetchAll() async throws -> [GameSessionRecord]; func fetch(id: UUID) async throws -> GameSessionRecord?; func save(_ session: GameSessionRecord) async throws; func delete(id: UUID) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED. save is called exactly once, at game-end (triggered by GameEngineEffect.gameDidEnd), before Recap renders."
+    },
+    {
+      "name": "RecapRenderer",
+      "kind": "protocol",
+      "language": "Swift 5.9",
+      "signature": "protocol RecapRenderer { func renderImage(from session: GameSessionRecord) async throws -> UIImage }",
+      "owning_lane": "services_utilities",
+      "notes": "Uses ImageRenderer output; no direct dependency on CoreData."
+    },
+    {
+      "name": "PhotoPermissionService",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum PhotoPermissionService { static func requestAddOnlyAuthorization() async -> PHAuthorizationStatus; static func openSettingsDeepLink() }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED. .addOnly only, never .readWrite \u2014 app never reads the library."
+    },
+    {
+      "name": "ShareExportService",
+      "kind": "protocol",
+      "language": "Swift 5.9",
+      "signature": "protocol ShareExportService { func presentShareSheet(image: UIImage, completion: @escaping (Bool, Error?) -> Void) }",
+      "owning_lane": "services_utilities",
+      "notes": "Must be UIActivityViewController-backed to resolve completed/cancelled/failure states."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Hashable, Sendable { case activeGame; case recap(RecapContext) }",
+      "owning_lane": "primary_ui",
+      "notes": "AGREED. Setup is the NavigationStack root, never a path case; RulesetEditor and both ModeSettings contexts are sheets. Path always resets to empty on cold launch."
+    },
+    {
+      "name": "ScreenState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ScreenState<T, E: Error>: Sendable where T: Sendable { case empty; case loading; case success(T); case failure(E) }",
+      "owning_lane": "primary_ui",
+      "notes": "AGREED. Scoped to CRUD-shaped screens only \u2014 Ruleset Editor list load, History List fetch, Setup's ruleset-loading (E == PersistenceError). GamePhase and ExportOutcome keep their own richer, named types."
+    },
+    {
+      "name": "PrivacyShieldCoordinator",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class PrivacyShieldCoordinator { private(set) var isForceShielded: Bool; func handle(_ event: SceneLifecycleEvent, engine: GameEngine?) }",
+      "owning_lane": "polish_resilience",
+      "notes": "AGREED by both round-3 outputs \u2014 closes the rounds 1-2 fork. Root-level, independent of GameEngine and of whatever sheet is presented. On any interruption: forwards .backgroundedOrInterrupted into the engine if a game is active, AND sets isForceShielded so the root view hard-blocks revealed content even if a Mode/Settings sheet (.midSession) is what's actually on screen."
+    },
+    {
+      "name": "Suit",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Suit: String, Codable, CaseIterable, Sendable { case spades, hearts, diamonds, clubs }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. Card-face rendering only, never used for rule lookup. Lives in Domain/, single app target, no SPM packages."
+    },
+    {
+      "name": "Rank",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Rank: Int, Codable, CaseIterable, Sendable { case ace = 1, two, three, four, five, six, seven, eight, nine, ten, jack, queen, king }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. 13 standard ranks; Joker lives on Card.isJoker, not as a Rank case."
+    },
+    {
+      "name": "RuleKey",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RuleKey: String, Codable, CaseIterable, Sendable { case ace, two, three, four, five, six, seven, eight, nine, ten, jack, queen, king, joker }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. Ruleset lookup key; RuleKey(card:) maps a Card to its key including the joker case."
+    },
+    {
+      "name": "Ruleset.isComplete",
+      "kind": "function",
+      "language": "swift",
+      "signature": "extension Ruleset { var isComplete: Bool { get }; var missingKeys: [RuleKey] { get } }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. Ruleset Editor's invalid-mapping error state reads missingKeys to point at the unmapped row."
+    },
+    {
+      "name": "FunniestRuleResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum FunniestRuleResult: Codable, Sendable, Equatable { case winner(turnEventID: UUID); case noCustomRulesPlayed }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. Winner is a captured end-of-game ballot outcome (or default-to-last-custom-rule) \u2014 not derivable from timeline alone, so it's stored on GameSessionRecord unlike the other recap metrics."
+    },
+    {
+      "name": "GameSessionRecord.init(from:endedAt:)",
+      "kind": "function",
+      "language": "swift",
+      "signature": "extension GameSessionRecord { init(from state: GameEngineState, endedAt: Date) }",
+      "owning_lane": "data_domain",
+      "notes": "Single mapping point from terminal engine state to persisted recap summary."
+    },
+    {
+      "name": "GamePhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum GamePhase: Equatable, Sendable { case shielded(incomingPlayerIndex: Int); case confirmArmed(incomingPlayerIndex: Int); case revealed(TurnDraw); case jokerCapturePending(TurnDraw); case applyingRule(TurnDraw); case handoffLocked; case gameOver(GameSessionRecord) }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. shielded is default/universal fail-safe target; UI must early-return with no Card content instantiated while shielded, not a covered overlay. Every case is a plain value, directly constructible in a SwiftUI Preview."
+    },
+    {
+      "name": "TurnDraw",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TurnDraw: Identifiable, Equatable, Sendable { let id: UUID; let playerIndex: Int; let turnIndex: Int; let roundNumber: Int; let card: Card; let ruleText: String; let mode: GameMode }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. In-flight, not-yet-committed draw before it becomes a persisted TurnEvent."
+    },
+    {
+      "name": "GameEngineEvent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum GameEngineEvent: Sendable { case confirmReveal; case pass; case jokerTextSubmitted(String?); case skipJokerCapture; case backgroundedOrInterrupted; case modeToggled(GameMode) }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED, resolving one small round-3 divergence: orientationChanged is intentionally NOT a GameEngineEvent case (Codex's draft had it duplicated on both this enum and SceneLifecycleEvent) \u2014 orientation only needs to reach PrivacyShieldCoordinator, not the engine directly, since shielding already covers it. backgroundedOrInterrupted is sent by PrivacyShieldCoordinator, not derived from raw scenePhase inside the engine."
+    },
+    {
+      "name": "GameEngineReducer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum GameEngineReducer { static func reduce(_ state: GameEngineState, _ event: GameEngineEvent) -> (state: GameEngineState, effects: [GameEngineEffect]) }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED \u2014 the core fork from rounds 1-2 is closed. Pure, static, no side effects. Primary unit-test surface: deck exhaustion at every player count 2-6, cup-full-wins-tie, idempotent confirmReveal (5 rapid calls -> exactly 1 turn advance), funniest-rule default/empty paths."
+    },
+    {
+      "name": "HUDSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct HUDSnapshot: Equatable, Sendable { let kingsDrawn: Int; let cardsRemaining: Int; let currentRoundDisplay: Int?; let currentPlayerName: String }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. currentRoundDisplay is nil when 10 rounds isn't mathematically reachable at the current player count."
+    },
+    {
+      "name": "RulesetStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol RulesetStore: Sendable { func fetchAll() async throws -> [Ruleset]; func save(_ ruleset: Ruleset) async throws; func delete(id: UUID) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED. Implemented by PersistenceController in Persistence/. Returns/accepts plain Ruleset values, never a managed object."
+    },
+    {
+      "name": "PersistenceController",
+      "kind": "class",
+      "language": "swift",
+      "signature": "final class PersistenceController: RulesetStore, GameHistoryStore { static let shared: PersistenceController; init(inMemory: Bool = false); func bootstrapBundledRulesetIfNeeded() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED. CoreData stack (RulesetEntity/RulesetCardEntity/GameSessionEntity/TurnEventEntity, schemaVersion from v1, background NSManagedObjectContext with viewContext auto-merge). inMemory:true backs the test target."
+    },
+    {
+      "name": "RecapContext",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecapContext: Hashable, Sendable { case justFinished(sessionID: UUID); case historical(sessionID: UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "AGREED. Drives RecapView's Export+PlayAgain vs Export-only rendering; both load GameSessionRecord strictly from GameHistoryStore, never live GameEngine state."
+    },
+    {
+      "name": "ModeSettingsContext",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ModeSettingsContext: Sendable { case preGame; case midSession }",
+      "owning_lane": "primary_ui",
+      "notes": "AGREED. preGame shows the reopen-onboarding link; midSession is reached from the Active Game HUD's small gearshape icon and omits it."
+    },
+    {
+      "name": "ExportOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ExportOutcome: Equatable, Sendable { case success; case cancelled; case permissionDenied; case failure(String) }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED. Maps UIActivityViewController's completionWithItemsHandler: completed==true -> success, completed==false && error==nil -> cancelled, error!=nil -> failure."
+    },
+    {
+      "name": "ExportCoordinator",
+      "kind": "class",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class ExportCoordinator { private(set) var outcome: ExportOutcome?; func export(recap: GameSessionRecord) async }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED. Renders recap via ImageRenderer, requests PHPhotoLibrary .addOnly authorization before presenting UIActivityViewController, maps completion to ExportOutcome."
+    },
+    {
+      "name": "AttestationService",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AttestationService: Sendable { func hasAttested() -> Bool; func recordAttestation() }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED IN SUBSTANCE \u2014 resolving a trivial round-3 signature diff (Codex's draft had recordAttestation() as async throws; kept as the simpler synchronous non-throwing form since it's a local UserDefaults write with nothing to await or fail on). UserDefaults-backed one-time reversible gate for drinking mode; toggling back to sober does not clear attestation."
+    },
+    {
+      "name": "HapticsService",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum HapticsService { static func playConfirmReveal(); static func playKingOrCupFill() }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED. No-ops silently if CHHapticEngine.capabilitiesForHardware().supportsHaptics is false. Called by GameEngine in response to GameEngineEffect, never directly by views."
+    },
+    {
+      "name": "EmptyStateView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EmptyStateView: View { let title: String; let message: String; let systemImage: String }",
+      "owning_lane": "polish_resilience",
+      "notes": "AGREED \u2014 lane kept as polish_resilience (consistent across rounds 1-2 and the design_handoff component inventory); Codex's round-3 draft briefly moved it to primary_ui, resolved back for consistency. Shared across History List (\"no games yet\") and Recap's funniest-rule empty state."
+    },
+    {
+      "name": "ErrorBanner",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ErrorBanner: View { let message: String; let retry: (() -> Void)? }",
+      "owning_lane": "polish_resilience",
+      "notes": "AGREED \u2014 lane kept as polish_resilience for the same consistency reason as EmptyStateView. retry == nil renders a non-blocking dismiss-only banner; non-nil renders a Retry button."
+    },
+    {
+      "name": "Ruleset.hasAllMappings",
+      "kind": "function",
+      "language": "swift",
+      "signature": "extension Ruleset { func hasAllMappings() -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Used by Ruleset Editor and validation paths before starting or saving."
+    },
+    {
+      "name": "Ruleset.missingKeys",
+      "kind": "function",
+      "language": "swift",
+      "signature": "extension Ruleset { func missingKeys() -> [RuleKey] }",
+      "owning_lane": "data_domain",
+      "notes": "Returns explicit unmapped keys for focused validation UI."
+    },
+    {
+      "name": "PersistenceError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PersistenceError: Error, LocalizedError { case notFound; case loadFailed(String); case saveFailed(String); case deleteFailed(String); case migrationFallbackUsed }",
+      "owning_lane": "services_utilities",
+      "notes": "AGREED by both round-3 outputs. Canonical error type surfaced to ScreenState<T, PersistenceError> failures and ErrorBanner messages."
+    },
+    {
+      "name": "GameEngineEffect",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum GameEngineEffect: Equatable, Sendable { case hapticConfirm; case hapticKingOrCupFill; case gameDidEnd(GameSessionRecord) }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED by both round-3 outputs. Declarative signals returned alongside new state so the reducer stays pure \u2014 the @Observable wrapper is the only place that calls HapticsService or GameHistoryStore.save."
+    },
+    {
+      "name": "Deck",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum Deck { static func standard53(shuffled: Bool = true) -> [Card] }",
+      "owning_lane": "data_domain",
+      "notes": "AGREED. Single source of the fixed 53-card deck (52 + Joker)."
+    }
+  ],
+  "errors": []
+}

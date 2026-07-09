@@ -1,0 +1,19 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-09 12:49:49",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "5137f997f54769bc5bcf994c5299e9d5458db6e368ebcc2e954c02e295d6ecfa",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": false,
+    "ok": false,
+    "status": "unverified",
+    "tool": "xcodebuild",
+    "scheme": null,
+    "summary": "no .xcodeproj/.xcworkspace found.",
+    "errors": "",
+    "tests": null
+  }
+]

@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffold: single drinking-games-test target, six-folder layout, CoreData model shell, engine import-guard build script",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/drinking-games-test.xcodeproj/project.pbxproj",
+        "app_build/drinking-games-test/DrinkingGamesTestApp.swift",
+        "app_build/drinking-games-test/Domain/.gitkeep",
+        "app_build/drinking-games-test/Engine/.gitkeep",
+        "app_build/drinking-games-test/Persistence/.gitkeep",
+        "app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld",
+        "app_build/drinking-games-test/Services/.gitkeep",
+        "app_build/drinking-games-test/UI/.gitkeep",
+        "app_build/drinking-games-test/Resilience/.gitkeep",
+        "app_build/drinking-games-testTests/.gitkeep",
+        "app_build/drinking-games-test/build-scripts/engine-import-guard.sh"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Project builds and runs a blank app on simulator from app_build/",
+        "engine-import-guard.sh is wired into an actual Xcode build phase, not just present on disk",
+        "A deliberately committed forbidden import (CoreData/UIKit/SwiftUI) inside Engine/ makes the build fail; reverting it makes the build pass again \u2014 both states verified before this task is marked done",
+        "In-memory drinking-games-testTests target exists and runs a trivial passing test",
+        "No non-Foundation dependency appears in Engine/ outside the explicitly allowed system boundaries"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Domain types: Card, Rank, Suit, RuleKey, RuleDefinition, Ruleset (+isComplete), GameMode, EndReason, TurnEvent, TurnDraw, GamePhase, GameSessionRecord, FunniestRuleResult, schemaVersion migration-safe decode path",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/drinking-games-test/Domain/Card.swift",
+        "app_build/drinking-games-test/Domain/Rank.swift",
+        "app_build/drinking-games-test/Domain/Suit.swift",
+        "app_build/drinking-games-test/Domain/RuleKey.swift",
+        "app_build/drinking-games-test/Domain/RuleDefinition.swift",
+        "app_build/drinking-games-test/Domain/Ruleset.swift",
+        "app_build/drinking-games-test/Domain/GameMode.swift",
+        "app_build/drinking-games-test/Domain/EndReason.swift",
+        "app_build/drinking-games-test/Domain/TurnEvent.swift",
+        "app_build/drinking-games-test/Domain/TurnDraw.swift",
+        "app_build/drinking-games-test/Domain/GamePhase.swift",
+        "app_build/drinking-games-test/Domain/GameSessionRecord.swift",
+        "app_build/drinking-games-test/Domain/FunniestRuleResult.swift",
+        "app_build/drinking-games-test/Domain/SchemaVersioning.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Every type matches the ratified interfaces-json signature exactly (names, cases, field types)",
+        "GameSessionRecord's kingsDrawnCount/cardsRemainingAtEnd/mostDrinksPlayerIndex are computed from timeline, never separately stored",
+        "A schemaVersion v1 decode path exists and is unit-tested with a hand-built v1 JSON fixture, not deferred until a v2 exists",
+        "Ruleset.isComplete correctly flags all 14 RuleKey cases as required"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Engine reducer: Deck.standard53, GameEngineState/Event/Effect, GameEngineReducer, GameEngine wrapper, HUDSnapshot, full unit-test matrix",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/drinking-games-test/Engine/Deck.swift",
+        "app_build/drinking-games-test/Engine/GameEngineState.swift",
+        "app_build/drinking-games-test/Engine/GameEngineEvent.swift",
+        "app_build/drinking-games-test/Engine/GameEngineEffect.swift",
+        "app_build/drinking-games-test/Engine/GameEngineReducer.swift",
+        "app_build/drinking-games-test/Engine/GameEngine.swift",
+        "app_build/drinking-games-test/Engine/HUDSnapshot.swift",
+        "app_build/drinking-games-testTests/EngineReducerTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Deck.standard53 always produces exactly 53 unique Card values",
+        "Unit tests cover end-condition precedence at every player count 2-6, including cup-full winning a simultaneous tie against deck-exhaustion",
+        "Unit test proves confirmReveal is idempotent: five rapid calls in one runloop tick advance exactly one turn",
+        "HUDSnapshot.currentRoundDisplay is nil whenever 10 rounds is mathematically unreachable at the active player count",
+        "GameEngineReducer.reduce has zero imports outside Domain/Engine and is fully callable with no CoreData/SwiftUI/UIKit in scope"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "Persistence core: PersistenceController, RulesetStore, GameHistoryStore, PersistenceError, CoreData entities (Ruleset/RulesetCard/GameSession/TurnEvent)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/drinking-games-test/Persistence/PersistenceController.swift",
+        "app_build/drinking-games-test/Persistence/RulesetStore.swift",
+        "app_build/drinking-games-test/Persistence/GameHistoryStore.swift",
+        "app_build/drinking-games-test/Persistence/PersistenceError.swift",
+        "app_build/drinking-games-test/Persistence/drinking-games-test.xcdatamodeld/drinking-games-test.xcdatamodel",
+        "app_build/drinking-games-testTests/PersistenceTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "In-memory CoreData test target covers save/load/delete for both stores plus schemaVersion fallback decoding",
+        "Writes happen on a background NSManagedObjectContext with viewContext auto-merge; a test proves this doesn't block the main actor",
+        "bootstrapBundledRulesetIfNeeded seeds exactly one complete 14-key default ruleset on first launch and is idempotent on relaunch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "Mandatory game-end persistence contract: awaited save-before-navigate plus pendingCompletedSession salvage file",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/drinking-games-test/Persistence/GameEndPersistenceCoordinator.swift",
+        "app_build/drinking-games-test/Persistence/PendingCompletedSession.swift",
+        "app_build/drinking-games-testTests/GameEndPersistenceTests.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "On GameEngineEffect.gameDidEnd, a pendingCompletedSession file is written synchronously before the awaited GameHistoryStore.save call, fire-and-forget so it never blocks the save",
+        "A test simulates the save throwing and confirms the in-memory GameSessionRecord is still available to render plus a non-blocking failure signal is emitted",
+        "A test simulates a pending file left over from a prior force-quit and confirms it is salvage-checked and either recovered into history or cleanly discarded on next launch",
+        "This task is treated as non-optional scope per the ratified project plan \u2014 it cannot be marked done as a stub",
+        "No silent drop of a completed game is possible when force-quit occurs between game-end and the persistence write landing"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "Export and supporting services: ExportCoordinator, PhotoPermissionService, AttestationService, HapticsService",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/drinking-games-test/Services/ExportCoordinator.swift",
+        "app_build/drinking-games-test/Services/PhotoPermissionService.swift",
+        "app_build/drinking-games-test/Services/AttestationService.swift",
+        "app_build/drinking-games-test/Services/HapticsService.swift",
+        "app_build/drinking-games-testTests/ExportCoordinatorTests.swift",
+        "app_build/drinking-games-test/Info.plist"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "ExportCoordinator renders via ImageRenderer and maps UIActivityViewController's completionWithItemsHandler to exactly the four ExportOutcome cases, tested with a mocked completion handler for all four paths",
+        "PhotoPermissionService requests .addOnly only, never .readWrite, with NSPhotoLibraryAddUsageDescription set in Info.plist",
+        "AttestationService.recordAttestation is a synchronous non-throwing UserDefaults write; toggling back to sober does not clear it",
+        "HapticsService no-ops silently when CHHapticEngine.capabilitiesForHardware().supportsHaptics is false"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "Privacy shield coordinator and reusable shield modifier",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/drinking-games-test/Resilience/PrivacyShieldCoordinator.swift",
+        "app_build/drinking-games-test/Resilience/SceneLifecycleEvent.swift",
+        "app_build/drinking-games-test/Resilience/PrivacyShieldedModifier.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "isForceShielded becomes true on didEnterBackground/willResignActive/orientationChanged/rapidTapDetected regardless of what sheet (including .midSession Mode/Settings) is currently presented",
+        "backgroundedOrInterrupted is forwarded into GameEngine only when a game is active",
+        "A reusable .privacyShielded() view modifier is exposed for primary_ui to apply at the app root without needing to import anything else from Resilience/"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Shield Hardening Checklist artifact (six named adversarial scenarios)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/drinking-games-test/QA/ShieldHardeningChecklist.md"
+      ],
+      "depends_on": [
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Checklist has exactly six rows: incoming call during reveal, Face ID/passcode prompt during reveal, notification banner during reveal, rotation mid-flow, rapid confirm taps, backgrounding while Mode/Settings (.midSession) sheet is open",
+        "Each row has expected behavior, a pass/fail column, and a tester-initials column",
+        "File exists and is referenced as a gating artifact for both this task's own exit and T-014's signoff \u2014 no row may be left blank at either gate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "Shared resilience-owned view components: EmptyStateView, ErrorBanner",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/drinking-games-test/Resilience/SharedViews/EmptyStateView.swift",
+        "app_build/drinking-games-test/Resilience/SharedViews/ErrorBanner.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "EmptyStateView and ErrorBanner match the ratified interfaces-json signatures exactly",
+        "ErrorBanner renders dismiss-only when retry is nil and a Retry button when non-nil",
+        "Both are usable from UI/ screens via a plain import with no other Resilience/ dependency required"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Setup/Home screen and Ruleset Editor sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/drinking-games-test/UI/Setup/SetupHomeView.swift",
+        "app_build/drinking-games-test/UI/Setup/PlayerNameEntryRow.swift",
+        "app_build/drinking-games-test/UI/Setup/SetupToolbarIcon.swift",
+        "app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorView.swift",
+        "app_build/drinking-games-test/UI/RulesetEditor/RulesetEditorRow.swift",
+        "app_build/drinking-games-test/UI/RulesetEditor/RulesetPickerChip.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Setup validates exactly 2-6 non-empty player names before Start is enabled",
+        "Ruleset Editor blocks Save when Ruleset.isComplete is false and points at the specific missing RuleKey rows",
+        "Setup/RulesetEditor loading and error states use PersistenceError via ScreenState<T, PersistenceError>, rendered through the shared EmptyStateView/ErrorBanner from T-009"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Active Game screen: shield-first handoff, confirm/reveal, Joker capture, HUD",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/drinking-games-test/UI/ActiveGame/ActiveGameView.swift",
+        "app_build/drinking-games-test/UI/ActiveGame/ShieldOverlayView.swift",
+        "app_build/drinking-games-test/UI/ActiveGame/RevealActionButton.swift",
+        "app_build/drinking-games-test/UI/ActiveGame/CardFaceView.swift",
+        "app_build/drinking-games-test/UI/ActiveGame/RuleTextBlock.swift",
+        "app_build/drinking-games-test/UI/ActiveGame/JokerCaptureField.swift",
+        "app_build/drinking-games-test/UI/ActiveGame/HUDStrip.swift",
+        "app_build/drinking-games-test/UI/ActiveGame/CupFillView.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "No Card content is instantiated in the view hierarchy while shielded (early-return, not a covered overlay)",
+        "Shield renders before any pass-to UI on every transition; reveal requires an explicit confirm-tap",
+        "Only primary_ui code ever renders card-facing content, and only after confirm",
+        "Shielded card content is fully removed from the accessibility tree while Pass to [Name] and Reveal stay announced, verified with VoiceOver on",
+        "RuleTextBlock scrolls and never truncates at largest Dynamic Type size",
+        "Reduce Motion shows a static cup-fill indicator instead of the animated pour"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Recap screen (justFinished/historical) and History List",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/drinking-games-test/UI/Recap/RecapView.swift",
+        "app_build/drinking-games-test/UI/Recap/RecapTimelineRow.swift",
+        "app_build/drinking-games-test/UI/Recap/FunniestRulePanel.swift",
+        "app_build/drinking-games-test/UI/Recap/ExportStatusView.swift",
+        "app_build/drinking-games-test/UI/History/HistoryListView.swift",
+        "app_build/drinking-games-test/UI/History/HistoryRow.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-006",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Recap loads strictly from the persisted GameSessionRecord (or the T-005 in-memory fallback), never live engine state",
+        "End-reason ribbon text is distinct per EndReason case with no generic fallback copy",
+        "Funniest-rule panel shows the ballot winner or the explicit no-custom-or-Joker-rules-played empty state, with no third silent state",
+        "Export inline states (loading, success/share, cancelled, permission-denied-with-Settings-link, failure-with-retry) are all independently triggerable in a preview/test harness",
+        "History List supports swipe-to-delete with confirmation and shows loading/empty/success/error states"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Mode/Settings screen, Onboarding, and app-root wiring (NavigationStack + privacy shield modifier)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/drinking-games-test/UI/ModeSettings/ModeSettingsView.swift",
+        "app_build/drinking-games-test/UI/ModeSettings/ModeBadgePill.swift",
+        "app_build/drinking-games-test/UI/Onboarding/OnboardingView.swift",
+        "app_build/drinking-games-test/UI/Onboarding/OnboardingPageView.swift",
+        "app_build/drinking-games-test/DrinkingGamesTestApp.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Drinking mode requires the one-time AttestationService gate and is reversible anytime without clearing attestation",
+        "The replay-fidelity explainer copy is present verbatim: changing mode later does not rewrite old games",
+        "Onboarding auto-fires on first launch only and is reopenable from Mode/Settings in both preGame and midSession contexts",
+        "DrinkingGamesTestApp.swift applies the T-007 .privacyShielded() modifier at the NavigationStack root, with a test or explicit polish_resilience reviewer sign-off confirming the modifier is actually present \u2014 this is the only task that edits DrinkingGamesTestApp.swift after T-001's scaffold"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Integration hardening and release gate",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/drinking-games-test/QA/IntegrationHardeningReport.md"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-010",
+        "T-012",
+        "T-013"
+      ],
+      "acceptance_criteria": [
+        "A full 2-player and a full 6-player game each complete end-to-end on-device with zero crashes across all three end conditions",
+        "The save-fail branch is exercised on-device and still renders a full recap from memory with the couldn't-save-to-history banner visible",
+        "A completed game is present and correctly displayed after an on-device force-quit and relaunch",
+        "The six-row Shield Hardening Checklist from T-008 is re-run on-device with every row marked pass before this task can close",
+        "One full pass through every screen's empty/loading/success/error states is recorded with no unhandled gaps"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}
