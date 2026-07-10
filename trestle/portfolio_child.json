@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "parent": "batch-games",
+  "build": true,
+  "build_priority": 0,
+  "app": {
+    "name": "Trestle",
+    "slug": "trestle",
+    "category": "multiplayer, 10-12 players",
+    "promise": "Real trick-taking/drafting card engine over host-relay networking + App Clip join",
+    "monetization": "Paid rule-variant expansions",
+    "build": true,
+    "priority": 7,
+    "one_sentence_promise": "Real trick-taking/drafting card engine over host-relay networking + App Clip join",
+    "core_workflows": [],
+    "ios_native_features": [],
+    "key_risks": [],
+    "build_priority": 0
+  }
+}

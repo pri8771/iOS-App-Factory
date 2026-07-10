@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Point2D",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Point2D: Codable, Equatable, Hashable { var x: Double; var y: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Foundation-only, UmbraCore package"
+    },
+    {
+      "name": "Size2D",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Size2D: Codable, Equatable, Hashable { var width: Double; var height: Double }",
+      "owning_lane": "data_domain",
+      "notes": "UmbraCore"
+    },
+    {
+      "name": "Polygon",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Polygon: Codable, Equatable { var points: [Point2D] }",
+      "owning_lane": "data_domain",
+      "notes": "Ordered ring; used for target silhouette and derived shadow shapes. LOCKED: vector only, never a raster/UIImage \u2014 required for exact/epsilon geometry comparisons and VoiceOver position/rotation descriptions"
+    },
+    {
+      "name": "OccluderShape",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum OccluderShape: Codable, Equatable { case rectangle }",
+      "owning_lane": "data_domain",
+      "notes": "v1 has one case; future primitives add cases, never a schema rewrite"
+    },
+    {
+      "name": "Occluder",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Occluder: Codable, Equatable, Identifiable { let id: UUID; var shape: OccluderShape; var center: Point2D; var size: Size2D; var rotationDegrees: Double }",
+      "owning_lane": "data_domain",
+      "notes": "UmbraCore"
+    },
+    {
+      "name": "LightSource",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LightSource: Codable, Equatable { var position: Point2D }",
+      "owning_lane": "data_domain",
+      "notes": "Single point light per locked determinism decision"
+    },
+    {
+      "name": "TargetSilhouette",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TargetSilhouette: Codable, Equatable { var outline: Polygon }",
+      "owning_lane": "data_domain",
+      "notes": "UmbraCore"
+    },
+    {
+      "name": "Level",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Level: Codable, Equatable, Identifiable { let id: UUID; var schemaVersion: Int; var title: String; var lightSource: LightSource; var occluders: [Occluder]; var target: TargetSilhouette; var createdAt: Date; var updatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "The single canonical schema shared by Play, Edit, export, import, and the solve-checker. Value type \u2014 mutation always produces a new Level value, never in-place array mutation"
+    },
+    {
+      "name": "LevelMutation",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LevelMutation: Codable, Equatable { case moveOccluder(id: UUID, to: Point2D); case rotateOccluder(id: UUID, degrees: Double); case moveLight(to: Point2D); case duplicateOccluder(id: UUID); case deleteOccluder(id: UUID); case reset }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: the only input surface for level state changes; gestures, nudge-arrows, rotation-stepper, and replay/fuzz tests all construct these same cases"
+    },
+    {
+      "name": "MatchState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MatchState: Codable, Equatable { case none; case close; case solved; static func classify(overlapFraction: Double) -> MatchState }",
+      "owning_lane": "data_domain",
+      "notes": "Thresholds: close >= 0.970, solved >= 0.985, fixed deadband to avoid jitter flicker"
+    },
+    {
+      "name": "SolveResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SolveResult: Codable, Equatable { var overlapFraction: Double; var state: MatchState }",
+      "owning_lane": "data_domain",
+      "notes": "Output of SolveEngine.solve(_:), never independently stored/driftable"
+    },
+    {
+      "name": "SolveEngine",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "enum SolveEngine { static func castShadowPolygon(light: LightSource, occluder: Occluder) -> Polygon; static func unionShadow(_ polygons: [Polygon]) -> Polygon; static func overlapFraction(shadow: Polygon, target: Polygon) -> Double; static func solve(_ level: Level) -> SolveResult }",
+      "owning_lane": "data_domain",
+      "notes": "LOCKED: pure, synchronous, no async/Task. Overlap for a possibly-non-convex shadow union computed via fixed-resolution deterministic scanline quadrature (2048 horizontal strips, exact analytic per-strip trapezoid math over crossing edges) \u2014 not general polygon boolean ops, not sampling/Monte Carlo, not a third-party geometry library"
+    },
+    {
+      "name": "LevelValidator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum LevelValidator { static func validate(_ level: Level) -> Result<Void, LevelValidationError> }",
+      "owning_lane": "data_domain",
+      "notes": "Save-time gate; reuses SolveEngine plus checks for zero-area shadow, light-inside-occluder, unreachable target. Same function used by editor save and importer geometrically-invalid check"
+    },
+    {
+      "name": "LevelValidationError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LevelValidationError: Error, Equatable { case unreachableTarget; case degenerateGeometry(reason: String); case lightInsideOccluder }",
+      "owning_lane": "data_domain",
+      "notes": "Drives the inline 'why save is disabled' Edit state"
+    },
+    {
+      "name": "LevelArtifactEnvelope",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct LevelArtifactEnvelope: Codable, Equatable { var schemaVersion: Int; var payload: Level }",
+      "owning_lane": "data_domain",
+      "notes": "Encoded to base64url JSON string for ShareLink/paste"
+    },
+    {
+      "name": "ImportFailure",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ImportFailure: Error, Equatable { case truncatedOrMalformed; case unsupportedSchemaVersion(found: Int, supportedRange: ClosedRange<Int>); case geometricallyInvalid(reason: String) }",
+      "owning_lane": "data_domain",
+      "notes": "Maps 1:1 to the three locked, visually-distinct import error states"
+    },
+    {
+      "name": "ShareArtifactCoder",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ShareArtifactCoder { static func encode(_ level: Level) -> String; static func decode(_ artifactString: String) -> Result<Level, ImportFailure> }",
+      "owning_lane": "services_utilities",
+      "notes": "Single parser for Import screen and any future deep-link path. Decodes a locally-pasted/shared string only \u2014 no networking, no URLSession, no remote fetch anywhere in this app"
+    },
+    {
+      "name": "VaultEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct VaultEntry: Codable, Equatable, Identifiable { let id: UUID; var title: String; var solved: Bool; var starred: Bool; var bestOverlap: Double?; var updatedAt: Date; var targetPreview: Polygon }",
+      "owning_lane": "data_domain",
+      "notes": "solved flag is recomputed/invalidated on load and on edit-geometry-change, never independently mutated. targetPreview is vector geometry, not a rendered image"
+    },
+    {
+      "name": "VaultManifest",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct VaultManifest: Codable, Equatable { var schemaVersion: Int; var entries: [VaultEntry] }",
+      "owning_lane": "data_domain",
+      "notes": "One manifest file; individual Level files loaded lazily on open"
+    },
+    {
+      "name": "LevelStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol LevelStore { func loadManifest() throws -> VaultManifest; func loadLevel(id: UUID) throws -> Level; func saveLevel(_ level: Level) throws; func saveDraft(_ level: Level) throws; func loadDraft(for id: UUID) throws -> Level?; func clearDraft(for id: UUID) throws; func deleteLevel(id: UUID) throws; func importAsNewEntry(_ level: Level) throws -> VaultEntry }",
+      "owning_lane": "data_domain",
+      "notes": "Cloud-ready seam; FileLevelStore is the only v1 conformance. importAsNewEntry always inserts, never overwrites on id collision. Synchronous, throwing \u2014 no async networking layer"
+    },
+    {
+      "name": "FileLevelStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class FileLevelStore: LevelStore { init(baseDirectory: URL) }",
+      "owning_lane": "services_utilities",
+      "notes": "Atomic writes: temp file + FileManager.replaceItemAt(_:withItemAt:); Application Support directory. Purely local filesystem I/O"
+    },
+    {
+      "name": "EntitlementStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementStore { var isProEditorUnlocked: Bool { get }; func refreshEntitlements() async }",
+      "owning_lane": "data_domain",
+      "notes": "Seam for future StoreKit 2 tiers only \u2014 the sole place async is expected in this app's data layer, since real StoreKit calls are genuinely async later"
+    },
+    {
+      "name": "LocalAlwaysUnlockedEntitlementStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class LocalAlwaysUnlockedEntitlementStore: EntitlementStore { var isProEditorUnlocked: Bool { true }; func refreshEntitlements() async {} }",
+      "owning_lane": "services_utilities",
+      "notes": "Only conformance for this MVP slice; purchase flow deferred"
+    },
+    {
+      "name": "LoadState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum LoadState<Value, Failure: Error> { case idle; case loading; case loaded(Value); case failed(Failure) }",
+      "owning_lane": "primary_ui",
+      "notes": "Shared generic state machine reused by Vault, Import, and level-resume so empty/loading/success/error is structurally uniform"
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AppRoute: Hashable { case level(id: UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "NavigationStack path type; Vault is always implicit root"
+    },
+    {
+      "name": "AppModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AppModel { var path: [AppRoute]; let vaultStore: VaultStore; let entitlementStore: EntitlementStore }",
+      "owning_lane": "primary_ui",
+      "notes": "Single root observable owning navigation + top-level stores"
+    },
+    {
+      "name": "VaultStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class VaultStore { var loadState: LoadState<VaultManifest, VaultError>; init(store: LevelStore); func refresh(); func importArtifact(_ level: Level) throws -> VaultEntry }",
+      "owning_lane": "primary_ui",
+      "notes": "Wraps LevelStore for the app layer"
+    },
+    {
+      "name": "VaultError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum VaultError: Error, Equatable { case corruptManifest; case ioFailure(String) }",
+      "owning_lane": "data_domain",
+      "notes": "Drives Vault's corrupted-save error state"
+    },
+    {
+      "name": "CanvasMode",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CanvasMode: Equatable { case play; case edit }",
+      "owning_lane": "primary_ui",
+      "notes": "PuzzleCanvasView is mode-parameterized, never a separate screen for edit"
+    },
+    {
+      "name": "LevelSessionModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class LevelSessionModel { private(set) var level: Level; var mode: CanvasMode; var selection: UUID?; private(set) var liveSolveResult: SolveResult; init(level: Level, store: LevelStore); func apply(_ mutation: LevelMutation); func commitSave() throws }",
+      "owning_lane": "primary_ui",
+      "notes": "LOCKED: apply(_:) is synchronous \u2014 computes a new Level value from the current one via pure functions, then assigns; never mutates array elements in place. Sole mutation entry point for gesture, discrete-control, and replay-test callers alike"
+    },
+    {
+      "name": "ImportScreenState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ImportScreenState: Equatable { case empty; case decoding; case preview(Level); case failure(ImportFailure) }",
+      "owning_lane": "primary_ui",
+      "notes": "Drives ImportScreen's four states; preview requires explicit user confirm before importAsNewEntry"
+    },
+    {
+      "name": "SelectionControlClusterLayout",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SelectionControlClusterLayout: Equatable { case floating(anchorEdge: Edge); case docked }",
+      "owning_lane": "primary_ui",
+      "notes": "Floating anchor-flip at standard Dynamic Type / canvas size, docked at AX1+ or below the compact-canvas threshold"
+    },
+    {
+      "name": "CastShadowRenderer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum CastShadowRenderer { static func path(for polygon: Polygon) -> Path }",
+      "owning_lane": "primary_ui",
+      "notes": "Pure geometry-to-SwiftUI-Path bridge; no gesture or solve logic, keeps UmbraCore Foundation-only"
+    },
+    {
+      "name": "SolveConfirmationHapticTrigger",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SolveConfirmationHaptics { static func fireSolved(); static func fireCloseMatchTick() }",
+      "owning_lane": "polish_resilience",
+      "notes": "Wraps UINotificationFeedbackGenerator/UIImpactFeedbackGenerator"
+    },
+    {
+      "name": "CorruptedSaveErrorPresentation",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CorruptedSaveErrorPresentation: Equatable { var title: String; var message: String; var recoveryActionTitle: String }",
+      "owning_lane": "polish_resilience",
+      "notes": "Backing content for CorruptedSaveErrorView and the Level-resume-fails-validation fallback"
+    },
+    {
+      "name": "OnboardingCoachMarkStep",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum OnboardingCoachMarkStep: Int, CaseIterable { case moveOccluder; case rotateOccluder; case resetLevel }",
+      "owning_lane": "polish_resilience",
+      "notes": "Persisted 'seen' flag in UserDefaults; dismissed by performing the taught gesture, not a Next button"
+    },
+    {
+      "name": "ReduceMotionSolveTransition",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "enum SolveConfirmationTransition { static func animation(reduceMotionEnabled: Bool) -> Animation }",
+      "owning_lane": "polish_resilience",
+      "notes": "Highlight-sweep vs. cross-fade fallback; the cue itself is mandatory, only its motion style adapts"
+    },
+    {
+      "name": "SolveConfirmationHaptics",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SolveConfirmationHaptics { static func fireSolved(); static func fireCloseMatchTick() }",
+      "owning_lane": "polish_resilience",
+      "notes": "Wraps UINotificationFeedbackGenerator/UIImpactFeedbackGenerator"
+    },
+    {
+      "name": "SolveConfirmationTransition",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SolveConfirmationTransition { static func animation(reduceMotionEnabled: Bool) -> Animation }",
+      "owning_lane": "polish_resilience",
+      "notes": "Highlight-sweep vs. cross-fade fallback; the cue itself is mandatory, only its motion style adapts"
+    },
+    {
+      "name": "Item",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Item { id: Int;  // Placeholder for data later;  }",
+      "owning_lane": "data_domain",
+      "notes": "Minimal struct to represent a puzzle element.  Schema versioning must be explicitly managed."
+    },
+    {
+      "name": "API",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol API { func fetch() async throws returns (Data) }",
+      "owning_lane": "services_utilities",
+      "notes": "Abstracted network access. MUST be cancellable. Implementations will likely be created in the build process to inject dependencies for testability."
+    },
+    {
+      "name": "URLSession.shared",
+      "kind": "global",
+      "language": "Swift",
+      "signature": "var URLSession.shared: URLSession",
+      "owning_lane": "services_utilities",
+      "notes": "A singleton instance of the URLSession. This is critical for consistent testing."
+    },
+    {
+      "name": "Task.sleep",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func Task.sleep(for duration: TimeInterval) -> Void",
+      "owning_lane": "services_utilities",
+      "notes": "A safe function that yields execution to allow other tasks to execute."
+    }
+  ],
+  "errors": []
+}
