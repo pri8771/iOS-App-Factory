@@ -1,0 +1,376 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project & package scaffold \u2014 Xcode project + three empty SPM packages wired as target dependencies, file-system-synchronized groups enabled to avoid project.pbxproj conflicts",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/MarketingCampaignCockpit.xcodeproj",
+        "app_build/Packages/CockpitDomain/Package.swift",
+        "app_build/Packages/CockpitData/Package.swift",
+        "app_build/Packages/CockpitServices/Package.swift",
+        "app_build/MarketingCampaignCockpit/App/MarketingCampaignCockpitApp.swift",
+        "app_build/MarketingCampaignCockpit/Info.plist"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "swift build succeeds for all three empty packages",
+        "Xcode project builds and launches a blank app on simulator",
+        "app target links against all three packages",
+        "adding a new .swift file to any package Sources folder requires no Package.swift or project.pbxproj edit"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "CockpitDomain: review state machine, worst-status derivation, rework-note validation, core enums",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReviewStatus.swift",
+        "app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReviewAction.swift",
+        "app_build/Packages/CockpitDomain/Sources/CockpitDomain/TransitionError.swift",
+        "app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReviewEventKind.swift",
+        "app_build/Packages/CockpitDomain/Sources/CockpitDomain/EventActor.swift",
+        "app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReviewStateMachine.swift",
+        "app_build/Packages/CockpitDomain/Sources/CockpitDomain/WorstStatusDerivation.swift",
+        "app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReworkNoteValidator.swift",
+        "app_build/Packages/CockpitDomain/Tests/CockpitDomainTests/ReviewStateMachineTests.swift",
+        "app_build/Packages/CockpitDomain/Tests/CockpitDomainTests/WorstStatusDerivationTests.swift",
+        "app_build/Packages/CockpitDomain/Tests/CockpitDomainTests/ReworkNoteValidatorTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "exhaustive transition-table coverage: all 4 states x 3 actions tested, illegal transitions rejected",
+        "whitespace-only rework note rejected after trim",
+        "zero SwiftData/SwiftUI/UIKit imports anywhere in this package",
+        "swift test completes in under 1 second"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "CockpitData: SwiftData @Model types (Campaign, Asset, AssetVersion, ReviewEvent) plus CockpitSchemaV1 and migration plan",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/Packages/CockpitData/Sources/CockpitData/Models/Campaign.swift",
+        "app_build/Packages/CockpitData/Sources/CockpitData/Models/Asset.swift",
+        "app_build/Packages/CockpitData/Sources/CockpitData/Models/AssetVersion.swift",
+        "app_build/Packages/CockpitData/Sources/CockpitData/Models/ReviewEvent.swift",
+        "[REDACTED:high_entropy].swift",
+        "app_build/Packages/CockpitData/Tests/CockpitDataTests/ModelIntegrityTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "all four @Model types compile and round-trip through an in-memory ModelConfiguration(isStoredInMemoryOnly: true) container",
+        "CockpitSchemaV1 + empty SchemaMigrationPlan.stages compiles and opens a store",
+        "AssetVersion has no embedded byte-content field, only relativeFilePath/fileType/fileSizeBytes",
+        "Asset.currentVersionID is the only field a version-add mutates on the parent Asset row"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "CockpitData: repository actors (Campaign/Asset/ReviewEvent) \u2014 snapshot-only reads, no @Model leaking across the actor boundary",
+      "owner_lane": "data_domain",
+      "files": [
+        "app_build/Packages/CockpitData/Sources/CockpitData/Repositories/CampaignRepository.swift",
+        "app_build/Packages/CockpitData/Sources/CockpitData/Repositories/AssetRepository.swift",
+        "app_build/Packages/CockpitData/Sources/CockpitData/Repositories/ReviewEventRepository.swift",
+        "app_build/Packages/CockpitData/Sources/CockpitData/ReviewEventSnapshot.swift",
+        "app_build/Packages/CockpitData/Tests/CockpitDataTests/RepositoryTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "package compiles clean under Swift 6 strict concurrency with no @unchecked Sendable anywhere",
+        "CampaignRepository and AssetRepository expose no fetch* method returning [Campaign]/[Asset] \u2014 @Query/@Bindable is the only read path in views",
+        "applyTransition auto-reverts campaign to Draft and appends a system ReviewEvent when the only in-review asset is soft-deleted",
+        "ReviewEventRepository.append never mutates an existing row, only inserts"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "CockpitServices: file-backed asset store, atomic import writes, ImportError surface",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/AssetFileStore.swift",
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/StoredFileReference.swift",
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/ImportError.swift",
+        "app_build/Packages/CockpitServices/Tests/CockpitServicesTests/AssetFileStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "writes go to a temp file then rename into Application Support/marketing_assets, never a direct in-place write",
+        "validatePresentable does a synchronous existence + non-zero-size check",
+        "integration test against a real temp Application Support directory proves atomicity under a simulated interrupted write",
+        "UniformTypeIdentifiers check rejects a mislabeled file extension (e.g. .mov renamed to .jpg)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "CockpitServices: ImportCoordinator (file-write-before-record-create ordering, security-scoped resource handling) and ThumbnailProviding",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/ImportCoordinator.swift",
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/ThumbnailService.swift",
+        "app_build/Packages/CockpitServices/Tests/CockpitServicesTests/ImportCoordinatorTests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "fault-injectable repository/file wrapper test proves a mid-write failure leaves an orphaned file, never a dangling metadata pointer",
+        ".fileImporter security-scoped resource is opened and closed synchronously around the copy, never held across an await boundary",
+        "thumbnail generation is cached in-memory and never blocks the calling List's scroll in a UI performance test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-007",
+      "title": "CockpitServices: SoftDeleteCoordinator (scheduled deletion + dual reconcile triggers) and StartupRecoveryService",
+      "owner_lane": "services_utilities",
+      "files": [
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/SoftDeleteCoordinator.swift",
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/StartupRecoveryService.swift",
+        "app_build/Packages/CockpitServices/Tests/CockpitServicesTests/SoftDeleteCoordinatorTests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "reconcile(now:) is driven off persisted scheduledDeletionAt, not a live Timer/Task.sleep",
+        "deterministic ClockService-backed test proves items past their window finalize and items inside the window are untouched",
+        "reconcile is exercised both as a cold-launch call and as a scenePhase-active call in tests",
+        "StartupRecoveryService cleans up any import left incomplete by a simulated force-kill"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-008",
+      "title": "Cross-cutting utilities: ClockService, ErrorPresenter, AppLogger, AccessibilityLabelFactory",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/ClockService.swift",
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/ErrorPresenter.swift",
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/AppLogger.swift",
+        "app_build/Packages/CockpitServices/Sources/CockpitServices/AccessibilityLabelFactory.swift",
+        "app_build/Packages/CockpitServices/Tests/CockpitServicesTests/ErrorPresenterTests.swift",
+        "app_build/Packages/CockpitServices/Tests/CockpitServicesTests/AccessibilityLabelFactoryTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "ClockService is injectable (no direct Date() calls in SoftDeleteCoordinator or elsewhere that needs deterministic tests)",
+        "ErrorPresenter maps TransitionError and ImportError to user-facing retryable strings without leaking internal error text",
+        "AppLogger is OSLog-backed only, no analytics/remote logging call sites anywhere",
+        "AccessibilityLabelFactory produces the exact locked label strings ('Status: Needs Rework', 'Version 2 of 2, current') verified by unit test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-009",
+      "title": "App shell: AppEnvironment construction, Route/HistoryScope, NavigationStack wiring (M4 checkpoint)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/MarketingCampaignCockpit/App/AppEnvironment.swift",
+        "app_build/MarketingCampaignCockpit/App/Route.swift",
+        "app_build/MarketingCampaignCockpit/App/HistoryScope.swift",
+        "app_build/MarketingCampaignCockpit/App/RootView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-006",
+        "T-007",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "AppEnvironment is constructed exactly once at launch and injected via .environment(_:)",
+        "no file outside this task's ownership touches ModelContext directly (grep-verifiable across Features/)",
+        "app launches to an empty Campaign List through the real (non-mock) repository stack"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Shared UI components: StatusChip, VersionBadge, EmptyStateView, ErrorStateView, SkeletonRow/SkeletonList, UndoToast, ProgressImportRow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/MarketingCampaignCockpit/Features/SharedComponents/StatusChip.swift",
+        "app_build/MarketingCampaignCockpit/Features/SharedComponents/VersionBadge.swift",
+        "app_build/MarketingCampaignCockpit/Features/SharedComponents/EmptyStateView.swift",
+        "app_build/MarketingCampaignCockpit/Features/SharedComponents/ErrorStateView.swift",
+        "app_build/MarketingCampaignCockpit/Features/SharedComponents/SkeletonViews.swift",
+        "app_build/MarketingCampaignCockpit/Features/SharedComponents/UndoToast.swift",
+        "app_build/MarketingCampaignCockpit/Features/SharedComponents/ProgressImportRow.swift"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "StatusChip is the single call site producing color+icon+text+accessibility label \u2014 no screen hardcodes a status color",
+        "every chip/badge label routes through AccessibilityLabelFactory from T-008",
+        "color is never the only signal on any component in this file set"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Campaign List screen + Create Campaign sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/MarketingCampaignCockpit/Features/CampaignList/CampaignListView.swift",
+        "app_build/MarketingCampaignCockpit/Features/CampaignList/CampaignListViewModel.swift",
+        "app_build/MarketingCampaignCockpit/Features/CampaignList/CampaignRow.swift",
+        "app_build/MarketingCampaignCockpit/Features/CampaignList/CreateCampaignSheet.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "booting/empty/loaded/error states are all real and independently reachable by wiping the store",
+        "one-tap CTA from empty state creates a campaign with only the brief field filled in under 15 seconds",
+        "swipe-to-delete triggers SoftDeleteCoordinator and shows UndoToast, undo restores the campaign"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Campaign Detail screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/MarketingCampaignCockpit/Features/CampaignDetail/CampaignDetailView.swift",
+        "app_build/MarketingCampaignCockpit/Features/CampaignDetail/CampaignDetailViewModel.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "loading/no-assets/has-assets/import-in-progress/import-failed states all real, no-assets copy distinct from Campaign List's empty copy",
+        "brief field is inline-editable, committed on blur, no separate save button",
+        "Add Asset via PhotosPicker or .fileImporter routes through ImportCoordinator from T-006 with inline retry on failure"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Asset Detail screen \u2014 nine-state machine, QuickLook preview, version strip, Approve/Rework actions",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/MarketingCampaignCockpit/Features/AssetDetail/AssetDetailView.swift",
+        "app_build/MarketingCampaignCockpit/Features/AssetDetail/AssetDetailViewModel.swift",
+        "app_build/MarketingCampaignCockpit/Features/AssetDetail/QuickLookPreview.swift",
+        "app_build/MarketingCampaignCockpit/Features/AssetDetail/ReadOnlyVersionStrip.swift",
+        "app_build/MarketingCampaignCockpit/Features/AssetDetail/StateBanner.swift",
+        "app_build/MarketingCampaignCockpit/Features/AssetDetail/PrimaryActionButton.swift",
+        "app_build/MarketingCampaignCockpit/Features/AssetDetail/SecondaryActionButton.swift",
+        "app_build/MarketingCampaignCockpit/Features/AssetDetail/ReworkNoteSheet.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "all nine locked states are reachable including removedWhileViewing, which auto-pops to Campaign Detail after a short delay",
+        "Approve is a genuine two-tap confirm, never a single tap; PrimaryActionButton and SecondaryActionButton are separate components, not one button with a style flag",
+        "Needs Rework submit stays disabled until ReworkNoteValidator.isValid is true on trimmed text",
+        "opening an old version shows the 'Viewing read-only' banner via StateBanner and cannot mutate state"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Status History screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "app_build/MarketingCampaignCockpit/Features/StatusHistory/StatusHistoryView.swift",
+        "app_build/MarketingCampaignCockpit/Features/StatusHistory/StatusHistoryViewModel.swift",
+        "app_build/MarketingCampaignCockpit/Features/StatusHistory/HistoryEntryRow.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "loading/empty/listing/error states all real",
+        "system-generated lines are visually distinct from user actions via EventActor, not inferred from event kind at render time",
+        "rework notes render inline, never behind a tap",
+        "a full v1-rework-v2-approve cycle produces a correctly ordered, gap-free, duplicate-free log after relaunch"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "About/Limitations screen (should-have, non-blocking)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/MarketingCampaignCockpit/Features/About/AboutView.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "discloses single-device data loss risk, standard iCloud device backup behavior, and unbounded version-storage growth as named limitations",
+        "self-contained screen, does not modify any file owned by another lane"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "Accessibility and Dynamic Type audit (Asset Detail as densest-screen stress test)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/MarketingCampaignCockpitUITests/AccessibilityAuditTests.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Asset Detail reflows without clipping at largest accessibility Dynamic Type size",
+        "VoiceOver focus order verified: preview -> version badge -> version strip -> primary action -> secondary action",
+        "orange-on-white (Needs Rework) contrast checked in light and dark mode",
+        "this task adds only new test files, it does not edit any Features/ view file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "End-to-end relaunch and integration verification (M6 gate \u2014 the product's core credibility claim)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "app_build/MarketingCampaignCockpitUITests/RelaunchSurvivalTests.swift",
+        "app_build/MarketingCampaignCockpitUITests/AutoRevertOnDeleteTests.swift",
+        "app_build/MarketingCampaignCockpitUITests/UndoSurvivesBackgroundingTests.swift",
+        "app_build/MarketingCampaignCockpitUITests/RemovedWhileViewingTests.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "full v1 -> submit -> rework(note) -> v2 -> submit -> approve -> history cycle survives a real XCUIApplication terminate() + fresh launch() with every version and timestamp intact",
+        "deleting the only in-review asset auto-reverts its campaign to Draft with a logged system line, tested as its own scenario",
+        "an undo countdown survives a scenePhase background/foreground cycle without a force-kill",
+        "viewing an asset that gets removed while on-screen shows the terminal removedWhileViewing state, not a crash or stale UI"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

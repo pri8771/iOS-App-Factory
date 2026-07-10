@@ -1,0 +1,446 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "ReviewState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ReviewState: String, Codable, Sendable { case draft, inReview, needsRework, approved }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical status machine."
+    },
+    {
+      "name": "ReviewEventType",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ReviewEventType: String, Codable, Sendable { case created, importVersion, submitForReview, requestRework, approve, autoRevertToDraft, deleteCampaign, deleteAsset, restoreFromTrash, restoreComplete }",
+      "owning_lane": "data_domain",
+      "notes": "Backbone of status history action typing."
+    },
+    {
+      "name": "TrashState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum TrashState: String, Codable, Sendable { case active, pendingDelete, deleted }",
+      "owning_lane": "data_domain",
+      "notes": "Soft-delete finite state for campaign/asset safety."
+    },
+    {
+      "name": "Campaign",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Campaign { var id: UUID; var briefText: String; var createdAt: Date; var isTrashed: Bool; var scheduledDeletionAt: Date?; @Relationship(deleteRule: .cascade, inverse: \\Asset.campaign) var assets: [Asset] }",
+      "owning_lane": "data_domain",
+      "notes": "Campaign-as-container invariant; SwiftData model in CockpitData package."
+    },
+    {
+      "name": "Asset",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Asset { var id: UUID; var campaign: Campaign?; var currentVersionID: UUID; var status: ReviewStatus; var isTrashed: Bool; var scheduledDeletionAt: Date?; @Relationship(deleteRule: .cascade, inverse: \\AssetVersion.asset) var versions: [AssetVersion]; @Relationship(deleteRule: .cascade, inverse: \\ReviewEvent.asset) var events: [ReviewEvent] }",
+      "owning_lane": "data_domain",
+      "notes": "currentVersionID is the only field a new upload changes."
+    },
+    {
+      "name": "AssetVersion",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class AssetVersion { var id: UUID; var asset: Asset?; var versionNumber: Int; var relativeFilePath: String; var fileType: String; var fileSizeBytes: Int64; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Immutable once written, file-backed only (relativeFilePath). Embedding bytes directly (Gemma3's proposal) is explicitly rejected as a regression against the locked file-backed-asset decision."
+    },
+    {
+      "name": "ReviewEvent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ReviewEvent { var id: UUID; var campaign: Campaign?; var asset: Asset?; var kind: ReviewEventKind; var actor: EventActor; var note: String?; var timestamp: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Append-only, drives Status History; never mutated or deleted."
+    },
+    {
+      "name": "ReviewStateMachine",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ReviewStateMachine { func canTransition(from: ReviewState, to: ReviewState) -> Bool; func transition(assetID: UUID, to: ReviewState, note: String?, timestamp: Date) throws -> ReviewEvent }",
+      "owning_lane": "data_domain",
+      "notes": "Owns all transition guardrails; used by services and tested in unit tests."
+    },
+    {
+      "name": "VersioningPolicy",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol VersioningPolicy { func nextVersionIndex(currentVersionIDs: [UUID]) -> Int; func markAsCurrent(currentID: UUID?, newVersionID: UUID) -> UUID }",
+      "owning_lane": "data_domain",
+      "notes": "Append-only policy helper, no overwrite semantics."
+    },
+    {
+      "name": "StatusDerivation",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol StatusDerivation { func campaignWorstStatus(assets: [Asset], eventLog: [ReviewEvent]) -> ReviewState?; func assetCurrentVersionID(_ asset: Asset) -> UUID? }",
+      "owning_lane": "data_domain",
+      "notes": "Single source for aggregate state and current-version logic."
+    },
+    {
+      "name": "InputValidation",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol InputValidation { func isNonEmptyTrimmed(_ text: String) -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Reject whitespace-only brief and rework notes everywhere."
+    },
+    {
+      "name": "AssetFileStore",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol AssetFileStore { func copyToAppStorage(sourceURL: URL, destinationRelativePath: String) async throws -> URL; func validateFile(url: URL) -> Bool; func deleteIfExists(relativePath: String) throws; func exists(relativePath: String) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "All binary IO in Application Support with atomic write semantics."
+    },
+    {
+      "name": "CampaignRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CampaignRepository: Sendable { func createCampaign(brief: String) async throws -> UUID; func updateBrief(campaignID: UUID, brief: String) async throws; func fetchCampaignList() throws -> [Campaign]; func softDeleteCampaign(id: UUID) async throws; func restoreCampaign(id: UUID) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "Speaks only UUID, never PersistentIdentifier, to keep CockpitDomain SwiftData-free. Implemented as an actor in CockpitData."
+    },
+    {
+      "name": "AssetRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AssetRepository: Sendable { func createAsset(campaignID: UUID, initialFile: StoredFileReference) async throws -> UUID; func addVersion(assetID: UUID, campaignID: UUID, file: StoredFileReference) async throws -> UUID; func applyTransition(assetID: UUID, action: ReviewAction) async throws -> ReviewStatus; func fetchAssets(for campaignID: UUID) throws -> [Asset]; func softDeleteAsset(id: UUID) async throws; func restoreAsset(id: UUID) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "applyTransition runs ReviewStateMachine.transition then persists; also responsible for auto-revert-to-Draft + system ReviewEvent when the only in-review asset is deleted."
+    },
+    {
+      "name": "HistoryRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol HistoryRepository { func append(_ event: ReviewEvent) async throws; func fetchForCampaign(_ campaignID: UUID) throws -> [ReviewEvent]; func fetchForAsset(_ assetID: UUID) throws -> [ReviewEvent]; func purgeEvents(olderThan: Date) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Never mutates existing rows; append-only timeline source."
+    },
+    {
+      "name": "StartupRecoveryService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol StartupRecoveryService { func reconcilePendingOperations(now: Date) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Cold-launch repair for imports interrupted mid-write (distinct from SoftDeleteCoordinator's deletion-finalization sweep)."
+    },
+    {
+      "name": "UndoCoordinator",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol UndoCoordinator { func beginDeletion(id: UUID, isCampaign: Bool, expiry: Date) async throws; func undoDeletion(id: UUID, isCampaign: Bool) async throws; func isPendingDeletion(id: UUID) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs undo-toasts and survives backgrounding."
+    },
+    {
+      "name": "ThumbnailService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol ThumbnailService { func makeThumbnail(for fileURL: URL, size: CGSize) async throws -> UIImage? }",
+      "owning_lane": "services_utilities",
+      "notes": "Uses QLThumbnailGenerator; async cached rendering."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AppRoute: Hashable { case campaignList; case campaignDetail(UUID); case assetDetail(UUID); case statusHistoryCampaign(UUID); case statusHistoryAsset(UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "Navigation stack route contract."
+    },
+    {
+      "name": "CampaignListViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CampaignListViewState { case booting; case empty; case loaded([Campaign]); case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Mandatory UI states for root screen, per design_handoff."
+    },
+    {
+      "name": "CampaignDetailViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CampaignDetailViewState { case loading; case noAssets; case hasAssets([Asset]); case importInProgress(UUID, progress: Double); case importFailed(UUID, String); case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Includes inline import failure/retry path."
+    },
+    {
+      "name": "AssetDetailViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AssetDetailViewState { case loadingVersionMetadata; case draftPreReview; case previewReady; case previewFailed(String); case reviewWait; case reworkNoteRequired; case approveConfirmPending; case undoDeleteCountdown; case removedWhileViewing; case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "The nine locked Asset Detail states from design_handoff, including the terminal removed-while-viewing case."
+    },
+    {
+      "name": "StatusHistoryViewState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum StatusHistoryViewState { case loading; case empty; case listing([ReviewEventSnapshot]); case error(String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Timeline view, no nested transitions, lowest bug surface by design."
+    },
+    {
+      "name": "CampaignListViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CampaignListViewModel { var state: CampaignListViewState { get }; func onAppear() async; func createCampaign(brief: String) async; func deleteCampaign(id: UUID) async; func undoLastDelete() async; func openCampaign(_ id: UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "No direct repository or ModelContext access from views."
+    },
+    {
+      "name": "CampaignDetailViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CampaignDetailViewModel { var state: CampaignDetailViewState { get }; func load(id: UUID) async; func importAsset(from url: URL, mediaTypeID: String) async; func retryImport(for assetID: UUID) async }",
+      "owning_lane": "primary_ui",
+      "notes": "Holds campaign scoping and import lifecycle for screen."
+    },
+    {
+      "name": "AssetDetailViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AssetDetailViewModel { var state: AssetDetailViewState { get }; func load(assetID: UUID) async; func requestReview() async; func requestRework(note: String) async; func approveWithConfirmation() async; func preview(versionID: UUID?) async throws -> URL; func deleteCurrentAsset(undoSeconds: TimeInterval) async }",
+      "owning_lane": "primary_ui",
+      "notes": "Controls decision actions and read-only version selection."
+    },
+    {
+      "name": "StatusHistoryViewModel",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol StatusHistoryViewModel { var state: StatusHistoryViewState { get }; func load(scope: HistoryScope) async; func reload() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Single query per scope; immutable timeline rows."
+    },
+    {
+      "name": "ClockService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ClockService { var now: Date { get } }",
+      "owning_lane": "polish_resilience",
+      "notes": "Injectable time source so SoftDeleteCoordinator.reconcile and undo-window math are deterministically testable."
+    },
+    {
+      "name": "ErrorPresenter",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ErrorPresenter { func userVisibleError(from error: Error) -> String; func report(_ error: Error, context: String) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Maps internal errors to retryable user states without leaking internals; backs every screen's error state copy."
+    },
+    {
+      "name": "AppLogger",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AppLogger { func log(_ level: String, message: String, metadata: [String: String]?) }",
+      "owning_lane": "polish_resilience",
+      "notes": "OSLog-backed diagnostics only; no analytics, no remote logging, consistent with locked privacy plan."
+    },
+    {
+      "name": "isNonEmptyTrimmed",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func isNonEmptyTrimmed(_ text: String) -> Bool",
+      "owning_lane": "polish_resilience",
+      "notes": "Shared validation gate for brief and rework notes."
+    },
+    {
+      "name": "ReviewStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ReviewStatus: String, Codable, Comparable { case draft, inReview, needsRework, approved }",
+      "owning_lane": "data_domain",
+      "notes": "Comparable ordering backs WorstStatusDerivation."
+    },
+    {
+      "name": "ReviewEventKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ReviewEventKind: String, Codable { case created, versionAdded, submittedForReview, approved, needsRework, autoRevertedToDraft, assetTrashed, assetRestored, campaignTrashed, campaignRestored, deletionFinalized }",
+      "owning_lane": "data_domain",
+      "notes": "Backs HistoryEntryRow icon-keyed rendering."
+    },
+    {
+      "name": "EventActor",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum EventActor: String, Codable { case user, system }",
+      "owning_lane": "data_domain",
+      "notes": "Real field backing user-vs-system visual distinction in Status History, not inferred from kind."
+    },
+    {
+      "name": "ReviewAction",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ReviewAction { case submitForReview; case approve; case needsRework(note: String) }",
+      "owning_lane": "data_domain",
+      "notes": "Input to ReviewStateMachine.transition."
+    },
+    {
+      "name": "TransitionError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TransitionError: Error, Equatable { case invalidTransition(from: ReviewStatus, action: ReviewAction); case emptyReworkNote }",
+      "owning_lane": "data_domain",
+      "notes": "ReviewAction equality compares cases only, ignoring associated note text."
+    },
+    {
+      "name": "ReviewStateMachine.transition",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ReviewStateMachine { static func transition(from status: ReviewStatus, action: ReviewAction) -> Result<ReviewStatus, TransitionError> }",
+      "owning_lane": "data_domain",
+      "notes": "Pure function, zero SwiftData/SwiftUI imports, CockpitDomain package. Single source of truth so no view re-derives transition rules."
+    },
+    {
+      "name": "WorstStatusDerivation.worstStatus",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum WorstStatusDerivation { static func worstStatus(for statuses: [ReviewStatus]) -> ReviewStatus? }",
+      "owning_lane": "data_domain",
+      "notes": "Used by Campaign List row chip and Status History campaign rollup; nil for zero-asset campaigns."
+    },
+    {
+      "name": "ReworkNoteValidator.isValid",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ReworkNoteValidator { static func isValid(_ note: String) -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Trims whitespace/newlines before checking non-empty; gates Rework submit-button enabled state and brief-field validation."
+    },
+    {
+      "name": "ReviewEventRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ReviewEventRepository: Sendable { func events(forCampaignID: UUID) async throws -> [ReviewEventSnapshot]; func events(forAssetID: UUID) async throws -> [ReviewEventSnapshot]; func append(_ event: ReviewEventSnapshot) async throws }",
+      "owning_lane": "data_domain",
+      "notes": "Read/append path for Status History; ordered oldest-to-newest, immutable snapshots, never mutates existing rows."
+    },
+    {
+      "name": "ReviewEventSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ReviewEventSnapshot: Identifiable, Sendable { let id: UUID; let kind: ReviewEventKind; let actor: EventActor; let note: String?; let timestamp: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Sendable value type crossing the repository-actor boundary into view code."
+    },
+    {
+      "name": "AssetFileStoring",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AssetFileStoring: Sendable { func importFile(from sourceURL: URL, assetID: UUID, versionNumber: Int) async throws -> StoredFileReference; func absoluteURL(for relativePath: String) -> URL; func validatePresentable(relativePath: String) -> Bool; func deleteFile(at relativePath: String) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Files live in Application Support/marketing_assets, atomic temp-file-then-rename writes. validatePresentable does the synchronous existence+non-zero-size check QuickLook needs before presenting."
+    },
+    {
+      "name": "StoredFileReference",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StoredFileReference: Sendable { let relativePath: String; let fileType: String; let fileSizeBytes: Int64 }",
+      "owning_lane": "services_utilities",
+      "notes": "Returned by AssetFileStoring.importFile, consumed by AssetRepository.addVersion/createAsset."
+    },
+    {
+      "name": "ImportCoordinator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor ImportCoordinator { func importAsNewAsset(sourceURL: URL, campaignID: UUID, fileStore: AssetFileStoring, repository: AssetRepository) async throws -> UUID; func importAsNewVersion(sourceURL: URL, assetID: UUID, campaignID: UUID, fileStore: AssetFileStoring, repository: AssetRepository) async throws -> UUID }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns file-write-succeeds-before-record-create ordering and the security-scoped resource open/close window for .fileImporter URLs. Single enforcement point, not per-call-site."
+    },
+    {
+      "name": "ThumbnailProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ThumbnailProviding: Sendable { func thumbnail(for relativePath: String, size: CGSize) async -> UIImage? }",
+      "owning_lane": "services_utilities",
+      "notes": "Backed by QLThumbnailGenerator with an in-memory NSCache keyed by assetVersionID+size; never blocks List scroll."
+    },
+    {
+      "name": "SoftDeleteCoordinator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor SoftDeleteCoordinator { func markScheduledForDeletion(kind: TrashableKind, id: UUID, windowSeconds: TimeInterval) async throws; func cancelScheduledDeletion(kind: TrashableKind, id: UUID) async throws; func reconcile(now: Date) async throws -> Int }",
+      "owning_lane": "services_utilities",
+      "notes": "reconcile() called on cold launch AND on scenePhase transition to .active, not just launch \u2014 closes the background/foreground undo-window gap flagged this round. Returns count finalized."
+    },
+    {
+      "name": "TrashableKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TrashableKind { case campaign, asset }",
+      "owning_lane": "services_utilities",
+      "notes": "Discriminates which repository SoftDeleteCoordinator dispatches finalize-delete to."
+    },
+    {
+      "name": "CockpitSchema",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum CockpitSchemaV1: VersionedSchema { static var versionIdentifier: Schema.Version { .init(1, 0, 0) }; static var models: [any PersistentModel.Type] { [Campaign.self, Asset.self, AssetVersion.self, ReviewEvent.self] } }; enum CockpitMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [CockpitSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+      "owning_lane": "polish_resilience",
+      "notes": "Real (if trivial) versioned schema + empty migration plan from day one, per locked architecture review \u2014 prevents total data loss on future model changes."
+    },
+    {
+      "name": "ImportError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ImportError: Error { case unsupportedFileType, corruptOrUnreadable, diskWriteFailed, securityScopeUnavailable }",
+      "owning_lane": "services_utilities",
+      "notes": "Surfaces to Campaign Detail's import-failed row state."
+    },
+    {
+      "name": "Route",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Route: Hashable { case campaignDetail(UUID); case assetDetail(UUID); case statusHistory(HistoryScope) }",
+      "owning_lane": "primary_ui",
+      "notes": "Drives the single NavigationStack path array; UUID not PersistentIdentifier to stay Hashable/Sendable-simple."
+    },
+    {
+      "name": "HistoryScope",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum HistoryScope: Hashable { case campaign(UUID); case asset(UUID) }",
+      "owning_lane": "primary_ui",
+      "notes": "Distinguishes campaign-rollup history from single-asset history."
+    },
+    {
+      "name": "AppEnvironment",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable final class AppEnvironment { let campaignRepository: CampaignRepository; let assetRepository: AssetRepository; let eventRepository: ReviewEventRepository; let fileStore: AssetFileStoring; let thumbnailService: ThumbnailProviding; let softDeleteCoordinator: SoftDeleteCoordinator }",
+      "owning_lane": "primary_ui",
+      "notes": "Constructed once at app launch, injected via .environment(_:); no view touches ModelContext directly."
+    },
+    {
+      "name": "StatusChip",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct StatusChip: View { let status: ReviewStatus; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Single source of truth for color+icon+text+accessibility label so no call site can break the color-is-never-sole-signal rule."
+    },
+    {
+      "name": "AccessibilityLabelFactory.label",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum AccessibilityLabelFactory { static func label(for status: ReviewStatus) -> String; static func label(versionNumber: Int, totalVersions: Int, isCurrent: Bool) -> String }",
+      "owning_lane": "polish_resilience",
+      "notes": "Composes explicit full-state strings ('Status: Needs Rework', 'Version 2 of 2, current') rather than relying on auto-derivation, per locked accessibility requirements."
+    },
+    {
+      "name": "CockpitSchemaV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum CockpitSchemaV1: VersionedSchema { static var versionIdentifier: Schema.Version { .init(1, 0, 0) }; static var models: [any PersistentModel.Type] { [Campaign.self, Asset.self, AssetVersion.self, ReviewEvent.self] } }; enum CockpitMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [CockpitSchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+      "owning_lane": "polish_resilience",
+      "notes": "Real, if trivial, versioned schema + empty migration plan from day one, per locked ios_architecture_review \u2014 prevents total data loss on future model changes."
+    }
+  ],
+  "errors": []
+}

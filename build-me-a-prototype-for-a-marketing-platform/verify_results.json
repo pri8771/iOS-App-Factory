@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-10 15:14:26",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "adc5ad5c06ca3e5386d6fa54fe358f1657e19b7284b13fc268c5f83be2563623",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "CockpitData",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "Failed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/build-me-a-prototype-for-a-marketing-platform/app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReviewStatus.swift:10:22: error: value of type 'Int' has no member 'rawValue'\n/Users/pchordia/Documents/iOS-App-Factory/build-me-a-prototype-for-a-marketing-platform/app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReviewStatus.swift:10:46: error: value of type 'Int' has no member 'rawValue'\nFailed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/build-me-a-prototype-for-a-marketing-platform/app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReviewStatus.swift:10:22: error: value of type 'Int' has no member 'rawValue'\n/Users/pchordia/Documents/iOS-App-Factory/build-me-a-prototype-for-a-marketing-platform/app_build/Packages/CockpitDomain/Sources/CockpitDomain/ReviewStatus.swift:10:46: error: value of type 'Int' has no member 'rawValue'\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-10 15:14:49",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "adc5ad5c06ca3e5386d6fa54fe358f1657e19b7284b13fc268c5f83be2563623",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "CockpitData",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]
