@@ -181,3 +181,114 @@ I’m not opposed to a high-fidelity implementation, but we need to prioritize v
 **Qwen2.5Vl (local) — Round 2 (skipped: CLI unavailable)**
 
 _Qwen2.5Vl (local) skipped — in cooldown (crash)._
+
+**Coordinator (Claude) — decision after round 2**
+
+Round 2 mostly confirms what round 1 already pointed at, plus it actually closes the two open questions that were left hanging.
+
+I made the two calls nobody else had answered: iPad is explicitly out of scope for this delivery plan — not because it's a bad idea (product_research flagged it as a real opportunity), but because nothing in the locked architecture blocks adding it later (`PuzzleCanvasView` and `SelectionControlClusterLayout` already handle size-class variation), and building/testing a second first-class canvas before the iPhone version has even proven the core mechanic is exactly the kind of scope inflation this project's own decision rules warn against. It's named and deferred, not silently dropped. Same treatment for StoreKit/purchase flow — `LocalAlwaysUnlockedEntitlementStore` stays the only conformance, no milestone in this plan includes purchase UI or a StoreKit Configuration file. I also made the fuzz-suite requirement concrete rather than a vague sentiment: it needs an occluder-count dial that goes well past what any real level will use, specifically to catch a performance cliff in the scanline quadrature cost during cheap UmbraCore development rather than during the expensive verification milestone.
+
+On Gemma3's round 2 message: most of it is the same pub/sub-for-actor-isolation and "loosen the zero-dependency policy" pitch as before, still with no new concrete failure case attached, so that stays a recorded disagreement rather than something that changes the plan — same as it was rejected on the merits in tech_specs round 2. But there's a genuinely useful piece this time that wasn't just repetition: narrowing the very first proof point inside the UmbraCore milestone to a single touching-only-overlap case with live instrumentation against a known-good baseline, before expanding to the full fixture/fuzz suite. That's a real, actionable sequencing refinement — it gives us an earlier, cheaper checkpoint to catch a broken algorithm before sinking more time into it — and I'm folding it in as a sub-step rather than treating it as a scope change.
+
+Codex and Qwen still haven't shown up across two rounds. Consistent with how every other phase in this project has handled a stall, I'm closing this on the position that's actually been argued through, with Gemma3's actor/dependency objections preserved as a named, already-answered disagreement rather than adopted.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Milestones (in build order):**
+
+1. **Content seed (parallel, starts day one):** Draft geometry for the starter level and the five internal solve-checker fixtures (touching-only overlap, near-collinear rotation, zero-area shadow, light-inside-occluder, duplicate-overlap), using placeholder thresholds since only pass/fail judgment depends on the solver — the content-authoring risk flagged in product_research gets front-loaded instead of queued behind engineering.
+2. **UmbraCore proof (the hard gate — nothing UI-facing starts until this is green):**
+   - 2a. Minimal proof point: a single touching-only-overlap case, tightest resolution, with live instrumentation comparing against a known-good baseline — cheap, fast falsification before investing further.
+   - 2b. Full geometry/solve/validator layer: the five fixtures, a seeded/replayable-PRNG fuzz suite with an occluder-count dial pushed well past realistic level sizes (to catch a scanline-quadrature perf cliff early, not during the Instruments pass), the round-trip encode/decode/diff test, and the 50-run determinism replay — all green via `swift test`, no simulator boot.
+   - Interfaces frozen at the end of this milestone; no downstream lane starts against a moving `SolveResult`.
+3. **Data + persistence lane:** `LevelSessionModel`/`apply(_:)` reducer, `LevelStore`/`FileLevelStore`, `VaultStore`. Depends on milestone 2.
+4. **Play canvas and Vault (parallel with each other):** `PuzzleCanvasView` in play mode — gestures plus the discrete VoiceOver nudge/rotation control cluster — and `VaultGridView` with its loading/error states. Both depend on milestone 3, not on each other.
+5. **Edit mode:** built as a strict superset of Play's controls, after Play is solid — not built in parallel with it.
+6. **Share/Import:** `ShareArtifactCoder`, the three distinct import-failure states. Depends only on milestone 2's schema/validator, so it can run alongside milestones 4/5.
+7. **Onboarding, haptics, Reduce Motion fallback, Dynamic Type/AX floating-vs-docked control cluster testing:** after the interaction model from 4/5 is stable — no point building coach-marks against affordances still in flux.
+8. **Gated verification checkpoints (their own scheduled milestones with dedicated time, not end-of-project polish):**
+   - Real-device Instruments Time Profiler pass for 60fps live-recompute at realistic and pathological occluder counts, with the 30Hz-during-drag throttle actually implemented and tested as the named fallback if the bar isn't met.
+   - Real-device forced-quit/relaunch recovery test, covering both play and mid-edit state.
+   - A real, cold, cross-device share-code test with no more context than "try this."
+9. **Done:** only declared once build verification and the final review agree on what works and what remains limited.
+
+**Dependencies:** 2 blocks 3; 3 blocks 4; 4 (Play) blocks 5; 2 blocks 6 but 6 doesn't block 4/5; 4/5 block 7; all functional milestones feed into the gated checkpoints in 8; 8 blocks 9.
+
+**Explicitly out of scope for this plan (named, not silently dropped):** iPad-specific layout — deferred as a real follow-on milestone once v1 proves the mechanic, no architectural blocker to adding it later. StoreKit/purchase-flow implementation — the entitlement seam exists, but no milestone here implements it.
+
+**Risk mitigations:**
+- Geometry/solve drift — the single biggest named risk since round one of this whole project — mitigated by proving UmbraCore in total isolation before any consumer builds against it, starting with the cheapest possible falsification case (2a) before the full suite (2b).
+- Performance cliff at higher occluder counts — caught during milestone 2's fuzz suite via the occluder-count dial, not discovered for the first time during the milestone-8 Instruments gate.
+- Scope creep via default — iPad and StoreKit both got explicit yes/no answers this round instead of drifting into or out of the plan by omission.
+- Non-responsive seats (Codex and Qwen absent both rounds) — handled the same way this project has handled every prior stall: close on the position actually argued through, record the repeated-without-new-argument objection (pub/sub instead of synchronous state, loosening zero-dependency) as a documented disagreement rather than silently dropping or adopting it.
+
+**Verification plan:** `swift test` on UmbraCore (fixtures, fuzz, round-trip, 50-run replay) as a hard gate before UI work begins; app-logic tests call `LevelSessionModel.apply(_:)` directly; one smoke XCUITest for launch→solve; the three real-device checkpoints in milestone 8 scheduled with dedicated time, each with a pass/fail bar and a named fallback where one exists (the 30Hz throttle); final done-declaration requires build verification and final review to agree, not just one or the other.
+
+**Quality Gate (Claude) — after round 2**
+
+QUALITY: PASS
+
+## Feedback
+
+This closes cleanly. All four required outputs are present and concrete:
+
+- **Milestones**: A genuine dependency-ordered sequence (content seed in parallel → UmbraCore proof gate with an explicit two-step 2a/2b sub-sequence → data/persistence → parallel Play/Vault → Edit as a superset → Share/Import → polish → gated verification → done), not a flat feature list.
+- **Dependencies**: Stated explicitly and consistently with the milestone ordering (2→3→4→5, 2→6 without blocking 4/5, 4/5→7, all→8→9).
+- **Risk mitigations**: Tied to specific, previously-named risks (geometry/solve drift, performance cliff, scope creep by default, non-responsive seats) rather than generic hedging.
+- **Verification plan**: Concrete and scheduled as first-class work, not end-of-project polish — `swift test` as a hard gate, direct reducer-level logic tests, one smoke XCUITest, and three explicitly gated real-device checkpoints (60fps Instruments pass with a named fallback, forced-quit recovery, cold cross-device share test), each with its own pass/fail bar.
+
+The phase also handles its two loose threads correctly: iPad and StoreKit both get explicit, reasoned yes/no scope calls (deferred-and-named, not silently dropped or silently added) instead of drifting through by omission, and Gemma3's repeated pub/sub/actor-isolation and zero-dependency-loosening pushback is fairly credited where it produced something new (the cheap 2a proof-point sequencing refinement) while being correctly declined elsewhere as a rehash of an argument already settled on the merits in tech_specs round 2 — recorded as a disagreement rather than papered over. Nothing contradicts prior locked phases. This is executable by a task-assignment phase as-is.
+
+## Coordinator Decision
+
+See the coordinator's message above.
+
+## Final Output
+
+Round 2 mostly confirms what round 1 already pointed at, plus it actually closes the two open questions that were left hanging.
+
+I made the two calls nobody else had answered: iPad is explicitly out of scope for this delivery plan — not because it's a bad idea (product_research flagged it as a real opportunity), but because nothing in the locked architecture blocks adding it later (`PuzzleCanvasView` and `SelectionControlClusterLayout` already handle size-class variation), and building/testing a second first-class canvas before the iPhone version has even proven the core mechanic is exactly the kind of scope inflation this project's own decision rules warn against. It's named and deferred, not silently dropped. Same treatment for StoreKit/purchase flow — `LocalAlwaysUnlockedEntitlementStore` stays the only conformance, no milestone in this plan includes purchase UI or a StoreKit Configuration file. I also made the fuzz-suite requirement concrete rather than a vague sentiment: it needs an occluder-count dial that goes well past what any real level will use, specifically to catch a performance cliff in the scanline quadrature cost during cheap UmbraCore development rather than during the expensive verification milestone.
+
+On Gemma3's round 2 message: most of it is the same pub/sub-for-actor-isolation and "loosen the zero-dependency policy" pitch as before, still with no new concrete failure case attached, so that stays a recorded disagreement rather than something that changes the plan — same as it was rejected on the merits in tech_specs round 2. But there's a genuinely useful piece this time that wasn't just repetition: narrowing the very first proof point inside the UmbraCore milestone to a single touching-only-overlap case with live instrumentation against a known-good baseline, before expanding to the full fixture/fuzz suite. That's a real, actionable sequencing refinement — it gives us an earlier, cheaper checkpoint to catch a broken algorithm before sinking more time into it — and I'm folding it in as a sub-step rather than treating it as a scope change.
+
+Codex and Qwen still haven't shown up across two rounds. Consistent with how every other phase in this project has handled a stall, I'm closing this on the position that's actually been argued through, with Gemma3's actor/dependency objections preserved as a named, already-answered disagreement rather than adopted.
+
+CONSENSUS: YES
+
+## Final Output
+
+**Milestones (in build order):**
+
+1. **Content seed (parallel, starts day one):** Draft geometry for the starter level and the five internal solve-checker fixtures (touching-only overlap, near-collinear rotation, zero-area shadow, light-inside-occluder, duplicate-overlap), using placeholder thresholds since only pass/fail judgment depends on the solver — the content-authoring risk flagged in product_research gets front-loaded instead of queued behind engineering.
+2. **UmbraCore proof (the hard gate — nothing UI-facing starts until this is green):**
+   - 2a. Minimal proof point: a single touching-only-overlap case, tightest resolution, with live instrumentation comparing against a known-good baseline — cheap, fast falsification before investing further.
+   - 2b. Full geometry/solve/validator layer: the five fixtures, a seeded/replayable-PRNG fuzz suite with an occluder-count dial pushed well past realistic level sizes (to catch a scanline-quadrature perf cliff early, not during the Instruments pass), the round-trip encode/decode/diff test, and the 50-run determinism replay — all green via `swift test`, no simulator boot.
+   - Interfaces frozen at the end of this milestone; no downstream lane starts against a moving `SolveResult`.
+3. **Data + persistence lane:** `LevelSessionModel`/`apply(_:)` reducer, `LevelStore`/`FileLevelStore`, `VaultStore`. Depends on milestone 2.
+4. **Play canvas and Vault (parallel with each other):** `PuzzleCanvasView` in play mode — gestures plus the discrete VoiceOver nudge/rotation control cluster — and `VaultGridView` with its loading/error states. Both depend on milestone 3, not on each other.
+5. **Edit mode:** built as a strict superset of Play's controls, after Play is solid — not built in parallel with it.
+6. **Share/Import:** `ShareArtifactCoder`, the three distinct import-failure states. Depends only on milestone 2's schema/validator, so it can run alongside milestones 4/5.
+7. **Onboarding, haptics, Reduce Motion fallback, Dynamic Type/AX floating-vs-docked control cluster testing:** after the interaction model from 4/5 is stable — no point building coach-marks against affordances still in flux.
+8. **Gated verification checkpoints (their own scheduled milestones with dedicated time, not end-of-project polish):**
+   - Real-device Instruments Time Profiler pass for 60fps live-recompute at realistic and pathological occluder counts, with the 30Hz-during-drag throttle actually implemented and tested as the named fallback if the bar isn't met.
+   - Real-device forced-quit/relaunch recovery test, covering both play and mid-edit state.
+   - A real, cold, cross-device share-code test with no more context than "try this."
+9. **Done:** only declared once build verification and the final review agree on what works and what remains limited.
+
+**Dependencies:** 2 blocks 3; 3 blocks 4; 4 (Play) blocks 5; 2 blocks 6 but 6 doesn't block 4/5; 4/5 block 7; all functional milestones feed into the gated checkpoints in 8; 8 blocks 9.
+
+**Explicitly out of scope for this plan (named, not silently dropped):** iPad-specific layout — deferred as a real follow-on milestone once v1 proves the mechanic, no architectural blocker to adding it later. StoreKit/purchase-flow implementation — the entitlement seam exists, but no milestone here implements it.
+
+**Risk mitigations:**
+- Geometry/solve drift — the single biggest named risk since round one of this whole project — mitigated by proving UmbraCore in total isolation before any consumer builds against it, starting with the cheapest possible falsification case (2a) before the full suite (2b).
+- Performance cliff at higher occluder counts — caught during milestone 2's fuzz suite via the occluder-count dial, not discovered for the first time during the milestone-8 Instruments gate.
+- Scope creep via default — iPad and StoreKit both got explicit yes/no answers this round instead of drifting into or out of the plan by omission.
+- Non-responsive seats (Codex and Qwen absent both rounds) — handled the same way this project has handled every prior stall: close on the position actually argued through, record the repeated-without-new-argument objection (pub/sub instead of synchronous state, loosening zero-dependency) as a documented disagreement rather than silently dropping or adopting it.
+
+**Verification plan:** `swift test` on UmbraCore (fixtures, fuzz, round-trip, 50-run replay) as a hard gate before UI work begins; app-logic tests call `LevelSessionModel.apply(_:)` directly; one smoke XCUITest for launch→solve; the three real-device checkpoints in milestone 8 scheduled with dedicated time, each with a pass/fail bar and a named fallback where one exists (the 30Hz throttle); final done-declaration requires build verification and final review to agree, not just one or the other.
+
+---
+
+CONSENSUS: YES

@@ -1,0 +1,588 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffold: Xcode project + four local Swift Packages + test targets",
+      "owner_lane": "data_domain",
+      "files": [
+        "Trestle.xcodeproj/project.pbxproj",
+        "TrestleApp/App.swift",
+        "TrestleApp/Info.plist",
+        "TrestleApp/Trestle.entitlements",
+        "TrestleUITests/",
+        "Packages/DataDomain/Package.swift",
+        "Packages/Services/Package.swift",
+        "Packages/PrimaryUI/Package.swift",
+        "Packages/PolishResilience/Package.swift",
+        "ci/lint-no-dictionary-set.sh"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Empty app target builds under Swift 6 strict concurrency",
+        "All four local packages added to the app target exactly once",
+        "Each package's Package.swift declares both a library target and a matching test target",
+        "TrestleUITests XCUITest target is scaffolded, empty, and building against the app scheme",
+        "NSLocalNetworkUsageDescription and NSBonjourServices ([\"_trestle-host._tcp\"]) present in Info.plist",
+        "CI lint script exists and fails the build on Dictionary/Set usage outside the named Keychain/Core-Data exceptions"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-002",
+      "title": "Core value types (Card, RoomCode, SeatState, SessionPhase, RoundState, etc.)",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/DataDomain/Sources/DataDomain/Card.swift",
+        "Packages/DataDomain/Sources/DataDomain/SeatIndex.swift",
+        "Packages/DataDomain/Sources/DataDomain/PlayerId.swift",
+        "Packages/DataDomain/Sources/DataDomain/PeerId.swift",
+        "Packages/DataDomain/Sources/DataDomain/RoomCode.swift",
+        "Packages/DataDomain/Sources/DataDomain/ConnectionHealth.swift",
+        "Packages/DataDomain/Sources/DataDomain/SeatState.swift",
+        "Packages/DataDomain/Sources/DataDomain/SessionPhase.swift",
+        "Packages/DataDomain/Sources/DataDomain/SeatedCard.swift",
+        "Packages/DataDomain/Sources/DataDomain/SeatedHand.swift",
+        "Packages/DataDomain/Sources/DataDomain/RoundState.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "All types Codable/Sendable/Equatable per tech_specs interfaces-json",
+        "RoomCode failable init excludes 0/O/1/I/L and normalizes case",
+        "Unit tests cover RoomCode validation edge cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-003",
+      "title": "Command payload contract (16 CommandPayload cases + rejection enums + SignedCommand)",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/DataDomain/Sources/DataDomain/CommandPayload.swift",
+        "Packages/DataDomain/Sources/DataDomain/Payloads/*.swift",
+        "Packages/DataDomain/Sources/DataDomain/SeatClaimRejectionReason.swift",
+        "Packages/DataDomain/Sources/DataDomain/DraftRejectionReason.swift",
+        "Packages/DataDomain/Sources/DataDomain/MoveRejectionReason.swift",
+        "Packages/DataDomain/Sources/DataDomain/SessionContinuationReason.swift",
+        "Packages/DataDomain/Sources/DataDomain/SignedCommand.swift",
+        "Packages/DataDomain/Sources/DataDomain/RecoveryEvent.swift",
+        "Packages/DataDomain/Sources/DataDomain/RoomIdentitySnapshot.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Every one of the 16 CommandPayload cases has a fully field-defined struct matching tech_specs interfaces-json exactly",
+        "Round-trip Codable tests pass for every payload type",
+        "SeatClaimRejectionReason/DraftRejectionReason/MoveRejectionReason/SessionContinuationReason stay four separate enums, never merged"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-004",
+      "title": "GameSession reducer + RoundState mutation boundary guard",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/DataDomain/Sources/DataDomain/GameSession.swift",
+        "Packages/DataDomain/Sources/DataDomain/GameSession+Rebuild.swift",
+        "Packages/DataDomain/Tests/DataDomainTests/RoundStateMutationBoundaryTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "apply(_:) is the sole place phase/seats/currentRound mutate; a boundary test fails if anything else constructs or mutates RoundState",
+        "rebuild(from:) is the single code path used identically for cold launch, live tail-append, and reconnect-from-cursor, proven by a test that exercises all three call sites"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-005",
+      "title": "GameRules pure engine (legality, trick resolution, scoring)",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/DataDomain/Sources/DataDomain/GameRules.swift",
+        "Packages/DataDomain/Tests/DataDomainTests/GameRulesTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Zero I/O, fully deterministic",
+        "Discard-down draft, lead rotation, and moveRejectedIllegal vs moveRejectedStaleTrick are proven via unit tests against fabricated command sequences",
+        "A deliberately reordered/duplicated command array replays to the identical terminal RoundState as the canonical ordering"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-006",
+      "title": "HostPassEntitlement data model (fields-only)",
+      "owner_lane": "data_domain",
+      "files": [
+        "Packages/DataDomain/Sources/DataDomain/HostPassEntitlement.swift",
+        "Packages/DataDomain/Sources/DataDomain/RulesetId.swift",
+        "Packages/DataDomain/Sources/DataDomain/SessionHistoryVisibility.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Compiles with isActive defaulting to false",
+        "No UI or paywall reference anywhere in this task"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-010",
+      "title": "Command signing + Keychain key storage",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/Signing/CommandSigner.swift",
+        "Packages/Services/Sources/Services/Signing/KeychainKeyStore.swift",
+        "Packages/Services/Tests/ServicesTests/SigningTests.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Curve25519 sign/verify round-trip test passes",
+        "Signing key loads-or-creates via Keychain only; grep check confirms no UserDefaults/plist key storage anywhere in the package"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-011",
+      "title": "Command log persistence (append-only signed JSON-lines)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/Persistence/CommandLogFileStore.swift",
+        "Packages/Services/Sources/Services/Persistence/CommandLogStore.swift",
+        "Packages/Services/Tests/ServicesTests/CommandLogStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Flat newline-delimited JSON per session in Application Support, FileHandle+fsync on every append",
+        "Append validates monotonic sequence and signature",
+        "loadAll stops at the first invalid/corrupt line and never crashes, proven with a deliberately truncated fixture file"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-012",
+      "title": "Wire protocol and client request types",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/Networking/NetworkTransport.swift",
+        "Packages/Services/Sources/Services/Networking/WireEnvelope.swift",
+        "Packages/Services/Sources/Services/Networking/ClientRequest.swift",
+        "Packages/Services/Sources/Services/Networking/JoinRequest.swift",
+        "Packages/Services/Sources/Services/Networking/SeatClaimRequest.swift",
+        "Packages/Services/Sources/Services/Networking/DraftRequest.swift",
+        "Packages/Services/Sources/Services/Networking/PlayCardRequest.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "NetworkTransport protocol compiles with no assumed transport",
+        "JoinRequest/SeatClaimRequest shape is documented inline as the frozen App-Clip-adapter seam \u2014 no field changes without flagging it in this task list first"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "Simulated transport (in-memory, injectable reordering)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/Networking/SimulatedTransport.swift",
+        "Packages/Services/Tests/ServicesTests/SimulatedTransportTests.swift"
+      ],
+      "depends_on": [
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "makeConnectedPair(peerCount:) supports up to 12 peers",
+        "Supports injecting reordered, duplicated, and delayed message delivery for reducer tests"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-014",
+      "title": "Live MultipeerConnectivity transport",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/Networking/LiveMultipeerTransport.swift"
+      ],
+      "depends_on": [
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Host is the sole MCNearbyServiceAdvertiser/Browser; joiners never advertise or browse and cannot discover each other",
+        "MCSession encryption is .required",
+        "discoveryInfo carries only appVersion/protocolVersion/serviceNonce",
+        "Bonjour service type in code matches the exact string pinned in Info.plist"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-015",
+      "title": "Heartbeat monitor",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/HostEngine/HeartbeatMonitor.swift",
+        "Packages/Services/Tests/ServicesTests/HeartbeatMonitorTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Fixed constants: 2s interval, atRisk at 3 missed (~6s), disconnected at 5 missed (~10s)",
+        "A simulated timeline test proves statusStream emits the correct transitions at those exact thresholds"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-016",
+      "title": "HostGameEngine (host-only authoritative command author)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/HostEngine/HostGameEngine.swift",
+        "Packages/Services/Tests/ServicesTests/HostGameEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-005",
+        "T-011",
+        "T-012",
+        "T-013",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Concurrent SeatClaimRequests for the same seat resolve deterministically via actor mailbox order; every loser gets seatClaimRejected(.alreadyTaken)",
+        "Discard-down draft and both move-rejection paths proven against SimulatedTransport with reordered/duplicated commands",
+        "Two-round auto-continuation (roundStarted auto-issued after roundEnded, dealerIndex rotates, cumulativeScoresBySeat actually changes) proven end-to-end via SimulatedTransport"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-017",
+      "title": "Session metadata retention store",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/Persistence/SessionMetadataStore.swift",
+        "Packages/Services/Tests/ServicesTests/SessionMetadataStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Core Data-backed retention sweep at 30 days OR 100 rounds, whichever is smaller",
+        "clearAll wipes only the metadata index; a test asserts the raw log files on disk are untouched after clearAll",
+        "Never reads from or writes to CommandLogFileStore's .jsonl files owned by T-011"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-018",
+      "title": "HostPass StoreKit2 scaffolding",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Sources/Services/StoreKit/HostPassStore.swift",
+        "Trestle.storekit",
+        "Packages/Services/Tests/ServicesTests/HostPassStoreTests.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Local .storekit config drives StoreKitTest coverage for purchase/restore/default-locked",
+        "currentEntitlement() resolves async and never blocks app launch",
+        "A test simulates slow entitlement resolution and confirms the free game loop behaves identically either way"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-019",
+      "title": "M1 connectivity probe harness + written finding",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Support/ConnectivityProbeHarness.swift",
+        "docs/test-protocols/m1-connectivity-probe.md"
+      ],
+      "depends_on": [
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Bare API-level host + 11+ joiners, MCSession only, no game logic, sustained 5 minutes, repeatable",
+        "Run as a dedicated calendared session with a stated minimum headcount; if 10-12 can't be sustained, the actual achieved ceiling is recorded as a dated, explicit finding in the doc, never a silent scope-down"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-020",
+      "title": "App shell, routing, LoadState, splash/resume",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Packages/PrimaryUI/Sources/PrimaryUI/LoadState.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/AppRoute.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/RootSplashView.swift",
+        "TrestleApp/App.swift",
+        "TrestleApp/ContentView.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "One NavigationStack per role; host and joiner roots never mix mid-session",
+        "Splash resolves within a sub-second budget in a preview harness to either createRoom/enterCode or a rebuilt GameSession from a cached log",
+        "This is the second of exactly three tasks allowed to touch TrestleApp/App.swift (scaffold, this, and T-034); no other task edits it"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Shared UI components + preview fixtures",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Packages/PrimaryUI/Sources/PrimaryUI/HostChromeOverlay.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/CardView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/SeatGridView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/PreviewFixtures.swift"
+      ],
+      "depends_on": [
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "CardView is the single renderer for hand and trick-in-progress cards across all CardVisualState cases; no second card renderer exists",
+        "isHost gates chrome only through HostChromeOverlay; no inline isHost conditional anywhere else in PrimaryUI",
+        "HostChromeOverlay accepts an optional injected accessory-chrome ViewBuilder slot so host-only chrome authored in PolishResilience can be composed in later without PrimaryUI ever importing PolishResilience",
+        "PreviewFixtures supplies hand-authored fake GameSession/SeatState data so PrimaryUI never needs to import Services"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Host track screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Packages/PrimaryUI/Sources/PrimaryUI/CreateRoomView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/PermissionPrimerView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/HostLobbyView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/HostingUnavailablePermissionsView.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Loading/empty/success/error states present, with permission-denied and lost-host-session shown as two distinct error states",
+        "Start Game stays disabled with an explicit inline reason until a stable 10-12 seated count is reached",
+        "HostLobbyView consumes HostChromeOverlay's injected chrome slot for the host-only status strip rather than importing PolishResilience directly"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Joiner track screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Packages/PrimaryUI/Sources/PrimaryUI/EnterCodeView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/RoomIdentityConfirmView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/SeatPickerView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/WaitingRoomView.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Room-not-found and room-full render as distinct error states driving distinct next actions",
+        "A race-lost seat tap flashes an inline 'just taken' label anchored to that exact seat cell"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Draft and Trick Table screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Packages/PrimaryUI/Sources/PrimaryUI/DraftView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/TrickTableView.swift"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Draft is tap-one-to-discard with a count-only 'N of 12 confirmed' progress line, no card passing",
+        "Trick table uses seat-relative GeometryReader+trig placement with your seat always bottom-center; legal cards full opacity, illegal 0.45 opacity plus fixed desaturation",
+        "Legal/illegal opacity is computed by calling DataDomain's GameRules.legalPlays directly as a client-side preview \u2014 never a separately reimplemented legality check",
+        "Cosmetic pending-tap state clears the instant its command resolves, regardless of outcome, with zero backing state change"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Round Transition and Match End screens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Packages/PrimaryUI/Sources/PrimaryUI/ScoreRecapView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/RoundTransitionView.swift",
+        "Packages/PrimaryUI/Sources/PrimaryUI/MatchEndView.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Match End is one screen with two zones: cumulative score as hero content, the 'one-round-pair session in v1' banner as a smaller strip below",
+        "A defensive fallback renders instead of crashing on an incomplete-score input"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-030",
+      "title": "Recovery overlay and rejection toast",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Packages/PolishResilience/Sources/PolishResilience/RecoveryOverlayView.swift",
+        "Packages/PolishResilience/Sources/PolishResilience/RejectionToastView.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "One shared overlay layer renders both the at-risk banner and the hard disconnected-decision scrim",
+        "Host sees a continue/skip/abort action sheet; joiners see a passive waiting card",
+        "moveRejectedIllegal and moveRejectedStaleTrick render genuinely distinct copy and tone, never collapsed to one message",
+        "This package never imports PrimaryUI's screen types, only DataDomain's event/reason enums"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-031",
+      "title": "Host status strip + battery/thermal reliability",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Packages/PolishResilience/Sources/PolishResilience/HostStatusStripView.swift",
+        "Packages/PolishResilience/Sources/PolishResilience/BatteryTier.swift",
+        "Packages/PolishResilience/Sources/PolishResilience/HostReliabilityController.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "Green/yellow/red battery tiers; red forces an explicit 'continue with risk' confirmation",
+        "Idle-lock is disabled for the session duration and restored on exit, verified in a real 60+ minute device session with a written pass/fail record in docs/test-protocols/"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-032",
+      "title": "Haptics",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Packages/PolishResilience/Sources/PolishResilience/Haptics.swift",
+        "Packages/PolishResilience/Tests/PolishResilienceTests/HapticsTests.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "turnStart/trickWon/invalidPlay each fire via CoreHaptics",
+        "turnStart fires exactly once per turn transition, non-repeating, proven by a call-count test against a scripted transition sequence"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-033",
+      "title": "Accessibility audit pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "TrestleUITests/AccessibilityAuditTests.swift"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-023",
+        "T-024",
+        "T-025",
+        "T-030"
+      ],
+      "acceptance_criteria": [
+        "performAccessibilityAudit() passes on lobby, draft, trick-table, and match-end screens",
+        "Combined VoiceOver phrase (card identity + legality + turn state) present on trick-table and draft elements",
+        "Focus order follows seat/play order for trick history, then moves to the player's own hand, not raster order"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-034",
+      "title": "Live wiring integration + chrome composition (M4 checkpoint)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "TrestleApp/App.swift",
+        "Support/AppWiring.swift",
+        "docs/test-protocols/m4-live-smoke.md"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-014",
+        "T-020",
+        "T-030",
+        "T-031"
+      ],
+      "acceptance_criteria": [
+        "LiveMultipeerTransport, HostGameEngine, and GameSession are wired end-to-end in the real app",
+        "RecoveryOverlayView, RejectionToastView, and HostStatusStripView from PolishResilience are composed into the app shell here \u2014 via HostChromeOverlay's injected slot and a root-level overlay modifier \u2014 the only place PrimaryUI and PolishResilience are wired together",
+        "This is the third and final task allowed to touch TrestleApp/App.swift",
+        "A 3-device live smoke test with one deliberately throttled/backgrounded peer passes and is recorded"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-035",
+      "title": "Two-round match proof (M7)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Packages/Services/Tests/ServicesTests/HostGameEngineTwoRoundTests.swift",
+        "docs/test-protocols/m7-two-round-proof.md"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "roundIndex and dealerIndex are observed to actually change between round 1 and round 2 in a real test run",
+        "A client disconnecting between round 1's score post and round 2's redeal reconnects and replays to the identical state every other peer reaches"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-036",
+      "title": "Physical-device production-readiness gauntlet (M8)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "docs/test-protocols/m8-gauntlet.md"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-023",
+        "T-024",
+        "T-025",
+        "T-030",
+        "T-031",
+        "T-033",
+        "T-034",
+        "T-035"
+      ],
+      "acceptance_criteria": [
+        "Five separately recorded protocols: three consecutive clean 10-12-player games, host-kill-mid-round recovery, disconnect-mid-draft recovery, packet-reordering replay check, two-room isolation under simultaneous churn",
+        "Each protocol has its own dated pass/fail record; a single successful run does not satisfy this"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

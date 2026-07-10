@@ -1,31 +1,1983 @@
 {
-  "current_phase": "portfolio_audit",
-  "current_round": 0,
-  "next_agent": null,
-  "prompt_hash": "fa4f5c3488ca83e725abf8cbaed25afbfd575de1e9999c352e3b44a6fc132c80",
-  "completed_phases": [
-    "prompt_contract",
-    "product_research",
-    "portfolio_selection",
-    "initial_discussion",
-    "per_app_product_brief",
-    "next_steps_small",
-    "detailed_discussion",
-    "app_features",
-    "design_discussion",
-    "design_handoff",
-    "ios_architecture_review",
-    "tech_specs",
-    "project_plan",
-    "task_assignments",
-    "implementation_readiness_gate",
-    "build_coordination",
-    "build_verification",
-    "human_qa_checklist",
-    "app_store_readiness",
-    "final_review",
-    "portfolio_audit"
-  ],
+  "schema_version": 1,
+  "project": {
+    "name": "umbra",
+    "source": "orchestrator",
+    "original_prompt": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-games\nSelected app slug: umbra\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Umbra\n\nBuild mode: **MVP build**.\n\n## App Name\n\nUmbra\n\n## Category\n\npuzzle\n\n## One-Sentence Promise\n\nShadow-casting spatial puzzle with a real designer/share mode\n\n## Claude Design Handoff Prompt\n\n(not supplied yet)\n\n## Parent Portfolio Prompt\n\nBuild 8 completely separate production-ready iOS games at the same time: exactly 2 unique idle games, 2 unique puzzle games, 2 drinking/party games playable by a group passing around ONE phone, and 2 large-group games where up to 10-12 players each connect from their own phone to one shared session (card-game formats welcome; prefer local peer-to-peer / GameKit / MultipeerConnectivity over a cloud backend so they stay local-first).\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nAdditional notes:\nMonetization must sell REAL value (content, modes, mechanics, utility) \u2014 never cosmetics/skins alone.\n\nNow generate at least 16 candidate ideas, discuss them thoroughly, choose the best 8, and build all 8 to production quality.\n",
+    "verification": "VERIFIED (compiled cleanly for the iOS Simulator)"
+  },
+  "jira": {
+    "board_type": "kanban",
+    "suggested_project_key": "UMBRA",
+    "statuses": [
+      "Backlog",
+      "Selected",
+      "In Progress",
+      "In Review",
+      "Done"
+    ],
+    "issue_types": [
+      "Epic",
+      "Task",
+      "Bug",
+      "Story"
+    ],
+    "epics": [
+      {
+        "external_id": "EPIC-PRODUCT",
+        "name": "Product Definition",
+        "phase_keys": [
+          "prompt_contract",
+          "product_research",
+          "portfolio_selection",
+          "initial_discussion",
+          "per_app_product_brief",
+          "next_steps_small",
+          "detailed_discussion",
+          "app_features"
+        ]
+      },
+      {
+        "external_id": "EPIC-DESIGN-ARCH",
+        "name": "Design & Architecture",
+        "phase_keys": [
+          "design_discussion",
+          "design_handoff",
+          "ios_architecture_review",
+          "tech_specs",
+          "project_plan"
+        ]
+      },
+      {
+        "external_id": "EPIC-BUILD",
+        "name": "Implementation",
+        "phase_keys": [
+          "task_assignments",
+          "implementation_readiness_gate",
+          "build_coordination",
+          "build_verification"
+        ]
+      },
+      {
+        "external_id": "EPIC-QA-LAUNCH",
+        "name": "QA & Launch",
+        "phase_keys": [
+          "human_qa_checklist",
+          "app_store_readiness",
+          "final_review",
+          "portfolio_audit"
+        ]
+      }
+    ],
+    "issues": [
+      {
+        "external_id": "T-000",
+        "issue_type": "Task",
+        "summary": "Bootstrap Xcode project + UmbraCore package skeleton",
+        "description": "Generated from orchestrator task `T-000` for `umbra`.\n\nOwner lane: `services_utilities`\nFiles: Umbra.xcodeproj/project.pbxproj, UmbraCore/Package.swift, Umbra/Resources/PrivacyInfo.xcprivacy, Umbra/Umbra.entitlements\n\nAcceptance criteria:\n- Umbra.xcodeproj opens and builds an empty app target linking the empty UmbraCore package\n- swift test runs cleanly against UmbraCore with zero tests\n- Uses Xcode file-system-synchronized groups so later lanes add files without editing project.pbxproj\n- No App Sandbox extras beyond default entitlement; no network/ATS exceptions present",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Umbra.xcodeproj/project.pbxproj",
+            "UmbraCore/Package.swift",
+            "Umbra/Resources/PrivacyInfo.xcprivacy",
+            "Umbra/Umbra.entitlements"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Umbra.xcodeproj opens and builds an empty app target linking the empty UmbraCore package",
+            "swift test runs cleanly against UmbraCore with zero tests",
+            "Uses Xcode file-system-synchronized groups so later lanes add files without editing project.pbxproj",
+            "No App Sandbox extras beyond default entitlement; no network/ATS exceptions present"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-000"
+        }
+      },
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Geometry primitives",
+        "description": "Generated from orchestrator task `T-001` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: [REDACTED:high_entropy].swift, UmbraCore/Sources/UmbraCore/Geometry/Size2D.swift, UmbraCore/Sources/UmbraCore/Geometry/Polygon.swift\n\nAcceptance criteria:\n- Point2D, Size2D, Polygon are Codable/Equatable/Hashable value types, Foundation-only\n- Polygon is an ordered point ring with no raster/image representation anywhere",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "[REDACTED:high_entropy].swift",
+            "UmbraCore/Sources/UmbraCore/Geometry/Size2D.swift",
+            "UmbraCore/Sources/UmbraCore/Geometry/Polygon.swift"
+          ],
+          "depends_on": [
+            "T-000"
+          ],
+          "acceptance_criteria": [
+            "Point2D, Size2D, Polygon are Codable/Equatable/Hashable value types, Foundation-only",
+            "Polygon is an ordered point ring with no raster/image representation anywhere"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "Level model and mutation surface",
+        "description": "Generated from orchestrator task `T-002` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Model/OccluderShape.swift, UmbraCore/Sources/UmbraCore/Model/Occluder.swift, UmbraCore/Sources/UmbraCore/Model/LightSource.swift, UmbraCore/Sources/UmbraCore/Model/TargetSilhouette.swift, UmbraCore/Sources/UmbraCore/Model/Level.swift, UmbraCore/Sources/UmbraCore/Model/LevelMutation.swift\n\nAcceptance criteria:\n- Level is the single canonical schema with a schemaVersion field\n- LevelMutation is a closed enum covering move/rotate/duplicate/delete/reset and is the only state-change surface\n- Level and its members are value types; no in-place mutable array exposed",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Model/OccluderShape.swift",
+            "UmbraCore/Sources/UmbraCore/Model/Occluder.swift",
+            "UmbraCore/Sources/UmbraCore/Model/LightSource.swift",
+            "UmbraCore/Sources/UmbraCore/Model/TargetSilhouette.swift",
+            "UmbraCore/Sources/UmbraCore/Model/Level.swift",
+            "UmbraCore/Sources/UmbraCore/Model/LevelMutation.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Level is the single canonical schema with a schemaVersion field",
+            "LevelMutation is a closed enum covering move/rotate/duplicate/delete/reset and is the only state-change surface",
+            "Level and its members are value types; no in-place mutable array exposed"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "Content seed: starter level + 5 internal fixtures",
+        "description": "Generated from orchestrator task `T-003` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Content/StarterLevel.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/TouchingOnlyOverlapFixture.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/NearCollinearRotationFixture.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/ZeroAreaShadowFixture.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/LightInsideOccluderFixture.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/DuplicateOverlapFixture.swift\n\nAcceptance criteria:\n- Starter level is solvable and free of unintended shortcut solutions\n- Each fixture encodes exactly the named edge case (touching-only, near-collinear rotation, zero-area, light-inside-occluder, duplicate-overlap) as literal Level/Occluder data, not test logic\n- Fixtures are internal-only, never surfaced in shipped app UI",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Content/StarterLevel.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/TouchingOnlyOverlapFixture.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/NearCollinearRotationFixture.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/ZeroAreaShadowFixture.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/LightInsideOccluderFixture.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/DuplicateOverlapFixture.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Starter level is solvable and free of unintended shortcut solutions",
+            "Each fixture encodes exactly the named edge case (touching-only, near-collinear rotation, zero-area, light-inside-occluder, duplicate-overlap) as literal Level/Occluder data, not test logic",
+            "Fixtures are internal-only, never surfaced in shipped app UI"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "SolveEngine: 2a proof point then full scanline quadrature",
+        "description": "Generated from orchestrator task `T-004` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Solve/SolveEngine.swift, UmbraCore/Sources/UmbraCore/Solve/MatchState.swift, UmbraCore/Sources/UmbraCore/Solve/SolveResult.swift\n\nAcceptance criteria:\n- First lands as a minimal touching-only-overlap proof at tightest resolution with instrumentation against a known-good baseline before expanding\n- Final version implements 2048-strip fixed-resolution deterministic scanline quadrature, no general polygon boolean ops, no third-party geometry code\n- solve(_:) is pure and synchronous, no async/Task anywhere in this file\n- MatchState thresholds are close >= 0.970, solved >= 0.985 with a fixed deadband",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Solve/SolveEngine.swift",
+            "UmbraCore/Sources/UmbraCore/Solve/MatchState.swift",
+            "UmbraCore/Sources/UmbraCore/Solve/SolveResult.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "First lands as a minimal touching-only-overlap proof at tightest resolution with instrumentation against a known-good baseline before expanding",
+            "Final version implements 2048-strip fixed-resolution deterministic scanline quadrature, no general polygon boolean ops, no third-party geometry code",
+            "solve(_:) is pure and synchronous, no async/Task anywhere in this file",
+            "MatchState thresholds are close >= 0.970, solved >= 0.985 with a fixed deadband"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "LevelValidator save-time gate",
+        "description": "Generated from orchestrator task `T-005` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Solve/LevelValidator.swift, UmbraCore/Sources/UmbraCore/Solve/LevelValidationError.swift\n\nAcceptance criteria:\n- validate(_:) reuses SolveEngine and rejects zero-area shadow, light-inside-occluder, and unreachable-target levels\n- Same validator function is the one used later by both editor save and import's geometrically-invalid check \u2014 no parallel rule set",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Solve/LevelValidator.swift",
+            "UmbraCore/Sources/UmbraCore/Solve/LevelValidationError.swift"
+          ],
+          "depends_on": [
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "validate(_:) reuses SolveEngine and rejects zero-area shadow, light-inside-occluder, and unreachable-target levels",
+            "Same validator function is the one used later by both editor save and import's geometrically-invalid check \u2014 no parallel rule set"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "Share artifact schema",
+        "description": "Generated from orchestrator task `T-006` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Artifact/LevelArtifactEnvelope.swift, UmbraCore/Sources/UmbraCore/Artifact/ImportFailure.swift\n\nAcceptance criteria:\n- LevelArtifactEnvelope carries schemaVersion alongside the Level payload\n- ImportFailure has exactly the three locked cases: truncatedOrMalformed, unsupportedSchemaVersion, geometricallyInvalid",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Artifact/LevelArtifactEnvelope.swift",
+            "UmbraCore/Sources/UmbraCore/Artifact/ImportFailure.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "LevelArtifactEnvelope carries schemaVersion alongside the Level payload",
+            "ImportFailure has exactly the three locked cases: truncatedOrMalformed, unsupportedSchemaVersion, geometricallyInvalid"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "Persistence schema and store protocol",
+        "description": "Generated from orchestrator task `T-007` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Persistence/LevelStore.swift, UmbraCore/Sources/UmbraCore/Persistence/VaultManifest.swift, UmbraCore/Sources/UmbraCore/Persistence/VaultEntry.swift, UmbraCore/Sources/UmbraCore/Persistence/EntitlementStore.swift, UmbraCore/Sources/UmbraCore/Persistence/VaultError.swift\n\nAcceptance criteria:\n- LevelStore is synchronous and throwing, no async networking layer\n- importAsNewEntry always inserts, never overwrites on id collision\n- VaultEntry.solved is documented as always recomputed/invalidated, never independently settable",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Persistence/LevelStore.swift",
+            "UmbraCore/Sources/UmbraCore/Persistence/VaultManifest.swift",
+            "UmbraCore/Sources/UmbraCore/Persistence/VaultEntry.swift",
+            "UmbraCore/Sources/UmbraCore/Persistence/EntitlementStore.swift",
+            "UmbraCore/Sources/UmbraCore/Persistence/VaultError.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "LevelStore is synchronous and throwing, no async networking layer",
+            "importAsNewEntry always inserts, never overwrites on id collision",
+            "VaultEntry.solved is documented as always recomputed/invalidated, never independently settable"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "UmbraCore test suite: fixtures, fuzz, round-trip, determinism replay",
+        "description": "Generated from orchestrator task `T-008` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Tests/UmbraCoreTests/SolveEngineTests.swift, UmbraCore/Tests/UmbraCoreTests/FuzzTests.swift, UmbraCore/Tests/UmbraCoreTests/RoundTripTests.swift, UmbraCore/Tests/UmbraCoreTests/DeterminismReplayTests.swift, UmbraCore/Tests/UmbraCoreTests/LevelValidatorTests.swift\n\nAcceptance criteria:\n- Fuzz suite uses an explicitly seeded, replayable PRNG with an occluder-count dial pushed well past realistic level sizes\n- Round-trip encode/decode/diff shows zero drift on fixed fixtures plus fuzzed permutations\n- 50-run determinism replay runs a recorded LevelMutation script through a fresh LevelSessionModel-equivalent path 50 times with canonical-snapshot diffing\n- Comparisons use epsilon (~1e-8) for live/replay geometry and exact structural equality for serialized snapshots, never naive Double Equatable\n- All green via swift test with no simulator boot; this is the hard gate \u2014 interfaces are frozen once this passes",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Tests/UmbraCoreTests/SolveEngineTests.swift",
+            "UmbraCore/Tests/UmbraCoreTests/FuzzTests.swift",
+            "UmbraCore/Tests/UmbraCoreTests/RoundTripTests.swift",
+            "UmbraCore/Tests/UmbraCoreTests/DeterminismReplayTests.swift",
+            "UmbraCore/Tests/UmbraCoreTests/LevelValidatorTests.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-004",
+            "T-005",
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "Fuzz suite uses an explicitly seeded, replayable PRNG with an occluder-count dial pushed well past realistic level sizes",
+            "Round-trip encode/decode/diff shows zero drift on fixed fixtures plus fuzzed permutations",
+            "50-run determinism replay runs a recorded LevelMutation script through a fresh LevelSessionModel-equivalent path 50 times with canonical-snapshot diffing",
+            "Comparisons use epsilon (~1e-8) for live/replay geometry and exact structural equality for serialized snapshots, never naive Double Equatable",
+            "All green via swift test with no simulator boot; this is the hard gate \u2014 interfaces are frozen once this passes"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-101",
+        "issue_type": "Task",
+        "summary": "FileLevelStore implementation",
+        "description": "Generated from orchestrator task `T-101` for `umbra`.\n\nOwner lane: `services_utilities`\nFiles: Umbra/Persistence/FileLevelStore.swift\n\nAcceptance criteria:\n- Atomic writes via temp file + FileManager.replaceItemAt\n- Separate draft file so a mid-edit crash cannot corrupt the vault manifest\n- Application Support directory only, no iCloud container",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Umbra/Persistence/FileLevelStore.swift"
+          ],
+          "depends_on": [
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "Atomic writes via temp file + FileManager.replaceItemAt",
+            "Separate draft file so a mid-edit crash cannot corrupt the vault manifest",
+            "Application Support directory only, no iCloud container"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-101"
+        }
+      },
+      {
+        "external_id": "T-102",
+        "issue_type": "Task",
+        "summary": "ShareArtifactCoder implementation",
+        "description": "Generated from orchestrator task `T-102` for `umbra`.\n\nOwner lane: `services_utilities`\nFiles: UmbraCore/Sources/UmbraCore/Artifact/ShareArtifactCoder.swift\n\nAcceptance criteria:\n- encode/decode round-trips LevelArtifactEnvelope to/from a base64url JSON string with zero drift\n- decode maps every failure mode to one of the three ImportFailure cases, never a generic error\n- No networking, no URLSession, anywhere in this file",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Artifact/ShareArtifactCoder.swift"
+          ],
+          "depends_on": [
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "encode/decode round-trips LevelArtifactEnvelope to/from a base64url JSON string with zero drift",
+            "decode maps every failure mode to one of the three ImportFailure cases, never a generic error",
+            "No networking, no URLSession, anywhere in this file"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-102"
+        }
+      },
+      {
+        "external_id": "T-103",
+        "issue_type": "Task",
+        "summary": "Local entitlement store stub",
+        "description": "Generated from orchestrator task `T-103` for `umbra`.\n\nOwner lane: `services_utilities`\nFiles: Umbra/Monetization/LocalAlwaysUnlockedEntitlementStore.swift\n\nAcceptance criteria:\n- isProEditorUnlocked is always true for this build\n- No StoreKit import, no purchase UI wired anywhere",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Umbra/Monetization/LocalAlwaysUnlockedEntitlementStore.swift"
+          ],
+          "depends_on": [
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "isProEditorUnlocked is always true for this build",
+            "No StoreKit import, no purchase UI wired anywhere"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-103"
+        }
+      },
+      {
+        "external_id": "T-201",
+        "issue_type": "Task",
+        "summary": "App composition root",
+        "description": "Generated from orchestrator task `T-201` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/App/UmbraApp.swift, Umbra/App/AppModel.swift, Umbra/App/AppRoute.swift, Umbra/Shared/LoadState.swift\n\nAcceptance criteria:\n- AppModel wires VaultStore and EntitlementStore against the FileLevelStore/LocalAlwaysUnlockedEntitlementStore concrete instances in one place\n- Vault is always the implicit navigation root, no splash screen\n- This file is the sole place lane wiring happens \u2014 other lanes must not add their own composition roots",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/App/UmbraApp.swift",
+            "Umbra/App/AppModel.swift",
+            "Umbra/App/AppRoute.swift",
+            "Umbra/Shared/LoadState.swift"
+          ],
+          "depends_on": [
+            "T-101",
+            "T-103"
+          ],
+          "acceptance_criteria": [
+            "AppModel wires VaultStore and EntitlementStore against the FileLevelStore/LocalAlwaysUnlockedEntitlementStore concrete instances in one place",
+            "Vault is always the implicit navigation root, no splash screen",
+            "This file is the sole place lane wiring happens \u2014 other lanes must not add their own composition roots"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-201"
+        }
+      },
+      {
+        "external_id": "T-202",
+        "issue_type": "Task",
+        "summary": "Vault screen",
+        "description": "Generated from orchestrator task `T-202` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Vault/VaultGridView.swift, Umbra/Vault/LevelCardView.swift, Umbra/Vault/VaultStore.swift\n\nAcceptance criteria:\n- Pre-seeded success, skeleton-loading, and corrupted-save states are all implemented and reachable\n- Card thumbnail renders from vector targetPreview geometry, never a raster asset\n- Calls into CorruptedSaveErrorView (owned by polish_resilience) for the corrupted-save state rather than inlining its own error UI",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Vault/VaultGridView.swift",
+            "Umbra/Vault/LevelCardView.swift",
+            "Umbra/Vault/VaultStore.swift"
+          ],
+          "depends_on": [
+            "T-201",
+            "T-101"
+          ],
+          "acceptance_criteria": [
+            "Pre-seeded success, skeleton-loading, and corrupted-save states are all implemented and reachable",
+            "Card thumbnail renders from vector targetPreview geometry, never a raster asset",
+            "Calls into CorruptedSaveErrorView (owned by polish_resilience) for the corrupted-save state rather than inlining its own error UI"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-202"
+        }
+      },
+      {
+        "external_id": "T-203",
+        "issue_type": "Task",
+        "summary": "LevelSessionModel reducer",
+        "description": "Generated from orchestrator task `T-203` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Canvas/LevelSessionModel.swift, Umbra/Canvas/CanvasMode.swift\n\nAcceptance criteria:\n- apply(_:) is synchronous, computes a new Level value then assigns, never mutates array elements in place\n- level is private(set); apply(_:) is the only mutation entry point usable by gesture, discrete-control, and test callers alike\n- commitSave() runs LevelValidator before persisting and surfaces the specific LevelValidationError",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Canvas/LevelSessionModel.swift",
+            "Umbra/Canvas/CanvasMode.swift"
+          ],
+          "depends_on": [
+            "T-101",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "apply(_:) is synchronous, computes a new Level value then assigns, never mutates array elements in place",
+            "level is private(set); apply(_:) is the only mutation entry point usable by gesture, discrete-control, and test callers alike",
+            "commitSave() runs LevelValidator before persisting and surfaces the specific LevelValidationError"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-203"
+        }
+      },
+      {
+        "external_id": "T-204",
+        "issue_type": "Task",
+        "summary": "PuzzleCanvasView play mode",
+        "description": "Generated from orchestrator task `T-204` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Canvas/PuzzleCanvasView.swift, Umbra/Canvas/LightSourceHandle.swift, Umbra/Canvas/OccluderHandle.swift, Umbra/Canvas/TargetSilhouetteView.swift, Umbra/Canvas/CastShadowRenderer.swift, Umbra/Canvas/SelectionControlCluster.swift, Umbra/Canvas/SelectionControlClusterLayout.swift, Umbra/Canvas/OverlapReadoutBadge.swift\n\nAcceptance criteria:\n- Drag/rotate gestures commit only on gesture end; an interrupted gesture rolls back to the last committed transform, never persists a partial frame\n- Discrete VoiceOver nudge/rotation-stepper control cluster is visible and always-on for every user, not VoiceOver-only, and drives the same LevelMutation cases as drag\n- Control cluster is floating with anchor-flip at standard Dynamic Type and canvas size, docked at AX1+ or below the compact-canvas threshold\n- Every draggable object has a plain-language accessibility label including approximate position/rotation; overlap readout uses the monospaced-digit variant and posts an accessibility notification on crossing close-match/solved thresholds\n- Reports element frames via PreferenceKey so onboarding coach-marks (owned by polish_resilience) can anchor to them",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Canvas/PuzzleCanvasView.swift",
+            "Umbra/Canvas/LightSourceHandle.swift",
+            "Umbra/Canvas/OccluderHandle.swift",
+            "Umbra/Canvas/TargetSilhouetteView.swift",
+            "Umbra/Canvas/CastShadowRenderer.swift",
+            "Umbra/Canvas/SelectionControlCluster.swift",
+            "Umbra/Canvas/SelectionControlClusterLayout.swift",
+            "Umbra/Canvas/OverlapReadoutBadge.swift"
+          ],
+          "depends_on": [
+            "T-203"
+          ],
+          "acceptance_criteria": [
+            "Drag/rotate gestures commit only on gesture end; an interrupted gesture rolls back to the last committed transform, never persists a partial frame",
+            "Discrete VoiceOver nudge/rotation-stepper control cluster is visible and always-on for every user, not VoiceOver-only, and drives the same LevelMutation cases as drag",
+            "Control cluster is floating with anchor-flip at standard Dynamic Type and canvas size, docked at AX1+ or below the compact-canvas threshold",
+            "Every draggable object has a plain-language accessibility label including approximate position/rotation; overlap readout uses the monospaced-digit variant and posts an accessibility notification on crossing close-match/solved thresholds",
+            "Reports element frames via PreferenceKey so onboarding coach-marks (owned by polish_resilience) can anchor to them"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-204"
+        }
+      },
+      {
+        "external_id": "T-205",
+        "issue_type": "Task",
+        "summary": "Solve confirmation and edit mode",
+        "description": "Generated from orchestrator task `T-205` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Canvas/SolveConfirmationSheet.swift, Umbra/Canvas/EditSaveShareSheet.swift\n\nAcceptance criteria:\n- Solve confirmation is an in-place state transition on the existing canvas, never a new screen, and never auto-dismisses\n- Edit mode reuses PuzzleCanvasView with CanvasMode.edit and is a strict superset of Play's controls, never a separate control set\n- EditSaveShareSheet disables save with an inline reason string sourced from LevelValidationError, never a silently greyed-out button\n- Calls SolveConfirmationHaptics.fireSolved() and SolveConfirmationTransition.animation(reduceMotionEnabled:) from polish_resilience rather than inlining haptic/animation logic\n- Share is triggered only via system ShareLink/Share Sheet, no custom share UI",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Canvas/SolveConfirmationSheet.swift",
+            "Umbra/Canvas/EditSaveShareSheet.swift"
+          ],
+          "depends_on": [
+            "T-204"
+          ],
+          "acceptance_criteria": [
+            "Solve confirmation is an in-place state transition on the existing canvas, never a new screen, and never auto-dismisses",
+            "Edit mode reuses PuzzleCanvasView with CanvasMode.edit and is a strict superset of Play's controls, never a separate control set",
+            "EditSaveShareSheet disables save with an inline reason string sourced from LevelValidationError, never a silently greyed-out button",
+            "Calls SolveConfirmationHaptics.fireSolved() and SolveConfirmationTransition.animation(reduceMotionEnabled:) from polish_resilience rather than inlining haptic/animation logic",
+            "Share is triggered only via system ShareLink/Share Sheet, no custom share UI"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-205"
+        }
+      },
+      {
+        "external_id": "T-206",
+        "issue_type": "Task",
+        "summary": "Import screen",
+        "description": "Generated from orchestrator task `T-206` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Import/ImportScreen.swift, Umbra/Import/ImportScreenState.swift\n\nAcceptance criteria:\n- Empty state never auto-reads the clipboard; paste-from-clipboard is an explicit tap\n- Preview-before-commit state requires explicit confirm before importAsNewEntry runs\n- Truncated/malformed, unsupported-schema-version, and geometrically-invalid each render as visually distinct states with a one-line explanation plus technical detail behind a disclosure",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Import/ImportScreen.swift",
+            "Umbra/Import/ImportScreenState.swift"
+          ],
+          "depends_on": [
+            "T-102",
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "Empty state never auto-reads the clipboard; paste-from-clipboard is an explicit tap",
+            "Preview-before-commit state requires explicit confirm before importAsNewEntry runs",
+            "Truncated/malformed, unsupported-schema-version, and geometrically-invalid each render as visually distinct states with a one-line explanation plus technical detail behind a disclosure"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-206"
+        }
+      },
+      {
+        "external_id": "T-301",
+        "issue_type": "Task",
+        "summary": "Solve haptics and reduced-motion transition",
+        "description": "Generated from orchestrator task `T-301` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/Canvas/SolveConfirmationHaptics.swift, Umbra/Canvas/SolveConfirmationTransition.swift\n\nAcceptance criteria:\n- fireSolved/fireCloseMatchTick wrap UINotificationFeedbackGenerator/UIImpactFeedbackGenerator only\n- animation(reduceMotionEnabled:) returns a cross-fade under Reduce Motion and a highlight-sweep otherwise; the cue itself is never dropped",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/Canvas/SolveConfirmationHaptics.swift",
+            "Umbra/Canvas/SolveConfirmationTransition.swift"
+          ],
+          "depends_on": [
+            "T-204"
+          ],
+          "acceptance_criteria": [
+            "fireSolved/fireCloseMatchTick wrap UINotificationFeedbackGenerator/UIImpactFeedbackGenerator only",
+            "animation(reduceMotionEnabled:) returns a cross-fade under Reduce Motion and a highlight-sweep otherwise; the cue itself is never dropped"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-301"
+        }
+      },
+      {
+        "external_id": "T-302",
+        "issue_type": "Task",
+        "summary": "Corrupted-save and damaged-level fallback UI",
+        "description": "Generated from orchestrator task `T-302` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/Vault/CorruptedSaveErrorView.swift, Umbra/Shared/CorruptedSaveErrorPresentation.swift\n\nAcceptance criteria:\n- Honest copy plus a concrete reset-to-starter or reset-to-last-known-good recovery action, never a silent blank state\n- Reusable by both Vault's corrupted-manifest case and Play's resumed-level-fails-validation fallback",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/Vault/CorruptedSaveErrorView.swift",
+            "Umbra/Shared/CorruptedSaveErrorPresentation.swift"
+          ],
+          "depends_on": [
+            "T-202",
+            "T-204"
+          ],
+          "acceptance_criteria": [
+            "Honest copy plus a concrete reset-to-starter or reset-to-last-known-good recovery action, never a silent blank state",
+            "Reusable by both Vault's corrupted-manifest case and Play's resumed-level-fails-validation fallback"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-302"
+        }
+      },
+      {
+        "external_id": "T-303",
+        "issue_type": "Task",
+        "summary": "Onboarding coach marks",
+        "description": "Generated from orchestrator task `T-303` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/Onboarding/CoachMarkOverlay.swift, Umbra/Onboarding/OnboardingCoachMarkStep.swift\n\nAcceptance criteria:\n- Anchored to real live canvas element frames via PreferenceKey, never a screenshot\n- Dismissed by performing the taught gesture, not a Next button; seen-flag persisted in UserDefaults only\n- Two to three steps max, layered on the first real Play session, never a separate tutorial mode with different rules",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/Onboarding/CoachMarkOverlay.swift",
+            "Umbra/Onboarding/OnboardingCoachMarkStep.swift"
+          ],
+          "depends_on": [
+            "T-204"
+          ],
+          "acceptance_criteria": [
+            "Anchored to real live canvas element frames via PreferenceKey, never a screenshot",
+            "Dismissed by performing the taught gesture, not a Next button; seen-flag persisted in UserDefaults only",
+            "Two to three steps max, layered on the first real Play session, never a separate tutorial mode with different rules"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-303"
+        }
+      },
+      {
+        "external_id": "T-304",
+        "issue_type": "Task",
+        "summary": "Accessibility and Dynamic Type verification",
+        "description": "Generated from orchestrator task `T-304` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/UmbraUITests/AccessibilityTests.swift, Umbra/UmbraUITests/DynamicTypeSnapshotTests.swift\n\nAcceptance criteria:\n- Verifies (does not author) the VoiceOver labels and floating-to-docked control cluster transition built into T-204/T-205\n- Tests every Dynamic Type step, not just the extremes, specifically around the floating/docked transition boundary\n- Fails the build if any interactive element lacks a label or the docked layout overlaps puzzle geometry at AX5",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/UmbraUITests/AccessibilityTests.swift",
+            "Umbra/UmbraUITests/DynamicTypeSnapshotTests.swift"
+          ],
+          "depends_on": [
+            "T-204",
+            "T-205"
+          ],
+          "acceptance_criteria": [
+            "Verifies (does not author) the VoiceOver labels and floating-to-docked control cluster transition built into T-204/T-205",
+            "Tests every Dynamic Type step, not just the extremes, specifically around the floating/docked transition boundary",
+            "Fails the build if any interactive element lacks a label or the docked layout overlaps puzzle geometry at AX5"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-304"
+        }
+      },
+      {
+        "external_id": "T-305",
+        "issue_type": "Task",
+        "summary": "Live shadow recompute performance verification",
+        "description": "Generated from orchestrator task `T-305` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/PerformanceTests/ShadowRecomputePerformanceTests.swift\n\nAcceptance criteria:\n- Instruments Time Profiler pass on the oldest iOS-17-supported device confirms 60fps at realistic occluder counts and reports the pathological-count result from T-008's fuzz dial\n- If the bar isn't met, this task files a new named follow-up task for the 30Hz-during-drag throttle rather than silently shipping unverified performance",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/PerformanceTests/ShadowRecomputePerformanceTests.swift"
+          ],
+          "depends_on": [
+            "T-204",
+            "T-008"
+          ],
+          "acceptance_criteria": [
+            "Instruments Time Profiler pass on the oldest iOS-17-supported device confirms 60fps at realistic occluder counts and reports the pathological-count result from T-008's fuzz dial",
+            "If the bar isn't met, this task files a new named follow-up task for the 30Hz-during-drag throttle rather than silently shipping unverified performance"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-305"
+        }
+      },
+      {
+        "external_id": "T-306",
+        "issue_type": "Task",
+        "summary": "Device recovery and cross-device share verification",
+        "description": "Generated from orchestrator task `T-306` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/UmbraUITests/SmokeTests.swift, Umbra/UmbraUITests/ForcedQuitRecoveryTests.swift\n\nAcceptance criteria:\n- Forced-quit mid-play and mid-edit both resume to exact in-progress geometry on relaunch, verified on a real device not a simulator\n- A share code generated on one real device is cold-imported on a second real device with no more context than 'try this' and opens correctly\n- Smoke XCUITest covers launch to open starter level to solve to confirmation sheet",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/UmbraUITests/SmokeTests.swift",
+            "Umbra/UmbraUITests/ForcedQuitRecoveryTests.swift"
+          ],
+          "depends_on": [
+            "T-205",
+            "T-206",
+            "T-101"
+          ],
+          "acceptance_criteria": [
+            "Forced-quit mid-play and mid-edit both resume to exact in-progress geometry on relaunch, verified on a real device not a simulator",
+            "A share code generated on one real device is cold-imported on a second real device with no more context than 'try this' and opens correctly",
+            "Smoke XCUITest covers launch to open starter level to solve to confirmation sheet"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-306"
+        }
+      }
+    ]
+  },
+  "notion": {
+    "project_properties": {
+      "Name": "umbra",
+      "Status": "Done",
+      "Source": "Orchestrator",
+      "Workflow Phases": 21
+    },
+    "pages": [
+      {
+        "title": "Original Prompt",
+        "type": "prompt",
+        "content": "PORTFOLIO_CHILD_PROJECT: true\nParent portfolio: batch-games\nSelected app slug: umbra\n\nBuild this app as a working local-first SwiftUI MVP.\n\n## Selected App Spec\n\n# Umbra\n\nBuild mode: **MVP build**.\n\n## App Name\n\nUmbra\n\n## Category\n\npuzzle\n\n## One-Sentence Promise\n\nShadow-casting spatial puzzle with a real designer/share mode\n\n## Claude Design Handoff Prompt\n\n(not supplied yet)\n\n## Parent Portfolio Prompt\n\nBuild 8 completely separate production-ready iOS games at the same time: exactly 2 unique idle games, 2 unique puzzle games, 2 drinking/party games playable by a group passing around ONE phone, and 2 large-group games where up to 10-12 players each connect from their own phone to one shared session (card-game formats welcome; prefer local peer-to-peer / GameKit / MultipeerConnectivity over a cloud backend so they stay local-first).\n\nThis is a multi-app PORTFOLIO request: multiple apps in one program. Each selected app becomes its own separate project \u2014 one folder per app.\n\n\nRequirements for every app:\n1. Must go from 0 to production-ready, not just a few features.\n2. Must be unique, useful, and commercially viable.\n3. Must be beautifully designed and feel premium.\n4. Must provide real end-user value.\n5. Must have a realistic path to monetization \u2014 a subscription or paid offering with genuine value (never cosmetics-only).\n6. Should have viral potential (broad or niche) without sacrificing usefulness.\n7. Must be better than its competitors in a meaningful way.\n8. Local-first where applicable, architected so cloud support can be added later without rewriting.\n\nUNIQUENESS (hard rule, non-negotiable):\n- No app in this batch may be similar to another app in this batch.\n- No app may be similar to anything already built or being built in this workspace or before, including: Waylay (location-based personal recall utility), TrueScale, Provenance, Scope-Guard, Practice-Loop, Proof, ReturnWise, VerveCoach, CueKeeper, Countertop, FieldQuote, my existing digital temple app, and my existing PO-automation tool.\n- No app may be similar to apps in the OTHER batches of this program (check sibling project folders in the workspace for their concepts).\n- Do not reuse prior concepts, themes, or mechanics from earlier apps \u2014 even if the request sounds similar to something built before, produce a differentiated concept.\n\nBonus points (optional \u2014 only when integral and genuinely valuable, never forced): unique use of LLMs, AR, or ML.\n\nBuild rules:\n- Run the app efforts in parallel; keep discussion/design phases separate per app.\n- Each app gets its own full product direction, design direction, architecture, implementation plan, and build output.\n- Save all phase discussions and final decisions; at the end combine each app's full transcript into a .txt file.\n- If an app is liked, also prepare Jira board + Notion project structures for backfilling later.\n- Use enough rounds per phase for high-quality discussion, ending early on consensus.\n- Recover cleanly from stalls; report only important milestones.\n\nOutput:\n- One folder per app in the output directory \u2014 never one folder containing all apps.\nOutput directory:\n- /Users/pchordia/Documents/iOS-App-Factory\n\nAdditional notes:\nMonetization must sell REAL value (content, modes, mechanics, utility) \u2014 never cosmetics/skins alone.\n\nNow generate at least 16 candidate ideas, discuss them thoroughly, choose the best 8, and build all 8 to production quality.\n"
+      },
+      {
+        "title": "Project Documentation",
+        "type": "doc",
+        "path": "docs/PROJECT_DOCUMENTATION.md"
+      },
+      {
+        "title": "Complete Project Dossier",
+        "type": "doc",
+        "path": "docs/COMPLETE_PROJECT_DOSSIER.md"
+      },
+      {
+        "title": "Full Transcript",
+        "type": "transcript",
+        "path": "docs/FULL_TRANSCRIPT.txt"
+      },
+      {
+        "title": "PRD",
+        "type": "doc",
+        "path": "docs/PRD.md"
+      },
+      {
+        "title": "Technical Architecture",
+        "type": "doc",
+        "path": "docs/TECHNICAL_ARCHITECTURE.md"
+      },
+      {
+        "title": "QA Report",
+        "type": "doc",
+        "path": "docs/QA_REPORT.md"
+      },
+      {
+        "title": "Known Limitations",
+        "type": "doc",
+        "path": "docs/KNOWN_LIMITATIONS.md"
+      }
+    ],
+    "task_database_rows": [
+      {
+        "external_id": "T-000",
+        "issue_type": "Task",
+        "summary": "Bootstrap Xcode project + UmbraCore package skeleton",
+        "description": "Generated from orchestrator task `T-000` for `umbra`.\n\nOwner lane: `services_utilities`\nFiles: Umbra.xcodeproj/project.pbxproj, UmbraCore/Package.swift, Umbra/Resources/PrivacyInfo.xcprivacy, Umbra/Umbra.entitlements\n\nAcceptance criteria:\n- Umbra.xcodeproj opens and builds an empty app target linking the empty UmbraCore package\n- swift test runs cleanly against UmbraCore with zero tests\n- Uses Xcode file-system-synchronized groups so later lanes add files without editing project.pbxproj\n- No App Sandbox extras beyond default entitlement; no network/ATS exceptions present",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Umbra.xcodeproj/project.pbxproj",
+            "UmbraCore/Package.swift",
+            "Umbra/Resources/PrivacyInfo.xcprivacy",
+            "Umbra/Umbra.entitlements"
+          ],
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Umbra.xcodeproj opens and builds an empty app target linking the empty UmbraCore package",
+            "swift test runs cleanly against UmbraCore with zero tests",
+            "Uses Xcode file-system-synchronized groups so later lanes add files without editing project.pbxproj",
+            "No App Sandbox extras beyond default entitlement; no network/ATS exceptions present"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-000"
+        }
+      },
+      {
+        "external_id": "T-001",
+        "issue_type": "Task",
+        "summary": "Geometry primitives",
+        "description": "Generated from orchestrator task `T-001` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: [REDACTED:high_entropy].swift, UmbraCore/Sources/UmbraCore/Geometry/Size2D.swift, UmbraCore/Sources/UmbraCore/Geometry/Polygon.swift\n\nAcceptance criteria:\n- Point2D, Size2D, Polygon are Codable/Equatable/Hashable value types, Foundation-only\n- Polygon is an ordered point ring with no raster/image representation anywhere",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "[REDACTED:high_entropy].swift",
+            "UmbraCore/Sources/UmbraCore/Geometry/Size2D.swift",
+            "UmbraCore/Sources/UmbraCore/Geometry/Polygon.swift"
+          ],
+          "depends_on": [
+            "T-000"
+          ],
+          "acceptance_criteria": [
+            "Point2D, Size2D, Polygon are Codable/Equatable/Hashable value types, Foundation-only",
+            "Polygon is an ordered point ring with no raster/image representation anywhere"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-001"
+        }
+      },
+      {
+        "external_id": "T-002",
+        "issue_type": "Task",
+        "summary": "Level model and mutation surface",
+        "description": "Generated from orchestrator task `T-002` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Model/OccluderShape.swift, UmbraCore/Sources/UmbraCore/Model/Occluder.swift, UmbraCore/Sources/UmbraCore/Model/LightSource.swift, UmbraCore/Sources/UmbraCore/Model/TargetSilhouette.swift, UmbraCore/Sources/UmbraCore/Model/Level.swift, UmbraCore/Sources/UmbraCore/Model/LevelMutation.swift\n\nAcceptance criteria:\n- Level is the single canonical schema with a schemaVersion field\n- LevelMutation is a closed enum covering move/rotate/duplicate/delete/reset and is the only state-change surface\n- Level and its members are value types; no in-place mutable array exposed",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Model/OccluderShape.swift",
+            "UmbraCore/Sources/UmbraCore/Model/Occluder.swift",
+            "UmbraCore/Sources/UmbraCore/Model/LightSource.swift",
+            "UmbraCore/Sources/UmbraCore/Model/TargetSilhouette.swift",
+            "UmbraCore/Sources/UmbraCore/Model/Level.swift",
+            "UmbraCore/Sources/UmbraCore/Model/LevelMutation.swift"
+          ],
+          "depends_on": [
+            "T-001"
+          ],
+          "acceptance_criteria": [
+            "Level is the single canonical schema with a schemaVersion field",
+            "LevelMutation is a closed enum covering move/rotate/duplicate/delete/reset and is the only state-change surface",
+            "Level and its members are value types; no in-place mutable array exposed"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-002"
+        }
+      },
+      {
+        "external_id": "T-003",
+        "issue_type": "Task",
+        "summary": "Content seed: starter level + 5 internal fixtures",
+        "description": "Generated from orchestrator task `T-003` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Content/StarterLevel.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/TouchingOnlyOverlapFixture.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/NearCollinearRotationFixture.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/ZeroAreaShadowFixture.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/LightInsideOccluderFixture.swift, UmbraCore/Tests/UmbraCoreTests/Fixtures/DuplicateOverlapFixture.swift\n\nAcceptance criteria:\n- Starter level is solvable and free of unintended shortcut solutions\n- Each fixture encodes exactly the named edge case (touching-only, near-collinear rotation, zero-area, light-inside-occluder, duplicate-overlap) as literal Level/Occluder data, not test logic\n- Fixtures are internal-only, never surfaced in shipped app UI",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Content/StarterLevel.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/TouchingOnlyOverlapFixture.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/NearCollinearRotationFixture.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/ZeroAreaShadowFixture.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/LightInsideOccluderFixture.swift",
+            "UmbraCore/Tests/UmbraCoreTests/Fixtures/DuplicateOverlapFixture.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "Starter level is solvable and free of unintended shortcut solutions",
+            "Each fixture encodes exactly the named edge case (touching-only, near-collinear rotation, zero-area, light-inside-occluder, duplicate-overlap) as literal Level/Occluder data, not test logic",
+            "Fixtures are internal-only, never surfaced in shipped app UI"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-003"
+        }
+      },
+      {
+        "external_id": "T-004",
+        "issue_type": "Task",
+        "summary": "SolveEngine: 2a proof point then full scanline quadrature",
+        "description": "Generated from orchestrator task `T-004` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Solve/SolveEngine.swift, UmbraCore/Sources/UmbraCore/Solve/MatchState.swift, UmbraCore/Sources/UmbraCore/Solve/SolveResult.swift\n\nAcceptance criteria:\n- First lands as a minimal touching-only-overlap proof at tightest resolution with instrumentation against a known-good baseline before expanding\n- Final version implements 2048-strip fixed-resolution deterministic scanline quadrature, no general polygon boolean ops, no third-party geometry code\n- solve(_:) is pure and synchronous, no async/Task anywhere in this file\n- MatchState thresholds are close >= 0.970, solved >= 0.985 with a fixed deadband",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Solve/SolveEngine.swift",
+            "UmbraCore/Sources/UmbraCore/Solve/MatchState.swift",
+            "UmbraCore/Sources/UmbraCore/Solve/SolveResult.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "First lands as a minimal touching-only-overlap proof at tightest resolution with instrumentation against a known-good baseline before expanding",
+            "Final version implements 2048-strip fixed-resolution deterministic scanline quadrature, no general polygon boolean ops, no third-party geometry code",
+            "solve(_:) is pure and synchronous, no async/Task anywhere in this file",
+            "MatchState thresholds are close >= 0.970, solved >= 0.985 with a fixed deadband"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-004"
+        }
+      },
+      {
+        "external_id": "T-005",
+        "issue_type": "Task",
+        "summary": "LevelValidator save-time gate",
+        "description": "Generated from orchestrator task `T-005` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Solve/LevelValidator.swift, UmbraCore/Sources/UmbraCore/Solve/LevelValidationError.swift\n\nAcceptance criteria:\n- validate(_:) reuses SolveEngine and rejects zero-area shadow, light-inside-occluder, and unreachable-target levels\n- Same validator function is the one used later by both editor save and import's geometrically-invalid check \u2014 no parallel rule set",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Solve/LevelValidator.swift",
+            "UmbraCore/Sources/UmbraCore/Solve/LevelValidationError.swift"
+          ],
+          "depends_on": [
+            "T-004"
+          ],
+          "acceptance_criteria": [
+            "validate(_:) reuses SolveEngine and rejects zero-area shadow, light-inside-occluder, and unreachable-target levels",
+            "Same validator function is the one used later by both editor save and import's geometrically-invalid check \u2014 no parallel rule set"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-005"
+        }
+      },
+      {
+        "external_id": "T-006",
+        "issue_type": "Task",
+        "summary": "Share artifact schema",
+        "description": "Generated from orchestrator task `T-006` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Artifact/LevelArtifactEnvelope.swift, UmbraCore/Sources/UmbraCore/Artifact/ImportFailure.swift\n\nAcceptance criteria:\n- LevelArtifactEnvelope carries schemaVersion alongside the Level payload\n- ImportFailure has exactly the three locked cases: truncatedOrMalformed, unsupportedSchemaVersion, geometricallyInvalid",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Artifact/LevelArtifactEnvelope.swift",
+            "UmbraCore/Sources/UmbraCore/Artifact/ImportFailure.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "LevelArtifactEnvelope carries schemaVersion alongside the Level payload",
+            "ImportFailure has exactly the three locked cases: truncatedOrMalformed, unsupportedSchemaVersion, geometricallyInvalid"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-006"
+        }
+      },
+      {
+        "external_id": "T-007",
+        "issue_type": "Task",
+        "summary": "Persistence schema and store protocol",
+        "description": "Generated from orchestrator task `T-007` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Sources/UmbraCore/Persistence/LevelStore.swift, UmbraCore/Sources/UmbraCore/Persistence/VaultManifest.swift, UmbraCore/Sources/UmbraCore/Persistence/VaultEntry.swift, UmbraCore/Sources/UmbraCore/Persistence/EntitlementStore.swift, UmbraCore/Sources/UmbraCore/Persistence/VaultError.swift\n\nAcceptance criteria:\n- LevelStore is synchronous and throwing, no async networking layer\n- importAsNewEntry always inserts, never overwrites on id collision\n- VaultEntry.solved is documented as always recomputed/invalidated, never independently settable",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Persistence/LevelStore.swift",
+            "UmbraCore/Sources/UmbraCore/Persistence/VaultManifest.swift",
+            "UmbraCore/Sources/UmbraCore/Persistence/VaultEntry.swift",
+            "UmbraCore/Sources/UmbraCore/Persistence/EntitlementStore.swift",
+            "UmbraCore/Sources/UmbraCore/Persistence/VaultError.swift"
+          ],
+          "depends_on": [
+            "T-002"
+          ],
+          "acceptance_criteria": [
+            "LevelStore is synchronous and throwing, no async networking layer",
+            "importAsNewEntry always inserts, never overwrites on id collision",
+            "VaultEntry.solved is documented as always recomputed/invalidated, never independently settable"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-007"
+        }
+      },
+      {
+        "external_id": "T-008",
+        "issue_type": "Task",
+        "summary": "UmbraCore test suite: fixtures, fuzz, round-trip, determinism replay",
+        "description": "Generated from orchestrator task `T-008` for `umbra`.\n\nOwner lane: `data_domain`\nFiles: UmbraCore/Tests/UmbraCoreTests/SolveEngineTests.swift, UmbraCore/Tests/UmbraCoreTests/FuzzTests.swift, UmbraCore/Tests/UmbraCoreTests/RoundTripTests.swift, UmbraCore/Tests/UmbraCoreTests/DeterminismReplayTests.swift, UmbraCore/Tests/UmbraCoreTests/LevelValidatorTests.swift\n\nAcceptance criteria:\n- Fuzz suite uses an explicitly seeded, replayable PRNG with an occluder-count dial pushed well past realistic level sizes\n- Round-trip encode/decode/diff shows zero drift on fixed fixtures plus fuzzed permutations\n- 50-run determinism replay runs a recorded LevelMutation script through a fresh LevelSessionModel-equivalent path 50 times with canonical-snapshot diffing\n- Comparisons use epsilon (~1e-8) for live/replay geometry and exact structural equality for serialized snapshots, never naive Double Equatable\n- All green via swift test with no simulator boot; this is the hard gate \u2014 interfaces are frozen once this passes",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "data_domain"
+        ],
+        "fields": {
+          "owner_lane": "data_domain",
+          "files": [
+            "UmbraCore/Tests/UmbraCoreTests/SolveEngineTests.swift",
+            "UmbraCore/Tests/UmbraCoreTests/FuzzTests.swift",
+            "UmbraCore/Tests/UmbraCoreTests/RoundTripTests.swift",
+            "UmbraCore/Tests/UmbraCoreTests/DeterminismReplayTests.swift",
+            "UmbraCore/Tests/UmbraCoreTests/LevelValidatorTests.swift"
+          ],
+          "depends_on": [
+            "T-003",
+            "T-004",
+            "T-005",
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "Fuzz suite uses an explicitly seeded, replayable PRNG with an occluder-count dial pushed well past realistic level sizes",
+            "Round-trip encode/decode/diff shows zero drift on fixed fixtures plus fuzzed permutations",
+            "50-run determinism replay runs a recorded LevelMutation script through a fresh LevelSessionModel-equivalent path 50 times with canonical-snapshot diffing",
+            "Comparisons use epsilon (~1e-8) for live/replay geometry and exact structural equality for serialized snapshots, never naive Double Equatable",
+            "All green via swift test with no simulator boot; this is the hard gate \u2014 interfaces are frozen once this passes"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-008"
+        }
+      },
+      {
+        "external_id": "T-101",
+        "issue_type": "Task",
+        "summary": "FileLevelStore implementation",
+        "description": "Generated from orchestrator task `T-101` for `umbra`.\n\nOwner lane: `services_utilities`\nFiles: Umbra/Persistence/FileLevelStore.swift\n\nAcceptance criteria:\n- Atomic writes via temp file + FileManager.replaceItemAt\n- Separate draft file so a mid-edit crash cannot corrupt the vault manifest\n- Application Support directory only, no iCloud container",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Umbra/Persistence/FileLevelStore.swift"
+          ],
+          "depends_on": [
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "Atomic writes via temp file + FileManager.replaceItemAt",
+            "Separate draft file so a mid-edit crash cannot corrupt the vault manifest",
+            "Application Support directory only, no iCloud container"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-101"
+        }
+      },
+      {
+        "external_id": "T-102",
+        "issue_type": "Task",
+        "summary": "ShareArtifactCoder implementation",
+        "description": "Generated from orchestrator task `T-102` for `umbra`.\n\nOwner lane: `services_utilities`\nFiles: UmbraCore/Sources/UmbraCore/Artifact/ShareArtifactCoder.swift\n\nAcceptance criteria:\n- encode/decode round-trips LevelArtifactEnvelope to/from a base64url JSON string with zero drift\n- decode maps every failure mode to one of the three ImportFailure cases, never a generic error\n- No networking, no URLSession, anywhere in this file",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "UmbraCore/Sources/UmbraCore/Artifact/ShareArtifactCoder.swift"
+          ],
+          "depends_on": [
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "encode/decode round-trips LevelArtifactEnvelope to/from a base64url JSON string with zero drift",
+            "decode maps every failure mode to one of the three ImportFailure cases, never a generic error",
+            "No networking, no URLSession, anywhere in this file"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-102"
+        }
+      },
+      {
+        "external_id": "T-103",
+        "issue_type": "Task",
+        "summary": "Local entitlement store stub",
+        "description": "Generated from orchestrator task `T-103` for `umbra`.\n\nOwner lane: `services_utilities`\nFiles: Umbra/Monetization/LocalAlwaysUnlockedEntitlementStore.swift\n\nAcceptance criteria:\n- isProEditorUnlocked is always true for this build\n- No StoreKit import, no purchase UI wired anywhere",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "services_utilities"
+        ],
+        "fields": {
+          "owner_lane": "services_utilities",
+          "files": [
+            "Umbra/Monetization/LocalAlwaysUnlockedEntitlementStore.swift"
+          ],
+          "depends_on": [
+            "T-007"
+          ],
+          "acceptance_criteria": [
+            "isProEditorUnlocked is always true for this build",
+            "No StoreKit import, no purchase UI wired anywhere"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-103"
+        }
+      },
+      {
+        "external_id": "T-201",
+        "issue_type": "Task",
+        "summary": "App composition root",
+        "description": "Generated from orchestrator task `T-201` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/App/UmbraApp.swift, Umbra/App/AppModel.swift, Umbra/App/AppRoute.swift, Umbra/Shared/LoadState.swift\n\nAcceptance criteria:\n- AppModel wires VaultStore and EntitlementStore against the FileLevelStore/LocalAlwaysUnlockedEntitlementStore concrete instances in one place\n- Vault is always the implicit navigation root, no splash screen\n- This file is the sole place lane wiring happens \u2014 other lanes must not add their own composition roots",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/App/UmbraApp.swift",
+            "Umbra/App/AppModel.swift",
+            "Umbra/App/AppRoute.swift",
+            "Umbra/Shared/LoadState.swift"
+          ],
+          "depends_on": [
+            "T-101",
+            "T-103"
+          ],
+          "acceptance_criteria": [
+            "AppModel wires VaultStore and EntitlementStore against the FileLevelStore/LocalAlwaysUnlockedEntitlementStore concrete instances in one place",
+            "Vault is always the implicit navigation root, no splash screen",
+            "This file is the sole place lane wiring happens \u2014 other lanes must not add their own composition roots"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-201"
+        }
+      },
+      {
+        "external_id": "T-202",
+        "issue_type": "Task",
+        "summary": "Vault screen",
+        "description": "Generated from orchestrator task `T-202` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Vault/VaultGridView.swift, Umbra/Vault/LevelCardView.swift, Umbra/Vault/VaultStore.swift\n\nAcceptance criteria:\n- Pre-seeded success, skeleton-loading, and corrupted-save states are all implemented and reachable\n- Card thumbnail renders from vector targetPreview geometry, never a raster asset\n- Calls into CorruptedSaveErrorView (owned by polish_resilience) for the corrupted-save state rather than inlining its own error UI",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Vault/VaultGridView.swift",
+            "Umbra/Vault/LevelCardView.swift",
+            "Umbra/Vault/VaultStore.swift"
+          ],
+          "depends_on": [
+            "T-201",
+            "T-101"
+          ],
+          "acceptance_criteria": [
+            "Pre-seeded success, skeleton-loading, and corrupted-save states are all implemented and reachable",
+            "Card thumbnail renders from vector targetPreview geometry, never a raster asset",
+            "Calls into CorruptedSaveErrorView (owned by polish_resilience) for the corrupted-save state rather than inlining its own error UI"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-202"
+        }
+      },
+      {
+        "external_id": "T-203",
+        "issue_type": "Task",
+        "summary": "LevelSessionModel reducer",
+        "description": "Generated from orchestrator task `T-203` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Canvas/LevelSessionModel.swift, Umbra/Canvas/CanvasMode.swift\n\nAcceptance criteria:\n- apply(_:) is synchronous, computes a new Level value then assigns, never mutates array elements in place\n- level is private(set); apply(_:) is the only mutation entry point usable by gesture, discrete-control, and test callers alike\n- commitSave() runs LevelValidator before persisting and surfaces the specific LevelValidationError",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Canvas/LevelSessionModel.swift",
+            "Umbra/Canvas/CanvasMode.swift"
+          ],
+          "depends_on": [
+            "T-101",
+            "T-005"
+          ],
+          "acceptance_criteria": [
+            "apply(_:) is synchronous, computes a new Level value then assigns, never mutates array elements in place",
+            "level is private(set); apply(_:) is the only mutation entry point usable by gesture, discrete-control, and test callers alike",
+            "commitSave() runs LevelValidator before persisting and surfaces the specific LevelValidationError"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-203"
+        }
+      },
+      {
+        "external_id": "T-204",
+        "issue_type": "Task",
+        "summary": "PuzzleCanvasView play mode",
+        "description": "Generated from orchestrator task `T-204` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Canvas/PuzzleCanvasView.swift, Umbra/Canvas/LightSourceHandle.swift, Umbra/Canvas/OccluderHandle.swift, Umbra/Canvas/TargetSilhouetteView.swift, Umbra/Canvas/CastShadowRenderer.swift, Umbra/Canvas/SelectionControlCluster.swift, Umbra/Canvas/SelectionControlClusterLayout.swift, Umbra/Canvas/OverlapReadoutBadge.swift\n\nAcceptance criteria:\n- Drag/rotate gestures commit only on gesture end; an interrupted gesture rolls back to the last committed transform, never persists a partial frame\n- Discrete VoiceOver nudge/rotation-stepper control cluster is visible and always-on for every user, not VoiceOver-only, and drives the same LevelMutation cases as drag\n- Control cluster is floating with anchor-flip at standard Dynamic Type and canvas size, docked at AX1+ or below the compact-canvas threshold\n- Every draggable object has a plain-language accessibility label including approximate position/rotation; overlap readout uses the monospaced-digit variant and posts an accessibility notification on crossing close-match/solved thresholds\n- Reports element frames via PreferenceKey so onboarding coach-marks (owned by polish_resilience) can anchor to them",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Canvas/PuzzleCanvasView.swift",
+            "Umbra/Canvas/LightSourceHandle.swift",
+            "Umbra/Canvas/OccluderHandle.swift",
+            "Umbra/Canvas/TargetSilhouetteView.swift",
+            "Umbra/Canvas/CastShadowRenderer.swift",
+            "Umbra/Canvas/SelectionControlCluster.swift",
+            "Umbra/Canvas/SelectionControlClusterLayout.swift",
+            "Umbra/Canvas/OverlapReadoutBadge.swift"
+          ],
+          "depends_on": [
+            "T-203"
+          ],
+          "acceptance_criteria": [
+            "Drag/rotate gestures commit only on gesture end; an interrupted gesture rolls back to the last committed transform, never persists a partial frame",
+            "Discrete VoiceOver nudge/rotation-stepper control cluster is visible and always-on for every user, not VoiceOver-only, and drives the same LevelMutation cases as drag",
+            "Control cluster is floating with anchor-flip at standard Dynamic Type and canvas size, docked at AX1+ or below the compact-canvas threshold",
+            "Every draggable object has a plain-language accessibility label including approximate position/rotation; overlap readout uses the monospaced-digit variant and posts an accessibility notification on crossing close-match/solved thresholds",
+            "Reports element frames via PreferenceKey so onboarding coach-marks (owned by polish_resilience) can anchor to them"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-204"
+        }
+      },
+      {
+        "external_id": "T-205",
+        "issue_type": "Task",
+        "summary": "Solve confirmation and edit mode",
+        "description": "Generated from orchestrator task `T-205` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Canvas/SolveConfirmationSheet.swift, Umbra/Canvas/EditSaveShareSheet.swift\n\nAcceptance criteria:\n- Solve confirmation is an in-place state transition on the existing canvas, never a new screen, and never auto-dismisses\n- Edit mode reuses PuzzleCanvasView with CanvasMode.edit and is a strict superset of Play's controls, never a separate control set\n- EditSaveShareSheet disables save with an inline reason string sourced from LevelValidationError, never a silently greyed-out button\n- Calls SolveConfirmationHaptics.fireSolved() and SolveConfirmationTransition.animation(reduceMotionEnabled:) from polish_resilience rather than inlining haptic/animation logic\n- Share is triggered only via system ShareLink/Share Sheet, no custom share UI",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Canvas/SolveConfirmationSheet.swift",
+            "Umbra/Canvas/EditSaveShareSheet.swift"
+          ],
+          "depends_on": [
+            "T-204"
+          ],
+          "acceptance_criteria": [
+            "Solve confirmation is an in-place state transition on the existing canvas, never a new screen, and never auto-dismisses",
+            "Edit mode reuses PuzzleCanvasView with CanvasMode.edit and is a strict superset of Play's controls, never a separate control set",
+            "EditSaveShareSheet disables save with an inline reason string sourced from LevelValidationError, never a silently greyed-out button",
+            "Calls SolveConfirmationHaptics.fireSolved() and SolveConfirmationTransition.animation(reduceMotionEnabled:) from polish_resilience rather than inlining haptic/animation logic",
+            "Share is triggered only via system ShareLink/Share Sheet, no custom share UI"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-205"
+        }
+      },
+      {
+        "external_id": "T-206",
+        "issue_type": "Task",
+        "summary": "Import screen",
+        "description": "Generated from orchestrator task `T-206` for `umbra`.\n\nOwner lane: `primary_ui`\nFiles: Umbra/Import/ImportScreen.swift, Umbra/Import/ImportScreenState.swift\n\nAcceptance criteria:\n- Empty state never auto-reads the clipboard; paste-from-clipboard is an explicit tap\n- Preview-before-commit state requires explicit confirm before importAsNewEntry runs\n- Truncated/malformed, unsupported-schema-version, and geometrically-invalid each render as visually distinct states with a one-line explanation plus technical detail behind a disclosure",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "primary_ui"
+        ],
+        "fields": {
+          "owner_lane": "primary_ui",
+          "files": [
+            "Umbra/Import/ImportScreen.swift",
+            "Umbra/Import/ImportScreenState.swift"
+          ],
+          "depends_on": [
+            "T-102",
+            "T-006"
+          ],
+          "acceptance_criteria": [
+            "Empty state never auto-reads the clipboard; paste-from-clipboard is an explicit tap",
+            "Preview-before-commit state requires explicit confirm before importAsNewEntry runs",
+            "Truncated/malformed, unsupported-schema-version, and geometrically-invalid each render as visually distinct states with a one-line explanation plus technical detail behind a disclosure"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-206"
+        }
+      },
+      {
+        "external_id": "T-301",
+        "issue_type": "Task",
+        "summary": "Solve haptics and reduced-motion transition",
+        "description": "Generated from orchestrator task `T-301` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/Canvas/SolveConfirmationHaptics.swift, Umbra/Canvas/SolveConfirmationTransition.swift\n\nAcceptance criteria:\n- fireSolved/fireCloseMatchTick wrap UINotificationFeedbackGenerator/UIImpactFeedbackGenerator only\n- animation(reduceMotionEnabled:) returns a cross-fade under Reduce Motion and a highlight-sweep otherwise; the cue itself is never dropped",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/Canvas/SolveConfirmationHaptics.swift",
+            "Umbra/Canvas/SolveConfirmationTransition.swift"
+          ],
+          "depends_on": [
+            "T-204"
+          ],
+          "acceptance_criteria": [
+            "fireSolved/fireCloseMatchTick wrap UINotificationFeedbackGenerator/UIImpactFeedbackGenerator only",
+            "animation(reduceMotionEnabled:) returns a cross-fade under Reduce Motion and a highlight-sweep otherwise; the cue itself is never dropped"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-301"
+        }
+      },
+      {
+        "external_id": "T-302",
+        "issue_type": "Task",
+        "summary": "Corrupted-save and damaged-level fallback UI",
+        "description": "Generated from orchestrator task `T-302` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/Vault/CorruptedSaveErrorView.swift, Umbra/Shared/CorruptedSaveErrorPresentation.swift\n\nAcceptance criteria:\n- Honest copy plus a concrete reset-to-starter or reset-to-last-known-good recovery action, never a silent blank state\n- Reusable by both Vault's corrupted-manifest case and Play's resumed-level-fails-validation fallback",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/Vault/CorruptedSaveErrorView.swift",
+            "Umbra/Shared/CorruptedSaveErrorPresentation.swift"
+          ],
+          "depends_on": [
+            "T-202",
+            "T-204"
+          ],
+          "acceptance_criteria": [
+            "Honest copy plus a concrete reset-to-starter or reset-to-last-known-good recovery action, never a silent blank state",
+            "Reusable by both Vault's corrupted-manifest case and Play's resumed-level-fails-validation fallback"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-302"
+        }
+      },
+      {
+        "external_id": "T-303",
+        "issue_type": "Task",
+        "summary": "Onboarding coach marks",
+        "description": "Generated from orchestrator task `T-303` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/Onboarding/CoachMarkOverlay.swift, Umbra/Onboarding/OnboardingCoachMarkStep.swift\n\nAcceptance criteria:\n- Anchored to real live canvas element frames via PreferenceKey, never a screenshot\n- Dismissed by performing the taught gesture, not a Next button; seen-flag persisted in UserDefaults only\n- Two to three steps max, layered on the first real Play session, never a separate tutorial mode with different rules",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/Onboarding/CoachMarkOverlay.swift",
+            "Umbra/Onboarding/OnboardingCoachMarkStep.swift"
+          ],
+          "depends_on": [
+            "T-204"
+          ],
+          "acceptance_criteria": [
+            "Anchored to real live canvas element frames via PreferenceKey, never a screenshot",
+            "Dismissed by performing the taught gesture, not a Next button; seen-flag persisted in UserDefaults only",
+            "Two to three steps max, layered on the first real Play session, never a separate tutorial mode with different rules"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-303"
+        }
+      },
+      {
+        "external_id": "T-304",
+        "issue_type": "Task",
+        "summary": "Accessibility and Dynamic Type verification",
+        "description": "Generated from orchestrator task `T-304` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/UmbraUITests/AccessibilityTests.swift, Umbra/UmbraUITests/DynamicTypeSnapshotTests.swift\n\nAcceptance criteria:\n- Verifies (does not author) the VoiceOver labels and floating-to-docked control cluster transition built into T-204/T-205\n- Tests every Dynamic Type step, not just the extremes, specifically around the floating/docked transition boundary\n- Fails the build if any interactive element lacks a label or the docked layout overlaps puzzle geometry at AX5",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/UmbraUITests/AccessibilityTests.swift",
+            "Umbra/UmbraUITests/DynamicTypeSnapshotTests.swift"
+          ],
+          "depends_on": [
+            "T-204",
+            "T-205"
+          ],
+          "acceptance_criteria": [
+            "Verifies (does not author) the VoiceOver labels and floating-to-docked control cluster transition built into T-204/T-205",
+            "Tests every Dynamic Type step, not just the extremes, specifically around the floating/docked transition boundary",
+            "Fails the build if any interactive element lacks a label or the docked layout overlaps puzzle geometry at AX5"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-304"
+        }
+      },
+      {
+        "external_id": "T-305",
+        "issue_type": "Task",
+        "summary": "Live shadow recompute performance verification",
+        "description": "Generated from orchestrator task `T-305` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/PerformanceTests/ShadowRecomputePerformanceTests.swift\n\nAcceptance criteria:\n- Instruments Time Profiler pass on the oldest iOS-17-supported device confirms 60fps at realistic occluder counts and reports the pathological-count result from T-008's fuzz dial\n- If the bar isn't met, this task files a new named follow-up task for the 30Hz-during-drag throttle rather than silently shipping unverified performance",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/PerformanceTests/ShadowRecomputePerformanceTests.swift"
+          ],
+          "depends_on": [
+            "T-204",
+            "T-008"
+          ],
+          "acceptance_criteria": [
+            "Instruments Time Profiler pass on the oldest iOS-17-supported device confirms 60fps at realistic occluder counts and reports the pathological-count result from T-008's fuzz dial",
+            "If the bar isn't met, this task files a new named follow-up task for the 30Hz-during-drag throttle rather than silently shipping unverified performance"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-305"
+        }
+      },
+      {
+        "external_id": "T-306",
+        "issue_type": "Task",
+        "summary": "Device recovery and cross-device share verification",
+        "description": "Generated from orchestrator task `T-306` for `umbra`.\n\nOwner lane: `polish_resilience`\nFiles: Umbra/UmbraUITests/SmokeTests.swift, Umbra/UmbraUITests/ForcedQuitRecoveryTests.swift\n\nAcceptance criteria:\n- Forced-quit mid-play and mid-edit both resume to exact in-progress geometry on relaunch, verified on a real device not a simulator\n- A share code generated on one real device is cold-imported on a second real device with no more context than 'try this' and opens correctly\n- Smoke XCUITest covers launch to open starter level to solve to confirmation sheet",
+        "status": "pending",
+        "epic_external_id": "EPIC-BUILD",
+        "labels": [
+          "orchestrator",
+          "generated-app",
+          "polish_resilience"
+        ],
+        "fields": {
+          "owner_lane": "polish_resilience",
+          "files": [
+            "Umbra/UmbraUITests/SmokeTests.swift",
+            "Umbra/UmbraUITests/ForcedQuitRecoveryTests.swift"
+          ],
+          "depends_on": [
+            "T-205",
+            "T-206",
+            "T-101"
+          ],
+          "acceptance_criteria": [
+            "Forced-quit mid-play and mid-edit both resume to exact in-progress geometry on relaunch, verified on a real device not a simulator",
+            "A share code generated on one real device is cold-imported on a second real device with no more context than 'try this' and opens correctly",
+            "Smoke XCUITest covers launch to open starter level to solve to confirmation sheet"
+          ],
+          "source_project": "umbra",
+          "source_task_id": "T-306"
+        }
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "Point2D",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct Point2D: Codable, Equatable, Hashable { var x: Double; var y: Double }",
+        "owning_lane": "data_domain",
+        "notes": "Foundation-only, UmbraCore package"
+      },
+      {
+        "name": "Size2D",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct Size2D: Codable, Equatable, Hashable { var width: Double; var height: Double }",
+        "owning_lane": "data_domain",
+        "notes": "UmbraCore"
+      },
+      {
+        "name": "Polygon",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct Polygon: Codable, Equatable { var points: [Point2D] }",
+        "owning_lane": "data_domain",
+        "notes": "Ordered ring; used for target silhouette and derived shadow shapes. LOCKED: vector only, never a raster/UIImage \u2014 required for exact/epsilon geometry comparisons and VoiceOver position/rotation descriptions"
+      },
+      {
+        "name": "OccluderShape",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum OccluderShape: Codable, Equatable { case rectangle }",
+        "owning_lane": "data_domain",
+        "notes": "v1 has one case; future primitives add cases, never a schema rewrite"
+      },
+      {
+        "name": "Occluder",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct Occluder: Codable, Equatable, Identifiable { let id: UUID; var shape: OccluderShape; var center: Point2D; var size: Size2D; var rotationDegrees: Double }",
+        "owning_lane": "data_domain",
+        "notes": "UmbraCore"
+      },
+      {
+        "name": "LightSource",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct LightSource: Codable, Equatable { var position: Point2D }",
+        "owning_lane": "data_domain",
+        "notes": "Single point light per locked determinism decision"
+      },
+      {
+        "name": "TargetSilhouette",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct TargetSilhouette: Codable, Equatable { var outline: Polygon }",
+        "owning_lane": "data_domain",
+        "notes": "UmbraCore"
+      },
+      {
+        "name": "Level",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct Level: Codable, Equatable, Identifiable { let id: UUID; var schemaVersion: Int; var title: String; var lightSource: LightSource; var occluders: [Occluder]; var target: TargetSilhouette; var createdAt: Date; var updatedAt: Date }",
+        "owning_lane": "data_domain",
+        "notes": "The single canonical schema shared by Play, Edit, export, import, and the solve-checker. Value type \u2014 mutation always produces a new Level value, never in-place array mutation"
+      },
+      {
+        "name": "LevelMutation",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum LevelMutation: Codable, Equatable { case moveOccluder(id: UUID, to: Point2D); case rotateOccluder(id: UUID, degrees: Double); case moveLight(to: Point2D); case duplicateOccluder(id: UUID); case deleteOccluder(id: UUID); case reset }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: the only input surface for level state changes; gestures, nudge-arrows, rotation-stepper, and replay/fuzz tests all construct these same cases"
+      },
+      {
+        "name": "MatchState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum MatchState: Codable, Equatable { case none; case close; case solved; static func classify(overlapFraction: Double) -> MatchState }",
+        "owning_lane": "data_domain",
+        "notes": "Thresholds: close >= 0.970, solved >= 0.985, fixed deadband to avoid jitter flicker"
+      },
+      {
+        "name": "SolveResult",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct SolveResult: Codable, Equatable { var overlapFraction: Double; var state: MatchState }",
+        "owning_lane": "data_domain",
+        "notes": "Output of SolveEngine.solve(_:), never independently stored/driftable"
+      },
+      {
+        "name": "SolveEngine",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "enum SolveEngine { static func castShadowPolygon(light: LightSource, occluder: Occluder) -> Polygon; static func unionShadow(_ polygons: [Polygon]) -> Polygon; static func overlapFraction(shadow: Polygon, target: Polygon) -> Double; static func solve(_ level: Level) -> SolveResult }",
+        "owning_lane": "data_domain",
+        "notes": "LOCKED: pure, synchronous, no async/Task. Overlap for a possibly-non-convex shadow union computed via fixed-resolution deterministic scanline quadrature (2048 horizontal strips, exact analytic per-strip trapezoid math over crossing edges) \u2014 not general polygon boolean ops, not sampling/Monte Carlo, not a third-party geometry library"
+      },
+      {
+        "name": "LevelValidator",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum LevelValidator { static func validate(_ level: Level) -> Result<Void, LevelValidationError> }",
+        "owning_lane": "data_domain",
+        "notes": "Save-time gate; reuses SolveEngine plus checks for zero-area shadow, light-inside-occluder, unreachable target. Same function used by editor save and importer geometrically-invalid check"
+      },
+      {
+        "name": "LevelValidationError",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum LevelValidationError: Error, Equatable { case unreachableTarget; case degenerateGeometry(reason: String); case lightInsideOccluder }",
+        "owning_lane": "data_domain",
+        "notes": "Drives the inline 'why save is disabled' Edit state"
+      },
+      {
+        "name": "LevelArtifactEnvelope",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct LevelArtifactEnvelope: Codable, Equatable { var schemaVersion: Int; var payload: Level }",
+        "owning_lane": "data_domain",
+        "notes": "Encoded to base64url JSON string for ShareLink/paste"
+      },
+      {
+        "name": "ImportFailure",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ImportFailure: Error, Equatable { case truncatedOrMalformed; case unsupportedSchemaVersion(found: Int, supportedRange: ClosedRange<Int>); case geometricallyInvalid(reason: String) }",
+        "owning_lane": "data_domain",
+        "notes": "Maps 1:1 to the three locked, visually-distinct import error states"
+      },
+      {
+        "name": "ShareArtifactCoder",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum ShareArtifactCoder { static func encode(_ level: Level) -> String; static func decode(_ artifactString: String) -> Result<Level, ImportFailure> }",
+        "owning_lane": "services_utilities",
+        "notes": "Single parser for Import screen and any future deep-link path. Decodes a locally-pasted/shared string only \u2014 no networking, no URLSession, no remote fetch anywhere in this app"
+      },
+      {
+        "name": "VaultEntry",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct VaultEntry: Codable, Equatable, Identifiable { let id: UUID; var title: String; var solved: Bool; var starred: Bool; var bestOverlap: Double?; var updatedAt: Date; var targetPreview: Polygon }",
+        "owning_lane": "data_domain",
+        "notes": "solved flag is recomputed/invalidated on load and on edit-geometry-change, never independently mutated. targetPreview is vector geometry, not a rendered image"
+      },
+      {
+        "name": "VaultManifest",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct VaultManifest: Codable, Equatable { var schemaVersion: Int; var entries: [VaultEntry] }",
+        "owning_lane": "data_domain",
+        "notes": "One manifest file; individual Level files loaded lazily on open"
+      },
+      {
+        "name": "LevelStore",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol LevelStore { func loadManifest() throws -> VaultManifest; func loadLevel(id: UUID) throws -> Level; func saveLevel(_ level: Level) throws; func saveDraft(_ level: Level) throws; func loadDraft(for id: UUID) throws -> Level?; func clearDraft(for id: UUID) throws; func deleteLevel(id: UUID) throws; func importAsNewEntry(_ level: Level) throws -> VaultEntry }",
+        "owning_lane": "data_domain",
+        "notes": "Cloud-ready seam; FileLevelStore is the only v1 conformance. importAsNewEntry always inserts, never overwrites on id collision. Synchronous, throwing \u2014 no async networking layer"
+      },
+      {
+        "name": "FileLevelStore",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "final class FileLevelStore: LevelStore { init(baseDirectory: URL) }",
+        "owning_lane": "services_utilities",
+        "notes": "Atomic writes: temp file + FileManager.replaceItemAt(_:withItemAt:); Application Support directory. Purely local filesystem I/O"
+      },
+      {
+        "name": "EntitlementStore",
+        "kind": "protocol",
+        "language": "swift",
+        "signature": "protocol EntitlementStore { var isProEditorUnlocked: Bool { get }; func refreshEntitlements() async }",
+        "owning_lane": "data_domain",
+        "notes": "Seam for future StoreKit 2 tiers only \u2014 the sole place async is expected in this app's data layer, since real StoreKit calls are genuinely async later"
+      },
+      {
+        "name": "LocalAlwaysUnlockedEntitlementStore",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "final class LocalAlwaysUnlockedEntitlementStore: EntitlementStore { var isProEditorUnlocked: Bool { true }; func refreshEntitlements() async {} }",
+        "owning_lane": "services_utilities",
+        "notes": "Only conformance for this MVP slice; purchase flow deferred"
+      },
+      {
+        "name": "LoadState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum LoadState<Value, Failure: Error> { case idle; case loading; case loaded(Value); case failed(Failure) }",
+        "owning_lane": "primary_ui",
+        "notes": "Shared generic state machine reused by Vault, Import, and level-resume so empty/loading/success/error is structurally uniform"
+      },
+      {
+        "name": "AppRoute",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum AppRoute: Hashable { case level(id: UUID) }",
+        "owning_lane": "primary_ui",
+        "notes": "NavigationStack path type; Vault is always implicit root"
+      },
+      {
+        "name": "AppModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class AppModel { var path: [AppRoute]; let vaultStore: VaultStore; let entitlementStore: EntitlementStore }",
+        "owning_lane": "primary_ui",
+        "notes": "Single root observable owning navigation + top-level stores"
+      },
+      {
+        "name": "VaultStore",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class VaultStore { var loadState: LoadState<VaultManifest, VaultError>; init(store: LevelStore); func refresh(); func importArtifact(_ level: Level) throws -> VaultEntry }",
+        "owning_lane": "primary_ui",
+        "notes": "Wraps LevelStore for the app layer"
+      },
+      {
+        "name": "VaultError",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum VaultError: Error, Equatable { case corruptManifest; case ioFailure(String) }",
+        "owning_lane": "data_domain",
+        "notes": "Drives Vault's corrupted-save error state"
+      },
+      {
+        "name": "CanvasMode",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum CanvasMode: Equatable { case play; case edit }",
+        "owning_lane": "primary_ui",
+        "notes": "PuzzleCanvasView is mode-parameterized, never a separate screen for edit"
+      },
+      {
+        "name": "LevelSessionModel",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "@MainActor @Observable final class LevelSessionModel { private(set) var level: Level; var mode: CanvasMode; var selection: UUID?; private(set) var liveSolveResult: SolveResult; init(level: Level, store: LevelStore); func apply(_ mutation: LevelMutation); func commitSave() throws }",
+        "owning_lane": "primary_ui",
+        "notes": "LOCKED: apply(_:) is synchronous \u2014 computes a new Level value from the current one via pure functions, then assigns; never mutates array elements in place. Sole mutation entry point for gesture, discrete-control, and replay-test callers alike"
+      },
+      {
+        "name": "ImportScreenState",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum ImportScreenState: Equatable { case empty; case decoding; case preview(Level); case failure(ImportFailure) }",
+        "owning_lane": "primary_ui",
+        "notes": "Drives ImportScreen's four states; preview requires explicit user confirm before importAsNewEntry"
+      },
+      {
+        "name": "SelectionControlClusterLayout",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum SelectionControlClusterLayout: Equatable { case floating(anchorEdge: Edge); case docked }",
+        "owning_lane": "primary_ui",
+        "notes": "Floating anchor-flip at standard Dynamic Type / canvas size, docked at AX1+ or below the compact-canvas threshold"
+      },
+      {
+        "name": "CastShadowRenderer",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum CastShadowRenderer { static func path(for polygon: Polygon) -> Path }",
+        "owning_lane": "primary_ui",
+        "notes": "Pure geometry-to-SwiftUI-Path bridge; no gesture or solve logic, keeps UmbraCore Foundation-only"
+      },
+      {
+        "name": "SolveConfirmationHapticTrigger",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum SolveConfirmationHaptics { static func fireSolved(); static func fireCloseMatchTick() }",
+        "owning_lane": "polish_resilience",
+        "notes": "Wraps UINotificationFeedbackGenerator/UIImpactFeedbackGenerator"
+      },
+      {
+        "name": "CorruptedSaveErrorPresentation",
+        "kind": "struct",
+        "language": "swift",
+        "signature": "struct CorruptedSaveErrorPresentation: Equatable { var title: String; var message: String; var recoveryActionTitle: String }",
+        "owning_lane": "polish_resilience",
+        "notes": "Backing content for CorruptedSaveErrorView and the Level-resume-fails-validation fallback"
+      },
+      {
+        "name": "OnboardingCoachMarkStep",
+        "kind": "enum",
+        "language": "swift",
+        "signature": "enum OnboardingCoachMarkStep: Int, CaseIterable { case moveOccluder; case rotateOccluder; case resetLevel }",
+        "owning_lane": "polish_resilience",
+        "notes": "Persisted 'seen' flag in UserDefaults; dismissed by performing the taught gesture, not a Next button"
+      },
+      {
+        "name": "ReduceMotionSolveTransition",
+        "kind": "function",
+        "language": "Swift",
+        "signature": "enum SolveConfirmationTransition { static func animation(reduceMotionEnabled: Bool) -> Animation }",
+        "owning_lane": "polish_resilience",
+        "notes": "Highlight-sweep vs. cross-fade fallback; the cue itself is mandatory, only its motion style adapts"
+      },
+      {
+        "name": "SolveConfirmationHaptics",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum SolveConfirmationHaptics { static func fireSolved(); static func fireCloseMatchTick() }",
+        "owning_lane": "polish_resilience",
+        "notes": "Wraps UINotificationFeedbackGenerator/UIImpactFeedbackGenerator"
+      },
+      {
+        "name": "SolveConfirmationTransition",
+        "kind": "function",
+        "language": "swift",
+        "signature": "enum SolveConfirmationTransition { static func animation(reduceMotionEnabled: Bool) -> Animation }",
+        "owning_lane": "polish_resilience",
+        "notes": "Highlight-sweep vs. cross-fade fallback; the cue itself is mandatory, only its motion style adapts"
+      },
+      {
+        "name": "Item",
+        "kind": "struct",
+        "language": "Swift",
+        "signature": "struct Item { id: Int;  // Placeholder for data later;  }",
+        "owning_lane": "data_domain",
+        "notes": "Minimal struct to represent a puzzle element.  Schema versioning must be explicitly managed."
+      },
+      {
+        "name": "API",
+        "kind": "protocol",
+        "language": "Swift",
+        "signature": "protocol API { func fetch() async throws returns (Data) }",
+        "owning_lane": "services_utilities",
+        "notes": "Abstracted network access. MUST be cancellable. Implementations will likely be created in the build process to inject dependencies for testability."
+      },
+      {
+        "name": "URLSession.shared",
+        "kind": "global",
+        "language": "Swift",
+        "signature": "var URLSession.shared: URLSession",
+        "owning_lane": "services_utilities",
+        "notes": "A singleton instance of the URLSession. This is critical for consistent testing."
+      },
+      {
+        "name": "Task.sleep",
+        "kind": "function",
+        "language": "Swift",
+        "signature": "func Task.sleep(for duration: TimeInterval) -> Void",
+        "owning_lane": "services_utilities",
+        "notes": "A safe function that yields execution to allow other tasks to execute."
+      }
+    ]
+  },
   "phase_outputs": {
     "prompt_contract": "Round 5 confirms what round 4 predicted: nobody brought anything new. Codex held the same position, I fully endorsed it again and specifically rebutted Gemma3's \"distraction/red herring\" framing and Qwen's stalled repetition. Gemma3's round 5 message is essentially the same argument as round 4 \u2014 drop designer/share mode, the production bar is \"overkill,\" postpone monetization \u2014 restated with almost identical phrasing and no new failure mode or technical objection to the specific scoped spec (same primitives, one serialization format, one round-trip test) that Codex and I have been proposing since round 3. Qwen's round 5 message isn't really a position at all \u2014 it's a garbled meta-summary that misattributes arguments (it has Gemma3 \"adopting\" the round-trip spec and \"believing the stricter bar is necessary,\" which is the opposite of what Gemma3 actually said this round) and ends by declaring the group deadlocked rather than taking a stance. That's not a substantive contribution to weigh.\n\nPer what I said at the end of round 4 \u2014 if round 5 didn't produce a real rebuttal, the phase closes on Codex's contract with Gemma3's concern recorded as a named risk rather than silently dropped or allowed to block indefinitely \u2014 that's where we are. Five rounds in, the same scope-pressure objection has been raised and answered on the merits each time without a new counter-argument appearing, so I'm closing this here.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Original prompt:** preserved verbatim across every round of this discussion (see above); nothing in this contract alters or reinterprets that text.\n\n**Scope of this thread:** this project builds exactly one app \u2014 Umbra \u2014 in its own folder at `/Users/pchordia/Documents/iOS-App-Factory/umbra`. The \"generate 16 ideas / build 8\" instruction at the end of the source prompt is portfolio-level process that already ran upstream of this child project; it is not a re-ideation task for this thread.\n\n**Hard requirements:**\n- Local-first SwiftUI iOS app, no required backend, no accounts, deterministic local state.\n- A shadow-casting spatial puzzle: a deterministic occlusion/solve engine where players position a light source and occluders to cast a shadow matching a target silhouette.\n- At least five authored, solvable levels spanning a real difficulty curve, loadable and completable without crashes or geometry glitches.\n- A real designer/share mode, scoped narrowly but genuinely: the editor manipulates the same occluder/light-source primitives used in play (not a separate toy authoring model); a level serializes to a compact shareable artifact (string or small file); a second import path loads that artifact back into an identical playable level, verified by an actual encode \u2192 decode \u2192 diff test with zero drift.\n- Local persistence with automatic save, resume after relaunch, and resilience to forced quit.\n- Every reachable flow (play, edit, save/load, export/import) implements empty, loading, success, and error states \u2014 including explicit handling for a corrupt local save and a malformed/truncated share artifact.\n- Accessibility built into the core feedback loop, not layered on: shadow/target match must be perceivable without relying on color alone (shape outline, snap tick, haptic, or numeric overlap cues), plus standard VoiceOver labeling.\n- Test coverage on the geometry/solve-checking logic specifically, since that's where a silent bug (not a crash) does the most damage: zero-area shadows, touching-only overlaps, contact-edge floating-point precision, rotation/orientation edge cases \u2014 fixed fixtures plus randomized fuzz permutations across occluder arrangements.\n- Monetization shape stated now: a free starter vault (core levels + core editor functions) plus paid challenge-pack bundles (themed/difficulty level sets) plus an optional premium editor expansion (advanced constraints/symmetry tools, solve-history analytics). Content and tools, never cosmetics-only.\n- Architecture leaves a seam for optional future cloud sync/sharing without requiring a rewrite of the core geometry model.\n\n**Non-goals:** cloud backend or server dependency in this MVP; user accounts; remote level publishing, ratings, or a community remix marketplace; multiplayer/networked play; a story/campaign layer or complex non-puzzle mechanics; cosmetic-only monetization; any placeholder control that doesn't do what it visually implies. The earlier invented restrictions (\"must not be a full-fledged game with complex mechanics,\" \"production-ready requires backend/cloud infrastructure if applicable\") are struck outright \u2014 they have no basis in the source prompt and must not carry forward into later phases even as disputed language.\n\n**Production-readiness definition:** more than \"compiles and runs.\" The app must survive relaunch and forced quit without losing progress; handle corrupt saves and malformed share artifacts as explicit, recoverable error states rather than crashes; provide non-color accessibility cues for the core match-detection feedback; and pass a reproducible acceptance pack \u2014 the 5+ fixed level fixtures plus randomized geometry fuzz cases \u2014 before this app can be called done. Build verification and final review must agree on what works before \"done\" is declared.\n\n**Decision rules for later phases:**\n- Any change to geometry, level state, or the serialization format must keep the 5+ solvable-level fixture set and the round-trip encode/decode/diff test passing.\n- Any new feature must tie to a measurable user outcome (solve time, invalid-edit rate, successful recovery) and ship with a corresponding fixture/test, or it stays parked.\n- Any conflict between \"richer/more viral\" and \"local-first, tightly scoped MVP\" resolves toward the narrower, shippable interpretation, with the cut feature named explicitly as a non-goal \u2014 never a silent drop.\n- Any future message claiming consensus must enumerate, item by item, which required output it resolves \u2014 a bare \"sounds good, let's move on\" does not count, following two prior incidents in this same discussion where a prematurely-sequenced message tried to do exactly that.\n- **Named risk on record:** across rounds 3\u20135, Gemma3 argued the designer/share-mode requirement and the stricter production-readiness bar represent real schedule risk for a single MVP pass, and preferred deferring both. The group's judgment, reaffirmed each round without a new rebuttal changing it, is that designer/share mode is load-bearing to Umbra's identity (named explicitly in the one-sentence promise) and that the scoped version defined here (same primitives, one serialization format, one round-trip test) is small enough to absorb that risk. This is recorded as a documented disagreement carried forward for design/build phases to be aware of, not a silently overridden objection.",
     "product_research": "Round 2 sharpened things nicely, and I think this one's actually done. Here's where it landed.\n\n**Codex and I stayed tightly aligned, and it got more concrete.** Audience: the premium iOS puzzle buyer (Monument Valley / The Witness crowd) playing in short deterministic sessions, plus a smaller \"creator in the loop\" segment who builds a level and sends a code to a friend \u2014 Codex's framing that this is how virality happens here (\"earn sharing by making the export feel instantly useful,\" not a feed/social layer) is the piece that actually resolves the tension between \"viral potential\" and \"no remote publishing\" in the contract. Comparables stayed the same (Shadowmatic for silhouette intuition, Monument Valley for premium spatial polish, level-code ecosystems for the share pattern). Platform opportunities picked up detail: iPad as a first-class editor canvas, haptics on snap-state, Share Sheet for import/export, Dynamic Type and contrast as real requirements rather than visual tweaks. The risk list kept growing usefully and cleared the bar with room to spare: geometry determinism at the edge cases, editor/play parity, serialization forward-compatibility, fuzz-test bias toward degenerate geometry, onboarding discoverability, level-content difficulty, and the new one \u2014 an editor that lets someone save a level the solver can't correctly grade, which we agreed should get closed by running the same solve-checker as a save-time validator rather than a separate rule set.\n\n**Gemma3 moved on two things and dug in on two others.** It came around to 5 levels being the right number (dropping its own round-1 \"just one level\" position \u2014 though it then oddly attributes that original one-level idea to \"Gemini\" rather than itself, which is worth flagging as a mix-up, not a new voice in the room) and it now agrees monetization should be named now rather than deferred, reversing its round-1 stance. But it's still pushing to treat the round-trip test, schema versioning, and non-color accessibility as \"premature optimization\" or \"later phase\" concerns. Those aren't open research questions, though \u2014 they're hard requirements the prompt_contract phase already locked five rounds ago, so re-arguing them here is out of scope for what this phase is actually supposed to produce (audience, comparables, platform opportunities, risks, build implications), same as its scope-reduction argument was last round. Nobody else picked up that thread, and it doesn't change any of the five required outputs.\n\nQwen didn't produce a response this round either (CLI unavailable) \u2014 two rounds now with no substantive contribution to weigh.\n\nGiven both required-output rounds have real, converged content from two independent voices, five-plus concrete risks are on record, and the \"still open\" item is a rehash of an already-decided contract question rather than something this phase should resolve, I think this closes.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Audience and use context:** Primarily the existing premium-puzzle-game buyer \u2014 people who already pay for things like Monument Valley or The Witness \u2014 playing in short, deterministic solo sessions during commutes or breaks, where polish and clarity matter more than volume of content. A secondary but commercially meaningful segment is the \"creator in the loop\": someone who builds a level and sends the share code to a friend or family member as a personal challenge. That second segment is what makes the designer/share mode more than a checkbox \u2014 it's the app's only realistic growth loop, since the contract explicitly rules out any in-app social/publishing layer.\n\n**Comparable apps or patterns to learn from** (pattern-matches from general knowledge, not fresh research \u2014 labeled as assumptions): Shadowmatic-style silhouette-fit intuition for the core mechanic; Monument Valley as the benchmark for premium spatial clarity and onboarding discipline, not mechanics; level-code-sharing conventions from editor-driven puzzle/community-level games, with the standard failure mode being that the export format quietly drifts from the play format as the game gets patched, breaking old shared codes.\n\n**Platform-specific opportunities:** Haptic snap-detents when an occluder or light source aligns meaningfully (edge, angle) \u2014 cheap to build, reads as premium. Native Share Sheet for exporting/importing the level code, satisfying \"share mode\" without any custom social infrastructure. VoiceOver treated as a real design problem, not a labeling checkbox \u2014 a spatially-driven puzzle needs an actual strategy for how a screen-reader user builds a mental map of light/occluder/target positions. iPad as a legitimately better first-class canvas for the editor, worth designing for deliberately rather than just \"scales up.\" Dynamic Type and high-contrast support as core requirements, since alignment judgment is the entire mechanic.\n\n**Major assumptions and risks:**\n1. Geometry determinism at the edges \u2014 zero-area shadows, edge-only overlaps, near-collinear/rotation floating-point precision \u2014 is where a silent wrong-answer bug lives, and it's more dangerous than a crash because nobody notices.\n2. The round-trip encode/decode/diff test proves no data loss today but says nothing about forward compatibility once new occluder types get added later; a schema version field should exist from day one even though nothing needs multiple versions yet.\n3. Randomized fuzz testing only catches the dangerous cases if it's biased toward near-degenerate geometry \u2014 uniformly random placement will pass every test while a real bug ships.\n4. The editor must not be able to save a level the solver can't correctly grade (overlapping occluders, unachievable target overlap, light source inside an occluder) \u2014 the fix is running the same solve-checker as a save-time validator, not a separate \"valid level\" rule set.\n5. Authoring five levels that are genuinely solvable, fun, and free of unintended shortcut solutions is likely the hardest problem in the build, harder than any of the engineering.\n6. Onboarding has a tight window \u2014 if a player can't discover the grab/rotate/translate affordances in 30-45 seconds, level quality won't save the first impression.\n7. A corrupted or truncated share code is the single point of failure for the app's only growth mechanism, since the recipient didn't cause the corruption \u2014 the import failure state needs to be genuinely useful (explain what went wrong), not a generic error, or the share loop dies at the exact moment it was supposed to work.\n\n**Implications for the first build:** Structure the build around three flows that map directly to the one-sentence promise \u2014 Play, Edit, Share \u2014 with Edit built as a strict superset of Play's controls (drag, rotate, duplicate/delete, reset) so there's never a \"the rules are different in edit mode\" trust break. Build and test the geometry/solve engine and the canonical level format before UI polish, since editor, share format, and accessibility cues are all downstream of that data model being right. Nail the share-artifact format early (with a version field) since play, edit, export, and import all depend on its shape. Auto-save should be invisible until it matters, then visibly reassuring on relaunch. Monetization shape (free starter vault, paid challenge packs, pro editor tier) should be visible in the product framing from the first build, even if the purchase flow itself isn't wired up yet.",
@@ -48,38 +2000,5 @@
     "app_store_readiness": "Given this phase's job \u2014 honest launch material, not marketing spin \u2014 and the fact that I'm the first (and, per this project's established pattern, likely only reliable) voice in this round, I'm going to lay out the full required output directly rather than wait on participants who've stalled in nearly every prior phase.\n\nHere's the thing this phase can't paper over: every locked decision through `human_qa_checklist` already names a stack of open gaps \u2014 one shipped level, `swift test` never actually run (only `xcodebuild` compiled), zero real-device verification, no signing team, no app icon. None of that changed between phases. So the honest verdict here has to be **not launch-ready**, with a specific, non-negotiable blocker list \u2014 which is exactly what the phase rules require (\"do not mark launch-ready when verification or QA still has blockers\").\n\n## Final Output\n\n**App Store positioning:**\n- Category: Games \u2192 Puzzle.\n- Tagline: \"Solve it. Bend it. Send it.\" or \"A light, a shape, a shadow \u2014 yours to solve or remake.\"\n- Positioning copy: Umbra is a shadow-casting spatial puzzle where you position a light source and physical objects until the cast shadow matches a target silhouette \u2014 then remix that exact puzzle and hand a friend the code to solve it themselves. Pitch to the premium-puzzle buyer (Monument Valley / The Witness audience): calm, dark, tactile, no ads, no timers, no social feed \u2014 just a puzzle you can also make.\n- Differentiator to lead with in the description: \"Anything you can solve, you can remix \u2014 and it reopens exactly as you built it on a friend's phone.\" This is the one claim competitors in this genre generally can't make (per `product_research`'s comparable analysis), and it's true here because of the round-trip-tested share format.\n- Keywords: shadow puzzle, silhouette, light puzzle, spatial puzzle, puzzle maker, share puzzle.\n\n**Screenshot/storyboard plan:**\n- Required sizes: 6.7\" (iPhone 15/16 Pro Max class) and 6.5\"/5.5\" if supporting older devices \u2014 capture on simulator/device at native resolution, no fake bezel mockups needed but a plain dark background frame is fine.\n- Shot list (5-6 screens, matches the actual app, not aspirational features):\n  1. Vault grid showing \"First Light\" card \u2014 establishes the app's calm dark aesthetic immediately.\n  2. Mid-solve Play canvas: light source, occluder with its own drop-shadow, cast shadow blending toward the target outline, overlap readout visible. This is the hero shot.\n  3. Solve confirmation sheet with the real overlap number large \u2014 sells the \"we show you the real number, no confetti\" personality.\n  4. Edit mode with the \"Editing\" label, showing target-capture in progress \u2014 sells the designer promise.\n  5. Share Sheet / Import preview screen \u2014 sells the \"send it to a friend\" hook directly, since that's the actual growth mechanic.\n  6. Optional: an accessibility-forward shot (Dynamic Type or VoiceOver-labeled canvas) if there's an appetite to lead with that as a trust signal.\n- **Real constraint to flag honestly:** with only one shipped level, every screenshot is necessarily the same puzzle from different angles. That reads as thin for a \"puzzle game\" listing next to competitors with dozens of levels. Either caption screenshots to foreground the *editor/share* angle (so the app doesn't look content-starved) or hold submission until level count grows \u2014 this is a genuine positioning risk, not just a QA one.\n- Screenshots cannot actually be captured yet \u2014 there's no signed, running build on a real device or a working local simulator session in this project's history; today's screenshots would have to come from whoever runs the app first (see blockers below).\n\n**Privacy label notes (App Privacy / \"nutrition label\" in App Store Connect):**\n- Declare **\"Data Not Collected.\"** This is accurate and should be stated as a genuine selling point, not just a checkbox: no network calls exist anywhere in the codebase (confirmed at `ios_architecture_review` \u2014 zero networking, offline by construction), no analytics, no third-party SDKs, no accounts, no identifiers of any kind leave the device except the puzzle-geometry string a user explicitly shares.\n- `PrivacyInfo.xcprivacy` manifest is still a required submission artifact even with nothing collected \u2014 flagged as a concrete pre-submission task, not something \"data not collected\" makes optional.\n- No tracking, no advertising identifier usage \u2014 this app should answer \"No\" across the App Tracking Transparency-adjacent questions since there's no tracking to declare.\n\n**Permission copy:**\n- This app requests **zero iOS runtime permissions** \u2014 no camera, location, contacts, microphone, notifications, or photo library access exist anywhere in the feature set. There is nothing to write `Info.plist` usage-description strings for, and that should be verified as literally true in the shipped `Info.plist` (no stray unused permission keys left over from a template).\n- The only pasteboard interaction is `UIPasteboard.general.string` read on an explicit user-tapped \"paste from clipboard\" button. iOS 16+ will show its own system \"Allow Paste\" banner automatically on that action \u2014 this is expected system behavior, not something the app requests or can suppress, and QA should treat that banner appearing as correct, not a bug.\n\n**Subscription/paywall review risks:**\n- **The real finding here: there is currently no StoreKit integration, no purchase UI, and no paywall anywhere in the build.** `LocalAlwaysUnlockedEntitlementStore` always returns `isProEditorUnlocked = true`; this was a deliberate, explicitly-scoped decision (`project_plan`, `implementation_readiness_gate`) to defer purchase-flow implementation past this MVP pass.\n- Consequence: there's nothing for App Review to reject on subscription grounds today (Guideline 3.1.1 concerns \u2014 clear pricing, restore purchases, no dark patterns \u2014 don't apply to a build with no purchase surface). But it also means **the monetization plan described in the product brief (free vault + paid challenge packs + pro editor tier) is not live.** Submitting now means submitting a free app with no monetization, not a preview of the intended business model.\n- Forward-looking risk to record now, before StoreKit work starts: the locked decision that a full, unlocked designer/share mode must stay free (not paywalled) is a real constraint on any future paywall design \u2014 gating the *editor itself* behind a subscription would break the growth loop this app depends on and would also read as a bait-and-switch against the App Store listing's own positioning (\"a real designer/share mode\"). Any future paywall must gate *additional* content/tools (challenge packs, pro constraint tools, solve-history analytics), never core Play/Edit/Share.\n- Decision needed from the user, not an engineering one: ship v1 as a free app with monetization deferred to a later update, or hold submission until at least a minimal StoreKit path exists. Either is legitimate \u2014 but it should be a deliberate choice, not a default.\n\n**Launch blockers (the load-bearing section \u2014 every one of these is real and currently open, not hypothetical):**\n1. **No app icon artwork exists.** This is a literal App Store Connect submission blocker, not a polish item.\n2. **No Apple Developer Team ID / code signing configured.** The project currently builds only for simulator (`CODE_SIGNING_REQUIRED`/`ALLOWED` set to `NO` as a deliberate interim workaround, per `build_coordination` round 2-3). Archiving and submitting requires a human to supply a real team and flip those back to `YES`.\n3. **`swift test --package-path UmbraCore` has never been confirmed to pass by an actual run in this project's history.** Only `xcodebuild` has compiled. This suite is where the fixed geometry fixtures, seeded fuzz suite, round-trip encode/decode/diff check, and 50-run determinism replay all live \u2014 the single mechanism this whole project has called its top risk since round one (`prompt_contract`). Shipping without ever having actually run it is shipping the most safety-critical part of the app unverified.\n4. **Zero real-device verification has occurred.** Forced-quit/relaunch recovery, cross-device cold share-import, and the 60fps Instruments performance pass are all still open, unverified gates per `implementation_readiness_gate` and `human_qa_checklist` \u2014 not passed checks, just checks that exist on paper.\n5. **Only one shipped level** (\"First Light\") plus five internal-only fixtures. Four-plus additional levels are a named, tracked follow-up per the explicit scope-downgrade in `implementation_readiness_gate` \u2014 correct for this build pass, but a real content-thinness risk for an actual store listing (see screenshot section above).\n6. **No support URL / contact mechanism has been decided or built.** App Store submission requires a support URL at minimum \u2014 this hasn't come up in any prior phase and needs a decision (a plain static page or mailto is sufficient given the zero-backend posture, but something must exist).\n7. **No monetization is live** (see subscription section) \u2014 not a rejection risk, but a business-readiness gap if launch is meant to generate revenue.\n\n**Honest launch-readiness verdict:** **Not launch-ready.** The app is code-complete and internally consistent for its scoped v1 loop (Play/Edit/Share/Import), and its privacy story is genuinely clean and worth marketing as a strength. But between an unrun test suite, zero real-device verification, no icon, no signing team, and no support URL, there are concrete, unresolved blockers standing between this build and a real App Store submission \u2014 consistent with this phase's own rule not to mark launch-ready while verification/QA blockers remain open. None of these are large engineering problems; most are one-time human/environment inputs (a Team ID, an icon file, a shell that can actually run `swift test`, a support page) rather than more code \u2014 but they are real, and this verdict should not be softened to \"almost ready\" when the blockers are this concrete.\n\nCONSENSUS: YES\n\nVERIFICATION: VERIFIED",
     "final_review": "Looking at this round, the group's actually pretty aligned even though it doesn't look that way at first glance. Codex opened with \"no-go\" but then immediately laid out the exact same punch list everyone else has: run `swift test`, do real-device QA, finalize the icon/support URL/signing, and settle the one-level positioning honestly. I (in the delivery-lead seat) came at it independently and landed on the identical picture \u2014 real, working code with two real bugs already caught and fixed by hand, but nothing here has been proven by an actual test run or on real hardware, and I gave that punch list a concrete order (icon/support URL first since they're trivial, then `swift test` since it needs no hardware or Apple credentials, then real-device QA, then signing, then the level-count/monetization business calls last). Codex and I don't disagree on anything material \u2014 we're describing the same unresolved gaps from two angles.\n\nGemma3 went sideways again, this time worrying about network transmission of puzzle data (there's no network anywhere in this app \u2014 that's a locked, load-bearing architecture decision from `ios_architecture_review`, not an open question) and pitching yet another from-scratch LevelStore rebuild, which is the same repeated pitch this project has rejected on the merits in essentially every phase since `ios_architecture_review`. Not a real counter-position for what this phase actually needs to produce (an honest go/no-go against the original prompt, verification, and known limitations).\n\nGiven two independent, substantive voices converge cleanly and nothing new is being raised against the standing picture, I'm closing this at round 1 with the actual final review.\n\nCONSENSUS: YES\n\n## Final Output\n\n### What was built\n\nUmbra is a real, working local-first SwiftUI shadow-casting puzzle app implementing the full locked loop: **Vault \u2192 Play \u2192 Solve confirmation \u2192 Remix into Edit \u2192 Save/Share \u2192 Import**, all sharing one canvas and one canonical mutation model rather than parallel play/edit systems. Concretely:\n\n- **UmbraCore** (a Foundation-only Swift Package): deterministic point-light shadow-casting geometry engine, exact polygon-clipping overlap grading (no sampling), the canonical versioned `Level`/`Occluder`/`LightSource`/`Target` schema, the save-time validator (same solve-checker used for live play), and the share-artifact encoder/decoder.\n- **App layer**: `LevelSessionModel` (`@Observable`, single mutation entry point for gesture, discrete-control, and test callers alike), atomic file-based persistence (`FileLevelStore`, temp-file + `replaceItemAt`) with draft/crash recovery, a mode-parameterized `PuzzleCanvasView` (Play/Edit are the same screen), a three-state honest import-failure UI (truncated, schema-mismatch, geometrically-invalid), a floating\u2192docked accessibility control cluster that tracks the selected object, full VoiceOver labeling, onboarding coach-marks anchored to live canvas elements.\n- **Content**: one polished, genuinely-solvable starter level (\"First Light\") plus five internal-only geometry fixtures (touching-only overlap, near-collinear rotation, zero-area shadow, light-inside-occluder, duplicate-overlap) for the solve-checker test suite.\n- Two real bugs were found and fixed during the build via careful manual diff review (not via a compiler/test run): a `let`-captured `originalLevel` that broke Reset/Discard-after-save, and a floating control cluster that was silently ignoring its own anchor-tracking logic.\n\n### Verification status\n\n- `xcodegen generate` \u2014 **passes.**\n- `xcodebuild -sdk iphonesimulator build` \u2014 **VERIFIED**, compiled cleanly for the iOS Simulator (confirmed twice, independently).\n- `swift test --package-path UmbraCore` \u2014 **never run to completion in this project's history.** Every toolchain invocation in this sandboxed session has been blocked on tool/environment approval. This is the single most consequential open item: it's where the fixed fixtures, the seeded fuzz suite, the round-trip encode/decode/diff check, and the 50-run determinism replay all live \u2014 the exact mechanism this project has called its top risk since round one of `prompt_contract` (silent geometry drift). Static/manual code review is the best evidence that currently exists for it, and that is a materially weaker claim than \"tests pass.\"\n- Real-device verification \u2014 **zero.** Forced-quit/relaunch recovery, cold cross-device share-import, and the 60fps Instruments performance pass are all designed, documented in `human_qa_checklist`, and unexecuted.\n\n### Prompt coverage\n\nMatched against the locked `prompt_contract` (which itself correctly scoped the portfolio-level \"16 ideas / 8 apps\" instruction as having already run upstream): local-first SwiftUI, no accounts, no backend \u2014 met. A real designer/share mode built on the same primitives as play, with a versioned serialization format \u2014 met, and it's the one part of this build genuinely differentiated from competitors (per `product_research`). Accessibility built into the core feedback loop \u2014 met. Full empty/loading/success/error states across every reachable flow, including three distinct import-failure states \u2014 met. Local persistence with auto-save and forced-quit resilience \u2014 implemented and unit-reasoned through, not yet device-proven. Test coverage on the geometry/solve-checking logic \u2014 written, not yet confirmed passing. Monetization shape stated but not implemented (deliberately deferred, per `project_plan`/`implementation_readiness_gate`). The one explicit, formally-adjudicated shortfall against the original contract: \"5+ solvable levels\" was down-scoped to 1 shipped + 4 tracked follow-up at `implementation_readiness_gate`, after a real MoSCoW disagreement (Gemma3, `app_features` round 2) was raised, argued, and closed on the merits \u2014 not silently dropped.\n\n### Known limitations\n\n1. `swift test --package-path UmbraCore` has never passed in an actual run \u2014 highest-priority open item, no hardware or Apple credentials required to close it.\n2. Zero real-device testing \u2014 forced-quit recovery, cross-device cold share, 60fps Instruments pass are all open, unverified gates.\n3. Ships with 1 level + 5 internal fixtures, not the originally-specified 5+; four more levels are named, tracked debt.\n4. No app icon artwork.\n5. No Apple Developer Team ID / real code signing \u2014 simulator-only build (`CODE_SIGNING_REQUIRED`/`ALLOWED` deliberately set to `NO` as an interim workaround).\n6. No support URL/contact mechanism decided.\n7. No live monetization \u2014 `LocalAlwaysUnlockedEntitlementStore` always unlocked; the free-vault/paid-packs/pro-editor business model described in the product brief is not implemented. Shipping now means shipping a free app, not a preview of that plan.\n8. iPad layout and StoreKit purchase-flow explicitly out of scope for this pass (both named, not silently dropped).\n\n### Top follow-ups (in the order that actually unblocks fastest)\n\n1. **Run `swift test --package-path UmbraCore` on any normal dev machine.** No device, no Apple account needed \u2014 highest information-value action available, and it's been blocked purely by this session's sandboxing, not by anything in the code.\n2. **Real-device QA pass** using the already-written `human_qa_checklist` script: forced-quit recovery (play + mid-edit), cold cross-device share-import, VoiceOver/Dynamic Type sweep, Instruments 60fps profiling.\n3. **Trivial launch-prep items**: app icon, support URL/contact.\n4. **Signing**: supply a real Apple Developer Team ID, flip `CODE_SIGNING_REQUIRED`/`ALLOWED` back to `YES`.\n5. **Business decisions, not engineering ones**: whether to launch v1 as a free app now with monetization deferred, or hold for minimal StoreKit; and when to invest in the four remaining levels.\n\n**Honest go/no-go: not ready to submit to the App Store today, but genuinely close and cheap to close.** The architecture and implementation are sound, internally consistent across every phase of this project, and the two bugs actually found were caught and fixed correctly. Nothing that remains is a redesign \u2014 it's one test run, one afternoon with a real iPhone, and a handful of one-time human/business inputs (icon, Team ID, support URL, a free-vs-wait monetization call). Calling this \"done\" before `swift test` has actually gone green and before it's touched a real device would be overclaiming against this project's own standing bar that build verification and final review must agree on what works before \"done\" is declared \u2014 and right now, agreement is \"code-complete and hand-verified,\" not \"proven.\"\n\nVERIFICATION: VERIFIED",
     "portfolio_audit": "Here's where this landed. Everyone agrees on the basic frame: this is a portfolio *child* thread (not a parent, not a plain single-app run), so the job here is narrower than a full portfolio shape audit \u2014 check the parent metadata and workflow selection line up, not re-verify the whole 8-app batch from inside one child folder.\n\nOn that narrower job, Codex and I agree it checks out: the folder is named `umbra` matching the declared slug, the parent portfolio prompt is preserved verbatim through every locked phase, the category (puzzle) and one-sentence promise match the header, and this child ran the full single-app workflow end to end rather than some abbreviated path.\n\nWhere I pushed further is on the part of the phase's own checklist that goes beyond \"does this child look right\" into \"does the child fit correctly into the larger portfolio\" \u2014 expected-vs-actual app count, category-collapse, and specifically the uniqueness check against the batch's other puzzle app. That last one was flagged as unverified as far back as `portfolio_selection`, and I tried to actually close it this round by reading sibling folders \u2014 I can't; this session is sandboxed to umbra's own directory and hits a permissions wall on anything outside it. So rather than assume that's fine, I think the honest move is to report it explicitly as \"not checkable from this child's scope,\" not silently pass it, and name it as something that needs a batch-games-level or human cross-folder check.\n\nGemma3's round wasn't a real contribution \u2014 it responded to the prompt template itself (praising the multi-agent structure, asking what the \"simulation\" is for) rather than engaging with portfolio applicability at all, so there's nothing to weigh there. Codex and I don't actually disagree \u2014 Codex's \"not applicable, shape checks out\" and my \"shape checks out, but the wider portfolio checks aren't verifiable from here\" are compatible, not competing, positions.\n\nCONSENSUS: YES\n\n## Final Output\n\n**Portfolio applicability decision:** Portfolio-*child* audit, not a parent audit and not \"not applicable.\" This thread builds exactly one app (Umbra) as a declared child of the `batch-games` parent portfolio (`PORTFOLIO_CHILD_PROJECT: true`, `Parent portfolio: batch-games`, `Selected app slug: umbra`).\n\n**Expected vs. actual app/project count:** Not verifiable from this child's scope. The parent's expected shape (8 apps total: 2 idle, 2 puzzle, 2 party, 2 large-group) lives at the `batch-games` parent level. This session is sandboxed to `/Users/pchordia/Documents/iOS-App-Factory/umbra/.agent_cwd` and cannot read sibling folders or the parent manifest to confirm actual count/category split. This gap has been flagged since `portfolio_selection` and remains open \u2014 recorded here as unverified, not assumed passed.\n\n**Child folder/workflow check:** Passes. Umbra lives in its own dedicated folder (`/Users/pchordia/Documents/iOS-App-Factory/umbra`), matches its declared slug and category, preserves the full parent prompt verbatim through every locked phase decision, and ran the complete single-app build workflow (prompt_contract \u2192 final_review) rather than a truncated path.\n\n**Skipped or collapsed category warnings:** None detectable from within this child \u2014 but that's a scope limitation, not a clean bill of health. The specific named risk carried forward from `portfolio_selection` (whether Umbra overlaps the batch's other puzzle app) still cannot be confirmed from here and should not be treated as cleared.\n\n**Backfill readiness notes for Jira/Notion:** Ready to generate on request, not yet generated. `task_assignments` has structured, ID'd tasks with owners, dependencies, and acceptance criteria; `project_plan` has ordered milestones with dependencies \u2014 both usable as direct source material for a Jira board or Notion project structure whenever that's requested. No such structure has actually been created yet, consistent with the parent prompt's conditional (\"if an app is liked\") never having been triggered in this session.\n\n**Bottom line:** No blocker *within* this child's own shape \u2014 but the portfolio-level cross-checks this phase would ideally close (total count, category collapse, sibling-puzzle uniqueness) require visibility this child doesn't have, and should be verified at the `batch-games` parent level or via a direct human check across sibling folders before treating the whole batch as audited.\n\nVERIFICATION: VERIFIED"
-  },
-  "last_processed": "2026-07-10 19:11:53",
-  "consensus_status": {
-    "prompt_contract": true,
-    "product_research": true,
-    "portfolio_selection": true,
-    "initial_discussion": true,
-    "per_app_product_brief": true,
-    "next_steps_small": true,
-    "detailed_discussion": true,
-    "app_features": true,
-    "design_discussion": true,
-    "design_handoff": true,
-    "ios_architecture_review": true,
-    "tech_specs": true,
-    "project_plan": true,
-    "task_assignments": true,
-    "implementation_readiness_gate": true,
-    "build_coordination": true,
-    "build_verification": true,
-    "human_qa_checklist": true,
-    "app_store_readiness": true,
-    "final_review": true,
-    "portfolio_audit": true
-  },
-  "vote_results": {},
-  "runner_pid": 13009,
-  "done": true,
-  "error": null,
-  "fallback_counts": {},
-  "status": "done",
-  "workflow": "app_build",
-  "blocked_conflict": null,
-  "awaiting_approval": null
+  }
 }

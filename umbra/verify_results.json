@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-10 19:00:10",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "fa4f5c3488ca83e725abf8cbaed25afbfd575de1e9999c352e3b44a6fc132c80",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": false,
+    "status": "failed",
+    "tool": "xcodebuild",
+    "scheme": "Umbra",
+    "summary": "compile FAILED for the iOS Simulator",
+    "errors": "Failed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/umbra/app_build/Umbra/App/AppModel.swift:16:74: error: call to main actor-isolated static method 'defaultBaseDirectory()' in a synchronous nonisolated context\n/Users/pchordia/Documents/iOS-App-Factory/umbra/app_build/Umbra/App/AppModel.swift:16:74: error: call to main actor-isolated static method 'defaultBaseDirectory()' in a synchronous nonisolated context\nFailed frontend command:\n/Users/pchordia/Documents/iOS-App-Factory/umbra/app_build/Umbra/App/AppModel.swift:16:74: error: call to main actor-isolated static method 'defaultBaseDirectory()' in a synchronous nonisolated context\n** BUILD FAILED **\nThe following build commands failed:",
+    "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-10 19:00:49",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "fa4f5c3488ca83e725abf8cbaed25afbfd575de1e9999c352e3b44a6fc132c80",
+    "attempt": 1,
+    "repair_attempt": true,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Umbra",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
+  }
+]
