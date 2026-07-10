@@ -18,3 +18,6 @@ Tech:
 - Export game recap as a sharable image (name, date, player list, highlights)
 
 Scope: MVP with Kings rules only (not Hearts, Asshole, or other variants). One ruleset bundled; let users customize before start.
+
+## Change requested
+The build produced sources but NO buildable Xcode project. Generate a complete working project wiring in all existing sources, then make it compile cleanly for the iOS Simulator.
