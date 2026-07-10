@@ -32,5 +32,22 @@
     "summary": "compiled cleanly for the iOS Simulator",
     "errors": "",
     "tests": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-10 16:06:14",
+    "phase": "manual_fix",
+    "workflow": null,
+    "prompt_hash": null,
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "MarketingCampaignCockpit",
+    "summary": "compiled cleanly for the iOS Simulator",
+    "errors": "",
+    "tests": null
   }
 ]
