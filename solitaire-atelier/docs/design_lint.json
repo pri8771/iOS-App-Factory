@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "rule": "empty_action",
+      "file": "Features/Game/GameView.swift",
+      "line": 59,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (Button(\"Cancel\", role: .cancel) {})"
+    }
+  ]
+}

@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Listing",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type Listing = { id: string; headline: string; disclaimerText: string; dueMonth: number; dueYear: number; storyText: string; createdAt: string }",
+      "owning_lane": "data_domain",
+      "notes": "Single row in practice (no marketplace); modeled as a table so schema/seed script are honest about shape."
+    },
+    {
+      "name": "OfferStatus",
+      "kind": "enum",
+      "language": "typescript",
+      "signature": "type OfferStatus = 'open' | 'hidden'",
+      "owning_lane": "data_domain",
+      "notes": "'hidden' is the soft-delete state set once reportCount crosses 3; public queries filter it out, row is never deleted."
+    },
+    {
+      "name": "Offer",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type Offer = { id: number; listingId: string; alias: string; storyText: string; amountCents: number; status: OfferStatus; reportCount: number; hiddenAt: string | null; createdAt: string }",
+      "owning_lane": "data_domain",
+      "notes": "amountCents is an integer (never float) to keep sort/display exact at the $9,999,999 adversarial value. createdAt is server-assigned, authoritative for the amount-desc/earliest-tiebreak sort. sessionToken deliberately omitted from this client-facing type \u2014 see OfferRow."
+    },
+    {
+      "name": "OfferRow",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type OfferRow = Offer & { sessionToken: string }",
+      "owning_lane": "data_domain",
+      "notes": "DB-internal only; sessionToken must never be serialized into an API response body."
+    },
+    {
+      "name": "CreateOfferInput",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type CreateOfferInput = { alias: string; storyText: string; amountCents: number }",
+      "owning_lane": "data_domain",
+      "notes": "Validated server-side: amountCents in [100, 1000000000] (i.e. $1-$10,000,000), alias <= 60 chars, storyText <= 280 chars; reject non-numeric/negative/zero amount with a specific field-level error, not a generic 400."
+    },
+    {
+      "name": "ContentFilterResult",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type ContentFilterResult = { allowed: boolean; reason?: string }",
+      "owning_lane": "services_utilities",
+      "notes": "reason must be specific and actionable, never a generic 'rejected'."
+    },
+    {
+      "name": "checkContent",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function checkContent(alias: string, storyText: string): ContentFilterResult",
+      "owning_lane": "services_utilities",
+      "notes": "Runs server-side as the authoritative check inside POST /api/offers; client may run a mirrored pre-check for snappy UX but must not treat it as sufficient on its own."
+    },
+    {
+      "name": "AnonSession",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type AnonSession = { token: string }",
+      "owning_lane": "services_utilities",
+      "notes": "Random httpOnly-cookie token issued on first visit (crypto.randomUUID()), not derived from IP/UA, never displayed or exported. Closes the direct-API-abuse gap client-only localStorage mechanisms can't cover."
+    },
+    {
+      "name": "RateLimitResult",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type RateLimitResult = { allowed: boolean; retryAfterSeconds?: number }",
+      "owning_lane": "services_utilities",
+      "notes": "Soft friction only \u2014 never treat as a security control."
+    },
+    {
+      "name": "checkRateLimit",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function checkRateLimit(session[REDACTED:assignment] RateLimitResult",
+      "owning_lane": "services_utilities",
+      "notes": "Server-side counterpart to the client localStorage rate-limit; both enforce independently but agree in spirit (soft, per-session)."
+    },
+    {
+      "name": "ReportResult",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type ReportResult = { accepted: boolean; alreadyReported: boolean; nowHidden: boolean }",
+      "owning_lane": "services_utilities",
+      "notes": "alreadyReported drives the client's disabled 'Reported' chip; nowHidden true exactly when this report crossed the 3-report threshold."
+    },
+    {
+      "name": "GET /api/listing",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "GET /api/listing -> Listing",
+      "owning_lane": "services_utilities",
+      "notes": "Backs the SSR first paint; also callable client-side for the report-the-listing flow context."
+    },
+    {
+      "name": "GET /api/offers",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "GET /api/offers?listingId=string -> { offers: Offer[] }",
+      "owning_lane": "services_utilities",
+      "notes": "Returns only status='open' rows, already sorted amount-desc/createdAt-asc by the server; client never re-sorts. Polled client-side every ~20s (paused on Page Visibility hidden) to drive ambient reorder animation from other visitors' submissions."
+    },
+    {
+      "name": "POST /api/offers",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/offers { body: CreateOfferInput } -> { offer: Offer } | { error: { field: string; reason: string } }",
+      "owning_lane": "services_utilities",
+      "notes": "Runs checkContent then checkRateLimit server-side before insert; on DB write failure returns a distinct 5xx the client maps to the failure/retry state, never a partial success."
+    },
+    {
+      "name": "POST /api/offers/[offerId]/report",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/offers/{offerId}/report -> ReportResult",
+      "owning_lane": "services_utilities",
+      "notes": "Enforces one-report-per-session server-side via AnonSession token in addition to the client's localStorage cap."
+    },
+    {
+      "name": "POST /api/listing/report",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/listing/{listingId}/report -> ReportResult",
+      "owning_lane": "services_utilities",
+      "notes": "Same mechanism as offer reports, applied to the listing itself per R-015."
+    },
+    {
+      "name": "SubmissionState",
+      "kind": "enum",
+      "language": "typescript",
+      "signature": "type SubmissionState = 'idle' | 'validating' | 'filterChecking' | 'filterRejected' | 'ready' | 'disclaimerAck' | 'checkoutProcessing' | 'success' | 'failure'",
+      "owning_lane": "primary_ui",
+      "notes": "Exact state machine from design_handoff; 'success' is only reachable after the POST /api/offers response resolves, never optimistically."
+    },
+    {
+      "name": "useOfferSubmission",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function useOfferSubmission(listingId: string): { state: SubmissionState; error: { field: string; reason: string } | null; submittedOffer: Offer | null; dispatch: (event: SubmissionEvent) => void }",
+      "owning_lane": "primary_ui",
+      "notes": "Owns the OfferFormSheet + CheckoutSheet state machine end to end; the only place allowed to transition to 'success'."
+    },
+    {
+      "name": "SubmissionEvent",
+      "kind": "enum",
+      "language": "typescript",
+      "signature": "type SubmissionEvent = { type: 'FIELD_CHANGE' | 'SUBMIT_FORM' | 'ACK_DISCLAIMER' | 'CONFIRM_PAY' | 'RETRY' | 'DISMISS' }",
+      "owning_lane": "primary_ui",
+      "notes": "Input events driving useOfferSubmission's transitions."
+    },
+    {
+      "name": "OfferCardViewModel",
+      "kind": "struct",
+      "language": "typescript",
+      "signature": "type OfferCardViewModel = { offer: Offer; rank: number; isOwnSubmission: boolean }",
+      "owning_lane": "primary_ui",
+      "notes": "isOwnSubmission drives the glow/pulse styling on the visitor's own card after their submission or after a poll refresh."
+    },
+    {
+      "name": "computeFlipDiff",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function computeFlipDiff(prevOrder: OfferCardViewModel[], nextOrder: OfferCardViewModel[]): { id: number; deltaX: number; deltaY: number }[]",
+      "owning_lane": "polish_resilience",
+      "notes": "Pure position-diff function; the WAAPI animation layer consumes this. Reused identically for self-submission and ambient poll-driven reorders."
+    },
+    {
+      "name": "announceRankChange",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function announceRankChange(rank: number, amountCents: number): string",
+      "owning_lane": "polish_resilience",
+      "notes": "Produces the aria-live announcement text; must fire on every reorder regardless of prefers-reduced-motion."
+    },
+    {
+      "name": "prefersReducedMotion",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function prefersReducedMotion(): boolean",
+      "owning_lane": "polish_resilience",
+      "notes": "Gates whether computeFlipDiff's output is animated via WAAPI tween or applied as an instant opacity/highlight flash."
+    },
+    {
+      "name": "POST /api/listing/[listingId]/report",
+      "kind": "endpoint",
+      "language": "http",
+      "signature": "POST /api/listing/{listingId}/report -> ReportResult",
+      "owning_lane": "services_utilities",
+      "notes": "Same mechanism as offer reports, applied to the listing itself."
+    },
+    {
+      "name": "useOfferPolling",
+      "kind": "function",
+      "language": "typescript",
+      "signature": "function useOfferPolling(listingId: string, intervalMs?: number): { offers: Offer[] }",
+      "owning_lane": "primary_ui",
+      "notes": "Polls GET /api/offers every ~20s, paused via Page Visibility API when backgrounded; feeds the same computeFlipDiff/animation path as self-submission reorders. Should-have, must never take build priority over safety-load-bearing states."
+    }
+  ],
+  "errors": []
+}

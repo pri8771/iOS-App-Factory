@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "Complete daily check-in, reveal today's Aura, and share it",
+      "steps": [
+        {
+          "tap": "today.beginCheckInButton"
+        },
+        {
+          "tap": "today.moodOption.calm"
+        },
+        {
+          "tap": "today.wordChip.0"
+        },
+        {
+          "tap": "today.confirmChipsButton"
+        },
+        {
+          "assert_exists": "today.shareButton"
+        },
+        {
+          "tap": "today.shareButton"
+        },
+        {
+          "assert_exists": "Copy"
+        },
+        {
+          "back": true
+        }
+      ]
+    },
+    {
+      "name": "Enable demo history and browse the archive grid",
+      "steps": [
+        {
+          "tap": "tabBar.settings"
+        },
+        {
+          "tap": "settings.demoModeToggle"
+        },
+        {
+          "tap": "tabBar.archive"
+        },
+        {
+          "assert_exists": "archive.grid"
+        },
+        {
+          "assert_exists": "Demo"
+        }
+      ]
+    },
+    {
+      "name": "View the mood trend chart inside Archive",
+      "steps": [
+        {
+          "tap": "tabBar.settings"
+        },
+        {
+          "tap": "settings.demoModeToggle"
+        },
+        {
+          "tap": "tabBar.archive"
+        },
+        {
+          "tap": "archive.trendSegment"
+        },
+        {
+          "assert_exists": "archive.trendChart"
+        }
+      ]
+    },
+    {
+      "name": "View the monthly Wrapped recap once demo history unlocks it",
+      "steps": [
+        {
+          "tap": "tabBar.settings"
+        },
+        {
+          "tap": "settings.demoModeToggle"
+        },
+        {
+          "tap": "tabBar.wrapped"
+        },
+        {
+          "assert_exists": "wrapped.posterImage"
+        }
+      ]
+    },
+    {
+      "name": "Purchase Aura+ via the local StoreKit configuration",
+      "steps": [
+        {
+          "tap": "tabBar.settings"
+        },
+        {
+          "tap": "settings.auraPlusRow"
+        },
+        {
+          "tap": "settings.purchaseButton"
+        },
+        {
+          "assert_exists": "settings.auraPlusUnlockedBadge"
+        }
+      ]
+    },
+    {
+      "name": "Restore purchases shows the honest nothing-to-restore state",
+      "steps": [
+        {
+          "tap": "tabBar.settings"
+        },
+        {
+          "tap": "settings.restorePurchasesButton"
+        },
+        {
+          "assert_exists": "Nothing to Restore"
+        }
+      ]
+    },
+    {
+      "name": "Complete check-in, purchase Aura+, then regenerate today's card",
+      "steps": [
+        {
+          "tap": "today.beginCheckInButton"
+        },
+        {
+          "tap": "today.moodOption.calm"
+        },
+        {
+          "tap": "today.wordChip.0"
+        },
+        {
+          "tap": "today.confirmChipsButton"
+        },
+        {
+          "assert_exists": "today.shareButton"
+        },
+        {
+          "tap": "tabBar.settings"
+        },
+        {
+          "tap": "settings.auraPlusRow"
+        },
+        {
+          "tap": "settings.purchaseButton"
+        },
+        {
+          "assert_exists": "settings.auraPlusUnlockedBadge"
+        },
+        {
+          "tap": "tabBar.today"
+        },
+        {
+          "tap": "today.regenerateButton"
+        },
+        {
+          "assert_exists": "today.shareButton"
+        }
+      ]
+    }
+  ]
+}

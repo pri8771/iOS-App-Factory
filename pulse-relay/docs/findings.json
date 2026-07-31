@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "findings": [
+    {
+      "schema_version": 1,
+      "source": "secret_scan",
+      "category": "secret_hardcoded",
+      "severity": "Critical",
+      "confidence": "high",
+      "title": "Hardcoded secret (assignment) at backend/server/services/auth.ts:5",
+      "file": "backend/server/services/auth.ts",
+      "line": 5,
+      "why": "A assignment-shaped credential is committed in generated source.",
+      "fix": "Move the value to secure configuration (Keychain / env / build settings) and rotate the exposed credential.",
+      "status": "open"
+    },
+    {
+      "schema_version": 1,
+      "source": "secret_scan",
+      "category": "secret_hardcoded",
+      "severity": "Critical",
+      "confidence": "high",
+      "title": "Hardcoded secret (assignment) at ios/PulseRelay/App/PulseRelayApp.swift:47",
+      "file": "ios/PulseRelay/App/PulseRelayApp.swift",
+      "line": 47,
+      "why": "A assignment-shaped credential is committed in generated source.",
+      "fix": "Move the value to secure configuration (Keychain / env / build settings) and rotate the exposed credential.",
+      "status": "open"
+    }
+  ]
+}

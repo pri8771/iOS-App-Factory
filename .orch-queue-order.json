@@ -1,6 +1,8 @@
 {
-  "lanes": 4,
-  "order": [
-    "build-me-a-prototype-for-a-marketing-platform"
+  "lanes" : 2,
+  "order" : [
+    "recall-ios",
+    "recall-ios-2",
+    "monitizing-names"
   ]
 }

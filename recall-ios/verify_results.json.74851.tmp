@@ -1,0 +1,21 @@
+[
+  {
+    "schema_version": 1,
+    "timestamp": "2026-07-22T03:22:53-04:00",
+    "phase": "build_verification",
+    "workflow": "app_build",
+    "prompt_hash": "8c645212485686e55b82c761d0e271ade6bf600194b55ef94a9d075450468bcc",
+    "attempt": 0,
+    "repair_attempt": false,
+    "ran": true,
+    "ok": true,
+    "status": "verified",
+    "tool": "xcodebuild",
+    "scheme": "Recall",
+    "summary": "compiled cleanly for the iOS Simulator (tests could not run: 2026-07-22 03:22:53.285 xcodebuild[31035:16343661] Writing error result bundle to /var/folders/fg/lmdhrms177s93m879bkgvjzr0000gn/T/ResultBundle_2026-22-07_03-22-0053.xcresult\nxcodebuild: error: Unable)",
+    "errors": "",
+    "tests": null,
+    "tests_ran": false,
+    "tests_ok": null
+  }
+]

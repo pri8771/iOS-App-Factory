@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "cold load shows populated listing",
+      "steps": [
+        {
+          "assert_exists": "home.heroHeadline"
+        },
+        {
+          "assert_exists": "home.leaderboardList"
+        }
+      ]
+    },
+    {
+      "name": "end-to-end valid offer submission",
+      "steps": [
+        {
+          "tap": "home.offerCta"
+        },
+        {
+          "type": "Baby McTestface",
+          "into": "offerForm.aliasInput"
+        },
+        {
+          "type": "Just a fun offer for the little one",
+          "into": "offerForm.storyInput"
+        },
+        {
+          "type": "500",
+          "into": "offerForm.amountInput"
+        },
+        {
+          "tap": "offerForm.submitButton"
+        },
+        {
+          "tap": "offerForm.disclaimerAckCheckbox"
+        },
+        {
+          "tap": "offerForm.continueToPaymentButton"
+        },
+        {
+          "tap": "checkout.demoPayButton"
+        },
+        {
+          "assert_exists": "checkout.receiptStamp"
+        },
+        {
+          "assert_exists": "Baby McTestface"
+        }
+      ]
+    },
+    {
+      "name": "second offer submission reorders the leaderboard",
+      "steps": [
+        {
+          "tap": "home.offerCta"
+        },
+        {
+          "type": "Runner Up",
+          "into": "offerForm.aliasInput"
+        },
+        {
+          "type": "Trying my luck too",
+          "into": "offerForm.storyInput"
+        },
+        {
+          "type": "250",
+          "into": "offerForm.amountInput"
+        },
+        {
+          "tap": "offerForm.submitButton"
+        },
+        {
+          "tap": "offerForm.disclaimerAckCheckbox"
+        },
+        {
+          "tap": "offerForm.continueToPaymentButton"
+        },
+        {
+          "tap": "checkout.demoPayButton"
+        },
+        {
+          "assert_exists": "checkout.receiptStamp"
+        },
+        {
+          "assert_exists": "Runner Up"
+        }
+      ]
+    },
+    {
+      "name": "content filter rejects abusive input then accepts a fix",
+      "steps": [
+        {
+          "tap": "home.offerCta"
+        },
+        {
+          "type": "blocked-test-slur",
+          "into": "offerForm.aliasInput"
+        },
+        {
+          "type": "irrelevant",
+          "into": "offerForm.storyInput"
+        },
+        {
+          "type": "100",
+          "into": "offerForm.amountInput"
+        },
+        {
+          "tap": "offerForm.submitButton"
+        },
+        {
+          "assert_exists": "offerForm.contentFilterBanner"
+        },
+        {
+          "type": "Friendly Bidder",
+          "into": "offerForm.aliasInput"
+        },
+        {
+          "tap": "offerForm.submitButton"
+        },
+        {
+          "tap": "offerForm.disclaimerAckCheckbox"
+        },
+        {
+          "tap": "offerForm.continueToPaymentButton"
+        },
+        {
+          "tap": "checkout.demoPayButton"
+        },
+        {
+          "assert_exists": "checkout.receiptStamp"
+        }
+      ]
+    },
+    {
+      "name": "report the listing",
+      "steps": [
+        {
+          "tap": "listing.reportButton"
+        },
+        {
+          "assert_exists": "report.confirmToast"
+        }
+      ]
+    },
+    {
+      "name": "report an offer",
+      "steps": [
+        {
+          "tap": "leaderboard.topOfferReportButton"
+        },
+        {
+          "assert_exists": "report.confirmToast"
+        }
+      ]
+    }
+  ]
+}

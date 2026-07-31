@@ -1,0 +1,41 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "rule": "empty_action",
+      "file": "ios/PulseRelay/App/Features/Profile/ProfileView.swift",
+      "line": 103,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (Button(\"Cancel\", role: .cancel) {})"
+    },
+    {
+      "rule": "empty_action",
+      "file": "ios/PulseRelay/App/Shared/AsyncActionButton.swift",
+      "line": 59,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (AsyncActionButton(title: \"Accept\", isInFlight: false, access)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "ios/PulseRelay/App/Shared/AsyncActionButton.swift",
+      "line": 60,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (AsyncActionButton(title: \"Accept\", isInFlight: true, accessi)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "ios/PulseRelay/App/Shared/AsyncActionButton.swift",
+      "line": 61,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (AsyncActionButton(title: \"Withdraw\", role: .destructive, isI)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "ios/PulseRelay/App/Shared/AsyncActionButton.swift",
+      "line": 62,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (AsyncActionButton(title: \"Accept\", isInFlight: false, isDisa)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "ios/PulseRelay/App/Shared/DestructiveActionConfirmation.swift",
+      "line": 20,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (Button(\"Cancel\", role: .cancel) {})"
+    }
+  ]
+}

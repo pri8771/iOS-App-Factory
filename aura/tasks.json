@@ -1,0 +1,342 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-017",
+      "title": "Canonical day-state model & streak derivation",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/DayState.swift",
+        "Domain/StreakEngine.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "A single canonical per-day state record is the source of truth for both the daily lock and the streak counter",
+        "Streak counter is computed by walking the canonical day-state timeline, never from a separately maintained counter",
+        "Unit tests show streak value changes correctly and consistently when the underlying day-state changes"
+      ],
+      "requirement_ids": [
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-028",
+      "title": "Enforce locked-day immutability",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/DayState.swift",
+        "Domain/CheckInService.swift"
+      ],
+      "depends_on": [
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Once a day's canonical state is marked locked, no API path can mutate or delete its check-in data",
+        "Attempting to edit or undo a locked day is rejected at the domain layer, not just hidden in the UI",
+        "Test covers attempted edit after lock boundary (e.g. after local midnight) and confirms rejection"
+      ],
+      "requirement_ids": [
+        "R-028"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-029",
+      "title": "One-canonical-card-per-day invariant & in-place regeneration",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/CardStore.swift",
+        "Domain/DayState.swift"
+      ],
+      "depends_on": [
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Data layer enforces a unique constraint of at most one canonical card per calendar day",
+        "Regenerating a day's card updates the existing record in place (same identity/date key)",
+        "Regeneration never inserts a second archive entry for the same day; test asserts archive count is unchanged after N regenerations"
+      ],
+      "requirement_ids": [
+        "R-029"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-018",
+      "title": "Demo history seeding: opt-in, fixed historical range, reset confirmation",
+      "owner_lane": "data_domain",
+      "files": [
+        "Domain/DemoModeSeeder.swift",
+        "Domain/DemoModeSettings.swift"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-029"
+      ],
+      "acceptance_criteria": [
+        "Demo mode is off by default on a genuine fresh install; enabling it is an explicit user action",
+        "Seeds 30+ days of demo history anchored to a fixed historical date range strictly before any real usage date",
+        "Demo dates are structurally incapable of colliding with real check-in dates (e.g. distinct date range/id namespace enforced by the same uniqueness constraint from T-029)",
+        "Disabling demo mode surfaces an explicit confirmation that the streak will reset before proceeding"
+      ],
+      "requirement_ids": [
+        "R-018"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-019",
+      "title": "Demo card visual parity with explicit label",
+      "owner_lane": "primary_ui",
+      "files": [
+        "UI/Card/CardView.swift",
+        "UI/Card/DemoBadge.swift"
+      ],
+      "depends_on": [
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "Cards generated from demo-seeded inputs render identically to real cards from equivalent inputs, pixel-for-pixel aside from the label",
+        "A small, explicit 'Demo' label is the only visual differentiator, present on every demo card and archive thumbnail",
+        "Snapshot test compares a demo card and a real card built from equivalent input to confirm no other visual divergence"
+      ],
+      "requirement_ids": [
+        "R-019"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-027",
+      "title": "Four-destination navigation shell",
+      "owner_lane": "primary_ui",
+      "files": [
+        "UI/Navigation/RootTabView.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "App root navigation exposes exactly four destinations: Today, Archive, Wrapped, Settings",
+        "No additional top-level destinations exist or are reachable from the root nav"
+      ],
+      "requirement_ids": [
+        "R-027"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-016",
+      "title": "Scrollable archive grid (real + demo cards)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "UI/Archive/ArchiveGridView.swift"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-018",
+        "T-019",
+        "T-027",
+        "T-029"
+      ],
+      "acceptance_criteria": [
+        "Archive tab shows a scrollable grid populated with all canonical cards, real and demo-seeded, sourced from the canonical day-state store",
+        "Grid performs smoothly with 30+ demo entries plus real entries combined",
+        "Each demo entry in the grid carries the demo label from T-019"
+      ],
+      "requirement_ids": [
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-020",
+      "title": "High-resolution card & Wrapped image renderer (1080x1920) via share sheet",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/Export/ImageExporter.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Every individual card and the monthly Wrapped export produce a real static raster image at exactly 1080x1920 pixels",
+        "Export path renders from underlying card/layout data (vector/model), not a screenshot capture of live UI \u2014 no status bar, nav bar, or system chrome present in output",
+        "Export is invoked via the native iOS share sheet",
+        "Automated check verifies output pixel dimensions and absence of chrome on a sample export"
+      ],
+      "requirement_ids": [
+        "R-020"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-022",
+      "title": "Strip EXIF/device metadata from exported images",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/Export/ImageExporter.swift",
+        "Services/Export/MetadataScrubber.swift"
+      ],
+      "depends_on": [
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Exported image files contain no EXIF or device metadata (GPS, device model, timestamps beyond what's intentionally embedded)",
+        "Test inspects exported file's metadata dictionary and asserts it is empty/stripped"
+      ],
+      "requirement_ids": [
+        "R-022"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-023",
+      "title": "StoreKit 2 Aura+ non-consumable product & entitlement model",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/Purchases/AuraPlusEntitlement.swift",
+        "Services/Purchases/StoreManager.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "A single non-consumable 'Aura+' StoreKit 2 product is defined",
+        "Owning the entitlement unlocks exactly three things: watermark-free export, expanded palette library, one regeneration per day \u2014 and nothing else",
+        "Entitlement state is queryable from a single source of truth used by export, palette, and regeneration features"
+      ],
+      "requirement_ids": [
+        "R-023"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-021",
+      "title": "Free-tier watermark overlay, bundled and non-overlapping",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/Export/WatermarkOverlay.swift"
+      ],
+      "depends_on": [
+        "T-020",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Free-tier exports carry a small, tasteful watermark asset bundled in the app binary \u2014 never fetched remotely at export time",
+        "Watermark placement is verified to never overlap the card's focal art or caption region across all card layouts",
+        "Aura+ entitled users' exports have no watermark, gated via the T-023 entitlement check"
+      ],
+      "requirement_ids": [
+        "R-021"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-024",
+      "title": "Real StoreKit 2 purchase & restore flows with Simulator disclosure",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/Purchases/StoreManager.swift",
+        "UI/Settings/PurchaseFlowView.swift",
+        "Configuration/StoreKitTestConfig.storekit"
+      ],
+      "depends_on": [
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Purchase and restore-purchases flows call the real StoreKit 2 API (Product.purchase(), AppStore.sync()) with no faked/simulated success path in shipping code",
+        "A local StoreKit configuration file is provided for Simulator testing",
+        "Simulator-specific UI/docs explicitly disclose that Simulator can confirm purchase initiation and local config/restore logic, but not full real transaction completion"
+      ],
+      "requirement_ids": [
+        "R-024"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-025",
+      "title": "Live Transaction.updates entitlement listener",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Services/Purchases/StoreManager.swift"
+      ],
+      "depends_on": [
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "An app-lifetime Transaction.updates listener is registered at launch and kept running, not just a one-time launch-time entitlement check",
+        "Entitlement state updates in-app immediately when a transaction update arrives (e.g. renewal, revocation, purchase from another device)"
+      ],
+      "requirement_ids": [
+        "R-025"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-026",
+      "title": "Restore-purchases confirmation messaging",
+      "owner_lane": "primary_ui",
+      "files": [
+        "UI/Settings/RestoreConfirmationView.swift"
+      ],
+      "depends_on": [
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "On successful restore, confirmation UI explicitly states that card history/streak remains device-local and is not restored or backed up",
+        "This local-data disclosure is visually/textually distinct from the entitlement-restored confirmation, not conflated into one sentence"
+      ],
+      "requirement_ids": [
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-030",
+      "title": "No cross-device/reinstall continuity messaging",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "UI/Settings/DataContinuityInfoView.swift"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "App makes no promise, in UI copy or behavior, that card history/streak syncs across devices or survives reinstall",
+        "Settings surfaces a clear statement that restore only returns the Aura+ entitlement, not history or streak",
+        "Fresh-install-after-uninstall scenario verified to start with empty local history regardless of prior entitlement restore"
+      ],
+      "requirement_ids": [
+        "R-030"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 3
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,66 @@
+{
+  "bundle_id": "com.recall.RecallApp",
+  "screens": 1,
+  "edges": 0,
+  "crashes": [],
+  "dead_taps": [
+    {
+      "screen": "1f276cb7f85edf57",
+      "tapped": {
+        "id": "",
+        "kind": "tab",
+        "label": "Decks"
+      }
+    }
+  ],
+  "back_violations": [],
+  "flows": [
+    {
+      "failure": "",
+      "name": "Create deck, add card, complete first review",
+      "passed": true
+    },
+    {
+      "failure": "step 1: no tappable element \u2018rootTab.settingsTab\u2019",
+      "name": "Enable demo data and review all decks",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018rootTab.settingsTab\u2019",
+      "name": "Enable demo data and review all decks",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018rootTab.settingsTab\u2019",
+      "name": "Enable demo data and review all decks",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018rootTab.settingsTab\u2019",
+      "name": "Enable demo data and review all decks",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018rootTab.settingsTab\u2019",
+      "name": "Enable demo data and review all decks",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018rootTab.settingsTab\u2019",
+      "name": "Enable demo data and review all decks",
+      "passed": false
+    }
+  ],
+  "screen_grades": {
+    "score": 50,
+    "verdict": "FAIL",
+    "issues": [
+      {
+        "screen": "02_screen_-7b885f3809fb3817.png",
+        "severity": "high",
+        "note": "gemma3:4b: BAD"
+      }
+    ],
+    "inconclusive": []
+  }
+}

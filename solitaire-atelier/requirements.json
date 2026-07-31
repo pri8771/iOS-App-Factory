@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "Native SwiftUI iOS app, 100% local, zero network calls, no accounts/sign-in/analytics/telemetry/crash SDKs, no backend of any kind.",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "All state (saved game, stats, settings) persists strictly on-device (FileManager/UserDefaults/SwiftData), no iCloud/CloudKit sync.",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "Fully correct single-deck Klondike rules engine: 7 tableau columns, 4 foundations, alternating-color descending tableau sequences, ascending same-suit foundation moves, King-only placement into empty tableau columns.",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "Tap-to-move interaction through one shared validation/mutation function: single legal destination auto-executes, multiple legal destinations highlight for a confirming tap, zero legal destinations shows blocked-move feedback.",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "Tap-based relocation of a validly-stacked tableau run (maximal face-up alternating-descending sequence) as a single atomic unit, via the same validation path as single-card moves.",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "No illegal move is ever able to mutate game state.",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "True win detection fires only when all 4 foundations are complete.",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "Explicit stuck-board (no-legal-move) detection, surfaced distinctly from a win, computed correctly for the active draw mode: draw-1 via the exact static pass, draw-3 via a documented conservative approximation biased toward not falsely declaring stuck.",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "Full multi-step undo with exact prior-state restoration (board, face-up flags, counters).",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "New Game / fresh deal requires explicit user confirmation whenever the current game is unfinished (not won, not stuck).",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "Stock/waste/foundation/tableau layout fully supporting both draw-1 and draw-3 modes, each with correct draw-count semantics and its own stuck-detection behavior.",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "Unlimited stock redeal/recycle, documented in-app wherever rules/help content appears.",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "Bespoke, original rank/suit card face system (not SF Symbols reused as suit glyphs) using a systematic/generative shared visual grammar across all 52 cards and the card back, legible at true on-device card width (~45-50pt) as a hard pass/fail gate.",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "Real card-stock texture, shadow, and lighting in card rendering.",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "Spring-based deal/flip animation with per-card sequencing and real card art, playing only on a genuinely fresh deal (first launch or explicit New Game), never replaying on a resumed cold launch.",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "Fully art-directed light and dark mode (not simple color inversion), implemented via one shared Theme token file with no literal colors/fonts elsewhere.",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "One clear, original signature visual/interaction hook identifiable from a single glance/screenshot.",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "Haptic feedback on move accepted, move rejected (if implemented), and win, verified by source inspection of the trigger call sites.",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "Stats screen showing games played, games won, best time, and streak, tracked separately per draw mode (draw-1 vs draw-3), never combined, with a real per-mode empty state before any game completes in that mode.",
+      "core": true
+    },
+    {
+      "id": "R-020",
+      "text": "Best time displays 'N/A' when the timer is disabled, never a fabricated or stale value.",
+      "core": true
+    },
+    {
+      "id": "R-021",
+      "text": "Settings screen with draw-1/draw-3 selection (switching mid-game requires the same confirmation pattern as New Game: confirm discards and re-deals in the new mode, cancel leaves setting and game untouched), card-back selection (applies live at any time), and timer on/off.",
+      "core": true
+    },
+    {
+      "id": "R-022",
+      "text": "Game timer starts on the first state-mutating action (a confirmed move or stock draw), pauses when the app is backgrounded, and respects the timer-on/off setting.",
+      "core": true
+    },
+    {
+      "id": "R-023",
+      "text": "Local, silent game-event recording (session start/end, elapsed seconds, undo count, outcome) begins from day one and feeds the Stats screen.",
+      "core": true
+    },
+    {
+      "id": "R-024",
+      "text": "Persisted game state represents settled logical state only (piles, face-up flags), never in-flight animation position; writes are atomic (temp-then-swap) and survive backgrounding, force-quit, and relaunch without corruption.",
+      "core": true
+    },
+    {
+      "id": "R-025",
+      "text": "No encryption layer for local persistence \u2014 plain FileManager/UserDefaults/SwiftData only.",
+      "core": true
+    },
+    {
+      "id": "R-026",
+      "text": "Explicit VoiceOver labels per card (e.g. 'Seven of Hearts, tableau column 3, face up'), non-color-only suit differentiation, and Reduce Motion fallback for spring/flip/deal animations.",
+      "core": true
+    },
+    {
+      "id": "R-027",
+      "text": "System LaunchScreen themed to the app's card-table background, not left as default white.",
+      "core": true
+    },
+    {
+      "id": "R-028",
+      "text": "App is locked to portrait-only orientation at the project level.",
+      "core": true
+    },
+    {
+      "id": "R-029",
+      "text": "App launches directly into the resumed active game or a fresh deal, with no interstitial start/menu screen.",
+      "core": true
+    },
+    {
+      "id": "R-030",
+      "text": "Settings includes a disclosure line that stats/progress are device-local only and will be lost on reinstall or device migration.",
+      "core": true
+    },
+    {
+      "id": "R-031",
+      "text": "No monetization surface of any kind (no IAP, ads, or subscriptions).",
+      "core": true
+    },
+    {
+      "id": "R-032",
+      "text": "No multiplayer, social features, leaderboards, Game Center, or achievements.",
+      "core": true
+    },
+    {
+      "id": "R-033",
+      "text": "Zero placeholder screens among Game, Stats, and Settings \u2014 every screen shows real, meaningful, non-fabricated content.",
+      "core": true
+    },
+    {
+      "id": "R-034",
+      "text": "Win-screen native share sheet sharing a rendered image of the completed board with a solve-time caption.",
+      "core": false
+    },
+    {
+      "id": "R-035",
+      "text": "Live interactive drag gestures (single-card and multi-card) as an alternative/addition to tap-to-move.",
+      "core": false
+    }
+  ]
+}

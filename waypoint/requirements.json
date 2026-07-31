@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "Trip creation supports a start/end date range, including single-day and same-start/end-day trips, with correct day math.",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "Each trip has multiple days, each with an ordered list of stops.",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "Stop model includes place name, address, optional MapKit-resolved coordinate, time window, notes, and category icon.",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "Stops can be reordered via drag-and-drop within a day.",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "Stops can be reordered via drag-and-drop across days, implemented as a single atomic SwiftData operation with no orphaned or duplicated stops at any intermediate state.",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "A non-gesture 'Move to...' action exists alongside drag-and-drop, routed through the identical atomic operation, for accessibility.",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "A moved stop's time window is preserved on cross-day move and visually flagged if it falls outside the new day's typical range.",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "A per-day MapKit view shows all of that day's stops as annotations connected by a route line.",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "Routing uses MKDirections walking/driving when resolvable, gracefully degrading to a straight-line polyline with a visible 'approximate' indicator when unavailable.",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "Tapping a stop centers the map and highlights it; tapping a map pin selects the corresponding itinerary row (two-way binding).",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "A per-trip list of travelers (name only, no accounts) can be created and managed.",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "Expenses can be logged with amount, payer, split method (equal/exact/percentage), and any subset of travelers.",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "All money values use Decimal, never Double, throughout the app.",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "Percentage splits that do not sum to 100% are rejected at entry with an inline error stating the actual sum; the app never silently auto-rescales.",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "A settle-up screen computes the mathematically minimal set of payments (debt-simplification) to zero every balance.",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "Rounding remainder cents are deterministically assigned to the expense's payer, with an in-code sum-identity assertion that shares sum exactly to the original Decimal amount.",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "Settlement correctness is validated adversarially: 4+ travelers, a payer excluded from their own expense's split, and rejected non-100%-summing percentages.",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "Cross-day drag integrity is validated with 10+ rapid repeated moves of one stop across 3+ days with no duplication/loss observable at any intermediate state.",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "Editing a trip's date range to a shorter span that would orphan stops on removed days blocks the edit and shows exactly which days/stops are affected; extending the range is unrestricted.",
+      "core": true
+    },
+    {
+      "id": "R-020",
+      "text": "A per-trip packing checklist exists with a packed-percentage indicator that recalculates correctly as items change.",
+      "core": true
+    },
+    {
+      "id": "R-021",
+      "text": "Packing templates can be saved and reapplied to future trips.",
+      "core": false
+    },
+    {
+      "id": "R-022",
+      "text": "While a trip is active (today within its date range), a Live Activity/Dynamic Island shows the current or next stop and time until it, updating as stops are checked off.",
+      "core": false
+    },
+    {
+      "id": "R-023",
+      "text": "Live Activity degrades gracefully (no crash, no Live Activity) on unsupported devices/OS versions and when the user denies the permission.",
+      "core": false
+    },
+    {
+      "id": "R-024",
+      "text": "Live Activity updates are local/scheduled-only; no push-token or server-driven update mechanism is used.",
+      "core": false
+    },
+    {
+      "id": "R-025",
+      "text": "A day's stops can be exported as EventKit calendar events (one event per stop, honoring its time window) with explicit user permission.",
+      "core": true
+    },
+    {
+      "id": "R-026",
+      "text": "Calendar export is idempotent: the EventKit event identifier is stored per stop at export time; re-export looks it up and updates the existing event in place rather than duplicating.",
+      "core": true
+    },
+    {
+      "id": "R-027",
+      "text": "Calendar export handles an externally-deleted event or revoked Calendar permission as an explicit, non-crashing, non-lying state.",
+      "core": true
+    },
+    {
+      "id": "R-028",
+      "text": "A home-screen widget (separate WidgetKit target) shows the active trip's next stop, or an honest 'no active trip' state if none.",
+      "core": false
+    },
+    {
+      "id": "R-029",
+      "text": "On iPad, the itinerary list and map work as a genuine two-column split view (independently interactive panes), not a stretched phone layout, verified across at least two iPad sizes and both orientations.",
+      "core": true
+    },
+    {
+      "id": "R-030",
+      "text": "Every permission/capability-gated feature (Live Activity, Calendar, MapKit routing without network, location if used) has an observed \u2014 not just coded \u2014 correct denied/unavailable state.",
+      "core": true
+    },
+    {
+      "id": "R-031",
+      "text": "A demo trip Settings toggle is a singleton keyed by a stable identifier: toggling on creates it only if absent, toggling off deletes exactly that trip and never touches real trips.",
+      "core": true
+    },
+    {
+      "id": "R-032",
+      "text": "The demo trip and its data carry a visible 'Demo' marker wherever they appear, including widget and Live Activity surfaces.",
+      "core": true
+    },
+    {
+      "id": "R-033",
+      "text": "The demo trip includes at least one stop that deliberately fails MKDirections route resolution, so the approximate-route fallback is actually observed.",
+      "core": true
+    },
+    {
+      "id": "R-034",
+      "text": "A new user's first launch (demo toggle off) shows genuine, honest empty states everywhere, with zero fabricated content.",
+      "core": true
+    },
+    {
+      "id": "R-035",
+      "text": "All stop times are stored and displayed in the device's current local timezone; destination-timezone-aware itineraries are out of scope and named in Gaps.",
+      "core": true
+    },
+    {
+      "id": "R-036",
+      "text": "CloudKit/iCloud sync for SwiftData is disabled by default and not silently scaffolded on.",
+      "core": true
+    },
+    {
+      "id": "R-037",
+      "text": "No backend, no accounts, no third-party SDKs, and no network calls except on-device MapKit/local geocoding.",
+      "core": true
+    },
+    {
+      "id": "R-038",
+      "text": "The debug current-date injection hook used for testing 'is trip active' logic is wrapped in #if DEBUG and physically excluded from release builds.",
+      "core": true
+    },
+    {
+      "id": "R-039",
+      "text": "A Gaps section explicitly names: live traffic data, real-time flight tracking, iCloud trip sync, and destination-timezone-aware itineraries as out of scope.",
+      "core": true
+    },
+    {
+      "id": "R-040",
+      "text": "Every screen has designed empty, loading, success, and error states where reachable, with no default unstyled List/Form where the design calls for custom rows.",
+      "core": true
+    },
+    {
+      "id": "R-041",
+      "text": "The app fully supports dark mode with semantic color roles verified in both appearances.",
+      "core": true
+    },
+    {
+      "id": "R-042",
+      "text": "The app is runnable in the iOS Simulator via Xcode with clear run instructions.",
+      "core": true
+    },
+    {
+      "id": "R-043",
+      "text": "A StoreKit Pro tier (annual subscription + lifetime purchase in one product group) gates unlimited trips, packing templates, calendar export, Live Activity, widget, and audit-log reporting behind a single active-trip-count gate, while settlement math, iPad split view, and honest map-degradation are never paywalled.",
+      "core": false
+    },
+    {
+      "id": "R-044",
+      "text": "A lapsed subscription or failed restore never deletes, hides, or corrupts existing trip data; it only locks new-trip creation past the free cap and Pro-only surfaces.",
+      "core": false
+    },
+    {
+      "id": "R-045",
+      "text": "A one-way, explicitly labeled 'Trip Snapshot' export (PDF/text/.ics) defaults to itinerary-only content, excluding expense/settlement data unless the owner opts in.",
+      "core": false
+    },
+    {
+      "id": "R-046",
+      "text": "A settlement audit-log/category-spend-breakdown report is available as a Pro reporting layer on top of already-correct free settlement math.",
+      "core": false
+    }
+  ]
+}

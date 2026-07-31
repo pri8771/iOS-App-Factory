@@ -1,0 +1,606 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "AppSessionProviding",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol AppSessionProviding: Observable { var appState: AppSessionState { get } var activePod: Pod? { get } var board: [String: RelayRequest] { get } func bootstrap() async throws; func handleAuthResult(_ result: AuthResult) async throws; func selectPod(_ podId: String) async throws; func openDeepLink(_ url: URL) async throws; func handleForceQuitRecovery() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Root observable interface driving AppGate routing and feature gating; owns user-visible error/loading/banner state."
+    },
+    {
+      "name": "RequestSyncCoordinating",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol RequestSyncCoordinating: Sendable { func startInitialSync() async; func performRefresh(reason: SyncReason) async; func executeAction(_ action: RelayAction) async -> RelayActionResult; func receivePushPayload(_ payload: PushPayload) async; func reconcileFromPush(requestId: String) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Actor-backed concrete implementation should be the single in-process mutator of request state transitions."
+    },
+    {
+      "name": "RelayRequestState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RelayRequestState: Codable, Equatable { case openUnclaimed, awaitingConfirmation, queuedOffline, reconciling, latchedConfirmed, latchedAlreadyCovered, reopened, stillOpen, withdrawn, completed, error }",
+      "owning_lane": "data_domain",
+      "notes": "Strict state machine, no boolean flags. UI must never expose terminal confidence without authoritative fetch."
+    },
+    {
+      "name": "RelayActionType",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RelayActionType: String, Codable { case post, accept, release, withdraw, complete, reBroadcast }",
+      "owning_lane": "data_domain",
+      "notes": "reBroadcast added back per Codex's catch \u2014 user-triggered nudge on a stillOpen request, requester-only"
+    },
+    {
+      "name": "ActionConflictCode",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ActionConflictCode: String, Codable { case alreadyClaimed, notOpen, staleRevision, withdrawn, expired, unauthorized, duplicateAction, unknown }",
+      "owning_lane": "data_domain",
+      "notes": "Final. 'expired' derived from currentState.closeReason at response time even though status itself has no separate expired value."
+    },
+    {
+      "name": "RelayRequest",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RelayRequest: Codable, Identifiable, Hashable { let id: String; let podId: String; let requesterId: String; let requesterDisplayName: String; var note: String?; var status: RelayRequestStatus; var claimedByUserId: String?; var claimedByDisplayName: String?; var claimedAt: Date?; var reopenedAt: Date?; var lastRebroadcastAt: Date?; var expiresAt: Date; var requestRevision: UInt64; var displayOrder: Int64; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "renamed from Request per round-2 naming convergence; displayOrder is a backend BIGSERIAL exposed under the locked wire field name, no client-side re-sort"
+    },
+    {
+      "name": "Pod",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Pod: Codable, Identifiable { let id: String; var name: String; let homeTimezone: String; var joinCode: String; var joinCodeStatus: JoinCodeStatus; var memberCount: Int; let createdBy: String; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Final. homeTimezone is IANA identifier frozen at creation, used for all server-side same-day/expiry math."
+    },
+    {
+      "name": "PodMember",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PodMember: Codable, Identifiable, Hashable { let id: String; let displayAlias: String; let isCreator: Bool; let joinedAtUtc: Int64; let status: PodMemberStatus }",
+      "owning_lane": "data_domain",
+      "notes": "No trust score/verification flags; explicit no-faux-vetting policy preserved."
+    },
+    {
+      "name": "PodMemberStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PodMemberStatus: String, Codable { case active, revoked }",
+      "owning_lane": "data_domain",
+      "notes": "Minimal membership status for pod membership and consent artifact attribution."
+    },
+    {
+      "name": "RelayReceipt",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RelayReceipt: Codable, Identifiable { let id: String; let requestId: String; let podName: String; let requesterName: String; let accepterName: String; let requestedAt: Date; let acceptedAt: Date; let completedAt: Date; let isShareableProjection: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "derived read-time view, only constructible once a complete RelayAction exists for the request; requesterName/accepterName render as 'Former member' if that account is deleted"
+    },
+    {
+      "name": "ActionTrailEntry",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ActionTrailEntry: Codable, Identifiable { let id: String; let actorAlias: String; let actionType: RelayActionType; let atUtc: Int64; let outcome: String; let requestRevision: UInt64 }",
+      "owning_lane": "data_domain",
+      "notes": "Immutable audit trail for acceptance, release, complete, withdraw decisions."
+    },
+    {
+      "name": "RelayAction",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RelayAction: Codable, Identifiable { let id: String; let requestId: String; let actorId: String; let actorDisplayName: String; let actionType: RelayActionType; let clientActionId: String; let expectedRequestRevision: UInt64?; let outcome: ActionOutcome; let requestRevisionBefore: UInt64; let requestRevisionAfter: UInt64?; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "STANDALONE first-class audit-log table, written for every action attempt regardless of outcome \u2014 not nested inside RelayReceipt, since withdrawn/expired requests never get a receipt but still need an audit trail"
+    },
+    {
+      "name": "RelayActionResult",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RelayActionResult { case applied(updatedRequest: RelayRequest); case conflict(currentState: RelayRequest, code: ActionConflictCode); case offline(queuedActionId: String) }",
+      "owning_lane": "data_domain",
+      "notes": "conflict always carries fresh server state so latchedAlreadyCovered renders real data"
+    },
+    {
+      "name": "OutboxAction",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class OutboxAction { @Attribute(.unique) var id: String; var requestId: String?; var podId: String?; var actionType: ActionType; var expectedRequestRevision: UInt64?; var clientActionId: String; var payload: Data; var createdAt: Date; var retryCount: Int; var status: OutboxStatus }",
+      "owning_lane": "data_domain",
+      "notes": "Final. expectedRequestRevision stays optional ONLY at this storage layer because the same model also queues .post actions with no prior revision to guard; non-nil by construction for every other action type. Durable across relaunch/upgrade."
+    },
+    {
+      "name": "OutboxStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum OutboxStatus: String, Codable { case queued, sending, resolved, failed }",
+      "owning_lane": "services_utilities",
+      "notes": "Final."
+    },
+    {
+      "name": "CachedRequest",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CachedRequest: Codable, Identifiable { let id: String; let raw: RelayRequest; let cachedAtUtc: Int64; let terminalConfidence: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "SwiftData mirror; terminalConfidence prevents false-positive final rendering."
+    },
+    {
+      "name": "APIClient",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol APIClient: Sendable { func health() async throws -> HealthResponse; func signInWithApple(_ token: String, nonce: String) async throws -> AuthSession; func rotatePushToken(_ token: String) async throws; func createPod(name: String, timezone: String) async throws -> Pod; func joinPod(code: String) async throws -> Pod; func revokeJoinCode() async throws -> Pod; func fetchPodState(podId: String, sinceRevision: UInt64?) async throws -> PodStateResponse; func postRequest(podId: String, note: String, actionId: String) async throws -> RelayRequest; func executeAction(_ action: RelayAction) async throws -> RelayActionResult; func fetchRequest(id: String) async throws -> RelayRequest; func fetchReceipt(requestId: String) async throws -> RelayReceipt }",
+      "owning_lane": "services_utilities",
+      "notes": "Strict REST contract; action endpoints require actionId and optional expectedRequestRevision."
+    },
+    {
+      "name": "OutboxStore",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol OutboxStore: Sendable { func loadAll() async throws -> [OutboxAction]; func upsert(_ action: OutboxAction) async throws; func markResolved(_ id: String, status: OutboxStatus) async throws; func drop(_ id: String) async throws; func clearAllForSchemaReset() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Durability and recovery are mandatory for forced quit/relaunch correctness."
+    },
+    {
+      "name": "CacheStore",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol CacheStore: Sendable { func loadPodState(podId: String) async throws -> Pod?; func savePodState(_ pod: Pod, revision: UInt64) async throws; func loadBoard(podId: String) async throws -> [CachedRequest]; func replaceBoard(podId: String, requests: [CachedRequest]) async throws; func deletePod(_ podId: String) async throws; func clearIfSchemaIncompatible(_ error: Error) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Cache is disposable; replacement is by authoritative fetch."
+    },
+    {
+      "name": "KeychainSessionStore",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol KeychainSessionStore { func saveSession(_ session: AuthSession) throws; func loadSession() throws -> AuthSession?; func deleteSession() throws; func migrateIfNeeded() throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Session tokens and refresh tokens must remain accessible for locked-device refetch semantics."
+    },
+    {
+      "name": "SyncReason",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum SyncReason { case launch; case foreground; case forceQuitRecovery; case pushWake; case pullToRefresh; case explicitReconcile }",
+      "owning_lane": "services_utilities",
+      "notes": "Used for retry/backoff policy and banner messaging."
+    },
+    {
+      "name": "UIStateReducer",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func reduce(current: RelayRequestState, event: RequestEvent, request: RelayRequest) -> RelayRequestState",
+      "owning_lane": "data_domain",
+      "notes": "Pure reducer proving no illegal state combinations and deterministic transitions."
+    },
+    {
+      "name": "RequestEvent",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RequestEvent { case localActionStarted(action: ActionType); case actionResolved(ActionResult); case pushWake; case fetchResolved(Request); case fetchFailed(Error); case deepLinkStale; case staleCacheDetected }",
+      "owning_lane": "data_domain",
+      "notes": "Final."
+    },
+    {
+      "name": "HealthResponse",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct HealthResponse: Codable { let status: String; let apiRevision: UInt64; let minClientVersion: String; let canOperate: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Final. Required bootstrap reachability/contract-version gate."
+    },
+    {
+      "name": "AuthSession",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct AuthSession: Codable { let userId: String; let accessToken: String; let refreshToken: String; let expiresAtUtc: Date; let firstNameAlias: String }",
+      "owning_lane": "services_utilities",
+      "notes": "Final. Stored only in Keychain, no child PII."
+    },
+    {
+      "name": "PodStateResponse",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PodStateResponse: Codable { let pod: Pod; let requests: [RelayRequest]; let boardRevision: UInt64; let serverNowUtc: Int64 }",
+      "owning_lane": "services_utilities",
+      "notes": "Single authoritative payload used for board sync and age rendering baseline."
+    },
+    {
+      "name": "POST /api/v1/health",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "GET /api/v1/health -> HealthResponse",
+      "owning_lane": "services_utilities",
+      "notes": "confirmed, required first client verification step"
+    },
+    {
+      "name": "POST /api/v1/auth/apple",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/auth/apple {identityToken, nonce} -> AuthSession",
+      "owning_lane": "services_utilities",
+      "notes": "Final."
+    },
+    {
+      "name": "POST /api/v1/pods",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/pods {name, timezone} -> Pod",
+      "owning_lane": "services_utilities",
+      "notes": "Final."
+    },
+    {
+      "name": "POST /api/v1/pods/join",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/pods/join {joinCode} -> 200 Pod | 403 {reason: 'already_in_pod'} | 404 {reason: 'invalid_code'}",
+      "owning_lane": "services_utilities",
+      "notes": "Final: hard single-pod v1 cap."
+    },
+    {
+      "name": "POST /api/v1/pods/{podId}/join-code/revoke",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/pods/{podId}/join-code/revoke -> Pod",
+      "owning_lane": "services_utilities",
+      "notes": "Single admin-only escape hatch for leaked code."
+    },
+    {
+      "name": "GET /api/v1/pods/{podId}/state",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "GET /api/v1/pods/{podId}/state -> BoardState",
+      "owning_lane": "services_utilities",
+      "notes": "Final: requests pre-sorted by displayOrder."
+    },
+    {
+      "name": "POST /api/v1/requests",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/requests {podId, clientActionId, note?} -> Request",
+      "owning_lane": "services_utilities",
+      "notes": "Final: idempotent via clientActionId."
+    },
+    {
+      "name": "GET /api/v1/requests/{requestId}",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "GET /api/v1/requests/{requestId} -> Request",
+      "owning_lane": "services_utilities",
+      "notes": "Final: deep-link/push reconciliation refetch target."
+    },
+    {
+      "name": "POST /api/v1/requests/{requestId}/actions",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/requests/{requestId}/actions {clientActionId, actionType, expectedRequestRevision} -> 200 {outcome: applied, request: Request} | 409 {outcome: conflict, currentState: Request, code: ActionConflictCode}",
+      "owning_lane": "services_utilities",
+      "notes": "Final: expectedRequestRevision required, not optional. Server does UPDATE ... WHERE request_revision=$expected AND status = ANY($allowedFromStatuses) RETURNING *; zero rows = conflict; every call writes a RequestAction row regardless of outcome."
+    },
+    {
+      "name": "GET /api/v1/requests/{requestId}/receipt",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "GET /api/v1/requests/{requestId}/receipt -> Receipt",
+      "owning_lane": "services_utilities",
+      "notes": "Final: 404 if request never reached completed."
+    },
+    {
+      "name": "POST /api/v1/devices/apns-token",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/devices/apns-token {apnsToken, platform, deviceId} -> Void",
+      "owning_lane": "services_utilities",
+      "notes": "Final."
+    },
+    {
+      "name": "JoinCodeStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum JoinCodeStatus: String, Codable { case active, revoked }",
+      "owning_lane": "data_domain",
+      "notes": "Final."
+    },
+    {
+      "name": "Request",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Request: Codable, Identifiable, Hashable { let id: String; let podId: String; let requesterId: String; let requesterDisplayName: String; var note: String?; var status: RequestStatus; var closeReason: RequestCloseReason?; var claimedByUserId: String?; var claimedByDisplayName: String?; var claimedAt: Date?; var reopenedAt: Date?; var lastRebroadcastAt: Date?; var expiresAt: Date; var requestRevision: UInt64; var displayOrder: Int64; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL canonical entity, plain 'Request' family (no Relay prefix). displayOrder is a backend BIGSERIAL exposed under this exact wire field name, no client re-sort."
+    },
+    {
+      "name": "RequestStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RequestStatus: String, Codable { case open, claimed, reopened, withdrawn, completed }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL: 5 values, no separate 'expired' case. System auto-closure sets status=withdrawn + closeReason=autoExpired."
+    },
+    {
+      "name": "RequestCardPhase",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RequestCardPhase: Equatable { case openUnclaimed(Request); case awaitingConfirmation(Request, actionType: ActionType); case queuedOffline(Request, actionType: ActionType); case reconciling(Request); case latchedConfirmed(Request); case latchedAlreadyCovered(Request); case reopened(Request); case stillOpen(Request); case withdrawn(Request); case completed(Request); case error(Request?, AppError) }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL: exactly the 11 states locked in design_handoff, unchanged across all three rounds."
+    },
+    {
+      "name": "ActionType",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ActionType: String, Codable { case post, accept, release, withdraw, complete, reBroadcast }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL: reBroadcast locked per DEC-initial_discussion-005; requester-only, allowed_from=[open, reopened], updates lastRebroadcastAt, fires a fresh push."
+    },
+    {
+      "name": "RequestAction",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RequestAction: Codable, Identifiable { let id: String; let requestId: String; let actorId: String; let actorDisplayName: String; let actionType: ActionType; let clientActionId: String; let expectedRequestRevision: UInt64; let outcome: ActionOutcome; let requestRevisionBefore: UInt64; let requestRevisionAfter: UInt64?; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL: standalone first-class audit-log table, one row written per action attempt regardless of outcome, never owned by or nested inside Receipt. expectedRequestRevision non-optional here since this row only exists for calls through performAction."
+    },
+    {
+      "name": "ActionResult",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ActionResult { case applied(updatedRequest: Request); case conflict(currentState: Request, code: ActionConflictCode); case offline(queuedActionId: String) }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL. conflict always carries fresh server state so the loser card renders real data, never a bare error."
+    },
+    {
+      "name": "Receipt",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct Receipt: Codable, Identifiable { let id: String; let requestId: String; let podName: String; let requesterName: String; let accepterName: String; let requestedAt: Date; let acceptedAt: Date; let completedAt: Date; let isShareableProjection: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL: derived read-time view, only constructible once a complete RequestAction exists. Deleted party renders as 'Former member'."
+    },
+    {
+      "name": "PulseRelayAPIClient",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PulseRelayAPIClient: Sendable { func health() async throws -> HealthResponse; func authenticate(appleIdentityToken: String, nonce: String) async throws -> AuthSession; func createPod(name: String, timezone: String) async throws -> Pod; func joinPod(code: String) async throws -> Pod; func rotateJoinCode(podId: String) async throws -> Pod; func fetchBoardState(podId: String) async throws -> BoardState; func postRequest(podId: String, clientActionId: String, note: String?) async throws -> Request; func performAction(requestId: String, clientActionId: String, type: ActionType, expectedRequestRevision: UInt64) async throws -> ActionResult; func fetchRequest(requestId: String) async throws -> Request; func fetchReceipt(requestId: String) async throws -> Receipt; func registerDevice(apnsToken: Data) async throws; func deleteAccount() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "FINAL: expectedRequestRevision is now non-optional UInt64 on performAction; postRequest has no revision parameter since it creates a new row"
+    },
+    {
+      "name": "BoardState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct BoardState: Codable { let pod: Pod; let requests: [Request]; let serverNowUtc: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Final: requests pre-sorted by displayOrder ascending."
+    },
+    {
+      "name": "RequestSyncCoordinator",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "actor RequestSyncCoordinator: Sendable { func submit(podId: String, clientActionId: String, note: String?) async; func perform(requestId: String, action: ActionType, expectedRequestRevision: UInt64, clientActionId: String) async; func handlePushWake(requestId: String) async; func handleForegroundRefresh(podId: String) async; func recoverQueuedActions() async; var events: AsyncStream<CoordinatorEvent> { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "FINAL: expectedRequestRevision required, non-optional, matching the API client. Sole mutator of request phases; serializes local actions, push wake, and outbox replay. Must classify conflict/forbidden/unauthorized outcomes as terminal for that action (stop retrying) \u2014 only network/timeout errors are retriable."
+    },
+    {
+      "name": "CoordinatorEvent",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum CoordinatorEvent { case boardUpdated([RequestCardPhase]); case syncStateChanged(SyncBannerState); case actionQueued(requestId: String); case actionFailed(requestId: String, message: String); case actionResult(requestId: String, result: ActionResult) }",
+      "owning_lane": "services_utilities",
+      "notes": "Final."
+    },
+    {
+      "name": "RequestReducer",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func reduce(current: RequestCardPhase?, event: RequestEvent, request: Request) -> RequestCardPhase",
+      "owning_lane": "data_domain",
+      "notes": "Final: pure, exhaustive switch, no default case, no booleans for state."
+    },
+    {
+      "name": "AppSession",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Observable @MainActor final class AppSession { private(set) var route: AppRoute; private(set) var currentPod: Pod?; private(set) var board: [RequestCardPhase]; private(set) var syncBanner: SyncBannerState; private(set) var errorMessage: String?; var isAuthenticated: Bool { get }; var hasPod: Bool { get }; init(api: RequestAPIClient, coordinator: RequestSyncCoordinator, keychain: KeychainStore); func bootstrap() async throws; func signOut() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Final. Sole state object views read from; subscribes to RequestSyncCoordinator.events."
+    },
+    {
+      "name": "AppRoute",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AppRoute { case authGate, podOnboarding, relayBoard }",
+      "owning_lane": "primary_ui",
+      "notes": "Final, no tabs."
+    },
+    {
+      "name": "SyncBannerState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum SyncBannerState { case fresh, syncing, offlineQueued(count: Int), uncertainDelivery }",
+      "owning_lane": "polish_resilience",
+      "notes": "Final, top-level board banner only, never per-card."
+    },
+    {
+      "name": "KeychainStore",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol KeychainStore { func saveSession(_ session: AuthSession) throws; func loadSession() throws -> AuthSession?; func clearSession() throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Final: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly."
+    },
+    {
+      "name": "RequestSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class RequestSnapshot { @Attribute(.unique) var id: String; var podId: String; var payload: Data; var lastFetchedAt: Date; var terminalConfidence: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Final. Disposable cache mirror, purge-and-refetch on schema mismatch."
+    },
+    {
+      "name": "POST /api/v1/requests/{id}/actions",
+      "kind": "endpoint",
+      "language": "HTTP",
+      "signature": "POST /api/v1/requests/{id}/actions {clientActionId, actionType, expectedRequestRevision?} -> 200 {result: 'applied', request: Request} | 409 {result: 'conflict', currentState: Request, code: ActionConflictCode}",
+      "owning_lane": "services_utilities",
+      "notes": "expectedRequestRevision now explicit in the wire contract per Codex's round-1 requirement; needs Claude's explicit sign-off next round."
+    },
+    {
+      "name": "GET /api/v1/pods/{id}/state",
+      "kind": "endpoint",
+      "language": "HTTP",
+      "signature": "GET /api/v1/pods/{id}/state -> 200 BoardState",
+      "owning_lane": "services_utilities",
+      "notes": "requests returned pre-sorted by sequence ASC"
+    },
+    {
+      "name": "GET /api/v1/health",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "GET /api/v1/health -> HealthResponse",
+      "owning_lane": "services_utilities",
+      "notes": "Final. Required first client verification step, ties to DEC-prompt_contract-008."
+    },
+    {
+      "name": "RequestCloseReason",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RequestCloseReason: String, Codable { case autoExpired, requesterWithdrawn, systemHousekeeping }",
+      "owning_lane": "data_domain",
+      "notes": "FINAL mechanism for expired-vs-withdrawn. Client's .withdrawn(Request) card phase reads this to pick copy; no 12th RequestCardPhase case added."
+    },
+    {
+      "name": "RelayError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RelayError: Error { case network(String); case unauthorized; case forbidden(String); case conflict(ActionConflictCode); case staleData; case unknown }",
+      "owning_lane": "polish_resilience",
+      "notes": "No silent success/failure; every user-facing state transition must originate here."
+    },
+    {
+      "name": "POST /api/v1/pods/{podId}/join-code/rotate",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/pods/{podId}/join-code/rotate -> Pod",
+      "owning_lane": "services_utilities",
+      "notes": "Final: creator-only escape hatch."
+    },
+    {
+      "name": "POST /api/v1/pods/{podId}/requests",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "POST /api/v1/pods/{podId}/requests {clientActionId: String, note: String?} -> 200 Request | 409 {result: 'conflict', reason: String}",
+      "owning_lane": "services_utilities",
+      "notes": "Post is idempotent by clientActionId and request membership context."
+    },
+    {
+      "name": "DELETE /api/v1/account",
+      "kind": "endpoint",
+      "language": "REST",
+      "signature": "DELETE /api/v1/account -> Void",
+      "owning_lane": "services_utilities",
+      "notes": "Final: RequestAction/Receipt rows excluded from cascade delete, departed user renders as 'Former member'."
+    },
+    {
+      "name": "User",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct User: Codable, Identifiable { let id: String; let appleSub: String; var displayName: String; let createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Final. No child PII anywhere in the model."
+    },
+    {
+      "name": "PodMembership",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PodMembership: Codable, Identifiable { let id: String; let podId: String; let userId: String; let displayAlias: String; let isCreator: Bool; let joinedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Final. No trust score/verification flag, per no-faux-vetting policy."
+    },
+    {
+      "name": "RelayRequestStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RelayRequestStatus: String, Codable { case open, claimed, reopened, withdrawn, expired, completed }",
+      "owning_lane": "data_domain",
+      "notes": "server-only status; expired is a system-driven auto-closure at pod.homeTimezone day boundary, distinct from user-initiated withdrawn for audit purposes but maps to the SAME RequestCardPhase.withdrawn client case with different copy \u2014 does not add a 12th client state"
+    },
+    {
+      "name": "ActionOutcome",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ActionOutcome: String, Codable { case applied, conflict }",
+      "owning_lane": "data_domain",
+      "notes": "Final."
+    },
+    {
+      "name": "RelayAPIClient",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol RelayAPIClient: Sendable { func health() async throws -> HealthResponse; func authenticate(appleIdentityToken: String, nonce: String) async throws -> AuthSession; func createPod(name: String, timezone: String) async throws -> Pod; func joinPod(code: String) async throws -> Pod; func rotateJoinCode(podId: String) async throws -> Pod; func fetchBoardState(podId: String) async throws -> BoardState; func postRequest(podId: String, clientActionId: String, note: String?) async throws -> RelayRequest; func performAction(requestId: String, clientActionId: String, type: RelayActionType, expectedRequestRevision: UInt64?) async throws -> RelayActionResult; func fetchRequest(requestId: String) async throws -> RelayRequest; func fetchReceipt(requestId: String) async throws -> RelayReceipt; func registerDevice(apnsToken: Data) async throws; func deleteAccount() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "performAction now carries expectedRequestRevision per Codex's round-1 requirement, fully threaded from OutboxAction through the coordinator to the wire"
+    },
+    {
+      "name": "PulseRequest",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PulseRequest: Codable, Identifiable, Hashable { let id: String; let podId: String; let requesterId: String; let requesterDisplayName: String; var note: String?; var status: PulseRequestStatus; var claimedByUserId: String?; var claimedByDisplayName: String?; var claimedAt: Date?; var reopenedAt: Date?; var lastRebroadcastAt: Date?; var expiresAt: Date; var requestRevision: UInt64; var displayOrder: Int64; let createdAt: Date; var closeReason: RequestCloseReason? }",
+      "owning_lane": "data_domain",
+      "notes": "UNRESOLVED NAME \u2014 placeholder 'PulseRequest' used here ONLY to avoid colliding with either side's competing pick (Request vs RelayRequest swapped mid-round); round 3 must pick ONE final name and this placeholder must not ship. Field list merges both drafts including the still-contested closeReason (Codex) vs status-enum-expansion (Claude) approach \u2014 pick one, don't keep both."
+    },
+    {
+      "name": "PulseRequestStatus",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PulseRequestStatus: String, Codable { case open, claimed, reopened, withdrawn, completed }",
+      "owning_lane": "data_domain",
+      "notes": "UNRESOLVED: shown here WITHOUT 'expired' (Codex's approach, using closeReason instead). Claude's competing approach adds 'expired' as a 6th case and drops closeReason entirely. Round 3 must pick exactly one representation, not merge both."
+    },
+    {
+      "name": "RequestActionResult",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum RequestActionResult { case applied(updatedRequest: Request); case conflict(currentState: Request, code: ActionConflictCode); case offline(queuedActionId: String) }",
+      "owning_lane": "services_utilities",
+      "notes": "Conflicts always include fresh state so UI renders real names/time/status from server."
+    },
+    {
+      "name": "RequestReceipt",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct RequestReceipt: Codable, Identifiable { let id: String; let requestId: String; let podName: String; let requesterName: String; let accepterName: String; let requestedAt: Date; let acceptedAt: Date; let completedAt: Date; let isShareableProjection: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Derived view object for completed requests only."
+    },
+    {
+      "name": "RequestAPIClient",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol RequestAPIClient: Sendable { func health() async throws -> HealthResponse; func authenticate(appleIdentityToken: String, nonce: String) async throws -> AuthSession; func createPod(name: String, timezone: String) async throws -> Pod; func joinPod(code: String) async throws -> Pod; func rotateJoinCode(podId: String) async throws -> Pod; func fetchBoardState(podId: String) async throws -> BoardState; func postRequest(podId: String, clientActionId: String, note: String?) async throws -> Request; func performAction(requestId: String, clientActionId: String, type: ActionType, expectedRequestRevision: UInt64) async throws -> ActionResult; func fetchRequest(requestId: String) async throws -> Request; func fetchReceipt(requestId: String) async throws -> Receipt; func registerDevice(apnsToken: Data) async throws; func deleteAccount() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "FINAL name (coordinator tie-break over a leftover 'PulseRelayAPIClient' slip in one round-3 draft \u2014 both used this exact name in round 2). expectedRequestRevision is required, non-optional, on performAction."
+    },
+    {
+      "name": "PushPayload",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PushPayload: Codable { let requestId: String; let podId: String; let eventType: String }",
+      "owning_lane": "services_utilities",
+      "notes": "Final. Never authoritative \u2014 triggers coordinator refetch only."
+    },
+    {
+      "name": "AppError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AppError: Error { case network(String); case unauthorized; case forbidden(String); case conflict(ActionConflictCode); case staleData; case unknown }",
+      "owning_lane": "polish_resilience",
+      "notes": "FINAL name (coordinator tie-break: renamed from a leftover 'RelayError' in one round-3 draft to match the round's own drop-the-Relay-prefix convention). No user-facing state transition originates anywhere except through this type."
+    }
+  ],
+  "errors": []
+}

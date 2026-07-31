@@ -1,0 +1,1938 @@
+{
+  "schema_version": 1,
+  "decisions": [
+    {
+      "id": "DEC-prompt_contract-001",
+      "decision": "SM-2 must be implemented as a pure, dependency-free module with an injected Calendar/clock, and its exact formula (ease update, 1.3 floor, Hard's effect, lapse reset behavior) must be written as a spec with worked numeric examples before any code is written.",
+      "rationale": "\"SM-2\" is not a single unambiguous spec across implementations (Anki vs. SuperMemo vs. others differ on lapse and ease handling); without a pre-committed spec, tests would just describe whatever got coded, defeating 'provably right, not plausibly right.'",
+      "rejected_alternatives": [
+        "Implement first and write tests against the implementation",
+        "Follow Anki's specific SM-2 variant without documenting the choice"
+      ],
+      "constraints": [
+        "No `Date()`/`Calendar.current` calls inside the SM-2 module",
+        "Spec with worked examples must exist before scheduler code is written"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-002",
+      "decision": "Due-date arithmetic is evaluated as calendar-day math against the current device calendar at query time, not as a frozen instant comparison, and tests must cover a simulated DST transition and a simulated mid-interval timezone change.",
+      "rationale": "Comparing raw instants breaks silently across DST and timezone changes even though 'a day' is defined as a calendar day; only query-time calendar math plus deterministic clock injection makes this provable rather than assumed.",
+      "rejected_alternatives": [
+        "Store and compare absolute due Date instants only",
+        "Treat timezone-change handling as out of scope"
+      ],
+      "constraints": [
+        "Day-boundary tests must simulate device timezone change and DST, not just midnight rollover"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-003",
+      "decision": "Each card's grade is persisted immediately per-card during a review session, and the session summary screen is only shown for a session that actually completed \u2014 never fabricated for an interrupted one.",
+      "rationale": "The prompt's 'quitting mid-session loses nothing' is a strong claim that only holds if persistence is per-card and immediate; showing a summary for an incomplete session would violate the no-false-success rule.",
+      "rejected_alternatives": [
+        "Batch-persist grades at session end",
+        "Reconstruct a fake summary on relaunch after a crash"
+      ],
+      "constraints": [
+        "Verification method: force-quit simulator mid-session, confirm graded cards updated and ungraded cards still due on relaunch"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-004",
+      "decision": "CSV import must enumerate and surface a visible per-row error for every malformed-row case (empty front/back, wrong column count, embedded commas/quotes, bad encoding/BOM, CRLF vs LF, duplicates), and export\u2192import must round-trip losslessly.",
+      "rationale": "The prompt's 'never silently drop a row' is only checkable if every failure mode is explicitly enumerated and tested rather than left to implicit parser behavior.",
+      "rejected_alternatives": [
+        "Best-effort parsing that coerces or skips ambiguous rows",
+        "Only handle the happy path and treat edge cases as out of scope"
+      ],
+      "constraints": [
+        "Every listed malformed-row case must produce a distinct, visible per-row error in the preview step"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-005",
+      "decision": "The daily reminder's due-count is recomputed at natural refresh points (foreground, background, post-session, day rollover) rather than fixed at scheduling time, and no notification fires on a 0-due day.",
+      "rationale": "A scheduled local notification's body text is fixed at schedule time on iOS, so a static 'N cards due' would go stale; firing a '0 cards due' notification also contradicts the prompt's explicit priority on honest empty states.",
+      "rejected_alternatives": [
+        "Schedule the notification body once with the count at schedule time",
+        "Always fire the notification regardless of due count"
+      ],
+      "constraints": [
+        "No notification is scheduled/fired when computed due count is 0"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-006",
+      "decision": "No UI affordance of any kind (including disabled/greyed-out controls) may exist for out-of-scope infrastructure-dependent features; each is instead documented as an explicit gap with an effort note in a discoverable location (docs and/or in-app About/Settings).",
+      "rationale": "A disabled 'Sync' toggle is itself a misleading claim about what the app does, violating the hard rule against faking or stubbing infrastructure-dependent features.",
+      "rejected_alternatives": [
+        "Greyed-out or 'coming soon' controls for cloud/sync/marketplace features",
+        "Gaps documented only in code comments"
+      ],
+      "constraints": [
+        "Gap register must be in a reviewer-visible location, not buried in source comments"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-007",
+      "decision": "Conflict tiebreaker order for all later phases is fixed: SM-2 correctness above all, then review-flow speed, then honest empty states.",
+      "rationale": "This is the explicit priority order given in the original prompt; later phases need a non-negotiable tiebreaker rather than defaulting to aesthetics or majority vote under time pressure.",
+      "rejected_alternatives": [
+        "Resolve tradeoffs case-by-case without a fixed order",
+        "Let UI polish take precedence when schedules are tight"
+      ],
+      "constraints": [
+        "Any resource-crunch tradeoff must cite this order explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-008",
+      "decision": "Non-goals are locked: no cloud sync/iCloud, no accounts, no push, no community/shared decks, no marketplace, no media/markdown/image/audio cards, no sub-deck nesting, no ML-based scheduling beyond SM-2.",
+      "rationale": "These all require infrastructure or scope explicitly excluded by the prompt's hard offline-only, native-only constraints.",
+      "rejected_alternatives": [
+        "Allow partial/local-only stand-ins for these features (e.g., local-only 'sharing' via file export mislabeled as sharing)"
+      ],
+      "constraints": [
+        "Any of these appearing in later designs must be rejected and redirected to the gap register"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-009",
+      "decision": "Design tokens (type, spacing, color) live in a single Theme.swift referenced everywhere, with full dark-mode support via semantic color roles, and every reachable screen implements empty/loading/success/error states as applicable.",
+      "rationale": "Matches the global app-build rules on centralized theming and mandatory UI states; prevents scattered literals and inconsistent or missing state handling across screens.",
+      "rejected_alternatives": [
+        "Per-screen ad hoc styling",
+        "Deferring dark mode or empty-state design to a later polish pass"
+      ],
+      "constraints": [
+        "No font/size/color literals outside Theme.swift",
+        "Dark mode verified in both appearances before completion"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-010",
+      "decision": "Whether demo-seeded decks count toward the user's real stats/streaks, or must be visibly separated from them, is left as an explicit open question for the design phase to resolve unambiguously \u2014 not decided in this phase.",
+      "rationale": "All three participants touched on demo-data behavior but none proposed a specific resolution; forcing a guess here risks silently deciding something the user didn't specify.",
+      "rejected_alternatives": [
+        "Assume demo decks always count toward real stats",
+        "Assume demo decks are always excluded from real stats"
+      ],
+      "constraints": [
+        "Design phase must state this explicitly and make the boundary visible in-app, whichever way it's resolved"
+      ],
+      "supersedes": null,
+      "superseded": true,
+      "superseded_by": "DEC-initial_discussion-005"
+    },
+    {
+      "id": "DEC-product_research-001",
+      "decision": "Target audience is self-directed offline-first learners (language, exam/certification, professional drilling) who likely already tried Anki/Quizlet and specifically want zero-setup, zero-account, guaranteed-offline operation \u2014 a narrow niche, not a mass-market product.",
+      "rationale": "All three independent passes converged on this same profile from the prompt's offline-only, no-account, no-social constraints; this audience will judge the app against their existing SRS literacy, raising the bar on perceived scheduling correctness.",
+      "rejected_alternatives": [
+        "Positioning as a broad mass-market study app competing on content breadth or social features"
+      ],
+      "constraints": [
+        "Design and later phases should not spend effort on virality/social/gamification features even if easy to add \u2014 audience does not value them and non-goals already exclude them"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-002",
+      "decision": "Comparable apps are Anki, Quizlet, and secondarily Memrise/Brainscape/RemNote, all cited as ASSUMPTION (no external research fetched); Recall's differentiation is being a deterministic, provably-correct, zero-infrastructure 'reliable review engine' rather than competing on content discovery, social features, or configuration depth.",
+      "rationale": "Consistent competitor read across all three contributors gives a concrete, defensible positioning wedge without requiring unsourced factual claims to be presented as fact.",
+      "rejected_alternatives": [
+        "Presenting competitor claims as researched fact instead of labeled assumptions"
+      ],
+      "constraints": [
+        "Any competitor claim used in later phases must retain its ASSUMPTION label unless real research is performed"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-003",
+      "decision": "The SM-2 worked-examples spec (already required by the prior phase) must additionally cross-check its output against a widely-trusted external reference case (e.g., Anki's known interval progression for repeated Good grades from a 2.5 starting ease), not merely be internally self-consistent.",
+      "rationale": "This audience has used Anki/SuperMemo-derived tools before and will notice if scheduling 'feels wrong' even when the app is internally consistent with its own spec; internal consistency alone is a weaker claim than 'provably right.'",
+      "rejected_alternatives": [
+        "Accepting internal self-consistency of the spec as sufficient proof of correctness"
+      ],
+      "constraints": [
+        "Design phase's SM-2 spec must include at least one worked example cross-checked against a known external SRS reference case"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-004",
+      "decision": "The Deck/Card/ReviewLog SwiftData schema should be treated as a design decision to get right early and change rarely, not iterated on casually after the demo-data toggle or review history exists.",
+      "rationale": "SwiftData migration handling is a known rough edge; a mishandled migration could silently corrupt or drop review history, which this correctness-sensitive audience would notice immediately.",
+      "rejected_alternatives": [
+        "Treating the schema as freely iterable throughout the build and handling migration issues if/when they arise"
+      ],
+      "constraints": [
+        "Design phase must finalize the core schema shape before dependent features (review session, stats, CSV) are built against it"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-005",
+      "decision": "Notification due-count staleness between app refresh points is accepted as a documented platform limitation rather than something the build attempts to fix via background refresh tasks.",
+      "rationale": "BGAppRefreshTask execution is not guaranteed by iOS without push infrastructure, which this project explicitly excludes; attempting to over-promise reliable background freshness would violate the same honesty principle driving the gap register.",
+      "rejected_alternatives": [
+        "Attempting to use BGAppRefreshTask or similar background execution to keep the notification count fresh without user interaction"
+      ],
+      "constraints": [
+        "Gap/limitations documentation must explicitly state that due-counts may go stale if the app isn't opened between scheduled refresh points"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-006",
+      "decision": "CSV import test fixtures must include at least one real-world exported CSV (e.g., from Excel, Numbers, or an Anki export) in addition to hand-crafted edge-case fixtures.",
+      "rationale": "Hand-crafted edge cases tend to cluster around what the author already anticipated; real-world exports surface quoting/encoding quirks that a spec written in the abstract is likely to miss.",
+      "rejected_alternatives": [
+        "Relying solely on hand-crafted fixtures designed to hit the enumerated malformed-row cases"
+      ],
+      "constraints": [
+        "Build/test phase must source or construct at least one realistic, non-synthetic CSV fixture for import testing"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-007",
+      "decision": "First-build sequencing is: SM-2 module + full test suite (standalone, demoable before any UI) \u2192 frozen SwiftData models \u2192 interruption-safe review session \u2192 stats \u2192 CSV export/import \u2192 local reminders last; if time is constrained, CSV import is trimmed first (export retained).",
+      "rationale": "This ordering matches risk, not breadth \u2014 it proves the highest-risk, highest-trust component first and defers the most cuttable, most tolerant-of-being-smaller feature (notifications) to last, consistent with 'smaller finished app over larger half-built.'",
+      "rejected_alternatives": [
+        "Building screens/UI in parallel with the SM-2 module",
+        "Treating all six core features as equally sequenced/parallel work"
+      ],
+      "constraints": [
+        "Design phase must produce the SM-2 spec and its tests before any dependent SwiftUI screen is designed in detail"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_selection-001",
+      "decision": "Recall is built as a single iOS app (slug: recall-ios); no portfolio split, no sibling child projects, no portfolio-json manifest is produced.",
+      "rationale": "The prompt specifies one named app with one integrated feature set (decks/cards, SM-2, review session, stats, CSV, reminders) that all depend on a single local SwiftData store and one due-card query; there is no request for multiple apps, categories, or options, and prior phases already locked a single sequenced build order (SM-2 first, frozen schema, review session, stats, CSV, reminders last) that only coheres as one app.",
+      "rejected_alternatives": [
+        "Splitting into feature-aligned sibling apps (e.g., separate CSV utility app, stats companion app)",
+        "Portfolio variants implying backend/infra (Recall Core, Recall Companion, Recall Web API)",
+        "Multiple product variants exploring social/sharing/marketplace angles"
+      ],
+      "constraints": [
+        "No portfolio-json manifest is required or produced for this phase",
+        "Any later phase proposing to spin off a feature (e.g., CSV import, stats) into a separate app must be rejected as violating this decision",
+        "Single-app status does not reduce scope or rigor \u2014 SM-2-first sequencing and frozen-schema discipline from prior phases still apply in full"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-001",
+      "decision": "Product promise is locked as: Recall is an offline iOS flashcard app that shows you exactly which cards are due today and never lies to you about your progress.",
+      "rationale": "All three independent passes converged on this same one-sentence framing (correctness + honesty over feature breadth), matching the SM-2-first, honest-empty-states priorities already fixed in prior phases.",
+      "rejected_alternatives": [
+        "Framing the promise around feature breadth or polish rather than correctness/honesty"
+      ],
+      "constraints": [
+        "Any proposed feature in later phases must be justifiable as serving this promise or it is out of scope"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-002",
+      "decision": "Primary user is a self-directed offline-first learner (language/exam/certification/professional drilling), likely ex-Anki/Quizlet, and the defining scenario is a mid-review interruption (call, force-quit, OS kill) that must resolve with zero data loss on reopen.",
+      "rationale": "Consistent across all three contributions and directly operationalizes DEC-prompt_contract-003's per-card persistence requirement into a concrete test scenario.",
+      "rejected_alternatives": [
+        "Treating interruption-safety as a nice-to-have rather than the defining design scenario"
+      ],
+      "constraints": [
+        "Design and build phases must treat the interrupted-session scenario as the primary UX correctness bar for the review screen"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-003",
+      "decision": "Core loop is locked as: deck list (with due counts) -> pick deck or Study All -> review (reveal, grade, immediate per-card persistence) -> session summary -> back to deck list; stats, CSV, and reminders are satellite features reachable around this loop, not embedded in it.",
+      "rationale": "All three contributions independently described the same sequence; keeping stats/CSV/reminders as satellites ensures a user who never opens them still gets full core value, consistent with 'smaller finished app over larger half-built.'",
+      "rejected_alternatives": [
+        "Embedding stats or CSV steps into the review loop itself"
+      ],
+      "constraints": [
+        "A user must be able to complete the full core loop without ever visiting Stats, CSV, or Settings"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-004",
+      "decision": "Hard scope boundaries are reaffirmed and extended: in addition to the prior-phase non-goals (no cloud/accounts/push/community decks/marketplace/media cards/sub-decks/ML scheduling), no cross-deck merge or dedup logic and no auto-tagging or 'smart' difficulty inference beyond what SM-2 itself produces.",
+      "rationale": "The Design Lead flagged that 'polish' temptations could introduce a whole new correctness surface (smart suggestions, auto-tagging) unrelated to the SM-2 core; no participant objected, and it's consistent with the narrow, correctness-first scope already locked.",
+      "rejected_alternatives": [
+        "Allowing local-only 'smart' convenience features on the grounds that they don't require infrastructure"
+      ],
+      "constraints": [
+        "Any later phase proposing auto-tagging, smart recommendations, or cross-deck logic must be rejected as scope creep"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-005",
+      "decision": "Demo-seeded decks are visibly tagged everywhere they appear (deck list, review header, stats breakdowns), excluded by default from overall/aggregate stats and any streak calculation, viewable individually if the user drills into that specific demo deck, and fully removable via one Settings action with no residue left in real stats.",
+      "rationale": "Resolves the open question deferred by DEC-prompt_contract-010: blending demo reviews into real retention/streak numbers would make it impossible to show a real user's honest first-time empty state, contradicting the project's explicit priority on honest empty states.",
+      "rejected_alternatives": [
+        "Demo decks always counting toward real stats",
+        "Demo decks always fully excluded even from their own per-deck view"
+      ],
+      "constraints": [
+        "Demo-data visual tagging must appear on every screen where demo decks/cards/stats could appear",
+        "Turning off demo data must leave zero trace in real stats or streaks"
+      ],
+      "supersedes": "DEC-prompt_contract-010"
+    },
+    {
+      "id": "DEC-initial_discussion-006",
+      "decision": "Measurable success criteria for this build are the seven items listed in the Final Output (SM-2 correctness + external cross-check, force-quit data-loss test, six screens with real empty states, real-fixture CSV round-trip with per-row errors, zero-due-day notification suppression, demo-data isolation, full airplane-mode run with no crashes).",
+      "rationale": "Synthesizes the measurable criteria independently proposed by all three participants into one concrete, testable checklist so 'done' has an objective bar rather than being declared on a partial UI pass.",
+      "rejected_alternatives": [
+        "Leaving success criteria as qualitative statements without concrete pass/fail tests"
+      ],
+      "constraints": [
+        "The app must not be declared done until each of the seven criteria is demonstrated, per the global rule against declaring done before build verification agrees"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-001",
+      "decision": "Target user is a serious daily offline studier with 300-3,000 atomic facts (language/exam/cert/professional), likely ex-Anki/Quizlet, who will notice immediately if scheduling or stats are dishonest.",
+      "rationale": "All three contributions converged on this same profile, sharpening the audience already locked in earlier phases with a concrete scale (card-count range) that grounds the free-tier caps decided in this phase.",
+      "rejected_alternatives": [
+        "Casual/occasional flashcard user as primary persona"
+      ],
+      "constraints": [
+        "Free-tier caps and premium value must be sized against this daily, at-scale user, not a casual one"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-002",
+      "decision": "Recall Free includes the complete, fully correct core loop (SM-2, review sessions, CSV import/export, stats) forever, capped only at 3 decks / 300 real (non-demo) cards and 30 days of stats history plus the 30-day forecast; Recall Plus is a subscription that removes those caps and adds per-deck local reminder-time customization.",
+      "rationale": "Gives 'subscription value is functional, not cosmetic' a concrete, buildable answer while keeping every locked core-loop requirement (SM-2 correctness, review speed, CSV import) fully free, since gating those would violate the fixed SM-2>speed>honesty priority order and the CSV import contract.",
+      "rejected_alternatives": [
+        "Gating review-flow speed or keyboard-friendly card editing behind a paywall (Codex's authoring-suite proposal)",
+        "Cosmetic-only premium unlocks (icon packs, themes)",
+        "Fully uncapped free tier with no monetization hook",
+        "Unlimited demo decks as a paid feature (Gemini fallback) \u2014 demo data is a single reversible seed toggle, not a scalable resource"
+      ],
+      "constraints": [
+        "No core correctness, scheduling accuracy, or review-flow speed feature may be paywalled",
+        "CSV import/export functionality itself stays fully free regardless of plan"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-003",
+      "decision": "A lapsed Recall Plus subscription never deletes or hides any deck, card, or review history already created; it only blocks creating new decks/cards beyond the free caps until the user resubscribes or trims back under the cap.",
+      "rationale": "The app's core promise is never lying to the user about their progress; making a user's own study history vanish or go read-only on lapse would be a worse trust violation than anything the original gap-honesty rule addresses.",
+      "rejected_alternatives": [
+        "Hiding over-cap decks/cards until resubscription",
+        "Read-only lockout of over-cap content on lapse"
+      ],
+      "constraints": [
+        "Design and build phases must ensure no data-hiding or read-only lockout logic is ever attached to subscription state"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-004",
+      "decision": "The App Store purchase transaction is documented as the one explicit, narrow exception to the offline-forever guarantee (an OS-level StoreKit service, not app-initiated networking); all entitlement checks, feature gating, and restore-purchases read from the on-device transaction cache and work fully offline afterward.",
+      "rationale": "StoreKit purchases require momentary connectivity like any paid app; pretending otherwise would be dishonest, while treating it as a bug would waste a QA cycle chasing something that isn't one.",
+      "rejected_alternatives": [
+        "Omitting this exception from the gap/limitations doc and letting it be discovered as a 'bug' later",
+        "Blocking all monetization to preserve a literal zero-network claim"
+      ],
+      "constraints": [
+        "Gap/limitations documentation must state this exception explicitly",
+        "Verification: airplane-mode test confirms the full app including an already-purchased Plus entitlement works; only the purchase sheet requires network and must fail gracefully with a clear message"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-005",
+      "decision": "CSV import preview must surface plan-cap-blocked rows as their own distinct, visible reason (e.g., 'not imported: plan limit reached'), separate from malformed-row error categories and never silently truncated, whenever an import would exceed the Free deck/card caps.",
+      "rationale": "Extends the already-locked never-silently-drop-a-row discipline (DEC-prompt_contract-004) to the one new failure mode that monetization introduces; without this explicit carry-forward, CSV import would likely be built against the cap as an afterthought.",
+      "rejected_alternatives": [
+        "Silently truncating imports at the cap",
+        "Folding cap-blocked rows into the existing malformed-row error categories"
+      ],
+      "constraints": [
+        "Design phase must specify a distinct visible UI treatment for cap-blocked rows in the CSV import preview"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-006",
+      "decision": "Competitive wedge is reaffirmed as deterministic, provably-correct, zero-infrastructure reliability, extended explicitly to monetization: no ads, no dark patterns, and no paywalling of correctness or speed.",
+      "rationale": "This audience actively distrusts apps that gate correctness behind a paywall; making this an explicit brand commitment protects the trust-first positioning already established.",
+      "rejected_alternatives": [
+        "Allowing limited ads or engagement-driven upsell prompts to subsidize the free tier"
+      ],
+      "constraints": [
+        "No later phase may introduce ads or manipulative upgrade prompts"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-007",
+      "decision": "Growth mechanism is CSV file portability (export/AirDrop/Files, cold-import by another user) plus presence in niche learner communities (exam-prep/language subreddits, Discords) and offline-focused App Store search terms; no referral codes, share sheets, or social mechanics are introduced.",
+      "rationale": "The app has no accounts, so account-based virality mechanisms don't fit; CSV interoperability is an honest, already-built feature that naturally produces word-of-mouth without inventing a fake social loop.",
+      "rejected_alternatives": [
+        "Referral codes or in-app share sheets",
+        "Social media campaign as the primary growth lever (Gemini fallback's vaguer proposal)"
+      ],
+      "constraints": [
+        "No later phase may add account-based or social sharing mechanics to manufacture virality"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-008",
+      "decision": "Local-first behavior is confirmed as the v1 architecture with no network dependency beyond the StoreKit purchase exception; any future cloud extension must be strictly additive (optional encrypted remote mirror, immutable card-history events, deterministic conflict policy) and never a v1 requirement.",
+      "rationale": "Matches the locked no-backend, offline-forever contract while leaving a concrete, non-hand-wavy path for a future version without requiring any rewrite of the local source-of-truth model.",
+      "rejected_alternatives": [
+        "Designing v1 around an eventual sync layer",
+        "Leaving the cloud-ready path unspecified"
+      ],
+      "constraints": [
+        "Any future sync design must preserve local records as source of truth and use last-write-wins-with-user-resolution or an equivalent deterministic policy, not silent overwrite"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-001",
+      "decision": "The MVP validation slice is a single deck with fast keyboard-driven card entry, a complete review session (reveal, grade, immediate real SwiftData persistence per card), and a truthful session summary shown only for genuinely completed sessions \u2014 built on top of a fully correct, fully tested SM-2 module.",
+      "rationale": "All three participants converged on proving the one claim the whole project rests on (trustworthy scheduling and persistence under interruption) rather than building partial breadth across many features; a wrong interval or lossy persistence at this stage would invalidate the entire premise regardless of what else gets built.",
+      "rejected_alternatives": [
+        "Building a thinner review loop with a stubbed or partially-correct SM-2 implementation",
+        "Simulating persistence in-memory to move faster on the UI"
+      ],
+      "constraints": [
+        "Real SwiftData persistence is required even at this minimal scope \u2014 no in-memory simulation",
+        "SM-2 unit tests must pass before any review screen code ships"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-002",
+      "decision": "The force-quit-mid-session interruption test (graded cards persisted and off the due stack, ungraded cards still due, no fabricated summary) is the single defining validation interaction for this phase.",
+      "rationale": "This is the concrete scenario ex-Anki/Quizlet users have been burned by before and the moment that proves 'never lies to you about your progress' rather than merely asserting it.",
+      "rejected_alternatives": [
+        "Treating interruption-safety as a nice-to-have validated later alongside stats/CSV work"
+      ],
+      "constraints": [
+        "This test must be demonstrated (scripted or manual) before the slice is considered validated"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-003",
+      "decision": "The demo-data toggle is NOT built in this slice as a real Settings feature; only a throwaway internal seed path may be used if needed to avoid demoing against an empty deck.",
+      "rationale": "Two of three participants (Codex, Claude) independently excluded it, and the reasoning holds: real demo-data isolation depends on aggregate stats existing to be excluded from, and stats are explicitly cut from this slice \u2014 building the toggle now would mean building it against features that don't exist yet.",
+      "rejected_alternatives": [
+        "Building the full demo-data toggle with visual tagging now, as proposed by Gemini's fallback pass"
+      ],
+      "constraints": [
+        "Any seed/demo path used in this slice is internal/throwaway only, not the user-facing Settings toggle described in the original prompt"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-004",
+      "decision": "Dark mode via semantic Theme.swift color roles is NOT cut for this slice and must be verified in both appearances even at minimal scope.",
+      "rationale": "Full dark-mode support is a global, non-negotiable app-build rule, not a feature-breadth item that scales with slice size; correcting Gemini's fallback proposal to cut it.",
+      "rejected_alternatives": [
+        "Deferring dark mode support until later polish, as proposed by Gemini's fallback pass"
+      ],
+      "constraints": [
+        "Later build phases inherit this: dark mode is never on a cut list regardless of scope size"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-005",
+      "decision": "Full DST/timezone-change SM-2 test breadth is deferred to the dedicated SM-2 build phase; this slice only requires proving the day-boundary mechanism itself via the injected clock with at least one concrete case.",
+      "rationale": "Claude's nuance, unopposed: the mechanism must be demonstrably correct now, but exhaustive DST/timezone-change coverage is appropriately sequenced into the phase that builds the SM-2 module in full per DEC-prompt_contract-002.",
+      "rejected_alternatives": [
+        "Requiring full DST/timezone-change test coverage before this validation slice can be considered complete"
+      ],
+      "constraints": [
+        "The full test matrix locked in DEC-prompt_contract-002 still must land before the SM-2 module is considered done overall \u2014 this only sequences when within the roadmap"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-006",
+      "decision": "This phase's output is explicitly a validation slice feeding the already-locked full build sequence (SM-2 -> frozen schema -> review session -> stats -> CSV -> reminders), not a renegotiation of the final app's scope.",
+      "rationale": "All three participants flagged the risk that a deliberately narrow slice could be misread as shrinking the eventual app; stating this explicitly prevents that misinterpretation from propagating into later phases.",
+      "rejected_alternatives": [
+        "Leaving the slice/roadmap relationship implicit"
+      ],
+      "constraints": [
+        "Later phases must treat every item on this phase's cut list as deferred, not removed, per the roadmap already locked in product_research"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-001",
+      "decision": "SM-2 is locked to literal SuperMemo-2 arithmetic (EF' = EF + (0.1 \u2212 (5\u2212q)\u00d7(0.08+(5\u2212q)\u00d70.02)), EF floored at 1.3; I(1)=1 day, I(2)=6 days, I(n)=round(I(n-1)\u00d7EF) for n>2) with an explicit UI grade mapping (Again=q2, Hard=q3, Good=q4, Easy=q5); a lapse is defined as quality<3 (Again only), resetting repetition count to 0 and interval to 1 day while still applying the EF decrease; Hard is a passing grade that advances repetition/interval/EF normally, not a lapse.",
+      "rationale": "\"SM-2\" is not a single unambiguous formula across implementations (Anki diverges from literal SuperMemo-2 on lapse handling and Hard's effect); without pinning one exact variant with a documented grade mapping, two engineers would defensibly build different schedules, defeating 'provably right, not plausibly right.'",
+      "rejected_alternatives": [
+        "Implementing Anki's relearning-steps/configurable lapse-interval-% variant without documenting the choice",
+        "Leaving the quality-score mapping for Again/Hard/Good/Easy as an implementation detail decided ad hoc during coding"
+      ],
+      "constraints": [
+        "The SM-2 spec-with-worked-examples phase must use this exact formula and grade mapping",
+        "The external cross-check against Anki's known interval progression (DEC-product_research-003) must explain any visible divergence from Anki's numbers rather than treat it as a bug, since Anki is not literal SM-2"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-002",
+      "decision": "CSV format is defined as front, back, and an optional third note column (not strictly two-column-only) so that export-then-import is genuinely lossless, including notes.",
+      "rationale": "DEC-prompt_contract-004 requires lossless round-trip, but a strictly two-column importer would silently drop a card's note on re-import since notes are part of the card model and appear in export \u2014 that is exactly the 'never silently drop data' failure this feature exists to prevent.",
+      "rejected_alternatives": [
+        "Redefining 'lossless round-trip' to mean only front/back and documenting note loss as an accepted limitation",
+        "Keeping import strictly two-column as literally worded in the original prompt"
+      ],
+      "constraints": [
+        "CSV import must validate front/back as required per existing malformed-row rules while treating the note column as optional per-row (absent note is not an error)"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-003",
+      "decision": "Due-status/day-boundary evaluation is an explicit function of (instant, device's current timezone at query time) \u2014 including the case where a device timezone change alone flips a card's due status with no review taken \u2014 and this is named as an accepted, documented limitation alongside notification staleness.",
+      "rationale": "This is the necessary corollary of the already-locked calendar-day-at-query-time rule (DEC-prompt_contract-002), but it is a non-obvious behavior for a 'reliable review engine' claim and needs to be tested and disclosed rather than discovered as a surprise.",
+      "rejected_alternatives": [
+        "Treating timezone-crossing as identical to and covered by the existing DST test case",
+        "Leaving timezone-crossing due-status behavior implicit and undocumented"
+      ],
+      "constraints": [
+        "SM-2/day-boundary test suite must include a dedicated timezone-crossing case distinct from the DST case",
+        "Gap/limitations documentation must state that due status and reminder counts can be affected by device timezone changes"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-004",
+      "decision": "Per-card grade persistence must use an explicit, synchronous context.save() call at grade time, never relying on ModelContext.autosaveEnabled.",
+      "rationale": "Autosave batches on a timer/scene-phase basis and would reopen the exact data-loss window the interruption-safety guarantee (DEC-prompt_contract-003) exists to close; SQLite's atomic commit protects the database's integrity but not an in-memory grade that autosave hasn't flushed yet.",
+      "rejected_alternatives": [
+        "Relying on SwiftData's default autosave behavior for per-grade persistence"
+      ],
+      "constraints": [
+        "Review session architecture must call an explicit save after each grade before advancing to the next card",
+        "The force-quit interruption test must include a kill timed at/immediately after the save call, not only between UI taps"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-005",
+      "decision": "Information architecture is locked as a 3-tab shell: Study (deck list, due counts, review entry), Stats, and Settings & Tools (CSV import/export, reminders, demo-data toggle, subscription/plan status, gap/limitations register).",
+      "rationale": "Keeps the core loop one tap away while making satellite features discoverable without cluttering the primary flow, consistent with DEC-initial_discussion-003's satellite-feature framing.",
+      "rejected_alternatives": [
+        "A deeper or more fragmented navigation with separate top-level destinations for CSV, reminders, and subscription"
+      ],
+      "constraints": [
+        "Design phase must produce screen designs against this 3-tab structure"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-006",
+      "decision": "CSV duplicate detection is defined as a case-sensitive exact front+back match, checked both within the imported file and against existing non-archived cards in the target deck, surfaced as its own distinct per-row reason separate from malformed-row and plan-cap-blocked categories.",
+      "rationale": "'Duplicate' was named as a failure mode in DEC-prompt_contract-004 but never defined precisely enough to implement or test consistently.",
+      "rejected_alternatives": [
+        "Fuzzy or case-insensitive duplicate matching",
+        "Silently merging or silently skipping duplicate rows"
+      ],
+      "constraints": [
+        "Import preview UI must show a distinct reason string for duplicate rows, never folded into malformed-row or cap-blocked categories"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-007",
+      "decision": "Archived decks and their cards continue to count against Free-tier caps (3 decks/300 cards); card deletion is in scope as part of card editing, and deleting a card cascades to delete its ReviewLog history, which can retroactively change retention-rate stats as expected, honest behavior.",
+      "rationale": "Archiving is not deletion, so excluding archived content from the cap would let users trivially evade it, undermining DEC-per_app_product_brief-002; 'edit cards' implicitly requires delete to be usable, and cascading the ReviewLog is the only interpretation consistent with never retaining or fabricating orphaned data.",
+      "rejected_alternatives": [
+        "Excluding archived decks/cards from cap counting",
+        "Treating card deletion as out of scope for this app",
+        "Preserving orphaned ReviewLog rows after a card is deleted"
+      ],
+      "constraints": [
+        "Build phase must implement cap counting inclusive of archived content",
+        "Card deletion must cascade-delete its ReviewLog; retroactive stat changes after deletion are expected behavior, not a defect to fix"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-008",
+      "decision": "Grading controls (Again/Hard/Good/Easy) must be distinguishable without relying on color alone, and the daily local reminder's notification body must contain only a numeric due-card count \u2014 never card content, deck names, or subject matter.",
+      "rationale": "Color-only grading buttons fail color-blind and VoiceOver users, and accessibility is already a stated product requirement, not polish; lock-screen notification previews are visible to anyone glancing at a shared device, so leaking study content would be a real privacy regression.",
+      "rejected_alternatives": [
+        "Color-coded-only grading buttons (red/orange/green/blue) with no additional distinguishing label",
+        "Richer notification text naming specific decks or subjects"
+      ],
+      "constraints": [
+        "Grading UI must include distinct text labels and/or accessible VoiceOver labels per grade, not glyph/color alone",
+        "Notification body text generation must never interpolate card or deck content, only the numeric due count"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-009",
+      "decision": "The SwiftData store's participation in normal OS-level iCloud device backup is acknowledged as consistent with the offline-forever contract (it is OS-initiated, not app-initiated sync); no cross-device merge logic exists if a user restores diverging backups onto two devices, and this must be documented explicitly in the gap/limitations register.",
+      "rationale": "This is a predictable support question for a daily, at-scale, possibly multi-device user, and it is consistent with the already-locked no-cross-deck-merge/no-v1-sync non-goals, but needs to be named rather than silently left undiscovered.",
+      "rejected_alternatives": [
+        "Pretending no backup/restore divergence scenario exists",
+        "Building ad hoc merge/conflict resolution for this scenario in v1, which would contradict DEC-per_app_product_brief-008's no-v1-sync rule"
+      ],
+      "constraints": [
+        "Gap/limitations documentation must state that OS-level device backup/restore across two devices can produce diverging, unmerged local stores"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-001",
+      "decision": "Feature prioritization is locked to MoSCoW with eleven must-have feature groups (SM-2 engine, deck/card CRUD, interruption-safe review session, stats, CSV import/export, local reminders, demo-data toggle, Theme/dark-mode, gap register, Free/Plus gating, non-color-dependent grading accessibility), two should-haves (3-tab IA, search/filter), one could-have (advanced chart interactions), and a hard won't-build list (cloud/accounts/marketplace/social/media-cards/sub-decks/ML-scheduling/cross-deck-dedupe/ads).",
+      "rationale": "Both substantive contributors (Codex, Claude) independently produced near-identical must/should/could/won't breakdowns compiling every requirement already locked in prior phases into a gradable list; convergence without contradiction on this much surface area is a strong signal the scope line is correct.",
+      "rejected_alternatives": [
+        "Treating any of the eleven must-haves as should-have to reduce build risk",
+        "Scoring 3-tab IA and search/filter as must-have rather than should-have"
+      ],
+      "constraints": [
+        "Every future phase must treat the eleven must-have groups as non-negotiable completion gates",
+        "The won't-build list may not gain any UI affordance, including disabled controls, per the already-locked DEC-prompt_contract-006"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-002",
+      "decision": "Per-deck local reminder-time customization is locked as its own explicit must-have requirement, not left implicit inside general Free/Plus gating.",
+      "rationale": "It is the only functional feature Plus adds per DEC-per_app_product_brief-002; if it is allowed to slip to should-have under build pressure, the monetization decision from that phase becomes unbuildable and Plus has zero differentiation.",
+      "rejected_alternatives": [
+        "Leaving per-deck reminder customization as an implicit detail under the general Free/Plus requirement"
+      ],
+      "constraints": [
+        "Build phase must implement per-deck reminder-time customization as a gating must-have, not a stretch goal"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-003",
+      "decision": "Every must-have acceptance criterion must be independently executable by a human or script to a pass/fail result \u2014 restating the feature description is not an acceptance criterion.",
+      "rationale": "Without this discipline, 'acceptance criteria' risk becoming decorative prose that can't actually gate a build-verification pass, undermining the project's 'provably right, not plausibly right' standard.",
+      "rejected_alternatives": [
+        "Accepting qualitative/descriptive acceptance criteria for must-have features"
+      ],
+      "constraints": [
+        "Requirements-json entries and later build verification must map to concrete, checkable tests or scripted scenarios"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-004",
+      "decision": "Two new concrete acceptance checks are added to the must-have gate: CSV test fixtures must include at least one real-world exported file (not only hand-crafted edge cases), and hitting a Free-tier cap mid-review-session must not corrupt or block the in-progress session.",
+      "rationale": "The first operationalizes DEC-product_research-006 into a testable gate rather than a suggestion; the second closes a previously unstated interaction between monetization caps and the review-flow-speed priority, which the fixed SM-2>speed>honesty tiebreaker (DEC-prompt_contract-007) requires be protected.",
+      "rejected_alternatives": [
+        "Treating real-world CSV fixtures as a nice-to-have rather than a gating test",
+        "Leaving cap-during-review behavior unspecified and discovering it as a bug during build"
+      ],
+      "constraints": [
+        "Build/test phase must source or construct a real-world CSV fixture and include a cap-hit-mid-session test case"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-005",
+      "decision": "The 3-tab information architecture (already locked structurally in DEC-detailed_discussion-005) is scored as should-have rather than must-have within this phase's MoSCoW prioritization, meaning it does not itself gate 'done' even though it will be built as the locked navigational shell.",
+      "rationale": "MoSCoW scoring in this phase measures what gates completion under time pressure, not what is architecturally decided; the IA is already structurally locked and not actually at risk of being cut, so should-have scoring reflects prioritization nuance, not a reopening of the IA decision.",
+      "rejected_alternatives": [
+        "Scoring 3-tab IA as must-have, duplicating the prior lock as a redundant gate"
+      ],
+      "constraints": [
+        "The 3-tab IA decision itself remains locked per DEC-detailed_discussion-005; should-have scoring here is about build-priority sequencing only, not about whether it gets built"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-001",
+      "decision": "Design language is named 'The Honest Ledger': a calm, information-dense, non-gamified visual language (tabular numerals for counts, ink/graphite palette with a single reserved amber accent used only for due-today badges and confirmed-save moments).",
+      "rationale": "Codex and Claude independently converged on the same underlying philosophy (precision-instrument trust over engagement/gamification); Claude's persona-grounded framing and concrete palette were adopted as the more specific, buildable version of the same direction.",
+      "rejected_alternatives": [
+        "Codex's 'Scheduled Trust Instrument' naming (same philosophy, folded in rather than kept as a separate competing name)",
+        "Generic 'clean and modern' non-answer",
+        "Gamified/streak-flame/confetti visual register"
+      ],
+      "constraints": [
+        "Any later phase or build artifact must reference this name and palette rationale, not invent a new unrelated design language"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-002",
+      "decision": "The default-looking version of this app (plain List rows, stock Form, system blue accent, color-only grade pills, generic unlabeled charts, post-grade 'Saved!' toast) is explicitly rejected with five named concrete replacements: custom due-count deck cards, ascending-staircase shape/position/label-based grading buttons, ink/graphite+amber palette with no system blue, directly-labeled 'today' bar in the forecast chart, and structural (not toast-based) save confirmation.",
+      "rationale": "The phase rules require explicit rejection of the default look with named differences, not adjectives; the toast-banner rejection is additionally a correctness requirement, not just aesthetic preference, since a 'Saved' banner mid-session risks implying false session completion.",
+      "rejected_alternatives": [
+        "Default SwiftUI List/Form/TabView chrome",
+        "Color-only (red/orange/green/blue) grading buttons with no shape/label distinction",
+        "A green 'Saved!' toast/banner shown after each grade"
+      ],
+      "constraints": [
+        "No screen may ship with default unstyled List/Form chrome where this spec calls for custom rows/cards",
+        "No completion-implying confirmation UI (toast, banner, checkmark overlay) may appear after a single grade during an active session"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-003",
+      "decision": "Signature interaction is the reveal-and-grade motion: a fast (<200ms), no-bounce content settle on tap-to-reveal (explicitly not a 3D card-flip), paired with four grade buttons rising from the bottom edge, each with a distinct haptic weight on an ascending ladder from Again to Easy.",
+      "rationale": "Expresses the design language's calm/trust register while protecting review-flow speed (priority #2); a literal card-flip looks nice once but is fatiguing by the fortieth card of a session, and the haptic ladder lets grading work by feel for a user reviewing one-handed on a moving train.",
+      "rejected_alternatives": [
+        "A literal 3D card-flip reveal animation",
+        "Uniform/no haptic feedback across all four grade buttons"
+      ],
+      "constraints": [
+        "Reduced-motion accessibility setting must disable the reveal-settle animation but must not remove the haptic ladder, since haptics are not motion"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-004",
+      "decision": "Screen inventory is locked across the existing 3-tab shell: Study (Deck List w/ due counts + Study All + empty/all-caught-up states; Deck Detail; Card Editor sheet with keyboard-first flow; Review Session; Session Summary reachable only on full completion), Stats (Overview + per-deck drill-down, each with distinct empty/sparse/success states), Settings & Tools (root list; CSV Export; CSV Import with per-row status preview; Reminders with tri-state permission handling and per-deck Plus override; Demo Data toggle; Plan/Subscription screen; Gap & Limitations register as its own real screen).",
+      "rationale": "Both substantive contributors independently produced nearly identical screen inventories mapped onto the already-locked 3-tab IA; Claude's version added concrete detail (Study All entry, cap-hit-mid-session as inline notice not modal, Gap register as a first-class readable screen rather than a buried settings row) that Codex did not contradict.",
+      "rejected_alternatives": [
+        "Burying the Gap & Limitations register inside a generic settings row rather than giving it its own screen",
+        "A modal interruption for the cap-hit-mid-session case"
+      ],
+      "constraints": [
+        "Build phase must implement each listed screen with the state model specified in DEC-design_discussion-005",
+        "The Gap & Limitations register must be reachable as its own discoverable screen, not nested prose in an About page"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-005",
+      "decision": "Per-screen state models are locked, including two new explicit substates beyond prior phases' requirements: Deck List gets a distinct 'all caught up' success substate separate from true empty, and Review Session gets a 'cap hit mid-session' state rendered as a small non-blocking inline notice rather than a modal.",
+      "rationale": "A true-empty state ('you have no decks yet') and an 'all caught up' state ('you have decks but nothing is due') communicate very different things and deserve different copy; rendering the cap-hit state as a modal would itself violate the locked requirement that hitting a cap must not corrupt or interrupt an in-progress review session.",
+      "rejected_alternatives": [
+        "Reusing one generic empty-state graphic for both true-empty and all-caught-up cases",
+        "A modal/blocking alert for the cap-hit-mid-session case"
+      ],
+      "constraints": [
+        "Stats screens must never render a chart from fabricated-looking flat placeholder data even in the sparse state"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-006",
+      "decision": "Accessibility requirements for this phase are locked as: grading buttons satisfy the non-color-dependent requirement specifically via the shape/position/label staircase (not a later-added tooltip); card front/back text scales with Dynamic Type including accessibility sizes via a scrolling card area, with the grade-button area reserved in the bottom safe zone; charts carry Swift Charts accessibility summary labels.",
+      "rationale": "Claude flagged that the staircase/haptic-ladder approach is more visually and technically interesting than four equal buttons and risks being treated as stretch polish and cut under build-time pressure, when it is in fact how the already-locked non-color-dependent grading requirement gets satisfied.",
+      "rejected_alternatives": [
+        "Treating the staircase layout as optional visual polish rather than the accessibility requirement's actual implementation",
+        "Letting Dynamic Type growth push grade buttons off-screen"
+      ],
+      "constraints": [
+        "Build phase may not substitute a plain tooltip or color-only fallback for the staircase layout and call the accessibility requirement satisfied"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-001",
+      "decision": "A single canonical token set (type scale, spacing grid, color palette, corner radii) is locked from Codex's fuller semantic palette (covers surfaceMuted/Elevated, textTertiary, chartGrid, focusOutline \u2014 roles Claude's independently-derived palette didn't name), reconciling it with Claude's compatible-but-different hex values.",
+      "rationale": "Both contributors produced complete, numerically-specified specs in the same direction (Honest Ledger, ink/graphite/amber) but with different exact hex values since they worked independently; a build needs one canonical file, not two options.",
+      "rejected_alternatives": [
+        "Shipping Claude's palette instead (fewer named semantic roles for required categories like chart grid and focus outline)",
+        "Leaving both palettes in the handoff for the builder to choose"
+      ],
+      "constraints": [
+        "Theme.swift must be built from the values in this phase's Final Output only, with zero invented values",
+        "No color/font/spacing literal may appear outside Theme.swift"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-002",
+      "decision": "Component inventory is merged into one canonical named list, with three components explicitly flagged as their own files that must not be reimplemented ad hoc: GradeStaircase (neutral ink/graphite only, no per-grade color), DemoDataTag (one reusable component used everywhere demo content appears), and InlineCapNotice (persistent, non-blocking, shaped distinctly from anything toast-like).",
+      "rationale": "Both contributors independently converged on nearly the same component set; the explicit do-not-regress flag on these three specifically protects already-locked accessibility (DEC-design_discussion-006) and correctness (no false-completion signal) requirements that are easy for a builder to quietly erode under time pressure.",
+      "rejected_alternatives": [
+        "Leaving component boundaries implicit and letting the builder infer which pieces are load-bearing vs. cosmetic"
+      ],
+      "constraints": [
+        "A future change adding per-grade color tinting or a toast-style save confirmation is a regression against this decision, not a style choice"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-003",
+      "decision": "Navigation is locked as three independent per-tab NavigationStacks; Review Session pushes onto the Study stack (not a sheet) and hides the tab bar for its duration; Card Editor, CSV Import, and Plan/Subscription present as sheets; Session Summary is a sheet reachable only after true queue completion; the in-session exit control reads 'End session \u2014 your progress is saved' rather than a loss-warning dialog.",
+      "rationale": "Claude's specific mechanism (push + hidden tab bar to protect focus during the highest-stakes flow) refines Codex's less specific navigation description without contradicting it; the honest exit-copy detail is required because, given the locked interruption-safety architecture, a loss-warning dialog would literally be lying to the user.",
+      "rejected_alternatives": [
+        "Presenting Review Session as a sheet",
+        "A confirmation dialog warning the user they might lose progress by leaving early"
+      ],
+      "constraints": [
+        "Build phase must implement the exit control's copy exactly as specified, since it is a correctness statement, not just UX copy"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-004",
+      "decision": "Review Session must snapshot an ordered array of due Card IDs once at session start and step through it by index \u2014 it must NOT be driven by a live SwiftData @Query.",
+      "rationale": "A live query re-triggers on every grade (since grading mutates dueDate), which can reorder or shrink the visible queue mid-session, especially in Study All mode across multiple decks \u2014 this would look exactly like a data-loss bug even though the underlying data is safe, and it is the kind of subtle pitfall a builder would introduce by reaching for the 'obviously idiomatic' SwiftUI pattern.",
+      "rejected_alternatives": [
+        "Driving the review queue directly off a live @Query for simplicity"
+      ],
+      "constraints": [
+        "Build/test phase must include a Study-All multi-deck test that would catch queue reordering if this constraint is violated"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-005",
+      "decision": "Interruption-safety is implemented as 'recompute the due query fresh from truth on relaunch' rather than an explicit session save/restore mechanism; there is no separate persisted resume-point.",
+      "rationale": "Because each grade is already synchronously saved and updates the card's dueDate immediately, a fresh due-query on relaunch automatically excludes graded cards and automatically includes ungraded ones \u2014 building a separate resume-state mechanism would add its own bug surface for no benefit and risks a path by which a fabricated summary could appear.",
+      "rejected_alternatives": [
+        "Persisting and restoring an explicit session/resume-point object"
+      ],
+      "constraints": [
+        "The force-quit test scenario should verify this by killing mid-session and confirming the relaunched due query alone produces the correct graded/ungraded split, not a restored session object"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-006",
+      "decision": "SwiftData schema is finalized as Deck/Card/ReviewLog with the fields specified; Card.isDemo is a denormalized copy from its parent Deck at creation time (not derived via join), due status is a computed predicate against a freshly-computed 'start of tomorrow' instant (never a stored boolean), and ReviewLog rows are strictly append-only and never mutated in place.",
+      "rationale": "This is the concrete implementation of the calendar-day-at-query-time rule (DEC-prompt_contract-002) and the cloud-readiness immutable-event-log intent (DEC-per_app_product_brief-008); denormalizing isDemo avoids an expensive join on every stats aggregation at the 300-3,000 card scale this persona lives at, and append-only ReviewLog prevents a future 'quick bug fix' from silently breaking the immutable-history guarantee.",
+      "rejected_alternatives": [
+        "Deriving isDemo via a join to Deck on every query",
+        "Storing due status as a mutable boolean flag",
+        "Allowing in-place correction of ReviewLog rows"
+      ],
+      "constraints": [
+        "Build phase must enforce ReviewLog immutability at the architecture level (e.g., no update path exposed), not just as a convention"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-007",
+      "decision": "Per-grade save runs synchronously on the main actor against the live ModelContext; this is an accepted, explicitly named performance cost (a possible small stutter on old devices), not something to defer to a background save.",
+      "rationale": "This is the mechanism that actually closes the interruption-safety guarantee (DEC-detailed_discussion-004); backgrounding the save for a smoother feel would silently reopen the exact data-loss window the app's entire trust claim depends on closing, and given the SM-2-correctness-then-speed-then-honesty tiebreaker, correctness wins this specific tradeoff.",
+      "rejected_alternatives": [
+        "Moving the per-grade save to a background queue/actor for smoother perceived performance"
+      ],
+      "constraints": [
+        "Any future performance optimization pass must not move this save off the synchronous main-actor path"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-008",
+      "decision": "Local reminders use repeats:false, re-scheduled (remove-pending then re-add for 'tomorrow') at each of the four locked refresh points; gap-register copy should describe a skipped day as the notification 'never being created,' not merely 'stale.'",
+      "rationale": "A UNCalendarNotificationTrigger's body text is fixed at schedule time, so repeats:true would freeze a due-count forever; this refines the already-locked staleness-acceptance decision (DEC-product_research-005) with the actual technically-accurate framing for the gap register.",
+      "rejected_alternatives": [
+        "Using repeats:true with a fixed body text",
+        "Keeping the vaguer 'staleness' framing instead of the more accurate 'never created' framing"
+      ],
+      "constraints": [
+        "Gap & Limitations screen copy must use the 'never created if app unopened between days' framing"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-009",
+      "decision": "The four-step haptic ladder is concretely mapped onto iOS's actual 5 discrete UIImpactFeedbackGenerator styles as Again=.light, Hard=.medium, Good=.heavy, Easy=.heavy+a second .light pulse \u2014 resolving the fact that iOS's styles (light/medium/heavy/soft/rigid) are not a clean linear intensity scale.",
+      "rationale": "Codex's original light/medium/rigid/heavy mapping doesn't reliably read as an ascending ladder since rigid and heavy differ in feel-character more than magnitude; Claude's fix gives Easy a distinctly 'extra' top-of-ladder feel using only real, available iOS haptic primitives.",
+      "rejected_alternatives": [
+        "The original light/medium/rigid/heavy mapping",
+        "Inventing a fifth intensity level iOS doesn't provide"
+      ],
+      "constraints": [
+        "Haptic ladder must be validated on a physical device before considered done \u2014 Simulator playback is not representative"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-010",
+      "decision": "No external Claude Design pass is used by default; the spec's explicit numeric values are sufficient for direct SwiftUI implementation. A ready-to-use Claude Design prompt is preserved for optional use only if the run is configured to pause for external design or a limited palette sanity-check is wanted.",
+      "rationale": "Every token has a real number and every component is named/mapped; the actual risk in this app is native SwiftUI fidelity (Dynamic Type, safe areas, VoiceOver, haptic timing), not visual concepting, so an external design round would only add reverse-engineering risk without reducing any real uncertainty.",
+      "rejected_alternatives": [
+        "Always running a full external Claude Design mockup pass across all 13 screens"
+      ],
+      "constraints": [
+        "If external design is invoked, it is scoped to at most Deck List and Review Session as a sanity-check, not a full handoff replacing this document"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-001",
+      "decision": "App architecture is three layers: a pure domain package (SM-2 engine + CSV parser, zero SwiftUI/SwiftData imports, no direct Date()/Calendar.current calls) as its own local Swift package target, a thin SwiftData repository layer, and SwiftUI + @Observable presentation view models.",
+      "rationale": "Physical package separation (not just file-organization convention) is the only thing that reliably prevents a future 'quick fix' from reaching for Date()/Calendar.current directly and silently invalidating the DST/timezone test matrix; it also keeps SM-2 and CSV logic independently testable and provably pure.",
+      "rejected_alternatives": [
+        "Keeping SM-2/CSV as plain files inside the main app target with a style-guide convention against impure calls",
+        "A single monolithic app target with MVVM only, no package boundary"
+      ],
+      "constraints": [
+        "SM-2 and CSV modules must have zero imports of SwiftUI, SwiftData, or Foundation's Date()/Calendar.current singletons \u2014 only injected Clock/Calendar values"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-002",
+      "decision": "Apple framework set is locked to SwiftUI, SwiftData, Swift Charts, StoreKit 2, UserNotifications, UniformTypeIdentifiers, OSLog, Swift Testing, and XCUITest; no ML/CoreML/ARKit or any other framework is introduced.",
+      "rationale": "Every locked feature in this app is served by this exact set; nothing in the requirements justifies machine learning, augmented reality, or any framework outside this list, and stating this plainly now prevents tech_specs from re-litigating it.",
+      "rejected_alternatives": [
+        "ML-based scheduling, OCR/handwriting card creation, or card-similarity features using CoreML"
+      ],
+      "constraints": [
+        "Any framework outside this list requires explicit justification in tech_specs and must still pass the zero-ML/AR non-goal"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-003",
+      "decision": "ModelContainer initialization must include real error handling with a user-facing recovery screen (retry or explicit start-fresh option) rather than try!, and VersionedSchema/SchemaMigrationPlan scaffolding is set up from v1 even though there is only one schema version today.",
+      "rationale": "A try!-based ModelContainer init crash-loops on a corrupted store or failed lightweight migration, which for an app whose entire promise is 'never lose your progress' would be the single worst possible failure mode; setting up migration scaffolding now costs nothing but is the only thing standing between a future required field addition and silently corrupting existing users' ReviewLog history.",
+      "rejected_alternatives": [
+        "Default try! ModelContainer initialization",
+        "Deferring migration-plan scaffolding until a second schema version is actually needed"
+      ],
+      "constraints": [
+        "Build verification must include a test or manual check that a corrupted/unopenable store produces the recovery screen, not a crash"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-004",
+      "decision": "Exactly one ModelContainer instance exists for the app's entire lifetime, not one per scene or window.",
+      "rationale": "Multiple containers/contexts racing on the same underlying store is a real risk under iPad multitasking or any future multi-window scenario, and is trivially avoided by a single shared instance.",
+      "rejected_alternatives": [
+        "Per-scene ModelContainer instances"
+      ],
+      "constraints": [
+        "Build phase must wire a single app-level ModelContainer, injected via environment, not recreated per view/scene"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-005",
+      "decision": "The force-quit mid-session interruption test \u2014 the single most important test in the app \u2014 must be an automated, CI-runnable XCUITest using app.terminate() (a real SIGKILL) at a timed point around the synchronous save, asserting the exact graded/ungraded split on relaunch.",
+      "rationale": "A manual-only 'kill the simulator mid-session' QA step bit-rots and can silently stop being performed; app.terminate() is the actual sanctioned XCUITest mechanism for this and must be scripted so 'provably right' doesn't quietly become 'we tried it once.'",
+      "rejected_alternatives": [
+        "Treating the force-quit test as a manual QA checklist item performed once before ship"
+      ],
+      "constraints": [
+        "This test must exist as a checked-in, CI-runnable XCUITest, not documentation of a manual procedure"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-006",
+      "decision": "A Privacy Manifest (PrivacyInfo.xcprivacy) is a required build-verification checklist item despite the app having zero network calls.",
+      "rationale": "Apple's privacy manifest requirement is keyed on API usage categories (e.g. UserDefaults, file timestamps), not network usage, so a zero-network app can still trip App Store review without one; naming this now avoids a late-stage rejection surprise.",
+      "rejected_alternatives": [
+        "Assuming a zero-network app doesn't need a privacy manifest"
+      ],
+      "constraints": [
+        "Build verification checklist must include confirming PrivacyInfo.xcprivacy is present and accurate before submission"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-007",
+      "decision": "The notification permission prompt fires only when the user actively enables Reminders in Settings, never at cold launch.",
+      "rationale": "A denied first-ask at cold launch is much harder to recover from than a contextual ask tied to the user's own action, and this is also better UX consistent with the app's non-nagging tone.",
+      "rejected_alternatives": [
+        "Requesting notification permission at first app launch"
+      ],
+      "constraints": [
+        "Build phase must gate the UNUserNotificationCenter authorization request behind the user toggling Reminders on, not app launch"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-008",
+      "decision": "StoreKit implementation requires a checked-in .storekit configuration file with scripted expire/refund/renewal tests, a paywall carrying privacy-policy and terms-of-use links (App Review 3.1.2 requirement for auto-renewing subscriptions), and an explicit bounded error state (not a hang) when a purchase is attempted while offline.",
+      "rationale": "These are concrete, easily-missed requirements: the .storekit file makes subscription states testable in Simulator without a sandbox account; the policy/terms links are an actual Apple review requirement, not a nicety; and the offline-purchase case is the one real network touch in an otherwise offline app, so leaving it as a silent spinner would violate the app's own honesty principle.",
+      "rejected_alternatives": [
+        "Testing StoreKit only against a live sandbox account",
+        "Leaving the offline-purchase-tap case as an indefinite loading spinner"
+      ],
+      "constraints": [
+        "Build phase must include a checked-in .storekit config and scripted Xcode StoreKit testing scenarios for expire/refund/renew",
+        "Paywall screen must link to privacy policy and terms of use",
+        "Purchase flow must show a clear, bounded error message when attempted with no connectivity"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-009",
+      "decision": "CSV import must wrap file reads from the document picker in startAccessingSecurityScopedResource()/stopAccessingSecurityScopedResource().",
+      "rationale": "Document-picker URLs are security-scoped; omitting this pattern works fine in development (same process/session) and then intermittently fails for real users pulling files from iCloud Drive or other Files providers \u2014 a classic bug that's easy to miss until it ships.",
+      "rejected_alternatives": [
+        "Reading the picked file URL directly without security-scoped access calls"
+      ],
+      "constraints": [
+        "CSV import implementation must call start/stopAccessingSecurityScopedResource around every file read from the document picker"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-010",
+      "decision": "Zero third-party dependencies is reaffirmed as a hard rule; the CSV parser is hand-rolled rather than sourced from any SPM package.",
+      "rationale": "The app already has a locked, exhaustive per-row CSV error taxonomy that a generic library wasn't designed around, so hand-rolling is actually less work than fighting someone else's abstraction, while keeping supply-chain surface at zero.",
+      "rejected_alternatives": [
+        "Adopting a third-party CSV parsing library, even a permissively-licensed one"
+      ],
+      "constraints": [
+        "No new SPM dependency may be added without explicit one-line justification per the approved tech stack policy, and CSV parsing specifically stays hand-rolled"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-011",
+      "decision": "The Gap & Limitations screen requires its own automated test asserting the screen renders and contains the required disclosure strings (StoreKit exception, notification staleness/never-created framing, timezone-crossing due flips, iCloud backup divergence, full non-goals list).",
+      "rationale": "Without an automated check, 'must be documented' is exactly the kind of soft requirement that quietly disappears under time pressure with nobody able to prove it was actually shipped.",
+      "rejected_alternatives": [
+        "Relying on manual review to confirm the Gap & Limitations content is present"
+      ],
+      "constraints": [
+        "Test suite must include an assertion that the Gap & Limitations screen contains each required disclosure string"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-012",
+      "decision": "Testing strategy is layered: Swift Testing unit tests for pure domain logic (SM-2, day-boundary/timezone predicates, CSV row classification, cap-hit logic), persistence tests against an in-memory SwiftData container for CRUD/cascade-delete/append-only ReviewLog behavior, integration tests for interruption/reminders/CSV flows, and UI tests paired with deterministic non-UI tests so correctness never depends on animation timing.",
+      "rationale": "This maps every locked correctness guarantee (SM-2 purity, interruption safety, CSV never-silently-drop, ReviewLog immutability) to a concrete, appropriately-scoped test layer rather than leaving test strategy as an afterthought discovered during build.",
+      "rejected_alternatives": [
+        "Relying primarily on UI tests for correctness verification",
+        "Testing persistence only against the real on-device store rather than an in-memory container"
+      ],
+      "constraints": [
+        "tech_specs and build phases must map each locked correctness requirement to one of these four test layers explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-001",
+      "decision": "Architecture is concretely implemented as two local Swift packages (RecallScheduling, RecallCSV) for pure domain logic plus an app-target SwiftData repository layer and SwiftUI+@Observable presentation, giving the already-locked three-layer architecture a specific file/module layout.",
+      "rationale": "Codex and Claude independently produced compatible, near-identical package/module breakdowns; making it concrete now (not just 'physically separate' in prose) is what actually lets parallel build lanes compile independently.",
+      "rejected_alternatives": [
+        "Leaving package boundaries as a stated principle without a concrete file layout for build lanes to follow"
+      ],
+      "constraints": [
+        "Build phase must create RecallScheduling and RecallCSV as real local SPM package targets, each with its own Swift Testing target"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-002",
+      "decision": "Stats aggregation (forecast/history/retention) runs in a dedicated background StatsComputationActor (@ModelActor) with its own read-only ModelContext, triggered by ModelContext.didSave notifications and publishing into a @MainActor @Observable StatsCache \u2014 explicitly named as a concurrency domain separate from the main-actor synchronous grade-save write path.",
+      "rationale": "Claude's addition: without this explicit separation, a builder reaching for the 'obviously simple' pattern would compute stats inline in a chart view's body, causing a full ReviewLog table scan on every re-render at the 300-3,000 card persona scale.",
+      "rejected_alternatives": [
+        "Computing stats inline in view bodies or on the same main-actor write path as grade saves"
+      ],
+      "constraints": [
+        "Any future performance pass may not merge StatsComputationActor's read path back onto the main-actor write path"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-003",
+      "decision": "UUID is the canonical identifier type across all cross-lane contracts (repositories, session snapshot queues, view models) \u2014 not SwiftData's PersistentIdentifier.",
+      "rationale": "Codex's interfaces-json used UUID throughout while Claude's used PersistentIdentifier; as coordinator this is resolved to UUID because letting PersistentIdentifier leak into primary_ui/view-model types would require SwiftData imports outside the persistence layer, breaking the layer separation the whole architecture is built to enforce.",
+      "rejected_alternatives": [
+        "Using PersistentIdentifier as the canonical cross-lane identifier"
+      ],
+      "constraints": [
+        "No primary_ui or services_utilities type may reference PersistentIdentifier directly; only the SwiftData repository implementations may translate between UUID and PersistentIdentifier internally"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-004",
+      "decision": "The review session snapshot queue must tolerate a stale/missing card ID at grading time (e.g. a card deleted between session start and being graded) by skipping it, incrementing a visible staleSkippedCount, and continuing \u2014 never crashing and never fabricating a grade or a silently-shrunk summary.",
+      "rationale": "Codex's Red Team catch: no prior phase named this edge case, and without an explicit test for it the app could still crash or silently misreport progress while claiming correctness, directly undermining the core trust promise.",
+      "rejected_alternatives": [
+        "Leaving stale-ID handling as undefined/implicit behavior discovered during build",
+        "Treating a stale ID as a crash-worthy invariant violation"
+      ],
+      "constraints": [
+        "Build/test phase must include a dedicated stale-ID mid-session skip test",
+        "Session summary UI must be able to surface staleSkippedCount if nonzero rather than hiding the discrepancy"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-005",
+      "decision": "CSVRowStatus is finalized as a concrete Swift enum with one case per malformed/duplicate/cap-blocked reason plus an ok case carrying the parsed front/back/note, replacing prose descriptions of the error taxonomy with a compiled shared contract type.",
+      "rationale": "Both contributors converged on the same taxonomy; encoding it as a real type (not a string or prose list) is what makes 'never silently drop a row' independently checkable by both the parser and the preview UI.",
+      "rejected_alternatives": [
+        "Representing row status as a loosely-typed string/reason pair instead of an enum"
+      ],
+      "constraints": [
+        "CSVParser.parseImportPreview and the import preview UI must both consume this exact enum, with no additional untyped error paths"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-006",
+      "decision": "Navigation uses typed per-tab route enums (StudyRoute, StatsRoute, SettingsRoute) instead of a type-erased NavigationPath.",
+      "rationale": "Claude's addition: gives parallel build lanes compile-time-checked routing instead of stringly-typed/type-erased paths that only fail at runtime.",
+      "rejected_alternatives": [
+        "A single type-erased NavigationPath shared across all three tabs"
+      ],
+      "constraints": [
+        "Each tab's NavigationStack must be driven by its own typed route array, not a shared NavigationPath"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-007",
+      "decision": "Plan-cap logic (deck/card counts vs. Free limits, StoreKit entitlement state) is centralized in one injected PlanGate object read by the card editor, CSV import preview, and deck creation flow.",
+      "rationale": "Claude's addition: prevents three independently-implemented cap counters from drifting out of sync, which would otherwise be a real risk given caps are checked from three separate UI entry points.",
+      "rejected_alternatives": [
+        "Letting each cap-checking screen compute deck/card counts independently"
+      ],
+      "constraints": [
+        "No screen may compute Free-tier cap state itself; all cap checks read from the single injected PlanGate instance"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-008",
+      "decision": "Optional hardware keyboard shortcuts (space/return to reveal; 1-4 or arrow keys to grade Again/Hard/Good/Easy) are added to the review session as an additive acceleration layered on top of the existing tap-based GradeStaircase, with a discoverable hint row.",
+      "rationale": "Claude's proposal: zero new frameworks, doesn't touch the locked non-color-dependent accessibility contract (VoiceOver/staircase labels remain the accessibility path of record), and is a direct, low-risk expression of the review-flow-speed priority for the daily, at-scale persona this app targets.",
+      "rejected_alternatives": [
+        "Treating keyboard shortcuts as a replacement input path rather than additive",
+        "Deferring keyboard acceleration as out-of-scope polish"
+      ],
+      "constraints": [
+        "Keyboard shortcuts must never be the sole way to satisfy the non-color-dependent grading accessibility requirement; VoiceOver labels and reduced-motion behavior must remain unchanged regardless of input method"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-009",
+      "decision": "Deck gains reminderHour/reminderMinute optional fields implementing per-deck Plus reminder-time override, and StatsSnapshot.retentionRate is typed as an optional Double (nil, not 0, when sampleSize is 0) to distinguish no-data from zero-retention.",
+      "rationale": "Concrete schema/type-level implementation of two already-locked requirements (per-deck reminder customization as a Plus differentiator; honest empty vs. sparse stats states) that needed an actual field/type decision to be buildable.",
+      "rejected_alternatives": [
+        "Storing retentionRate as 0.0 for both true zero-retention and no-data cases",
+        "Modeling per-deck reminder override as a separate join table instead of optional fields on Deck"
+      ],
+      "constraints": [
+        "UI layer must branch on retentionRate == nil for empty-state copy, distinct from a genuine low/zero retention value"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-010",
+      "decision": "Testing strategy is given concrete named suites (RecallSchedulingTests, RecallCSVTests, RecallPersistenceTests, RecallIntegrationTests, RecallUITests) mapped to the architecture layers, with two new required cases beyond prior phases: stale-ID mid-session skip, and per-grade save-failure UI behavior (card stays visible, marked unsaved, retry \u2014 never a fake decrement or advance).",
+      "rationale": "Turns the already-locked four-layer testing strategy from ios_architecture_review into buildable, named test targets and closes two edge cases (stale ID, save failure) that this phase surfaced but that weren't yet mapped to a specific test.",
+      "rejected_alternatives": [
+        "Leaving stale-ID and save-failure behavior as implicit/undocumented edge cases discovered during manual QA"
+      ],
+      "constraints": [
+        "Build phase must add both new test cases to the CI-runnable suite, not treat them as optional manual checks"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-001",
+      "decision": "Build sequencing is dependency-driven with the pure domain layer (RecallScheduling + RecallCSV, fully test-green including SM-2's day-boundary/DST/timezone matrix) as the hard gate before any milestone that reads or writes scheduling state (persistence repositories, review session, stats); scaffolding/shell work (package targets, three-tab shell, Theme.swift skeleton, ModelContainerFactory/AppRootState, PrivacyInfo.xcprivacy) has no dependency on SM-2 completion and can run in parallel with it.",
+      "rationale": "All three contributors converged on this same critical-path structure independently; making the parallelizable scaffolding work explicit (rather than implying everything queues serially behind SM-2) shortens the actual critical path without weakening the correctness gate.",
+      "rejected_alternatives": [
+        "Treating the roadmap as a strict serial queue where nothing starts until SM-2 is fully done"
+      ],
+      "constraints": [
+        "Any milestone touching Card.easeFactor/intervalDays/repetitionCount or ReviewLog writes must not start until RecallSchedulingTests and RecallCSVTests are fully green"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-002",
+      "decision": "The force-quit interruption XCUITest and the stale-ID mid-session skip test are built as part of the review session milestone's definition of done, not appended afterward as a separate testing/polish milestone.",
+      "rationale": "Both Codex and Claude agreed a session architecture not built with these tests in mind from the start isn't cheaply retrofittable; treating them as trailing QA tasks risks a session design that has to be reworked to accommodate them later.",
+      "rejected_alternatives": [
+        "Building the review session UI first and adding interruption/stale-ID test coverage as a later hardening pass"
+      ],
+      "constraints": [
+        "The review session milestone cannot be marked complete without both tests passing, not just the happy-path UI working"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-003",
+      "decision": "The domain-engine milestone reuses next_steps_small's validated SM-2/review-loop code if it exists and passes its own tests, porting it into RecallScheduling and adapting its public surface to the frozen tech_specs interfaces; if no such artifact exists, it is built fresh against those same interfaces. Either way, the deferred DST/timezone-crossing/external-cross-check test coverage (explicitly pushed to this phase by DEC-next_steps_small-005) is the actual net-new work in this milestone, not a full SM-2 rewrite.",
+      "rationale": "Codex and Claude converged independently on this exact resolution in round 2; deciding it now removes an estimate-invalidating ambiguity that would otherwise let milestone 2's duration swing by days depending on which assumption task assignment happens to make.",
+      "rejected_alternatives": [
+        "Always rewriting SM-2/review-loop code from scratch regardless of whether a validated artifact already exists",
+        "Leaving the reuse-vs-rebuild question implicit for the build phase to discover"
+      ],
+      "constraints": [
+        "Whichever path is taken, the resulting module must conform exactly to the SM2Engine/Grade/SchedulingState signatures already locked in tech_specs' interfaces-json"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-004",
+      "decision": "The only fallback cut under schedule pressure is trimming CSV import (export stays); no must-have feature \u2014 including Free/Plus gating and cap enforcement \u2014 may be cut or disabled as a second-tier fallback, only should-have/could-have items may be deferred beyond the CSV-import cut.",
+      "rationale": "Claude's round-2 argument for cutting StoreKit/Plus gating as a second tier (monetization postdates the original prompt's six core features, and a lapsed-subscription-never-hides-data rule already makes 'no subscription' the limit case) was well-reasoned but conflicts with app_features' explicit, already-locked constraint that all eleven must-have groups \u2014 Free/Plus gating named among them \u2014 are non-negotiable completion gates that no future phase may downgrade; a scheduling contingency in this phase isn't grounds to override that boundary.",
+      "rejected_alternatives": [
+        "Cutting StoreKit/Plus gating entirely as a second fallback tier, shipping every user the full uncapped app for free if time runs short beyond CSV import"
+      ],
+      "constraints": [
+        "Any future time-pressure decision must cite this fixed cut order rather than reopening which must-have is 'safe' to cut"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-005",
+      "decision": "PlanGate is introduced at the persistence/repositories milestone as an injected singleton stub (isPlus hardcoded true, unlimited caps) before the card editor, CSV import preview, or deck creation flow are built, and becomes true entitlement-aware once the subscription milestone wires real StoreKit state into it.",
+      "rationale": "Building the three cap-checking screens before PlanGate exists would reproduce the exact three-independently-drifting-cap-counters problem tech_specs already ruled out (DEC-tech_specs-007); standing up the stub early costs almost nothing since persistence already computes the deck/card counts PlanGate reads.",
+      "rejected_alternatives": [
+        "Deferring PlanGate until the StoreKit/subscription milestone and retrofitting cap checks into the three already-built screens afterward"
+      ],
+      "constraints": [
+        "Card editor, CSV import preview, and deck creation must all read cap state from PlanGate from the milestone they are first built, never compute it independently even temporarily"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-006",
+      "decision": "A dedicated spike proving StatsComputationActor's ModelContext.didSave-triggered cross-context refresh actually works (no race, no staleness) runs before the full forecast/history/retention aggregation is implemented, and a 3-second-under-3,000-cards/3-years-of-logs latency ceiling is written into that milestone's definition of done as a testable NFR.",
+      "rationale": "Claude flagged this concurrency bridge as unprototyped and risky to discover mid-milestone; Gemini's round-1 latency ceiling ties directly to the daily-studier persona's card-count range from per_app_product_brief and both contributors agreed it belongs in the milestone's DoD rather than floating as an aside.",
+      "rejected_alternatives": [
+        "Building the full stats aggregation directly on top of the interfaces-json signature without first proving the didSave bridge works",
+        "Treating the latency ceiling as an aspirational note rather than a gating test"
+      ],
+      "constraints": [
+        "Stats milestone cannot be marked complete without both the spike passing and the latency ceiling test passing under simulated load"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-007",
+      "decision": "The authoritative interruption-safety test remains a genuine app.terminate() SIGKILL XCUITest per DEC-ios_architecture_review-005, unchanged; the flakiness mitigation is a test-only pause inserted immediately after the synchronous per-grade save call returns (before the queue index advances), which lets the external terminate() call reliably land inside that window, rather than a self-initiated app exit triggered by a diagnostic flag.",
+      "rationale": "Gemini's original proposal (the app hard-exits itself on a diagnostic flag right after save) would prove the app chooses to die, not that it survives an uncooperative OS-level kill \u2014 a materially weaker claim than the locked requirement exists to prove; Claude's refinement gets the same determinism benefit by controlling only the timing of an externally-triggered, genuine terminate() call.",
+      "rejected_alternatives": [
+        "A diagnostic flag causing the app to call its own hard exit as the flakiness-reduction mechanism"
+      ],
+      "constraints": [
+        "Any test-only pause/hook added for timing determinism must not itself terminate or exit the process; the kill must always originate from the XCUITest harness's app.terminate() call"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-008",
+      "decision": "The haptic ladder is implemented exactly per DEC-design_handoff-009's mapping regardless of hardware availability; physical-device validation is tracked as a real dependency, and if this build environment turns out to be Simulator-only, that is logged as an explicit, named entry in the Gap & Limitations register rather than assumed complete or silently skipped.",
+      "rationale": "Both Codex and Claude agreed waiting to confirm device availability before deciding isn't worth the delay; the honest default is to build to spec and disclose the unverified state if a physical device never becomes available, consistent with this project's standing priority on honest limitations over silent gaps.",
+      "rejected_alternatives": [
+        "Blocking milestone acceptance indefinitely pending confirmation of physical-device availability",
+        "Marking haptic validation complete without ever having tested on real hardware"
+      ],
+      "constraints": [
+        "Gap & Limitations register must include the haptic-hardware-unverified disclosure by final stabilization if no physical device was used during the build"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-001",
+      "decision": "Task assignment adopts the four fixed lanes (data_domain, primary_ui, services_utilities, polish_resilience) with a working draft of 33 tasks, but the draft is explicitly provisional pending round-2 reconciliation of directory naming, task granularity, and requirement-ID scheme.",
+      "rationale": "Two substantive contributors (Codex, Claude) produced compatible but non-identical breakdowns of the same locked milestones; rather than pick one arbitrarily, the coordinator is carrying Claude's more granular draft forward as the working baseline since it's the more execution-ready of the two, while flagging the specific points of divergence for round 2 rather than silently resolving them.",
+      "rejected_alternatives": [
+        "Locking Codex's 13-task coarse breakdown as final without addressing the fileSystemSynchronizedGroups mitigation or requirement-ID mismatch",
+        "Locking Claude's 33-task breakdown as final without giving Codex or Gemini a chance to contest the safety-test ownership call"
+      ],
+      "constraints": [
+        "Round 2 must explicitly resolve: Xcode project/directory naming (RecallIOS vs Recall), task granularity, ownership of the force-quit/stale-ID XCUITests, and requirement IDs cross-checked against app_features' locked 55-item list"
+      ],
+      "supersedes": null,
+      "superseded": true,
+      "superseded_by": "DEC-task_assignments-005"
+    },
+    {
+      "id": "DEC-task_assignments-002",
+      "decision": "Repo layout roots directly at the writable workspace (Recall.xcodeproj, Recall/, Packages/, RecallTests/, RecallUITests/) with no nested recall-ios/ folder inside it.",
+      "rationale": "The session's actual working directory is already .../recall-ios/.agent_cwd \u2014 recall-ios is already the containing folder one level up, so a second recall-ios/ layer inside the workspace would be redundant and lengthen every file path for no disambiguating benefit; verified against the real environment rather than decided by preference.",
+      "rejected_alternatives": [
+        "Codex's recall-ios/Recall/... nested layout"
+      ],
+      "constraints": [
+        "All lane-owned files in this phase's tasks-json use paths relative to the workspace root with no recall-ios/ prefix"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-003",
+      "decision": "Task granularity is locked to the 33-task fine-grained breakdown rather than the earlier 13-task coarse version.",
+      "rationale": "Codex conceded in round 2 that mapping app_features' 52 must-have CORE requirements onto 13 tasks would produce acceptance-criteria lists deep enough to violate DEC-app_features-003's ban on restated-feature-description acceptance criteria; finer tasks are what make each criterion independently checkable.",
+      "rejected_alternatives": [
+        "Codex's original 13-task coarse milestone breakdown"
+      ],
+      "constraints": [
+        "Each task's acceptance_criteria must remain independently pass/fail checkable, not a restatement of the task title"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-004",
+      "decision": "The force-quit SIGKILL test, stale-ID/reorder tests, Gap & Limitations disclosure assertion, and final stabilization pass are owned by polish_resilience, deliberately separate from the primary_ui tasks that build the underlying review-session/gap-register features.",
+      "rationale": "Both Codex and Claude converged on this: if the same lane under the same feature-delivery deadline both builds a safety-critical mechanism and grades whether it survives, the incentive produces technically-passing-but-weak tests (e.g. a kill timed too late, an assertion that only checks a count instead of which specific cards are gone).",
+      "rejected_alternatives": [
+        "Bundling the force-quit and stale-ID tests into the same task as the review-session UI build (Codex's original round-1 proposal)"
+      ],
+      "constraints": [
+        "No future phase may reassign these tests to the feature-building lane to save coordination overhead"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-005",
+      "decision": "Requirement IDs in this phase's tasks use the R-<CATEGORY>-<NNN> scheme; reconciling these against the canonical 55-item requirements.json from app_features is deferred to a mechanical checklist step inside final stabilization (T-033), not treated as a phase-blocking design question.",
+      "rationale": "Neither contributor had the actual requirements.json in front of them in this room, so any scheme adopted now is provisional; the real work is a diff-and-match pass, which is an execution task, not a decision requiring more discussion rounds.",
+      "rejected_alternatives": [
+        "Blocking phase consensus until the canonical requirement IDs are manually looked up and substituted",
+        "Leaving the REQ-* vs R-* mismatch from round 1 unresolved"
+      ],
+      "constraints": [
+        "T-033 must not be marked complete until every CORE requirement in the real requirements.json is cited by at least one task with zero orphans"
+      ],
+      "supersedes": "DEC-task_assignments-001"
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-001",
+      "decision": "A CSV import flow must be added to flows-json alongside the existing export flow (F-004) before build starts.",
+      "rationale": "All three participants (Codex, Claude, Gemini's fallback) independently flagged that CSV import \u2014 a primary promise with the most locked correctness surface (duplicate detection, cap-blocked rows, malformed-row taxonomy) \u2014 has no crawl-verifiable flow, unlike export.",
+      "rejected_alternatives": [
+        "Leaving CSV import verification to unit/integration tests only, without a crawlable UI flow"
+      ],
+      "constraints": [
+        "flows-json must include an import flow exercising file selection, preview, and confirm-commit before this phase can close"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-002",
+      "decision": "Recall/Services/GapRegisterEntry.swift needs an explicit single-owner/handoff resolution between T-004 (bootstrap skeleton) and T-030 (consolidate final content) rather than two lanes independently writing to the same file.",
+      "rationale": "Codex and Gemini's fallback both identified this as a same-file collision risk that weakens the gap-register integrity requirement if left implicit.",
+      "rejected_alternatives": [
+        "Leaving both tasks as independent writers to the same file with no explicit dependency"
+      ],
+      "constraints": [
+        "T-030 must be made an explicit continuation of T-004 (e.g., depends_on T-004 with ownership transfer noted), not a parallel write"
+      ],
+      "supersedes": null,
+      "superseded": true,
+      "superseded_by": "DEC-implementation_readiness_gate-005"
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-003",
+      "decision": "The canonical requirements.json must be authored and checked into the repo before T-001 starts; T-033's job changes from first-time authoring/reconciliation to a mechanical diff against that concrete artifact.",
+      "rationale": "No content matching the '55-item canonical requirements.json' referenced since app_features actually appears anywhere in this project's history; what's adjacent to it is a mismatched, incompatible ID scheme from an unrelated repair exercise. Reconciling 52 CORE requirements against 33 tasks needs full context, and T-033 (the last task of a long multi-lane build) is the point in the process with the least context remaining, not the most.",
+      "rejected_alternatives": [
+        "Deferring requirements.json authoring/reconciliation entirely to T-033 as originally planned",
+        "Assuming the file already exists without verifying it"
+      ],
+      "constraints": [
+        "requirements.json must exist as a real, checked-in artifact before T-001 begins",
+        "T-033 verifies zero orphaned CORE requirements against this artifact rather than authoring it for the first time"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-004",
+      "decision": "A Free-tier 30-day stats-history window must be added as an enforced requirement: StatsComputationActor's forecast/history/retention queries take a windowing parameter sourced from PlanGate.isPlus (30 days for Free, unbounded for Plus), and the stats screens must visibly communicate when history is windowed rather than silently truncating it.",
+      "rationale": "per_app_product_brief locked exactly two things Plus unlocks \u2014 no deck/card caps and no 30-day stats window \u2014 but only the cap side was wired into the task backlog (via PlanGate); the stats-history side had no owning task in T-019/T-020/T-021, meaning Plus would ship with only one of its two promised differentiators and Free users would silently get more than intended.",
+      "rejected_alternatives": [
+        "Leaving the 30-day stats cap unenforced and treating Free/Plus gating as satisfied by deck/card caps alone",
+        "Silently truncating history without visible indication, which would violate the project's own no-fabrication/honest-empty-state standard"
+      ],
+      "constraints": [
+        "T-020 acceptance criteria gain the windowing parameter sourced from PlanGate.isPlus",
+        "T-021 acceptance criteria gain a visible windowed-history indicator for Free users"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-005",
+      "decision": "The GapRegisterEntry.swift collision is resolved concretely: T-030 is given an explicit depends_on T-004, and T-004 gains an acceptance criterion that its skeleton file must compile with placeholder entries, so T-030 extends a real file rather than racing a second writer to overwrite it.",
+      "rationale": "Codex's refinement of the round-1 finding: 'same owner lane' isn't the same as an explicit ownership handoff, and without a dependency edge the file could still diverge before one writer wins, undermining the Gap register's own integrity as an auditable product promise.",
+      "rejected_alternatives": [
+        "Leaving same-lane ownership as sufficient without a formal task dependency",
+        "Splitting GapRegisterEntry.swift into two separate files to avoid the collision entirely"
+      ],
+      "constraints": [
+        "Build phase must add T-030 -> depends_on -> T-004 to the task graph and add the compiling-skeleton criterion to T-004"
+      ],
+      "supersedes": "DEC-implementation_readiness_gate-002"
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-006",
+      "decision": "Incremental build-verification checkpoints are added at two points: after T-011 (persistence + SM-2 tests green) and after T-018 (review session + interruption tests green), where pass/fail on that slice is confirmed before primary_ui/services_utilities/polish_resilience proceed into stats, CSV, reminders, or StoreKit work.",
+      "rationale": "Given the size of this single-pass build (pure SM-2 package with a DST/timezone/external-cross-check matrix, actor-based stats with an unprototyped concurrency spike, an app.terminate() SIGKILL test, StoreKit 2 with scripted subscription scenarios, a hand-rolled CSV parser, and an unverifiable-on-real-hardware haptic ladder), applying the project's own 'don't declare done until verification agrees' rule only at the final task (T-033) risks discovering a foundational flaw only after four more feature areas have been built on top of it.",
+      "rejected_alternatives": [
+        "Running the full 33-task backlog with verification only at the end (T-033)",
+        "Checkpointing after every task, which would be excessive process overhead relative to the risk being managed"
+      ],
+      "constraints": [
+        "Build execution must report explicit pass/fail on the T-011 slice and the T-018 slice before downstream lanes proceed, without changing task count, order, or lane ownership"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-001",
+      "decision": "The QA checklist explicitly sorts every feature into 'real and working,' 'honest placeholder,' or 'fully absent,' and tests each category on its own terms rather than applying one uniform pass/fail bar.",
+      "rationale": "The app's entire promise is never lying about state; a QA script that tells a tester to tap a CSV import button that routes to a placeholder and call it a bug (or, worse, a script that pretends the placeholder is the real feature) would itself violate that promise inside the QA process.",
+      "rejected_alternatives": [
+        "Treating all Settings features as equally testable end-to-end regardless of implementation status",
+        "Omitting placeholder/absent features from the checklist entirely"
+      ],
+      "constraints": [
+        "Any future QA pass must re-classify features into these three buckets before writing new test steps, since implementation status can change between builds"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-002",
+      "decision": "The force-quit mid-session interruption test is written as an exact, numbered manual procedure (create deck, add 2 cards, grade one, kill within ~1s, relaunch, assert exact due split) rather than a one-line 'verify interruption safety' bullet.",
+      "rationale": "Build verification's latest result shows RecallTests/ReviewSessionViewModelTests.swift fails to compile on a main-actor-isolation error, which means the automated XCUIApplication.terminate() force-quit test cannot currently run at all \u2014 making this manual walkthrough the only presently-executable proof of the app's single most important trust claim.",
+      "rejected_alternatives": [
+        "Relying on the (currently non-functional) automated XCUITest as sufficient coverage",
+        "A vague one-line manual instruction to 'test force-quit'"
+      ],
+      "constraints": [
+        "This manual procedure must be re-run as a regression check after any future change to the review session or data layer, and treated as load-bearing until the automated test target compiles again"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-003",
+      "decision": "QA steps are written in plain visual/behavioral language ('tap the first deck in the list') rather than referencing internal accessibility identifiers a human tester cannot see.",
+      "rationale": "A checklist meant for a human tester to run without asking what to tap fails its own acceptance bar if it assumes knowledge of XCUITest identifiers from flows-json.",
+      "rejected_alternatives": [
+        "Writing steps directly against the flows-json accessibility identifiers (study.deckCell_0, review.gradeGood, etc.)"
+      ],
+      "constraints": [
+        "Identifiers may be used only as a parenthetical cross-reference for automated-test authors, never as the primary instruction"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-004",
+      "decision": "Non-color-dependent grading accessibility is tested literally, by switching the device to Grayscale or Smart Invert and confirming grade buttons remain distinguishable, rather than just visually inspecting the staircase layout.",
+      "rationale": "The locked accessibility requirement is that grading works without relying on color; the only real proof is removing color from the display and confirming comprehension still holds, not just eyeballing that labels exist.",
+      "rejected_alternatives": [
+        "Accepting visual inspection of the shape/label staircase as sufficient proof of the color-independence requirement"
+      ],
+      "constraints": [
+        "Any future accessibility regression check for grading should include a grayscale/Smart Invert pass, not just a VoiceOver pass"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-005",
+      "decision": "Haptic-ladder verification is explicitly marked as requiring a physical device, and any 'pass' recorded from Simulator testing alone is invalid.",
+      "rationale": "iOS Simulator does not produce real haptic feedback, so a tester feeling 'something' or nothing at all on Simulator provides no signal about the real ascending-intensity ladder; project history already flagged this as unverified on physical hardware.",
+      "rejected_alternatives": [
+        "Accepting a Simulator-only run as sufficient haptic verification"
+      ],
+      "constraints": [
+        "QA reports must record Simulator vs. physical device explicitly for this check specifically"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-006",
+      "decision": "Study tab and Stats screens are tested with three distinct empty/sparse/populated substates per screen (true-empty vs. all-caught-up vs. sparse vs. full data) rather than a single empty-vs-not-empty check.",
+      "rationale": "These states carry different meaning to the user (no decks yet vs. nothing due today vs. not enough history yet) and were separately locked as distinct copy/design states in earlier design phases; collapsing them in QA would let a regression that merges these states back together go undetected.",
+      "rejected_alternatives": [
+        "Treating 'empty' as a single binary state across Study and Stats"
+      ],
+      "constraints": [
+        "Future QA passes on these screens must continue checking each substate independently, with its own screenshot/expected copy"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-001",
+      "decision": "V1 submission ships as a fully free app with zero subscription/Plus/paywall UI or marketing copy anywhere in the binary or App Store metadata; StoreKit/monetization is deferred to a future v1.1 submission once actually built and tested.",
+      "rationale": "No StoreKit code, .storekit config, or Plan/Subscription screen exists anywhere in the codebase despite being a locked must-have in earlier phases; marketing a tier that doesn't exist in the binary is a guaranteed App Store metadata-mismatch rejection, and a rushed StoreKit integration risks tripping 3.1.2 (missing terms/privacy links, non-functional Restore Purchases, unhandled offline-purchase state) \u2014 all previously-flagged risks that were never closed.",
+      "rejected_alternatives": [
+        "Submitting with Plus/subscription tier language despite no implementation",
+        "Shipping a disabled/greyed-out 'Upgrade' affordance as a placeholder"
+      ],
+      "constraints": [
+        "No later phase may add subscription/Plus copy to App Store metadata or in-app UI without a real, tested StoreKit implementation behind it",
+        "PlanGate's hardcoded-unlimited stub requires no functional change to support this decision"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-002",
+      "decision": "App Store positioning is locked to 'Recall \u2014 the flashcard app that never lies to you': offline-forever, zero accounts, zero ads, provably-correct SM-2 engine, explicitly not competing on feature breadth or Stats/chart richness.",
+      "rationale": "Both participants independently converged on the same trust-first framing, consistent with the project's design language ('The Honest Ledger') and its target audience of ex-Anki/Quizlet users who value reliability over engagement features.",
+      "rejected_alternatives": [
+        "Leading marketing copy with Stats/chart features or breadth of functionality",
+        "Generic 'clean and modern flashcard app' positioning"
+      ],
+      "constraints": [
+        "Marketing copy and screenshots must not claim any capability (reminders scheduling, CSV import/export, subscriptions) that isn't actually live in the submitted build"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-003",
+      "decision": "Privacy label is Data Not Collected across every category; PrivacyInfo.xcprivacy's existing Required Reason API declarations (UserDefaults, file timestamp) are accepted as sufficient and must be reconfirmed present in the actual built artifact before submission.",
+      "rationale": "The app has zero network calls, no analytics, no third-party SDKs, and no tracking; the privacy manifest already on disk matches this reality, so the label should be the simplest possible truthful claim rather than over-declaring or under-declaring categories.",
+      "rejected_alternatives": [
+        "Adding privacy categories not actually justified by real API usage",
+        "Skipping direct confirmation that PrivacyInfo.xcprivacy exists in the built artifact"
+      ],
+      "constraints": [
+        "Final build verification must directly confirm PrivacyInfo.xcprivacy is present and accurate before submission, not just assume it from architecture-phase intent"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-004",
+      "decision": "Notification permission copy and gating remain exactly as currently implemented: user-initiated (gated behind toggling Reminders on, never at cold launch), and the ask explains only 'so we can tell you how many cards are due' with no card/deck content ever mentioned.",
+      "rationale": "This already matches the locked non-nagging tone and the notification-content-privacy rule (count-only body text); no Info.plist usage-description string is required since the app touches no other permission-gated API (camera/location/contacts).",
+      "rejected_alternatives": [
+        "Requesting notification permission at first launch",
+        "Adding marketing language implying richer notification content"
+      ],
+      "constraints": [
+        "Any future change to notification copy must preserve the count-only, no-content-leak rule"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-005",
+      "decision": "Screenshot/storyboard assets must be captured from the real shipped UI using manually-seeded review history (since Demo Data seeding doesn't exist as a feature), including at least one populated Stats view, one dark-mode paired shot, and the Gap & Limitations screen itself as a legitimate differentiator rather than something to hide.",
+      "rationale": "There is no Demo Data toggle to lean on for populated screenshots, and both participants agreed that showing the Gap & Limitations screen is honest evidence of the app's 'never lies to you' claim rather than a liability to obscure.",
+      "rejected_alternatives": [
+        "Using placeholder/mocked data for screenshots",
+        "Omitting the Gap & Limitations screen from App Store assets"
+      ],
+      "constraints": [
+        "No App Store screenshot may depict functionality (working reminders, working CSV import/export, a subscription tier) that isn't actually live in the submitted build"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-006",
+      "decision": "A real support/contact path (support URL or in-app contact) and legal-links entry point must be added before submission, since none currently exists and App Store Connect requires a working support URL at submission time.",
+      "rationale": "Both participants independently flagged this as a real, concrete launch blocker rather than a nice-to-have \u2014 it's a hard App Store Connect submission requirement, not a design preference.",
+      "rejected_alternatives": [
+        "Submitting without a support URL and addressing it only if rejected"
+      ],
+      "constraints": [
+        "This must be resolved before submission, not treated as a post-launch follow-up"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-007",
+      "decision": "A two-tier launch-blocker framework is locked: honest 'not yet available' placeholders (CSV export/import, Demo Data) are tracked gaps that do not block App Store submission; features whose interactive UI appears fully functional but silently fails to deliver (Reminders) are treated as genuine launch blockers requiring resolution, not documentation.",
+      "rationale": "Run through the project's own fixed tiebreaker (SM-2 correctness > review-flow speed > honest empty states), a clearly-labeled placeholder is priority-3 working exactly as designed, while a working-looking control that silently produces nothing is the one place that priority is actually at risk of being violated \u2014 these are not the same failure mode and shouldn't get the same treatment.",
+      "rejected_alternatives": [
+        "Treating all incomplete features (placeholders and look-complete-but-silent ones alike) as equally launch-blocking",
+        "Treating all incomplete features as equally acceptable to ship with just a disclosure sentence"
+      ],
+      "constraints": [
+        "Any future phase classifying an incomplete feature must place it in one of these two tiers explicitly, not leave it ambiguous"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-008",
+      "decision": "The Reminders feature's interactive Settings UI (toggle, permission request, time picker) is removed entirely for v1 rather than shipped as-is or fixed with a real scheduler under submission time pressure; it is replaced with a plain 'coming in a future update' line or folded into the Gap & Limitations register, and revisited alongside StoreKit in a v1.1 pass.",
+      "rationale": "This exact feature has been confidently reported as fully built across nine-plus separate build_coordination/write_tests iterations, and every single time the ReminderScheduler turned out not to exist on disk \u2014 that history makes 'build it now, in time for submission' a real, demonstrated scheduling risk rather than a hypothetical one, whereas hiding one Settings row and adding one honest line carries near-zero engineering risk and is airtight honest.",
+      "rejected_alternatives": [
+        "Shipping the Reminders UI as-is with an added clarifying disclosure sentence (initial Codex position, later retracted)",
+        "Building a minimal real ReminderScheduler now to keep the feature in v1"
+      ],
+      "constraints": [
+        "The App Store description, screenshot plan, and in-app copy must not reference reminders/notifications as a feature of this release",
+        "Any future v1.1 reminders work must be scoped as new feature work, not a quick fix to existing UI"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-009",
+      "decision": "The screenshot/storyboard plan and App Store description are updated to drop any Reminders-related shot or copy, consistent with pulling that UI from v1.",
+      "rationale": "A decision to remove a feature's UI has no effect if the marketing assets still depict or describe it \u2014 this closes that gap explicitly rather than leaving it as an implied follow-through.",
+      "rejected_alternatives": [
+        "Leaving the previously-planned Reminders screenshot/copy in place despite the UI being removed"
+      ],
+      "constraints": [
+        "Final asset review before submission must confirm no reminders reference remains in screenshots or description"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-010",
+      "decision": "Final launch-blocker list for this submission is: (1) remove the interactive Reminders UI per DEC-app_store_readiness-008, (2) fix the RecallTests/ReviewSessionViewModelTests.swift main-actor-isolation compile error, (3) add a real support/contact URL both in App Store Connect metadata and as an in-app Settings route. CSV/Demo-Data placeholders and the absence of StoreKit are explicitly non-blocking tracked gaps for this release.",
+      "rationale": "Synthesizes both rounds' agreement into one concrete, actionable list rather than leaving 'launch blockers' as a matter of interpretation between the two tiers established in DEC-app_store_readiness-007.",
+      "rejected_alternatives": [
+        "Including CSV/Demo-Data incompleteness in the launch-blocker list",
+        "Declaring the app store-ready before the compile error and support URL are resolved"
+      ],
+      "constraints": [
+        "The app must not be declared App-Store-submission-ready until all three items in this list are actually resolved, not just planned"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-001",
+      "decision": "Final verdict for this submission is NO-GO, pending direct confirmation (not assumption) that the three app_store_readiness launch blockers \u2014 Reminders interactive UI removal, the ReviewSessionViewModelTests.swift compile fix, and a real support/contact URL \u2014 were actually executed in code.",
+      "rationale": "Those three items were decided, not built, in the immediately preceding phase; the latest verification block still shows the identical compile failure that motivated one of them, and there is no build phase between app_store_readiness and this review to have applied the other two.",
+      "rejected_alternatives": [
+        "Declaring go based on the prior phase's decision alone, treating a decision as equivalent to its execution",
+        "Silently re-describing the three blockers as already resolved"
+      ],
+      "constraints": [
+        "Any future phase or build pass must directly verify (file existence, compile success, screen content) each of the three blockers rather than citing the app_store_readiness decision as proof they happened"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-002",
+      "decision": "'Compiled cleanly' and 'tests pass' are recorded as two distinct claims in this review, with only the first ever having been true anywhere in this project's history; the test target currently cannot compile at all, meaning the app's core interruption-safety guarantee has never been confirmed by a real automated run.",
+      "rationale": "Six-plus build waves of confident 'verified'/'tested' language in this project's history all bottom out in manual code-tracing or a compile-only result, never a green xcodebuild test or swift test run; conflating the two would misrepresent the actual strength of evidence behind the app's central trust claim.",
+      "rejected_alternatives": [
+        "Treating 'compiled cleanly' as sufficient grounds to call the interruption-safety guarantee proven",
+        "Repeating prior phases' confident test-pass language without re-checking it"
+      ],
+      "constraints": [
+        "Any future phase citing test coverage as evidence must distinguish a real executed test result from a hand-traced or compile-only claim"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-003",
+      "decision": "Prompt coverage is reported honestly as a real, material scope reduction \u2014 roughly half of the six named core features (CSV UI wiring, Demo Data, local reminders, Free/Plus monetization) are missing, unwired, or removed for this release \u2014 rather than folded into soft 'known limitations' phrasing that undersells the gap.",
+      "rationale": "The review's job per this phase's own playbook is to not hide unfinished work; describing this as the full six-feature build with minor gaps would misrepresent how much of the original prompt is actually reachable by a user today.",
+      "rejected_alternatives": [
+        "Describing the gaps as minor polish items alongside the working core loop",
+        "Omitting Free/Plus and Demo Data absence from the headline coverage assessment since they were separately deprioritized in earlier phases"
+      ],
+      "constraints": [
+        "Any future phase or user-facing summary of this build must state the CSV-UI, Demo Data, reminders, and monetization gaps explicitly as prompt-coverage shortfalls, not just as tracked internal gaps"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_audit-001",
+      "decision": "Portfolio audit is marked not applicable for this run: Recall is confirmed as a single-app project with one Xcode project, one app target, two test targets, no sibling app folders, and no portfolio-json manifest.",
+      "rationale": "portfolio_selection already locked the single-app decision earlier in the project, and every subsequent phase (task_assignments, build_coordination, build_verification) consistently references one project with no second app ever spun up; there is no multi-app structure to audit.",
+      "rejected_alternatives": [
+        "Inventing portfolio-structure checks against a single-app project",
+        "Treating the empty sandboxed working directory shown in this room as evidence of a missing or misplaced project"
+      ],
+      "constraints": [
+        "Canonical audit path for any future structural check is /Users/pchordia/Documents/iOS-App-Factory/recall-ios/app_build",
+        "This audit result must not be read as production-readiness sign-off; it is silent on the standing NO-GO verdict from final_review"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_audit-002",
+      "decision": "Backfill readiness for Jira/Notion is specified as multiple discrete, differently-weighted tickets rather than a single 'Recall v1 \u2014 Done' item: blocking tickets for the three unresolved app_store_readiness launch blockers, a standalone ticket for getting a real swift test run to completion, and separate non-blocking post-launch backlog items for CSV UI wiring, Demo Data, StoreKit/Plus, and the SM-2 DST/external-cross-check tests.",
+      "rationale": "A single closed ticket would misrepresent the project's real state given final_review's explicit NO-GO verdict and the material scope reduction against the original six-feature prompt; splitting the backfill preserves that honesty for downstream tracking.",
+      "rejected_alternatives": [
+        "A single consolidated 'done' ticket for the whole app",
+        "Folding all remaining gaps into one generic 'known limitations' backlog item"
+      ],
+      "constraints": [
+        "Any Jira/Notion backfill derived from this project must reflect the NO-GO status and open blockers, not a completed-app status"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-001",
+      "decision": "study.addDeckButton is assigned to the persistent/toolbar Add Deck control (always visible regardless of deck count), not to study.empty.action.",
+      "rationale": "The empty-state CTA only exists with zero decks and disappears once one is created, so it cannot serve as a re-runnable canonical flow entry point across repeated crawl runs; the toolbar control is stable across deck count.",
+      "rejected_alternatives": [
+        "Putting study.addDeckButton on study.empty.action"
+      ],
+      "constraints": [
+        "study.empty.action must not be renamed or removed since other already-passing flows may depend on it"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-002",
+      "decision": "The fix must enumerate and resolve all identifiers named by the full declared flow (the '+6 more'), verified directly against docs/ui_crawl.json, before being considered complete \u2014 not just the first named failing step.",
+      "rationale": "The prompt's control list is truncated to the first failure; the remaining six are highly likely to be inside the deck/card editor (front/back/note fields, save button), and patching only step 1 would let the crawl die one level deeper on the next run.",
+      "rejected_alternatives": [
+        "Treating step 1's fix (Add Deck identifier) as sufficient to close this phase"
+      ],
+      "constraints": [
+        "Implementer must open docs/ui_crawl.json / the flow's step list before writing code, not infer identifiers solely from the truncated control list in this prompt"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-003",
+      "decision": "This phase is scoped strictly to accessibility-identifier and control-wiring changes on already-functional UI; no changes to SM-2/scheduling, the review-session snapshot/queue, PlanGate, CSV, or StoreKit.",
+      "rationale": "A crawl failing on a missing identifier is a labeling gap on working UI, not evidence of a functional or architectural defect, and touching those other systems would violate this phase's own bounded-change mandate.",
+      "rejected_alternatives": [
+        "Allowing incidental touches to review-session or persistence code while in the area"
+      ],
+      "constraints": [
+        "Any future phase reviewing this change should flag scope creep into those systems as a violation of this decision"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-004",
+      "decision": "RecallTests/ReviewSessionViewModelTests.swift's main-actor isolation compile error is fixed in the same pass by annotating the test type (or the specific initializer call) @MainActor, since a target that cannot compile means the release gate cannot run at all.",
+      "rationale": "This is bundled with the UI-crawl fix because both are 'the gate literally cannot execute' problems, and the fix itself is small and separable from the identifier changes with no behavioral risk.",
+      "rejected_alternatives": [
+        "Deferring the compile fix to a separate phase"
+      ],
+      "constraints": [
+        "Fix must not touch the review session's actual queue/snapshot logic, only the test's actor isolation"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-005",
+      "decision": "'Ensure all tests pass' is scoped to: get the suite compiling and executing, then report the real, per-test pass/fail result honestly \u2014 any failure that surfaces and is unrelated to the named compile error is reported as a separate, individually-named finding, not folded into either 'fixed' or 'still broken' for the UI-crawl issue, and does not block this phase's own acceptance criteria.",
+      "rationale": "This project's own history (final_review) found every prior 'tests pass' claim traced back to a compile-only check or hand-tracing, never a real green run \u2014 this may be the first time the suite actually executes, and pre-existing failures unrelated to this fix shouldn't be laundered into either a false 'all green' claim or used to block an unrelated, already-scoped fix.",
+      "rejected_alternatives": [
+        "Treating 'ensure all tests pass' as requiring this phase to fix every failure the first real test run surfaces",
+        "Silently reporting all-green without distinguishing real execution from compile-only success"
+      ],
+      "constraints": [
+        "Any future phase citing test results from this pass must distinguish real executed results from compile-only claims, per DEC-final_review-002"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-004",
+      "decision": "The study.addDeckButton crawl fix from iterate_scope/build_coordination is confirmed closed and correct \u2014 verified via direct grep of the shipped toolbar/Group structure, not re-litigated \u2014 and should not be reopened by future phases.",
+      "rationale": "The integrator found and fixed the actual root cause (toolbar scoped only to the non-empty branch, invisible on the exact fresh-install state the crawl starts from) rather than patching the symptom, and this was independently confirmed by both reviewers this round.",
+      "rejected_alternatives": [
+        "Treating the crawl fix as still open or unverified pending further review"
+      ],
+      "constraints": [
+        "Future phases should treat this specific flow/identifier as resolved and focus verification effort on the three named follow-ups instead"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-005",
+      "decision": "Overall release verdict remains NO-GO despite the crawl fix passing, because the Reminders UI is fully interactive but silently schedules nothing, CSVParser silently drops a class of legitimate import rows, and no real xcodebuild test/swift test execution has ever occurred in this project.",
+      "rationale": "A narrow gate-fix passing is not the same claim as the app being safe to hand to a real user; the Reminders silent-no-op is exactly the look-functional-but-lies failure mode this app's own premise exists to prevent, and it remains live and untouched (correctly, per this phase's own scope lock) in the shipped build.",
+      "rejected_alternatives": [
+        "Issuing a clean GO on the strength of the crawl fix and compile success alone",
+        "Issuing an unqualified NO-GO that fails to credit the crawl fix as genuinely done"
+      ],
+      "constraints": [
+        "Any future phase citing this review as evidence of readiness must preserve the distinction between 'this cycle's fix worked' and 'the app is release-ready' rather than blurring them"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-006",
+      "decision": "Three concrete, owned follow-ups are set for the next cycle: fix CSVParser's header-collision silent-drop with an explicit CSVRowStatus case (CSV/domain lane), remove or truly wire the Reminders feature (services/notifications lane), and get a real xcodebuild test/swift test execution reported per-test including the force-quit interruption test (test/QA lane).",
+      "rationale": "The phase playbook requires every blocker to have an owner or concrete next step; these three are the load-bearing gaps left after this cycle's narrow fix, each independently flagged by multiple reviewers across phases.",
+      "rejected_alternatives": [
+        "Leaving these as generic 'known limitations' without lane ownership or a concrete action"
+      ],
+      "constraints": [
+        "The next build phase should scope explicitly to these three items rather than reopening the already-closed identifier-wiring fix"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-006",
+      "decision": "This iterate_scope run is scoped exclusively to the visual QA failure on main_dark.png (and confirming main_light.png is clean); it must not reopen or re-touch the accessibility-identifier wiring work (study.addDeckButton, study.deckCell_0, tabBar.statsTab, tabBar.settingsTab) from the prior iterate_scope cycle, which DEC-final_review-004 already confirmed closed and correct.",
+      "rationale": "The two cycles were triggered by different gates (UI-crawl vs. visual QA) and the decisions log explicitly warns against relitigating the already-closed identifier fix; Codex's round-1 proposal conflated the two.",
+      "rejected_alternatives": [
+        "Re-wiring study.addDeckButton and tab bar identifiers as part of this pass per Codex's round-1 plan"
+      ],
+      "constraints": [
+        "No changes to any accessibility identifier confirmed closed by DEC-final_review-004 may be made in this pass"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-007",
+      "decision": "Before any code change, the build phase must directly open docs/screenshots/main_light.png, docs/screenshots/main_dark.png, and docs/visual_qa.json and record in plain language the specific visible defect; the fix must target that named defect, not an inferred/guessed one.",
+      "rationale": "A gemma3:4b BAD/score-50 verdict alone is too weak and noisy a signal to design a fix against without visual confirmation, and this project's history shows a repeated pattern of confident fixes for problems nobody actually verified.",
+      "rejected_alternatives": [
+        "Inferring the likely dark-mode contrast defect from Theme.swift conventions and patching without opening the actual screenshots"
+      ],
+      "constraints": [
+        "Any future phase citing this fix as resolved must show the named defect and its resolution, not just a rerun-clean gate"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-008",
+      "decision": "The fix is confined to Theme.swift's semantic color-token definitions and, at most, the styling of the single view rendering the failing screen; no layout redesign, no new components, no identifier changes.",
+      "rationale": "Keeps the change bounded and consistent with the project's locked rule that colors route through Theme.swift as semantic light/dark roles rather than scattered literals or one-off view overrides.",
+      "rejected_alternatives": [
+        "Allowing broader view-level restructuring if the defect looks structural rather than token-based, without first reporting it as a scope finding"
+      ],
+      "constraints": [
+        "If the real defect can't be resolved within Theme.swift + one view, it must be reported honestly as exceeding this pass's scope rather than silently expanded"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-007",
+      "decision": "The dark-mode CTA visual-QA fix (EmptyStateView routing through surfaceElevated/textPrimary instead of the system amber accent) is confirmed as a real, correctly-scoped, compiling fix, but is recorded as evidentially strong rather than gate-confirmed, since docs/visual_qa.json has never been re-run against it.",
+      "rationale": "No tooling in this pipeline can regenerate main_light.png/main_dark.png or re-execute the grader, so 'likely fixed the flagged defect' and 'gate passes' must remain distinct claims per this project's standing DEC-final_review-002 rule against conflating strong evidence with actual execution.",
+      "rejected_alternatives": [
+        "Declaring the visual QA gate formally passed on the strength of the source-level fix alone"
+      ],
+      "constraints": [
+        "Any future phase citing this fix as gate-passing must show an actual re-run of docs/visual_qa.json against a fresh capture, not just the code-level justification recorded here"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-008",
+      "decision": "Overall release verdict remains NO-GO, unchanged from DEC-final_review-005, with a fourth follow-up added: get the visual-QA screenshot-capture/grade tooling to actually run once against the current build so main_dark.png's status can be confirmed rather than inferred.",
+      "rationale": "The dark-mode CTA fix, while real and well-evidenced, does not touch the three standing blockers (Reminders silent no-op, CSV silent-drop, no real test execution) that drove the prior NO-GO, so the verdict cannot flip on the strength of this narrow fix alone.",
+      "rejected_alternatives": [
+        "Issuing a GO based on the CTA fix and compile-clean verification alone",
+        "Treating the CTA fix as sufficient grounds to consider the visual-QA gate closed"
+      ],
+      "constraints": [
+        "Any future phase must continue to distinguish 'this cycle's fix worked' from 'the app is release-ready,' per DEC-final_review-005",
+        "The next phase touching this app should prioritize the four owned follow-ups (CSV silent-drop, Reminders no-op, real test execution, visual-QA gate re-run) over any further narrow visual polish"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-009",
+      "decision": "The seven failing crawl flows and six reported dead-tap/back-nav bugs are fixed in one bounded pass, split into two explicit treatment classes: Class 1 (pure additive accessibility-identifier attachments on tab items, deck cells, empty-state action buttons, and card-editor fields) and Class 2 (five dead taps + one back-nav violation, each individually traced to file/line and classified as either 'wiring fixed' or 'functional gap logged as out-of-scope follow-up', never collapsed into a blanket claim).",
+      "rationale": "Splits a labeling-gap fix (safe, no behavior risk) from real dead-control/misnavigation bugs (a trust-relevant defect class for an app whose whole premise is never lying about state), preventing the crawl from being made to pass while a real defect stays hidden behind a newly-added identifier.",
+      "rejected_alternatives": [
+        "Treating all seven flow failures and six dead-tap/back-nav reports as one undifferentiated 'wiring' fix",
+        "Adding identifiers without individually tracing and classifying each dead tap"
+      ],
+      "constraints": [
+        "Implementer must open docs/ui_crawl.json for the full step list of every declared flow before writing identifier code, per DEC-iterate_scope-002",
+        "Each of the 5 dead taps and 1 back-nav violation must be reported individually with file/line and a wiring-fixed vs out-of-scope classification",
+        "No changes outside AppShellView.swift, StateStateViews.swift, DeckDetailView.swift, StudyRootView.swift, deck-cell views, card-editor view, and RecallTests/ReviewSessionViewModelTests.swift (per DEC-iterate_scope-004)"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-010",
+      "decision": "study.deckCell_0 is made discoverable purely by adding index-based accessibility identifiers to deck-list rows; if the 'Complete a review session end to end' flow has no deck-creation step before tapping this cell, that is reported as a flow-definition gap, not fixed by seeding fake demo data.",
+      "rationale": "Fabricating a deck row to satisfy a crawl precondition would violate the project's own locked empty-state-honesty rule; the actual defect (if any) is in the flow's precondition, not the UI's identifier coverage.",
+      "rejected_alternatives": [
+        "Seeding a fake/demo deck row so study.deckCell_0 always resolves",
+        "Assuming without checking that the flow already includes a deck-creation precondition"
+      ],
+      "constraints": [
+        "Any future phase discovering the flow lacks a deck-creation precondition must log it as a flow-definition finding, not silently patch it with seeded data"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-009",
+      "decision": "Overall release verdict remains NO-GO, unchanged from DEC-final_review-005/008, despite the keyboard-first deck/card creation flow fix being genuine and independently traced.",
+      "rationale": "A narrow, well-verified UI fix to the exact named gate failure does not resolve the standing blockers (unresolved dead-taps/back-nav across three phases, an unsettled Reminders live/dead contradiction, CSV silent-drop, and a never-once-executed real test suite) that this project's own review history has repeatedly identified as the actual gap between 'looks right' and 'proven right.'",
+      "rejected_alternatives": [
+        "Issuing a GO on the strength of the keyboard-first flow fix and clean compile alone",
+        "Folding the newly-found gaps (skipped precondition check, Reminders contradiction) into generic known-limitations language instead of naming them as blockers"
+      ],
+      "constraints": [
+        "Any future phase must credit the keyboard-first flow fix as closed (same tier as DEC-final_review-004) without re-litigating it, while keeping the standing blockers separately named and open"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-010",
+      "decision": "The keyboard-first deck/card creation flow (deckDetail.addCardButton and the full Add Deck -> editor -> save -> deck cell -> deck detail -> add card -> card editor chain) is confirmed closed and correct via direct source trace, and should not be re-opened absent evidence of a genuine regression.",
+      "rationale": "The integrator traced every hop to real navigation and action code (not matching identifier strings), giving this the same evidentiary strength as the previously-closed study.addDeckButton fix.",
+      "rejected_alternatives": [
+        "Treating this fix as still provisional pending a fresh crawl run"
+      ],
+      "constraints": [
+        "Future phases should focus verification effort on the standing blockers rather than re-verifying this already-confirmed flow"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-011",
+      "decision": "DEC-iterate_scope-010's acceptance check (whether the review-session flow has a deck-creation step before tapping study.deckCell_0) was not performed in this cycle's build_coordination pass and is recorded as an unmet, still-open acceptance criterion, not assumed satisfied.",
+      "rationale": "The integrator's writeup never mentions checking this; silently omitting a named acceptance criterion is different from confirming it, and the difference matters for an app whose entire premise is not overstating what's actually verified.",
+      "rejected_alternatives": [
+        "Assuming the precondition check was implicitly covered by the general flow trace and treating it as satisfied"
+      ],
+      "constraints": [
+        "Whoever next touches Study/review-session flows must explicitly confirm or deny this precondition and report the result, not skip it again"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-012",
+      "decision": "A newly-surfaced, unresolved contradiction is logged: DEC-app_store_readiness-008 required removing the interactive Reminders UI entirely for v1, but this cycle's build_coordination lane report (Claude B) describes that same UI as fully live and functioning; this must be settled by a direct grep of SettingsView/ReminderScheduler before any future GO call, not assumed resolved in either direction.",
+      "rationale": "A toggle/permission/time-picker that looks functional but silently schedules nothing is exactly the 'looks functional, lies about state' failure mode this app's positioning exists to prevent; leaving it ambiguous whether that removal actually happened is itself a trust violation this review cannot paper over.",
+      "rejected_alternatives": [
+        "Assuming the removal decision was executed because it was decided in a prior phase",
+        "Assuming the lane report's present-tense description means removal never happened, without checking"
+      ],
+      "constraints": [
+        "Next phase touching Settings/Reminders must directly verify via source read (not lane self-report) whether the interactive Reminders UI is present or removed, and report the concrete finding"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-013",
+      "decision": "Overall release verdict remains NO-GO, unchanged in kind from DEC-final_review-005/008/009, despite this cycle's tab-bar accessibility-identifier fix (AppShellView.swift, identifiers on the Label inside .tabItem{}) being confirmed correct and credited as closed at the same tier as the previously-confirmed addDeckButton and keyboard-first-flow fixes.",
+      "rationale": "A correctly-diagnosed and correctly-fixed crawl-gate bug does not resolve the standing, previously-named blockers (unchecked Reminders contradiction, an unresolved three-cycle-old flow precondition, and zero real executed test runs) that this project's own review history has repeatedly identified as the actual gap between 'looks right' and 'proven right.'",
+      "rejected_alternatives": [
+        "Issuing a GO on the strength of the tab-bar fix and clean compile alone",
+        "Folding the unresolved Reminders contradiction and the still-open study.deckCell_0 precondition into generic known-limitations language instead of naming them as blockers with owners"
+      ],
+      "constraints": [
+        "Any future phase must credit the tab-bar fix as closed without re-litigating it, while keeping the standing blockers separately named and open",
+        "The Reminders live/dead contradiction (DEC-final_review-012) must be the first thing the next phase touching Settings/Reminders actually checks via direct source grep, not deferred a fourth time"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-014",
+      "decision": "DEC-final_review-012's required check (direct grep of SettingsView/ReminderScheduler to resolve the Reminders live/dead contradiction) was skipped again this cycle, not merely left open by environment limitation, and is escalated as the single highest-priority item for the next phase touching this app.",
+      "rationale": "Unlike the missing docs/ui_crawl.json (a genuine environment gap), SettingsView and ReminderScheduler are ordinary readable source files in this same workspace \u2014 one lane cited ReminderSettingsView.swift:83 directly in the prior iteration \u2014 so failure to check is a process miss, not an inability, and a toggle that looks functional but silently does nothing is the exact failure mode this app's core premise exists to prevent.",
+      "rejected_alternatives": [
+        "Treating this as an equivalent environment-gap limitation alongside the study.deckCell_0/ui_crawl.json issue",
+        "Allowing this check to be deferred to a fourth review cycle without explicit escalation"
+      ],
+      "constraints": [
+        "The next phase with write access to app_build must directly grep SettingsView.swift and ReminderScheduler (or equivalent) and report the concrete finding before any future GO call is issued"
+      ],
+      "supersedes": null
+    }
+  ]
+}

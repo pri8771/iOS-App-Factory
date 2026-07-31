@@ -1,0 +1,30 @@
+{
+  "errors": [
+    {
+      "rule": "inline_color",
+      "file": "Rendering/AuraRenderer.swift",
+      "line": 372,
+      "detail": "hardcoded color \u2014 use a DesignSystem token"
+    },
+    {
+      "rule": "inline_color",
+      "file": "Rendering/AuraRenderer.swift",
+      "line": 404,
+      "detail": "hardcoded color \u2014 use a DesignSystem token"
+    }
+  ],
+  "warnings": [
+    {
+      "rule": "todo_marker",
+      "file": "UI/Screens/WrappedScreen.swift",
+      "line": 70,
+      "detail": "// TODO(primary_ui, once WrappedAggregator + a real poster exist):"
+    },
+    {
+      "rule": "todo_marker",
+      "file": "UI/Screens/ArchiveScreen.swift",
+      "line": 106,
+      "detail": "// TODO(primary_ui, once the real grid lands): scroll to/select"
+    }
+  ]
+}

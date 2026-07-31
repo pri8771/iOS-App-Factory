@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "Create deck, add card, complete first review",
+      "steps": [
+        {
+          "tap": "decks.emptyStateCreateButton"
+        },
+        {
+          "type": "Spanish Basics",
+          "into": "deckForm.nameField"
+        },
+        {
+          "tap": "deckForm.saveButton"
+        },
+        {
+          "tap": "decks.firstDeckRow"
+        },
+        {
+          "tap": "deckDetail.addCardButton"
+        },
+        {
+          "type": "Hola",
+          "into": "cardForm.frontField"
+        },
+        {
+          "type": "Hello",
+          "into": "cardForm.backField"
+        },
+        {
+          "tap": "cardForm.saveButton"
+        },
+        {
+          "tap": "deckDetail.reviewButton"
+        },
+        {
+          "tap": "review.revealArea"
+        },
+        {
+          "tap": "review.gradeGoodButton"
+        },
+        {
+          "assert_exists": "Reviewed"
+        }
+      ]
+    },
+    {
+      "name": "Enable demo data and review all decks",
+      "steps": [
+        {
+          "tap": "rootTab.settingsTab"
+        },
+        {
+          "tap": "settings.demoDataToggle"
+        },
+        {
+          "tap": "rootTab.decksTab"
+        },
+        {
+          "tap": "decks.reviewAllButton"
+        },
+        {
+          "assert_exists": "Again"
+        },
+        {
+          "tap": "review.revealArea"
+        },
+        {
+          "tap": "review.gradeGoodButton"
+        },
+        {
+          "assert_exists": "Hard"
+        }
+      ]
+    },
+    {
+      "name": "View Stats with demo data seeded",
+      "steps": [
+        {
+          "tap": "rootTab.settingsTab"
+        },
+        {
+          "tap": "settings.demoDataToggle"
+        },
+        {
+          "tap": "rootTab.statsTab"
+        },
+        {
+          "assert_exists": "Retention"
+        },
+        {
+          "assert_exists": "Due Forecast"
+        }
+      ]
+    },
+    {
+      "name": "Disable demo data removes seeded content",
+      "steps": [
+        {
+          "tap": "rootTab.settingsTab"
+        },
+        {
+          "tap": "settings.demoDataToggle"
+        },
+        {
+          "tap": "settings.demoDataToggle"
+        },
+        {
+          "tap": "demoDataConfirm.confirmButton"
+        },
+        {
+          "tap": "rootTab.decksTab"
+        },
+        {
+          "assert_exists": "No decks yet"
+        }
+      ]
+    },
+    {
+      "name": "Archive and unarchive a deck",
+      "steps": [
+        {
+          "tap": "decks.emptyStateCreateButton"
+        },
+        {
+          "type": "Kanji",
+          "into": "deckForm.nameField"
+        },
+        {
+          "tap": "deckForm.saveButton"
+        },
+        {
+          "tap": "decks.firstDeckRow"
+        },
+        {
+          "tap": "deckDetail.archiveButton"
+        },
+        {
+          "tap": "archiveConfirm.confirmButton"
+        },
+        {
+          "assert_exists": "Archived"
+        },
+        {
+          "tap": "deckDetail.unarchiveButton"
+        },
+        {
+          "assert_exists": "Kanji"
+        }
+      ]
+    },
+    {
+      "name": "Permanently delete a deck",
+      "steps": [
+        {
+          "tap": "decks.emptyStateCreateButton"
+        },
+        {
+          "type": "Temp Deck",
+          "into": "deckForm.nameField"
+        },
+        {
+          "tap": "deckForm.saveButton"
+        },
+        {
+          "tap": "decks.firstDeckRow"
+        },
+        {
+          "tap": "deckDetail.deleteButton"
+        },
+        {
+          "tap": "deleteConfirm.confirmButton"
+        },
+        {
+          "assert_exists": "No decks yet"
+        }
+      ]
+    },
+    {
+      "name": "Export a deck to CSV",
+      "steps": [
+        {
+          "tap": "decks.emptyStateCreateButton"
+        },
+        {
+          "type": "Export Test",
+          "into": "deckForm.nameField"
+        },
+        {
+          "tap": "deckForm.saveButton"
+        },
+        {
+          "tap": "decks.firstDeckRow"
+        },
+        {
+          "tap": "deckDetail.addCardButton"
+        },
+        {
+          "type": "Bonjour",
+          "into": "cardForm.frontField"
+        },
+        {
+          "type": "Hello",
+          "into": "cardForm.backField"
+        },
+        {
+          "tap": "cardForm.saveButton"
+        },
+        {
+          "tap": "deckDetail.exportButton"
+        },
+        {
+          "assert_exists": "Exported"
+        }
+      ]
+    }
+  ]
+}

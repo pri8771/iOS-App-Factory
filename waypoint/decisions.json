@@ -1,0 +1,1921 @@
+{
+  "schema_version": 1,
+  "decisions": [
+    {
+      "id": "DEC-prompt_contract-001",
+      "decision": "Adopt Codex's 32 numbered requirements as the single authoritative traceability list mapping every clause of the original prompt to a testable behavior.",
+      "rationale": "The phase rules require every promise in the prompt to map to exactly one numbered requirement; Codex's list satisfies this and Claude raised no gaps in coverage, only depth on specific items.",
+      "rejected_alternatives": [
+        "Re-deriving a separate requirements list from scratch"
+      ],
+      "constraints": [
+        "Later phases must not add or drop scope without updating this numbered list"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-002",
+      "decision": "Settlement must implement genuine debt-simplification (greedy max-debtor/max-creditor minimum-transaction reduction), not merely correct net balances paid individually.",
+      "rationale": "A naive per-person payment scheme can show correct balances with 2 travelers but produce more transactions than necessary with 4-5, silently failing the prompt's explicit 'minimum set of payments' requirement.",
+      "rejected_alternatives": [
+        "Accepting any implementation that zeroes balances regardless of transaction count"
+      ],
+      "constraints": [
+        "Build/verification phases must test with 4+ travelers, not just 2, to catch this failure mode"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-003",
+      "decision": "Remainder cents from uneven splits are assigned to the expense's payer, deterministically, and the sum of all shares must be checked in code to equal the original Decimal amount exactly.",
+      "rationale": "The prompt requires rounding remainders to sum exactly but doesn't specify who absorbs the odd cent; leaving this to array order or last-writer is nondeterministic and untestable.",
+      "rejected_alternatives": [
+        "Alphabetically-first traveler absorbs remainder",
+        "Remainder distributed round-robin across travelers"
+      ],
+      "constraints": [
+        "Must use Decimal throughout, never Double",
+        "Sum-identity check must be an automated assertion, not manual verification"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-004",
+      "decision": "When a stop moves to a different day via drag-and-drop, its time window is preserved as originally entered; the UI must visually flag it if that time now falls outside the new day's typical range.",
+      "rationale": "The prompt is silent on this; silently clearing user-entered time data would itself be a data-integrity bug, and silently keeping it with no indication could confuse users.",
+      "rejected_alternatives": [
+        "Clearing the time window on cross-day move",
+        "Silently keeping it with no visual indication"
+      ],
+      "constraints": [
+        "Applies to every cross-day move operation"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-005",
+      "decision": "Cross-day and within-day stop reordering must be implemented as a single atomic SwiftData operation, never a delete-then-insert sequence.",
+      "rationale": "An app backgrounded mid-drag during a delete-then-insert could orphan or duplicate a stop, directly violating the prompt's top priority on drag-reorder data integrity.",
+      "rejected_alternatives": [
+        "Delete-then-insert with cleanup on next launch"
+      ],
+      "constraints": [
+        "No stop may exist in zero or two days at any observable app state"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-006",
+      "decision": "Demo trip seed data must carry an unmistakable visible 'Demo' marker distinguishing it from real user trips.",
+      "rationale": "The global rule against showing sample data as if real would otherwise collide with the prompt's request for realistic seeded content; realism and honesty must coexist via explicit labeling.",
+      "rejected_alternatives": [
+        "Realistic demo data with no distinguishing marker"
+      ],
+      "constraints": [
+        "Demo marker must be visible wherever the demo trip's data appears, including widget and Live Activity surfaces"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-007",
+      "decision": "CloudKit/iCloud sync for SwiftData is disabled by default and must not be silently scaffolded on.",
+      "rationale": "SwiftData tooling commonly enables CloudKit sync by default; this app is explicitly no-accounts/no-backend and iCloud trip sync is a named non-goal/gap.",
+      "rejected_alternatives": [
+        "Leaving CloudKit sync enabled but undocumented"
+      ],
+      "constraints": [
+        "Any future sync capability must be added only as an explicit, documented opt-in, not a default"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-008",
+      "decision": "Live Activity updates must be local/scheduled-only; no push-token or server-driven update mechanism may be used.",
+      "rationale": "ActivityKit's live-update path commonly defaults to push tokens requiring a server, which directly conflicts with the no-backend constraint.",
+      "rejected_alternatives": [
+        "Push-based Live Activity updates via a lightweight server"
+      ],
+      "constraints": [
+        "All Live Activity state changes must originate from on-device logic/timers"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-009",
+      "decision": "Active-trip and Live Activity date logic must resolve 'now' through a single injectable/testable current-date reference to allow verification without waiting on real calendar days, without that mechanism ever surfacing as or alongside fake real-user data.",
+      "rationale": "Claude flagged that 'today falls within trip range' is otherwise untestable in a reasonable review cycle; a debug hook is needed but must not violate the no-fake-data rule.",
+      "rejected_alternatives": [
+        "No testability hook, relying on waiting for real dates during verification"
+      ],
+      "constraints": [
+        "The hook must be debug/demo-scoped only and never affect real trip data display"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-010",
+      "decision": "Calendar export dedup stores the EventKit event identifier per stop at export time; re-export looks up that identifier and updates the existing event in place, and the flow must handle an externally-deleted event or revoked Calendar permission without falsely claiming success.",
+      "rationale": "The prompt requires no duplicate events on re-export; a concrete identifier-based mechanism is the only way to guarantee this deterministically rather than by best-effort matching on title/date.",
+      "rejected_alternatives": [
+        "Matching existing events by title/date heuristics instead of stored identifiers"
+      ],
+      "constraints": [
+        "Must handle permission revoked between exports and event deleted externally as explicit, non-crashing, non-lying states"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-011",
+      "decision": "iPad two-column split view must be verified as genuine independent-pane interaction across at least two iPad sizes and both orientations, not just implemented with NavigationSplitView and assumed correct.",
+      "rationale": "NavigationSplitView can collapse to a single-column phone-like layout under certain size classes or Slide Over, technically using the right API while missing the spirit of the requirement.",
+      "rejected_alternatives": [
+        "Accepting NavigationSplitView usage alone as proof of compliance"
+      ],
+      "constraints": [
+        "Build-verification phase must include this as an explicit checklist item, not inferred from code"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-012",
+      "decision": "Production-readiness requires observed degradation for every permission/capability-gated feature (Live Activity, Calendar, network-dependent routing) \u2014 actually triggering the denied/unavailable state and watching the result \u2014 not just the presence of a guard clause in code.",
+      "rationale": "The prompt's central risk is fake success under denied permissions or unavailable capabilities; a build-verification phase that only exercises the happy path hasn't earned the right to call this done.",
+      "rejected_alternatives": [
+        "Treating code review of guard clauses as sufficient evidence of correct degradation"
+      ],
+      "constraints": [
+        "Final review phase must confirm each degradation path was actually exercised, not just coded"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-001",
+      "decision": "Target audience is small groups/couples planning a multi-day trip together (not solo business travelers), and the single-device/no-account nature of the app must be stated plainly as a real limitation on collaborative expense-splitting, not glossed over.",
+      "rationale": "The feature set (itinerary + packing + expense splitting) matches a multi-person trip organizer's toolkit, but 'no accounts/no sync' means only the device owner sees shared expense data \u2014 a mismatch with what 'expense splitting' implies to most users if left unstated.",
+      "rejected_alternatives": [
+        "Treating this as a solo-traveler utility",
+        "Implying multi-device collaboration without naming the limitation"
+      ],
+      "constraints": [
+        "Onboarding/empty-state copy should acknowledge the single-device nature of expense data rather than implying real-time multi-user sync"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-002",
+      "decision": "Waypoint's competitive differentiator is being genuinely offline-first (unlike TripIt/Google Maps/Splitwise/Wanderlog, which are cloud/account-dependent) while still getting debt-simplification and cross-day drag integrity fully correct rather than faked.",
+      "rationale": "Both agents independently identified the same gap: comparable apps degrade badly without signal, and this app's core value proposition only holds if the hardest math/data-integrity pieces genuinely work offline.",
+      "rejected_alternatives": [
+        "Positioning around breadth of features instead of offline-trustworthiness",
+        "Treating offline support as a compliance checkbox rather than the core differentiator"
+      ],
+      "constraints": [
+        "Competitor comparisons and gap claims are ASSUMPTION-labeled, not sourced from live research"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-003",
+      "decision": "The seeded demo trip must include at least one stop with no resolvable route, so the straight-line 'approximate' fallback is visibly exercised on first review rather than only showing a happy-path where MKDirections always succeeds.",
+      "rationale": "MapKit's 'offline-cached' framing is optimistic for first-visit locations; if the demo never exercises the fallback, the app's core offline-trust differentiator never gets demonstrated to a reviewer.",
+      "rejected_alternatives": [
+        "Seeding only fully-resolvable, happy-path demo stops"
+      ],
+      "constraints": [
+        "Applies to the demo trip seed data introduced in prompt_contract's DEC-006 (visible 'Demo' marker) \u2014 the fallback stop must still carry that marker"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-004",
+      "decision": "Live Activity and widget verification claims must stay explicitly bounded ('requested without crashing/API behavior observed') rather than asserting full visual/rendering correctness, since Dynamic Island and widget refresh timing can't be fully confirmed outside physical hardware and real refresh cycles.",
+      "rationale": "Both agents flagged that simulator/no-hardware environments can't prove Live Activity renders correctly, and widget timelines refresh on a budget, not in real time \u2014 overclaiming verification here would violate the project's honesty principle from prompt_contract.",
+      "rejected_alternatives": [
+        "Treating 'the Live Activity was requested and didn't crash' as equivalent to full visual verification"
+      ],
+      "constraints": [
+        "Later build-verification and final review phases must state this bound explicitly rather than imply full confidence"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-005",
+      "decision": "First-build sequencing is: trips/days/stops/reorder + settlement math first, then Calendar export dedup + iPad split view, then Live Activity + widget last.",
+      "rationale": "Both agents independently arrived at the same order \u2014 Live Activity and widget are status surfaces that amplify inconsistency if the underlying trip-state model isn't already proven correct.",
+      "rejected_alternatives": [
+        "Building all features in parallel",
+        "Prioritizing the flashier Live Activity/widget features early for demo impact"
+      ],
+      "constraints": [
+        "Later build phases should not begin Live Activity/widget implementation before reorder and settlement are verified correct"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-006",
+      "decision": "Settlement math testing must use adversarial cases: 4+ travelers, a payer excluded from their own expense's split, and user-entered percentages that don't sum to 100 \u2014 not just a 2-3 person happy-path demo.",
+      "rationale": "Both agents flagged that naive settlement implementations look correct with few travelers and simple splits but fail exactly on these edge cases, which directly test the debt-simplification and rounding rules already locked in prompt_contract.",
+      "rejected_alternatives": [
+        "Accepting a 2-3 person happy-path test as sufficient validation"
+      ],
+      "constraints": [
+        "Extends prompt_contract's DEC-002/DEC-003 testing requirements with concrete adversarial input cases"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_selection-001",
+      "decision": "Waypoint is built as a single app, not split into a portfolio of sibling projects.",
+      "rationale": "The prompt describes one cohesive product whose hardest guarantees (minimum-transaction settlement, atomic cross-day drag-reorder integrity, calendar-export dedup) all depend on one shared SwiftData trip/day/stop/traveler model; splitting into sibling apps would force duplicated or synced state across process boundaries and make those guarantees far harder to prove.",
+      "rejected_alternatives": [
+        "Splitting into separate sibling apps by feature area (planner, map, expenses, widget)",
+        "Treating the WidgetKit extension or Live Activity as a separate portfolio app"
+      ],
+      "constraints": [
+        "No portfolio-json manifest is required or produced",
+        "All later phases build one app targeting slug `waypoint` with build=true",
+        "The WidgetKit extension remains a secondary target within the single Waypoint project, not a sibling product"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-001",
+      "decision": "Adopt the unified product promise: a single-device, fully offline iOS app giving a trip owner one trustworthy local model for itinerary, map routing, expense settlement, and packing, with the day view (synced stop list + map) as the app's center of gravity rather than the trips list.",
+      "rationale": "Both agents converged independently on the same promise and the same IA insight \u2014 the moment that matters most is mid-trip with weak signal, not pre-trip planning, so navigation should land the user on 'today' rather than a trip folder.",
+      "rejected_alternatives": [
+        "Trips-list-first navigation with day view nested deeper",
+        "Treating all eight feature areas as co-equal tabs"
+      ],
+      "constraints": [
+        "A trip-switcher must remain reachable directly from the day view so trip-switching isn't buried",
+        "Packing and calendar export are one level down in navigation, not co-equal with the daily itinerary loop"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-002",
+      "decision": "Hard scope boundaries locked: no accounts/backend/third-party SDKs/login screen, no sync of any kind including share-sheet or AirDrop mechanisms that could resemble live sync, no real-time data (traffic, flights, weather) even as a stretch goal, no cross-device collaborative editing.",
+      "rationale": "These are exactly the things a less disciplined build would quietly let creep back in under feature pressure; naming them explicitly now prevents scope drift in later build phases.",
+      "rejected_alternatives": [
+        "Allowing a QR-code or share-sheet based trip export as an implicit extension of expense splitting",
+        "Treating real-time data as a partially-implemented placeholder instead of a named Gap"
+      ],
+      "constraints": [
+        "Any future sharing/export-adjacent feature proposal requires its own explicit decision, not assumed inclusion under existing scope"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-003",
+      "decision": "The demo trip is strictly a Settings toggle; a new user's first launch with the toggle off must show genuine, honest empty states with zero fabricated content anywhere in the app.",
+      "rationale": "The demo trip must never double as onboarding content \u2014 conflating the two would violate the project's core honesty principle and mislead a first-time user about what the app actually contains.",
+      "rejected_alternatives": [
+        "Seeding the demo trip into a new user's initial experience as a starter template"
+      ],
+      "constraints": [
+        "Every screen must have a real empty state design (icon + explanation + filling action), not a blank view, per the global app-build rules"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-004",
+      "decision": "Success criteria are measurable and adversarial, not feature-checklist-based: repeatable 20x cross-day drag with no duplication/loss, 5+-traveler uneven-split settlement with exact minimum-transaction count and cent-exact sums, idempotent calendar export, genuinely independent iPad two-pane behavior, and observed (not just coded) graceful degradation for every permission-gated feature.",
+      "rationale": "Both agents independently insisted that demo-once correctness is insufficient \u2014 the trip model can look correct in a demo and still break trust in real repeated use, so success criteria must specify repeated/adversarial testing conditions.",
+      "rejected_alternatives": [
+        "Accepting single-pass demo verification as sufficient proof of correctness"
+      ],
+      "constraints": [
+        "Build-verification and final review phases must test against these repeatable/adversarial conditions, not just a single happy-path walkthrough"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-001",
+      "decision": "The paying customer is specifically a repeat multi-day-group-trip planner (more than one trip per year), not a one-off single-trip user.",
+      "rationale": "A single-trip user has no reason to ever convert past the free tier; framing the paid audience around repeat use is what makes the subscription/lifetime pricing model coherent.",
+      "rejected_alternatives": [
+        "Treating any trip creator as an equally likely paying customer"
+      ],
+      "constraints": [
+        "Onboarding and paywall copy should frame Pro value around repeat/future trips, not the current single trip"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-002",
+      "decision": "Monetization uses a single gate \u2014 active trip count \u2014 not a menu of independent caps: free tier is exactly one active trip with the full, correct feature set on it (all stops, all travelers, real settlement math, honest map degradation, packing checklist, iPad split view); Pro adds unlimited concurrent trips, saved packing templates, EventKit calendar export, Live Activity, the home-screen widget, and settlement audit-log/category-spend-breakdown reporting.",
+      "rationale": "A single lever avoids combinatorial edge cases (e.g., hitting a trip cap and a traveler cap simultaneously) and keeps the free tier honestly complete for its one trip, which protects the app's core trust pitch.",
+      "rejected_alternatives": [
+        "A broader premium menu including traveler-limit extensions and a vague 'resilience bundle' of route diagnostics",
+        "Multiple independent caps (trips + travelers) creating combinatorial gating states"
+      ],
+      "constraints": [
+        "No traveler count cap may ever exist, free or paid",
+        "Settlement math, iPad split view, and the honest map-degradation fallback (including its visible 'approximate' indicator) must never be paywalled at any tier",
+        "Any future Pro 'resilience' feature must be a diagnostics/reporting layer on top of already-correct free behavior, never a gate on correctness itself"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-003",
+      "decision": "Offer both an annual subscription and a lifetime non-consumable purchase for the same Pro unlock, in the same StoreKit product group, rather than subscription-only.",
+      "rationale": "A serverless, static-content offline utility has no renewing content to justify subscription-only billing; forcing it invites App Review friction and user resentment, while annual-vs-lifetime gives users an honest choice matched to their actual usage pattern (yearly re-planners vs. long-tail one-time buyers).",
+      "rejected_alternatives": [
+        "Subscription-only (monthly with annual discount)"
+      ],
+      "constraints": [
+        "Both products must unlock identical Pro features",
+        "Restore Purchases must work via Transaction.currentEntitlements with no app-side account system"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-004",
+      "decision": "A lapsed subscription or failed restore never deletes, hides, or corrupts existing trip data; it only locks creation of new trips beyond the free cap and access to Pro-only surfaces (templates, calendar export, Live Activity, widget, audit reporting).",
+      "rationale": "Losing or hiding a user's real trip data because billing lapsed would violate the app's core 'never fake success, never silently punish the user' principle already established for this project.",
+      "rejected_alternatives": [
+        "Hiding or restricting access to existing trips/data on lapse"
+      ],
+      "constraints": [
+        "Build-verification phase must test the lapse/restore-failure path against existing data explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-005",
+      "decision": "The growth mechanic is a one-way, explicitly labeled 'Trip Snapshot' export (PDF/text/.ics via the share sheet) that defaults to itinerary-only content (stop names, times, notes, map snapshot); expense/settlement data is excluded from the export unless the trip owner explicitly opts in to include it.",
+      "rationale": "The static export is the viral/handoff loop, but it must never imply live sync (a hard scope boundary from initial_discussion), and defaulting to itinerary-only avoids leaking who-owes-what financial data to non-paying recipients who weren't part of the settlement.",
+      "rejected_alternatives": [
+        "Exporting full trip data including expenses/settlement by default"
+      ],
+      "constraints": [
+        "Export UI must visually label the output as a static snapshot, not a live share",
+        "Including expense/settlement data in an export must be an explicit, separate opt-in action by the owner"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-001",
+      "decision": "The MVP slice is a single end-to-end workflow: trip creation with correct date-range math, a day view with ordered timed stops synced two-way to a MapKit view, drag-reorder within and across days, honest MKDirections/approximate-route fallback, a traveler list, expense logging across all three split methods, and a settle-up screen running genuine minimum-transaction debt-simplification.",
+      "rationale": "This is the one workflow that exercises every hardest-to-fake guarantee already locked in prior phases (atomic drag integrity, real settlement math, honest degradation) in a single sitting; proving it bulletproof is worth more than eight shallow features.",
+      "rejected_alternatives": [
+        "Building a broader but shallower first pass across more of the 8 core features",
+        "Treating packing/calendar export as cheap additions to squeeze into this same slice"
+      ],
+      "constraints": [
+        "No feature outside this workflow should be built before this slice is proven correct under adversarial testing"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-002",
+      "decision": "The demo trip toggle ships as part of this first slice, not deferred, and must include a visible 'Demo' marker plus at least one stop that deliberately fails MKDirections route resolution.",
+      "rationale": "Without seeded demo data this slice has nothing to show on first launch, and the approximate-route fallback needs to be something a reviewer actually observes, not merely a claimed code path.",
+      "rejected_alternatives": [
+        "Deferring demo data seeding to a later phase"
+      ],
+      "constraints": [
+        "Carries forward DEC-prompt_contract-006 (visible Demo marker) and DEC-product_research-003 (at least one unresolvable-route stop) into this slice specifically"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-003",
+      "decision": "Explicitly cut from this first slice: Live Activity/Dynamic Island, home-screen widget, EventKit calendar export, packing lists/templates, iPad two-pane split view, and all StoreKit/paywall/Pro-tier code.",
+      "rationale": "Each of these carries its own correctness bar (idempotent calendar dedup, template reuse, genuine independent-pane iPad interaction, StoreKit product configuration) that deserves a dedicated pass rather than being crammed in shallow alongside the core workflow.",
+      "rejected_alternatives": [
+        "Including a partial version of one or more of these features as a stretch goal within this slice"
+      ],
+      "constraints": [
+        "These are named as the next build slice(s), not optional/if-time-permits additions to this one"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-004",
+      "decision": "Cross-day drag-and-drop must be implemented as a single atomic SwiftData operation from the very first version built in this slice, and settlement must be the real greedy debt-simplification algorithm with an in-code sum-identity assertion from the first version, never a placeholder or stub.",
+      "rationale": "Retrofitting atomicity onto an already-built naive delete-then-insert implementation, or replacing a stubbed settle-up screen later, is far more expensive than building both correctly from the start, and this project's credibility rests specifically on these two mechanisms being genuinely correct rather than demo-plausible.",
+      "rejected_alternatives": [
+        "Building a simpler placeholder version of drag-reorder or settlement first and hardening it in a later pass"
+      ],
+      "constraints": [
+        "Directly extends DEC-prompt_contract-002, DEC-prompt_contract-003, and DEC-prompt_contract-005 into this slice's initial implementation, not a later hardening pass"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-005",
+      "decision": "This slice's validation criteria are adversarial and specific: 10+ rapid cross-day drags of one stop across 3+ days with no duplication/loss at any intermediate state; a 5-traveler settle-up with mixed split methods including a non-100%-summing percentage entry producing a minimal transaction count with cent-exact sums; and a forced MKDirections failure confirmed to show the approximate-route indicator rather than a silent or crashing failure.",
+      "rationale": "Demo-once correctness is insufficient per DEC-initial_discussion-004; this slice needs to be tested against the same repeatable/adversarial bar the whole project is held to, even at MVP scope.",
+      "rejected_alternatives": [
+        "Accepting a single clean happy-path demo as sufficient validation for this slice"
+      ],
+      "constraints": [
+        "Build-verification phase must run these exact three checks against this slice before any later-slice work begins"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-001",
+      "decision": "Shrinking a trip's date range that would orphan stops on removed days must block the edit and show exactly which days/stops are affected, requiring the user to move or delete them first; extending the range is unrestricted.",
+      "rationale": "Trip editing is an untested second path to the same orphaned/duplicated-stop failure mode the drag-reorder work already treats as top priority; leaving it undecided risks a silent cascade-delete implementation.",
+      "rejected_alternatives": [
+        "Silently cascade-deleting stops on removed days",
+        "Silently orphaning stops with no data-model owner"
+      ],
+      "constraints": [
+        "Applies to any trip date-range edit, not just drag operations",
+        "Must surface the specific affected stops, not just a generic warning"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-002",
+      "decision": "Expense entries using percentage splits that don't sum to 100% are rejected at entry with an inline validation error; the app never silently auto-rescales entered percentages.",
+      "rationale": "Silent rescaling would quietly reinterpret what the user typed, producing a different settle-up total than the numbers actually entered \u2014 directly violating the project's no-fake-success/no-silent-reinterpretation principle.",
+      "rejected_alternatives": [
+        "Auto-scaling percentages proportionally to sum to 100",
+        "Storing as-entered and letting the imbalance flow into settle-up"
+      ],
+      "constraints": [
+        "Error message should state the actual sum so the user can correct it"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-003",
+      "decision": "A non-gesture 'Move to...' reorder action (context menu or edit-mode control) must exist alongside drag-and-drop, executing through the identical atomic SwiftData operation as the drag path.",
+      "rationale": "Drag gestures are not reliably operable via VoiceOver; without a parallel accessible path exercising the same atomic operation, a meaningful portion of users cannot reorder stops at all, and a divergent second implementation risks reintroducing the exact duplication bug the drag path is designed to prevent.",
+      "rejected_alternatives": [
+        "Drag-only reordering with no accessible alternative",
+        "A separate, independently-implemented accessible reorder code path"
+      ],
+      "constraints": [
+        "Both entry points (drag and Move-to) must call the same underlying atomic operation, not parallel implementations"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-004",
+      "decision": "The demo trip is a singleton keyed by a stable identifier: toggling it on creates the trip only if absent, toggling it off deletes exactly that trip and never touches any other trip.",
+      "rationale": "Without a singleton rule, repeated on/off/on toggling could create duplicate demo trips, which is either a confusing UX bug or a subtle data-integrity failure masquerading as a feature.",
+      "rejected_alternatives": [
+        "Inserting a fresh demo trip on every toggle-on with no dedup"
+      ],
+      "constraints": [
+        "Deletion on toggle-off must key off the stable identifier, never off name/date matching, so it can never delete a real user trip that happens to resemble it"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-005",
+      "decision": "All stop times are stored and displayed in the device's current local timezone; true destination-timezone-aware itineraries are explicitly out of scope and named as a Gap.",
+      "rationale": "Nothing previously specified how time windows behave across a timezone-crossing trip, and 'today falls within the trip's range' for Live Activity purposes depends entirely on this; leaving it unscoped would silently work for domestic trips and silently misbehave for international ones.",
+      "rejected_alternatives": [
+        "Storing/interpreting stop times in the trip's origin timezone regardless of device location",
+        "Leaving timezone behavior undefined and letting it fall out of implementation choices"
+      ],
+      "constraints": [
+        "Must be listed explicitly in the app's Gaps section per the original prompt's requirement"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-006",
+      "decision": "The debug/demo current-date injection hook (DEC-prompt_contract-009) must be wrapped in #if DEBUG and physically excluded from release builds, not merely gated behind a settings flag.",
+      "rationale": "A settings-flag-only gate is discoverable at runtime and could let a real user or App Review reviewer force a fake 'trip is active' state in a shipped build, which is precisely the fake-success scenario this project is built to avoid.",
+      "rejected_alternatives": [
+        "Gating the hook behind a settings toggle only, left compiled into release builds"
+      ],
+      "constraints": [
+        "Applies to the testability mechanism introduced in DEC-prompt_contract-009 specifically"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-001",
+      "decision": "The core trip/day/stop/reorder/map/settlement workflow, the date-range shrink guard, and the demo-trip singleton are must-have, non-negotiable for this build.",
+      "rationale": "These are the hardest-to-fake guarantees the whole project's credibility rests on (per prompt_contract, next_steps_small, detailed_discussion); none carry an unverifiable-capability ceiling, so there is no risk-based reason to demote them.",
+      "rejected_alternatives": [
+        "Treating any of these as should-have to reduce build risk"
+      ],
+      "constraints": [
+        "Build phase must implement these before any should/could-have feature work begins, per DEC-product_research-005's sequencing"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-002",
+      "decision": "'Honest degradation of every permission/capability-gated feature' is promoted to its own explicit must-have acceptance bar, not folded silently into individual features.",
+      "rationale": "This is the feature most likely to be coded defensively but never actually observed failing if it isn't called out as its own line item with its own acceptance criteria.",
+      "rejected_alternatives": [
+        "Leaving degradation as an implicit property of each gated feature's individual acceptance criteria"
+      ],
+      "constraints": [
+        "Final review phase must confirm each degradation path (Live Activity, Calendar, MapKit routing, location) was actually observed, not just coded, per DEC-prompt_contract-012"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-003",
+      "decision": "Packing is split: the checklist and packed-percentage indicator are must-have; packing templates (save/reapply across trips) are should-have.",
+      "rationale": "The checklist itself is low-risk and required for the app to be useful on a single trip; templates require a second data model (template vs. instance) that's easy to get subtly wrong under time pressure and isn't required for a single trip's honesty or usefulness.",
+      "rejected_alternatives": [
+        "Treating all of packing (checklist + templates) as a single must-have unit"
+      ],
+      "constraints": [
+        "If templates are cut under time pressure, the checklist and packed-% must still ship complete and correct"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-004",
+      "decision": "Calendar export is must-have despite being similar in engineering weight to Live Activity/widget, because its dedup mechanism is already fully specified with zero remaining ambiguity.",
+      "rationale": "Demoting a feature that's explicitly named in the prompt and has no open design question left would be avoiding a solved problem, not managing genuine build risk.",
+      "rejected_alternatives": [
+        "Demoting calendar export to should-have alongside Live Activity/widget on the basis of similar implementation effort"
+      ],
+      "constraints": [
+        "Must implement the identifier-based dedup and permission/deletion edge cases exactly as locked in DEC-prompt_contract-010"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-005",
+      "decision": "iPad two-pane split view is must-have because it is explicitly named in the prompt, already has a locked independent-pane verification bar, and carries no unverifiable-hardware risk.",
+      "rationale": "Unlike Live Activity/widget, iPad split view can be conclusively verified in the Simulator across sizes and orientations, so there is no risk-based justification to demote it.",
+      "rejected_alternatives": [
+        "Demoting iPad split view to should-have to reduce build scope"
+      ],
+      "constraints": [
+        "Verification must follow DEC-prompt_contract-011's bar (independent-pane interaction across \u22652 sizes and both orientations), not just NavigationSplitView usage"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-006",
+      "decision": "Live Activity, the home-screen widget, and packing templates are should-have, not must-have, specifically because Live Activity/widget carry a named unverifiable-capability ceiling (cannot be conclusively confirmed without physical hardware) and templates carry avoidable data-model risk.",
+      "rationale": "The phase rule 'prefer a smaller finished app over a larger half-built one' argues for shipping a fully-verified core over a half-verified Live Activity/widget that reviewers cannot conclusively confirm behaves correctly.",
+      "rejected_alternatives": [
+        "Treating every feature explicitly named in the original prompt as automatically must-have regardless of verifiability"
+      ],
+      "constraints": [
+        "If cut under time pressure, this must be the first place scope is trimmed, never the core trip-state/settlement model (per DEC-portfolio_selection-001's carried-forward framing)",
+        "Verification claims for Live Activity/widget must stay explicitly bounded per DEC-product_research-004 even when built"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-007",
+      "decision": "StoreKit/Pro-tier paywall wiring, the Trip Snapshot export, and settlement audit-log/category-spend reporting are could-have for this build.",
+      "rationale": "These are monetization and reporting layers on top of an already-correct free experience per per_app_product_brief, not things the core product promise depends on; the audit-log feature was also already flagged as conceptually agreed but undesigned.",
+      "rejected_alternatives": [
+        "Building the full dual-subscription StoreKit paywall as must-have scope in this pass"
+      ],
+      "constraints": [
+        "Settlement math, iPad split view, and honest map-degradation must never be paywalled even if StoreKit gating is built, per DEC-per_app_product_brief-002"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-001",
+      "decision": "Adopt 'Trail Ledger' as Waypoint's design language: warm paper-toned backgrounds, ink/forest text, brass/amber accent (no system blue), tabular monospaced numerals for all times and money.",
+      "rationale": "The app's credibility rests specifically on itinerary integrity and settlement math being provably correct; a ledger/logbook visual language directly expresses 'shows its work and it adds up,' which a generic travel-app look would not.",
+      "rejected_alternatives": [
+        "Generic 'clean and modern' travel-app aesthetic",
+        "System-default blue-accent SwiftUI look"
+      ],
+      "constraints": [
+        "Implement as a single Theme.swift token file per global rules; no scattered font/color literals",
+        "Contrast of ink-on-paper tones must be verified against WCAG in both light and dark before ship"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-002",
+      "decision": "The day view's emotional target is 'competent captain glancing at a logbook that's always right' \u2014 calm and oriented, not operating software.",
+      "rationale": "The day view is already locked as the app's center of gravity (DEC-initial_discussion-001) and is used mid-trip under weak signal; the design must optimize for a glance, not exploration.",
+      "rejected_alternatives": [
+        "Optimizing the day view for browsing/discovery over quick orientation"
+      ],
+      "constraints": [
+        "Day view layout must prioritize next-stop/time-until legibility over decorative content"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-003",
+      "decision": "The signature interaction is the cross-day drag rendered as a ledger page opening to receive the stop and snapping shut with haptic feedback, visually proving the stop exists in exactly one day at every animation frame.",
+      "rationale": "This is the one interaction that can make the atomic-move guarantee (DEC-prompt_contract-005) visible and felt, not just technically true in code.",
+      "rejected_alternatives": [
+        "A generic drag-and-drop reorder animation with no narrative tie to atomicity"
+      ],
+      "constraints": [
+        "Animation must never show the stop in two places or in neither place at any intermediate frame, matching the underlying atomic operation exactly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-004",
+      "decision": "Explicitly reject the default SwiftUI-List/system-blue/stock-pin/plain-Form look, naming four concrete replacements: ticket-stub stop cards, brass/amber accent throughout, custom category-keyed map pin shapes, and a live-updating running balance preview during expense entry.",
+      "rationale": "Global rules require naming concrete differences, not adjectives; each of the four ties back to a specific product truth (itinerary-as-journey, ledger identity, categorized stops, transparent math) rather than being arbitrary styling.",
+      "rejected_alternatives": [
+        "Accepting default list/form chrome with only color changes"
+      ],
+      "constraints": [
+        "These four differences must be present in the actual built UI, not just described in the design spec"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-005",
+      "decision": "Lock the full screen inventory and navigation flow: trip switcher (Active/Upcoming/Past) \u2192 day view hub (ribbon + list + map) \u2192 stop detail sheet, trip create/edit with inline shrink-guard, travelers/expense/settle-up reachable via a persistent trip toolbar, packing checklist, calendar export confirmation sheet, settings, and Live Activity/widget.",
+      "rationale": "Concretizes the IA already agreed in initial_discussion (day view as hub, packing/calendar one level down) into an actual navigable screen graph a SwiftUI developer can build directly.",
+      "rejected_alternatives": [
+        "Leaving screen structure to be inferred ad hoc during build"
+      ],
+      "constraints": [
+        "Trip date-range shrink-guard (DEC-detailed_discussion-001) must surface affected stops inline in the edit screen itself, not as a separate error screen"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-006",
+      "decision": "The demo trip's visible marker (locked in DEC-prompt_contract-006) is rendered as a distinct tab ink color plus a literal 'DEMO' stamp graphic, not just a text label.",
+      "rationale": "A graphic stamp is unmistakable at a glance in a way a small text label is not, which matters given the marker must be visible 'wherever the demo trip's data appears' per the original constraint.",
+      "rejected_alternatives": [
+        "Text-only 'Demo' label with no distinct visual treatment"
+      ],
+      "constraints": [
+        "Must be visually consistent wherever the demo trip surfaces, including widget and Live Activity, per DEC-prompt_contract-006"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-007",
+      "decision": "The settle-up screen shows who-pays-whom plus the underlying arithmetic (in smaller ledger-style type) proving the amounts sum to the original total, rather than presenting only a final answer.",
+      "rationale": "The app's core trust pitch is that settlement math is genuinely correct, not just claimed correct; showing the arithmetic is the UI-level expression of the in-code sum-identity assertion already locked in DEC-prompt_contract-003.",
+      "rejected_alternatives": [
+        "Showing only the final payment list with no supporting math"
+      ],
+      "constraints": [
+        "The displayed arithmetic must match the actual computed values exactly, not a simplified or rounded illustration"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-008",
+      "decision": "Calendar re-export confirmation must show explicit counts (e.g. '3 updated, 0 created') and distinct copy for permission-denied vs. externally-deleted-event states, rather than one generic success or error message.",
+      "rationale": "Extends the honesty principle and the already-locked identifier-based dedup mechanism (DEC-prompt_contract-010) into the UI layer \u2014 a generic 'Exported!' message would understate what actually happened on re-export.",
+      "rejected_alternatives": [
+        "A single generic success toast regardless of created-vs-updated counts",
+        "One generic error message for all failure modes"
+      ],
+      "constraints": [
+        "Applies to the calendar export confirmation sheet specifically"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-009",
+      "decision": "Accessibility requirements for this design: 'Move to...' is a first-class context-menu item on every stop card (not hidden behind an edit-mode toggle); custom map pins carry accessibility labels naming category and stop name; card contrast is verified in both light and dark; Dynamic Type reflows ticket-stub cards taller rather than truncating time or money values.",
+      "rationale": "Drag gestures are not reliably VoiceOver-operable (already established in DEC-detailed_discussion-003); custom paper-texture styling and custom map pins both introduce real risk of losing accessibility that a default SwiftUI List/MKPinAnnotationView would have had for free, so they need explicit compensating requirements.",
+      "rejected_alternatives": [
+        "Treating Move-to as a secondary/hidden action reachable only via edit mode",
+        "Allowing text truncation under Dynamic Type for time/money values"
+      ],
+      "constraints": [
+        "A clipped time or dollar amount under Dynamic Type is treated as a trust failure, not a cosmetic bug, and must block ship"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-010",
+      "decision": "Past 7 days, the day ribbon switches to a compact numeral-only scroll mode instead of remaining a strip of full-width day tabs.",
+      "rationale": "Claude's design flagged that the ribbon interaction degrades on longer trips (e.g. 14 days) and needed a concrete resolution now rather than being discovered mid-build; a numeral-only compact mode preserves the ribbon's identity while staying usable at any trip length.",
+      "rejected_alternatives": [
+        "Leaving ribbon behavior at length unspecified for the build phase to improvise",
+        "Switching to an entirely different picker UI (dropdown) past a threshold, abandoning the ribbon metaphor"
+      ],
+      "constraints": [
+        "Applies specifically to the day ribbon signature interaction (DEC-design_discussion-003) at trip lengths beyond 7 days"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-001",
+      "decision": "Lock the full token set (type scale, 8pt spacing grid, light/dark semantic color palette, corner radii) as the final spec a SwiftUI builder implements verbatim in a single Theme.swift.",
+      "rationale": "The phase requires zero invented values; every role now has an explicit size/weight/Dynamic-Type mapping, spacing step, or light+dark hex pair, satisfying the acceptance bar directly.",
+      "rejected_alternatives": [
+        "Leaving any token as a descriptive adjective for the build phase to interpret"
+      ],
+      "constraints": [
+        "Theme.swift is the single source; no scattered font/color/spacing literals in views, per global rules"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-002",
+      "decision": "Navigation is a single NavigationStack (iPhone)/NavigationSplitView (iPad) rooted at the trip switcher, never a tab bar; the iPad two-pane split (itinerary/map) activates only inside the day view, not app-wide.",
+      "rationale": "A tab bar would imply co-equal destinations, contradicting the already-locked day-view-as-hub IA; a top-level NavigationSplitView wrapping the whole app would violate DEC-prompt_contract-011's genuine-independent-pane requirement by stretching non-map screens.",
+      "rejected_alternatives": [
+        "Tab-bar navigation",
+        "Wrapping the entire app in one top-level NavigationSplitView"
+      ],
+      "constraints": [
+        "Trip switcher, settle-up, and packing remain full-width even on iPad; only the day view carries the two-pane split"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-003",
+      "decision": "Two-way map-pin/list-row selection uses exactly one source of truth (@State selectedStopID owned by the day view), never two separately-synced @State variables.",
+      "rationale": "This is the highest state-management risk in the app given the two-way binding requirement; a dual-state pattern is the classic source of one-frame desync flicker or update loops.",
+      "rejected_alternatives": [
+        "Two separate @State variables kept in sync via .onChange"
+      ],
+      "constraints": [
+        "Tap-stop scrolls list (ScrollViewReader) and animates map camera to a fixed span; tap-pin does the reverse; both go through the same setter"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-004",
+      "decision": "The cross-day drag's page-flip animation is sequenced strictly after the underlying SwiftData write completes, never run optimistically ahead of it; route recomputation happens only after drop, not per drag frame.",
+      "rationale": "The animation is meant to visually prove the atomic-move guarantee (DEC-design_discussion-003); running it optimistically ahead of a real write could show success before the write actually lands, which would be a UI lie if the write ever failed.",
+      "rejected_alternatives": [
+        "Optimistic animation that runs ahead of the SwiftData transaction",
+        "Recomputing MKDirections routes on every intermediate drag frame"
+      ],
+      "constraints": [
+        "Applies to every cross-day move implementation, drag and Move-to alike"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-005",
+      "decision": "Shared design tokens and components (Theme.swift, DemoStampBadge, CategoryPin, Ledger Numeral text styles) live in a shared Swift Package or shared-sources group importable by the main app, WidgetKit extension, and Live Activity target.",
+      "rationale": "The widget and Live Activity are separate build targets that can't reach into the main app directly; without shared sourcing, they will visually drift from the main design language within a few build iterations, silently breaking the requirement that the Demo marker look identical everywhere it appears.",
+      "rejected_alternatives": [
+        "Independently re-implementing tokens/components per target"
+      ],
+      "constraints": [
+        "Must be set up from the start of the build phase, not retrofitted after the widget/Live Activity are already built"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-006",
+      "decision": "Lock a full component inventory (TicketStubStopCard, DayRibbon, LedgerPageFlip, CategoryPin, RunningBalancePreview, SettleUpLedgerRow, DemoStampBadge, PackingTally, CalendarExportSummarySheet, EmptyStateCard) each mapped to the screens that use it.",
+      "rationale": "Satisfies the phase's named-component requirement and prevents each screen from inventing its own ad hoc version of a shared element (e.g. multiple divergent empty-state layouts).",
+      "rejected_alternatives": [
+        "Leaving component boundaries implicit for the build phase to infer"
+      ],
+      "constraints": [
+        "EmptyStateCard specifically must be the single implementation reused everywhere an empty state appears"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-007",
+      "decision": "Define a real per-screen state matrix beyond happy-path: day view (empty vs. complete), settle-up (no-expenses vs. balanced/'Settled' vs. outstanding \u2014 three states, not one), map (loading vs. approximate-fallback, visually distinct), calendar export (four distinct outcomes: first export, re-export-with-updates, permission-denied, externally-deleted-event).",
+      "rationale": "Several of these states are easy to accidentally collapse into a shared generic view with swapped text, which would violate the already-locked requirement that these read as meaningfully different situations (DEC-design_discussion-008) rather than one generic success/error toast.",
+      "rejected_alternatives": [
+        "Collapsing settle-up's balanced and no-expenses states into one visual treatment",
+        "A single generic calendar export result sheet with conditional text only"
+      ],
+      "constraints": [
+        "Build-verification must confirm all listed states are individually reachable and visually distinct, not just coded as a shared component with text swaps"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-008",
+      "decision": "Motion and haptics are specified per interaction: ledger page-flip spring (response \u22480.45, damping \u22480.8) with medium impact fired at page-close (not gesture start/end); light impact + 0.2s strike-through on check-off; success haptic fires once on the unbalanced\u2192balanced transition only, not on every settle-up load; all other transitions use system defaults.",
+      "rationale": "Prevents both under-specification (a builder guessing at feel) and over-animation (inventing motion for screens without narrative weight), and ties the signature interaction's haptic to actual data landing rather than gesture timing.",
+      "rejected_alternatives": [
+        "Leaving motion timing/curves unspecified for build-time improvisation",
+        "Firing the settle-up success haptic on every screen load while balanced"
+      ],
+      "constraints": [
+        "Applies specifically to the interactions named; screens without narrative weight keep system-default transitions"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-009",
+      "decision": "No external Claude Design pass is required for this build; the token/component/state spec is sufficient for a SwiftUI builder to start directly. An optional, non-blocking illustration pass is named for only two elements: the TicketStubBackground perforated-edge texture and the CategoryPin icon set.",
+      "rationale": "The phase allows either an external design prompt or an explicit no-external-design decision; the spec produced here already satisfies 'zero invented values,' so introducing an external design detour would add process without closing any real gap.",
+      "rejected_alternatives": [
+        "Requiring a full external Claude Design pass before build can start"
+      ],
+      "constraints": [
+        "SF Symbols plus a hand-coded perforation path are the required fallback if the optional illustration pass does not happen; build must not block on it"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-001",
+      "decision": "Day is a real SwiftData @Model entity owned by Trip, never a computed grouping derived from stop dates.",
+      "rationale": "An empty day (zero stops) and a drag/page-flip target both need a persistent anchor; a computed grouping has nowhere to represent a day with no stops.",
+      "rejected_alternatives": [
+        "Deriving Day as a computed grouping of stops by date"
+      ],
+      "constraints": [
+        "Applies to the core Trip/Day/Stop model implemented from the first build slice"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-002",
+      "decision": "Each Stop carries an explicit sortIndex: Int attribute maintained by app code; SwiftData to-many relationship array order is never relied on to represent sequence.",
+      "rationale": "Relationship ordering is not a durable, testable contract to bet the drag-reorder integrity guarantee on.",
+      "rejected_alternatives": [
+        "Relying on relationship array order for stop sequence"
+      ],
+      "constraints": [
+        "The reorder service must read/write sortIndex explicitly on every move"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-003",
+      "decision": "Cross-day and within-day stop moves are implemented as exactly one function, moveStop(_:to:at:), which reassigns the day relationship, reindexes both source and destination days, and saves once, rolling back on a thrown save; both the drag gesture and the accessible 'Move to...' menu call this identical function.",
+      "rationale": "Two implementations of the same atomic guarantee is exactly how the duplication/loss bug this project is most worried about would get reintroduced via the accessible path.",
+      "rejected_alternatives": [
+        "Separate implementations for drag vs. Move-to reorder paths"
+      ],
+      "constraints": [
+        "Directly implements DEC-prompt_contract-005 and DEC-detailed_discussion-003 at the function-signature level"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-004",
+      "decision": "No per-screen ViewModel classes; views read via @Query directly, and all mutating logic is centralized in plain structs/services (StopReorderService, SettlementEngine, CalendarExportService, DemoSeeder) parameterized by ModelContext.",
+      "rationale": "Per-screen ViewModels are over-engineering for this app's scope; centralized services parameterized by ModelContext are the real unit-test seam without adding an unnecessary abstraction layer.",
+      "rejected_alternatives": [
+        "A ViewModel class per screen"
+      ],
+      "constraints": [
+        "Unit tests target these services against an in-memory ModelContainer, not the views"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-005",
+      "decision": "Settlement split arithmetic (equal/percentage/exact, remainder-to-payer) is performed in integer minor units (cents, Int), converting to Decimal only at the persistence/display boundary.",
+      "rationale": "Doing the arithmetic directly in Decimal risks rounding-mode ambiguity; integer arithmetic makes the sum-identity assertion a trivial, always-exact equality check, which is what makes the 5-traveler adversarial test reliable.",
+      "rejected_alternatives": [
+        "Performing split division and remainder assignment directly in Decimal"
+      ],
+      "constraints": [
+        "Applies to SettlementEngine specifically; Decimal is still the type used for input entry and all persisted/displayed amounts, per DEC-prompt_contract-003"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-006",
+      "decision": "No CoreLocation/location permission is requested anywhere in v1; MKDirections routes between stored stop coordinates, not from the user's current position.",
+      "rationale": "The app has no legitimate v1 need for the user's live position, and live GPS tracking is already a named non-goal; requesting it anyway would be an unjustified permission ask.",
+      "rejected_alternatives": [
+        "Requesting 'when in use' location access for a 'center map on me' convenience"
+      ],
+      "constraints": [
+        "Any future 'center on me' feature requires its own explicit, separately-justified permission decision"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-007",
+      "decision": "Calendar export uses the iOS 17 full-access EventKit API (requestFullAccessToEvents), not write-only, with denied/restricted/write-only-granted-but-full-refused treated as three distinct explicit states.",
+      "rationale": "The locked identifier-based dedup mechanism requires looking an existing event back up to update it or detect external deletion, which write-only access cannot support.",
+      "rejected_alternatives": [
+        "Write-only Calendar access",
+        "Folding all permission failure modes into one generic error state"
+      ],
+      "constraints": [
+        "Declare NSCalendarsFullAccessUsageDescription in Info.plist"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-008",
+      "decision": "Live Activity is implemented inside the same WidgetKit extension target as the home-screen widget via ActivityConfiguration, not as a separate fourth Xcode target; the project has two targets total (main app, widget extension).",
+      "rationale": "This corrects an implicit assumption from earlier design phases; creating a phantom separate Live Activity target would be wasted setup work and risks the exact cross-target design drift design_handoff was trying to prevent.",
+      "rejected_alternatives": [
+        "Scaffolding Live Activity as its own separate Xcode target"
+      ],
+      "constraints": [
+        "The shared design-token/component package requirement from DEC-design_handoff-005 applies to the app target and the single widget extension target"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-009",
+      "decision": "Every Activity.request call uses pushType: nil, checked as a literal grep target during build verification; Live Activities are only requested after confirming ActivityAuthorizationInfo().areActivitiesEnabled.",
+      "rationale": "pushType: nil is the actual code-level enforcement point for the no-server-push decision (DEC-prompt_contract-008); checking areActivitiesEnabled first prevents a denied/unsupported state from reaching the request call and crashing or silently no-opping.",
+      "rejected_alternatives": [
+        "Allowing a push token type on Activity.request",
+        "Attempting Activity.request without a prior capability check"
+      ],
+      "constraints": [
+        "NSSupportsLiveActivities = YES must be set in Info.plist"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-010",
+      "decision": "The Live Activity countdown renders via Text(timerInterval:) for continuous on-device updates without waking the app process; Activity.update() is called explicitly only when the actual next stop changes (a check-off, or the app becoming active and detecting a window boundary crossed).",
+      "rationale": "This is the concrete answer to 'how does the countdown update without a server' \u2014 without naming this mechanism explicitly, a builder would likely try to push per-minute updates from within the app, which doesn't work when backgrounded.",
+      "rejected_alternatives": [
+        "An in-app timer attempting to push Activity updates every minute"
+      ],
+      "constraints": [
+        "Applies to the Live Activity's SwiftUI content specifically"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-011",
+      "decision": "The #if DEBUG current-date injection hook stores its value in an App Group UserDefaults suite (still debug-only, still excluded from release), not an in-process variable; the same App Group also serves the widget extension's SwiftData access via ModelConfiguration(groupContainer:).",
+      "rationale": "The widget extension runs in a separate process from the main app; an in-process variable would let the two processes silently disagree on what 'today' is during debug/demo verification, letting one surface 'verify' while the other ships a lie.",
+      "rejected_alternatives": [
+        "Keeping the debug date hook as an in-process variable in the main app only"
+      ],
+      "constraints": [
+        "Still must be physically excluded from release builds per DEC-detailed_discussion-006",
+        "One App Group capability serves both purposes, set up once at project scaffolding"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-012",
+      "decision": "The demo trip's deliberately unresolvable-route stop uses structurally unroutable coordinates (e.g., across open ocean with no walking/driving path) so MKError fires deterministically, rather than depending on an actual live MKDirections network failure at review time.",
+      "rationale": "Simulator networking routes through the host Mac and may simply succeed depending on the reviewer's own connection, which would silently un-verify the app's core offline-differentiator on a good-wifi day.",
+      "rejected_alternatives": [
+        "Relying on genuine live network conditions to trigger the fallback at review time"
+      ],
+      "constraints": [
+        "Extends DEC-product_research-003's requirement with a concrete implementation approach"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-013",
+      "decision": "The free-tier 'one active trip' gate is operationally defined as the count of trips that currently exist (not cumulative-ever-created), enforced at trip-creation time by disabling 'New Trip' and showing an upsell; deleting a trip frees the slot. No isLocked flag is added to the Trip model.",
+      "rationale": "This closes an ambiguity left open across per_app_product_brief and app_features about exact gating UX mechanics, while keeping monetization concerns out of the SwiftData model.",
+      "rejected_alternatives": [
+        "Cumulative-ever-created trip count as the gate",
+        "An isLocked flag on Trip to represent a frozen/blocked state"
+      ],
+      "constraints": [
+        "A bundled .storekit configuration file must be added to the scheme from day one so purchase/restore/lapse can be exercised in Simulator"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-014",
+      "decision": "The automated 10x/20x repeated cross-day move regression test drives the 'Move to...' context-menu action rather than simulating the finger-drag gesture via XCUITest; the actual drag gesture is verified manually/visually instead of in CI.",
+      "rationale": "XCUITest drag-gesture simulation is flaky across Simulator versions, and the Move-to path already calls the identical atomic function as the drag path, so it exercises the same guarantee reliably.",
+      "rejected_alternatives": [
+        "Driving the repeated cross-day drag regression test via simulated XCUITest drag gestures"
+      ],
+      "constraints": [
+        "Settlement math and the reorder service still get plain XCTest unit tests against an in-memory ModelContainer with no UI involvement"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-015",
+      "decision": "A PrivacyInfo.xcprivacy manifest with a declared reason for UserDefaults usage (settings, demo toggle) is a required build artifact, flagged now rather than discovered at App Store submission.",
+      "rationale": "Missing this manifest is an App Review rejection, not a warning, and is cheap to add during initial project scaffolding versus retrofitting later.",
+      "rejected_alternatives": [
+        "Deferring the privacy manifest until pre-submission"
+      ],
+      "constraints": [
+        "Must declare the UserDefaults API usage reason required by Apple's privacy manifest policy"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-001",
+      "decision": "Project structure is one Xcode project with two build targets (Waypoint app, WaypointWidget extension) plus a local Swift Package WaypointKit imported by both, holding the SwiftData schema, Theme.swift, shared components, and plain services.",
+      "rationale": "This is the concrete module boundary that fulfills design_handoff's cross-target sharing requirement and ios_architecture_review's two-target correction; a shared-sources file group is named as the fallback if local-SPM-package-with-@Model friction appears.",
+      "rejected_alternatives": [
+        "Independently duplicating model/theme/component code per target",
+        "A third Xcode target for Live Activity (already rejected in ios_architecture_review)"
+      ],
+      "constraints": [
+        "The hard invariant is one copy of model/theme/component code, regardless of which packaging mechanism (SPM package vs. shared-sources group) ends up used"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-002",
+      "decision": "Full SwiftData schema locked: Trip/Day/Stop/Traveler/Expense/ExpenseSplit/PackingItem/PackingTemplate/PackingTemplateItem with cascade-delete from Trip, Stop.day non-optional, and money stored as Int cents at rest (amountCents/shareCents) with Decimal only as a computed accessor.",
+      "rationale": "Storing money as Int cents at rest rather than just computing in cents transiently means the sum-identity assertion can run as a stored-data integrity check at any time, not only right after a computation; Stop.day being non-optional is the literal enforcement point of the atomic-move invariant.",
+      "rejected_alternatives": [
+        "Storing Decimal as the source of truth for money and converting to cents only inside SettlementEngine",
+        "Making Stop.day optional to simplify object construction"
+      ],
+      "constraints": [
+        "Any future field additions must go through the versioned schema plan (DEC-tech_specs-004), not ad hoc model edits"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-003",
+      "decision": "Deleting a Traveler who is a payer or split participant on any expense is blocked, with the UI surfacing exactly which expenses reference them, via a new TravelerDeletionGuard.blockingExpenses(for:) function mirroring the existing day-range shrink-guard pattern.",
+      "rationale": "This is a previously-unaddressed gap in the same failure family as the already-prioritized day-shrink-orphan problem, just on the traveler axis: an unguarded delete could silently cascade-delete ExpenseSplit rows or throw on a dangling required reference, quietly changing a real expense's split composition after the fact.",
+      "rejected_alternatives": [
+        "Leaving traveler deletion unguarded and relying on SwiftData's default relationship behavior",
+        "Cascading the delete and silently removing the traveler's splits"
+      ],
+      "constraints": [
+        "Must be tested as its own adversarial case per DEC-tech_specs-009",
+        "UI must list the specific blocking expenses, not a generic warning, per the same honesty principle as DEC-detailed_discussion-001"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-004",
+      "decision": "Use a versioned Schema/SchemaMigrationPlan (WaypointSchemaV1) from the first build slice, not an unversioned ModelContainer, even though there is currently only one schema version.",
+      "rationale": "The build is explicitly sequenced across multiple slices that will each want to add fields or models (packing templates, calendar fields, Live Activity/widget/StoreKit fields); versioning costs nothing now and avoids a destructive-reinstall or manual-migration crisis three slices from now.",
+      "rejected_alternatives": [
+        "Starting with an unversioned container and adding migration support only when a real schema change is needed"
+      ],
+      "constraints": [
+        "All future model changes across the remaining build slices must be added as new schema versions in the migration plan"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-005",
+      "decision": "One ModelConfiguration is shared by the app and widget extension, with cloudKitDatabase explicitly set to .none (not merely absent) and groupContainer pointed at the App Group; the same App Group backs the #if DEBUG current-date override's UserDefaults suite.",
+      "rationale": "Makes the no-CloudKit decision (DEC-prompt_contract-007) an explicit, greppable configuration value rather than an assumed default, and consolidates the App Group's two purposes (shared SwiftData access, cross-process debug date agreement) into one setup step.",
+      "rejected_alternatives": [
+        "Leaving cloudKitDatabase unset and relying on it defaulting to none"
+      ],
+      "constraints": [
+        "Applies to the single ModelConfiguration used by both targets"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-006",
+      "decision": "StopReorderService and SettlementEngine are fully synchronous/main-actor and operate directly on model objects with a passed ModelContext; CalendarExportService and MKDirections calls extract Sendable DTOs from model objects before crossing any await boundary and apply results back on the main actor afterward \u2014 a live PersistentModel reference is never held across an awaited system call.",
+      "rationale": "SwiftData PersistentModel objects are tied to the ModelContext that fetched them and are not safe to hand across an await boundary; naming this boundary now prevents a subtle cross-actor SwiftData bug from being discovered mid-build.",
+      "rejected_alternatives": [
+        "Making StopReorderService/SettlementEngine async for consistency with the calendar/MapKit services",
+        "Passing live model references into async EventKit/MapKit calls"
+      ],
+      "constraints": [
+        "Applies to every service that performs async system-framework calls, not just CalendarExportService"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-007",
+      "decision": "Views fetch Trip and traverse trip.days/day.stops directly, sorting in plain Swift by sortIndex/date, rather than using @Query with relationship-traversing #Predicates.",
+      "rationale": "Trip/day/stop counts are small by construction (dozens of stops at most); predicate pushdown offers no real benefit at this scale and would add complexity that makes the atomic-move invariant harder to reason about, which is the opposite of what this app needs to prioritize.",
+      "rejected_alternatives": [
+        "Using #Predicate-based @Query for day/stop fetching for architectural 'purity'"
+      ],
+      "constraints": [
+        "Applies to Day/Stop access patterns specifically; does not preclude @Query for simpler top-level fetches like the trip list"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-008",
+      "decision": "The home-screen widget implements a real widgetURL deep link (waypoint://trip/<id>/day/<id>) so tapping the widget's next-stop content opens that exact day in the app.",
+      "rationale": "A widget that doesn't deep-link anywhere is a widget nobody trusts; this is framed as the baseline correctness bar for the already-committed widget feature, not new scope.",
+      "rejected_alternatives": [
+        "Shipping the widget with no deep link, opening only to the app's default screen on tap"
+      ],
+      "constraints": [
+        "Applies to the must-have-adjacent widget feature scoped in app_features as should-have"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-009",
+      "decision": "Testing strategy adds two adversarial cases beyond what ios_architecture_review locked: an automated traveler-deletion-guard test, and a stress-trip perf sanity check (30 days x 10 stops, 8 travelers, 40 expenses) confirming both data access responsiveness and settlement correctness at that scale.",
+      "rationale": "The traveler-deletion guard is new scope this phase and needs its own test per the project's established pattern of testing every integrity guard adversarially, not just demoing it once; the perf check ensures the integer-cents settlement design (DEC-ios_architecture_review-005) is validated beyond the 5-traveler demo scale named in product_research.",
+      "rejected_alternatives": [
+        "Treating the traveler-deletion guard as covered implicitly by existing reorder/settlement tests",
+        "Deferring perf validation until a later build-verification phase with no specific stress scenario named"
+      ],
+      "constraints": [
+        "Both tests run against the in-memory ModelContainer XCTest setup already locked in ios_architecture_review"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-001",
+      "decision": "Lock a ten-milestone (M0-M9) dependency-ordered build sequence: scaffolding/de-risking, core trip model, day view UI, money/settlement, packing, calendar export, iPad split view, Live Activity/widget, StoreKit, build-verification.",
+      "rationale": "Sequencing by dependency (what must exist before what) rather than by feature-list order or calendar time surfaces real blocking relationships (e.g. widget/Live Activity needs the App Group proven in M0) instead of discovering them mid-build.",
+      "rejected_alternatives": [
+        "Sequencing purely by MoSCoW priority without dependency ordering",
+        "Treating StoreKit gating as part of the same milestone as its final paywall UI rather than splitting the gate-check logic earlier"
+      ],
+      "constraints": [
+        "M7 (Live Activity/widget) may not begin until M0's App Group entitlement and widget target are proven to exist and compile, not stubbed",
+        "M9 must actually trigger every permission/capability degradation path and observe the result, not just review code for guard clauses"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-002",
+      "decision": "M0 must include an early, time-boxed validation of the WaypointKit local-SPM-package-with-@Model-across-two-targets approach, falling back to a shared-sources file group immediately if it doesn't compile cleanly, rather than carrying this as an unresolved caveat into later milestones.",
+      "rationale": "This exact risk was flagged as unvalidated in both ios_architecture_review and tech_specs and carried forward twice without being tried; if it's still unvalidated by M7, a structural refactor would land at the worst possible time.",
+      "rejected_alternatives": [
+        "Deferring validation of the package approach until the widget/Live Activity milestone actually needs it"
+      ],
+      "constraints": [
+        "The fallback (shared-sources group) is a same-milestone decision if the package approach fails, not a later mid-build pivot"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-003",
+      "decision": "The free-tier 'one active trip' gate (TripGateChecker.canCreateTrip) counts only non-demo trips; the Settings demo-trip toggle never interacts with the monetization gate in either direction.",
+      "rationale": "No prior phase had actually decided what happens when a free user with one real trip (at the cap) toggles the demo trip on, or whether toggling it off frees a slot that was never really theirs \u2014 this was a genuine unresolved gap the existing function signature couldn't even express.",
+      "rejected_alternatives": [
+        "Counting the demo trip toward the free-tier cap like any other trip",
+        "Leaving the interaction undefined for the build phase to improvise"
+      ],
+      "constraints": [
+        "existingTripCount passed into canCreateTrip must explicitly exclude trips where isDemo == true"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-004",
+      "decision": "TripGateChecker and the trip-creation gating UI are built in M2 (day view UI milestone), hardcoded to isPro = false, rather than deferred until M8's StoreKit work.",
+      "rationale": "Building the gating UI once now and wiring real entitlement checks later in M8 avoids building the same UI twice under time pressure.",
+      "rejected_alternatives": [
+        "Deferring all trip-count gating UI until StoreKit is implemented in M8"
+      ],
+      "constraints": [
+        "M8 (StoreKit) depends on this UI already existing and only needs to swap in real entitlement state, not build new UI"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-005",
+      "decision": "M9 (build-verification) is scoped as the project's first genuine adversarial/skeptical pass on the entire design-through-tech_specs decision set, not as a final polish checklist, given Codex's continued unavailability across all prior phases.",
+      "rationale": "Every phase from next_steps_small through tech_specs (eight consecutive phases) was decided solely by Claude with no second-agent adversarial review; build-verification is the first point where a skeptical pass on the accumulated decisions is even possible.",
+      "rejected_alternatives": [
+        "Treating build-verification as routine QA on an already-trusted design/architecture"
+      ],
+      "constraints": [
+        "M9 must budget real time/resourcing for this, not just a pass/fail checklist run"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-001",
+      "decision": "The real Xcode project lives at the app's own repo root (Waypoint.xcodeproj), not inside orchestration/scratch space, with WaypointKit/, Waypoint/, WaypointWidget/, and WaypointTests/ as the four filesystem roots.",
+      "rationale": "This is purely a location/folder decision that maps tech_specs' already-locked module boundary (two targets + shared package) onto an actual filesystem layout build workers can start writing into immediately.",
+      "rejected_alternatives": [
+        "Locating the project inside .agent_cwd or another orchestration-owned directory"
+      ],
+      "constraints": [
+        "All later file-path references in tasks/flows assume this root"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-002",
+      "decision": "File ownership is enforced by subfolder path, one lane per folder: data_domain (Models/Schema/Persistence), services_utilities (Services/ + WaypointTests/), primary_ui (UI/ shared components + Waypoint/Features/), polish_resilience (WaypointWidget/, Store/, privacy/accessibility, degradation checklist).",
+      "rationale": "Path-based ownership is unambiguous and mechanically checkable, avoiding the convention-based ownership drift that causes merge conflicts on a multi-lane build.",
+      "rejected_alternatives": [
+        "Ownership by feature area cutting across folders",
+        "Shared ownership of the Services folder across multiple lanes"
+      ],
+      "constraints": [
+        "services_utilities keeps its own test suites as separate tasks from the feature build task, so adversarial tests are a visible, checkable deliverable rather than something a 'done' feature task can quietly skip"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-003",
+      "decision": "project.pbxproj and WaypointKit/Package.swift are integrator-owned forbidden zones: any lane adding a file coordinates that specific edit sequentially and integrates immediately, rather than editing opportunistically alongside unrelated feature work.",
+      "rationale": "These two files are the one place ownership cannot be cleanly split by folder \u2014 every lane will eventually need to add files to a target, and simultaneous edits to either file merge-conflict trivially.",
+      "rejected_alternatives": [
+        "Allowing any lane to edit these files as part of normal feature work",
+        "Assigning permanent ownership of these files to a single lane"
+      ],
+      "constraints": [
+        "Applies to every task across all lanes that adds a new file to a target or package"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-004",
+      "decision": "Lock a 26-task acyclic backlog (T-001 through T-026) covering every requirement from the requirements set, plus 8 flows-json user journeys for the M9 UI-crawl gate to execute against the real build.",
+      "rationale": "Satisfies the phase's required acceptance checks directly: no ownerless task, acyclic dependency graph, and build workers able to start immediately without further clarification.",
+      "rejected_alternatives": [
+        "A coarser task list requiring lanes to self-decompose their own work"
+      ],
+      "constraints": [
+        "Every CORE requirement must be named by at least one task's requirement_ids; any future requirement change must be reflected as a task update, not silently dropped"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-001",
+      "decision": "Split task T-017 into T-017a (packing checklist + packed-%, must-have) and T-017b (packing templates, should-have), each with independent acceptance criteria.",
+      "rationale": "The combined task's joint acceptance criteria meant a lane under time pressure had no way to ship the must-have checklist as 'done' without inventing a scope cut mid-build, directly undermining app_features' must/should split which existed specifically so templates could be cut without threatening the checklist.",
+      "rejected_alternatives": [
+        "Leaving T-017 as a single bundled task and trusting lanes to informally prioritize the checklist half under time pressure"
+      ],
+      "constraints": [
+        "T-017b must be the first item dropped if time runs short, per app_features' priority ordering",
+        "T-017a's acceptance criteria must not depend on T-017b being complete"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-002",
+      "decision": "Reserve the term 'active trip' exclusively for the date-range meaning (today falls within the trip's range, used by ActiveTripResolver/Live Activity/widget); rename the monetization gate concept to 'trip slot' or 'existing trip count' in all UI copy and documentation going forward.",
+      "rationale": "The same word was locked with two incompatible meanings across prior phases (date-range-based for Live Activity vs. current-trip-count-based for the free-tier gate implemented in ios_architecture_review), creating real risk that a build worker wires TripGateChecker to ActiveTripResolver.activeTrip(in:now:) and produces a gate that behaves nothing like the spec (e.g. allowing unlimited upcoming trips since none are 'active' today).",
+      "rejected_alternatives": [
+        "Leaving both meanings under the same term and trusting code comments to disambiguate at build time"
+      ],
+      "constraints": [
+        "Applies to all future UI copy, code comments, and documentation; TripGateChecker's underlying logic (DEC-ios_architecture_review-013, DEC-project_plan-003) is unchanged, only the naming"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-003",
+      "decision": "Add an explicit acceptance criterion to T-025 requiring the actual finger-drag gesture (not just the automated 'Move to...' path) to be manually exercised across at least 5 cross-day moves with no duplication or loss observed.",
+      "rationale": "ios_architecture_review already decided the automated regression test drives Move-to only because XCUITest drag simulation is flaky, deferring the real drag gesture to manual verification \u2014 but T-025's acceptance criteria never named this manual step explicitly, leaving it implied only by F-002 existing in the flows list.",
+      "rejected_alternatives": [
+        "Relying on F-002's existence in flows-json to implicitly cover manual drag verification without a named acceptance criterion"
+      ],
+      "constraints": [
+        "This manual check is in addition to, not a replacement for, T-013's automated Move-to-path regression test"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-004",
+      "decision": "Waypoint is declared READY TO BUILD: cross-phase consistency holds from prompt contract through tasks with no unresolved contradictions beyond the three fixes above, and build may proceed without inventing new product/design/architecture decisions.",
+      "rationale": "All core guarantees (atomic cross-day move, integer-cents settlement with sum-identity, identifier-based calendar dedup, App Group dual-purpose setup, iPad split scoped to DayView, non-demo trip gating) trace consistently end to end; the three findings this phase made are task-list corrections and naming fixes, not evidence of a deeper architectural gap.",
+      "rejected_alternatives": [
+        "Blocking build start pending a genuine second-agent adversarial pass across all nine prior phases",
+        "Treating the three findings as reasons to downgrade scope rather than simply fix and proceed"
+      ],
+      "constraints": [
+        "M9 (build-verification) remains the project's first genuine adversarial review given Codex's continued unavailability, and must be resourced accordingly, not treated as routine polish"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-001",
+      "decision": "The QA script's mandatory first step is a pre-flight crash check for the App Group entitlement error surfaced in build_verification's test run; if it reproduces, the report must state that downstream steps are blocked, not silently narrow scope to whatever still runs.",
+      "rationale": "build_verification's own transcript shows a fatal crash tied to the exact shared App Group both SwiftData persistence and the widget/debug-date hook depend on; treating this as a footnote rather than a gate would let a checklist quietly validate only the subset of the app that happens to still function.",
+      "rejected_alternatives": [
+        "Treating the crash as a known issue to work around silently while testing everything else normally"
+      ],
+      "constraints": [
+        "Every future regression pass must re-run this step first, per the checklist's own regression section"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-002",
+      "decision": "Cross-day reorder testing must be run twice per scenario: once via finger-drag and once via the 'Move to...' context-menu action with VoiceOver enabled, both checked against the identical atomic end state.",
+      "rationale": "The accessible 'Move to...' path was locked from ios_architecture_review onward as calling the identical underlying function as drag, specifically to prevent a divergent, buggier accessible implementation; QA needs to actually exercise both entry points, not assume equivalence from code review alone.",
+      "rejected_alternatives": [
+        "Testing only the drag gesture and assuming Move-to behaves identically since it calls the same function"
+      ],
+      "constraints": [
+        "Applies to the 10+ move rapid cross-day sequence and the last-stop-removal edge case"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-003",
+      "decision": "Known-gap features confirmed unbuilt or unwired by build_verification (Live Activity call sites, TripGateChecker enforcement) get QA steps that honestly check for absence-without-crash and are explicitly logged as open regressions, never written as if the feature works.",
+      "rationale": "Writing QA steps that describe a fictional pass-path for code that has zero call sites would violate this project's core no-fake-success principle at the checklist-authoring level, not just the app level; the checklist itself must model the same honesty the app is held to.",
+      "rejected_alternatives": [
+        "Writing conventional-looking pass/fail steps for Live Activity and the trip-count gate as if they were live",
+        "Omitting these features from the checklist entirely since they don't work"
+      ],
+      "constraints": [
+        "Both must appear in the checklist's Known Gaps section, not just be silently absent"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-004",
+      "decision": "The subscription/paywall testing section proposed by Codex (Upgrade prompts, SubscriptionStoreView, Restore Purchases) is removed from the checklist and replaced with an explicit 'not applicable this build' note, since StoreKit is locked could-have and confirmed unbuilt.",
+      "rationale": "Codex's draft tested UI that doesn't exist in the current build per build_coordination's final summary; running or reporting against fictional paywall steps would misrepresent the app's actual state to whoever executes this checklist.",
+      "rejected_alternatives": [
+        "Keeping the paywall section as aspirational/future-facing steps within the main checklist body"
+      ],
+      "constraints": [
+        "If StoreKit is built in a future phase, this section must be rewritten with real steps at that time, not reactivated as-is"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-005",
+      "decision": "iPad split-view testing requires at least 2 distinct iPad simulator sizes across both orientations, with an explicit rotation-mid-session step, and must confirm the split is scoped only to the day view (not trip switcher/settle-up/packing).",
+      "rationale": "Carries forward DEC-prompt_contract-011's requirement that iPad verification be genuine independent-pane interaction across sizes/orientations, not just NavigationSplitView usage confirmed by code review, into an executable checklist step.",
+      "rejected_alternatives": [
+        "A single iPad size/orientation smoke test"
+      ],
+      "constraints": [
+        "Also verifies DEC-design_handoff-002's scoping rule that only the day view gets the two-pane split"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-006",
+      "decision": "Persistence testing includes force-quitting the app mid-drag and mid-expense-entry (not just a clean close/reopen), to check for partial or corrupted state after an interrupted atomic operation.",
+      "rationale": "A clean close/reopen test alone can't catch a write interrupted mid-flight; given the project's emphasis on atomic cross-day moves and exact settlement sums, an interrupted-write scenario is a real and previously untested risk class.",
+      "rejected_alternatives": [
+        "Testing persistence only via normal app close/reopen"
+      ],
+      "constraints": [
+        "Applies specifically to the reorder and expense-entry flows, the two highest-stakes data-integrity operations in the app"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-001",
+      "decision": "Privacy nutrition label is 'Data Not Collected' across all categories except Calendar (full access, not linked to identity, not used for tracking); no Location Services, Contacts, or HealthKit entries are declared.",
+      "rationale": "DEC-ios_architecture_review-006 already locked that no location permission is requested in v1, and Contacts/HealthKit are entirely unused \u2014 declaring permissions for capabilities the app doesn't exercise is a self-inflicted review risk, not a safety margin.",
+      "rejected_alternatives": [
+        "Codex's proposal to declare Location Services, Contacts, and HealthKit usage descriptions for 'future expansion'"
+      ],
+      "constraints": [
+        "If a future phase adds location or contacts features, this label must be revisited then, not preemptively now"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-002",
+      "decision": "Ship v1 as a fully free app with no subscription/paywall copy, screenshots, or keywords anywhere in the listing.",
+      "rationale": "StoreKit is confirmed entirely unbuilt (build_coordination) and TripGateChecker, while implemented and tested, is never called from the New Trip button \u2014 the shipped binary actually gives every user unlimited trips, so the listing must match that reality, not a roadmap.",
+      "rejected_alternatives": [
+        "Codex's subscription/paywall review-risk section written as if a paywall exists"
+      ],
+      "constraints": [
+        "Do not use 'Pro', 'unlock', 'premium', 'free trial', or trip-limit language anywhere in App Store copy for this submission"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-003",
+      "decision": "Live Activity/Dynamic Island is excluded from all App Store copy, screenshots, and keywords for this submission, and NSSupportsLiveActivities is left out of the shipped Info.plist.",
+      "rationale": "LiveActivityController is fully coded but has zero call sites per build_verification's confirmed finding \u2014 advertising a feature that structurally cannot fire would be a listing that lies about running behavior.",
+      "rejected_alternatives": [
+        "Including a Dynamic Island screenshot since the code exists",
+        "Declaring the entitlement key for a feature that never activates"
+      ],
+      "constraints": [
+        "Revisit this the moment a future build phase wires real call sites and it's been visually observed working"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-004",
+      "decision": "Launch-readiness verdict is NOT YET READY, with five sequenced, narrow blockers rather than a vague 'needs more work' or a false 'ready' claim.",
+      "rationale": "The phase's own acceptance checks forbid marking launch-ready while verification/QA still has open blockers (App Group crash, zero live flow execution, missing PrivacyInfo.xcprivacy confirmation, missing support/privacy-policy URLs), all of which are real and unresolved.",
+      "rejected_alternatives": [
+        "Declaring the app launch-ready since the core product is largely built",
+        "A vague 'not ready' verdict without a concrete, sequenced fix list"
+      ],
+      "constraints": [
+        "This verdict must be revisited once the five named blockers are each confirmed resolved, not assumed fixed"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-005",
+      "decision": "Support URL and privacy policy URL are named as a concrete pre-submission task to be created, not fabricated placeholder contact info.",
+      "rationale": "Codex invented a support email/phone number that doesn't exist anywhere in this project; App Store Connect requires both URLs to submit, and inventing fake contact details would misrepresent the app's actual state going into submission.",
+      "rejected_alternatives": [
+        "Codex's fabricated support@waypointapp.com email and phone number"
+      ],
+      "constraints": [
+        "A real static page must be created and hosted before submission; this is paperwork, not engineering, but it's a hard gate"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-006",
+      "decision": "Screenshot plan locks day view, settle-up ledger arithmetic, map approximate-route fallback, packing checklist, and calendar export confirmation as the five screenshots; iPad is explicitly excluded pending real-device/simulator verification.",
+      "rationale": "These five screens demonstrate the app's actual differentiated behavior (honest degradation, provably-correct settlement) that's been code-reviewed and is reachable via the demo trip; the iPad split view has only been confirmed by code review, and including it invites scrutiny the project can't yet back up.",
+      "rejected_alternatives": [
+        "Including an iPad two-pane screenshot now since the code exists"
+      ],
+      "constraints": [
+        "Add the iPad screenshot only after DEC-prompt_contract-011's verification bar (2+ sizes, both orientations) is actually run"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-001",
+      "decision": "Final verdict is NO-GO for real users today: the app is close but not launch-ready, and the App Group entitlement question must be answered with a real app-scheme launch (not the test scheme) before any go decision, not inferred from a passing xcodebuild.",
+      "rationale": "build_verification's crash was in the same shared App Group that backs the app's own SwiftData persistence; a clean compile proves nothing about whether that entitlement resolves at runtime in the actual app target, and no phase across this project has ever performed that specific check.",
+      "rejected_alternatives": [
+        "Treating the crash as a test-harness-only issue and rounding the app up to launch-ready since xcodebuild passed",
+        "A vague 'needs more testing' verdict without naming the specific unresolved binary question"
+      ],
+      "constraints": [
+        "Any future phase or human picking this up must run this exact check (cold launch of the Waypoint scheme, watch console) before overriding this verdict"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-002",
+      "decision": "Build status and live-execution status are reported as two separate, unblended facts in the final review, and it is stated plainly that none of the 8 flows-json journeys or the human_qa_checklist's steps have ever been executed against a running build across this project's history.",
+      "rationale": "Every correctness claim in this project (settlement, drag integrity, calendar dedup, iPad split view) currently rests on code review and design intent only; a final review that blends 'compiled cleanly' with 'the features work' would overclaim confidence the project doesn't actually have.",
+      "rejected_alternatives": [
+        "Reporting a single blended VERIFIED status covering both build and functional correctness"
+      ],
+      "constraints": [
+        "Any future verification phase must continue reporting these as separate facts until live execution actually happens"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-003",
+      "decision": "Live Activity is named explicitly as an incomplete core prompt feature (numbered feature 5 of 8), not credited as delivered and not softened to a should-have footnote, because it is fully coded but has zero call sites and therefore never runs for any user.",
+      "rationale": "Rounding dormant-but-coded functionality up to 'done' would misrepresent actual prompt coverage to whoever reads this final review; the original prompt named this as a core capability, not an optional enhancement.",
+      "rejected_alternatives": [
+        "Counting Live Activity as delivered since the underlying code is correct and complete"
+      ],
+      "constraints": [
+        "This must be revisited the moment a future build phase wires real call sites and it's been observed working"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-004",
+      "decision": "Flag as an open, previously-unasked verification item: whether the original prompt's required Gaps section (iCloud sync, real-time traffic/flights, timezone limitations) actually exists as a reachable in-app screen, versus only existing across this project's orchestration decisions and documents.",
+      "rationale": "The prompt explicitly requires this content be surfaced to a user, not just reasoned about internally across ten-plus phases of discussion; no phase has confirmed a user can actually find it in the shipped UI.",
+      "rejected_alternatives": [
+        "Assuming this requirement is satisfied because it's been discussed and honored in every phase's reasoning"
+      ],
+      "constraints": [
+        "Whoever next touches the codebase should grep for/screenshot the actual in-app Gaps/Settings content before assuming this is closed"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-005",
+      "decision": "Carry forward app_store_readiness's five-item blocker list unchanged as this phase's concrete follow-up list, adding the trip-count-gate wiring decision and the in-app-Gaps-section confirmation as items 6 and 7.",
+      "rationale": "app_store_readiness's blocker list was already correctly scoped, narrow, and sequenced; this phase's job is to confirm and finalize it as the go-forward punch list, not invent a new one.",
+      "rejected_alternatives": [
+        "Producing an entirely separate blocker list disconnected from app_store_readiness's prior work"
+      ],
+      "constraints": [
+        "Each item must retain a concrete next action, not a vague 'needs more testing' entry, per this phase's own acceptance checks"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-006",
+      "decision": "State plainly, as a standing caveat on this verdict's confidence level, that Codex has produced no substantive independent review across eleven consecutive phases and its fallback lane has repeatedly fabricated content contradicting this project's own locked decisions.",
+      "rationale": "A final review that doesn't name this would imply a normal two-reviewer confidence level this project has not actually earned; the honesty principle this entire project is built around applies to the review process itself, not just the app's runtime behavior.",
+      "rejected_alternatives": [
+        "Omitting this caveat since it might read as undermining the final verdict's authority"
+      ],
+      "constraints": [
+        "Does not invalidate the underlying design work, which independent code-level reasoning across many phases has found sound"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_audit-001",
+      "decision": "Portfolio audit is marked not applicable for Waypoint, since it is a locked single-app build with no portfolio manifest, sibling folders, or child prompts.",
+      "rationale": "portfolio_selection already decided and never reopened that Waypoint is one app because its hardest guarantees (settlement math, cross-day drag integrity, calendar-export dedup) depend on one shared SwiftData model; the WidgetKit extension and Live Activity are targets within that one project, not sibling apps.",
+      "rejected_alternatives": [
+        "Treating the WidgetKit extension or Live Activity as separate portfolio apps requiring their own audit",
+        "Silently skipping this phase's check entirely since the prompt is obviously single-app"
+      ],
+      "constraints": [
+        "No portfolio-json manifest is required or produced for this project",
+        "Any future re-scoping into multiple apps would require reopening DEC-portfolio_selection-001 explicitly, not an implicit drift"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_audit-002",
+      "decision": "Record as an explicit, unresolved (not silently passed) open item that a direct filesystem check for stray duplicate Waypoint-named directories outside the known project roots was attempted and blocked by sandbox scope, rather than treating the audit as fully verified.",
+      "rationale": "This project's own recurring failure pattern is claiming verification that was only ever reasoned about, not observed (e.g. the App Group crash, the never-executed flows-json journeys); the same honesty discipline should apply to this phase's own folder-shape check rather than letting it pass invisibly.",
+      "rejected_alternatives": [
+        "Asserting the folder shape is confirmed clean without having actually run the check",
+        "Omitting any mention of the blocked check since it's low-risk"
+      ],
+      "constraints": [
+        "Whoever next has unrestricted filesystem access to this repo should run a one-line find for *aypoint* outside .agent_cwd to close this out"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-001",
+      "decision": "Scope this change as a narrow design-lint gate fix: resolve all 4 findings in docs/design_lint.json (not just the one raw_font_size example shown), touching only the files those findings name \u2014 expected to be CategoryPin.swift and possibly Theme.swift.",
+      "rationale": "The prompt shows only 1 of 4 findings in detail and the category name 'design/dependency' suggests findings may span more than one failure class (raw literals vs. dependency/target issues); assuming homogeneity would risk under-scoping the fix and re-failing the gate.",
+      "rejected_alternatives": [
+        "Assuming all 4 findings are raw-literal violations similar to the shown example without reading the full findings list",
+        "Treating this as an opportunity for a broader design/UI pass beyond the named lint errors"
+      ],
+      "constraints": [
+        "Must actually open and enumerate docs/design_lint.json before writing any fix",
+        "Only files named by the 4 findings may be touched"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-002",
+      "decision": "Fix raw-literal lint violations by substituting the existing Theme.swift semantic token for that role; only add a new token to Theme.swift if one is genuinely missing, and call that addition out explicitly rather than folding it in silently.",
+      "rationale": "Theme.swift is already locked as the single source of truth for the type/spacing/color scale (DEC-design_handoff-001) and CategoryPin is a locked shared component (DEC-design_handoff-006) that should not drift from it; this is a regression fix, not a new design decision.",
+      "rejected_alternatives": [
+        "Hardcoding a differently-named but still-literal replacement value",
+        "Inventing new ad hoc tokens without flagging the addition"
+      ],
+      "constraints": [
+        "Any new Theme.swift token added under this pass must be named as an explicit, called-out change"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-003",
+      "decision": "Any finding that touches project.pbxproj or WaypointKit/Package.swift is sequenced as its own separate, integrator-owned edit rather than folded into the literal-substitution work.",
+      "rationale": "These two files are already locked as integrator-owned forbidden zones (DEC-task_assignments-003) because simultaneous edits merge-conflict trivially; a lint fix is not an exception to that rule.",
+      "rejected_alternatives": [
+        "Editing project.pbxproj or Package.swift opportunistically as part of this fix if a finding happens to require it"
+      ],
+      "constraints": [
+        "Applies only if one of the 4 findings actually requires a target/package-level change"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-004",
+      "decision": "Acceptance for this change requires all 4 findings traced and fixed, a re-run of design lint showing zero errors, no new raw literals introduced, and a Dynamic Type spot check on every screen where the affected component (e.g. CategoryPin) renders.",
+      "rationale": "CategoryPin renders in map annotations and ticket-stub cards, surfaces already flagged as highest accessibility risk (DEC-design_discussion-009) where a clipped time/money value under Dynamic Type is defined as a trust failure that blocks ship, not a cosmetic bug; a passing lint check alone doesn't prove the token swap is visually safe.",
+      "rejected_alternatives": [
+        "Treating a passing design-lint re-run as sufficient proof of done without a visual Dynamic Type check"
+      ],
+      "constraints": [
+        "Applies to every screen where the fixed shared component actually renders, not just CategoryPin's primary use"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-005",
+      "decision": "This pass is reported strictly as a design-lint gate fix and explicitly does not change the app's launch-readiness status against the blockers already logged in final_review.",
+      "rationale": "Blending a narrow lint fix with launch-readiness language would repeat this project's recurring failure pattern of overclaiming verification; the two must stay separate facts.",
+      "rejected_alternatives": [
+        "Reporting this fix in language implying broader launch-readiness progress"
+      ],
+      "constraints": [
+        "Any summary of this phase's work must name it as a gate-compliance fix only"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review2-001",
+      "decision": "Accept the design-lint gate fix as verified GO on its own narrow terms: xcodebuild compiled cleanly, all 4 reconstructed findings resolved via token extraction with no behavioral change.",
+      "rationale": "This phase's own verification result (VERIFIED, xcodebuild, attempt 0) is a real compiler pass, a genuine improvement over build_coordination's manual-read-through-only verification; nothing in the diff or build_coordination's cross-review surfaced any defect.",
+      "rejected_alternatives": [
+        "Withholding GO status on this narrow fix pending a real device/app-scheme run, which is not what this change touches or requires"
+      ],
+      "constraints": [
+        "This GO applies only to the design-lint gate itself, not to the app's overall launch readiness"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review2-002",
+      "decision": "The app's overall launch verdict remains NO-GO, unchanged from DEC-final_review-001 through 006; this lint fix does not count as progress against any of the 5-7 previously logged blockers.",
+      "rationale": "Blending a green gate-compliance result with the app's broader readiness would repeat this project's own named recurring failure pattern (DEC-iterate_scope-005, DEC-final_review-002) of overclaiming verification by conflating unrelated facts.",
+      "rejected_alternatives": [
+        "Treating a passing design-lint gate as incremental progress toward launch readiness"
+      ],
+      "constraints": [
+        "Any future phase reporting on this app must keep 'gate passes' and 'launch-ready' as separate, unblended facts"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review2-003",
+      "decision": "Flag as a standing, still-open (not resolved) risk that the true contents of docs/design_lint.json remain unconfirmed; the 4 findings fixed here were a grep-based reconstruction matching the stated count and one shown example, never checked against an authoritative source.",
+      "rationale": "The gate reporting green does not retroactively prove the reconstruction was complete or correct; if the real lint file or a different rule set surfaces later, a fresh error report must not be assumed already covered by this fix.",
+      "rejected_alternatives": [
+        "Treating the gate now passing as sufficient proof the reconstruction was accurate and complete"
+      ],
+      "constraints": [
+        "Any future lint-gate failure report for this app should be checked against this open risk before assuming duplicate/already-fixed findings"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-006",
+      "decision": "Adopt option (b) for the 'Widget/Live Activity honest degradation on an active trip' flow: rewrite its final assertion to target real host-app UI, not widget-extension-only text; do not build an in-app widget-preview mirror.",
+      "rationale": "A widget-preview surface would be new UI built solely to satisfy a test (violates the minimal-change/smaller-finished-app global rules) and would need to read the same App Group backing the project's still-unresolved crash (DEC-final_review-001), risking a second surface that can silently show stale or wrong state.",
+      "rejected_alternatives": [
+        "Building a Settings-based widget-content preview mirror (Codex's fallback proposal)"
+      ],
+      "constraints": [
+        "No new UI whose only purpose is to give the crawler something to find",
+        "Must add a Gaps-section note that the automated UI crawl cannot observe live widget/Live Activity content since it runs in a separate process/target"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-007",
+      "decision": "Correct the flow's own name/description alongside the assertion fix, since it currently overstates what it verifies.",
+      "rationale": "Live Activity has zero call sites (DEC-final_review-003), so this flow can only honestly check 'no crash and no faked widget/Live Activity UI when no trip is active,' not real degradation behavior; leaving the misleading name in place while quietly narrowing the assertion would itself be a small honesty violation.",
+      "rejected_alternatives": [
+        "Leaving the flow name as-is while changing what it actually tests"
+      ],
+      "constraints": [
+        "Rename or annotate the flow so its name matches what it actually verifies"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-008",
+      "decision": "Defer the exact replacement assertion text to whoever has real build access; require them to first open the current build and confirm what the host app shows for 'trips exist but none fall within today's date range,' distinct from the already-confirmed 'zero trips exist' state.",
+      "rationale": "This session's sandbox has no filesystem access to the real Xcode project (verified: .agent_cwd is empty, broader paths blocked), so guessing plausible replacement copy here would repeat this project's own named failure pattern of asserting things that were never actually checked.",
+      "rejected_alternatives": [
+        "Guessing plausible-sounding replacement assertion text without confirming it against the real build"
+      ],
+      "constraints": [
+        "If no such state is currently surfaced anywhere in the host app, point the assertion at the nearest real, always-reachable state instead of inventing new copy, and log that explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-009",
+      "decision": "Treat the calendarExportButton/demoTripToggle 'no tappable element' findings as likely stuck-retry collateral from step 1, but require a fresh actual crawl run confirming both pass before this change is considered complete.",
+      "rationale": "Consistent with the project's standing rule against overclaiming verification (DEC-final_review-002, DEC-portfolio_audit-002); code review confirming identifiers exist is not proof a crawl reaches them.",
+      "rejected_alternatives": [
+        "Marking these resolved based on code review alone"
+      ],
+      "constraints": [
+        "Acceptance for this whole change requires an actual crawl execution showing all 8 flows green, not reasoning that the fix should work"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-010",
+      "decision": "Scope this fix cycle to docs/ui_crawl/flows.json plus, only if the confirmed real host-app state requires it, minimal existing-screen text/identifier changes; no new screens, no widget-preview mirror, no project.pbxproj/Package.swift edits.",
+      "rationale": "Keeps this a bounded fix consistent with the phase's own change-the-minimum-needed rule.",
+      "rejected_alternatives": [
+        "Broader UI or architecture changes to accommodate crawl coverage"
+      ],
+      "constraints": [
+        "Any need to touch project.pbxproj or WaypointKit/Package.swift must be sequenced as its own separate integrator-owned edit per DEC-task_assignments-003"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review3-001",
+      "decision": "Accept the UI-crawl control-exposure fix as verified GO on its own narrow terms: settings.tabButton/Done/tripSwitcher.newTripButton and the corrected 'No trips yet' empty-state text are grep-confirmed wired, the bonus DayView toolbar fix (calendarExportButton/moneyButton/packingButton moved off .secondaryAction) is real and correct, and xcodebuild compiled cleanly.",
+      "rationale": "Two independent phases (iterate_scope, build_coordination) both confirmed these identifiers and the toolbar fix by direct grep/code review, not lane say-so, consistent with this project's standing verification discipline; nothing in this round's discussion surfaced a defect in the app-side fix itself.",
+      "rejected_alternatives": [
+        "Withholding any GO status pending live crawl execution, which this narrow fix's own scope does not require to be judged correct as implemented"
+      ],
+      "constraints": [
+        "This GO applies only to the named control-exposure fix and the bonus toolbar fix, not to the app's overall launch readiness"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review3-002",
+      "decision": "Overall app launch verdict remains NO-GO, unchanged from DEC-final_review-001 through DEC-final_review2-002; this round's fix does not count as resolving any of the previously logged blockers.",
+      "rationale": "Blending a correctly-scoped narrow fix with the app's broader readiness would repeat this project's own repeatedly-named failure pattern (DEC-iterate_scope-005, DEC-final_review-002, DEC-final_review2-002) of conflating unrelated facts into an overclaimed verdict.",
+      "rejected_alternatives": [
+        "Treating this round's fix as incremental progress toward launch readiness"
+      ],
+      "constraints": [
+        "Any future phase reporting on this app must keep 'this change's own gate' and 'overall launch-ready' as separate, unblended facts"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review3-003",
+      "decision": "Flag as a standing, unresolved risk that the release gate itself may still fail end-to-end after this change, because the widget/Live Activity flow's assertion rewrite (DEC-iterate_scope-006/007/008) has never been applied to the actual docs/ui_crawl/flows.json, which lives outside this repo.",
+      "rationale": "Two consecutive phases (iterate_scope, build_coordination) confirmed this file is unreachable from app_build; without that edit, flow 8 of the gate will very likely fail again for the exact reason already diagnosed, regardless of how correct the app-side fix is.",
+      "rejected_alternatives": [
+        "Assuming the gate will now pass end-to-end since the app-side identifiers are confirmed correct"
+      ],
+      "constraints": [
+        "Whoever controls the orchestration-layer flows.json must apply the already-decided rewrite (assert real host-app UI, add the Gaps note, correct the flow name) before the gate can be honestly expected to pass"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review3-004",
+      "decision": "Reaffirm the App Group cold-launch entitlement question (DEC-final_review-001) as the single highest-priority unresolved item blocking any real GO verdict on the app itself, since no lane across any phase to date has performed a cold launch of the actual Waypoint app scheme with console observation.",
+      "rationale": "The exact first-launch empty-state path this round's fix targets is also the path most exposed to this unresolved crash risk; a clean xcodebuild compile and grep-confirmed identifiers prove nothing about runtime App Group resolution.",
+      "rejected_alternatives": [
+        "Treating a clean compile as sufficient evidence the App Group risk has receded"
+      ],
+      "constraints": [
+        "Whoever next has real device/Simulator access must run this exact check before overriding the NO-GO verdict, per DEC-final_review-001's original constraint"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review3-005",
+      "decision": "Carry forward the in-app Gaps-section absence (iCloud sync, live traffic/flights) as a still-open, unresolved item from DEC-final_review-004, reconfirmed by fresh grep this round.",
+      "rationale": "The original prompt requires this content be user-reachable, not merely reasoned about across phases; it remains absent and should not be allowed to quietly drop off the punch list.",
+      "rejected_alternatives": [
+        "Treating this as closed or out of scope for future tracking since it wasn't part of this cycle's named ask"
+      ],
+      "constraints": [
+        "Must remain on any future blocker/follow-up list for this app until an in-app screen actually surfaces it"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-011",
+      "decision": "Re-confirm (a second time, independently) that this session's sandbox has no filesystem access to the real Waypoint Xcode project \u2014 direct find/ls attempts are blocked to the empty .agent_cwd directory only.",
+      "rationale": "The exact same constraint (DEC-iterate_scope-008) recurred this round; verifying it directly rather than assuming it still holds is consistent with the project's own standing rule against overclaiming verification.",
+      "rejected_alternatives": [
+        "Assuming without re-checking that the earlier sandbox-blocked finding still applies"
+      ],
+      "constraints": [
+        "Whoever next has real build/filesystem access must perform the diagnosis and fix directly; this phase cannot."
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-012",
+      "decision": "Reject Codex's proposed fix (an @IBAction/UISwitch/DispatchQueue.asyncAfter UIKit-style patch) as fabricated and inapplicable to this SwiftUI/SwiftData codebase, and reject 'add a delay and see if it passes' as a valid diagnostic or fix on its own.",
+      "rationale": "The snippet's vocabulary doesn't correspond to any pattern in this project's actual architecture, matching the same fabrication failure mode already named in DEC-final_review-006; a delay passing is consistent with all candidate root causes and rules out none of them.",
+      "rejected_alternatives": [
+        "Adapting Codex's UIKit-flavored snippet to SwiftUI as a quick fix",
+        "Accepting a settle-delay fix as sufficient evidence the root cause is understood"
+      ],
+      "constraints": [
+        "No fix may be merged on the basis of 'a delay made the gate pass' alone"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-013",
+      "decision": "Require a three-way diagnostic before any code change: (1) did the Toggle's own visual isOn state fail to flip (tap-targeting/identifier-binding issue), (2) did the switch flip but the DEMO caption stay stale (render/observation-source mismatch), or (3) did the switch flip but no demo trip was actually persisted (genuine save-race bug in setDemoTrip/DemoSeeder).",
+      "rationale": "The human's original framing only offered two hypotheses (race condition vs. crawl-timing); a tap that never lands on the real control produces an identical screenshot to a state-propagation failure, so a third hypothesis must be checked and ruled out explicitly rather than assumed away.",
+      "rejected_alternatives": [
+        "Treating the failure as only a binary race-condition-vs-crawl-timing question"
+      ],
+      "constraints": [
+        "Diagnosis must observe the Toggle's own bound state independently of the caption text, not infer it from the caption alone"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-014",
+      "decision": "Lock per-hypothesis, scoped fixes rather than a single guessed patch: hypothesis 1 fixes the accessibility-identifier binding (crawl-target wiring, not app logic); hypothesis 2 rebinds the caption and switch to the identical Trip.isDemo-derived source of truth; hypothesis 3 makes setDemoTrip(enabled:) reflect the save's actual completion/failure rather than an optimistic instant flip.",
+      "rationale": "Keeps the eventual fix bounded to whichever root cause is actually confirmed, consistent with this phase's own minimal-change mandate, instead of pre-committing to one fix before the cause is known.",
+      "rejected_alternatives": [
+        "Pre-selecting one fix path and applying it regardless of which hypothesis the diagnosis confirms"
+      ],
+      "constraints": [
+        "Only the file(s) implicated by the confirmed hypothesis may be touched; no project.pbxproj/Package.swift edits unless diagnosis surfaces a target-wiring issue, which must then be sequenced separately per DEC-task_assignments-003"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review4-001",
+      "decision": "Accept the demo-trip-toggle gate fix (DemoSeeder rollback-on-save-failure, single-source-of-truth toggle/caption binding) as verified GO on its own narrow terms, upgraded from prior code-review-only confidence by a genuine xcodebuild VERIFIED pass this round.",
+      "rationale": "Two independent prior phases (iterate_scope, build_coordination) confirmed the three-way diagnostic was correctly resolved by direct file reads, and this phase's own verification result is a real compiler pass rather than a manual read-through, a meaningful step up in evidence quality.",
+      "rejected_alternatives": [
+        "Withholding any GO status pending a live crawl execution, which this narrow fix's own scope does not require to be judged correct as implemented"
+      ],
+      "constraints": [
+        "This GO applies only to the named toggle/DemoSeeder fix and the Live Activity call-site wiring landed alongside it, not to the app's overall launch readiness"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review4-002",
+      "decision": "Overall app launch verdict remains NO-GO, unchanged from DEC-final_review-001 through DEC-final_review3-002; this round's fix and its clean compile do not count as resolving any previously logged blocker.",
+      "rationale": "Blending a correctly-scoped, now compiler-verified narrow fix with the app's broader readiness would repeat this project's own repeatedly-named failure pattern of conflating unrelated facts into an overclaimed verdict; no live crawl or cold app-scheme launch has ever been performed.",
+      "rejected_alternatives": [
+        "Treating a clean xcodebuild plus this round's fix as incremental evidence the app is close enough to soften the verdict"
+      ],
+      "constraints": [
+        "Any future phase reporting on this app must keep 'this change's own gate' and 'overall launch-ready' as separate, unblended facts until a live crawl/cold-launch actually happens"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review4-003",
+      "decision": "Flag as a new, previously-unasked follow-up that the App Store listing's decision to exclude Live Activity from screenshots/keywords (DEC-app_store_readiness-003) was made when LiveActivityController had zero call sites, and that premise changed this round now that it's wired into TripSwitcherView/DayView.",
+      "rationale": "The original exclusion's stated rationale no longer holds as written; carrying it forward unexamined risks either quietly under-marketing a now-real feature or, worse, someone flipping the store copy before it's ever been observed actually firing on a device.",
+      "rejected_alternatives": [
+        "Leaving the store-listing exclusion unexamined since it wasn't the subject of this cycle's requested change",
+        "Proactively flipping the store copy to include Live Activity now that call sites exist"
+      ],
+      "constraints": [
+        "Do not change store-listing copy for Live Activity until it has been visually observed working on a real device/Simulator run, not just grep-confirmed as wired"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review5-001",
+      "decision": "Accept this round's DemoSeeder/ModelContainerFactory fix as a well-scoped, compiler-verified, plausible resolution of the three-way diagnostic, but explicitly withhold any claim that the demo-trip toggle has been confirmed working \u2014 it remains unobserved on a running build.",
+      "rationale": "This is the third consecutive gate-failure/fix cycle on the identical user flow, and every prior round's confident code-review verdict has needed a subsequent pass; treating this round's fix as 'done' rather than 'plausible and unconfirmed' would repeat exactly the overclaiming pattern this project has named against itself repeatedly (DEC-final_review-002, DEC-final_review2-002, DEC-final_review3-002, DEC-final_review4-002).",
+      "rejected_alternatives": [
+        "Crediting the fix as resolving the flow since the diagnosis and code review are both sound",
+        "Treating the compiler pass as sufficient evidence the toggle now works"
+      ],
+      "constraints": [
+        "Any future phase must not describe this flow as 'working' until an actual Simulator/device run or crawl execution has observed the DEMO caption appear post-toggle"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review5-002",
+      "decision": "Overall launch verdict remains NO-GO, unchanged from DEC-final_review-001 through DEC-final_review4-002; this round's fix, its clean compile, and Codex's non-fabricated silence do not count as resolving any previously logged blocker.",
+      "rationale": "Consistent with this project's standing rule (reaffirmed every review round) that a narrow fix's own verification and the app's overall launch readiness must be reported as separate, unblended facts.",
+      "rejected_alternatives": [
+        "Softening the verdict given three consecutive rounds of narrowing, well-reasoned fixes"
+      ],
+      "constraints": [
+        "Any future phase must keep 'this change's own gate' and 'overall launch-ready' as separate facts until a live crawl/cold-launch actually happens"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review5-003",
+      "decision": "Name 'no live execution of the demo-toggle fix, any flows.json journey, or the human_qa_checklist has ever occurred across this project's full history' as the single highest-priority, concrete next action for whoever has real build access, ranked above further code-level diagnosis.",
+      "rationale": "Three consecutive rounds have each produced a more careful hypothesis and a more careful fix, but zero rounds have produced an observation; the bottleneck is no longer diagnostic quality, it's the total absence of a live run, and the review should say this plainly rather than requesting a fourth round of code review.",
+      "rejected_alternatives": [
+        "Continuing to request deeper code-level diagnosis as the primary follow-up",
+        "Treating the App Group cold-launch risk and the demo-toggle live-run gap as separate priorities of equal weight rather than naming the live-run gap as the single most actionable item"
+      ],
+      "constraints": [
+        "Whoever next has approved xcodebuild/simctl access must run this before any future phase can respond with a full body of new code changes to this flow"
+      ],
+      "supersedes": null,
+      "superseded": true,
+      "superseded_by": "DEC-final_review-009"
+    },
+    {
+      "id": "DEC-final_review-007",
+      "decision": "Accept the demo-toggle Section restructure (Section{Toggle} footer{Text}, .toggleStyle(.switch), full-chain OSLog tracing) plus the earlier control-exposure fix as verified GO on their own narrow terms, upgraded in confidence by independent direct-file-read confirmation across two separate phases (iterate_scope's diagnostic framing, build_coordination's landed fix) and a clean xcodebuild compile.",
+      "rationale": "Two independent phases confirmed the same fix by reading the actual files rather than trusting transcript description, and the compiler pass is real evidence rather than review-say-so \u2014 this is the strongest evidence quality this specific gate fix has had across its many rounds.",
+      "rejected_alternatives": [
+        "Withholding GO status pending live crawl execution, which this narrow fix's own scope does not require to be judged correct as implemented"
+      ],
+      "constraints": [
+        "This GO applies only to the named toggle/control-exposure fixes, not to the app's overall launch readiness"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-008",
+      "decision": "Overall app launch verdict remains NO-GO, unchanged from DEC-final_review-001 through DEC-final_review5-003; this round's confirmation of an already-landed fix does not count as resolving any previously logged blocker.",
+      "rationale": "Consistent with this project's standing, repeatedly-reaffirmed rule that a narrow fix's own correctness and the app's overall launch readiness must be reported as separate, unblended facts.",
+      "rejected_alternatives": [
+        "Softening the verdict given the accumulated weight of many careful, well-verified fix rounds"
+      ],
+      "constraints": [
+        "Any future phase must keep 'this change's own gate' and 'overall launch-ready' as separate facts until a live crawl/cold-launch actually happens"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-009",
+      "decision": "Reaffirm, for the second consecutive review phase, that zero live execution of the demo-toggle fix, any flows.json journey, or the human_qa_checklist has ever occurred across this project's full history, and name this as the single highest-priority next action, ranked above any further code-level diagnosis of this or other flows.",
+      "rationale": "The bottleneck on this project has not been diagnostic or code quality for several rounds now; it has been the complete absence of a live observation, and repeating that plainly is more useful than producing another round of confident-sounding but unconfirmed code review.",
+      "rejected_alternatives": [
+        "Requesting further code-level diagnosis on remaining uncertainties as the primary follow-up"
+      ],
+      "constraints": [
+        "Whoever next has real xcodebuild/simctl access must run this before any future phase responds with a new body of code changes to this flow"
+      ],
+      "supersedes": "DEC-final_review5-003"
+    },
+    {
+      "id": "DEC-final_review-010",
+      "decision": "Note Codex's empty, non-fabricated response this round as a genuine process improvement over its prior UIKit-flavored fabrications, while also recording that this means no independent second-agent review occurred this round either.",
+      "rationale": "The project's own honesty principle applies to the review process itself (DEC-final_review-006); declining to answer rather than inventing plausible-sounding but wrong code is the correct behavior when no real information is available, and should be recorded as such rather than silently treated as a missing round.",
+      "rejected_alternatives": [
+        "Treating Codex's silence as equivalent to its earlier fabricated answers",
+        "Omitting any mention of Codex's behavior this round"
+      ],
+      "constraints": [
+        "Future reviews should continue to distinguish 'Codex declined honestly' from 'Codex fabricated' as materially different outcomes"
+      ],
+      "supersedes": null
+    }
+  ]
+}

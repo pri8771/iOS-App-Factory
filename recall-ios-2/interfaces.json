@@ -1,0 +1,238 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Deck",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Deck { var id: UUID; var name: String; var createdAt: Date; var isArchived: Bool; var isDemo: Bool; @Relationship(deleteRule: .cascade) var cards: [Card] }",
+      "owning_lane": "data_domain",
+      "notes": "SwiftData @Model class \u2014 binding version. No @Attribute(.unique). A plain Codable Deck/Card behind an async repository protocol was proposed and rejected: it can't satisfy the already-locked #Predicate/batched-fetch constraints."
+    },
+    {
+      "name": "Card",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Card { var id: UUID; var front: String; var back: String; var note: String?; var deck: Deck?; var easeFactor: Double; var intervalDays: Int; var repetitions: Int; var nextReviewDate: Date; var isDemo: Bool; var lastGradeRaw: Int? }",
+      "owning_lane": "data_domain",
+      "notes": "isDemo denormalized from deck for #Predicate filtering. Cards never move between decks \u2014 no moveCard function exists anywhere in this contract, intentionally."
+    },
+    {
+      "name": "DueQueryService",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class DueQueryService { func dueCounts(scope: ReviewScope, context: ModelContext, clock: Clock) -> [PersistentIdentifier: Int]; func dueCards(scope: ReviewScope, context: ModelContext, clock: Clock) -> [Card] }",
+      "owning_lane": "primary_ui",
+      "notes": "Single shared due-query surface; dueCounts is one grouped FetchDescriptor per call, never per-row. dueCards builds the one-shot Review session snapshot \u2014 synchronous, a local SwiftData fetch, not async."
+    },
+    {
+      "name": "SessionEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class SessionEngine { init(queue: [Card], clock: Clock); private(set) var index: Int; private(set) var isFinished: Bool; func gradeCurrent(_ grade: Grade, context: ModelContext); func summary() -> SessionSummary }",
+      "owning_lane": "primary_ui",
+      "notes": "Owns the captured snapshot array; never re-queries via @Query. Again-graded cards are not requeued within the session."
+    },
+    {
+      "name": "Clock",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol Clock: Sendable { func now() -> Date; var calendar: Calendar { get } }",
+      "owning_lane": "data_domain",
+      "notes": "RecallCore. SystemClock default; TestClock and DebugOffsetClock (app-side, DEBUG-only) also conform."
+    },
+    {
+      "name": "SystemClock",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SystemClock: Clock { func now() -> Date; var calendar: Calendar }",
+      "owning_lane": "data_domain",
+      "notes": "Uses Date() and Calendar.current."
+    },
+    {
+      "name": "TestClock",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TestClock: Clock { var fixedNow: Date; var calendar: Calendar; func now() -> Date { fixedNow } }",
+      "owning_lane": "data_domain",
+      "notes": "Used in RecallCoreTests for deterministic DST/day-boundary/backward-clock-jump tests."
+    },
+    {
+      "name": "Grade",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Grade: Int, Sendable, CaseIterable { case again = 0, hard = 1, good = 2, easy = 3 }",
+      "owning_lane": "data_domain",
+      "notes": "Pure RecallCore enum. SwiftData models store the rawValue as Int, never this enum directly."
+    },
+    {
+      "name": "CardSchedule",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CardSchedule: Equatable, Sendable { var easeFactor: Double; var intervalDays: Int; var repetitions: Int; var nextReviewDate: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Pure value type; app layer maps this to/from Card's stored properties."
+    },
+    {
+      "name": "SM2Engine.schedule",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SM2Engine { static func schedule(current: CardSchedule, grade: Grade, now: Date, clock: Clock) -> CardSchedule }",
+      "owning_lane": "data_domain",
+      "notes": "Implements the locked formula table: ease floor 1.3, Hard = interval*1.2 fixed multiplier, Good = interval*ease, Easy = interval*ease*1.3, Again resets repetitions/interval and ease -= 0.20."
+    },
+    {
+      "name": "DueComputation.isDue",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum DueComputation { static func isDue(_ schedule: CardSchedule, on date: Date, using clock: Clock) -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "The single shared due predicate: calendar.startOfDay(nextReviewDate) <= calendar.startOfDay(date). Every screen/service calls this, never reimplements it."
+    },
+    {
+      "name": "CSVParser.parse",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum CSVParser { static func parse(_ data: Data, existingPairs: Set<CSVCardKey>) throws -> CSVParseResult }",
+      "owning_lane": "data_domain",
+      "notes": "RFC4180-compliant. Throws CSVImportError.notUTF8 or .tooManyRows(limit: 10_000); otherwise per-row results with duplicate-skip reasons."
+    },
+    {
+      "name": "CSVParseResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CSVParseResult: Sendable { var rows: [CSVRowResult]; var validCount: Int; var errorCount: Int; var duplicateCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "CSVRowResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CSVRowResult: Sendable, Identifiable { let id: Int; let rawLine: Int; let front: String; let back: String; let status: CSVRowStatus }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "CSVRowStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CSVRowStatus: Sendable { case valid; case duplicate; case malformed(reason: String) }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "CSVWriter.write",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum CSVWriter { static func write(cards: [(front: String, back: String)]) -> Data }",
+      "owning_lane": "data_domain",
+      "notes": "Two columns only, RFC4180 quoting; note field never included."
+    },
+    {
+      "name": "ReviewLogEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ReviewLogEntry { var id: UUID; var timestamp: Date; var gradeRaw: Int; var cardID: UUID; var deckID: UUID; var isDemo: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Durable per-grading-event history backing Stats charts and per-deck session attribution; Card alone only holds current state."
+    },
+    {
+      "name": "GradeRecorder.record",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum GradeRecorder { @MainActor static func record(card: Card, grade: Grade, clock: Clock, context: ModelContext) throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Single call site: mutates Card's schedule via SM2Engine, inserts a ReviewLogEntry, calls context.save() synchronously. Every grading UI path must call this, never touch Card fields directly."
+    },
+    {
+      "name": "ReviewScope",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ReviewScope: Sendable { case deck(Deck); case allDecks }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "SessionSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SessionSummary: Sendable { var reviewedCount: Int; var againRate: Double; var elapsed: TimeInterval; var perDeck: [DeckSessionStats] }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "DeckSessionStats",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DeckSessionStats: Sendable, Identifiable { var id: UUID; var deckName: String; var reviewedCount: Int; var againRate: Double }",
+      "owning_lane": "primary_ui",
+      "notes": "Preserves per-deck attribution in mixed all-decks sessions."
+    },
+    {
+      "name": "EntitlementProviding",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol EntitlementProviding { func currentStatus() -> EntitlementStatus }",
+      "owning_lane": "services_utilities",
+      "notes": "UnlimitedEntitlementProvider is the only conformer this pass; every cap-check call site must route through this, never inline."
+    },
+    {
+      "name": "EntitlementStatus",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EntitlementStatus: Sendable { var isUnlimited: Bool; var maxActiveDecks: Int? }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class NotificationScheduler { private(set) var authorizationStatus: UNAuthorizationStatus; func refreshAuthorizationStatus() async; func scheduleDailyReminder(at time: DateComponents) async throws; func cancelReminder() }",
+      "owning_lane": "services_utilities",
+      "notes": "refreshAuthorizationStatus wired to scenePhase == .active at the App root. Notification body is a fixed generic string, never a live due count."
+    },
+    {
+      "name": "DemoDataService",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum DemoDataService { @MainActor static func seed(context: ModelContext, clock: Clock); @MainActor static func purge(context: ModelContext) }",
+      "owning_lane": "services_utilities",
+      "notes": "purge deletes every isDemo==true Deck/Card/ReviewLogEntry, verifiable by a zero-count fetch afterward."
+    },
+    {
+      "name": "CSVImportCoordinator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor final class CSVImportCoordinator { func loadPreview(fileURL: URL, targetDeck: Deck, context: ModelContext) async throws -> CSVParseResult; func commit(_ result: CSVParseResult, targetDeck: Deck, context: ModelContext) throws -> Int }",
+      "owning_lane": "services_utilities",
+      "notes": "loadPreview hands off to CSVParser.parse off-main; commit is the only step touching ModelContext for writes."
+    },
+    {
+      "name": "DebugClockOverride",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum DebugClockOverride { #if DEBUG static func resolveClock(from arguments: [String]) -> Clock? #endif }",
+      "owning_lane": "polish_resilience",
+      "notes": "Parses -RecallClockOffsetDays N launch argument, used only by RecallAppUITests to automate the day-boundary/due-computation integration proof; compiled out of Release entirely via #if DEBUG."
+    },
+    {
+      "name": "AppSettingsStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor final class AppSettingsStore { var reminderEnabledIntent: Bool; var reminderTime: DateComponents; var demoDataEnabled: Bool }",
+      "owning_lane": "polish_resilience",
+      "notes": "Backed by @AppStorage/UserDefaults, not SwiftData; reminderEnabledIntent is user intent only, never conflated with NotificationScheduler.authorizationStatus."
+    },
+    {
+      "name": "SM2Engine.previewOutcomes",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SM2Engine { static func previewOutcomes(current: CardSchedule, clock: Clock) -> [Grade: CardSchedule] }",
+      "owning_lane": "data_domain",
+      "notes": "Computes all four grade outcomes without mutation; feeds both VoiceOver labels and the ReviewGradeRow per-button interval-preview caption from one source."
+    }
+  ],
+  "errors": []
+}

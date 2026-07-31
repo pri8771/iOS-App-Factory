@@ -4,3 +4,16 @@
 .DS_Store
 *.swp
 *~
+.orchestrator_runtime/
+.conductor/approvals/
+.conductor/rollback_pending.json
+*.lock
+.orch-locks/
+.stream/
+*.pem
+*.key
+*.p12
+.env
+.env.*
+gemini_api_key
+*_api_key

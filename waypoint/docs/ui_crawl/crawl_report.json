@@ -1,0 +1,149 @@
+{
+  "a11y_issues" : [
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-75feba0ed0c2ca24",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "6f99961d47f466a3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "6f99961d47f466a3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "6f99961d47f466a3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "6f99961d47f466a3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "6f99961d47f466a3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "6f99961d47f466a3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "6f99961d47f466a3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "7cbdd83b925a3c5",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "7cbdd83b925a3c5",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "7cbdd83b925a3c5",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    }
+  ],
+  "back_violations" : [
+
+  ],
+  "bounded" : {
+    "screens" : false,
+    "time" : false
+  },
+  "crashes" : [
+
+  ],
+  "dead_taps" : [
+
+  ],
+  "edges" : [
+    {
+      "from" : "-75feba0ed0c2ca24",
+      "to" : "6f99961d47f466a3",
+      "via" : {
+        "id" : "settings.tabButton",
+        "kind" : "navbutton",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "-75feba0ed0c2ca24",
+      "to" : "6f99961d47f466a3",
+      "via" : {
+        "id" : "settings.tabButton",
+        "kind" : "button",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "6f99961d47f466a3",
+      "to" : "-75feba0ed0c2ca24",
+      "via" : {
+        "id" : "",
+        "kind" : "navbutton",
+        "label" : "Done"
+      }
+    },
+    {
+      "from" : "-75feba0ed0c2ca24",
+      "to" : "7cbdd83b925a3c5",
+      "via" : {
+        "id" : "tripSwitcher.newTripButton",
+        "kind" : "button",
+        "label" : "New Trip"
+      }
+    }
+  ],
+  "flows" : [
+    {
+      "failure" : "step 1: no tappable element ‘settings.demoTripToggle’",
+      "name" : "Widget\/Live Activity honest degradation on an active trip",
+      "passed" : false
+    }
+  ],
+  "screens" : [
+    {
+      "path" : [
+        {
+          "id" : "tripSwitcher.newTripButton",
+          "kind" : "button",
+          "label" : "New Trip"
+        }
+      ],
+      "screenshot" : "03_screen_7cbdd83b925a3c5.png",
+      "sig" : "7cbdd83b925a3c5"
+    },
+    {
+      "path" : [
+
+      ],
+      "screenshot" : "01_screen_-75feba0ed0c2ca24.png",
+      "sig" : "-75feba0ed0c2ca24"
+    },
+    {
+      "path" : [
+        {
+          "id" : "settings.tabButton",
+          "kind" : "navbutton",
+          "label" : "Settings"
+        }
+      ],
+      "screenshot" : "02_screen_6f99961d47f466a3.png",
+      "sig" : "6f99961d47f466a3"
+    }
+  ],
+  "target" : "com.waypoint.app"
+}

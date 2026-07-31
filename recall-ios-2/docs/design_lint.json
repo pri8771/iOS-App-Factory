@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "rule": "missing_design_system",
+      "file": "app_build/",
+      "line": 0,
+      "detail": "no DesignSystem*.swift \u2014 the design handoff's token spec was never realized"
+    }
+  ]
+}

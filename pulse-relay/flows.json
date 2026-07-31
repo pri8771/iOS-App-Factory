@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "Cold start, sign in, create a pod",
+      "steps": [
+        {
+          "tap": "authGate.signInWithAppleButton"
+        },
+        {
+          "assert_exists": "podOnboarding.createPodButton"
+        },
+        {
+          "tap": "podOnboarding.createPodButton"
+        },
+        {
+          "type": "Maple Street Pickup Pod",
+          "into": "createPod.nameField"
+        },
+        {
+          "tap": "createPod.confirmButton"
+        },
+        {
+          "assert_exists": "relayBoard.allClearIndicator"
+        }
+      ]
+    },
+    {
+      "name": "Cold start, sign in, join an existing pod",
+      "steps": [
+        {
+          "tap": "authGate.signInWithAppleButton"
+        },
+        {
+          "tap": "podOnboarding.joinPodButton"
+        },
+        {
+          "type": "ABC123",
+          "into": "joinPod.codeField"
+        },
+        {
+          "tap": "joinPod.confirmButton"
+        },
+        {
+          "assert_exists": "relayBoard.allClearIndicator"
+        }
+      ]
+    },
+    {
+      "name": "Post a request and pod visibility",
+      "steps": [
+        "From RelayBoard, tap post",
+        "Fill an optional note only, no PII fields exist",
+        "Submit shows awaitingConfirmation then honest 'Sent to N pod members' copy",
+        "A second seeded account on the same pod sees the request appear on its board and receives a push"
+      ]
+    },
+    {
+      "name": "Two-account concurrent accept race",
+      "steps": [
+        "Two seeded accounts both open the same open request",
+        "Both tap accept within a second of each other",
+        "One device latches to claimed/confirmed",
+        "The other device latches to already-covered-by-name with identical motion, no error styling"
+      ]
+    },
+    {
+      "name": "Release and reopen",
+      "steps": [
+        "The accepter opens a claimed request they accepted",
+        "Taps release",
+        "Request reopens and the pod is re-notified within ~30 seconds",
+        "Original requester and other pod members see the reopened state"
+      ]
+    },
+    {
+      "name": "Requester withdraws an unclaimed request",
+      "steps": [
+        "Requester opens their own still-open, unclaimed request",
+        "Taps withdraw",
+        "Request moves to the withdrawn terminal state, visually distinct from complete",
+        "No receipt is generated; pod is re-notified"
+      ]
+    },
+    {
+      "name": "Unfulfilled request ages and is re-broadcast",
+      "steps": [
+        "An open request passes its visible aging threshold with no acceptance",
+        "still-open state and copy render on both requester and pod member devices",
+        "Requester taps re-broadcast",
+        "Pod receives a fresh push and lastRebroadcastAt updates"
+      ]
+    },
+    {
+      "name": "Completion produces a shared receipt",
+      "steps": [
+        "Accepter marks the claimed request complete",
+        "Both requester and accepter can open the same Receipt",
+        "Requester shares the receipt via the system share sheet",
+        "Receipt survives even if one party later deletes their account, rendering that party as Former member"
+      ]
+    },
+    {
+      "name": "Post a request and see honest delivery copy",
+      "steps": [
+        {
+          "tap": "relayBoard.postRequestButton"
+        },
+        {
+          "type": "Need pickup by 3pm",
+          "into": "requestComposer.noteField"
+        },
+        {
+          "tap": "requestComposer.submitButton"
+        },
+        {
+          "assert_exists": "requestComposer.awaitingConfirmationLabel"
+        },
+        {
+          "assert_exists": "Sent to"
+        }
+      ]
+    },
+    {
+      "name": "Accept an open request",
+      "steps": [
+        {
+          "tap": "relayBoard.firstRequestCard"
+        },
+        {
+          "assert_exists": "requestDetail.acceptButton"
+        },
+        {
+          "tap": "requestDetail.acceptButton"
+        },
+        {
+          "assert_exists": "requestDetail.awaitingConfirmationLabel"
+        },
+        {
+          "assert_exists": "requestDetail.latchedConfirmedLabel",
+          "timeout": 10
+        }
+      ]
+    },
+    {
+      "name": "Release an accepted request",
+      "steps": [
+        {
+          "tap": "relayBoard.firstRequestCard"
+        },
+        {
+          "tap": "requestDetail.releaseButton"
+        },
+        {
+          "assert_exists": "requestDetail.reopenedLabel",
+          "timeout": 10
+        }
+      ]
+    },
+    {
+      "name": "Withdraw an unclaimed own request",
+      "steps": [
+        {
+          "tap": "relayBoard.firstRequestCard"
+        },
+        {
+          "tap": "requestDetail.withdrawButton"
+        },
+        {
+          "assert_exists": "requestDetail.withdrawnLabel",
+          "timeout": 10
+        }
+      ]
+    },
+    {
+      "name": "Re-broadcast a still-open request",
+      "steps": [
+        {
+          "tap": "relayBoard.firstRequestCard"
+        },
+        {
+          "assert_exists": "requestDetail.stillOpenLabel"
+        },
+        {
+          "tap": "requestDetail.rebroadcastButton"
+        },
+        {
+          "assert_exists": "requestDetail.rebroadcastConfirmationLabel",
+          "timeout": 10
+        }
+      ]
+    },
+    {
+      "name": "Complete a claimed request and view the receipt",
+      "steps": [
+        {
+          "tap": "relayBoard.firstRequestCard"
+        },
+        {
+          "tap": "requestDetail.completeButton"
+        },
+        {
+          "assert_exists": "requestDetail.completedLabel",
+          "timeout": 10
+        },
+        {
+          "tap": "requestDetail.viewReceiptButton"
+        },
+        {
+          "assert_exists": "receipt.shareButton"
+        }
+      ]
+    }
+  ]
+}

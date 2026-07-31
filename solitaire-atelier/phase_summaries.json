@@ -1,0 +1,412 @@
+{
+  "schema_version": 1,
+  "summaries": [
+    {
+      "phase": "prompt_contract",
+      "one_paragraph_summary": "The panel converged on a single execution contract for a native SwiftUI Klondike solitaire app: fully local/offline with no accounts, network, analytics, or iCloud sync (storage strictly UserDefaults/FileManager/SwiftData, no CloudKit container); correctness, legal-move validation, undo integrity, and deterministic state always outrank visual polish when they compete for build budget, with any such trade-off required to be logged. Klondike rules are locked to single-deck/7-tableau/4-foundation standard rules, stock-cycling behavior must be explicit and documented, and the timer starts on first action and pauses when backgrounded unless disabled. The card art requirement is reinterpreted from '52 illustrated cards' into a systematic/generative face system (shared type+icon components, programmatic layout) to keep full-deck visual consistency achievable, paired with spring-based motion, real card-stock texture, and genuinely distinct light/dark art direction plus one signature visual hook recognizable from a single screenshot. Settings/stats edge cases are resolved concretely: draw-mode changes require a new game while card-back changes apply live, stats/best-time are tracked separately per draw mode, and best time shows 'N/A' rather than a fabricated value when the timer is off. Haptics are to be verified via code inspection of trigger points since output isn't screenshot-verifiable. Non-goals (no other variants, no IAP/ads, no Game Center, no social/multiplayer, portrait-first) and a strict production-readiness bar (no placeholder screens, no hardcoded theme literals, full relaunch persistence) are fixed as binding constraints for every later phase, and a 24-item numbered testable requirements list was produced covering every promise in the original prompt.",
+      "key_decisions": [
+        "DEC-prompt_contract-001",
+        "DEC-prompt_contract-002",
+        "DEC-prompt_contract-003",
+        "DEC-prompt_contract-004",
+        "DEC-prompt_contract-005",
+        "DEC-prompt_contract-006",
+        "DEC-prompt_contract-007",
+        "DEC-prompt_contract-008",
+        "DEC-prompt_contract-009",
+        "DEC-prompt_contract-010",
+        "DEC-prompt_contract-011",
+        "DEC-prompt_contract-012"
+      ],
+      "open_risks": [
+        "'Award-worthy' visual quality is inherently subjective; only four checkable proxies (custom glyph/type system, distinct light/dark art direction, one signature hook, physical texture/motion) can actually be enforced by later verification phases \u2014 the rest is judgment call.",
+        "Hand-building drag physics, multi-card run dragging, z-ordering, and flip/deal animation entirely in SwiftUI/UIKit interop (no third-party packages) is exactly where this fleet has historically shipped broken or placeholder interactions \u2014 needs a concrete regression checklist in a later phase.",
+        "A generative/parametric card face system could still read as generic/flat if the design phase doesn't invest real art direction in it \u2014 systematic does not automatically mean distinctive.",
+        "Per-draw-mode stats tracking and live-vs-new-game-gated settings add state-machine complexity that must be modeled carefully to avoid corrupting in-progress games.",
+        "Haptics verification is code-inspection-only; there's no automated way to confirm they actually feel right on-device before human review."
+      ]
+    },
+    {
+      "phase": "product_research",
+      "one_paragraph_summary": "The panel framed the audience as two overlapping segments \u2014 reliability-seeking casual players and a design-literate audience explicitly invited by the prompt's 'award-level' language \u2014 both marked ASSUMPTION since no external research was fetched. They settled on a TabView shell (Game/Stats/Settings) with resume-active-game as the primary path, and named several concrete first-build risks: bespoke card glyphs must pass a legibility test at true on-device card size (45-50pt wide) before the art system is considered done, since illegibility there is a gameplay bug not a style miss; multi-card drag needs hit-testing padding beyond visual card bounds because narrow tableau columns make mis-taps likely; custom card rendering must deliberately re-implement accessibility (VoiceOver labels per card, reduce-motion fallback, no color-only suit cues) that system controls would give for free; and persisted state must reflect logical pile/face-up state independent of in-flight animation so a mid-drag app kill doesn't look like corruption on relaunch. The panel also closed a gap left open by the prompt_contract phase by locking stock-cycling to unlimited redeal by default, and picked the deal/flip animation (not multi-card drag physics) as the first build's signature visual hook since it's lower-risk and the first thing any user sees. Scope discipline was reaffirmed: no Game Center/widgets/Live Activities even though they'd feel native, since they either violate the no-network/no-accounts constraint or aren't requested.",
+      "key_decisions": [
+        "DEC-product_research-001",
+        "DEC-product_research-002",
+        "DEC-product_research-003",
+        "DEC-product_research-004",
+        "DEC-product_research-005",
+        "DEC-product_research-006",
+        "DEC-product_research-007",
+        "DEC-product_research-008",
+        "DEC-product_research-009"
+      ],
+      "open_risks": [
+        "Legibility-at-native-card-size for the bespoke glyph system has not actually been tested yet \u2014 it's a gate the design phase must clear, not a guarantee.",
+        "Multi-card run-drag and z-order stability remain the hardest unsolved interaction problem and are deferred past the first signature hook (deal/flip); if it's never hardened, the app will feel worse under real thumbs than in a demo.",
+        "A generative/parametric card face system could still read as generic if the design phase underinvests in actual art direction \u2014 'systematic' doesn't guarantee 'distinctive', a risk carried over from the prompt_contract phase.",
+        "Accessibility re-implementation for fully custom card rendering (VoiceOver labels, non-color-only suit cues, reduce-motion) adds real build surface area that must not be treated as optional polish."
+      ]
+    },
+    {
+      "phase": "portfolio_selection",
+      "one_paragraph_summary": "The panel unanimously decided this prompt requires no portfolio split: it is a single native iOS app (solitaire-atelier, category Games/Card) with Game, Stats, and Settings implemented as tabs within one project, not as separate sibling apps. The selected app's promise is a fully playable, rules-correct Klondike solitaire game with local-only persistence, tap/drag interaction, undo, win detection, and a premium bespoke card visual system, targeting both reliability-seeking casual players and a design-literate audience; build flag is set to true, meaning the production-readiness bar from prompt_contract applies. Explicitly rejected alternatives were splitting Stats, Settings, or a card-back/theme pack into separate sibling projects, since that would contradict the locked non-goals (no bundle sprawl, no multi-variant solitaire) and fragment the single-session user experience the prompt actually asks for. No portfolio-json manifest was produced since this is not a portfolio-parent prompt. One process note carried forward: this phase's straightforwardness should not be mistaken for the hard part being solved \u2014 the real product risk remains whether later design/build phases deliver a card glyph system that clears the legibility gate at true on-device size (DEC-product_research-003), not which category was selected.",
+      "key_decisions": [
+        "DEC-portfolio_selection-001",
+        "DEC-portfolio_selection-002"
+      ],
+      "open_risks": [
+        "Category/app selection is trivial for this prompt; the real risk surface (card art legibility, multi-card drag physics, correctness-vs-polish tradeoffs) is entirely deferred to design and build phases and remains unaddressed by this phase.",
+        "No portfolio-json manifest exists by design for this run; any later automation expecting one for a single-app run must treat its absence as correct, not as a missing artifact."
+      ]
+    },
+    {
+      "phase": "initial_discussion",
+      "one_paragraph_summary": "The panel locked a single precise product promise for solitaire-atelier: a native iOS Klondike solitaire game with fully correct rules, a bespoke tactile card system, 100% on-device operation, and zero claimed outcomes that didn't truly happen. Primary users are framed as two overlapping scenarios (fast casual sessions, design-literate first-screen judgment) that both require launching directly into the resumed active game with no interstitial menu screen. The core loop was fixed as deal \u2192 move (tap/drag) \u2192 instant legal/illegal feedback \u2192 draw/place \u2192 inline multi-step undo \u2192 one of two explicit terminal states (true win with all foundations complete, or a stuck board with no legal moves left, both of which must be surfaced to the player rather than left ambiguous) \u2192 New Game. Hard scope boundaries restate the single-app, single-variant, portrait-only, fully-offline boundary with draw-mode changes gated behind a new game and card-back changes live. A general rule was locked that rules/state-integrity requirements always beat visual polish in any conflict, with the trade-off logged rather than silently resolved. A new risk was surfaced and locked as a decision: because there's no menu screen to hide behind, the cold-launch deal/flip animation is the least forgiving moment in the whole app and needs explicit build/QA attention, not just general polish. Concrete, checkable success criteria were produced covering move validation, undo fidelity, crash-safe logical-state persistence, per-draw-mode stats, and a hard legibility gate for the custom card glyph system at true on-device size.",
+      "key_decisions": [
+        "DEC-initial_discussion-001",
+        "DEC-initial_discussion-002",
+        "DEC-initial_discussion-003",
+        "DEC-initial_discussion-004",
+        "DEC-initial_discussion-005",
+        "DEC-initial_discussion-006",
+        "DEC-initial_discussion-007"
+      ],
+      "open_risks": [
+        "Stuck-board (no legal moves) detection is now a required feature that wasn't in the original prompt at all \u2014 it adds real algorithmic surface area (a full legal-move search across stock/waste/tableau/foundations) that later build phases must not underestimate.",
+        "The cold-launch deal/flip animation now carries outsized product risk since it's unskippable and un-hideable behind any loading/menu screen \u2014 a single dropped frame or visual bug there is maximally visible.",
+        "Card glyph legibility at true device size remains untested going into design \u2014 this phase reaffirms it as a gate but doesn't resolve it.",
+        "Multi-card run-drag physics and z-order stability remain deferred from product_research as the hardest unsolved interaction risk."
+      ]
+    },
+    {
+      "phase": "per_app_product_brief",
+      "one_paragraph_summary": "The product brief for solitaire-atelier is complete. Paid/subscription value: none in v1 \u2014 zero monetization surface (no IAP, ads, or subscription), with paid value reframed as the retention/trust value of a free, ad-free, tracking-free download; any future subscription tier is out of scope and would require reopening DEC-prompt_contract-010. Target user: two overlapping groups \u2014 casual players burned by freemium solitaire ad/paywall/streak-guilt patterns, and design-literate players who judge and screenshot on first-screen quality \u2014 both with zero tolerance for interaction jank or rules bugs. Core loop: unchanged from initial_discussion (launch straight into resumed/fresh game, tap/drag with instant legal/illegal feedback, draw/undo freely, explicit win or stuck-board terminal state, New Game). Competitive wedge: correctness + zero monetization + an original tactile visual system, explicitly framed as non-defensible via moat/data/network-effects \u2014 the only real protection is sustained execution quality. Growth mechanism (resolved after two rounds of real disagreement): no challenge-seed/replay feature, because Swift's system RNG isn't a documented, cross-OS-reproducible algorithm, so seeded replay would require a second hand-rolled deterministic RNG living alongside the real shuffle path, threatening the locked fresh-real-RNG-shuffle guarantee and spending correctness-tier budget on an unproven feature; instead v1 ships a one-tap native share sheet on the win screen sharing a rendered image of the completed board with a solve-time caption \u2014 pure presentation, no backend, no comparison mechanism. Local-first/cloud-ready: strictly local (UserDefaults/FileManager/SwiftData, no CloudKit) now, with a transport-agnostic persistence-protocol seam left for an optional future encrypted sync adapter, and a new requirement to disclose in Settings that reinstall/device migration silently wipes local-only stats/progress. Ordering rule: if anything must be cut under time pressure, it's always visual polish, never move-validation, undo fidelity, or win/stuck-board detection \u2014 sharpened with the concrete failure example that a single incorrect illegal-move rejection or false stuck-board detection makes this app worse than the ad-laden competitors it exists to beat.",
+      "key_decisions": [
+        "DEC-per_app_product_brief-001",
+        "DEC-per_app_product_brief-002",
+        "DEC-per_app_product_brief-003",
+        "DEC-per_app_product_brief-004",
+        "DEC-per_app_product_brief-005",
+        "DEC-per_app_product_brief-006"
+      ],
+      "open_risks": [
+        "The competitive wedge has no durable moat \u2014 this brief guarantees only v1 execution quality, not that the app stays best-in-category post-launch.",
+        "Growth now rests on organic screenshot/word-of-mouth plus a low-friction win-screen share button; there is no other growth lever, which puts real pressure on the still-unbuilt visual/design phase to deliver a genuinely screenshot-worthy signature hook.",
+        "The win-screen share-image feature is new scope not present in the original prompt; while scoped as pure presentation with no game-logic risk, later phases must confirm it stays that way and doesn't grow into a comparison/social surface.",
+        "Card glyph legibility at true on-device size remains untested going into design \u2014 still the single biggest unresolved product risk carried from product_research."
+      ]
+    },
+    {
+      "phase": "next_steps_small",
+      "one_paragraph_summary": "The next_steps_small phase closed three rounds with strong but incomplete convergence on the MVP slice for solitaire-atelier. Fully agreed: slice 1 is a single game screen with no Settings/Stats UI, no TabView shell, no draw-3, no multi-card run-drag, and no win-screen share sheet; it launches directly into a restored or freshly-dealt draw-1 board, ships a real (non-placeholder) spring-sequenced deal/flip animation using the actual bespoke card art, implements full multi-step undo, explicit win and stuck-board detection, and relaunch/background-safe persistence of logical (not animation) game state; and it silently records local game-event data (session start/end, elapsed time, undo count) from day one even without a Stats UI, so early gameplay isn't lost once Stats ships later. The one point that did NOT converge, even in the final round, is the interaction model: Codex holds that slice 1 should include tap-to-move plus single-card drag (restricted to one card at a time, routed through the identical move-validation function tap uses, so no second rules-engine path is created), arguing the prompt's tactile/physical promise needs testing now before more gets built on top of an unvalidated core interaction. Claude reversed its own round-2 position and now argues for tap-to-move only, with the tap-resolved move itself getting real spring-physics transit animation (lift, spring travel, weighted settle) to preserve the 'cards have weight' promise without live drag, deferring all live drag (single-card and multi-card together) to a later increment on the grounds that live drag is a standalone interaction pipeline with its own bug class (continuous touch tracking, dynamic drop-target highlighting, extra hit-test padding) that would distract from this slice's actual purpose of proving rules-engine and persistence correctness. This fork was not resolved by the group and is being handed to the orchestrator for a weighted-vote decision.",
+      "key_decisions": [
+        "DEC-next_steps_small-001",
+        "DEC-next_steps_small-002",
+        "DEC-next_steps_small-003",
+        "DEC-next_steps_small-004",
+        "DEC-next_steps_small-005",
+        "DEC-next_steps_small-006",
+        "DEC-next_steps_small-007"
+      ],
+      "open_risks": [
+        "The interaction-model fork (tap-only vs. tap+single-card-drag) was not resolved by the panel and requires an orchestrator weighted-vote decision before the build phase can proceed without re-litigating it.",
+        "Whichever side wins, the losing side's concern is real: if drag ships now, there's a chance it destabilizes the rules-engine-proving purpose of this slice; if drag is deferred, the physical/tactile promise from the original prompt goes completely untested until increment 2, and architecture decisions made around tap-only interaction could make retrofitting drag more expensive later.",
+        "Card glyph legibility at true on-device size remains untested and is still the single biggest unresolved product risk carried across every phase so far \u2014 this phase did not address it directly.",
+        "Silent stats-event recording introduces a small new local data model in slice 1 that must be schema-compatible with whatever the eventual Stats screen reads, or it risks needing a migration in the next increment."
+      ]
+    },
+    {
+      "phase": "detailed_discussion",
+      "one_paragraph_summary": "The detailed_discussion phase closed with full agreement across three rounds. Tap-to-move is fully specified: single legal destination executes immediately, multiple legal destinations highlight for a confirming tap, zero legal destinations shows blocked-move feedback \u2014 all through one shared validation/mutation function \u2014 and this now explicitly extends to relocating a validly-stacked tableau run as one unit via the same mechanic, clarifying that the earlier 'multi-card run-drag deferred' decision (DEC-next_steps_small-002) only ever meant deferring the live interactive drag gesture, not banning rules-legal run relocation; without this fix, some legal Klondike boards would have been undetectably unwinnable and falsely flagged as stuck. The deal/flip animation plays only on a genuinely fresh deal (first launch or explicit New Game), never replaying on a resumed cold launch. Draw-1 stuck-board detection is a single static legality pass with no stock-cycle simulation, explicitly scoped to draw-1 only. The system LaunchScreen is themed to the card-table background instead of default white. The timer starts strictly on the first state-mutating action (a confirmed move or stock draw), never on selection, the deal animation, or app-open. Persisted state is written atomically (temp-then-swap) with no encryption layer of any kind, since there is no sensitive data in this app's state. The app is locked portrait-only without an artificial iPhone-only device restriction, leaving broader device-class scope to the project's existing defaults. New Game over an unfinished game still requires explicit confirmation, per the phase's first-round decision. All of this is now locked and ready for the build phase.",
+      "key_decisions": [
+        "DEC-detailed_discussion-001",
+        "DEC-detailed_discussion-002",
+        "DEC-detailed_discussion-003",
+        "DEC-detailed_discussion-004",
+        "DEC-detailed_discussion-005",
+        "DEC-detailed_discussion-006",
+        "DEC-detailed_discussion-007",
+        "DEC-detailed_discussion-008",
+        "DEC-detailed_discussion-009",
+        "DEC-detailed_discussion-010"
+      ],
+      "open_risks": [
+        "Card glyph legibility at true on-device size remains untested going into build \u2014 the single longest-standing open risk in the whole pipeline, and still a hard pass/fail gate per DEC-product_research-003.",
+        "The run-relocation tap mechanic (DEC-detailed_discussion-008) adds real implementation surface (computing maximal face-up runs, validating group moves, animating group transit) that the build phase must not underestimate relative to a naive single-card-only implementation.",
+        "Multi-card run-drag as a live interactive gesture (as opposed to the tap-based run relocation now in scope) remains fully deferred to a future increment and still carries the hit-testing/z-order risk named back in product_research.",
+        "The static draw-1 stuck-detection algorithm and the run-relocation move logic must be tested together, since a stuck-board false positive could now specifically arise from a build that implements single-card tap moves correctly but fails to implement run relocation \u2014 the two are now interdependent correctness surfaces."
+      ]
+    },
+    {
+      "phase": "app_features",
+      "one_paragraph_summary": "The app_features phase converged in round 2 after a genuine round-1 disagreement about build scope. Codex conceded Claude's central argument: since no phase in this pipeline schedules a second build increment, the 'slice 1' framing from next_steps_small/detailed_discussion cannot be treated as implying Settings/Stats/draw-3 will be built later \u2014 they are must-haves now. The group settled on shipping the full Game/Stats/Settings triad as real, non-placeholder screens in one TabView shell with resume-first launch, with draw-1 and draw-3 both fully working. Draw-3 gets its own stuck-detection design rather than inheriting draw-1's exact static pass unmodified: since draw-3's grouped-card surfacing makes exact reachability a hard combinatorial problem, the build uses the same permissive stock+waste-as-reachable approximation as draw-1 but documents it explicitly as conservative and biased toward never falsely declaring a board stuck when a legal move exists (a false 'not stuck yet' costs the player an extra draw; a false 'you're stuck' is a serious trust violation for this app). To afford the full triad without scope explosion, the cut instead lands on the should/could tier: win-screen sharing, live interactive drag, and extra card-back variants beyond the minimum are all excluded from this build, since none of those are concrete promises from the original prompt the way Stats/Settings/draw-3 are. Concrete acceptance criteria were locked for the two previously-fuzzy must-haves: Stats shows a real per-mode empty state before any game completes in that mode (never a placeholder number, never borrowed data, never blank), and switching draw mode mid-game routes through the identical New-Game-style confirmation dialog (confirm discards and re-deals in the new mode; cancel leaves both the setting and the in-progress game untouched). A 35-item requirements-json was finalized with 33 core requirements spanning the full original prompt and 2 explicitly non-core (share sheet, live drag).",
+      "key_decisions": [
+        "DEC-app_features-001",
+        "DEC-app_features-002",
+        "DEC-app_features-003",
+        "DEC-app_features-004",
+        "DEC-app_features-005"
+      ],
+      "open_risks": [
+        "Draw-3's conservative stuck-detection approximation has not been tested against a hand-constructed adversarial board; the build/verification phases must confirm it never falsely declares stuck under real draw-3 play, not just accept the design rationale on paper.",
+        "Card glyph legibility at true on-device size remains untested going into design, still the single longest-standing open risk carried across every phase in this pipeline.",
+        "Shipping the full triad plus both draw modes is a larger build surface than the slice-1 proposals ever tested end-to-end; the build phase must not silently under-resource Settings/Stats polish while racing to finish the game core.",
+        "The should/could cuts (share sheet, live drag, extra card-backs) are final for this build per DEC-app_features-003 \u2014 any later phase proposing to add them back in must explicitly reopen that decision rather than smuggle them in as 'quick additions.'"
+      ]
+    },
+    {
+      "phase": "design_discussion",
+      "one_paragraph_summary": "The design_discussion phase locked a single design language, 'Baize & Vellum,' after two rounds of the group talking itself out of a brass/foil-forward direction: the table is deep green felt (the concrete, instantly-recognizable 'real card game' signal), cards are matte parchment-toned stock with embossed bespoke rank/suit glyphs (chosen specifically because embossing adds depth without a specular highlight that could threaten glyph legibility at the ~45-50pt card-width gate), and metal is reduced to small aged-pewter hardware accents rather than a dominant surface \u2014 brass/foil was explicitly rejected because it reads as casino/loot-box shiny, which would undercut this app's locked positioning as the honest, non-monetized alternative to freemium solitaire apps. Light and dark mode are art-directed as two literal lighting scenes rather than an inverted palette: daylight-through-a-window (cooler, brighter, grey pewter) for light mode, lamp-only-at-night (warmer, saturated green pooling to near-black, warm dim pewter) for dark mode. The signature interaction is the cold-launch/New-Game deal \u2014 individual per-card spring arcs, an overshoot-and-settle landing, and a genuine two-sided flip using real card art, gated to fresh deals only. The persistence-failure recovery model is one shared, non-blocking pattern across all three screens: Game plays the deal animation as if fresh and layers a small dismissible banner afterward rather than a blocking modal, Settings uses a lightweight toast on default-fallback, and Stats renders a structurally distinct data-loss error state (different icon, explicit 'data lost' copy, reset action) that can never be visually confused with the genuine never-played empty state, closing a real no-fabricated-data risk the group identified mid-phase. The default-looking version of the app (system List/Form chrome, reused SF Symbol suits, flat rounded-rect cards, a title/menu screen) was explicitly named and rejected with concrete replacements. Full screen inventory, primary user flow, per-screen state models, and accessibility requirements (explicit VoiceOver card labels, shape-level non-color suit cues, complete Reduce Motion fallbacks, per-destination VoiceOver actions on ambiguous taps) were carried through from round 1 with no changes.",
+      "key_decisions": [
+        "DEC-design_discussion-001",
+        "DEC-design_discussion-002",
+        "DEC-design_discussion-003",
+        "DEC-design_discussion-004",
+        "DEC-design_discussion-005",
+        "DEC-design_discussion-006"
+      ],
+      "open_risks": [
+        "Card glyph legibility at true on-device size remains completely untested going into build \u2014 still the single longest-standing open risk in the entire pipeline and a hard pass/fail gate per DEC-product_research-003.",
+        "The embossed-vellum card treatment is a new, specific art-direction bet that hasn't been visually prototyped; the build/verification phases must confirm it actually looks premium and not merely 'beige' or flat once rendered, not just accept the rationale on paper.",
+        "The two lighting scenes (daylight vs. lamp-only) need a concrete Theme.swift token implementation; if under-invested, dark mode could regress into a simple inversion despite the explicit decision against that.",
+        "The Stats data-loss vs. never-played visual distinction (DEC-design_discussion-005) is a new, fairly granular UI requirement that the build phase must not quietly simplify back into a single empty-state template under time pressure."
+      ]
+    },
+    {
+      "phase": "design_handoff",
+      "one_paragraph_summary": "The design_handoff phase produced one canonical, fully-numeric SwiftUI implementation spec for solitaire-atelier built on the locked Baize & Vellum language. Card face, stock, and glyph ink are fixed constants with zero light/dark variation and explicitly zero ambient wash or tint of any kind \u2014 the daylight-vs-lamplight difference is carried entirely by table felt, shadow, and pewter hardware tokens, never by recoloring the card itself, which was the final resolution of a back-and-forth across all three rounds given how much weight the still-untested rank/suit legibility gate carries. Card corner radius is locked at 8pt. Component naming is fully unified: CardView (not CardFaceView) as the single face-up/face-down renderer, WinOverlay and StuckOverlay as two separate types (never merged), and StatsModeFilter (Stats-only, side-effect-free) kept structurally distinct from DrawModeSetting (Settings-only, confirmation-gated, with no draw-mode control on the Game screen at all) \u2014 closing a real latent bug risk where a draw-mode mutation could have slipped through unconfirmed. Blocked-move feedback uses UIImpactFeedbackGenerator(.rigid) plus a lateral shake, reserving UINotificationFeedbackGenerator strictly for win/stuck per Apple's own guidance against overusing notification-tier haptics. Reduce Motion is strict: a single 150ms linear opacity-only fade with zero translate and zero per-card stagger, applied uniformly to deal, flip, and move-transit. Stats has no independent per-tab loading state, sharing one app-level hasFinishedInitialLoad flag set after a single cold-start restore of three independently-persisted, atomically-written files (GameSave.json, StatsLog.json, Settings.json) so a corrupt game save can never take Stats or Settings down with it. The full spec covers type scale (mapped to Dynamic Type), a 4pt-base spacing grid with a responsive cardWidth formula, dual light/dark semantic color palettes, a named component inventory per screen, a three-tab TabView navigation map with no menu screen, per-screen loading/empty/success/error state models, motion and haptic tables, and accessibility rules (explicit VoiceOver card labels, shape-first suit cues, per-destination VoiceOver actions, padded hit-testing). A Must/Should/Could/Won't breakdown and a no-external-design decision (with a fallback Claude Design prompt) close out the phase's required outputs.",
+      "key_decisions": [
+        "DEC-design_handoff-001",
+        "DEC-design_handoff-002",
+        "DEC-design_handoff-003",
+        "DEC-design_handoff-004",
+        "DEC-design_handoff-005",
+        "DEC-design_handoff-006",
+        "DEC-design_handoff-007",
+        "DEC-design_handoff-008"
+      ],
+      "open_risks": [
+        "Card-glyph legibility at true ~45-50pt on-device card width remains completely untested \u2014 this is still the single longest-standing open risk in the entire pipeline and a hard pass/fail release gate; the build phase must run a real on-device check before treating the glyph shapes as locked.",
+        "The embossed-vellum card treatment and the two lighting scenes have only been specified numerically, never visually prototyped \u2014 the build phase must confirm they read as premium rather than flat once actually rendered.",
+        "The three-file independent-persistence architecture and the single cold-start load-gate are new implementation-level decisions from this phase (not explicitly named in earlier phases) that the build phase must follow precisely to preserve the independent-failure guarantee design_discussion already locked.",
+        "This spec is large and detailed; under build time pressure there is a real risk of silently reverting to simpler defaults (e.g. a merged terminal overlay, a shared mode toggle, or a card wash) that this phase explicitly rejected for concrete correctness or legibility reasons, not just taste."
+      ]
+    },
+    {
+      "phase": "ios_architecture_review",
+      "one_paragraph_summary": "The ios_architecture_review phase locked the full technical architecture for solitaire-atelier. Core shape: SwiftUI-only, iOS 17 minimum, a single main-actor-isolated @Observable GameEngine owning board/undo/timer state plus separate StatsLogStore/SettingsStore services, Apple frameworks exclusively (SwiftUI, Foundation, Observation, UIKit haptics), zero networking. Persistence uses Codable+FileManager (not SwiftData, not UserDefaults) implementing the already-locked three-independent-file design (GameSave.json, StatsLog.json, Settings.json), each served by its own dedicated actor (three actors, never a shared queue) to preserve the independent-failure guarantee at the write-scheduling layer, not just the file-format layer. The undo stack persists inside GameSave.json itself (capped at 200 entries, versioned, full-state log) so a crash never silently erases undo history; saves are event-driven and debounced (~300-500ms per file, write-coalescing guard against no-op writes) with an unconditional flush forced on backgrounding. The long-standing card-glyph legibility risk finally gets a concrete verification mechanism: a required debug-reachable gallery/#Preview artifact rendering all 52 CardViews at the real computed cardWidth up through Dynamic Type accessibility1. Testing strategy locks unit tests over all legality/win/stuck/undo behavior, a randomized simulation/fuzz test asserting core invariants (52 unique cards, foundation rank ceiling, no false-stuck-while-legal-move-exists), XCUITest over observable flows, mandatory accessibility identifiers on all custom views (since none inherit system-chrome accessibility), and performAccessibilityAudit() in the UI test suite. Privacy/permissions are locked at zero: no permission keys, no entitlements, no background modes, no ATT prompt, FileManager-only persistence to minimize required-reason API surface, with PrivacyInfo.xcprivacy manifest authorship made conditional on actually touching a required-reason API later rather than mandatory today. ML/AR frameworks and StoreKit are named as explicit, deliberate exclusions rather than implicit absences, and the zero-third-party-dependency policy is upgraded from a stated rule to an enforced CI build-gate.",
+      "key_decisions": [
+        "DEC-ios_architecture_review-001",
+        "DEC-ios_architecture_review-002",
+        "DEC-ios_architecture_review-003",
+        "DEC-ios_architecture_review-004",
+        "DEC-ios_architecture_review-005",
+        "DEC-ios_architecture_review-006",
+        "DEC-ios_architecture_review-007",
+        "DEC-ios_architecture_review-008",
+        "DEC-ios_architecture_review-009",
+        "DEC-ios_architecture_review-010",
+        "DEC-ios_architecture_review-011",
+        "DEC-ios_architecture_review-012"
+      ],
+      "open_risks": [
+        "Card-glyph legibility at true on-device card width still hasn't actually been tested \u2014 this phase only locks the mechanism (a required gallery artifact) that makes the check possible; the build phase must actually run it before treating glyph shapes as final.",
+        "The three-actor-per-file persistence model and debounced event-driven save cadence are new implementation-level specifics not named in any earlier phase; the build phase must implement them precisely to preserve the independent-failure guarantee design_discussion/design_handoff already locked.",
+        "The conditional PrivacyInfo.xcprivacy manifest requirement depends on later code not silently introducing a required-reason API (e.g. file timestamp reads for staleness checks) without someone noticing and authoring the manifest at that point.",
+        "Undo history persisted inside GameSave.json adds real serialization surface (200-entry capped, versioned log) that must be tested for correctness alongside the existing atomic-write guarantee, not assumed to work by extension."
+      ]
+    },
+    {
+      "phase": "tech_specs",
+      "one_paragraph_summary": "The tech_specs phase closed with a fully reconciled type contract for solitaire-atelier after two rounds that started from two independently-written, incompatible architectures. Final locks: Card.id is a computed String derived from suit+rank (never stored, so it can never be persisted wrong and stays stable across flip animations); PileID.foundation is Suit-keyed; the undo stack lives only in GameSaveFile as a capped-200 LIFO log with GameState carrying no history fields and no redo cursor; Stats persist as a two-case event stream (gameStarted written immediately, gameEnded on completion) with DrawModeStats as a derived incremental cache, so an abandoned or crashed session is never silently lost; RestoreIntegrityService adds a mandatory post-decode semantic validation gate (the Red Team's identified missed requirement) that catches a decodable-but-illegal board and routes it through the existing dataLoss recovery path; all three persisted files share one PersistenceStore protocol whose load() returns a RestoreOutcome<Model> three-way classification directly rather than throwing; InteractionState is locked as the single named FSM the Game screen must read from instead of ad-hoc @State booleans; DealOrchestrator/AnimationPlan is locked as a pure, testable animation-planning layer driving matchedGeometryEffect-keyed transit for deal/flip/run-relocation; stuck detection is split into DrawOneStuckDetector and DrawThreeStuckDetector behind a shared protocol per the already-locked draw-mode-specific exactness requirement; and ambiguous-destination VoiceOver exposure gets a named DestinationAccessibilityAction type. Module layout is locked as App/DesignSystem/Domain/Persistence/Features-per-screen/Interaction/DebugTools with Domain kept free of SwiftUI and Persistence dependencies so parallel build lanes stay decoupled. A complete interfaces-json contract covering all four lanes (data_domain, primary_ui, services_utilities, polish_resilience) was finalized as the canonical cross-lane type contract for the build phase.",
+      "key_decisions": [
+        "DEC-tech_specs-001",
+        "DEC-tech_specs-002",
+        "DEC-tech_specs-003",
+        "DEC-tech_specs-004",
+        "DEC-tech_specs-005",
+        "DEC-tech_specs-006",
+        "DEC-tech_specs-007",
+        "DEC-tech_specs-008",
+        "DEC-tech_specs-009",
+        "DEC-tech_specs-010",
+        "DEC-tech_specs-011"
+      ],
+      "open_risks": [
+        "Card-glyph legibility at true on-device card width is still completely untested going into build \u2014 the single longest-standing open risk across the entire pipeline, gated by the required CardGalleryDebugView artifact.",
+        "The interfaces-json contract is now large and detailed (InteractionState, DealOrchestrator, RestoreIntegrityService, StuckDetector split, DestinationAccessibilityAction); under build time pressure there's real risk of silently reverting to simpler ad-hoc patterns (scattered @State, a single detectStuck(), no semantic validation gate) that this phase explicitly locked against for concrete correctness reasons.",
+        "RestoreIntegrityService's invariant checks (52 unique cards, foundation monotonicity, legal stacking) must be validated against real hand-constructed corrupt-save fixtures during build/test, not assumed correct from the type signature alone.",
+        "The two-event stats stream and DrawModeStats cache require careful incremental-update logic (append must atomically update both the event log and the cache) that the build phase must implement precisely to avoid the cache drifting from the source-of-truth event log."
+      ]
+    },
+    {
+      "phase": "project_plan",
+      "one_paragraph_summary": "The project_plan phase locked an 8-milestone build sequence for solitaire-atelier, built from Codex's initial 7-milestone correctness-first proposal but resequenced and hardened based on five concrete systems-level risks Claude raised in round 1. The order is: (1) scaffolding/CI dependency-lint gates, (2) domain engine and rules including a corrected GameState storage model (named stock/waste/foundations/tableau fields replacing a PileID-keyed dictionary, fixing a real Codable round-tripping defect where enum-keyed dictionaries serialize as flat unkeyed arrays), (3) persistence and crash recovery with an explicit timer-freeze-before-flush ordering rule on backgrounding to prevent a small-but-real 'wrong elapsed time' data-integrity bug, (4) a newly-isolated card visual foundation and legibility-gate milestone (Theme card tokens, bespoke glyphs, CardView, CardGalleryDebugView) that is now a hard gate required to pass before any gameplay UI is built against those shapes/proportions, (5) gameplay UX and interaction wiring consuming the now-locked card visuals, (6) Stats and Settings as real screens, (7) the two art-directed lighting scenes plus haptics polish, and (8) a dedicated verification-and-repair milestone that explicitly requires hand-constructed adversarial draw-3 stuck-detection fixtures (not randomized fuzzing alone) alongside the full existing test matrix. The undo-stack debounce window (~300-500ms) is documented as a floor that must not be silently tightened, since each debounced save serializes up to ~200 full-state snapshots and a shorter window risks I/O stutter during the app's signature spring animations. Total estimate is roughly 16-19 engineering days with verification treated as first-class scheduled work rather than end-of-project polish.",
+      "key_decisions": [
+        "DEC-project_plan-001",
+        "DEC-project_plan-002",
+        "DEC-project_plan-003",
+        "DEC-project_plan-004",
+        "DEC-project_plan-005",
+        "DEC-project_plan-006"
+      ],
+      "open_risks": [
+        "Card-glyph legibility at true on-device size is now a scheduled hard gate rather than an open question, but it still has not actually been tested \u2014 the milestone plan only guarantees it will be checked before gameplay UI depends on it, not that it will pass on the first attempt.",
+        "The GameState storage change (dictionary to named fields) is a structural amendment to what tech_specs originally drafted in interfaces-json; the build phase must implement the named-field version and not silently revert to the original PileID-keyed dictionary out of convenience.",
+        "Hand-constructed adversarial draw-3 fixtures require someone to actually design boards with exactly one buried legal move, which is nontrivial test-authoring work that must not be shortcut into 'more random fuzz iterations' under time pressure.",
+        "The 16-19 day estimate assumes the card visual foundation milestone passes its legibility gate without requiring a redesign; if the bespoke embossed-glyph system fails legibility or reads as flat/generic once rendered, this schedule has no built-in slack for a glyph-system redesign."
+      ]
+    },
+    {
+      "phase": "task_assignments",
+      "one_paragraph_summary": "The task_assignments phase converged cleanly: both agents built from the identical four-lane structure (data_domain, primary_ui, services_utilities, polish_resilience) and module layout already locked in tech_specs/project_plan, so there was no real architectural disagreement to resolve \u2014 Claude's round-1 pass simply operationalized Codex's coarser proposal into the concrete, dependency-precise backlog the phase rules require. The final backlog is 33 tasks (T-000 through T-032) covering all four lanes with explicit file ownership, an acyclic dependency graph, and acceptance criteria per task. The single most important structural decision: the card-glyph legibility gate (T-021, CardGalleryDebugView) is encoded as a literal blocking depends_on edge in the task graph rather than just a milestone-plan note, so gameplay-UI tasks (T-022 onward) cannot mechanically start before the gate is verified. Two files \u2014 GameEngine.swift and SolitaireAtelierApp.swift \u2014 are designated integrator-owned, single-task-edited files to prevent race conditions on shared DI/wiring code. Branch strategy is one branch per lane cut after a shared scaffolding task (T-000) lands on main, merging back at milestone exit gates rather than continuously. Testing ownership follows implementation ownership per lane, with polish_resilience uniquely responsible for cross-cutting XCUITest flows, accessibility audits, and layout-overlap checks since it's the only lane touching every screen at once. An 8-flow flows-json machine contract covers cold launch, win, stuck-board, draw-mode change, first-launch Stats empty state, live card-back switching, undo, and timer-off Stats behavior. One open action item was flagged rather than silently resolved: the actual requirements.json R-IDs were not visible in this phase's context, so task requirement_ids were reconstructed from the full cross-phase decisions log instead and should be reconciled against the real requirements file before build workers start.",
+      "key_decisions": [
+        "DEC-task_assignments-001",
+        "DEC-task_assignments-002",
+        "DEC-task_assignments-003",
+        "DEC-task_assignments-004",
+        "DEC-task_assignments-005",
+        "DEC-task_assignments-006"
+      ],
+      "open_risks": [
+        "Task requirement_ids were reconstructed from the decisions log rather than the literal requirements.json, since the latter wasn't visible in this phase's context \u2014 needs a fast reconciliation pass before build workers start, or a core requirement could end up silently uncovered.",
+        "The 33-task backlog is significantly more granular than Codex's original 17-task sketch; if build workers don't actually respect the depends_on graph (especially the T-021 legibility hard gate), the whole point of encoding it mechanically is lost.",
+        "GameEngine.swift and SolitaireAtelierApp.swift being single-task-owned only works if lanes actually treat 'stop-the-line' as a real rule and don't route around it under time pressure to unblock their own task faster.",
+        "Card-glyph legibility at true on-device card width is still completely untested going into build \u2014 this remains the single longest-standing risk carried across every phase in the entire pipeline, now finally backed by a mechanically-enforced gate rather than just a stated intention."
+      ]
+    },
+    {
+      "phase": "implementation_readiness_gate",
+      "one_paragraph_summary": "The implementation readiness gate closed with full consensus after two rounds. The full upstream pipeline (prompt contract through task assignments) was confirmed architecturally sound with no real contradictions, so this phase's output is a short, concrete punch list rather than a re-plan. Six fixes are locked before/alongside build start: (1) restore two flows that were dropped from flows-json between task_assignments' draft and its final output \u2014 resume-in-progress-without-replay and corrupt-save-recovery-to-fresh-deal \u2014 each with concrete state assertions and XCUITest mappings; (2) reconcile task requirement_ids against the real, already-produced requirements.json (app_features generated it but task_assignments lacked it in context) as a fast parallel diff that doesn't block T-000 but gates acceptance of every task from T-001 onward; (3) lock the CardBackPicker to exactly two visually distinct card backs so it ships as a real control rather than a functional placeholder; (4) lock StatsEvent.gameStarted to fire only on genuinely fresh deals (first launch or explicit New Game/draw-mode confirmation), never on resume or foreground, preventing stats inflation on relaunch; (5) require the card-glyph legibility gate (T-021) to produce an actual screenshot artifact of CardGalleryDebugView at true on-device cardWidth() through accessibility1 Dynamic Type with a recorded PASS/FAIL, paired with a pre-approved bounded fallback (flatten only the corner-index/pip zone) if it fails, instead of an open-ended redesign the schedule has no slack for; and (6) explicitly state in T-000 that the Xcode project is named SolitaireAtelier while the repo slug stays solitaire-atelier, closing a naming-ambiguity risk before scaffolding. All prior scope, architecture, and gating decisions (Game/Stats/Settings triad only, no live drag/share/extra variants, T-021 hard dependency, integrator-owned files, per-lane testing ownership, zero third-party dependencies) carry forward unchanged. The build phase can now proceed without inventing any further product, design, or architecture decisions.",
+      "key_decisions": [
+        "DEC-implementation_readiness_gate-001",
+        "DEC-implementation_readiness_gate-002",
+        "DEC-implementation_readiness_gate-003",
+        "DEC-implementation_readiness_gate-004",
+        "DEC-implementation_readiness_gate-005",
+        "DEC-implementation_readiness_gate-006"
+      ],
+      "open_risks": [
+        "Card-glyph legibility at true on-device card width is still completely untested going into build \u2014 this phase only strengthens the verification mechanism and adds a bounded fallback, it does not retire the risk itself.",
+        "The requirement-ID diff against the real requirements.json has not actually been performed yet \u2014 this phase only locks the process (parallel, non-blocking-for-T-000, gating-for-T-001-onward) for doing so.",
+        "The two restored flows (resume-without-replay, corrupt-save-recovery) still need to be physically re-added to flows-json and their UI tests written; this phase locks the requirement but the artifact itself is not yet updated.",
+        "If the legibility gate does fail and the bounded fallback (corner-index/pip flattening) doesn't fully resolve it, there is still no larger contingency plan or schedule slack named anywhere in the pipeline."
+      ]
+    },
+    {
+      "phase": "build_coordination",
+      "one_paragraph_summary": "This build_coordination pass targeted the requested design-lint fix (docs/design_lint.json, 21 named findings) but found \u2014 via two independent build-lane audits plus an integrator-level re-verification \u2014 that docs/design_lint.json and any docs/ directory have never existed in the real app_build checkout, confirmed via tree search and a full git-history scan across all commits. A manual grep audit (explicitly stated as a manual audit, not a tool re-run, per DEC-iterate_scope-006) for hardcoded Color()/UIColor()/hex-literal/Font.system(size:) usage outside Theme.swift found zero violations anywhere in the codebase; Theme.swift:120, the exact line named in the original change request's example, is the token definition itself (Theme.Colors.Scene.light.background) rather than a real violation. Card-suit ink colors remain fixed non-adaptive constants, GameEngine.swift/SolitaireAtelierApp.swift were untouched, and zero files were changed this pass since there was nothing in the real tree to fix. The integrator additionally confirmed App/SolitaireAtelierApp.swift correctly gates SolitaireTabHost behind AppRestoreCoordinator.hasFinishedInitialLoad and that App/RootPlaceholderView.swift is genuinely dead code (SolitaireTabHost handles its own loading-state gating internally with the same token) rather than a wiring gap, though deleting it was left out of scope. xcodebuild could not be re-run live this session due to a session permission gate hit by both the build lane and the integrator, so compile status rests on the last independently-verified clean build (DEC-final_review-003). The app-level NO-GO verdict from DEC-final_review-001 is unchanged and still fully open.",
+      "key_decisions": [],
+      "open_risks": [
+        "docs/design_lint.json has now failed to exist in the real checkout across four consecutive orchestrator passes; until whatever tool is supposed to generate it actually runs and commits output, the design-lint gate can never be closed as tool-verified, only manually audited.",
+        "xcodebuild could not be executed live in this or the prior session due to a recurring permission gate, so compile-clean status is inferred from the last successful run (DEC-final_review-003) rather than freshly confirmed.",
+        "App/RootPlaceholderView.swift is confirmed dead code with zero call sites and should be deleted in a future cleanup pass; left in place this round since it falls outside the Theme.swift/lint-file-only scope lock.",
+        "The app-level release verdict remains NO-GO per DEC-final_review-001 \u2014 the test-suite crash, unverified legibility gate, and requirement/flow reconciliation blockers are all still fully open and untouched by this pass."
+      ]
+    },
+    {
+      "phase": "write_tests",
+      "one_paragraph_summary": "Round 5 of write_tests fixed the fifth consecutive compile failure from build_verification, this time two related bugs in GameEngine.swift: startFreshGame's rng parameter is inout any RandomNumberGenerator (an existential), but its two call sites (setDrawMode, startFreshGameWithSystemRNG) had declared their local rng as the concrete SystemRandomNumberGenerator type, which Swift rejects for an inout existential parameter \u2014 both were retyped to var rng: any RandomNumberGenerator = SystemRandomNumberGenerator(). Separately, an unannotated `let foundations = Dictionary(uniqueKeysWithValues: Suit.allCases.map { ($0, []) })` inferred the empty-array literal as [Any] instead of [Card] with no type context available; fixed with an explicit [Suit: [Card]] annotation, matching the already-established pattern in GameState.swift's own default argument. A third instance of the identical existential-rng bug was found and fixed in InteractionAndStuckDetectorTests.swift (line 183, feeding DeckFactory.shuffledCards' matching inout any RandomNumberGenerator parameter) by one lane after the other's sweep missed it \u2014 both lanes' cross-review caught and confirmed this. The integrator independently verified all three fixes by reading GameEngine.swift and the test file directly, confirming the one legitimately untouched rng site (newGame's mutableRng, which was never broken since its source parameter is already existentially typed) was correctly left alone rather than over-fixed. No Xcode project, project.yml, or app-entry-point changes were needed; this is the fifth straight round where the fix was fully self-contained in already-tracked source files with zero integration-level work required.",
+      "key_decisions": [],
+      "open_risks": [
+        "Five consecutive rounds, five genuinely distinct compile-error root causes (undefined function name, internal type in public signature, missing Equatable conformance, illegal async-in-autoclosure, existential-vs-concrete RandomNumberGenerator typing) \u2014 the codebase was clearly written with zero compiler feedback during the original build phase, and this pattern gives no strong signal that round 6 won't surface a sixth distinct class of error.",
+        "Still zero actual xcodebuild/simulator execution across all six rounds of this phase (one clean test-writing round plus five compile-fix rounds); every fix, including this integrator's own verification, remains confirmed only by manual source reading against Swift's type-checking rules, not a real compiler pass.",
+        "Codex A and Codex B have now been silent or in rate-limit cooldown for all five fix rounds in a row, meaning zero independent cross-model adversarial review has occurred anywhere in this phase \u2014 all verification has come from Claude workers checking each other and the integrator checking both.",
+        "The card-glyph legibility gate (CardGalleryDebugView) remains completely unrendered and unjudged by anyone with simulator/Canvas access, unchanged across every phase summary in this entire pipeline since it was first flagged many phases ago."
+      ]
+    },
+    {
+      "phase": "build_verification",
+      "one_paragraph_summary": "Build verification succeeded for the first time in this pipeline: xcodebuild build against the iOS Simulator destination compiled with zero errors on attempt 0, closing out five prior rounds of hand-diagnosed, hand-fixed compile failures (the last being an existential-vs-concrete RandomNumberGenerator typing bug and an untyped dictionary-literal inference bug in GameEngine.swift). This round's discussion audited the repo directly rather than accepting the green build as a full pass: it confirmed there is no .xcresult bundle, test log, or coverage artifact anywhere in the tree, meaning xcodebuild test has never actually been executed \u2014 the fuzz-invariant test (52-unique-cards/foundation-monotonicity/no-false-stuck) and the hand-built draw-3 adversarial stuck-detection fixture exist as source and compile, but their assertions have never been run. It also confirmed the card-glyph legibility gate (DEC-ios_architecture_review-005, tightened in DEC-implementation_readiness_gate-005 to require an auditable screenshot of CardGalleryDebugView at true cardWidth() through accessibility1 Dynamic Type with a recorded PASS/FAIL) still has zero evidence behind it despite being flagged as the pipeline's top open risk in nearly every phase since product_research \u2014 the debug view exists in source but has never been rendered or judged by anyone with simulator access. No compile/test errors remain to repair, so no code changes were made this round; the phase's honest output is 'compiles cleanly, test execution and the legibility gate remain unverified' rather than an unqualified pass.",
+      "key_decisions": [],
+      "open_risks": [
+        "Test suite (including the fuzz/invariant suite and the hand-built draw-3 adversarial stuck-detection fixture from DEC-project_plan-004) has never actually been executed \u2014 only compiled; a logic bug in either could still exist undetected.",
+        "The card-glyph legibility gate has never been rendered or judged by anyone with simulator/Canvas access despite being a named hard release gate since early architecture phases \u2014 now that the app compiles, this is checkable for the first time but still unchecked.",
+        "Codex A and Codex B remained silent/rate-limited through this entire phase as well, meaning zero independent cross-model review occurred on the build_verification conclusion itself.",
+        "If no further build/repair iterations remain, the app will exit this pipeline having only ever been confirmed to compile, not to actually run correctly, pass its own test suite, or clear its own legibility gate."
+      ]
+    },
+    {
+      "phase": "human_qa_checklist",
+      "one_paragraph_summary": "The human_qa_checklist phase produced a full manual QA script for solitaire-atelier, structured around a critical finding: the build's VERIFIED status masks a test-suite crash in AppRestoreCoordinatorTests.swift (a force-unwrap on an empty/nil [Card] in the restore-path test), meaning the corrupt-save/recovery path \u2014 repeatedly named across this pipeline as the least forgiving moment in the app \u2014 has never actually been exercised by anything, automated or human. The checklist opens with a dedicated pre-flight test (QA-000) targeting exactly that path before any other testing proceeds. The rest of the checklist covers: cold launch and resume-without-replay; the card-glyph legibility gate at both default and Accessibility1 Dynamic Type sizes (the first time in the entire pipeline this has been checkable by anyone with visual/simulator access, given it was gated behind a build that only recently started compiling); light/dark art-directed lighting scenes and card-back selection; core tap-to-move interaction including single-destination, multi-destination-highlight, blocked-move haptic feedback, and \u2014 as its own explicit item \u2014 multi-card run relocation (named as the hardest underestimated interaction risk in earlier phases); win and stuck terminal states tested separately for Draw-1 (exact detector) and Draw-3 (conservative approximation, explicitly tested for false-positive avoidance via a buried-legal-move scenario); multi-step undo including survival across backgrounding; persistence/lifecycle edge cases including the timer-freeze-before-flush ordering and mid-drag kill safety; Settings confirm/cancel paths for draw-mode changes and live card-back/timer behavior; Stats fresh-install empty state per draw mode tested adversarially against a distinct, deliberately-corrupted data-loss state to confirm they're never visually confusable, plus a check that gameStarted never fires on mere resume; and concrete accessibility checks (VoiceOver card labels, per-destination VoiceOver actions on ambiguous taps, Reduce Motion's strict opacity-only fallback, colorblind suit distinguishability, Dynamic Type layout integrity). A Known Gaps section explicitly documents that the automated test suite has never successfully run, that the legibility gate was unverified before this phase, and that live drag/win-sharing are deliberate scope cuts rather than missing features.",
+      "key_decisions": [
+        "DEC-human_qa_checklist-001",
+        "DEC-human_qa_checklist-002",
+        "DEC-human_qa_checklist-003",
+        "DEC-human_qa_checklist-004",
+        "DEC-human_qa_checklist-005",
+        "DEC-human_qa_checklist-006"
+      ],
+      "open_risks": [
+        "QA-000's corrupt-save/restore crash probe has not actually been run by anyone yet \u2014 this phase only designs the test; if it crashes when a real human runs it, that is a release blocker discovered only now, this late in the pipeline.",
+        "The card-glyph legibility gate (QA-004) still has not actually been visually judged by a human \u2014 this phase only makes it testable and mandates it be tested; PASS/FAIL is still unknown.",
+        "The Draw-3 never-false-stuck adversarial test (QA-022) requires a tester to actually construct or grind toward a specific buried-legal-move board state, which is nontrivial manual test-authoring work that could be shortcut into 'played a few games, seemed fine' under time pressure.",
+        "This checklist assumes the underlying app is feature-complete per all prior phase decisions; if any should/could-tier cut (share sheet, live drag, extra card backs) was silently reintroduced or, conversely, if any must-have (Stats/Settings triad, draw-3) was silently dropped during the crash-fix rounds, this checklist would not by itself catch that mismatch \u2014 it tests behavior, not scope completeness against requirements.json."
+      ]
+    },
+    {
+      "phase": "app_store_readiness",
+      "one_paragraph_summary": "The app_store_readiness phase produced a full App Store launch package for solitaire-atelier while explicitly refusing to launder over two unresolved release blockers inherited from prior phases: the test suite has never completed a run (crashes on a force-unwrap in AppRestoreCoordinatorTests.swift:54, in the exact corrupt-save-recovery path repeatedly named as the app's least forgiving moment), and the card-glyph legibility gate (CardGalleryDebugView) has still never been visually judged by anyone despite being a twice-escalated hard release gate since ios_architecture_review. Both are recorded as named launch blockers ranked above the store-listing content, not folded in as caveats, with the hero marketing screenshot explicitly gated on the legibility PASS. Two new, previously-unaddressed submission blockers were also surfaced: no support URL, marketing URL, or privacy-policy page exists anywhere in this nine-plus-phase pipeline, and Info.plist has never been hand-verified clean of stray permission-description keys. The actual launch material produced: positioning centered on the trust/privacy differentiator ('no ads, no tracking, no account') as primary claim with the bespoke visual system secondary; a 5-screenshot plan (mid-game light, mid-game dark, deal/flip frame, win screen, populated Stats) explicitly excluding Settings; an App Privacy nutrition label locked as 'Data Not Collected' across all categories, consistent with the architecturally-locked zero-collection design; permission copy locked at zero Info.plist usage-description keys, to be verified rather than assumed; a subscription/paywall review section recorded as a clean pass since there is no monetization surface at all (zero IAP/StoreKit per the locked no-monetization non-goal); and an age-rating note flagging Apple's gambling-adjacent questionnaire category as something to answer deliberately for a card game with no real-money mechanics. Codex remained in rate-limit cooldown for the entire phase, so this is a single-voice (Claude) output.",
+      "key_decisions": [
+        "DEC-app_store_readiness-001",
+        "DEC-app_store_readiness-002",
+        "DEC-app_store_readiness-003",
+        "DEC-app_store_readiness-004",
+        "DEC-app_store_readiness-005"
+      ],
+      "open_risks": [
+        "QA-000's corrupt-save/restore crash is still unresolved and unre-run \u2014 this remains the single highest-severity open item in the entire pipeline and blocks submission outright.",
+        "The card-glyph legibility gate still has zero recorded evidence; the hero marketing screenshot cannot be honestly finalized until this closes.",
+        "No support URL, marketing URL, or privacy-policy page exists yet anywhere in this pipeline's output \u2014 this is real, unglamorous launch-day work with no owner assigned.",
+        "Info.plist has not actually been read and verified clean of stray permission keys in this phase \u2014 the recommendation is made but the check itself has not been performed.",
+        "Codex provided zero independent review of this phase's launch-readiness claims; all positioning, screenshot, and blocker judgments come from a single model's pass."
+      ]
+    },
+    {
+      "phase": "final_review",
+      "one_paragraph_summary": "This final_review pass rendered two separate verdicts on the design-lint change request. The narrow change itself (fix docs/design_lint.json's 21 findings) is approved GO: five independent audits now across iterate_scope, build_coordination (two lanes), and this review have all confirmed docs/design_lint.json and any docs/ directory have never existed in the real app_build checkout, across its entire git history; a manual grep audit (explicitly labeled manual, not a tool re-run) found zero hardcoded-color/font violations outside Theme.swift, Theme.swift:120 is the token definition itself rather than a real defect, card-suit inks remain fixed non-adaptive constants, forbidden files were untouched, zero files changed, and xcodebuild's last live run confirmed a clean compile. The app-level verdict remains NO-GO, unchanged from DEC-final_review-001: the AppRestoreCoordinatorTests.swift:54 restore-crash path has never completed a test run, the card-glyph legibility gate has never been visually confirmed by anyone with visual access, requirement/flow reconciliation is unconfirmed, and two submission-mechanics gaps (support/privacy URL, Info.plist hand-check) remain open \u2014 none of this pass's work touched any of them. This phase additionally elevated the recurring phantom-file problem itself to a named, escalation-worthy top-line risk rather than a fact to keep silently re-confirming: whatever pipeline tool is supposed to generate docs/design_lint.json has never run against this app's real checkout at any point in its history, and every future lint-themed change request against this app will keep reproducing the same result until that gets fixed upstream, outside any build lane's reach.",
+      "key_decisions": [
+        "DEC-final_review-005",
+        "DEC-final_review-006"
+      ],
+      "open_risks": [
+        "The docs/design_lint.json generator tool has never run against this app's real checkout across its entire history; until fixed at the pipeline level (not a build-lane fix), this gate can only ever be manually audited, never tool-verified, and every future 'design lint failure' request against this app will reproduce the identical finding.",
+        "AppRestoreCoordinatorTests.swift:54 crashes on the corrupt-save/restore path and has never completed a test run \u2014 the single highest-severity open release blocker, untouched by this pass.",
+        "The card-glyph legibility gate has never been visually confirmed by a human or tool with visual access, despite being flagged as release-blocking across six-plus prior phases.",
+        "Requirement/flow reconciliation against the real requirements.json remains unconfirmed, and two submission-mechanics gaps (support/privacy-policy URL, Info.plist hand-verification) remain open before any App Store submission attempt."
+      ]
+    },
+    {
+      "phase": "portfolio_audit",
+      "one_paragraph_summary": "Portfolio audit was marked not applicable for solitaire-atelier: this is a confirmed single-app run (one native iOS Klondike solitaire game with Game/Stats/Settings as in-app tabs), consistent with the portfolio_selection decision made at the very start of the pipeline, and no later phase across the entire run ever introduced a second app, variant, or sibling project that would reopen that call. Expected app count (1) was confirmed equal to actual count (1) via consistent cross-phase self-reporting (task_assignments, build_coordination, and build_verification all reference exactly one Xcode project, SolitaireAtelier.xcodeproj, deliberately named differently from the solitaire-atelier repo slug per an earlier locked decision) rather than a direct filesystem read, since this sandbox cannot see the real app_build tree \u2014 this is flagged as inferential confidence, not a hand-verified fact. No child folders or child workflows exist, correctly, since no portfolio manifest was ever required or emitted. No portfolio-level category was silently collapsed; the closest near-miss was a within-app scope-discipline risk during app_features (Stats/Settings almost deferred to an unscheduled 'increment 2'), which was caught and reversed in that same phase and does not constitute a portfolio-shape defect. Backfill guidance for any tracker (Jira/Notion) is locked as: this project backfills as one epic/ticket, not a portfolio of tickets, with status 'build complete, verification incomplete, NO-GO for submission' and final_review's four ranked blockers (unresolved AppRestoreCoordinatorTests crash in the corrupt-save path, never-recorded card-glyph legibility gate, unconfirmed requirement/flow reconciliation, and two mechanical App Store submission gaps) attached as sub-tasks \u2014 explicitly so this phase's clean pass is never misread downstream as a signal that the app itself is release-ready, which remains a separate, still-open NO-GO owned by final_review.",
+      "key_decisions": [
+        "DEC-portfolio_audit-001",
+        "DEC-portfolio_audit-002",
+        "DEC-portfolio_audit-003",
+        "DEC-portfolio_audit-004"
+      ],
+      "open_risks": [
+        "The single-project count confirmation relies on cross-phase self-reporting rather than a direct filesystem read, since this sandbox never had access to the real app_build tree at any point in the pipeline \u2014 a human with real access should do one direct confirmation.",
+        "If this run is backfilled into a tracker without carrying forward final_review's NO-GO verdict and its four blockers, the portfolio_audit's clean pass could be misread as overall release readiness, which it is not.",
+        "The app_features near-miss (Stats/Settings almost silently deferred) was resolved upstream, but it's a reminder that this fleet has a real pattern of near-scope-collapse under time/round pressure that portfolio_audit alone would not catch if it happened at the sub-screen level rather than the project level."
+      ]
+    },
+    {
+      "phase": "iterate_scope",
+      "one_paragraph_summary": "This phase scoped the fix for docs/design_lint.json's 21 findings (fleet-wide dependency/design lint errors, e.g. inline_color at Theme.swift:120) as a bounded token-substitution pass: read the full real findings file and group by rule type before fixing (not just the one quoted example), touch only Theme.swift (for missing semantic tokens) and the specific files named in each finding, and treat GameEngine.swift/SolitaireAtelierApp.swift as forbidden-edit zones per the existing lane-ownership lock. Card-suit red/black colors must stay hardcoded non-adaptive constants per the locked prompt contract, never converted to semantic light/dark pairs. Because a prior pass (DEC-final_review-004) already found the same file/rule/location flagged again after being claimed fixed, this phase additionally requires investigating and honestly reporting why the recurrence happened (fix didn't land in real app_build, later regression, or stricter tool) before re-patching, and requires the build output to explicitly state whether closure was verified via a real lint-tool re-run or a manual audit fallback rather than blurring the two as it did last time. Scope stays narrow: this pass does not touch the legibility gate, the crashing restore test, or requirement/flow reconciliation, which remain DEC-final_review-001's open release blockers.",
+      "key_decisions": [
+        "DEC-iterate_scope-001",
+        "DEC-iterate_scope-002",
+        "DEC-iterate_scope-003",
+        "DEC-iterate_scope-004",
+        "DEC-iterate_scope-005",
+        "DEC-iterate_scope-006"
+      ],
+      "open_risks": [
+        "Theme.swift:120's inline_color recurrence may indicate the previous fix never actually landed in the real app_build checkout, a broader process-integrity concern beyond this single finding.",
+        "docs/design_lint.json existing this time is unverified from this sandbox \u2014 if it still doesn't exist in the real checkout, this phase's plan again degrades to a manual audit, repeating DEC-final_review-004's unresolved gap.",
+        "This pass does not move the app off DEC-final_review-001's NO-GO verdict; the three original release blockers remain fully open."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "rule": "empty_action",
+      "file": "Tether/Views/RedeemJoinCodeView.swift",
+      "line": 69,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (Button(\"Cancel\", role: .cancel) {})"
+    }
+  ]
+}

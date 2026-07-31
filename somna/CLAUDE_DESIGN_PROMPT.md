@@ -1,1 +1,0 @@
-Design a calm sleep & morning-energy app called Somna: deep indigo-to-violet gradient backgrounds that lighten toward soft dawn tones in daytime views, soft-glow rounded cards, a moon-phase mark as the icon motif, minimal typography, restful and quiet rather than clinical or data-dense.

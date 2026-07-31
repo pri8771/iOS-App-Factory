@@ -1,0 +1,355 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "Voice recording with live waveform view while recording",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "Recording survives a phone call interruption and finalizes/resumes without corruption or data loss",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "Recording survives a Siri invocation interruption and finalizes/resumes without corruption or data loss",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "Recording survives app backgrounding and finalizes/resumes without corruption or data loss",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "Recording survives a force-quit via app switcher during active recording without corrupting the in-progress entry",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "Recording survives a route change (e.g. headphone/AirPods disconnect) without silent clipping/corruption",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "Interruption handling is implemented as an explicit reentrant state machine (idle/recording/interrupted/finalizing), not a boolean flag, and treats .interruption and .routeChange as distinct event types",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "Transcription uses on-device Speech recognition only; never falls back to server-based recognition",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "When on-device recognition is unsupported for the current locale/device, recording stays enabled and an explicit 'unavailable' state is shown",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "Transcription status model has three distinct states: ready / on-device model downloading / unavailable",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "Transcript text is editable after the fact",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "Tapping a transcript sentence seeks the audio to that point, resolved via immutable anchor ID never raw string/character index",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "Transcript anchors are immutable once created; user edits are represented as overlay deltas on top of the anchor set",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "Tap-to-seek resolves correctly (<=300ms tolerance) after a transcript text edit",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "If an edit deletes or fully spans an anchor, a tap near that former location resolves to the nearest surviving anchor rather than no-op or crash",
+      "core": false
+    },
+    {
+      "id": "R-016",
+      "text": "NaturalLanguage-based tag suggestions are generated per transcript",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "NaturalLanguage-based mood/sentiment score is generated per transcript and presented as a hedged rough polarity signal, never clinical framing",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "Tag and mood suggestions are editable and dismissible; never silently applied as fact",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "A PencilKit sketch (finger or Pencil) can be attached to any entry",
+      "core": false
+    },
+    {
+      "id": "R-020",
+      "text": "Sketches are stored alongside the entry's audio/transcript in the same record",
+      "core": false
+    },
+    {
+      "id": "R-021",
+      "text": "Free tier caps sketches at one per entry; Fieldnotes Pro allows unlimited sketches",
+      "core": false
+    },
+    {
+      "id": "R-022",
+      "text": "Entries support @-mention autocomplete to link to another entry",
+      "core": true
+    },
+    {
+      "id": "R-023",
+      "text": "Mentions/backlinks resolve via the target entry's persistent UUID, never by matching display-title text",
+      "core": true
+    },
+    {
+      "id": "R-024",
+      "text": "Renaming an entry never breaks or misdirects any existing mention of it",
+      "core": true
+    },
+    {
+      "id": "R-025",
+      "text": "Backlinks ('linked from') are computed live from the local store on every view, never stored as a separately maintained table",
+      "core": true
+    },
+    {
+      "id": "R-026",
+      "text": "Deleting an entry leaves zero dangling or duplicate backlinks in any live backlink query",
+      "core": true
+    },
+    {
+      "id": "R-027",
+      "text": "A forward @-mention pointing at a since-deleted entry renders as a visually distinct 'broken link' indicator rather than silently becoming plain text",
+      "core": true
+    },
+    {
+      "id": "R-028",
+      "text": "Duplicate @-mentions of the same target entry within one transcript collapse to a single backlink entry",
+      "core": true
+    },
+    {
+      "id": "R-029",
+      "text": "Self-mentions are disallowed at autocomplete time",
+      "core": true
+    },
+    {
+      "id": "R-030",
+      "text": "Demo entries and real entries are mutually unlinkable via @-mention autocomplete filtering by demo/real status",
+      "core": true
+    },
+    {
+      "id": "R-031",
+      "text": "Full-text search spans transcripts, tags, and mood",
+      "core": true
+    },
+    {
+      "id": "R-032",
+      "text": "Search results are ranked by a documented, deterministic relevance formula, not substring match order",
+      "core": true
+    },
+    {
+      "id": "R-033",
+      "text": "The relevance formula produces the documented ordering on a fixed two-entry test case",
+      "core": true
+    },
+    {
+      "id": "R-034",
+      "text": "Entries without a transcript yet remain findable via tags/mood/sketch metadata (documented expected behavior, not a defect)",
+      "core": true
+    },
+    {
+      "id": "R-035",
+      "text": "HealthKit read-only correlation shows an entry's mood alongside that day's sleep/activity summary when authorized",
+      "core": false
+    },
+    {
+      "id": "R-036",
+      "text": "HealthKit denial/no-data state is shown as a hedged 'no data available', never a confident 'not connected' claim",
+      "core": false
+    },
+    {
+      "id": "R-037",
+      "text": "Core journaling is never blocked by HealthKit permission state",
+      "core": true
+    },
+    {
+      "id": "R-038",
+      "text": "HealthKit data is never persisted into SwiftData at rest; only queried live per-view",
+      "core": false
+    },
+    {
+      "id": "R-039",
+      "text": "Home-screen widget shows the latest entry's mood/snippet",
+      "core": false
+    },
+    {
+      "id": "R-040",
+      "text": "WidgetCenter.reloadTimelines fires only on confirmed entry save, never speculatively",
+      "core": false
+    },
+    {
+      "id": "R-041",
+      "text": "Live Activity shows elapsed time and a live waveform while actively recording",
+      "core": false
+    },
+    {
+      "id": "R-042",
+      "text": "Live Activity ends cleanly when the recording stops",
+      "core": false
+    },
+    {
+      "id": "R-043",
+      "text": "Live Activity does not orphan after a force-quit, within the documented residual-window caveat (staleDate + relaunch reconciliation)",
+      "core": false
+    },
+    {
+      "id": "R-044",
+      "text": "Share Extension accepts shared text or a photo from another app and creates a new Fieldnotes entry",
+      "core": false
+    },
+    {
+      "id": "R-045",
+      "text": "Widget, Live Activity, Share Extension, and App Intents all read/write the same local store as the main app via an App Group + shared SwiftData container",
+      "core": true
+    },
+    {
+      "id": "R-046",
+      "text": "An App Intent exposes 'Start a voice entry' to Shortcuts/Siri",
+      "core": false
+    },
+    {
+      "id": "R-047",
+      "text": "An App Intent exposes 'Search my journal' to Shortcuts/Siri",
+      "core": false
+    },
+    {
+      "id": "R-048",
+      "text": "CarPlay scene code path implements hands-free start/stop recording UI wired to the shared recording engine",
+      "core": false
+    },
+    {
+      "id": "R-049",
+      "text": "CarPlay is documented as an explicit Gap (cannot run without the CarPlay audio-app entitlement on a free developer account), not omitted or claimed working",
+      "core": true
+    },
+    {
+      "id": "R-050",
+      "text": "All durations use TimeInterval/Double and all counts use Int; no Decimal type is used anywhere in the app",
+      "core": true
+    },
+    {
+      "id": "R-051",
+      "text": "A Settings toggle seeds realistic demo entries with sample transcripts, tags, and backlinks",
+      "core": true
+    },
+    {
+      "id": "R-052",
+      "text": "The demo-entries toggle is fully reversible and never partially applies",
+      "core": true
+    },
+    {
+      "id": "R-053",
+      "text": "Demo entries are visually and data-model distinct from real entries at all times",
+      "core": true
+    },
+    {
+      "id": "R-054",
+      "text": "Demo seed data includes at least one HealthKit-correlated day",
+      "core": false
+    },
+    {
+      "id": "R-055",
+      "text": "Demo seed data includes at least one broken-link example (mention pointing at a deleted entry)",
+      "core": true
+    },
+    {
+      "id": "R-056",
+      "text": "Fieldnotes Pro unlocks on-device Insights (mood trend, tag frequency, recording cadence)",
+      "core": false
+    },
+    {
+      "id": "R-057",
+      "text": "Fieldnotes Pro unlocks advanced search (saved searches, compound tag+mood+date filters, search history)",
+      "core": false
+    },
+    {
+      "id": "R-058",
+      "text": "Fieldnotes Pro unlocks unlimited sketches and extra app icons/themes",
+      "core": false
+    },
+    {
+      "id": "R-059",
+      "text": "Pro subscription state never gates any of the 11 numbered core features or a user's own recorded data",
+      "core": true
+    },
+    {
+      "id": "R-060",
+      "text": "Subscription entitlement is checked locally via Transaction.currentEntitlements after one purchase-time StoreKit round-trip; verified by a cold airplane-mode-after-purchase test",
+      "core": false
+    },
+    {
+      "id": "R-061",
+      "text": "On Pro lapse, Insights/advanced search grey out with an explanation while core data and base search remain fully functional",
+      "core": false
+    },
+    {
+      "id": "R-062",
+      "text": "Share-as-card export sends only mood, tags, and a short snippet to the system share sheet \u2014 never full transcript or audio",
+      "core": false
+    },
+    {
+      "id": "R-063",
+      "text": "A CloudKit-ready off-by-default Settings toggle exists, documented as a named Gap with concrete steps to enable it",
+      "core": false
+    },
+    {
+      "id": "R-064",
+      "text": "Microphone authorization and Speech authorization are tracked and reported as two independent permission states, with the full combination matrix in the feature health card",
+      "core": true
+    },
+    {
+      "id": "R-065",
+      "text": "Audio, transcript, and sketch files in the App Group container use NSFileProtectionCompleteUntilFirstUserAuthentication at minimum",
+      "core": true
+    },
+    {
+      "id": "R-066",
+      "text": "Every permission-gated feature is verified by actually toggling the permission off, not by code inspection alone",
+      "core": true
+    },
+    {
+      "id": "R-067",
+      "text": "Every numbered requirement is reported with a guaranteed/degrades/gapped status plus supporting evidence (feature health card)",
+      "core": true
+    },
+    {
+      "id": "R-068",
+      "text": "Every core feature works fully offline / in airplane mode",
+      "core": true
+    },
+    {
+      "id": "R-069",
+      "text": "No cloud sync, accounts, server processing, analytics, telemetry, or third-party SDKs exist beyond the narrowly-scoped Pro subscription and off-by-default CloudKit toggle carve-outs",
+      "core": true
+    },
+    {
+      "id": "R-070",
+      "text": "Information architecture is exactly three tabs (Timeline, Search, Settings) plus a pushed Entry Detail screen; no separate graph-visualization screen exists",
+      "core": true
+    }
+  ]
+}

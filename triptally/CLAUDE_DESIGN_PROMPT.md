@@ -1,1 +1,0 @@
-Design a clean, currency-forward trip-expense app: a day-by-day spend timeline as the hero view, a fast expense-entry sheet with currency picker, and a clear settle-up summary screen suitable for exporting.

@@ -1,0 +1,67 @@
+{
+  "bundle_id": "com.waypoint.app",
+  "screens": 3,
+  "edges": 4,
+  "crashes": [],
+  "dead_taps": [],
+  "back_violations": [],
+  "flows": [
+    {
+      "failure": "step 4: expected \u2018DEMO\u2019 on screen",
+      "name": "Honest first launch, then enable demo trip",
+      "passed": false
+    },
+    {
+      "failure": "",
+      "name": "Create a single-day trip and see correct day math",
+      "passed": true
+    },
+    {
+      "failure": "step 1: no tappable element \u2018dayView.addStopButton\u2019",
+      "name": "Add a stop and reorder it within a day via Move-to",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018money.addTravelerButton\u2019",
+      "name": "Log a mixed-split expense and reject a bad percentage entry",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018money.settleUpButton\u2019",
+      "name": "Settle up shows minimal transactions with matching arithmetic",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018dayView.mapTabButton\u2019",
+      "name": "Observe the approximate-route fallback on the demo's unroutable stop",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018dayView.calendarExportButton\u2019",
+      "name": "Export a day to Calendar, then re-export and see honest counts",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018settings.demoTripToggle\u2019",
+      "name": "Widget/Live Activity honest degradation on an active trip",
+      "passed": false
+    }
+  ],
+  "screen_grades": {
+    "score": 33,
+    "verdict": "FAIL",
+    "issues": [
+      {
+        "screen": "01_screen_-75feba0ed0c2ca24.png",
+        "severity": "high",
+        "note": "gemma3:4b: BAD"
+      },
+      {
+        "screen": "03_screen_7cbdd83b925a3c5.png",
+        "severity": "high",
+        "note": "gemma3:4b: BAD"
+      }
+    ],
+    "inconclusive": []
+  }
+}

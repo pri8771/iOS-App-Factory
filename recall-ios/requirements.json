@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "SM-2 is a pure, dependency-free module with an injected clock/calendar \u2014 no Date()/Calendar.current calls inside it.",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "SM-2 uses literal SuperMemo-2 arithmetic: EF' = EF + (0.1 \u2212 (5\u2212q)\u00d7(0.08+(5\u2212q)\u00d70.02)), EF floored at 1.3; I(1)=1 day, I(2)=6 days, I(n)=round(I(n-1)\u00d7EF) for n>2.",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "Grade-to-quality mapping is fixed: Again=q2, Hard=q3, Good=q4, Easy=q5; a lapse is quality<3 only (Again), resetting repetition to 0 and interval to 1 day while still applying the EF decrease; Hard is a passing grade that advances normally.",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "SM-2 unit tests cover first review, lapse reset, EF floor, calendar-day boundary, a simulated DST transition, and a simulated mid-interval timezone change.",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "SM-2 includes at least one worked example cross-checked against a known external SM-2/Anki reference progression, with any divergence explained rather than treated as a bug.",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "Decks support create, edit, and archive.",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "Cards have front, back, and an optional note field, with fast keyboard-driven entry and editing.",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "Card deletion is supported and cascades to delete that card's ReviewLog history; resulting retroactive stat changes are expected behavior, not a bug.",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "Archived decks and their cards continue to count against Free-tier caps.",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "Review session shows due cards for a chosen deck or all decks, computed via calendar-day-at-query-time logic in the device's current timezone.",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "Review flow is front \u2192 tap to reveal \u2192 grade with Again/Hard/Good/Easy.",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "Each grade is persisted via an explicit synchronous save immediately after grading, before the next card advances \u2014 never relying on autosave.",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "Session summary (cards reviewed, again-rate, time spent) is shown only for a session that genuinely completed, never fabricated for an interrupted one.",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "Force-quitting mid-session, including a kill timed at/immediately after the save call, leaves graded cards off the due stack and ungraded cards still due on relaunch, with zero data loss.",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "Stats show a due-forecast bar chart for the next 30 days, per-deck and overall.",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "Stats show daily review-count history.",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "Stats show retention rate (% graded Good/Easy).",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "All stats screens handle empty and sparse data gracefully with honest, designed empty states \u2014 never a crash or misleading placeholder.",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "Demo-seeded decks/cards are excluded by default from aggregate/overall stats and streak calculations.",
+      "core": true
+    },
+    {
+      "id": "R-020",
+      "text": "CSV export produces front, back, and optional note columns.",
+      "core": true
+    },
+    {
+      "id": "R-021",
+      "text": "CSV import accepts front (required), back (required), and note (optional) columns, with a preview step before any data is committed.",
+      "core": true
+    },
+    {
+      "id": "R-022",
+      "text": "CSV import preview enumerates a distinct, visible error reason for every malformed-row case: empty front/back, wrong column count, embedded commas/quotes, bad encoding/BOM, CRLF vs LF \u2014 never silently dropped.",
+      "core": true
+    },
+    {
+      "id": "R-023",
+      "text": "CSV import flags duplicates as case-sensitive exact front+back matches, both within the imported file and against existing non-archived cards in the target deck, as their own distinct reason.",
+      "core": true
+    },
+    {
+      "id": "R-024",
+      "text": "Export then re-import round-trips losslessly, including notes.",
+      "core": true
+    },
+    {
+      "id": "R-025",
+      "text": "CSV import test fixtures include at least one real-world exported CSV in addition to hand-crafted edge cases.",
+      "core": true
+    },
+    {
+      "id": "R-026",
+      "text": "One optional local daily reminder notification fires at a user-chosen time.",
+      "core": true
+    },
+    {
+      "id": "R-027",
+      "text": "The notification body contains only a numeric due-card count \u2014 never card content, deck names, or subject matter.",
+      "core": true
+    },
+    {
+      "id": "R-028",
+      "text": "No notification is scheduled or fires when the computed due count is 0.",
+      "core": true
+    },
+    {
+      "id": "R-029",
+      "text": "The due count is recomputed at natural refresh points (foreground, background, post-session, day rollover) rather than fixed at scheduling time.",
+      "core": true
+    },
+    {
+      "id": "R-030",
+      "text": "Notification permission denial is handled gracefully with no crash and a clear path to opt in later.",
+      "core": true
+    },
+    {
+      "id": "R-031",
+      "text": "A Settings demo-data toggle seeds two decks with a realistic review history.",
+      "core": true
+    },
+    {
+      "id": "R-032",
+      "text": "Demo decks/cards are visibly tagged everywhere they appear: deck list, review header, and stats breakdowns.",
+      "core": true
+    },
+    {
+      "id": "R-033",
+      "text": "Demo data remains viewable individually when a user drills into that specific demo deck.",
+      "core": true
+    },
+    {
+      "id": "R-034",
+      "text": "Disabling demo data removes it fully via one Settings action, with zero residue left in real stats or streaks.",
+      "core": true
+    },
+    {
+      "id": "R-035",
+      "text": "All type, spacing, and color tokens live in a single Theme.swift referenced everywhere, with no literals scattered in views.",
+      "core": true
+    },
+    {
+      "id": "R-036",
+      "text": "The app fully supports dark mode via semantic color roles, verified in both appearances on every screen.",
+      "core": true
+    },
+    {
+      "id": "R-037",
+      "text": "Every reachable screen implements empty, loading, success, and error states as applicable to its workflow.",
+      "core": true
+    },
+    {
+      "id": "R-038",
+      "text": "No UI affordance of any kind, including disabled/greyed-out controls, exists for out-of-scope infrastructure-dependent features.",
+      "core": true
+    },
+    {
+      "id": "R-039",
+      "text": "A reviewer-visible gap/limitations register documents: cloud sync/accounts/marketplace non-goals with effort notes, the StoreKit purchase offline exception, notification due-count staleness, timezone-crossing due-status flips, and iCloud device-backup divergence across two devices.",
+      "core": true
+    },
+    {
+      "id": "R-040",
+      "text": "Free tier includes the complete, fully correct core loop (SM-2, review, CSV import/export, stats) forever, capped only at 3 decks, 300 real (non-demo) cards, and 30 days of stats history plus the 30-day forecast.",
+      "core": true
+    },
+    {
+      "id": "R-041",
+      "text": "Plus subscription removes the Free caps and adds per-deck local reminder-time customization.",
+      "core": true
+    },
+    {
+      "id": "R-042",
+      "text": "A lapsed Plus subscription never deletes or hides any existing deck, card, or review history \u2014 it only blocks creating new content beyond the caps.",
+      "core": true
+    },
+    {
+      "id": "R-043",
+      "text": "CSV import preview surfaces plan-cap-blocked rows as their own distinct, visible reason, separate from malformed-row and duplicate categories, never silently truncated.",
+      "core": true
+    },
+    {
+      "id": "R-044",
+      "text": "The App Store purchase transaction is the sole exception to offline-forever; an airplane-mode test confirms the full app including an already-purchased entitlement works offline, with only the purchase sheet requiring network and failing gracefully.",
+      "core": true
+    },
+    {
+      "id": "R-045",
+      "text": "No ads and no dark-pattern upgrade prompts; core correctness, scheduling accuracy, and review-flow speed are never paywalled.",
+      "core": true
+    },
+    {
+      "id": "R-046",
+      "text": "Grading controls (Again/Hard/Good/Easy) are distinguishable without relying on color alone, via text and/or accessible VoiceOver labels.",
+      "core": true
+    },
+    {
+      "id": "R-047",
+      "text": "Information architecture is a 3-tab shell: Study (deck list, due counts, review entry), Stats, and Settings & Tools.",
+      "core": true
+    },
+    {
+      "id": "R-048",
+      "text": "The app runs the full core loop offline forever (airplane mode), with zero crashes or hangs from any implicit network call, except the documented StoreKit purchase exception.",
+      "core": true
+    },
+    {
+      "id": "R-049",
+      "text": "No cloud sync, iCloud sync, accounts, push, or community/shared decks exist anywhere in the app.",
+      "core": true
+    },
+    {
+      "id": "R-050",
+      "text": "No deck marketplace, no media/markdown/image/audio cards, and no sub-deck nesting exist anywhere in the app.",
+      "core": true
+    },
+    {
+      "id": "R-051",
+      "text": "No ML-based scheduling beyond SM-2, no auto-tagging or smart difficulty inference, and no cross-deck merge/dedup logic exist anywhere in the app.",
+      "core": true
+    },
+    {
+      "id": "R-052",
+      "text": "Hitting a Free-tier cap mid-review-session does not corrupt or block the in-progress review session.",
+      "core": true
+    },
+    {
+      "id": "R-053",
+      "text": "Deck and card lists support text search and filter by active/archived status.",
+      "core": false
+    },
+    {
+      "id": "R-054",
+      "text": "Stats charts support optional deeper interactions (focus/zoom) without degrading baseline clarity.",
+      "core": false
+    },
+    {
+      "id": "R-055",
+      "text": "Property-based/fuzz tests exercise midnight and timezone-shift boundaries beyond the fixed required SM-2 test cases.",
+      "core": false
+    }
+  ]
+}

@@ -1,0 +1,431 @@
+{
+  "schema_version": 1,
+  "summaries": [
+    {
+      "phase": "prompt_contract",
+      "one_paragraph_summary": "The group converged on a single contract for Aura: a fully offline SwiftUI/SwiftData/Core Image-Metal/Swift Charts/StoreKit 2 app (iOS 17+) built around a daily check-in that produces a deterministic, genuinely beautiful generative 'Aura' card, with archive/streak/trend views, a monthly Wrapped export, a native share pipeline, StoreKit 2 monetization, a widget, and opt-in local notifications. Codex supplied the full requirement structure (hard requirements, non-goals, production-readiness bar, 26 testable requirements); Claude's skeptic pass didn't contradict it but closed real gaps and folded them in as amendments: visual beauty must be gated by an explicit human/visual-review checkpoint across multiple seed combinations (not just 'it renders'); the paid regeneration feature needs its own seed nonce/counter layered on the deterministic base seed, since same-seed regeneration would be a functional no-op; daily-lock logic must explicitly cover backward clock changes in addition to DST/timezone travel; demo history must be clearly labeled and must never silently merge into the real user's streak/stats; StoreKit verification claims are capped to what Simulator can actually prove (initiation + local config, never full transaction completion); video/Live Photo export is confirmed as a stretch goal that must not block the hard static 1080x1920 image export requirement; and no-network/no-third-party-SDK non-goals now explicitly include no iCloud/CloudKit sync and no analytics/crash SDKs. The merged output is a single numbered list of 25 testable, app-verifiable requirements that later phases must map every feature against.",
+      "key_decisions": [
+        "DEC-prompt_contract-001",
+        "DEC-prompt_contract-002",
+        "DEC-prompt_contract-003",
+        "DEC-prompt_contract-004",
+        "DEC-prompt_contract-005",
+        "DEC-prompt_contract-006",
+        "DEC-prompt_contract-007",
+        "DEC-prompt_contract-008",
+        "DEC-prompt_contract-009",
+        "DEC-prompt_contract-010"
+      ],
+      "open_risks": [
+        "Visual beauty remains inherently subjective; if later phases skip the explicit visual-review checkpoint, 'renders and compiles' could quietly get rubber-stamped as 'beautiful.'",
+        "Regeneration nonce mechanism must actually be implemented as a distinct seed input, not just documented as an intent \u2014 easy to accidentally implement as a same-seed re-run.",
+        "Backward-clock-change handling and DST edge cases are notoriously easy to get subtly wrong and need a concrete, testable definition before implementation, not just a stated intent.",
+        "Video/animated export scope creep could still consume disproportionate engineering time even though it's designated a stretch goal, if not actively deprioritized during build.",
+        "StoreKit verification honesty depends on later phases resisting the temptation to describe Simulator-only testing as fully verified."
+      ]
+    },
+    {
+      "phase": "product_research",
+      "one_paragraph_summary": "The group framed Aura as a daily-ritual-plus-collectible-art product (closest pattern: Co-Star/tarot-style daily card pull crossed with Spotify Wrapped for the monthly recap, not a data-first mood tracker like Daylio), aimed at an ASSUMPTION-labeled aesthetic-minded, habit-forming audience (~16-35) already comfortable with on-device apps like Apple's Journal/State of Mind, Co-Star, Daylio, and How We Feel, who will accept no-account/no-cloud if the daily experience is polished and instant. All comparable-app claims are explicitly marked ASSUMPTION since no live research was performed this phase. Beyond framing, the phase surfaced concrete build-architecture implications that carry directly into the next phases: cards must be rendered once at generation time and persisted as an image, with the widget, archive, and export pipeline all reading that cached render rather than re-invoking the generative engine live (a WidgetKit process-budget constraint that also protects the app's core determinism guarantee); any time-of-day seed input must be frozen at generation time rather than recomputed on later views; Simulator-only visual review is explicitly flagged as not equivalent to on-device Metal/Core Image review; the Wrapped feature is structurally dormant for weeks after a real (non-demo) install since it only fires at month boundaries, making an on-demand partial preview worth considering; and high-res export rendering needs off-main-thread handling with memory awareness on older devices. The group converged on a v1 scope of engine+renderer, check-in, SwiftData persistence, demo history, and static export as the must-haves, with widget/notifications/animated-Wrapped as secondary and video/Live Photo export explicitly out of scope for v1.",
+      "key_decisions": [
+        "DEC-product_research-001",
+        "DEC-product_research-002",
+        "DEC-product_research-003",
+        "DEC-product_research-004",
+        "DEC-product_research-005"
+      ],
+      "open_risks": [
+        "All audience/competitor claims are pattern-matched assumptions, not sourced research \u2014 if the actual audience skews differently (e.g., older or less social-sharing-oriented), the Wrapped/share-first prioritization could be misplaced.",
+        "The cached-render architecture decision (render once, persist, never re-derive live) must actually be implemented as the storage model in the build phase, not just documented as intent \u2014 easy to accidentally re-invoke the generative engine per view out of convenience.",
+        "Simulator vs. on-device visual fidelity gap means the visual-review checkpoint from prompt_contract could still be quietly satisfied by Simulator-only screenshots unless later phases actively insist on the distinction.",
+        "Category-wide novelty-driven dropoff risk (common to mood/ritual apps) isn't something the build can fix directly \u2014 it reinforces that widget quality and check-in speed matter as much as art quality for actual retention, which could get deprioritized if engineering time runs short."
+      ]
+    },
+    {
+      "phase": "portfolio_selection",
+      "one_paragraph_summary": "The group unanimously determined Aura is a single-app build: no portfolio split, no sibling projects, no portfolio-json manifest, since the prompt only ever asked for one app and its systems (check-in flow, deterministic seed engine, SwiftData persistence, streaks/trends, monthly Wrapped, share export) are tightly interdependent around one shared state model. Codex argued this from a systems-coherence angle and Claude from a user-experience angle (the user perceives one continuous object: open app, check in or view today's card, browse the archive, get Wrapped) \u2014 both explicitly rejected inventing extra apps (a lite version, a standalone widget app, a companion Watch app, an onboarding-only shell) just because the phase template implies portfolio thinking. Final scope: one app, one bundle identity, one StoreKit non-consumable inside that same app, with widget and share-export remaining extensions of the single canonical target already scoped in prompt_contract. Claude also used the phase to name the concrete failure mode later phases must guard against \u2014 a build that technically satisfies every requirement but produces a card that reads as a generic gradient exercise \u2014 and to restate three checkable success bars carried forward from prior phases: sub-10-second time-to-first-card with no forced tutorial, archive/trend views feeling alive (not empty-state-as-feature) once demo history is seeded, and a share export that would actually be postable rather than looking like a placeholder.",
+      "key_decisions": [
+        "DEC-portfolio_selection-001",
+        "DEC-portfolio_selection-002"
+      ],
+      "open_risks": [
+        "None specific to this phase beyond risks already carried forward from prompt_contract and product_research (visual-beauty subjectivity, regeneration-nonce implementation risk, DST/backward-clock edge cases, StoreKit verification honesty, cached-render architecture discipline)."
+      ]
+    },
+    {
+      "phase": "initial_discussion",
+      "one_paragraph_summary": "The group locked a single-sentence product promise for Aura (a ten-second daily mood check-in producing one deterministic, beautiful, on-device generative-art card that's collected, tracked, and shareable, with no account/network) and defined the primary user as an aesthetic-minded person with an existing small daily ritual who interacts one-thumb and half-asleep at a predictable moment. They settled the information architecture as four destinations (Today, Archive, Wrapped, Settings) with mood/streak trends nested inside Archive rather than a separate tab, and specified that Today has three explicit states including a widget-tap deep link that must jump straight into check-in rather than just foregrounding the app. They resolved two edge cases as product-level decisions rather than deferring them: check-in is non-committing until its final step (a force-quit with a partial pick just restarts the flow, no lock consequence), and a genuine fresh install must show a real designed empty state by default, with demo history strictly opt-in and visibly labeled the whole time it's active. New hard scope boundaries were added: no social layer, no editing/undoing a locked day, at most one canonical card per calendar day (regeneration replaces, never adds, a record), and no cross-device/reinstall continuity promise. The exact mood/chip vocabulary size and resulting seed-space dimensionality was explicitly deferred to whichever phase designs the generative algorithm, not decided here. Measurable success criteria were restated concretely: sub-10-second time-to-first-card with no forced tutorial, same-day-same-inputs-same-card determinism with materially different adjacent days, correct handling of force-quit/timezone/DST/backward-clock without duplicate or skipped days, non-empty-by-accident archive/trend/Wrapped screens, and a share export that would actually get posted (correct 1080x1920 dimensions, no screenshot artifacts, watermark never touching focal art or caption).",
+      "key_decisions": [
+        "DEC-initial_discussion-001",
+        "DEC-initial_discussion-002",
+        "DEC-initial_discussion-003",
+        "DEC-initial_discussion-004",
+        "DEC-initial_discussion-005",
+        "DEC-initial_discussion-006",
+        "DEC-initial_discussion-007"
+      ],
+      "open_risks": [
+        "Mood/chip vocabulary size is still unresolved and directly determines seed-space richness \u2014 the generative-algorithm phase needs to treat this as a first-class design question, not an afterthought.",
+        "The 'regeneration replaces rather than adds a record' rule must be implemented carefully in SwiftData so the archive/streak logic doesn't accidentally create a second entry or lose the original's timestamp semantics.",
+        "Non-committing check-in until the final step needs a concrete definition of 'final step' so it doesn't quietly drift into allowing edits after what should be a locked day."
+      ]
+    },
+    {
+      "phase": "per_app_product_brief",
+      "one_paragraph_summary": "The group produced Aura's production-grade product brief with no real disagreement: target user is ~16-34, already running an adjacent small daily self-care/mood app, checking in during dead-time pockets of their day with near-zero friction tolerance. The core loop, competitive wedge, and local-first architecture were confirmed and sharpened rather than debated. Aura+ (one non-consumable purchase, not a subscription) was defined as three concrete functional unlocks \u2014 watermark-free export, expanded palette library, and one daily regeneration \u2014 with a hard, testable acceptance bar for regeneration (must differ from the original in at least two of {palette, shape-field topology, particle/line density} for identical inputs), since a regeneration that merely recolors the same composition breaks the purchase's emotional promise. The competitive wedge was stated explicitly: Aura is an object-to-own product versus mood trackers' data-to-log framing, with trend charts positioned as a secondary byproduct of collection rather than the payoff. A real gap in the growth plan was identified and closed: relying solely on month-end Wrapped leaves a genuine new user with zero shareable moments for up to 30 days, exactly the window where home-screen retention is decided \u2014 so an on-demand 'so far this month' mini-recap, reusing the Wrapped pipeline at smaller scope, unlocks once 5-7+ real cards are banked. Local-first was reinforced with a concrete build-time guardrail (audit ModelContainer for cloudKitDatabase: .none to prevent accidental default CloudKit sync), with any future multi-device sync explicitly deferred to a user-opted-in v-next feature with its own consent screen. Two additional acceptance checks were locked for build/verify: demo-seeded and freshly-generated cards from equivalent inputs must be visually indistinguishable except for the demo label, and the timezone/DST daily-lock rule must key off the last-completed calendar day in the timezone active at completion time, verified by literally changing the Simulator's date/timezone rather than documented as intent alone.",
+      "key_decisions": [
+        "DEC-per_app_product_brief-001",
+        "DEC-per_app_product_brief-002",
+        "DEC-per_app_product_brief-003",
+        "DEC-per_app_product_brief-004",
+        "DEC-per_app_product_brief-005",
+        "DEC-per_app_product_brief-006",
+        "DEC-per_app_product_brief-007",
+        "DEC-per_app_product_brief-008"
+      ],
+      "open_risks": [
+        "The regeneration acceptance bar (differ in \u22652 of palette/topology/density) must be enforced by the actual seed-nonce implementation in the algorithm-design phase, not just checked visually after the fact.",
+        "The on-demand mini-recap adds a new rendering-pipeline entry point (partial-month data) that the generative-algorithm and Wrapped-design phases must explicitly account for, not bolt on afterward.",
+        "ModelContainer CloudKit-audit guardrail must actually be checked at build/verify time \u2014 easy to silently miss if nobody greps for cloudKitDatabase configuration.",
+        "Demo-vs-real visual parity is a subjective judgment call at review time; without a concrete side-by-side test executed during verification, it could be rubber-stamped without real comparison."
+      ]
+    },
+    {
+      "phase": "next_steps_small",
+      "one_paragraph_summary": "The group defined Aura's smallest valuable build slice as the complete check-in-to-reveal-to-persist loop: mood picker, 1-2 chip taps, deterministic seed resolution with time-of-day frozen at generation, a real render through the actual Core Image/Metal pipeline (not a placeholder), a haptic-and-spring reveal treated as non-negotiable product ceremony, persistence as a SwiftData record with cached image, a small populated archive grid, and one working static 1080x1920 share export with watermark. A genuine disagreement surfaced between this round's two contributors: Codex (running on a local fallback model since the primary was unavailable) proposed cutting demo history and the share export from the MVP slice, while Claude argued both must stay in \u2014 demo history because seed-space variety can't be validated without a real spread of seeded days, and export because it's explicitly priority (c) in the original prompt contract. That disagreement was resolved not through further debate but by deferring to already-locked upstream decisions (DEC-product_research-005, DEC-prompt_contract-007) that had already made demo history and static export v1 must-haves; Codex's cut-list conflicted with settled scope rather than raising a new consideration. Cut from this slice by mutual agreement: monthly Wrapped and its mini-recap variant, the home-screen widget, local notifications, trend/mood-distribution charts, and the functional StoreKit purchase/restore/regeneration wiring (a stubbed, honest paywall affordance can exist, but actual IAP logic waits). Validation criteria were set concretely: sub-10-second cold-launch-to-card with no tutorial, byte-identical determinism for identical same-day inputs, visually distinct output across 8-10+ mood/chip/day combinations judged by eye rather than only by test, force-quit non-committing behavior, correct Simulator date/timezone handling, demo-vs-real visual parity, and export correctness (dimensions, no UI chrome, non-overlapping watermark).",
+      "key_decisions": [
+        "DEC-next_steps_small-001",
+        "DEC-next_steps_small-002",
+        "DEC-next_steps_small-003",
+        "DEC-next_steps_small-004",
+        "DEC-next_steps_small-005"
+      ],
+      "open_risks": [
+        "This round's Codex contribution came from a local fallback model rather than the primary model, so its proposed cut list should be treated as lower-confidence input rather than a fully considered position \u2014 worth re-checking with the primary model if it becomes available again.",
+        "The 8-10+ combination visual-distinctness check still depends on human/model eyeballing at build-verify time; without someone actually doing that comparison, 'renders without crashing' could quietly get rubber-stamped as sufficient, the exact failure mode named in portfolio_selection.",
+        "Demo-vs-real visual parity (cards indistinguishable except for label) is asserted as a requirement here but not yet verified against an actual implementation \u2014 remains a build/verify-phase acceptance check, not a settled fact.",
+        "Stubbing the paywall UI while deferring real StoreKit logic means the build phase must be careful the stub is honest about what it does, not a fake 'purchase succeeded' state, per DEC-prompt_contract-008."
+      ]
+    },
+    {
+      "phase": "detailed_discussion",
+      "one_paragraph_summary": "This phase ran almost entirely on Claude's solo skeptic pass across two rounds \u2014 Codex was unavailable in round 1 (rate-limit cooldown) and returned empty output rather than fabricate a response in round 2 \u2014 but produced fourteen concrete, non-contradictory tightenings of prior principle-level decisions into testable build rules. Round 1 closed: a 30-day caption no-repeat window sized against the phrase bank; the regeneration credit and daily lock sharing one canonical 'last completed calendar day' state so clock-rolling can't grant free regenerations; an explicit WidgetKit timeline reload trigger on check-in completion so the widget never lingers on 'waiting' after an in-app check-in; notification cancellation/rescheduling on successful check-in with contextual (not first-launch) permission requests and a Settings.app deep-link on denial; demo history anchored to a fixed historical range strictly before real usage (making date collisions structurally impossible) plus an explicit streak-reset confirmation when demo mode is disabled; a live StoreKit Transaction.updates listener named as its own honest verification gap distinct from Simulator's transaction-completion limitation; SwiftData load failures surfaced as a distinguishable explicit error state rather than a silent fresh-empty-store; metadata-based (not pixel-described) accessibility text for cards plus non-color differentiation in mood/chip pickers; bundled (never fetched) watermark assets and EXIF-stripped exports; and the 8-10+ combination visual-review checkpoint named as explicitly blocked on the algorithm-design phase fixing the mood/chip vocabulary. Round 2 added four more: entitlement changes from a mid-day Aura+ purchase must never retroactively mutate an already-persisted card (only future renders/regeneration reflect new entitlements, preserving the render-once-persist-forever architecture and determinism guarantee); the international date-line/transoceanic-travel edge case is explicitly resolved as 'local calendar day wins,' accepting a same-flight double check-in or apparent streak gap as a named limitation rather than something to engineer around; the widget reload trigger must fire on regeneration as its own call site in addition to check-in completion; and the restore-purchases success state must explicitly clarify that card history stays local and isn't restored, only the entitlement is, to preempt a 'restored my purchase and lost my history' support scenario.",
+      "key_decisions": [
+        "DEC-detailed_discussion-001",
+        "DEC-detailed_discussion-002",
+        "DEC-detailed_discussion-003",
+        "DEC-detailed_discussion-004",
+        "DEC-detailed_discussion-005",
+        "DEC-detailed_discussion-006",
+        "DEC-detailed_discussion-007",
+        "DEC-detailed_discussion-008",
+        "DEC-detailed_discussion-009",
+        "DEC-detailed_discussion-010",
+        "DEC-detailed_discussion-011",
+        "DEC-detailed_discussion-012",
+        "DEC-detailed_discussion-013",
+        "DEC-detailed_discussion-014"
+      ],
+      "open_risks": [
+        "Codex did not participate at all in this phase across two rounds, so none of these fourteen resolutions have had an adversarial second-model pass \u2014 worth a lightweight sanity check later if Codex becomes available, especially on the date-line tradeoff (DEC-detailed_discussion-012), which is a genuine judgment call rather than a clear-cut fix.",
+        "Several of these rules (shared regeneration/daily-lock state, entitlement snapshotting at generation time, dual widget-reload call sites) are the kind of thing that's easy to accidentally implement as two independent code paths under build time pressure, even though they're now specified as one shared source of truth \u2014 needs explicit verification, not just code review.",
+        "The visual-review checkpoint's hard dependency on the algorithm-design phase fixing mood/chip vocabulary size (DEC-detailed_discussion-010) means that phase now carries extra weight; if it treats vocabulary size as a throwaway parameter, the downstream review gate has no real sample universe.",
+        "Demo-history date-range anchoring, StoreKit's live entitlement listener, and the entitlement-snapshot-at-generation-time rule are all subtle to get right (off-by-one on anchor dates, listener task lifetime, accidentally computing palette access live instead of from a stored snapshot) and will need explicit test coverage, not just documentation of intent."
+      ]
+    },
+    {
+      "phase": "app_features",
+      "one_paragraph_summary": "Running as a Claude solo pass again (Codex remained unavailable, CLI in cooldown), this phase converted the accumulated cross-phase decision log into a full MoSCoW-prioritized feature set and a 40-item numbered requirements-json machine contract. Must-haves: the full check-in-to-reveal-to-persist loop with the sub-10-second/zero-tutorial/non-committing rules, the daily lock's timezone/DST/backward-clock rules (with the international date-line case named as an accepted limitation, not a bug), the deterministic generative engine and its 8-10+-combination visual-review gate, the caption engine's 30-day no-repeat window, the regeneration-nonce and entitlement-snapshotting rules, the cached-render SwiftData architecture with CloudKit audited off and explicit store-load-failure handling, the archive/streak/demo-history system (fixed anchor range, opt-in, visually indistinguishable from real cards except by label), the static 1080x1920 export pipeline with bundled non-overlapping watermark and stripped EXIF, and the full StoreKit 2 purchase/restore/live-listener/honest-disclosure system \u2014 the last of which is explicitly flagged as the single riskiest must-have, with a stated fallback that any time-pressure scope cuts should happen inside StoreKit's own three unlocks rather than rushing the core engine or export. Widget, notifications, monthly Wrapped, the on-demand mini-recap, and mood-distribution trend charts are demoted to should-have, consistent with earlier phases already calling them secondary/dependent surfaces rather than proof of the core concept. A could-list (extra palettes, richer caption bank, widget size variants, onboarding polish, extra accessibility refinements) and an explicit won't-build list (social layer, locked-day editing, second archive record on regeneration, cross-device/iCloud continuity, video/Live Photo export, analytics/crash SDKs, third-party dependencies) were both restated as this phase's own explicit contract rather than left implicit. The phase's own procedural insistence \u2014 every acceptance criterion must be a concrete reviewer-executable action, not a vague adjective \u2014 is itself recorded as a decision, since that's the mechanism preventing a technically-compliant but visually-mediocre build from passing the gate.",
+      "key_decisions": [
+        "DEC-app_features-001",
+        "DEC-app_features-002",
+        "DEC-app_features-003",
+        "DEC-app_features-004",
+        "DEC-app_features-005",
+        "DEC-app_features-006",
+        "DEC-app_features-007"
+      ],
+      "open_risks": [
+        "Codex has now been absent for three consecutive phases (detailed_discussion x2, app_features); none of this prioritization or the requirements-json contract has had an adversarial second-model pass, which matters most for the must-vs-should calls on StoreKit, widget, and Wrapped that could plausibly be argued differently.",
+        "The requirements-json's 40 items are only as good as the build/verify phases actually executing their concrete acceptance actions (Simulator date changes, side-by-side visual comparisons, pixel-dimension checks on exported files) rather than treating 'requirement listed' as 'requirement verified.'",
+        "Demoting StoreKit-adjacent risk-mitigation language to prose ('if cut, cut here') depends on whoever builds this actually reading and respecting that guidance under real time pressure, not just the requirements list itself.",
+        "All of this still rests on the not-yet-independently-verified assumption from detailed_discussion that shared day-state, entitlement snapshotting, and dual widget-reload triggers get implemented as single shared sources of truth rather than accidentally duplicated logic."
+      ]
+    },
+    {
+      "phase": "design_discussion",
+      "one_paragraph_summary": "Running as another Claude solo pass (Codex remained unavailable across this phase), the group locked Aura's concrete design language and full screen/state model. The design language is 'Dusk Gallery' \u2014 dark-first, frosted translucent surfaces letting each card's palette bleed into the chrome, slow physical-spring motion \u2014 rationalized specifically against the half-asleep/pre-bed check-in persona rather than a generic 'clean and modern' label. The emotional target is anticipation resolving into quiet, specific delight, never gamified urgency or clinical logging. The signature interaction is the live bloom reveal: the actual Core Image/Metal generative pipeline visibly renders on screen over ~1.5-2s with three distinct haptic beats, explicitly required to be the real engine running (not a canned animation over a static image), since the app's core promise depends on the reveal visibly not being a stock transition. A stock default UI (system List rows, segmented mood Picker, generic share sheet, UIKit purchase alert, default large-title NavigationStack) was explicitly rejected with four concrete, checkable differences rather than adjectives. Today's screen model was expanded to six explicit states including a store-load-failure state that must look and read distinctly from genuine new-user emptiness (guarding against the silent-data-loss failure mode already flagged upstream) and a regenerate affordance that's visibly gated rather than hidden for free users. Archive gets per-cell demo badging (not just a banner) plus a designed empty state; Wrapped gets an explicit 'not yet unlocked' state instead of appearing dormant/broken before its first real content exists; Settings holds the Aura+, restore-purchases, demo-toggle, and notification-permission affordances already specified upstream. Two previously-unnamed gaps were resolved: caption legibility over busy generative art needs a defined scrim/frosted-plate/adaptive-color treatment, and the signature bloom reveal needs its own Reduce Motion fallback (a gentler crossfade preserving the same haptic beats) rather than a naive animation-off toggle.",
+      "key_decisions": [
+        "DEC-design_discussion-001",
+        "DEC-design_discussion-002",
+        "DEC-design_discussion-003",
+        "DEC-design_discussion-004",
+        "DEC-design_discussion-005",
+        "DEC-design_discussion-006",
+        "DEC-design_discussion-007",
+        "DEC-design_discussion-008"
+      ],
+      "open_risks": [
+        "Codex has now been absent across detailed_discussion (x2), app_features, and design_discussion \u2014 none of the design language, screen states, or rejected-default reasoning has had an adversarial second-model pass.",
+        "The live-bloom-reveal requirement (real engine rendering on screen, not a pre-rendered animation) is technically demanding within a ~1.5-2s window and needs explicit verification in the build phase that it isn't quietly implemented as a decorative animation layered over an already-computed static render.",
+        "Per-cell demo badging, the distinct store-load-failure state, and the Reduce Motion bloom fallback are all easy to skip or under-implement under build time pressure since they're detail-level UI states rather than headline features.",
+        "Caption legibility treatment (scrim/frosted-plate/adaptive-color) is specified as a requirement but not yet chosen as a single concrete approach \u2014 build phase will need to pick one and verify it against genuinely bright/busy card compositions, not just typical ones."
+      ]
+    },
+    {
+      "phase": "design_handoff",
+      "one_paragraph_summary": "design_handoff produced Aura's complete build-ready DESIGN SPEC across two rounds, entirely as Claude solo passes (Codex was unavailable the whole phase). Round 1 locked architecture and systemic decisions: a single @MainActor @Observable AuraStore as sole owner of day-state/entitlement/demo-mode; a fully custom TabView tab bar with typed per-tab route enums and a PendingDeepLink mechanism for widget-tap deep-linking; an App Group shared container requirement for the widget (cached PNG + palette metadata only); a concrete, performance-honest redefinition of the bloom reveal as 4 real cached intermediate filter-chain composites cross-dissolved with aligned haptics (avoiding both a 60fps performance trap and a build-time temptation to fake the reveal); date-string-keyed archive grid identity with separately-cached thumbnails; spacing/type/radius values; a frosted-plate caption treatment with an automatic 4.5:1-contrast fallback; and a reasoned decision to skip external Claude Design since the app's differentiator (real generative output) can't be produced or judged by a static mockup tool. Round 2 closed every gap the coordinator flagged: full light+dark hex values for every semantic color role including a distinct demo-badge amber tint (kept separate from Accent so it reads as status, not as a button); concrete per-screen empty/error/locked-state copy, icon, and recovery action (including a 'Copy Diagnostic Info' action on the store-load-failure state so a user isn't stuck unable to report a data problem); a decision to implement EmptyStateView and ErrorStateView as single shared parameterized components reused verbatim across Today/Archive/Wrapped rather than bespoke near-duplicates, with Archive's error state explicitly the same component instance as Today's; and a complete named component inventory mapped to every screen, including treating the Wrapped poster as an AuraCardView variant rather than a separate rendering path. The phase converged with all required DESIGN SPEC headings filled with explicit values and zero adjectives standing in for numbers, satisfying every stated acceptance check.",
+      "key_decisions": [
+        "DEC-design_handoff-001",
+        "DEC-design_handoff-002",
+        "DEC-design_handoff-003",
+        "DEC-design_handoff-004",
+        "DEC-design_handoff-005",
+        "DEC-design_handoff-006",
+        "DEC-design_handoff-007",
+        "DEC-design_handoff-008",
+        "DEC-design_handoff-009",
+        "DEC-design_handoff-010",
+        "DEC-design_handoff-011",
+        "DEC-design_handoff-012",
+        "DEC-design_handoff-013"
+      ],
+      "open_risks": [
+        "Codex was absent for the entire design_handoff phase (and every phase since detailed_discussion round 1) \u2014 none of this architecture, the bloom-reveal performance reinterpretation, or the color/component spec has had an adversarial second-model pass; worth a lightweight sanity check if Codex becomes available before or during build.",
+        "The four-intermediate-composite bloom reveal is a substantive reinterpretation of design_discussion's 'real engine, not a canned animation' requirement \u2014 build phase should verify it still reads, on real rendered output, as visibly the engine constructing the card live and not as a generic crossfade.",
+        "Color hex values were hand-picked with contrast 'checked roughly' by the model rather than computed/verified programmatically \u2014 build phase should run an actual contrast check on the TextPrimary/TextSecondary pairs against Background/Surface in both appearances before treating this as settled.",
+        "Reuse-heavy component architecture (shared EmptyStateView/ErrorStateView, AuraCardView-as-Wrapped-poster-base) is efficient but means a bug or regression in one shared component surfaces across multiple screens simultaneously \u2014 needs test coverage proportional to its reuse, not just per-screen visual review.",
+        "All of this remains unverified against actual rendered output \u2014 the phase's own logic for declining external design (real generative output is the true test) means the build/verify phases carry full responsibility for the beauty gate; a spec-complete design phase does not itself prove the cards will look beautiful."
+      ]
+    },
+    {
+      "phase": "ios_architecture_review",
+      "one_paragraph_summary": "Running as a Claude solo QA/risk pass (Codex remained unavailable), this phase closed the last major open architecture fork and tightened several claims that were previously stated more strongly than they could be honestly kept. The rendering engine is locked to a single CIFilter-based pipeline (stock filters plus custom CIColorKernel/CIWarpKernel for flow-field/particle control) through one shared CIContext, reused identically for the four bloom intermediates, the full-res 1080x1920 export, archive/widget thumbnails, and the Wrapped poster \u2014 explicitly rejecting a split Metal-for-live-reveal/CIFilter-for-export design, since that would be a second rendering implementation risking visual drift from the first on the one thing the app is graded on. The determinism guarantee was split honestly into a pure, GPU-free, unit-testable 'recipe' struct (the real same-inputs-same-output contract) versus pixel output, which is only a deterministic function of that recipe within a single device/OS and must never be tested via cross-environment byte comparison. SwiftData gets VersionedSchema/SchemaMigrationPlan from v1 given there's no server to recover from a bad migration, and the canonical 'last completed day' value must be derived live from persisted records rather than cached separately, closing another single-source-of-truth risk. Permissions/privacy came back minimal: no location/camera/mic/health/contacts, and using ShareLink instead of UIActivityViewController with no direct Photos write means zero privacy-related Info.plist keys are needed at all. StoreKitTest/SKTestSession was added as the automated-regression backbone for purchase/restore/entitlement logic, explicitly complementing rather than replacing manual .storekit Simulator UX testing. BGTaskScheduler and all background-execution primitives are ruled out in favor of foreground-lazy Wrapped/widget-staleness checks. The visual-beauty gate was turned into a concrete architectural deliverable \u2014 a debug-only render harness that batch-renders a fixed canonical combination set and also validates demo-vs-real visual parity \u2014 rather than trusting a one-time manual review to happen under time pressure. ML/AR use was restated as a hard won't-build guardrail tied directly to the deterministic/never-hallucinated caption promise.",
+      "key_decisions": [
+        "DEC-ios_architecture_review-001",
+        "DEC-ios_architecture_review-002",
+        "DEC-ios_architecture_review-003",
+        "DEC-ios_architecture_review-004",
+        "DEC-ios_architecture_review-005",
+        "DEC-ios_architecture_review-006",
+        "DEC-ios_architecture_review-007",
+        "DEC-ios_architecture_review-008",
+        "DEC-ios_architecture_review-009",
+        "DEC-ios_architecture_review-010"
+      ],
+      "open_risks": [
+        "Codex has now been absent for every phase since detailed_discussion round 1 \u2014 none of this phase's architecture calls (especially the CIFilter-over-Metal decision and the determinism-contract split) have had an adversarial second-model pass.",
+        "The recipe-struct/pixel-output determinism split is a reinterpretation of an earlier, more absolute 'byte-identical' claim from next_steps_small \u2014 build/verify phases need to actually implement and test the two layers separately, not quietly test only pixel output and call it done.",
+        "The debug-only render harness is only valuable if build phases actually build and use it before declaring the beauty gate satisfied \u2014 it's easy to skip since it's a testing tool, not a user-facing feature.",
+        "VersionedSchema/SchemaMigrationPlan adds real upfront complexity for a single-schema-version app; if build phases treat it as boilerplate to minimize rather than a real safety net, the intended protection could end up shallow."
+      ]
+    },
+    {
+      "phase": "tech_specs",
+      "one_paragraph_summary": "tech_specs closed the seed-space and full technical architecture for Aura across two Claude solo rounds (Codex never came back online this phase). The seed space is 8 moods (radial-wheel ordered) x 24 chips (4 families of 6, pick 1-2) x 3 composition families (paintBloom/particleField/flowLines, mapping directly to the prompt's three named visual languages) x date, hashed via SHA256 into a splitmix64 stream driving a pure-Swift deterministic noise field rather than fixed recolored templates. Regeneration is guaranteed to diverge in composition family, palette, and flow-field topology through an algebraic forcing function (RegenerationDivergenceEngine), not hash-stream probability, satisfying the paid-feature acceptance bar (DEC-per_app_product_brief-002) by construction and verifiable with a single non-flaky unit test. Captions compose from 3 independently-tracked fragment pools with their own 30-day no-repeat windows. The palette library is 32 curated entries, gated 16/32 by entitlement tier, resolved from the entitlement snapshot stored at generation time (never live). Demo history anchors to a fixed 34-day range computed once on first enable and persisted, making date collision with real usage structurally impossible permanently. The mood trend view has a concrete Swift Charts data contract (MoodTrendDataPoint, weekly default granularity) that includes demo entries identically to real ones. Architecturally: a local AuraKit Swift Package (Models/Engine/Persistence, zero UIKit/CoreImage) is linked identically by the app, widget, and test targets; an injectable AuraClock makes DST/backward-clock/date-line logic unit-testable; the main SwiftData store stays in the app's private container while only rendered images/metadata go into the App Group for the widget; and a closing constraint requires all 3 composition families to implement the same 4-intermediate/3-haptic-beat bloom-reveal contract already locked in design_handoff, with an explicit fallback to cut to 2 families rather than ship a mediocre third under time pressure. A full interfaces-json contract covering every cross-lane type was produced and iterated to completeness across both rounds.",
+      "key_decisions": [
+        "DEC-tech_specs-001",
+        "DEC-tech_specs-002",
+        "DEC-tech_specs-003",
+        "DEC-tech_specs-004",
+        "DEC-tech_specs-005",
+        "DEC-tech_specs-006",
+        "DEC-tech_specs-007",
+        "DEC-tech_specs-008",
+        "DEC-tech_specs-009",
+        "DEC-tech_specs-010",
+        "DEC-tech_specs-011",
+        "DEC-tech_specs-012",
+        "DEC-tech_specs-013",
+        "DEC-tech_specs-014",
+        "DEC-tech_specs-015"
+      ],
+      "open_risks": [
+        "Codex was absent for the entirety of tech_specs (and every phase since detailed_discussion round 1) \u2014 none of the seed algorithm, regeneration-divergence mechanism, or composition-family architecture has had an adversarial second-model pass.",
+        "Three composition families is meaningfully more rendering implementation than one parameterized noise field; the mandated fallback (cut to 2 rather than ship 3 at reduced quality) depends on the build phase actually recognizing time pressure early enough to invoke it rather than discovering it too late.",
+        "The requirement that all 3 composition families fit the same 4-intermediate/3-haptic-beat bloom contract is a new constraint layered onto an already-locked design decision; if particleField or flowLines don't naturally decompose into 4 stages, build phase will need real design work to force-fit them, not just a config change.",
+        "The debug render harness's adjacent-seed-pair requirement (catching noise-field degeneracy) and the new regeneration-divergence unit test are both only valuable if the build phase actually implements and runs them before declaring the beauty/regeneration gates satisfied.",
+        "All of this remains unverified against actual rendered pixel output \u2014 per ios_architecture_review's own logic, a spec-complete tech_specs phase does not itself prove the noise-driven engine or the 3 composition families will look genuinely beautiful; that responsibility now sits entirely with build and verification phases."
+      ]
+    },
+    {
+      "phase": "project_plan",
+      "one_paragraph_summary": "project_plan locked Aura's build plan across two Claude solo rounds (Codex unavailable throughout). Round 1 established the governing principle \u2014 sequence by dependency graph, not by the must/should/could feature-priority list \u2014 and surfaced key structural risks: AuraKit as a hard-blocking foundation, the 3-composition-family renderer as the real critical path and biggest unestimated risk, the need for an entitlement test fixture from day one, a module-boundary catch (AuraRenderer protocol belongs in the app target, not the zero-CoreImage AuraKit package), verification split by GPU-free-vs-render-dependent nature, demo history as a gating dependency rather than content polish, and widget/notifications as the one legitimate parallelization opportunity. Round 2 converted these constraints into the actual milestone plan: M0 project/target/App-Group/StoreKit-config scaffolding (previously implicit, now explicit to prevent target drift); M1 AuraKit including capped content curation (24 chips, 32 palettes, caption fragment pools) and a free-tier-default entitlement fixture, fully unit-tested first; M2 the renderer, with an operationalized checkpoint \u2014 build paintBloom fully through the debug harness first, then one bounded iteration pass per remaining composition family gated on a concrete '>=3 canonical seeds read as structurally different' test, cutting immediately on failure per the pre-existing 2-family fallback; M3 demo history generation bundled with a demo-vs-real parity check in the same milestone; M4 the Today check-in/reveal flow, required to be built against real M2/M3 rendered output rather than placeholders, since the caption-legibility contrast fallback can only be meaningfully tested against real busy compositions; a parallel fork of M5 (Archive/Trend/Wrapped UI) and M6 (StoreKit + Widget + Notifications as three sub-lanes of one milestone) once M1's entitlement plumbing and M2's App Group writer exist; and M7, a single named, budgeted final-verification milestone covering the 8-10+ combination visual review, demo-parity confirmation, manual Simulator date/timezone/DST pass, StoreKitTest suite, export/watermark/EXIF checks, accessibility/dark-mode passes, and the entitlement non-retroactive-mutation check. The round's sharpest contribution was naming a gap none of the prior nine phases had addressed: since this build runs autonomously with no human commits between orchestration runs, the harness must write canonical renders to inspectable files on disk, and the beauty-gate verification step must document an actual 'opened and looked at the files' action rather than 'the harness executed without crashing' \u2014 otherwise the exact failure mode named back in portfolio_selection (technically-compliant, never actually beauty-judged) reappears at the plan level.",
+      "key_decisions": [
+        "DEC-project_plan-001",
+        "DEC-project_plan-002",
+        "DEC-project_plan-003",
+        "DEC-project_plan-004",
+        "DEC-project_plan-005",
+        "DEC-project_plan-006",
+        "DEC-project_plan-007",
+        "DEC-project_plan-008",
+        "DEC-project_plan-009",
+        "DEC-project_plan-010",
+        "DEC-project_plan-011",
+        "DEC-project_plan-012",
+        "DEC-project_plan-013",
+        "DEC-project_plan-014",
+        "DEC-project_plan-015"
+      ],
+      "open_risks": [
+        "Codex was absent for the entirety of project_plan (and every phase since detailed_discussion round 1) \u2014 none of this milestone sequencing, the renderer checkpoint mechanics, or the autonomous-verification gap has had an adversarial second-model pass.",
+        "The M2 renderer checkpoint's '>=3 seeds read as structurally different' test still depends on whoever/whatever executes it making a real qualitative judgment rather than a rubber-stamp pass \u2014 the plan names the trigger but execution discipline still matters.",
+        "The harness-writes-to-disk-and-gets-actually-inspected requirement is a new process constraint on an autonomous build pipeline; if the task-assignment or build phases don't carry it forward as a literal checklist item, it could be silently dropped the same way 'polish' items historically get deprioritized under time pressure.",
+        "M6's three sub-lanes (StoreKit, widget, notifications) sharing one milestone envelope means a delay or complication in one (most likely StoreKit, already flagged as the riskiest must-have-adjacent item) could visually read as blocking the other two even though they're not functionally dependent \u2014 task assignment should keep them schedulable independently within M6.",
+        "All of this remains a plan, not executed work \u2014 its value depends entirely on the next phase (task assignment) preserving the dependency order and concrete checkpoints rather than flattening them back into a simple feature checklist."
+      ]
+    },
+    {
+      "phase": "task_assignments",
+      "one_paragraph_summary": "task_assignments produced Aura's full build-execution contract in a single Claude solo round (Codex remained unavailable for the entire project since detailed_discussion round 1). Lane ownership was mapped directly onto tech_specs' already-locked owning_lane tags rather than inventing a new split: data_domain owns the AuraKit package; services_utilities owns the clock/day-state abstractions and the entire CIFilter renderer (kept out of primary_ui specifically to prevent a second rendering path for the bloom reveal); primary_ui owns AuraStore, routing, Theme.swift, and every screen/component; polish_resilience owns StoreKit, widget, notifications, export, accessibility descriptions, and the M7 verification milestone. Forbidden-edit zones were locked around AuraKit/Sources, Theme.swift, AuraStore.swift, and project.pbxproj (never hand-edited as text) to prevent the two-sources-of-truth drift this project has repeatedly flagged elsewhere, now enforced at the file-ownership level. Merge mechanics are one branch per lane, gated by the M0->M1->M2 dependency order already locked in project_plan. Testing responsibility was split by lane rather than centralized, with polish_resilience's M7 milestone carrying the mandatory 'actually opened and inspected the on-disk harness files' documented action rather than accepting 'the harness ran' as proof of beauty. A real gap was found and closed while assembling the backlog: AuraTabBar and AuraTopBar, both named in design_handoff's locked component inventory, had no task in the initial draft and were added as T-041. A canonical accessibilityIdentifier map was locked across every control the flows-json UI-crawl contract touches, and folded into the acceptance criteria of whichever task owns that control's file rather than left as a separate untracked requirement. The final deliverable is a 41-task backlog with an acyclic dependency graph, non-overlapping file ownership (except the pbxproj, handled by sequencing), and 7 self-contained UI-crawl flows covering check-in/reveal/share, demo-seeded archive and trend browsing, Wrapped, Aura+ purchase, honest restore, and purchase-then-regenerate \u2014 collectively mapping every must-have requirement accumulated across the prior nine phases to at least one concrete, owned task.",
+      "key_decisions": [
+        "DEC-task_assignments-001",
+        "DEC-task_assignments-002",
+        "DEC-task_assignments-003",
+        "DEC-task_assignments-004",
+        "DEC-task_assignments-005",
+        "DEC-task_assignments-006",
+        "DEC-task_assignments-007"
+      ],
+      "open_risks": [
+        "Codex has now been absent for the entire project since detailed_discussion round 1 \u2014 none of this phase's lane/file-ownership split, forbidden-zone rules, or accessibilityIdentifier contract has had an adversarial second-model pass.",
+        "The accessibilityIdentifier contract is only as good as build lanes actually wiring the exact strings specified here; any drift (a renamed control, a missing identifier) will silently fail the UI-crawl gate even if the feature itself works.",
+        "T-041's late addition (AuraTabBar/AuraTopBar) suggests the component inventory cross-check was done manually rather than systematically \u2014 worth a second pass during build kickoff to confirm no other design_handoff component was similarly dropped.",
+        "The renderer's go/no-go checkpoint (T-016/T-017) and the M7 visual-review file-inspection requirement (T-037) remain the two highest-risk items for being quietly rubber-stamped under time pressure, exactly as project_plan already warned.",
+        "Flow self-containment (each flow redoing check-in rather than chaining) is a defensive assumption about the UI-crawl runner's state model; if the runner actually does preserve state across flows in one session, some steps become redundant but should not break correctness."
+      ]
+    },
+    {
+      "phase": "implementation_readiness_gate",
+      "one_paragraph_summary": "The implementation_readiness_gate cleared Aura for build, running as a final Claude solo pass (Codex remained unavailable for the entire project since detailed_discussion round 1, a standing condition this gate explicitly decided to accept rather than keep re-flagging as an open risk). The verdict is READY TO BUILD with three narrow, binding amendments folded into the existing 41-task backlog rather than any new scope or re-litigated decisions: (1) a new data_domain task, WrappedAggregator, closes a real gap where nothing in the backlog computed the actual month's dominant palette/mood story for the Wrapped poster \u2014 T-018/T-029 only wired rendering and UI shell \u2014 with an explicit fallback (most-recent-qualifying-card) if cut, since Wrapped remains should-have; (2) the tech_specs radial-wheel mood ordering is bound explicitly to internal enum/palette-hue-continuity concerns only, with a hard constraint added to T-024 that the rendered MoodChipCluster must be a tappable grid/cluster, never a literal spinning dial, to protect the sub-10-second half-asleep check-in promise that's been the app's north star since initial_discussion; (3) the renderer's particleField/flowLines go/no-go checkpoints (T-016/T-017) are numerically bounded to one implementation pass plus at most one revision pass before the pass/cut decision must fire, closing a real risk that an unbounded 'iteration pass' could either rubber-stamp on the first attempt or spiral indefinitely in an autonomous pipeline with no human live to call it. Every other cross-phase consistency check passed: the requirement-to-task mapping is complete against the accumulated 30-line requirement list, lane/file ownership matches tech_specs' own assignments, all 7 UI-crawl flows exercise every primary user promise including the demo-toggle-then-browse path, and the M7 verification milestone already carries every scattered acceptance criterion (visual review with mandatory file-inspection, demo-vs-real parity, DST/backward-clock/date-line pass, StoreKitTest suite, export/watermark/EXIF checks, dark mode/accessibility, entitlement non-retroactive-mutation) as a named, owned, reviewer-executable line item. Final scope for build is unchanged from task_assignments: full must-have set, should-haves in the already-agreed parallel lane, and the existing won't-build list.",
+      "key_decisions": [
+        "DEC-implementation_readiness_gate-001",
+        "DEC-implementation_readiness_gate-002",
+        "DEC-implementation_readiness_gate-003",
+        "DEC-implementation_readiness_gate-004"
+      ],
+      "open_risks": [
+        "Codex has now been absent for the entire project since detailed_discussion round 1 \u2014 this gate made an explicit, final decision to proceed rather than continue holding for a second-model adversarial pass, on the grounds that each Claude round's self-adversarial rigor (named failure modes, explicit rejected-alternatives, a concrete file-based visual harness with mandatory human inspection) is sufficient; if this judgment proves wrong, it will only surface during actual build/verification.",
+        "WrappedAggregator is a newly-added task with no prior design_handoff/tech_specs interface contract behind it \u2014 the build lane implementing it will need to derive its own data contract (e.g. dominant palette selection algorithm, mood-arc summarization) without the benefit of a dedicated design phase, since this gate is the last checkpoint before code.",
+        "The mood-picker UI constraint (grid/cluster, not a dial) is a course-correction on ambiguous prior-phase language; if any downstream visual assets or copy already assumed a wheel/dial metaphor, this gate did not audit for that beyond the component-level constraint on T-024.",
+        "The one-revision-pass bound on the renderer checkpoint is a new hard constraint on T-016/T-017 that increases the chance of landing on the 2-family fallback rather than shipping all 3 composition families \u2014 this trades a small risk of under-delivering on visual variety for protection against unbounded iteration, consistent with the project's standing priority that beauty-of-what-ships beats family count."
+      ]
+    },
+    {
+      "phase": "build_coordination",
+      "one_paragraph_summary": "This was the final build_coordination round. Claude A wired real Regenerate functionality into TodayScreen \u2014 RegenerationDivergenceEngine.regenerate(...) called with its exact real signature (frozen timeOfDay from the existing recipe, regenerationNonce as the daily-use counter), correctly clearing stale export paths on success so Archive never shows pre-regeneration art under a post-regeneration entry, and correcting a false assumption from the prior round (that .task(id:) would auto-refire on regeneration \u2014 it doesn't, since flowState is unchanged, so an explicit re-render call was added). Concurrently, Claude B fixed a real privacy/correctness bug in shareButton: free-tier shares had been writing the watermarked export into fullResImagePath, which ArchiveScreen reads back into the grid \u2014 meaning every free-tier user's own private archive would have permanently shown a 'Made with Aura' watermark baked into their own cards. The fix renders a second unwatermarked copy from the same recipe specifically for archive persistence. Both changes landed in the same file without collision (verified independently by both lanes and the integrator), and a live mid-edit race Claude B flagged (a call site to a not-yet-saved function) resolved cleanly once Claude A's save landed. The integrator independently re-verified RegenerationDivergenceEngine's real signature against the call site and found an exact match, confirmed no duplicate/orphaned code from the concurrent edits, and confirmed a sixth consecutive xcodebuild denial across this session \u2014 still an environment/tooling limitation, not a code issue. With this, Aura's full daily loop is genuinely built end-to-end: real deterministic seed generation, real SwiftData persistence with day-lock, a real seed-driven three-family Core Image renderer displayed inline on reveal, real correctly-sized watermarked/unwatermarked PNG exports via the native share sheet, a real Archive grid reading back actual rendered art, real StoreKit 2 purchase/restore/entitlement-hydration, and now real, entitlement-gated, once-daily regeneration. This is recorded as the project's most complete state to date, with two explicit, load-bearing caveats carried forward honestly: no session across four rounds has ever obtained a machine-verified compile pass (toolchain access denied every attempt), and nobody has ever visually seen the renderer's actual output, so the original prompt's top-priority 'genuinely beautiful' requirement remains unconfirmed by observation despite the underlying implementation being real and now fully wired into the core flow.",
+      "key_decisions": [],
+      "open_risks": [
+        "No machine-verified xcodebuild compile pass exists for this app across all of build_coordination (six consecutive denied attempts) \u2014 this must be resolved before any GO verdict, via an actual working toolchain session, not further manual review.",
+        "The renderer's visual output has never been seen by any human or agent in this project's history \u2014 'genuinely beautiful, not placeholder-looking' (the original prompt's own explicit top priority and disqualifying condition) is completely unverified by observation.",
+        "Wrapped monthly recap and the Trend/mood-distribution Swift Charts view remain honest empty states \u2014 their AuraKit aggregators (WrappedAggregator, MoodTrendAggregator) were never built anywhere in this project.",
+        "The 16-entry renderer-local palette table is a real but temporary stand-in for the spec'd 32-unique-palette PaletteLibrary, which still doesn't exist in AuraKit.",
+        "The home-screen widget extension was never built/wired this project despite being a named core feature in the original prompt.",
+        "The same recipe renders twice with no caching on the reveal-then-share happy path \u2014 bounded and non-breaking, but a real inefficiency.",
+        "Codex was unavailable (cooldown/rate_limit) for this entire final round, so the most safety-critical change this round (the free-tier watermark-leaking-into-archive privacy fix) landed with zero second-model adversarial review, consistent with the project's total absence of Codex review across nearly its entire history."
+      ]
+    },
+    {
+      "phase": "write_tests",
+      "one_paragraph_summary": "This iteration of write_tests added real, deterministic XCTest coverage for NotificationScheduler (12 tests covering permission gating, day-keyed idempotent scheduling, stale-reminder cleanup on day rollover, the reminder-hour-passed guard, prefix-scoped cancellation, and honest granted/denied permission reporting) via a new NotificationCenterProviding protocol seam around UNUserNotificationCenter that keeps the real default (UNUserNotificationCenter.current()) unchanged for production call sites. Only one contributor (Claude B) produced work this round; Codex A/B were unavailable as in every round since detailed_discussion, and Claude A errored out entirely. As integrator, beyond wiring in the new file, two concrete gaps were found and closed: (1) two test files from the prior build_coordination phase (StoreKitManagerTests.swift, ExportPipelineTests.swift) had been committed to disk but never actually registered in project.pbxproj because that round's integrator was rate-limited mid-wrapup \u2014 caught via the standard file-registration sweep and fixed alongside this round's file, bringing the project to 5 registered test files (plus the separate AuraKitTests SwiftPM package) with 21/21 app-target and 5/5 test-target files verified against disk; (2) StoreKitManagerTests relies on SKTestSession(configurationFileNamed: \"Aura\") resolving Aura.storekit via Bundle.main at test runtime \u2014 confirmed AuraTests is TEST_HOST-hosted inside Aura.app (so Bundle.main does resolve to the app bundle during tests), but Aura.storekit itself was never bundled as an actual resource, only referenced by the scheme's separate Run-action pointer; added a PBXResourcesBuildPhase bundling it into the Aura target and updated project.yml to match, though this fix is compile-unverified since xcodebuild/xcodegen remain unrunnable in this sandbox. The app's core product gap is unchanged: no generative engine and no SwiftData persistence exist yet, so all five test files necessarily cover shell/plumbing logic (chip-selection validity, day-key/demo-mode/entitlement state, notification scheduling, export pixel-dimension/EXIF guarantees, StoreKit purchase/restore/refund-listener flows) rather than the actual card-generation engine, which simply doesn't exist yet to test.",
+      "key_decisions": [],
+      "open_risks": [
+        "None of this round's test files (or the pbxproj wiring fixes) have been verified by an actual xcodebuild/xcodegen run \u2014 xcodegen and xcodebuild remain unrunnable in this sandbox across every round of the project so far; the gap between 'consistent by manual inspection' and 'confirmed to build and pass' keeps growing as more test files accumulate.",
+        "The Aura.storekit-as-bundled-resource fix addresses the concrete risk Claude B flagged (SKTestSession needing Bundle.main to resolve the config file) but is itself unverified without a compiler \u2014 if SKTestSession's actual resource-lookup mechanism differs from what's assumed here, StoreKitManagerTests could still fail to locate the configuration at runtime.",
+        "StoreKitManagerTests' refundTransaction(identifier:) call was explicitly flagged by its author as the one API signature not verified against real Xcode docs in this sandbox \u2014 if it doesn't compile as written, that's a real risk isolated to one test method, not the whole file.",
+        "Codex has now been absent for essentially the entire project since detailed_discussion round 1, including this test-writing phase \u2014 no adversarial second-model review of any test's correctness or coverage adequacy.",
+        "The core product (generative engine, deterministic seeding, SwiftData persistence) remains entirely unbuilt after seven cumulative build/test rounds; write_tests could only add coverage for the shell that exists, not the product the app is actually about \u2014 build_verification's eventual xcodebuild test run will exercise real, meaningful tests, but they verify plumbing, not the app's central promise."
+      ]
+    },
+    {
+      "phase": "build_verification",
+      "one_paragraph_summary": "build_verification ran as a single Claude pass (Codex remained unavailable, consistent with every phase since detailed_discussion round 1) and confirmed the orchestrator's existing xcodebuild result: the app compiles cleanly for the iOS Simulator and its existing narrow XCTest suite (chip selection, notification scheduling, export EXIF/dimension guarantees, StoreKit purchase/restore/refund via SKTestSession) passes. Claude directly inspected AuraClock.swift, Vocabulary.swift, and DayStateResolverStubTests.swift and confirmed via their own docstrings that Aura's three hardest, most-decided requirements \u2014 the deterministic generative recipe engine (SHA256/splitmix64 hashing, noise-driven flow field, RegenerationDivergenceEngine), DST/backward-clock/date-line-safe day-state resolution, and SwiftData persistence \u2014 are all still bootstrap stubs, not implemented logic, and not bugs. Since no compile or test failures exist, there was nothing to repair under this phase's minimal-repair, no-new-features mandate; the phase's honest output is that the green xcodebuild result should be read strictly as 'compiles and existing tests pass,' not as evidence the app fulfills its core generative-art/determinism/persistence promise, and that closing this gap requires routing real implementation work back into a build phase staffed for it.",
+      "key_decisions": [],
+      "open_risks": [
+        "The app's three most-litigated core requirements (generative engine, DST-safe day-state, SwiftData persistence) remain entirely unimplemented after eight-plus cumulative build/test/verification rounds; every prior phase's detailed design work for these systems (seed hashing, composition families, VersionedSchema, AuraClock injection) has had zero code built against it.",
+        "A passing xcodebuild/XCTest result risks being read by later orchestration steps as 'Aura is done' if the distinction between 'compiles and narrow tests pass' versus 'fulfills its stated core promise' isn't carried forward explicitly.",
+        "Codex has now been absent for essentially the entire project since detailed_discussion round 1, including this verification phase \u2014 no adversarial second-model check on this phase's conclusion that nothing here is repairable under the current phase's scope.",
+        "If the orchestrator's phase sequence has no remaining build phase to route real data_domain/services_utilities implementation work into, this stub state may become the final shipped state despite being explicitly flagged as incomplete against the original prompt's stated priorities."
+      ]
+    },
+    {
+      "phase": "human_qa_checklist",
+      "one_paragraph_summary": "human_qa_checklist ran as a single Claude solo pass (Codex remained unavailable, consistent with the entire project since detailed_discussion round 1) and produced a two-tier manual QA script rather than a single flat checklist, given that build_verification had just confirmed Aura's three hardest requirements (deterministic generative engine, DST/backward-clock-safe day-state, SwiftData persistence) remain bootstrap stubs and the test target currently fails to compile (missing EntitlementSnapshot type). Tier 1 covers everything actually walkable against the current shell: four-tab custom chrome (rejecting stock tab bar/large-title nav), dark-mode semantic color token verification across all screens, Dynamic Type AX3/AX5 and VoiceOver passes on existing static content, notification permission grant/deny paths including the Settings.app deep-link on denial, StoreKit purchase/restore initiation via the local .storekit config with an inline (not footnoted) caveat that Simulator can never prove a completed real transaction, an airplane-mode pass confirming zero network activity anywhere, and force-quit/rotation crash-safety checks. Tier 2 explicitly lists every specified-but-currently-blocked acceptance action \u2014 verbatim from prior phases' locked decisions \u2014 covering the bloom-reveal check-in flow, determinism/regeneration-divergence verification, the DST/backward-clock/date-line Simulator date-manipulation pass, entitlement non-retroactive-mutation, archive/streak/demo-history population and demo-vs-real parity, the trend chart, Wrapped's locked/countdown and unlocked states, end-to-end export dimension/EXIF/watermark checks, and widget deep-linking \u2014 each tagged with why it's currently unrunnable (no renderer, no DayStateResolver, no persistence layer) so the exact acceptance criteria survive for whoever eventually completes the core engine rather than being silently skipped or reinvented from scratch.",
+      "key_decisions": [
+        "DEC-human_qa_checklist-001",
+        "DEC-human_qa_checklist-002",
+        "DEC-human_qa_checklist-003"
+      ],
+      "open_risks": [
+        "The test target's compile failure (missing EntitlementSnapshot) blocks all automated verification, including of the narrow existing suite that previously passed \u2014 this needs to be fixed before any Tier 1 item can be corroborated by CI, not just manual inspection.",
+        "Tier 2's dependency on unbuilt core logic (generative engine, DayStateResolver, SwiftData persistence) is now confirmed across ten-plus cumulative build/test/verification rounds; this QA script's real value is entirely deferred until a future phase actually implements that logic.",
+        "Codex has been absent for essentially the entire project since detailed_discussion round 1 \u2014 this checklist, like every phase since, has had no adversarial second-model review of its tier split or specific acceptance actions.",
+        "If no further build phase is scheduled after this one, Tier 2's blocked items may never actually get executed, meaning the app could be declared QA-complete on Tier 1 alone despite Tier 1 explicitly excluding the app's stated core promise (generative art, determinism, persistence)."
+      ]
+    },
+    {
+      "phase": "app_store_readiness",
+      "one_paragraph_summary": "app_store_readiness ran as a single Claude solo pass (Codex unavailable, consistent with the entire project since detailed_discussion round 1) and produced a full launch-readiness package while explicitly stating the app is NOT launch-ready: the generative engine, DayStateResolver, and SwiftData persistence remain bootstrap stubs per build_verification and human_qa_checklist, and the test target still fails to compile on a missing EntitlementSnapshot type. Positioning was locked as an object-to-own daily ritual ('Aura \u2014 Daily Vibe Card'), leading with genuine offline-ness, determinism, and Wrapped as the shareable payoff, with an explicit caution against claiming 'beautiful generative art' in listing copy before real screenshots exist. The privacy nutrition label was locked as 'Data Not Collected' across every category \u2014 free by architecture, requiring only that a real privacy-policy URL and support URL exist before submission. Permission copy was scoped to the single notifications prompt, contextual and Settings.app-deep-linked on denial. Aura+ was confirmed as a non-consumable requiring paywall copy to describe exactly its three locked unlocks, with two real submission risks named: Guideline 3.1.2 language risk, and the deeper truth-in-advertising risk that App Review will functionally test a purchase against a paywall that currently has no real entitlement/recipe pipeline behind it, plus the standing requirement for a sandbox-account pass on a physical device since Simulator can only prove initiation. The five-shot screenshot/storyboard plan (bloom reveal, archive grid, trend chart, Wrapped poster, paywall) was fully specified but marked not executable until real rendered output and demo history exist, explicitly ruling out placeholder-based capture. The phase's bottom line: everything drafted here is safe pre-launch collateral, but the actual blocker to submission is engineering (fix the compile break, build the three stubbed core systems, then wire and verify the paywall and screenshots against real behavior), not App Store paperwork.",
+      "key_decisions": [
+        "DEC-app_store_readiness-001",
+        "DEC-app_store_readiness-002",
+        "DEC-app_store_readiness-003",
+        "DEC-app_store_readiness-004",
+        "DEC-app_store_readiness-005"
+      ],
+      "open_risks": [
+        "The app's three most-litigated core systems (generative engine, DayStateResolver, SwiftData persistence) remain entirely unbuilt after eleven-plus cumulative build/test/verification/QA/readiness rounds; this phase's launch material has no functional product to attach to yet.",
+        "The paywall's functional claims (three specific unlocks) are drafted against design-phase intent, not real code \u2014 must be re-validated once the entitlement/recipe pipeline actually exists, since a mismatch between paywall copy and real purchase behavior is an App Review rejection risk, not just an honesty concern.",
+        "Screenshot capture remains fully blocked on the same missing renderer/persistence/demo-history work; if no further build phase is scheduled, this plan may never get executed against real content.",
+        "Codex has been absent for essentially the entire project since detailed_discussion round 1 \u2014 this phase, like nearly every phase since, has had no adversarial second-model review of its compliance/positioning judgment calls.",
+        "A privacy-policy URL and support URL are real, cheap, but currently unaddressed submission requirements \u2014 small enough to be overlooked until the last minute despite being flagged explicitly here."
+      ]
+    },
+    {
+      "phase": "final_review",
+      "one_paragraph_summary": "This was a single-voice final_review round (Codex remained unavailable in cooldown/rate_limit) assessing the app after build_coordination delivered a real, machine-compiled renderer wired end-to-end into check-in, reveal, share, archive, and regeneration. The verdict remains NO-GO, unchanged from all 17+ prior final_review rounds, but this is explicitly recorded as the project's strongest state yet: all three original blocking items (compile fix, real SeedEngine/persistence, real seed-driven renderer) are now done and compiler-verified, and for the first time the app has a genuine, machine-captured xcodebuild pass on the fully renderer-integrated build rather than manual review standing in for one. The sole remaining reason for NO-GO is that nobody \u2014 no human or agent, across the project's entire history \u2014 has ever actually looked at the rendered output; the original prompt's own explicit, disqualifying condition ('genuinely beautiful, not placeholder-looking, even if it compiles and passes gates') remains completely unverified by observation. This is now framed as a cheap, concrete next step (a simulator run across varied mood/chip/day inputs) rather than further architecture work. Three additional risks are named and left open: the archive-grid UI-crawl gate remains red and backlogged, now flagged for an actual re-run since its original deferral rationale (renderer not yet real) no longer holds; the Aura+ trust risk (real purchases sold against renderer entitlements) is judged likely resolved in substance now that the renderer varies by input, but remains formally unverified pending the same visual check; and Codex's continued total absence means the most consequential code in the project has never received second-model adversarial review.",
+      "key_decisions": [
+        "DEC-final_review13-001",
+        "DEC-final_review13-002",
+        "DEC-final_review13-003",
+        "DEC-final_review13-004",
+        "DEC-final_review13-005"
+      ],
+      "open_risks": [
+        "The renderer's visual output has never been observed by anyone across the project's entire history \u2014 the original prompt's top-priority, explicitly disqualifying requirement remains unverified despite a real compiler-verified pass; this is the sole remaining item before GO can be considered.",
+        "The archive-grid UI-crawl gate remains red and backlogged four-plus rounds after the renderer work that was supposed to be its prerequisite landed, with no re-run yet performed to check whether it now passes.",
+        "The Aura+ trust risk is likely resolved in substance (renderer now varies by input) but remains formally open pending observational confirmation, not just code review.",
+        "Wrapped monthly recap, Trend/mood-distribution chart, and the home-screen widget remain unbuilt named features from the original prompt.",
+        "Codex has been absent for nearly the entire project; the renderer and its full integration into the core flow have never had second-model adversarial review."
+      ]
+    },
+    {
+      "phase": "portfolio_audit",
+      "one_paragraph_summary": "portfolio_audit confirmed, in a single Claude round (Codex unavailable as in every phase since detailed_discussion round 1), that portfolio auditing does not apply to Aura: it is a locked single-app build (slug aura) per portfolio_selection, with expected and actual app count both 1, no child folders to validate, and no category that could have been silently collapsed since only one was ever requested. The phase deliberately avoided manufacturing portfolio-shape work just because the phase template implies it. The one substantive addition beyond the N/A verdict is a backfill-readiness note: because Aura's final_review delivered a NO-GO (generative engine, DayStateResolver, and SwiftData persistence still bootstrap stubs; test target failing to compile on a missing EntitlementSnapshot type), any later tracking-system backfill (Jira/Notion) should use final_review's three-item, dependency-ordered blocker list rather than a flattened 'in progress' status, so the specific stub locations and required build order aren't lost.",
+      "key_decisions": [
+        "DEC-portfolio_audit-001",
+        "DEC-portfolio_audit-002"
+      ],
+      "open_risks": [
+        "This phase's clean N/A verdict could be misread by later summarization as a positive progress signal on Aura itself if the distinction between folder-shape health and actual app completeness isn't preserved.",
+        "Codex has now been absent for essentially the entire project since detailed_discussion round 1, including this phase \u2014 no adversarial second-model check, though the low-complexity nature of a single-app N/A verdict makes this a minor risk here specifically.",
+        "The backfill-readiness guidance is only useful if whatever process consumes this phase-summary actually reads and applies it when creating tracking tickets \u2014 it's easy for a downstream summarizer to compress this back into a generic status line."
+      ]
+    },
+    {
+      "phase": "iterate_scope",
+      "one_paragraph_summary": "The requested change (wire accessibilityIdentifiers/affordances so the archive-grid UI-crawl flow passes) was declined and logged as backlog, consistent with the project's standing forcing rule (DEC-final_review11-002/12-002) that non-compile-breaking, non-crash UI-crawl assertion failures route to backlog with zero diagnostic spend. Codex was unavailable again this round (empty output), so the decision rests on Claude's sole analysis, which converges cleanly with 12+ rounds of accumulated precedent rather than introducing new reasoning. This round's full scope is redirected to blocking item #3 \u2014 building a real seed-driven renderer for at least one composition family in AuraKit, replacing PlaceholderAuraRenderer at its single TodayScreen call site, consuming the already-real SeedEngine/DayStateResolver output without modifying it. Acceptance criteria require determinism, meaningful day-to-day visual variety, a captured xcodebuild compile pass, and a human beauty judgment \u2014 the highest bar the project has set for any single deliverable. Forbidden-edit zones (project.pbxproj via xcodegen only, DesignSystem/Theme/AuraStore as primary_ui-owned, no UI-crawl identifier wiring) carry forward unchanged. The archive-grid gate stays red and backlogged; this round's outcome must be recorded strictly as item #3 progress, not as gate closure or verdict movement.",
+      "key_decisions": [
+        "DEC-iterate_scope10-001",
+        "DEC-iterate_scope10-002",
+        "DEC-iterate_scope10-003"
+      ],
+      "open_risks": [
+        "Aura+ trust risk remains fully open and unaddressed: real StoreKit purchases sell palette themes and daily regeneration against a renderer that, as of this round's start, produces exactly one fixed output regardless of input \u2014 this round's renderer work may finally begin closing that gap but does not close it yet.",
+        "Codex has now been absent across essentially every round since detailed_discussion round 1; the renderer architecture about to be built will land with zero second-model adversarial review unless Codex becomes available.",
+        "If this round's renderer work fails to compile or fails the beauty judgment, the project will be at 16+ consecutive NO-GO rounds with its sole remaining blocker still open and no fallback plan specified beyond 'try again next round.'"
+      ]
+    }
+  ]
+}

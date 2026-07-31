@@ -1,0 +1,255 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "First launch requires naming the other person before any card can exist; there is no solo-use path anywhere in the app.",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "Onboarding generates a real, shareable join code/link string, but onboarding copy explicitly states this offline build cannot deliver a real invite to a second device.",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "\"Preview with a sample partner\" is reachable from onboarding/Today and fully simulates the second user so every downstream state (waiting, complete, streak, Timeline) is reachable offline.",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "A distinct, honestly-labeled 'redeem your own join code' affordance (separate from sample-partner preview) exists to simulate a real partner actually joining.",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "When the redeem-code affordance fires, all sample-partner Cards/streak/Timeline data is discarded (not merged) and the transition to the real Connection is shown as a distinct visible beat.",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "Both people set a home location via city search over a bundled city seed list; no network/map-tile dependency exists anywhere in location selection.",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "Home location is stored and displayed at city-level precision only, never GPS-precise or continuously tracked, disclosed plainly in onboarding copy.",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "The globe is rendered natively in SwiftUI Canvas using an orthographic projection with bundled simplified coastline polylines; no 3rd-party map/3D engine and no network calls.",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "Distance between the two home locations is computed via the haversine formula and displayed live on Today.",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "The tether is a great-circle arc between the two points, sampled and clipped to the front hemisphere, stroked in amber with an additive glow.",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "The tether draw-on (~1.1s trim animation) and endpoint ignite play only on first pairing and on card completion; ordinary app reopens show an instantly state-legible first frame with no animation delay.",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "Today's first rendered frame truthfully conveys card state (waiting-on-them / waiting-on-you / complete) with zero required taps and before any animation plays, verified by a pure Card\u2192CardDisplayState unit test independent of animation timing.",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "Today shows a dual clock (both people's local times) and today's shared prompt in its current state.",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "The Answer sheet is the only free-text entry surface anywhere in the app.",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "The one-line answer enforces an explicit maximum character cap at the input level, not just visual wrapping.",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "Submitting an answer fires a crisp `.rigid` tick haptic and moves the card to \"waiting for them\" or completes it if the partner already answered.",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "If a SwiftData save fails on answer submission, the Answer sheet retains the typed draft and shows an explicit retry/error state instead of discarding the input.",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "Once both answers exist, the card is complete and both answers become permanently uneditable; this finality is visibly communicated at the moment of submission.",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "Card 'today' and streak evaluation are anchored to a canonical UTC day boundary computed at the Connection level, never to either person's local calendar day.",
+      "core": true
+    },
+    {
+      "id": "R-020",
+      "text": "The gated-reveal state machine implements exactly awaitingBoth \u2192 awaitingThem/awaitingMe \u2192 complete, running against the LocalSyncService protocol with a timer-driven simulated partner (never a hardcoded pre-completed fixture).",
+      "core": true
+    },
+    {
+      "id": "R-021",
+      "text": "Deterministic seeded-fixture tests cover: simultaneous both-answer-same-tick, the simulated partner's timer firing while the app is backgrounded mid-submission, and the simulated partner's timer firing while the Answer sheet is open with an uncommitted draft (state updates without touching/losing the open draft).",
+      "core": true
+    },
+    {
+      "id": "R-022",
+      "text": "A two-beat 'heartbeat' haptic (.soft, ~140ms apart) fires when the simulated partner's answer lands while the app is foregrounded; this is explicitly not required/tested for backgrounded delivery.",
+      "core": true
+    },
+    {
+      "id": "R-023",
+      "text": "A success notification haptic fires on card completion, and the tether visually snaps taut with the crisp tick.",
+      "core": true
+    },
+    {
+      "id": "R-024",
+      "text": "The streak UI shows the user's personal answer streak separately from the connection's shared completion streak.",
+      "core": true
+    },
+    {
+      "id": "R-025",
+      "text": "A broken completion streak legibly attributes whether the break was caused by the user or by their partner not answering.",
+      "core": true
+    },
+    {
+      "id": "R-026",
+      "text": "A missed canonical UTC day resets the completion streak to 0 the following day, and this reset is visibly surfaced in the UI.",
+      "core": true
+    },
+    {
+      "id": "R-027",
+      "text": "After the bundled 60-day prompt list is exhausted, prompts repeat from day 1 with a visible 'you've answered this before' badge.",
+      "core": true
+    },
+    {
+      "id": "R-028",
+      "text": "Every completed card threads into a vertical Timeline; tapping a past card lets the user relive or re-share it.",
+      "core": true
+    },
+    {
+      "id": "R-029",
+      "text": "Compose & Share lets a user pick a skin (only classic indigo is populated; the skin enum is architected as a real extension point), preview, and export a static PNG watermarked with the join link, with no paywall on this base export.",
+      "core": true
+    },
+    {
+      "id": "R-030",
+      "text": "The animated-export toggle is visible and paywall-gated correctly for free users; for an entitled Tether+ user it resolves to an explicit 'coming soon' state rather than crashing, silently no-opping, or producing a fake file.",
+      "core": true
+    },
+    {
+      "id": "R-031",
+      "text": "The paywall is presented at exactly three triggers: tapping animated export, tapping 'add a connection', and opening Reunion \u2014 and is honest about what is/isn't gated.",
+      "core": true
+    },
+    {
+      "id": "R-032",
+      "text": "The Reunion screen is reachable from the app and correctly fires the paywall for a free (non-Tether+) user.",
+      "core": true
+    },
+    {
+      "id": "R-033",
+      "text": "Connections & Settings is a single flat list containing: notification cadence, units (km/mi), subscription status, and sign-out \u2014 no sub-screens.",
+      "core": true
+    },
+    {
+      "id": "R-034",
+      "text": "The notification-cadence control's copy is explicitly scoped to in-app/foreground alerts only, or is disabled with an honest explanation \u2014 it never implies working push notifications.",
+      "core": true
+    },
+    {
+      "id": "R-035",
+      "text": "An entitled (Tether+) user can create a second Connection via a bare 'add connection' action; a free user attempting this is blocked and routed to the paywall.",
+      "core": true
+    },
+    {
+      "id": "R-036",
+      "text": "'Primary connection' is deterministically the earliest-created Connection; any additional connection created after it becomes read-only (never deleted) if Tether+ lapses.",
+      "core": true
+    },
+    {
+      "id": "R-037",
+      "text": "A StoreKit-Testing-simulated expired/lapsed subscription test exercises the downgrade path end-to-end: create a second connection while entitled, simulate expiration, assert the primary stays fully editable and the second becomes read-only with zero data deleted.",
+      "core": true
+    },
+    {
+      "id": "R-038",
+      "text": "StoreKit 2 purchases (monthly $4.99, yearly $29.99, 7-day trial) succeed in the Simulator against a bundled .storekit configuration.",
+      "core": true
+    },
+    {
+      "id": "R-039",
+      "text": "All colors and fonts are defined only in DesignSystem.swift; an automated lint script fails the build if inline Color()/UIColor()/.font(.system(size:)) appear anywhere else.",
+      "core": true
+    },
+    {
+      "id": "R-040",
+      "text": "Amber appears only on the tether arc, the two glowing endpoints, and the single primary 'light the tether' action \u2014 nowhere else in the UI, verified by the lint gate.",
+      "core": true
+    },
+    {
+      "id": "R-041",
+      "text": "CoreMotion-driven globe parallax degrades gracefully to a static neutral angle with no crash when CMDeviceMotion is unavailable (the Simulator default), verified by a unit test constructing the parallax provider with no motion manager.",
+      "core": true
+    },
+    {
+      "id": "R-042",
+      "text": "With Reduce Motion enabled, the globe shows a static view with cross-fade instead of the draw-on trim animation, while haptics still fire; verified by a unit test toggling the accessibility flag.",
+      "core": true
+    },
+    {
+      "id": "R-043",
+      "text": "The hand-drawn Canvas globe exposes an explicit VoiceOver accessibility label/value summarizing distance and card state (e.g. 'You are 2,847 km from [name]. Card complete.').",
+      "core": true
+    },
+    {
+      "id": "R-044",
+      "text": "Every reachable screen supports full dark mode via semantic color roles and scales with Dynamic Type via relativeTo: text styles.",
+      "core": true
+    },
+    {
+      "id": "R-045",
+      "text": "Every reachable screen defines and shows explicit empty, loading, success, and error states where that screen can reach those states (no bare blank views or placeholder text).",
+      "core": true
+    },
+    {
+      "id": "R-046",
+      "text": "All eight named screens (Onboarding/Pair, Today, Answer sheet, Compose & Share, Timeline, Reunion, Connections & Settings, Paywall) are fully reachable and populated with no placeholders via the sample-partner and/or redeem-code paths, entirely offline.",
+      "core": true
+    },
+    {
+      "id": "R-047",
+      "text": "No screen beyond these eight named screens is built.",
+      "core": false
+    },
+    {
+      "id": "R-048",
+      "text": "Globe rendering stays within a fixed coastline-vertex budget and throttles parallax updates rather than applying every raw CoreMotion callback, to avoid stutter under active parallax.",
+      "core": false
+    },
+    {
+      "id": "R-049",
+      "text": "For an entitled (Tether+) user, Reunion additionally supports setting a target date and shows a real countdown with its own hero visual.",
+      "core": false
+    },
+    {
+      "id": "R-050",
+      "text": "Animated MP4/Live Photo export, the three additional premium skins, the Year Tethered retrospective reel, real invite networking, localization, WidgetKit/watchOS targets, and anti-clock-tampering defenses are explicitly not built in this iteration.",
+      "core": false
+    }
+  ]
+}

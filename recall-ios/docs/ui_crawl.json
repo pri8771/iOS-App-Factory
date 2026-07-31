@@ -1,0 +1,149 @@
+{
+  "bundle_id": "com.recallapp.ios",
+  "screens": 8,
+  "edges": 18,
+  "crashes": [],
+  "dead_taps": [
+    {
+      "screen": "-14915b8e837291f6",
+      "tapped": {
+        "id": "",
+        "kind": "tab",
+        "label": "Study"
+      }
+    },
+    {
+      "screen": "-14915b8e837291f6",
+      "tapped": {
+        "id": "",
+        "kind": "button",
+        "label": "Study"
+      }
+    },
+    {
+      "screen": "3a52b8241c0e5d2b",
+      "tapped": {
+        "id": "rectangle.stack",
+        "kind": "tab",
+        "label": "Study"
+      }
+    },
+    {
+      "screen": "3a52b8241c0e5d2b",
+      "tapped": {
+        "id": "rectangle.stack",
+        "kind": "button",
+        "label": "Study"
+      }
+    },
+    {
+      "screen": "-74dcd9e0e04b926a",
+      "tapped": {
+        "id": "deckEditor.saveButton",
+        "kind": "navbutton",
+        "label": "Save"
+      }
+    }
+  ],
+  "back_violations": [
+    {
+      "after_visiting": "-74dcd9e0e04b926a",
+      "expected": "-14915b8e837291f6",
+      "got": "3a52b8241c0e5d2b",
+      "via": {
+        "id": "study.addDeckButton",
+        "kind": "button",
+        "label": "Add Deck"
+      }
+    }
+  ],
+  "flows": [
+    {
+      "failure": "step 4: no tappable element \u2018deckDetail.addCardButton\u2019",
+      "name": "Create deck and add cards via keyboard-first editor",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018study.deckCell_0\u2019",
+      "name": "Complete a review session end to end",
+      "passed": false
+    },
+    {
+      "failure": "",
+      "name": "Force-quit mid-session recovers with zero data loss",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "View stats overview and per-deck drill-down",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Export a deck to CSV then re-import it losslessly",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Import a malformed CSV and see per-row errors",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Enable daily reminder and observe honest due-count behavior",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Toggle demo data on and fully off with zero residue",
+      "passed": true
+    },
+    {
+      "failure": "step 1: no tappable element \u2018tabBar.statsTab\u2019",
+      "name": "View stats overview with honest empty/sparse states",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018tabBar.settingsTab\u2019",
+      "name": "Export a deck to CSV",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018tabBar.settingsTab\u2019",
+      "name": "Enable daily reminder",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018tabBar.settingsTab\u2019",
+      "name": "Toggle demo data on and view seeded content",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018tabBar.settingsTab\u2019",
+      "name": "View Gap & Limitations register",
+      "passed": false
+    }
+  ],
+  "screen_grades": {
+    "score": 50,
+    "verdict": "FAIL",
+    "issues": [
+      {
+        "screen": "02_screen_56b043c9a75f18f9.png",
+        "severity": "high",
+        "note": "gemma3:4b: BAD"
+      },
+      {
+        "screen": "03_screen_-2eaf95cd814ab3f3.png",
+        "severity": "high",
+        "note": "gemma3:4b: BAD"
+      },
+      {
+        "screen": "06_screen_-1953bd83dcab8cdf.png",
+        "severity": "high",
+        "note": "gemma3:4b: BAD"
+      }
+    ],
+    "inconclusive": []
+  }
+}

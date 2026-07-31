@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'Thicket' in project 'Thicket' (no dependencies)

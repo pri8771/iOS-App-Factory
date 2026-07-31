@@ -1,0 +1,82 @@
+{
+  "bundle_id": "com.formcheck.app",
+  "screens": 5,
+  "edges": 8,
+  "crashes": [],
+  "dead_taps": [
+    {
+      "screen": "33123d408da000a",
+      "tapped": {
+        "id": "",
+        "kind": "tab",
+        "label": "Home"
+      }
+    },
+    {
+      "screen": "33123d408da000a",
+      "tapped": {
+        "id": "",
+        "kind": "button",
+        "label": "Home"
+      }
+    }
+  ],
+  "back_violations": [],
+  "flows": [
+    {
+      "failure": "",
+      "name": "First-launch capability-gap honesty",
+      "passed": true
+    },
+    {
+      "failure": "step 1: no tappable element \u2018home.startSetButton\u2019",
+      "name": "Demo session end-to-end",
+      "passed": false
+    },
+    {
+      "failure": "",
+      "name": "Interrupted session recovers deterministically",
+      "passed": true
+    },
+    {
+      "failure": "step 1: no tappable element \u2018home.startSetButton\u2019",
+      "name": "Classifier misdetection is correctable",
+      "passed": false
+    },
+    {
+      "failure": "",
+      "name": "Settings and disclosure discoverability",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Watch unreachable resilience",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Catalyst review of an exported session",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Data export and full erase",
+      "passed": true
+    },
+    {
+      "failure": "step 4: no tappable element \u2018home.startSetButton\u2019",
+      "name": "Exercise toggle hides start option",
+      "passed": false
+    },
+    {
+      "failure": "step 2: expected \u2018history.sessionRow.0\u2019 on screen",
+      "name": "History and trend chart view",
+      "passed": false
+    },
+    {
+      "failure": "step 2: expected \u2018knownLimits.healthKitEntitlementGapRow\u2019 on screen",
+      "name": "Known Limits is a first-class destination",
+      "passed": false
+    }
+  ]
+}

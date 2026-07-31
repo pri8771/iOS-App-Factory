@@ -1,0 +1,590 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Suit",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Suit: String, Codable, CaseIterable, Hashable, Sendable { case clubs, diamonds, hearts, spades; var color: CardColor { get } }",
+      "owning_lane": "data_domain",
+      "notes": "color is computed, never stored."
+    },
+    {
+      "name": "Rank",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Rank: Int, Codable, CaseIterable, Hashable, Sendable { case ace = 1, two, three, four, five, six, seven, eight, nine, ten, jack, queen, king; var symbol: String { get }; var displayName: String { get } }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "PlayCard",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PlayCard: Identifiable, Codable, Hashable, Equatable, Sendable { let id: Int; let suit: Suit; let rank: Rank; var isFaceUp: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "ID is deterministic Int mapping (0..<52), not UUID, to keep undo/invariants stable across restores and fuzz tests."
+    },
+    {
+      "name": "DrawMode",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum DrawMode: String, Codable, CaseIterable, Sendable { case drawOne, drawThree }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "PileType",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PileType: Hashable, Codable, Sendable { case stock, waste, foundation(Int), tableau(Int) }",
+      "owning_lane": "data_domain",
+      "notes": "Addressable pile references for move sourcing and destination checks."
+    },
+    {
+      "name": "PileCardList",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct PileCardList: Codable, Hashable, Sendable { var cards: [PlayCard] }",
+      "owning_lane": "data_domain",
+      "notes": "Ordered pile model used for tableau and stock/waste structures."
+    },
+    {
+      "name": "BoardState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct BoardState: Codable, Hashable, Sendable { var stock: [PlayCard]; var waste: [PlayCard]; var foundations: [[PlayCard]]; var tableaus: [[PlayCard]] }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical logical board representation persisted in GameSave."
+    },
+    {
+      "name": "TerminalState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TerminalState: Codable, Equatable, Sendable { case active, won(WinSummary), stuck }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "TimerState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct TimerState: Codable, Hashable, Sendable { var startedAt: Date?; var elapsedSeconds: Int; var isRunning: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Logical timer state used for best-time stat and pause semantics."
+    },
+    {
+      "name": "MoveAttempt",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct MoveAttempt: Codable, Hashable, Sendable { let source: PileType; let sourceIndex: Int?; let destination: PileType; let runCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Represents tapped-card run selection and destination selection intent."
+    },
+    {
+      "name": "MoveOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MoveOutcome: Equatable, Sendable { case executed(Move); case ambiguous(source: PileID, cardIndex: Int, destinations: [PileID]); case blocked(reason: String) }",
+      "owning_lane": "data_domain",
+      "notes": "Single shared result type for the one attemptMove path."
+    },
+    {
+      "name": "GameSnapshot",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct GameSnapshot: Codable, Hashable, Sendable { let board: BoardState; let timer: TimerState; let drawMode: DrawMode; let moveCount: Int; let selectedSource: MoveAttempt?; let terminalState: TerminalState }",
+      "owning_lane": "data_domain",
+      "notes": "Full-state undo snapshot element; never a delta."
+    },
+    {
+      "name": "GameState",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct GameState: Codable, Equatable, Sendable { var piles: [PileID: [Card]]; var drawMode: DrawMode; var elapsedSeconds: TimeInterval; var isTimerRunning: Bool; var startedAt: Date?; var terminalState: TerminalState }",
+      "owning_lane": "data_domain",
+      "notes": "Logical state only \u2014 no undo stack, no animation/selection fields."
+    },
+    {
+      "name": "GameSaveFile",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct GameSaveFile: Codable, Sendable { let schemaVersion: Int; var state: GameState; var undoStack: [GameStateSnapshot] }",
+      "owning_lane": "services_utilities",
+      "notes": "undoStack capped at 200, LIFO, no redo cursor."
+    },
+    {
+      "name": "StatsEvent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum StatsEvent: Codable, Sendable { case gameStarted(sessionId: UUID, drawMode: DrawMode, startedAt: Date); case gameEnded(sessionId: UUID, drawMode: DrawMode, won: Bool, elapsedSeconds: TimeInterval?, undoCount: Int) }",
+      "owning_lane": "services_utilities",
+      "notes": "gameStarted written immediately at session start so an abandoned/crashed session is still durably recorded as played."
+    },
+    {
+      "name": "DrawModeStats",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DrawModeStats: Codable, Equatable, Sendable { var gamesPlayed: Int; var gamesWon: Int; var currentStreak: Int; var bestTimeSeconds: Int?; var lastPlayedAt: Date? }",
+      "owning_lane": "services_utilities",
+      "notes": "Derived, incrementally-updated cache over StatsEvent, not recomputed on every StatsView render. bestTimeSeconds nil renders as 'N/A'."
+    },
+    {
+      "name": "StatsLogFile",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StatsLogFile: Codable, Sendable { let schemaVersion: Int; var drawOne: DrawModeStats; var drawThree: DrawModeStats; var events: [StatsEvent] }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "SettingsState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct SettingsState: Codable, Equatable, Sendable { var drawMode: DrawMode; var cardBack: CardBack; var timerEnabled: Bool; var disclosureAccepted: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Small mutable settings blob."
+    },
+    {
+      "name": "SettingsFile",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SettingsFile: Codable, Sendable { let schemaVersion: Int; var drawMode: DrawMode; var cardBack: CardBack; var timerEnabled: Bool }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "PersistenceActorProtocol",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PersistenceActorProtocol: Actor { associatedtype Model: Codable & Equatable & Sendable; func load() async -> RestoreOutcome<Model>; func save(_ model: Model) async; func markRecovered(reason: PersistenceError) async; func flush() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Per-file actor contract with independent scheduling and recovery reason tracking."
+    },
+    {
+      "name": "FileStorage",
+      "kind": "class",
+      "language": "Swift",
+      "signature": "final class FileStorage: Sendable { init(rootURL: URL); func read<T: Decodable>(_ type: T.Type, from fileURL: URL) async throws -> T; func writeAtomically<T: Encodable>(_ value: T, to fileURL: URL) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Low-level atomic file I/O helper used by all file actors."
+    },
+    {
+      "name": "GamePersistenceActor",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "actor GamePersistenceActor: PersistenceActorProtocol { typealias Model = GameSaveFile; init(fileURL: URL, storage: FileStorage); func load() async -> RestoreOutcome<GameSaveFile>; func save(_ model: GameSaveFile) async; func markRecovered(reason: PersistenceError) async; func flush() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Independent actor for game + undo snapshots only."
+    },
+    {
+      "name": "StatsPersistenceActor",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "actor StatsPersistenceActor: PersistenceActorProtocol { typealias Model = StatsLogFile; init(fileURL: URL, storage: FileStorage); func load() async -> RestoreOutcome<StatsLogFile>; func save(_ model: StatsLogFile) async; func markRecovered(reason: PersistenceError) async; func flush() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Independent actor for event log persistence."
+    },
+    {
+      "name": "SettingsPersistenceActor",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "actor SettingsPersistenceActor: PersistenceActorProtocol { typealias Model = SettingsFile; init(fileURL: URL, storage: FileStorage); func load() async -> RestoreOutcome<SettingsFile>; func save(_ model: SettingsFile) async; func markRecovered(reason: PersistenceError) async; func flush() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Independent actor for settings persistence."
+    },
+    {
+      "name": "DeckShuffler",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol DeckShuffler { func shuffle(_ cards: inout [PlayCard], using rng: inout any RandomNumberGenerator) }",
+      "owning_lane": "data_domain",
+      "notes": "Testing seam only; production path always uses system RNG."
+    },
+    {
+      "name": "GameEngine",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class GameEngine { private(set) var state: GameState; private(set) var interaction: InteractionState; init(saveStore: GameSaveStore, statsStore: StatsLogStore, settingsStore: SettingsStore, haptics: HapticsService, integrity: RestoreIntegrityService); func bootstrap() async; func newGame(drawMode: DrawMode, requiresConfirmation: Bool, rng: RandomNumberGenerator = SystemRandomNumberGenerator()); func selectCard(pile: PileID, index: Int); func attemptMove(to destination: PileID) -> MoveOutcome; func drawFromStock(); func undo() -> Bool; func setDrawMode(_ mode: DrawMode); func flushPersistence() async }",
+      "owning_lane": "data_domain",
+      "notes": "No @Published (that's Combine/ObservableObject syntax and doesn't compose with @Observable). hasFinishedInitialLoad is NOT here \u2014 it lives solely on AppRestoreCoordinator per DEC-design_handoff-006. In-memory mutations (selectCard/attemptMove/drawFromStock/undo) are synchronous; disk writes happen async in the background via the debounced stores."
+    },
+    {
+      "name": "RestoreIntegrityService",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RestoreIntegrityService: Sendable { func validate(_ state: GameState) -> ValidationResult }",
+      "owning_lane": "data_domain",
+      "notes": "Mandatory semantic gate after successful decode: 52 unique cards, no duplicate/missing ranks-per-suit, legal face-up stacking, foundation monotonicity. A decodable-but-invalid save is data loss, never silently activated."
+    },
+    {
+      "name": "SolitaireTabHost",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SolitaireTabHost: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Root TabView with Game/Stats/Settings peers, gated by AppRestoreCoordinator.hasFinishedInitialLoad."
+    },
+    {
+      "name": "DrawModeConfirmSheet",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DrawModeConfirmSheet: View { let targetMode: DrawMode; let onConfirm: () -> Void; let onCancel: () -> Void; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Shared by New Game and Settings draw-mode change."
+    },
+    {
+      "name": "CardView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CardView: View { let card: Card; let state: CardVisualState; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Single renderer for face-up/face-down/selected/legalDestination/blocked, keyed by card.id."
+    },
+    {
+      "name": "Theme",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum Theme { enum Fonts {}; enum Spacing {}; enum Radius {}; enum Colors { struct Scene { let background, surfaceBase, surfaceWash, surfaceDepth, vignette, ambientHighlight, pewter: Color }; static let light: Scene; static let dark: Scene }; enum Card { static let frontBase, frontPaper, frontEdge, frontShadow, backBase, backRim, backPattern, inkBlack, inkRed: Color } }",
+      "owning_lane": "primary_ui",
+      "notes": "Zero literals elsewhere in view layer; card tokens fixed constants with no light/dark variant."
+    },
+    {
+      "name": "CardColor",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CardColor: Sendable { case red, black }",
+      "owning_lane": "data_domain",
+      "notes": "Paired with a shape-level (non-color) cue in CardView for accessibility."
+    },
+    {
+      "name": "Card",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Card: Identifiable, Codable, Equatable, Hashable, Sendable { let suit: Suit; let rank: Rank; var isFaceUp: Bool; var id: String { \"\\(rank.rawValue)\\(suit.rawValue)\" } }",
+      "owning_lane": "data_domain",
+      "notes": "id is COMPUTED from suit+rank, never stored \u2014 single-deck play guarantees uniqueness, id stays stable across isFaceUp toggling (keys matchedGeometryEffect for the flip), and being computed means id is structurally excluded from Codable and can never be persisted wrong."
+    },
+    {
+      "name": "PileID",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PileID: Codable, Equatable, Hashable, Sendable { case stock, waste, foundation(Suit), tableau(Int) }",
+      "owning_lane": "data_domain",
+      "notes": "foundation keyed by Suit so 'one foundation per suit' is a compile-time fact. tableau(Int) is 0..<7, enforced by GameEngine invariants."
+    },
+    {
+      "name": "CardBack",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CardBack: String, Codable, CaseIterable, Sendable { case pewterLattice, vellumSeal }",
+      "owning_lane": "data_domain",
+      "notes": "Closed enum so CardBackPicker is exhaustive."
+    },
+    {
+      "name": "GameStateSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct GameStateSnapshot: Codable, Equatable, Sendable { let state: GameState; let capturedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Full-state undo entry, no delta encoding."
+    },
+    {
+      "name": "Move",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Move: Equatable, Sendable { let cards: [Card]; let source: PileID; let destination: PileID }",
+      "owning_lane": "data_domain",
+      "notes": "cards.count > 1 only for a validated tableau-run relocation."
+    },
+    {
+      "name": "InteractionState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum InteractionState: Equatable, Sendable { case idle; case sourceSelected(PileID, cardIndex: Int, legalDestinations: [PileID]); case resolvingMove(Move); case dealing; case terminal(TerminalState) }",
+      "owning_lane": "data_domain",
+      "notes": "Single explicit FSM for Game-screen interaction; view layer must not maintain parallel @State booleans for selection/highlight."
+    },
+    {
+      "name": "WinSummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WinSummary: Codable, Equatable, Sendable { let elapsedSeconds: TimeInterval?; let drawMode: DrawMode; let undoCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "elapsedSeconds nil when timer disabled \u2014 WinOverlay renders 'N/A', never a fabricated time."
+    },
+    {
+      "name": "DealOrchestrator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DealOrchestrator: Sendable { func dealFresh(into state: GameState, reduceMotion: Bool) -> AnimationPlan; func transit(_ move: Move, reduceMotion: Bool) -> AnimationPlan }",
+      "owning_lane": "primary_ui",
+      "notes": "Pure/testable planning layer consumed by GameView via matchedGeometryEffect keyed on Card.id. Branches Reduce Motion once per session; drives multi-card run relocation as one coherent transit."
+    },
+    {
+      "name": "AnimationPlan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AnimationPlan: Equatable, Sendable { let steps: [AnimationStep] }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "AnimationStep",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AnimationStep: Equatable, Sendable { let cardID: String; let delay: TimeInterval; let kind: AnimationStepKind }",
+      "owning_lane": "primary_ui",
+      "notes": "cardID matches Card.id."
+    },
+    {
+      "name": "AnimationStepKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum AnimationStepKind: Equatable, Sendable { case dealArc, flip, slideTransit, reduceMotionFade }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "StatsOutcome",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum StatsOutcome: String, Codable, Sendable { case won, abandoned }",
+      "owning_lane": "services_utilities",
+      "notes": "Per-game terminal outcome for log derivation."
+    },
+    {
+      "name": "PersistenceError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PersistenceError: Error, Sendable { case decodingFailed(description: String); case fileCorrupted; case ioFailed(description: String); case schemaMismatch(found: Int, expected: Int); case semanticallyInvalid(reason: String) }",
+      "owning_lane": "services_utilities",
+      "notes": "semanticallyInvalid is raised by RestoreIntegrityService after a successful decode."
+    },
+    {
+      "name": "RestoreOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RestoreOutcome<T: Sendable>: Sendable { case restored(T); case fallbackDefault(T, reason: PersistenceError); case dataLoss(reason: PersistenceError) }",
+      "owning_lane": "services_utilities",
+      "notes": "Returned directly by load(), not thrown \u2014 the three-way classification is enforced at the type level."
+    },
+    {
+      "name": "GameSaveStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor GameSaveStore: PersistenceStore { func load() async -> RestoreOutcome<GameSaveFile>; func save(_ model: GameSaveFile) async; func flush() async }",
+      "owning_lane": "services_utilities",
+      "notes": "load() decodes then runs RestoreIntegrityService.validate before returning .restored. save() debounced ~300-500ms with write-coalescing; flush() forces an immediate write on scenePhase background."
+    },
+    {
+      "name": "StatsLogStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor StatsLogStore: PersistenceStore { func load() async -> RestoreOutcome<StatsLogFile>; func save(_ model: StatsLogFile) async; func append(_ event: StatsEvent) async }",
+      "owning_lane": "services_utilities",
+      "notes": "append updates events and the relevant DrawModeStats cache, then schedules a debounced save."
+    },
+    {
+      "name": "SettingsStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "actor SettingsStore: PersistenceStore { func load() async -> RestoreOutcome<SettingsFile>; func save(_ model: SettingsFile) async }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "AtomicFileWriter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AtomicFileWriter: Sendable { func write<T: Encodable>(_ value: T, to url: URL) throws; func read<T: Decodable>(_ type: T.Type, from url: URL) throws -> T }",
+      "owning_lane": "services_utilities",
+      "notes": "Temp-write-then-atomic-replace; one shared implementation used by all three stores."
+    },
+    {
+      "name": "AppRestoreCoordinator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor final class AppRestoreCoordinator: ObservableObject { @Published private(set) var hasFinishedInitialLoad: Bool; func restoreAll(gameStore: GameSaveStore, statsStore: StatsLogStore, settingsStore: SettingsStore) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Runs all three loads concurrently via async let; sole owner of the single app-level first-paint gate per DEC-design_handoff-006."
+    },
+    {
+      "name": "HapticsService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol HapticsService: Sendable { func moveAccepted(); func blockedMove(); func stockDraw(); func undo(); func won(); func stuckDetected() }",
+      "owning_lane": "services_utilities",
+      "notes": "Single call site for all haptics; keeps generators warm via .prepare() on selection."
+    },
+    {
+      "name": "CardVisualState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CardVisualState: Equatable { case normal, selected, legalDestination, blocked }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "GameView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct GameView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Reads GameEngine + DealOrchestrator via @Environment; owns no independent selection state."
+    },
+    {
+      "name": "WinOverlay",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WinOverlay: View { let summary: WinSummary; let onNewGame: () -> Void; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Separate type from StuckOverlay."
+    },
+    {
+      "name": "StuckOverlay",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StuckOverlay: View { let onNewGame: () -> Void; let onContinue: () -> Void; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "StatsView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StatsView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "StatsModeFilter",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StatsModeFilter: View { @Binding var selection: DrawMode; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Stats-only, no persistence, no confirmation \u2014 structurally distinct from DrawModeSetting."
+    },
+    {
+      "name": "EmptyStatePanel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EmptyStatePanel: View { let drawMode: DrawMode; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "DataLossPanel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DataLossPanel: View { let onReset: () -> Void; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Visually distinct from EmptyStatePanel."
+    },
+    {
+      "name": "SettingsView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SettingsView: View { var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "DrawModeSetting",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DrawModeSetting: View { @Binding var mode: DrawMode; let hasActiveGame: Bool; let onRequestChange: (DrawMode) -> Void; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Settings-only; always routes through DrawModeConfirmSheet when hasActiveGame."
+    },
+    {
+      "name": "CardBackPicker",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CardBackPicker: View { @Binding var selection: CardBack; var body: some View }",
+      "owning_lane": "primary_ui",
+      "notes": "Applies live, no confirmation."
+    },
+    {
+      "name": "RecoveryBanner",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecoveryBanner: View { let message: String; let onDismiss: () -> Void; var body: some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Non-blocking, layered after deal settles; also triggered by RestoreIntegrityService failures, not just decode failures."
+    },
+    {
+      "name": "ErrorToast",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ErrorToast: View { let message: String; var body: some View }",
+      "owning_lane": "polish_resilience",
+      "notes": "Settings persistence-fallback surface."
+    },
+    {
+      "name": "CardGalleryDebugView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "#if DEBUG struct CardGalleryDebugView: View { var body: some View } #endif",
+      "owning_lane": "polish_resilience",
+      "notes": "Required legibility-gate artifact; renders all 52 CardViews at real cardWidth up through accessibility1."
+    },
+    {
+      "name": "cardWidth",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func cardWidth(contentWidth: CGFloat) -> CGFloat",
+      "owning_lane": "primary_ui",
+      "notes": "min(56, max(44, (contentWidth - (6*gap + 2*inset)) / 7))."
+    },
+    {
+      "name": "StuckDetector",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol StuckDetector: Sendable { func isStuck(_ state: GameState) -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "GameEngine picks the conforming type by state.drawMode."
+    },
+    {
+      "name": "DrawOneStuckDetector",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DrawOneStuckDetector: StuckDetector { func isStuck(_ state: GameState) -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Exact single static legality pass per DEC-detailed_discussion-004."
+    },
+    {
+      "name": "DrawThreeStuckDetector",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DrawThreeStuckDetector: StuckDetector { func isStuck(_ state: GameState) -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Conservative approximation biased against false-positive stuck reports per DEC-app_features-002; fuzz-tested separately from draw-1's exact pass."
+    },
+    {
+      "name": "ValidationResult",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ValidationResult: Equatable, Sendable { case valid; case invalid(reason: String) }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "DestinationAccessibilityAction",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DestinationAccessibilityAction: Identifiable, Sendable { let pile: PileID; let label: String; var id: String { label } }",
+      "owning_lane": "primary_ui",
+      "notes": "Built from InteractionState.sourceSelected's legalDestinations; wired as discrete .accessibilityAction entries per DEC-detailed_discussion-002 whenever a tap resolves to more than one legal destination."
+    },
+    {
+      "name": "PersistenceStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol PersistenceStore: Actor { associatedtype Model: Codable & Sendable; func load() async -> RestoreOutcome<Model>; func save(_ model: Model) async }",
+      "owning_lane": "services_utilities",
+      "notes": "Shared contract; each conforming actor owns its own independent serial write queue \u2014 never a shared actor across files."
+    }
+  ],
+  "errors": []
+}

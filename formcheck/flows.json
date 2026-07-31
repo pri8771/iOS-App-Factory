@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "First-launch capability-gap honesty",
+      "steps": [
+        {
+          "assert_exists": "home.capabilityBlockedNoHardware"
+        },
+        {
+          "tap": "Known Limits"
+        },
+        {
+          "assert_exists": "HealthKit"
+        }
+      ]
+    },
+    {
+      "name": "Demo session end-to-end",
+      "steps": [
+        {
+          "tap": "home.startSetButton"
+        },
+        {
+          "assert_exists": "capture.repHeroCounter"
+        },
+        {
+          "tap": "capture.endSetButton"
+        },
+        {
+          "assert_exists": "postSetSummary.doneButton"
+        },
+        {
+          "tap": "postSetSummary.doneButton"
+        },
+        {
+          "assert_exists": "history.demoSessionBadge"
+        }
+      ]
+    },
+    {
+      "name": "Interrupted session recovers deterministically",
+      "steps": [
+        "User starts a demo capture and force-backgrounds or force-quits mid-set",
+        "App relaunches; SessionReconciliationService scans for orphaned inProgress/finalizing sessions",
+        "Exactly one session appears in History marked ended early, with the rep/duration data captured before interruption, never duplicated or missing"
+      ]
+    },
+    {
+      "name": "Classifier misdetection is correctable",
+      "steps": [
+        {
+          "tap": "home.startSetButton"
+        },
+        {
+          "tap": "capture.classifierChip"
+        },
+        {
+          "tap": "capture.classifierOption.pushUp"
+        },
+        {
+          "assert_exists": "capture.repHeroCounter"
+        },
+        {
+          "tap": "capture.endSetButton"
+        }
+      ]
+    },
+    {
+      "name": "Settings and disclosure discoverability",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "assert_exists": "settings.classifierDisclosureRow"
+        },
+        {
+          "tap": "settings.classifierDisclosureRow"
+        },
+        {
+          "assert_exists": "torso-orientation"
+        },
+        {
+          "back": true
+        },
+        {
+          "assert_exists": "settings.healthKitStatusRow"
+        }
+      ]
+    },
+    {
+      "name": "Watch unreachable resilience",
+      "steps": [
+        "With no paired Watch (default Simulator/device state), user starts and completes a full demo session on iPhone",
+        "No crash, hang, or blocking dialog occurs on the iPhone side at any point",
+        "Settings or Known Limits honestly reflects that the Watch is not connected"
+      ]
+    },
+    {
+      "name": "Catalyst review of an exported session",
+      "steps": [
+        "On iPhone, user exports session data (including demo) from Settings to a local archive",
+        "Archive is transferred to the Mac Catalyst build via Files/AirDrop",
+        "User imports the archive on Catalyst; the session appears in CatalystBrowserView's sidebar",
+        "User steps frame-by-frame through the clip with the pose skeleton overlaid"
+      ]
+    },
+    {
+      "name": "Data export and full erase",
+      "steps": [
+        "User exports all local data from Settings to the Files app",
+        "User triggers full local erase",
+        "History is empty afterward, and the on-disk clip files (not just database rows) are confirmed removed"
+      ]
+    },
+    {
+      "name": "Exercise toggle hides start option",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "tap": "settings.exerciseToggle.plank"
+        },
+        {
+          "tap": "Home"
+        },
+        {
+          "tap": "home.startSetButton"
+        }
+      ]
+    },
+    {
+      "name": "History and trend chart view",
+      "steps": [
+        {
+          "tap": "History"
+        },
+        {
+          "assert_exists": "history.sessionRow.0"
+        },
+        {
+          "tap": "history.sessionRow.0"
+        },
+        {
+          "assert_exists": "sessionDetail.formFlagList"
+        },
+        {
+          "back": true
+        },
+        {
+          "tap": "history.exerciseFilter.squat"
+        },
+        {
+          "assert_exists": "history.trendChart"
+        }
+      ]
+    },
+    {
+      "name": "Known Limits is a first-class destination",
+      "steps": [
+        {
+          "tap": "Known Limits"
+        },
+        {
+          "assert_exists": "knownLimits.healthKitEntitlementGapRow"
+        },
+        {
+          "assert_exists": "knownLimits.watchUnpairedGapRow"
+        }
+      ]
+    }
+  ]
+}

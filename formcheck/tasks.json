@@ -1,0 +1,641 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffolding: FormcheckCore SPM package + Formcheck (iOS/Catalyst) and FormcheckWatch Xcode targets",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Package.swift",
+        "Formcheck.xcodeproj/project.pbxproj",
+        "Formcheck/FormcheckApp.swift",
+        "Formcheck/Info.plist",
+        "FormcheckWatch/FormcheckWatchApp.swift",
+        "FormcheckWatch/Info.plist"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "xcodebuild -list shows Formcheck (iOS+Catalyst) and FormcheckWatch schemes",
+        "Empty app launches in iOS Simulator to a blank root view with no crash",
+        "FormcheckCore package resolves as a local dependency of both targets"
+      ],
+      "requirement_ids": [],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-002",
+      "title": "Core models & enums: WorkoutSession, ExerciseKind, SessionStatus, HealthKitWriteStatus, FormFlagRecord, Joint/JointFrame, CapabilityGap, WatchRepUpdate, WatchSessionSnapshot, RuleEngineEvent",
+      "owner_lane": "data_domain",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Models/WorkoutSession.swift",
+        "FormcheckCore/Sources/FormcheckCore/Models/ExerciseKind.swift",
+        "FormcheckCore/Sources/FormcheckCore/Models/SessionStatus.swift",
+        "FormcheckCore/Sources/FormcheckCore/Models/HealthKitWriteStatus.swift",
+        "FormcheckCore/Sources/FormcheckCore/Models/FormFlagRecord.swift",
+        "FormcheckCore/Sources/FormcheckCore/Models/JointFrame.swift",
+        "FormcheckCore/Sources/FormcheckCore/Models/CapabilityGap.swift",
+        "FormcheckCore/Sources/FormcheckCore/Watch/WatchRelay.swift",
+        "FormcheckCore/Sources/FormcheckCore/Models/RuleEngineEvent.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Package builds with zero third-party dependencies",
+        "Unit test proves WorkoutSession.finalize-time validation rejects a squat session carrying holdDuration or a plank session carrying repCount"
+      ],
+      "requirement_ids": [
+        "R-010"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-003",
+      "title": "RepStateMachine + Squat/PushUp/Plank rule engines",
+      "owner_lane": "data_domain",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Rules/RepStateMachine.swift",
+        "FormcheckCore/Sources/FormcheckCore/Rules/ExerciseRuleEngine.swift",
+        "FormcheckCore/Sources/FormcheckCore/Rules/SquatRuleEngine.swift",
+        "FormcheckCore/Sources/FormcheckCore/Rules/PushUpRuleEngine.swift",
+        "FormcheckCore/Sources/FormcheckCore/Rules/PlankRuleEngine.swift",
+        "FormcheckCoreTests/RulesTests/SquatRuleEngineTests.swift",
+        "FormcheckCoreTests/RulesTests/PushUpRuleEngineTests.swift",
+        "FormcheckCoreTests/RulesTests/PlankRuleEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Fixture-driven unit tests independently validate squat (160/100 knee angle), push-up (160/90 elbow angle), and plank (180\u00b115 hip angle, 1s sustained) \u2014 no shared test asserts all three from one fixture",
+        "A rep that never reaches depth still counts but its FormFlagRecord.message names the actual measured and threshold degrees, verified in a test asserting on the string content",
+        "Plank test asserts a directional sagging vs. piking flag"
+      ],
+      "requirement_ids": [
+        "R-003",
+        "R-004",
+        "R-005",
+        "R-006"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-004",
+      "title": "HeuristicExerciseClassifier with in-app disclosure string",
+      "owner_lane": "data_domain",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Classification/ExerciseClassifier.swift",
+        "FormcheckCore/Sources/FormcheckCore/Classification/HeuristicExerciseClassifier.swift",
+        "FormcheckCoreTests/ClassificationTests/HeuristicExerciseClassifierTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Unit test proves classify() distinguishes squat/push-up/plank fixture sequences via torso-orientation + joint-cyclicity variance",
+        "methodDescription is a non-empty string documenting the heuristic, asserted equal to the literal copy later surfaced in onboarding/Settings"
+      ],
+      "requirement_ids": [
+        "R-007"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-005",
+      "title": "SessionRepository (ModelActor), isDemo query filter, demo fixture data",
+      "owner_lane": "data_domain",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Persistence/SessionRepository.swift",
+        "FormcheckCore/Sources/FormcheckCore/Persistence/SessionQuerying.swift",
+        "FormcheckCore/Sources/FormcheckCore/Fixtures/DemoFixtureProvider.swift",
+        "FormcheckCore/Sources/FormcheckCore/Fixtures/Resources/demo_fixture.json",
+        "FormcheckCore/Sources/FormcheckCore/Fixtures/Resources/demo_clip.mp4",
+        "FormcheckCoreTests/PersistenceTests/SessionRepositoryTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "In-memory ModelContainer tests cover startSession/persistIncrementalProgress/appendFormFlag/markFinalizing/finalize",
+        "A simulated low-disk-space clip write failure leaves the session saved with repCount/duration/flags intact and clipRelativePath nil",
+        "SessionQuerying.predicate(includeDemo: false, ...) is the single filter reused by History, Charts, HealthKit eligibility, and export in later tasks \u2014 proven by one shared test helper, not per-screen logic"
+      ],
+      "requirement_ids": [
+        "R-011",
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-006",
+      "title": "SessionReconciliationService + KnownLimitsStore (pre-seeded HealthKit gap)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Reconciliation/SessionReconciliationService.swift",
+        "FormcheckCore/Sources/FormcheckCore/KnownLimits/KnownLimitsStore.swift",
+        "FormcheckCoreTests/ReconciliationTests/SessionReconciliationServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Unit test seeds one .inProgress and one .finalizing orphaned session in-memory, runs reconcileOrphanedSessions, both resolve to .completedEndedEarly with their captured data intact",
+        "KnownLimitsStore contains exactly one HealthKit-entitlement-presumed-blocked CapabilityGap immediately after init, before any user action"
+      ],
+      "requirement_ids": [
+        "R-011",
+        "R-019"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-007",
+      "title": "PoseObservationAdapter (multi-person selection) + VisionPoseProcessor",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Vision/PoseObservationAdapter.swift",
+        "FormcheckCore/Sources/FormcheckCore/Vision/VisionPoseProcessor.swift",
+        "FormcheckCoreTests/VisionTests/PoseObservationAdapterTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Unit test over an injectable bounding-box/confidence seam proves selectPrimaryObservation picks the largest-area observation, tie-broken by average joint confidence",
+        "Code review confirms alwaysDiscardsLateVideoFrames = true is set and no frame backlog is queued"
+      ],
+      "requirement_ids": [
+        "R-009",
+        "R-030"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-008",
+      "title": "CameraCapabilityDetecting (ready/noHardware/denied/restricted)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Capability/CameraCapabilityDetecting.swift",
+        "FormcheckCoreTests/CapabilityTests/CameraCapabilityDetectingTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Unit test with an injectable AVCaptureDevice-status seam proves all four states map correctly",
+        "Simulator run confirms .noHardware is the real, observed result (not asserted only)"
+      ],
+      "requirement_ids": [
+        "R-020"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-009",
+      "title": "Concrete WCSession-backed WatchRelay + FakeWatchRelay test double",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Watch/WCWatchRelay.swift",
+        "FormcheckCoreTests/WatchTests/FakeWatchRelay.swift",
+        "FormcheckCoreTests/WatchTests/WatchRelayTests.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Unit test drives per-rep send logic against a FakeWatchRelay reporting isPaired/isWatchAppInstalled/isReachable = false and asserts no crash and no uncaught throw",
+        "A second test with isReachable = true asserts sendRepUpdate is called once per counted rep",
+        "sendMessage call sites all pass a required error handler; updateApplicationContext used for last-known-state snapshot"
+      ],
+      "requirement_ids": [
+        "R-022"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-010",
+      "title": "HealthKitWriting (write-only, type+duration only, entitlement-unavailable path)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/HealthKit/HealthKitWriting.swift",
+        "FormcheckCoreTests/HealthKitTests/HealthKitWritingTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Unit test with an injectable HKHealthStore-status seam covers notDetermined/authorized/denied/unavailableEntitlement",
+        "A denied or unavailable write never throws and never blocks or mutates the already-saved local session"
+      ],
+      "requirement_ids": [
+        "R-021"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-011",
+      "title": "SessionExportService/SessionImportService + bundle archive including clip video bytes",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Export/SessionExportArchive.swift",
+        "FormcheckCore/Sources/FormcheckCore/Export/SessionExportService.swift",
+        "FormcheckCore/Sources/FormcheckCore/Export/SessionImportService.swift",
+        "FormcheckCoreTests/ExportTests/SessionExportImportTests.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Unit test exports a session with a fixture clip into a bundle, imports it into a fresh in-memory store, and asserts both metadata and playable video bytes round-trip",
+        "Demo sessions are excluded from export unless includeDemo is explicitly passed"
+      ],
+      "requirement_ids": [
+        "R-023",
+        "R-025"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-012",
+      "title": "Theme.swift design tokens",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/Theme/Theme.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Compiles standalone; SwiftUI preview exercises every color role in light and dark",
+        "amberStroke and amberText are distinct hex values, each documented against its WCAG contrast threshold (3:1 graphical / 4.5:1 text)",
+        "RepHero counter has an explicit non-default Dynamic Type rule (large base size, minimumScaleFactor, vertically-growing container)"
+      ],
+      "requirement_ids": [
+        "R-029"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-013",
+      "title": "HomeView five-state flow",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/Home/HomeView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Simulator run (no camera hardware) shows the noHardware capability-blocked state with its own icon and remedy text on first launch, not a generic error banner",
+        "Empty/first-run state shown distinctly when no sessions exist and demo is off"
+      ],
+      "requirement_ids": [
+        "R-001",
+        "R-020"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-014",
+      "title": "CaptureSessionModel + CaptureRootView (silhouette guide, RepHero counter, classifier chip, amber annotation, finalizing state)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/Capture/CaptureSessionModel.swift",
+        "Formcheck/Capture/CaptureRootView.swift",
+        "Formcheck/Capture/SilhouetteAlignmentGuide.swift",
+        "Formcheck/Capture/RepHeroCounter.swift",
+        "Formcheck/Capture/ClassifierChip.swift",
+        "Formcheck/Capture/AmberRuleAnnotation.swift",
+        "Formcheck/Capture/FinalizingProgressRing.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004",
+        "T-007",
+        "T-008",
+        "T-009",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Demo-session toggle run in Simulator produces a real counted rep sequence and at least one specific, rule-named form flag with amber annotation naming measured/threshold degrees",
+        "Tapping the classifier chip overrides the active exercise for the remainder of the set",
+        "Capture modal performs its own independent capability check on appear rather than trusting Home's precomputed state",
+        "sessionStatus is set to .finalizing synchronously the instant End is tapped, before the async write completes"
+      ],
+      "requirement_ids": [
+        "R-001",
+        "R-002",
+        "R-008",
+        "R-013"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-015",
+      "title": "PostSetSummarySheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/Summary/PostSetSummarySheet.swift"
+      ],
+      "depends_on": [
+        "T-014",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Ending a demo set presents a .large-detent sheet reusing SessionDetailView content, showing final count/hold-duration and the fired flag if any, with a single Done action routing to History"
+      ],
+      "requirement_ids": [
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-016",
+      "title": "HistoryView (list/calendar, demo fencing)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/History/HistoryView.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "A completed demo session appears in History within the same app run (validates cross-context @Query visibility from the background ModelActor write)",
+        "Demo rows carry a persistent dashed border plus badge distinct from real sessions"
+      ],
+      "requirement_ids": [
+        "R-014"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-017",
+      "title": "SessionDetailView (+ Catalyst clip scrubber/skeleton overlay) and ExerciseTrendChart",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/History/SessionDetailView.swift",
+        "Formcheck/History/ExerciseTrendChart.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "ExerciseTrendChart excludes demo sessions from aggregation via SessionQuerying and shows a 'demo sessions excluded' disclosure when any exist",
+        "Catalyst destination build shows CatalystClipScrubber + SkeletonOverlayToggle gated by #if targetEnvironment(macCatalyst); iOS build never compiles or shows them"
+      ],
+      "requirement_ids": [
+        "R-015",
+        "R-023"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-018",
+      "title": "SettingsView + KnownLimitsView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/Settings/SettingsView.swift",
+        "Formcheck/Settings/KnownLimitsView.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-010",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Classifier methodDescription is discoverable within two taps from Settings",
+        "HealthKit permission status is shown live with a re-request path",
+        "Exercise enable/disable toggles hide disabled exercises from Home's start-set options",
+        "Any should-have feature not finished by build end routes its Settings row to a dated KnownLimitsView entry instead of showing a live-looking but non-functional control"
+      ],
+      "requirement_ids": [
+        "R-007",
+        "R-018",
+        "R-019",
+        "R-021",
+        "R-024"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-019",
+      "title": "CatalystBrowserView + import entry point",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/Catalyst/CatalystBrowserView.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "On the Mac Catalyst destination, importing an exported archive populates a NavigationSplitView sidebar with a real, openable session for frame-by-frame skeleton review",
+        "This view renders no camera/capture UI anywhere"
+      ],
+      "requirement_ids": [
+        "R-023"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-020",
+      "title": "FormcheckWatch UI (idle + in-session) and watch-side session controller",
+      "owner_lane": "primary_ui",
+      "files": [
+        "FormcheckWatch/WatchIdleView.swift",
+        "FormcheckWatch/WatchInSessionView.swift",
+        "FormcheckWatch/WatchSessionController.swift"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "Simulator run of the Watch target alone (unpaired) shows an honest 'iPhone unreachable' idle glance, never a spinner",
+        "Unit test on the watch-side controller confirms a haptic trigger call fires once per received WatchRepUpdate"
+      ],
+      "requirement_ids": [
+        "R-022"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-021",
+      "title": "AccessibilityAnnouncer wired into capture flow",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Formcheck/Accessibility/AccessibilityAnnouncer.swift"
+      ],
+      "depends_on": [
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Manual VoiceOver-on Simulator run confirms an AccessibilityNotification.Announcement fires on every counted rep and every fired form flag during a demo session",
+        "Reduce Motion preserves the amber annotation's full informational hold duration while dropping only the trace-in animation"
+      ],
+      "requirement_ids": [
+        "R-028"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-022",
+      "title": "InterruptionCoordinator (AVCaptureSession interruptions -> ended-early)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Formcheck/Interruption/InterruptionCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Unit/integration test posts a synthetic AVCaptureSession.wasInterruptedNotification mid-capture and asserts the session finalizes as completedEndedEarly through the same path used for backgrounding, not a separate handler"
+      ],
+      "requirement_ids": [
+        "R-012"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-023",
+      "title": "Full local data export/erase (deletes on-disk clip files, not just rows)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Export/DataEraseService.swift",
+        "FormcheckCoreTests/ExportTests/DataEraseServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Unit test creates sessions with on-disk clip files, runs erase, and asserts both the SwiftData rows and the actual clip files are removed from the backup-excluded container"
+      ],
+      "requirement_ids": [
+        "R-025"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-024",
+      "title": "StoreKit 2 Pro entitlement (offline-cached, downstream-only gating)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/Entitlement/EntitlementStore.swift",
+        "Formcheck/Formcheck.storekit"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "A Simulator .storekit-config test purchases, refunds, and fast-forwards a renewal, asserting entitlement remains valid offline and is never re-validated mid-session",
+        "No rule-engine or classifier code path reads entitlement state"
+      ],
+      "requirement_ids": [
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-025",
+      "title": "Share-sheet summary card renderer (clip-free by construction)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Formcheck/Summary/ShareCardRenderer.swift"
+      ],
+      "depends_on": [
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "ShareCardRenderer's input type only accepts rep count/duration/flag text/chart image \u2014 no clip URL or camera-frame type is representable in its signature",
+        "Manual share-sheet run confirms the rendered output contains no video thumbnail or camera frame"
+      ],
+      "requirement_ids": [
+        "R-027"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-026",
+      "title": "Per-requirement verification-method tagging (Simulator-observed / code-only / requires-real-hardware)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "FormcheckCore/Sources/FormcheckCore/KnownLimits/VerificationStatus.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-014",
+        "T-015",
+        "T-016",
+        "T-017",
+        "T-018",
+        "T-019",
+        "T-020",
+        "T-021",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Every requirement id from requirements.json has exactly one verification-method tag, cross-checked against what was actually run and observed in Simulator this build versus what is code-only or hardware-only"
+      ],
+      "requirement_ids": [
+        "R-032"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}

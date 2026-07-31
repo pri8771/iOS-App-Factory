@@ -1,0 +1,402 @@
+{
+  "schema_version": 1,
+  "summaries": [
+    {
+      "phase": "prompt_contract",
+      "one_paragraph_summary": "The Fieldnotes prompt contract is finalized across two rounds of discussion with full convergence and no unresolved disagreement. Core contract: an offline-first iOS voice journal (SwiftUI/SwiftData, AVFoundation, on-device-only Speech, NaturalLanguage tag/mood suggestions, PencilKit, live-computed backlinks, documented-relevance-score search, read-only HealthKit, widget+Live Activity, Share Extension, App Intents, CarPlay code path gapped on entitlement) where every feature either fully works offline or is an explicit named Gap \u2014 no silent placeholders. Round 1 resolved five implicit risk areas (named interruption test scenarios required, App Group + shared SwiftData container mandatory for widget/Live Activity/Share Extension/App Intents, Live Activity cleanup mechanism defined as staleDate+relaunch-reconciliation, on-device Speech unavailability shows an explicit in-app state, HealthKit's free-account-vs-distribution split, documented search relevance formula, backlinks computed live never stored with broken-link indicators for mentions of deleted entries). Round 2 added: mentions/backlinks must resolve via persistent entry UUID never title-text matching (so renames never break or misdirect links); transcript sentence-to-time anchors are immutable with edits as overlay deltas and seeks resolving by anchor ID never string offset (the concrete fix for edit/audio desync); the Live Activity 'no orphan' claim must state its honest residual window between force-quit and next relaunch rather than implying zero window; a factual correction that HealthKit works fine in the Simulator via manually-entered sample Health data and only App Store/TestFlight distribution is account-gated (not local testing, unlike CarPlay); the interruption-correctness metric must name specific scenarios (real call, Siri, backgrounding, force-quit-during-recording, low-storage) with at least one clean pass each, not just an undifferentiated rep count; search must document that untranscribed entries remain findable via tags/mood/sketch metadata as expected behavior; and every later phase must report per-requirement status (guaranteed/degrades/gapped) with evidence rather than a bare done claim.",
+      "key_decisions": [
+        "DEC-prompt_contract-001",
+        "DEC-prompt_contract-002",
+        "DEC-prompt_contract-003",
+        "DEC-prompt_contract-005",
+        "DEC-prompt_contract-006",
+        "DEC-prompt_contract-007",
+        "DEC-prompt_contract-008",
+        "DEC-prompt_contract-009",
+        "DEC-prompt_contract-010",
+        "DEC-prompt_contract-011",
+        "DEC-prompt_contract-012",
+        "DEC-prompt_contract-013",
+        "DEC-prompt_contract-014",
+        "DEC-prompt_contract-015",
+        "DEC-prompt_contract-016",
+        "DEC-prompt_contract-017",
+        "DEC-prompt_contract-018"
+      ],
+      "open_risks": [
+        "ID-based mention resolution and immutable transcript anchors are data-model decisions that must actually be implemented this way in the build phase, not just agreed in principle.",
+        "The App Group + shared SwiftData container setup is new implied scope; if skipped, widget/Live Activity/Share Extension will silently violate the no-placeholder-data rule.",
+        "Named-scenario interruption testing (especially a real incoming phone call and force-quit during active recording) requires an actual physical device session \u2014 this must actually happen in a later phase, not just be planned.",
+        "Per-requirement feature health cards (status + evidence) are a new deliverable format that later phases need to actually produce, not just narrate.",
+        "CarPlay's entitlement gap still needs to be independently confirmed true in this specific developer account/environment rather than assumed from general Apple policy."
+      ]
+    },
+    {
+      "phase": "product_research",
+      "one_paragraph_summary": "Product research converged with no real disagreement between the two participants: Fieldnotes' audience is framed (as an explicit assumption, not researched fact) as privacy-first solo journalers overlapping Day One/Daylio's mood-journaling users and Obsidian/Roam's backlink-graph users, capturing voice during interrupted real-world moments. The competitive gap is the combination of voice + timeline-anchored transcript + tags/mood + live backlinks + HealthKit context in one offline local graph \u2014 not on-device transcription alone, since Apple's own Voice Memos already ships that natively. Both participants independently flagged that the prompt's 11 features plus widget/Live Activity/Share Extension/App Intents/CarPlay amounts to a portfolio of apps rather than one first build, and converged on the same fix: sequence the build so the core loop (record, interruption-safe finalize/resume, on-device transcription, tag/mood suggestions, live backlinks, documented-relevance search) plus the App Group + shared SwiftData container foundation ships first and solid, with widget/Live Activity next (same foundation, Simulator-testable), Share Extension/App Intents secondary, and CarPlay as a code-path-only exercise with zero polish investment. Additional risk calls: HealthKit's denied/not-connected state should be designed as the default case since reviewers won't typically have seeded matching Health data; NaturalLanguage sentiment must be presented as coarse polarity, never implied clinical mood understanding; the CarPlay entitlement gap claim (paid account sufficient) needs independent fact-checking rather than being asserted, since it may require separate Apple approval; and demo seed data must specifically include one HealthKit-correlated day and one broken-link example so both honest-degradation paths are actually visible on review.",
+      "key_decisions": [
+        "DEC-product_research-001",
+        "DEC-product_research-002",
+        "DEC-product_research-003",
+        "DEC-product_research-004",
+        "DEC-product_research-005",
+        "DEC-product_research-006",
+        "DEC-product_research-007"
+      ],
+      "open_risks": [
+        "Audience/comparable-app claims are inference from the feature list, not fetched market research \u2014 should not be treated as verified fact by later phases.",
+        "CarPlay's true entitlement gate (paid account alone vs. paid account plus separate Apple approval) remains unconfirmed and needs verification before the Gap note is finalized.",
+        "Interruption-correctness scenario testing (real call, Bluetooth route change, force-quit during recording) still requires actual physical-device sessions in a later phase, not just design-phase acknowledgment of the risk.",
+        "The App Group + shared SwiftData container is now doubly load-bearing (contract-mandated and product-research-mandated as build-order-critical) \u2014 if the build phase treats it as routine plumbing instead of foundational work, widget/Live Activity/Share Extension will inherit consistency bugs.",
+        "Demo seed data's HealthKit-correlated day and broken-link example are new specific requirements that the build phase must actually implement, not just note as good ideas."
+      ]
+    },
+    {
+      "phase": "portfolio_selection",
+      "one_paragraph_summary": "Portfolio selection concluded this is a single-app build, not a portfolio: Fieldnotes (slug 'fieldnotes', category journaling/personal-knowledge/wellness, build=true) is one cohesive product whose widget, Live Activity, Share Extension, App Intents, and CarPlay scene are all required surfaces sharing one local SwiftData store via the App Group mandated in the prompt contract \u2014 splitting them into sibling apps would break backlink integrity, audio resume/finalization invariants, and transcript anchor behavior. No portfolio-json manifest was produced since no category was collapsed and no split was warranted. Both participants (Codex and Claude) independently converged with no disagreement, and Claude added an explicit clarification carried into the decision log: prioritizing the core loop (record, interruption-safe finalize/resume, on-device transcribe, tag/mood suggestions, live backlinks, documented search) ahead of widget/Live Activity/Share Extension/App Intents/CarPlay is a build-order and attention-allocation call, not a scope cut \u2014 all 11 features and 4 extension surfaces plus CarPlay remain required, each to be reported as guaranteed/degrades/gapped per the contract's feature health card requirement, not silently dropped.",
+      "key_decisions": [
+        "DEC-portfolio_selection-001",
+        "DEC-portfolio_selection-002",
+        "DEC-portfolio_selection-003"
+      ],
+      "open_risks": [
+        "Because this phase confirmed 'single app, core-first' rather than a scope cut, the build phase must still actually attempt all 11 features plus 4 extension surfaces plus CarPlay and produce a health-card status for each \u2014 if build time runs short, the risk is silently treating unattempted late-tier features as out-of-scope instead of explicitly marking them Gapped.",
+        "The App Group + shared SwiftData container remains the single most load-bearing piece of infrastructure for this single-app decision to hold \u2014 if it's skipped or done superficially, the 'no fake cross-target sync' justification for staying single-app is undermined."
+      ]
+    },
+    {
+      "phase": "initial_discussion",
+      "one_paragraph_summary": "Initial discussion converged in round 1 with no disagreement: Fieldnotes' product promise is trust under interruption \u2014 an offline-first iOS voice journal that reliably captures entries through real-world interruptions and makes them recallable via timeline-anchored editable transcripts, tags, mood, live backlinks, and local HealthKit context, never faking a feature's state. Primary user is a privacy-first solo journaler capturing short interrupted bursts, with the interruption-recovery scenario (not the happy path) as the design center. The core loop was defined end-to-end: record -> auto-finalize on interruption -> async non-blocking on-device transcription with a visible per-entry readiness state (transcribing/unavailable/ready, so a second recording is never blocked) -> anchor-based editable transcript with tap-to-seek -> dismissible tag/mood suggestions -> UUID-based @-mentions with live backlinks. Information architecture was locked as three tabs (Timeline, Search, Settings) plus a pushed Entry Detail screen (pinned player, scrollable transcript, footer stack for tags/mood/sketch/backlinks) with explicitly no separate graph-visualization screen. Hard scope boundaries were set: no cloud/accounts/server/analytics/SDKs/IAP ever, Share Extension is one-way import only, audio is append-only (transcript-only editing), CarPlay gets zero visual polish, and widget/Live Activity each ship one fixed unconfigurable layout for v1. Measurable success criteria were converted into build-verification-checkable tests: five named interruption scenarios each with a clean pass plus 20+ total runs reported per-scenario, <=300ms tap-to-seek tolerance surviving edits, zero dangling/duplicate backlinks with visible broken-link state after deletes, a documented relevance ordering verified against a fixed two-entry test case, and every permission-gated feature verified by actually toggling the permission off rather than by code inspection.",
+      "key_decisions": [
+        "DEC-initial_discussion-001",
+        "DEC-initial_discussion-002",
+        "DEC-initial_discussion-003",
+        "DEC-initial_discussion-004",
+        "DEC-initial_discussion-005",
+        "DEC-initial_discussion-006"
+      ],
+      "open_risks": [
+        "The async/non-blocking transcription queue with a per-entry state indicator is new architectural scope not explicitly named in the original prompt or prior phases \u2014 the build phase must actually implement it as a first-class concept, not treat it as an incidental detail.",
+        "The three-tab IA and entry-detail layout are UX commitments that constrain later design/build phases; if build time runs short, these must still be honored rather than silently collapsed into a simpler structure.",
+        "The five measurable success criteria are now the concrete bar build verification must clear \u2014 if evidence isn't collected per-criterion, a later phase could still slip back into a vibe-check pass."
+      ]
+    },
+    {
+      "phase": "per_app_product_brief",
+      "one_paragraph_summary": "The per-app product brief for Fieldnotes was produced by a single participant (Codex's CLI returned empty this round, so no second perspective was available) but fully answers the phase's required output. It amends the earlier 'no IAP ever' boundary narrowly: a Fieldnotes Pro subscription is now in scope, but may never gate any of the 11 numbered core features, never gate a user's own recorded data, and never require network beyond what the free tier already does offline. Free tier ships all 11 features uncapped forever; Pro adds on-device Insights (mood trend, tag frequency, cadence), advanced search (saved searches, compound filters, search history), unlimited sketches (vs. one free), and extra icons/themes \u2014 all computed from existing local data with no new permissions. On lapse, Pro features grey out but core data and base search remain fully functional. Purchase requires one StoreKit network round-trip; all later entitlement checks are local via Transaction.currentEntitlements, with a named airplane-mode-after-purchase test case added to build verification. Target user for the paid tier is a privacy-first solo journaler who already has volume of entries elsewhere and wants insight over their own archive. Competitive wedge is unchanged from product_research (voice + backlink graph + mood/HealthKit context, zero network dependency) with Pro specifically monetizing insight-at-volume. Growth angle is a narrow carve-out to the no-sharing-between-people rule: a user-initiated 'share entry as card' export (mood/tags/snippet only, never transcript/audio) to the system share sheet, positioned as a designed screenshot rather than a social feature. Local-first remains absolute (every one of the 11 features must pass an actual airplane-mode test); the cloud-ready path is a SwiftData CloudKit-backed ModelConfiguration against the user's own private database, wired as an off-by-default Settings toggle and documented as a named Gap for v1 rather than a future schema migration project.",
+      "key_decisions": [
+        "DEC-per_app_product_brief-001",
+        "DEC-per_app_product_brief-002",
+        "DEC-per_app_product_brief-003",
+        "DEC-per_app_product_brief-004",
+        "DEC-per_app_product_brief-005"
+      ],
+      "open_risks": [
+        "This brief was produced without Codex's participation this round (CLI returned empty) \u2014 it hasn't been adversarially checked by a second perspective the way every prior phase was, so a later phase or human reviewer should sanity-check the subscription/growth carve-outs before treating them as fully vetted.",
+        "The share-as-card export is a new scope carve-out to a previously hard boundary (no sharing between people); build phase must implement it exactly as scoped (mood/tags/snippet only) or it risks becoming a de facto social feature.",
+        "The CloudKit-ready ModelConfiguration structuring is a real architectural constraint on the App Group container design, not just a note \u2014 if build treats it as an afterthought, 'config flip not migration' becomes false.",
+        "Free-tier-forever-uncapped and lapse-degrades-gracefully are now hard product commitments that build and verification phases must actually implement and test, not just state as intent."
+      ]
+    },
+    {
+      "phase": "next_steps_small",
+      "one_paragraph_summary": "The smallest valuable slice for Fieldnotes was defined as one complete workflow rather than a feature checklist: record with a live waveform, survive a simulated interruption with a clean finalize (explicitly not claiming the full real-device five-named-scenario bar from DEC-initial_discussion-006, which remains a later build-verification deliverable), land in the Timeline with a real (not simplified) per-entry transcribing/unavailable/ready state so a second recording is never blocked, get an async transcript with working tap-to-seek that survives a text edit, show one dismissible tag chip and one acceptable mood chip, and support a UUID-based @-mention that produces a live backlink on the mentioned seeded entry \u2014 plus a minimal Search tab backed by a real, documented relevance formula checkable against a fixed two-entry test case. Backlinks and search were deliberately kept in this first slice (not deferred) because interruption-safety alone only proves the hardest engineering risk, not the actual product promise of a connected, searchable voice-note graph. PencilKit sketches, HealthKit, widget, Live Activity, Share Extension, App Intents, CarPlay, and the Pro subscription are all cut from this slice but remain in scope for the app overall, per the standing DEC-portfolio_selection-003 ruling that sequencing is a build-order call not a scope cut \u2014 each must still land later as a named guaranteed/degrades/gapped health-card entry. Only one participant (Claude) produced a response this round; Codex was in cooldown, so this decision set has not yet been adversarially cross-checked by a second perspective.",
+      "key_decisions": [
+        "DEC-next_steps_small-001",
+        "DEC-next_steps_small-002",
+        "DEC-next_steps_small-003"
+      ],
+      "open_risks": [
+        "This phase's output was not cross-checked by Codex due to CLI cooldown \u2014 a later phase or human reviewer should sanity-check that the cut list and slice scoping are actually sound before treating them as fully vetted, same caveat as per_app_product_brief.",
+        "The simulated-interruption validation in this slice must not be miscited by a later phase as having satisfied the real named-scenario/20-run success metric \u2014 the build-verification phase must still independently produce that evidence.",
+        "The per-entry transcribing/unavailable/ready state and the documented search relevance formula are now concrete build deliverables for this slice, not just design intentions \u2014 if the build phase simplifies either away 'for now,' it silently breaks this phase's own reasoning for why the slice is complete enough to validate the concept."
+      ]
+    },
+    {
+      "phase": "detailed_discussion",
+      "one_paragraph_summary": "Detailed discussion resolved nine concrete edge cases and implementation rules left implicit by earlier phases, produced by a single participant (Codex stayed in cooldown, so this was not adversarially cross-checked). Interruption handling must be a proper reentrant state machine (idle/recording/interrupted/finalizing) that treats AVAudioSession .interruption and .routeChange as distinct event types, not a boolean flag, since overlapping interruptions and headphone-unplug route changes are real composable failure modes. On-device Speech transcription state gets a third sub-state ('model asset downloading') distinct from unavailable/ready, and microphone vs. Speech authorization are tracked as two independently-denyable permissions whose full combination matrix (including permanent record-only entries) must appear in the health card. Transcript anchors get an explicit fallback: a tap near a deleted anchor resolves to the nearest surviving anchor. Backlinks dedupe duplicate mentions of the same entry to one entry and block self-mentions at autocomplete time. HealthKit's 'not connected' state is reframed as a hedged 'no data available' since Apple's API makes read-denial and genuine no-data indistinguishable from query results. Data protection is locked in: App Group audio/transcript/sketch files get NSFileProtectionCompleteUntilFirstUserAuthentication at minimum, and HealthKit data is never persisted to SwiftData, only queried live. Widget reloads fire only on confirmed entry save (respecting the system's finite daily budget), and Live Activity's 8-hour OS-forced expiry is folded into the already-documented residual-window orphan caveat rather than treated as a new gap. Finally, demo and real entries are made mutually unlinkable via autocomplete filtering so toggling demo mode off can never strand a backlink or blur the demo/real data separation guarantee.",
+      "key_decisions": [
+        "DEC-detailed_discussion-001",
+        "DEC-detailed_discussion-002",
+        "DEC-detailed_discussion-003",
+        "DEC-detailed_discussion-004",
+        "DEC-detailed_discussion-005",
+        "DEC-detailed_discussion-006",
+        "DEC-detailed_discussion-007",
+        "DEC-detailed_discussion-008",
+        "DEC-detailed_discussion-009"
+      ],
+      "open_risks": [
+        "This phase was not cross-checked by Codex (CLI in cooldown again, third phase in a row) \u2014 a later phase or human reviewer should sanity-check these nine rules before treating them as fully vetted.",
+        "The interruption state machine, three-state Speech status, and mic/Speech permission matrix are now concrete architectural requirements for the build phase, not just design notes \u2014 if build simplifies any of them back down 'for now,' the edge cases named here will resurface as real bugs.",
+        "The demo/real mutual-unlinkability rule and the anchor-deletion fallback are both new, specific behaviors that need explicit test coverage in build verification, not just code review."
+      ]
+    },
+    {
+      "phase": "app_features",
+      "one_paragraph_summary": "The app_features phase produced a MoSCoW prioritization and a screen-level IA elaboration for Fieldnotes, with Codex substituting a local fallback model (Qwen2.5 Coder) this round since the real Codex CLI was unavailable \u2014 the two contributions were complementary rather than adversarially checked against each other. Must-have (fully functional this cycle): interruption-safe recording as a reentrant state machine with live waveform, on-device transcription with a three-state status model and anchor-based tap-to-seek surviving edits, dismissible tag/mood suggestions, UUID-based bi-directional linking with live-computed backlinks (deduped, no self-mentions, visible broken-link indicator), full-text search with a documented deterministic relevance formula gated by a binary pass/fail test against a fixed two-entry case, the demo-entries toggle (elevated to Must despite reading as cosmetic, since it's the only thing preventing an empty first-review experience), and the App Group + shared SwiftData container infrastructure. Should-have: PencilKit sketches, HealthKit read-only correlation (with the denied/no-data hedge state given full visual treatment), widget + Live Activity, and Share Extension. Could-have: App Intents, Fieldnotes Pro subscription, share-as-card export, and the CloudKit-ready toggle \u2014 with an explicit build-time cut order naming Pro subscription and App Intents as first to drop if time runs short, since a half-built subscription flow is worse than none. Won't-this-cycle is scoped narrowly to CarPlay's actual on-vehicle runtime only; its code path still ships as required output. The three-tab IA (Timeline/Search/Settings plus pushed Entry Detail) from initial_discussion was reaffirmed with screen-level flow detail (Record screen states, Entry Detail's transcript/backlinks layout, Search's ranked-results view) rather than changed. A full requirements-json machine contract of 70 numbered, individually testable requirements was produced, covering all 11 original numbered features, all four extension surfaces, CarPlay's gap, the Pro subscription's constraints, demo-data guarantees, and the cross-cutting infra/honesty rules (App Group sharing, file protection, permission-toggle verification, feature health cards, offline-only operation) established across all prior phases.",
+      "key_decisions": [
+        "DEC-app_features-001",
+        "DEC-app_features-002",
+        "DEC-app_features-003",
+        "DEC-app_features-004",
+        "DEC-app_features-005",
+        "DEC-app_features-006"
+      ],
+      "open_risks": [
+        "This round's Codex contribution came from a local fallback model rather than the real gpt-5.3-codex-spark, so the MoSCoW tiering and cut-order decisions have had weaker adversarial scrutiny than earlier phases where both real participants engaged.",
+        "The 70-item requirements-json is now the literal grading contract for the adherence gate \u2014 if the build phase treats any 'core:true' item as optional or defers it silently, that is a contract violation, not a reasonable simplification.",
+        "The Pro-subscription/App-Intents cut order is a build-time contingency, not a default plan \u2014 if the build phase reaches for it prematurely (before Must/Should tiers are actually complete), it would undercut the 'all 11 features plus 4 surfaces remain in scope' ruling from portfolio_selection.",
+        "The search relevance formula's pass/fail gate (documented formula + fixed two-entry test case) is now a concrete build deliverable; if build produces a formula but skips demonstrating it against the fixed test case, this phase's intent to prevent another promissory note will have failed anyway."
+      ]
+    },
+    {
+      "phase": "design_discussion",
+      "one_paragraph_summary": "Design discussion for Fieldnotes converged on a single design language, 'Analog Field Journal' \u2014 paper field-notebook visuals combined with an analog tape recorder's honest VU-meter feedback \u2014 chosen over Codex's thinner, more generic 'Journal of Thoughts' naming since both participants independently converged on the same paper/journal/warm-tone metaphor but only Claude's pass met the phase's specificity bar. The emotional target is quiet reliability ('this caught what I said, even through the mess of real life'), not delight. The signature interaction is an ink-style live waveform that visibly changes color and shows a paused-clock glyph at the exact moment of interruption, then resumes in a distinguishable shade \u2014 deliberately rejecting a spinner or generic 'resuming...' toast so the app visibly proves its hardest technical guarantee rather than hiding it. The default stock-iOS look (plain List, system blue, nav-bar '+') is explicitly rejected in favor of card rows with a waveform ghost sparkline + mood chip + transcription-state badge, a warm paper/sepia (light) and charcoal instrument-panel (dark) palette that reserves color for mood, and a tactile bottom-center record control. Screen inventory and full per-screen state models were locked for Timeline, full-screen Record, Entry Detail, Search, and Settings, elaborating (not changing) the three-tab IA from initial_discussion and app_features. Additional concrete rules were set: demo/real entries get a corner-ribbon marker kept separate from mood color; search results show a visible 'why this matched' hint tied to the documented relevance formula; and accessibility requires text/VoiceOver labels alongside every color-coded element, a VoiceOver announcement at the interruption moment, and the sparkline dropping before it's allowed to collide with badges under large Dynamic Type. Codex ran on a local fallback model (Qwen2.5 Coder) rather than the real gpt-5.3-codex-spark this round, so the adversarial check on this phase's output is weaker than a full two-real-participant round, though the two contributions were complementary rather than conflicting.",
+      "key_decisions": [
+        "DEC-design_discussion-001",
+        "DEC-design_discussion-002",
+        "DEC-design_discussion-003",
+        "DEC-design_discussion-004",
+        "DEC-design_discussion-005",
+        "DEC-design_discussion-006",
+        "DEC-design_discussion-007",
+        "DEC-design_discussion-008"
+      ],
+      "open_risks": [
+        "This round's Codex contribution came from a local fallback model, not the real Codex CLI, so the design language and screen/state decisions have had weaker adversarial scrutiny than phases where both real participants engaged \u2014 same recurring caveat as detailed_discussion and app_features.",
+        "The ink-waveform interruption visual and corner-ribbon demo marker are concrete, specific UI commitments that the build phase must actually implement pixel-for-pixel in spirit, not simplify into a generic banner or badge \u2014 doing so would silently undo this phase's central rationale.",
+        "The 'why this matched' search hint is a new UI requirement not previously specified in requirements-json (R-032/R-033 cover the ranking formula but not its visible explanation) \u2014 build phase should treat this as an implied extension of the existing search must-have, not optional polish."
+      ]
+    },
+    {
+      "phase": "design_handoff",
+      "one_paragraph_summary": "The design handoff for Fieldnotes was produced by a single participant (Codex remained in cooldown, the fourth consecutive phase without its adversarial pass) but fully satisfies every required output and acceptance check in the phase playbook. Navigation is locked as a single TabView (Timeline/Search/Settings) with per-tab NavigationStacks, Record as a fullScreenCover (never a sheet or push, since its modality is itself part of the interruption-safety design), Entry Detail pushed, and @-mention autocomplete as an inline caret-anchored popover. The phase's central architectural contribution is making the client plumbing match the honesty the visuals promise: transcription status, tag/mood suggestions, and backlinks must be read live off SwiftData on every render (via @Query and per-screen #Predicate queries) rather than cached in view-model state, transcription runs as one background Task per entry (not a shared serializing queue actor) so a second recording is never blocked, and the live waveform consumes a throttled/downsampled amplitude stream rather than raw audio taps to avoid competing with the audio render thread. Full design tokens were locked with explicit values and zero invented placeholders: a 7-step Dynamic-Type-mapped type scale, a 4pt-base spacing grid, 4 corner-radius steps, and a 9-role semantic color palette with light and dark hex values for every role (one pairing, #A79C89-on-#26231F, is flagged as borderline contrast requiring an actual computed check before Theme.swift is finalized). A full component inventory (EntryCard, WaveformInkView, RecordButton, InterruptionBanner, TranscriptAnchorText, TagChip/MoodChip, BacklinkRow, SketchThumbnail, SearchResultRow, PermissionMatrixRow, DemoRibbon) was mapped to screens, with concrete empty/error copy per screen (including Timeline's empty-vs-error distinction and Search's nothing-indexed-vs-no-matches split) and named motion/haptic timings. The phase concluded no external Claude Design pass is needed since the visual system is already fully specified, with an optional fallback prompt provided for the Record screen only if a second opinion is later wanted.",
+      "key_decisions": [
+        "DEC-design_handoff-001",
+        "DEC-design_handoff-002",
+        "DEC-design_handoff-003",
+        "DEC-design_handoff-004",
+        "DEC-design_handoff-005",
+        "DEC-design_handoff-006",
+        "DEC-design_handoff-007",
+        "DEC-design_handoff-008"
+      ],
+      "open_risks": [
+        "This phase was not cross-checked by Codex (CLI in cooldown for the fourth consecutive phase) \u2014 a later phase or human reviewer should sanity-check the navigation/live-query architecture rules before treating them as fully vetted, same recurring caveat as detailed_discussion, app_features, and design_discussion.",
+        "The live-query mandate (no cached view-model snapshots for transcription/tags/backlinks) and the per-entry-Task transcription rule are now concrete architectural constraints the build phase must actually implement, not simplify away under time pressure \u2014 doing so would silently reintroduce the exact stale-state bug class this phase exists to prevent.",
+        "The #A79C89-on-#26231F contrast flag is an open item requiring an actual computed check in build or verification, not just a spec-time note; if skipped, DEC-design_discussion-008's accessibility commitment goes unverified.",
+        "Record's fullScreenCover modality is now stated as load-bearing for interruption-safety correctness, not just navigation style \u2014 the build phase must not 'simplify' it into push navigation, and verification should confirm this constraint held."
+      ]
+    },
+    {
+      "phase": "ios_architecture_review",
+      "one_paragraph_summary": "The iOS architecture review for Fieldnotes was produced by a single participant (Codex in cooldown for the fifth consecutive phase) but closed three architecture gaps that no earlier phase had actually named, plus locked every required output in the phase playbook. Background recording survival requires the app target to declare Background Modes \u2192 Audio and use an AVAudioSession .playAndRecord category scoped to Record/playback (not held open permanently) \u2014 without this, the app's central promise of surviving backgrounding is structurally impossible. The recording pipeline must write incrementally to disk via AVAudioFile rather than buffering in memory, with a launch-time reconciliation scan that recovers and honestly labels any entry left mid-recording after a force-quit, rather than silently losing or corrupting it. The CloudKit-ready 'config flip, not migration' promise from per_app_product_brief is made concretely enforceable: every SwiftData model must satisfy CloudKit's schema constraints (no unique attributes, optional relationships with inverses, defaults on non-optional attributes) starting from the first commit even with the sync toggle off. The shared App Group data model is architected as one local Swift Package imported identically by the main app, widget, Share Extension, and CarPlay targets to prevent schema drift, with audio stored as real files in the App Group container (SwiftData holding only relative paths) and PencilKit drawings as externally-stored attributes. Testability is split into two explicit, separately-reported tiers: CI-runnable pure-logic XCTest coverage (interruption state machine, anchor-deletion fallback, backlink dedup, search relevance formula, StoreKit entitlement logic) enabled by exposing directly callable state-machine methods behind a thin NotificationCenter adapter, versus the five named real-world scenarios which remain a manual physical-device pass CI cannot substitute for. Permissions were locked to specifics rather than phrases: separate honest mic/Speech usage strings, HealthKit read-only limited to exactly sleep analysis plus one activity metric, and a checked-in .storekit config file for local subscription testing. The dependency policy was finalized as zero third-party packages, with search implemented as an in-memory scored pass over SwiftData query results rather than adopting a search library.",
+      "key_decisions": [
+        "DEC-ios_architecture_review-001",
+        "DEC-ios_architecture_review-002",
+        "DEC-ios_architecture_review-003",
+        "DEC-ios_architecture_review-004",
+        "DEC-ios_architecture_review-005",
+        "DEC-ios_architecture_review-006",
+        "DEC-ios_architecture_review-007"
+      ],
+      "open_risks": [
+        "This phase was not cross-checked by Codex (CLI in cooldown for the fifth consecutive phase) \u2014 a human reviewer or later phase should sanity-check these seven architecture rules before treating them as fully vetted, the same recurring caveat as detailed_discussion, app_features, design_discussion, and design_handoff.",
+        "The launch-time recording-reconciliation scan and the CloudKit-schema-constraints rule are new, concrete build requirements that tech_specs and the build phase must actually encode into requirements-json and implement, not treat as background color \u2014 skipping either would silently reopen exactly the failure modes this phase exists to close.",
+        "The CI-vs-physical-device test tier split is now the structural basis for all future interruption-correctness evidence; if build produces only CI coverage and treats it as satisfying the five-named-scenario bar, that would violate this phase's own explicit distinction.",
+        "The Swift Package boundary for the shared model layer is a real project-structure decision (a local package target plus four consumers) that must be set up correctly at the start of build, since retrofitting it after four targets already have divergent @Model copies would be expensive."
+      ]
+    },
+    {
+      "phase": "tech_specs",
+      "one_paragraph_summary": "Tech specs for Fieldnotes were produced by a single participant (Codex in cooldown for the sixth consecutive phase) but fully satisfy the phase playbook's required outputs and acceptance checks. Architecture is MVVM-lite: views read live off SwiftData via @Query/@Model, and the only service layer consists of stateful actors owning one hard problem (RecordingController) or pure functions over the store (SearchRelevanceScorer, BacklinkQuery, MentionAutocompleteQuery) \u2014 no cached view-model intermediaries. File layout centers on one local Swift package, FieldnotesCore, holding the shared schema and all cross-target logic, with the app, widget, Share Extension, and CarPlay targets holding only UI/glue. Data models were finalized with several new concrete decisions: Entry gains a mutable title field for human-readable mention display (UUID still resolves the actual link per DEC-prompt_contract-014); Entry.cachedTranscriptText is a denormalized single-writer search cache; Entry.waveformSummary persists ~48 RMS buckets at finalize and drives both the Timeline sparkline and a per-entry deterministic ink-color visual signature; Mention.targetEntryID is a raw UUID (not a relationship) to make broken-link detection possible; Anchor uses soft-delete to preserve id/position for the nearest-surviving-anchor tap fallback. The search relevance formula, promised but unwritten across three prior phases, now has exact point weights and a worked two-entry proof case. Concurrency boundaries were locked (RecordingController as an actor with directly callable interruption/route-change handlers, per-entry transcription Tasks, typed errors with no try? in the recording/finalize path), and testing strategy was split into a CI tier (state machine, anchor fallback, dedup, search formula, entitlement logic, demo-seed idempotency, all in FieldnotesCoreTests) versus a physical-device manual tier the CI tier cannot substitute for. A full interfaces-json contract covering every cross-lane type was emitted for parallel build lanes to code against.",
+      "key_decisions": [
+        "DEC-tech_specs-001",
+        "DEC-tech_specs-002",
+        "DEC-tech_specs-003",
+        "DEC-tech_specs-004",
+        "DEC-tech_specs-005",
+        "DEC-tech_specs-006",
+        "DEC-tech_specs-007",
+        "DEC-tech_specs-008"
+      ],
+      "open_risks": [
+        "This phase was not cross-checked by Codex (CLI in cooldown for the sixth consecutive phase) \u2014 a human reviewer or later phase should sanity-check these data-model and concurrency decisions before treating them as fully vetted.",
+        "cachedTranscriptText's single-writer invariant (TranscriptEditor.applyEdit as the only path that mutates Anchor.text) is self-flagged as the one genuinely risky design choice in this spec \u2014 if the build phase adds any second write path to Anchor.text, search results will silently desync from the actual transcript.",
+        "The interfaces-json contract is now the literal cross-lane type contract for build; if any parallel build lane invents a conflicting signature instead of importing these exact types from FieldnotesCore, schema drift (the exact failure ios_architecture_review's Swift Package decision was meant to prevent) resurfaces.",
+        "The search relevance formula's exact point weights and the fixed two-entry proof case are now a concrete, checkable build deliverable \u2014 build verification must assert the exact scores, not just relative ordering, or DEC-app_features-003's binary pass/fail gate goes unmet."
+      ]
+    },
+    {
+      "phase": "project_plan",
+      "one_paragraph_summary": "The Fieldnotes project plan was produced by a single participant (Codex in cooldown for a seventh consecutive phase) but delivers a dependency-sequenced, executable plan rather than a MoSCoW-tier list with dates attached. Milestone 0 is a hard gate: all four targets (app, widget, Share Extension, CarPlay) scaffolded as shells importing the shared FieldnotesCore package, App Group configured, verified via an actual cross-target write/read round-trip, before any feature code starts \u2014 retrofitting this after targets diverge was judged too expensive to leave soft. Subsequent milestones follow genuine data dependency: data model/persistence, then recording (state machine + incremental disk writes + reconciliation), then transcription/tagging (depends on recorded entries), then search (exit gate includes a grep-audit that nothing bypasses TranscriptEditor.applyEdit to write Anchor.text directly), then backlinks, then demo data seeding (deliberately after the schema is stable, to avoid reseeding), then Should-tier features, then Could-tier features, then CarPlay's code path last. A parallel track was named explicitly: pure-function components (SearchRelevanceScorer, BacklinkQuery, AutoTagger, MentionAutocompleteQuery) can be built against fixtures alongside the recording milestone since they don't depend on a working recorder, but their integration into real UI against interfaces-json types is scoped as its own separately-verified task rather than an assumed non-event. Verification was pulled out of a generic end-of-plan bucket into specific scheduled tasks: the real-incoming-call scenario needs a second device decided as logistics now; low-storage testing uses a debug-only synthetic hook instead of actually filling a device's disk; CloudKit-readiness verification is scoped as a structural/lint check only, not a live sync test; and DemoDataSeeder must batch its widget reload calls to one at the end of the bulk seed rather than per-entry, to avoid exhausting the widget's daily reload budget. A standalone early task was also added to finally fact-check the CarPlay entitlement claim against Apple's actual documentation, closing an open risk that had persisted unverified across four prior phases.",
+      "key_decisions": [
+        "DEC-project_plan-001",
+        "DEC-project_plan-002",
+        "DEC-project_plan-003",
+        "DEC-project_plan-004",
+        "DEC-project_plan-005",
+        "DEC-project_plan-006"
+      ],
+      "open_risks": [
+        "This phase was not cross-checked by Codex (CLI in cooldown for the seventh consecutive phase) \u2014 a human reviewer or the task assignment phase should sanity-check this milestone sequencing before treating it as fully vetted, the same recurring caveat as the six phases before it.",
+        "The parallel pure-function track's integration step is a new coordination point that the task assignment phase must actually schedule as a distinct task with its own verification, or the risk it was meant to flag (silent fixture/real-type mismatch) reappears.",
+        "The real-incoming-call test logistics (a second device to ring the test phone) and the low-storage synthetic-hook approach are now concrete build requirements the build phase must actually implement/arrange, not just plan-time notes.",
+        "The CarPlay entitlement fact-check task is scheduled but not yet executed \u2014 until it runs, the Gaps documentation still cannot state the entitlement limitation as a verified fact."
+      ]
+    },
+    {
+      "phase": "task_assignments",
+      "one_paragraph_summary": "Task assignments for Fieldnotes were produced by a single participant (Codex in cooldown for an eighth consecutive phase) but deliver a complete, buildable backlog. Four lanes (data_domain, services_utilities, primary_ui, polish_resilience) were mapped onto a concrete file tree rooted at Fieldnotes.xcodeproj, with FieldnotesCore as the shared local package imported identically by the app, widget, Share Extension, and CarPlay code path; CarPlay is wired as a scene configuration inside the main app target rather than a separate Xcode target, correcting project_plan's looser four-target phrasing. Forbidden edit zones were locked to directly prevent the specific risks earlier phases already named: only data_domain may declare/modify @Model types, only TranscriptEditor.applyEdit may write Anchor.text (enforced by a grep-audit task, not just a stated rule), primary_ui never imports hardware frameworks directly, and no extension target redeclares a Core type. Shared project-level files (pbxproj, entitlements, Package.swift) are scoped to the Milestone-0 task and additive-only afterward. 36 tasks were defined with acyclic dependencies preserving project_plan's data-dependency sequencing, structured so no Must-tier task depends on Should/Could-tier work (so the build stays coherent if time runs out early). 8 flows were converted into the required tap/type/assert_exists machine format with dotted accessibilityIdentifiers, covering record-to-finalize, demo data toggle, tap-to-seek surviving a transcript edit, tag/mood accept-dismiss, mention/backlink creation, ranked search with match-reason, HealthKit's honest not-connected state, and PencilKit sketch attachment \u2014 deliberately excluding flows that would require simulating a real system interruption (phone call, backgrounding), since those remain the physical-device manual test tier and aren't tappable UI actions the crawl gate can execute. Requirement IDs use descriptive placeholders (R-F1..R-F11, R-INFRA, R-DEMO, etc.) rather than literal requirements.json IDs since that file's text wasn't present in this phase's context, with an explicit note that a mechanical reconciliation pass is needed before build lanes start pulling tickets.",
+      "key_decisions": [
+        "DEC-task_assignments-001",
+        "DEC-task_assignments-002",
+        "DEC-task_assignments-003",
+        "DEC-task_assignments-004",
+        "DEC-task_assignments-005",
+        "DEC-task_assignments-006"
+      ],
+      "open_risks": [
+        "This phase was not cross-checked by Codex (CLI in cooldown for an eighth consecutive phase) \u2014 a human reviewer or the build phase should sanity-check the lane/forbidden-zone mapping before treating it as fully vetted, the same recurring caveat as every phase since detailed_discussion.",
+        "The descriptive requirement IDs (R-F1..R-F11 etc.) still need a mechanical 1:1 reconciliation against app_features' real requirements.json IDs before build lanes claim full core-requirement coverage.",
+        "CarPlay's in-app-scene modeling (not a 5th target) must be followed exactly during build, or the entitlement Gap documentation and project structure will disagree with each other.",
+        "The cachedTranscriptText/Anchor.text single-writer grep-audit (T-011) is a concrete build deliverable now, not just a described rule \u2014 if the build phase skips writing the actual repo-wide check, the desync risk tech_specs flagged goes unenforced."
+      ]
+    },
+    {
+      "phase": "implementation_readiness_gate",
+      "one_paragraph_summary": "The implementation readiness gate for Fieldnotes was run single-voice (Claude only; Codex in cooldown for a ninth consecutive phase) but delivered a genuine audit rather than a rubber-stamp, reaching a Conditional GO verdict. The cross-phase chain from prompt contract through task assignments was found substantively sound: the search relevance formula has exact weights and a checkable proof case, backlink/anchor mechanics are fully specified down to soft-delete and nearest-surviving-anchor fallback semantics, the interruption state machine exposes CI-testable entry points with a separate physical-device tier, and every one of the 11 numbered features plus 4 extension surfaces plus CarPlay maps to a task with acceptance criteria. However, close reading of the actual artifacts (not just the narrative around them) surfaced four concrete defects that must be fixed before build starts: (1) the task_assignments phase transcript contains three competing complete tasks-json drafts \u2014 the canonical 36-task Swift/SwiftData backlog plus two abandoned reconstructions (one generically-pathed with mismatched requirement numbering, one accidentally written as React/TypeScript) \u2014 which must be explicitly resolved to the Swift backlog alone before any build lane reads from it; (2) T-033, the manual test protocol for the five named interruption scenarios (the app's top priority), illegally depends on T-021, a Should-tier Live Activity task, violating the project's own Must-never-depends-on-Should rule, and must be split so interruption testing depends only on the recording engine; (3) nine consecutive phases have carried forward an unresolved 'reconcile descriptive requirement IDs against the real requirements.json' risk with nobody ever executing it, so this phase adopts the descriptive IDs (R-F1..R-F11, R-INFRA, R-DEMO, R-PRO, R-CARD, R-CLOUD, R-HEALTH, R-QA) as canonical and final rather than deferring further; (4) the Record screen task and its corresponding flow are missing an explicit guard against dismissing the recording screen mid-.finalizing, which could reopen the exact data-loss race the incremental-disk-write architecture was designed to close. None of the four fixes require new design work \u2014 all are corrections to already-decided scope \u2014 so the gate closes as Conditional GO pending these artifact-level corrections rather than a return to planning.",
+      "key_decisions": [
+        "DEC-implementation_readiness_gate-001",
+        "DEC-implementation_readiness_gate-002",
+        "DEC-implementation_readiness_gate-003",
+        "DEC-implementation_readiness_gate-004",
+        "DEC-implementation_readiness_gate-005"
+      ],
+      "open_risks": [
+        "This entire nine-phase run (detailed_discussion through this gate) has had only one voice (Claude) checking the work \u2014 Codex's CLI cooldown has been continuous \u2014 so a human reviewer should still sanity-check the cumulative architecture before treating it as fully adversarially vetted, independent of this gate's own findings.",
+        "The four fixes identified here (canonical tasks-json, T-033 dependency split, frozen requirement IDs, Record-screen dismiss guard) are gate output, not yet applied changes \u2014 the build phase (or a follow-up correction pass) must actually apply them to the artifacts, not just note they were found.",
+        "If a build tool or human picks up the wrong tasks-json draft before DEC-001 is enforced, the build could start against the wrong file tree or even the wrong platform (the React/TypeScript decoy) \u2014 this is a real near-term risk given how the artifacts currently sit."
+      ]
+    },
+    {
+      "phase": "build_coordination",
+      "one_paragraph_summary": "This round's two frontend lanes independently audited the enable_demo_data empty-state bug scoped by iterate_scope (DEC-iterate_scope-008/009) and found, by reading the in-tree code rather than adding new diagnostic logging, that the fix already exists: SettingsView.setDemoEntries(enabled:) is fully synchronous with an isDemoActionInFlight guard (no fire-and-forget Task racing tab navigation), DemoDataSeeder.seed atomically inserts 'Morning walk by the harbor' plus two other entries with tags/anchors/backlinks, and both Settings and Timeline read through the single shared ModelContainer built once in FieldnotesApp.init() and injected at the WindowGroup root, so there is no container mismatch and no query-predicate filtering excluding demo entries. As integrator I independently re-verified this by reading SettingsView.swift, DemoDataSeeder.swift, TimelineView.swift, ModelContainerFactory.swift, and FieldnotesApp.swift directly, confirming all three of DEC-iterate_scope-008's candidate mechanisms (race/container-mismatch/predicate-mismatch) are absent from current code; this specific fix landed in an earlier build_coordination pass predating this session's transcript. I then removed a stale, inaccurate comment in FieldnotesApp.swift claiming the data_domain lane had produced zero files (long since false), and confirmed project.pbxproj correctly references all 54 on-disk Swift files with no orphans or duplicates. xcodebuild/crawl execution remains unavailable in this environment (command requires approval, consistently blocked across many prior phases), so this is reported as code-verified/crawl-unconfirmed, not as a passed gate, per the standing anti-conflation rule. The six other untriaged original crawl failures remain unclassified, and the three governing NO-GO blockers (audio playback zero-implementation, unverified interruption-safety, unroot-caused test-suite failure) are entirely untouched by this round.",
+      "key_decisions": [],
+      "open_risks": [
+        "enable_demo_data is code-verified but has never actually been re-run through the crawl in this pipeline \u2014 no phase so far has had xcodebuild/crawl execution access to confirm it",
+        "The six other untriaged original '+6 more' crawl failures from the initial change request remain unclassified",
+        "Audio playback has zero implementation and remains the largest fully-unaddressed launch blocker",
+        "Interruption-safety has never been empirically observed working by an automated test or human tester despite being priority (a) of the entire project",
+        "The historical test-suite failure flagged across multiple phases remains unroot-caused",
+        "The Fieldnotes/ vs Features/ dual source-root split remains unresolved structural debt, re-flagged again this round by two independent lanes but still not owned by anyone"
+      ]
+    },
+    {
+      "phase": "write_tests",
+      "one_paragraph_summary": "Round 3 of write_tests fixed the round-2 build_verification failure: PreviewSupport.swift's sineWave() helper and DemoDataSeeder.swift's demoWaveform() helper both call sin(), and RecordingController.swift calls sqrt() for RMS amplitude, but Foundation alone doesn't glob-expose libm's trig functions on this toolchain. Claude B root-caused this correctly and added `import Darwin` to all three files (Claude A's independent attempt added `import Foundation`, which was already present and didn't address the actual missing symbol, but caused no conflict since Claude B's edits landed cleanly and both agents verified final file contents directly rather than trusting each other's self-report). The integrator confirmed all three files have a single, correctly-placed `import Darwin` each with no duplication, and swept the full Fieldnotes/ and Features/ trees for every sin/cos/sqrt/pow/atan2/hypot call site to confirm these three files are the only ones using trig/math functions \u2014 no further landmine exists. No new files were added this round so no project.pbxproj changes were needed; the fix was pure import-statement additions to three existing files (two of which, DemoDataSeeder.swift and RecordingController.swift, are outside the editing lanes that touched them, but both lanes have been unstaffed all session and the edits are additive/zero-risk). FieldnotesTests still stands at 9 files and 62+ methods from prior rounds, untouched and unrun pending a first successful compile.",
+      "key_decisions": [],
+      "open_risks": [
+        "No live xcodebuild test run has yet confirmed either of the two fixed compile errors (round 1's #Predicate issue, round 2/3's missing Darwin import) actually resolves to a green build \u2014 two consecutive rounds have found and fixed real but narrow compile blockers, so the next build_verification pass is the first real signal on whether the app and its 9 test files actually build and run end to end.",
+        "Cross-lane edits continue to accumulate on data_domain's and services_utilities' files (DemoDataSeeder.swift, RecordingController.swift) because those lanes have never been staffed this session (Codex in cooldown every round) \u2014 a future session with those lanes actually active should review everything currently sitting in Fieldnotes/Core/ for real, since it's all been written by whichever lane happened to be available rather than its nominal owner.",
+        "RecordingController's interruption/route-change state machine still has zero XCTest coverage due to the lack of a testable seam independent of live AVAudioEngine/mic-permission \u2014 unchanged from prior rounds and still the single biggest gap in CI-provable coverage for the app's top-priority correctness claim.",
+        "The mood-polarity threshold (0.15/-0.15) remains duplicated as a literal in AutoTagger.moodLabel and MoodTint.color rather than centralized \u2014 flagged in round 2, still unresolved, non-blocking."
+      ]
+    },
+    {
+      "phase": "build_verification",
+      "one_paragraph_summary": "Build verification's first round confirmed via xcodebuild that the Fieldnotes project compiles cleanly for the iOS Simulator, but the single active participant (Claude; Codex's real CLI and even its local fallback model were unavailable this round) correctly scoped that result narrowly rather than calling it fully verified \u2014 the 9 existing XCTest files have never actually executed, since xcodebuild test remains blocked behind an unreachable sandbox approval in this environment, same constraint as every prior write_tests round. During this pass, direct code inspection of RecordingController.swift (the file this entire 20-phase project has organized itself around getting right) surfaced a serious, previously-uncaught defect: 8 try? sites were silently swallowing errors in the live recording buffer-write path and the finalize/save path, a direct textual violation of DEC-tech_specs-007's no-try?-in-recording/finalize rule that the earlier T-011 grep-audit never actually checked in this file. This was fixed, not just flagged: AVAudioFile buffer-write failures and modelContext save failures during finalize now transition the state machine to the already-fully-wired .error state (RecordButton/RecordView already render a retry affordance for .error) and log via OSLog instead of vanishing silently; three secondary interruption/route-change status saves now route through a shared logged-save helper rather than swallowing failures, without aborting an otherwise-healthy in-progress recording over a metadata-write blip. Two other standing deliverables that had never been produced across 20 phases were completed this round, grounded in direct grep rather than narrative: Docs/GAPS_AND_HEALTH_CARD.md (confirming search-formula and backlink-integrity test evidence is real, and confirming transcription, HealthKit, widget, Live Activity, Share Extension, App Intents, CarPlay's code path, audio playback, and the Pro subscription are all genuinely gapped, none faked) and a specific correction that CarPlay is gapped beyond what was authorized, since DEC-prompt_contract-010 only excused the on-vehicle runtime, not omitting the code path entirely, and zero CarPlay code exists. Two honestly-named blockers remain open for the next phase to address rather than being rounded up into a clean pass: no xcodebuild test run has ever been confirmed, and RecordingController's state machine (the app's top-priority correctness claim) still has zero XCTest coverage because no test-only seam exists to drive it independent of a live AVAudioEngine session and real mic permission.",
+      "key_decisions": [],
+      "open_risks": [
+        "No xcodebuild test execution has ever been confirmed in this environment across all rounds so far (build_verification and all three write_tests rounds) \u2014 the sandbox approval gate blocking it has never been resolved, so all 9 test files' actual pass/fail status remains genuinely unknown, not just unreported.",
+        "RecordingController's interruption/route-change state machine has zero XCTest coverage and no test-only seam to drive it without a live AVAudioEngine session and real mic permission grant \u2014 this is the single largest gap between DEC-tech_specs-008's required CI content and what's actually been built, and needs a deliberate design decision (e.g. a test-only initializer/seam) rather than being added under time pressure.",
+        "CarPlay has zero code at all, not just an unpolished on-vehicle experience \u2014 this exceeds what DEC-prompt_contract-010 authorized as a gap (it excused the on-vehicle runtime specifically, not omitting the code path), so the Gaps documentation needs to state this precisely rather than blend it into the standard CarPlay-entitlement caveat.",
+        "Should-tier and Could-tier features (HealthKit, widget, Live Activity, Share Extension, App Intents, Pro subscription, audio playback) remain entirely unbuilt with zero code, confirmed by direct grep this round \u2014 these are named honestly in the new Docs/GAPS_AND_HEALTH_CARD.md but still represent the large majority of the original 11-feature-plus-4-surface scope not yet attempted.",
+        "This round, like nine of the last ten phases, ran with only one participant (Codex's real CLI and its local-model fallback were both unavailable) \u2014 the try? fix and the new Gaps/health-card documentation have not been adversarially cross-checked by a second perspective."
+      ]
+    },
+    {
+      "phase": "human_qa_checklist",
+      "one_paragraph_summary": "The human QA checklist phase produced a full manual simulator/device QA script for Fieldnotes, written single-voice (Codex in cooldown) but grounded directly in the project's decisions log and prior-phase findings rather than generic QA boilerplate. The checklist opens with a mandatory step zero: identify exactly which test(s) failed in the most recent 'compiled cleanly + TESTS FAILED' build_verification result before any manual walkthrough proceeds, since no prior phase ever named the failing test. It covers first-launch/empty-state distinctness (nothing-indexed vs no-results), the demo-data toggle's idempotency (exact 3-entry count across on/off/on/off cycles, live backlink tap-through, broken-link chip rendering), and \u2014 as its largest section \u2014 interruption-safety testing run per named scenario (real call, Siri, backgrounding, force-quit mid-recording, low-storage via a debug hook if present) each with scenario-specific expected honest-state UI (ink-color change, 'recovered after unexpected exit' labeling, .error+retry rather than silent truncation), plus a regression check that non-interrupted force-quits are never mislabeled as recovered, and explicit re-verification of the late-added guard blocking dismissal during .finalizing. A new dedicated test traces the consequence of the missing on-device transcription pipeline: since real (non-demo) recordings finalize with empty transcripts and no anchors, the checklist explicitly checks whether tags/mood/mentions are even reachable on a real entry, treating this as a possible major hidden gap rather than assuming it only affects transcription display. Further sections cover tap-to-seek plus anchor-deletion fallback, tag/mood accept-dismiss persistence, PencilKit sketch persistence across backgrounding, the documented search relevance formula plus its 'why this matched' hint (flagged as possibly never built), the full mic/Speech/HealthKit permission matrix tested by actually toggling system settings (not code reading), and a requirement that all never-built Should/Could-tier surfaces (widget, Live Activity, Share Extension, App Intents, CarPlay, Pro subscription) be verified absent cleanly rather than half-wired. Accessibility checks include the flagged borderline dark-mode contrast pair, a VoiceOver announcement at the interruption moment, and Dynamic Type stress-testing the Timeline sparkline's drop-out behavior. The checklist closes with an explicit, unhedged gap list (no real transcription pipeline, no audio playback, zero implementation of the five unbuilt surfaces, and the unexplained test failure) and states the honest bottom line a tester should reach: the recording engine and demo-data-backed graph are trustworthy, but everything downstream of transcription for a user's own new entries is unproven.",
+      "key_decisions": [
+        "DEC-human_qa_checklist-001",
+        "DEC-human_qa_checklist-002",
+        "DEC-human_qa_checklist-003",
+        "DEC-human_qa_checklist-004",
+        "DEC-human_qa_checklist-005",
+        "DEC-human_qa_checklist-006"
+      ],
+      "open_risks": [
+        "This phase ran single-voice (Codex in cooldown, continuing an unbroken streak since detailed_discussion) \u2014 the checklist has not been adversarially cross-checked by a second perspective.",
+        "The checklist itself has not yet been executed by an actual human tester in this session \u2014 it is a script to run, not evidence that the app passes it; the unexplained test failure from build_verification in particular remains genuinely unresolved.",
+        "The real-recording transcription/anchor/mention consequence chain (DEC-human_qa_checklist-002) is a new hypothesis this phase raised but did not confirm \u2014 whether tags/mood/mentions are actually unreachable on real entries needs to be established by running the checklist, not assumed from this phase's reasoning alone.",
+        "Several specific UI elements the checklist checks for (the search match-reason hint, the finalize-dismissal guard, the low-storage debug hook) were flagged in this or earlier phases as possibly never actually built despite being planned \u2014 the checklist correctly treats these as unverified rather than assumed present, but that means real uncertainty remains about final feature completeness."
+      ]
+    },
+    {
+      "phase": "app_store_readiness",
+      "one_paragraph_summary": "App Store readiness assessment for Fieldnotes ran single-voice (Claude; Codex remained unavailable) and reached a firm NOT READY / NO-GO verdict, deliberately narrowed to two launch blockers rather than a sprawling checklist: no on-device transcription pipeline for real (non-demo) recordings (a named Must-tier feature whose absence likely also makes tags/mood/mentions unreachable on real entries, since AutoTagger has nothing to score and the QA checklist never confirmed otherwise), and no audio playback controller (AudioPlayerController does not exist, breaking the basic record-then-listen loop any reviewer would try first). Every other unbuilt surface \u2014 HealthKit, widget, Live Activity, Share Extension, App Intents, CarPlay, Fieldnotes Pro \u2014 is explicitly deferred to a v1.1 fast-follow rather than treated as a blocker, since these were already tiered Should/Could, are honestly gapped (verified clean in the human QA pass) rather than half-wired, and aren't load-bearing for the core promise. Positioning was set to lead with 'fully private, entirely offline, no account, nothing leaves your phone' as the true, distinctive headline, with the privacy nutrition label answerable as 'Data Not Collected' across the board given zero network/analytics/third-party SDKs. A screenshot plan was specified (Timeline, Entry Detail tap-to-seek+backlink, the deliberately-broken-link honesty state, ranked search with match-reason hint, interruption-recovery ink state, one dark-mode shot) but explicitly held until the two blockers close, since the real-data screens that would sell the app don't exist yet. Permission copy was drafted for microphone usage, but the Speech Recognition usage string and any HealthKit capability were flagged as must-not-ship-yet, since Info.plist currently requests permissions with no corresponding code behind them \u2014 a concrete App Review inconsistency risk independent of the feature-completeness gap. Subscription/paywall review was marked N/A since Fieldnotes Pro has zero code, with the already-locked future constraints (no feature/data gating, local entitlement checks, mandatory Restore Purchases, checked-in .storekit config) simply carried forward unchanged. A hosted Privacy Policy URL and Support URL were named as required, currently-unowned pre-submission work items separate from the two feature blockers.",
+      "key_decisions": [
+        "DEC-app_store_readiness-001",
+        "DEC-app_store_readiness-002",
+        "DEC-app_store_readiness-003",
+        "DEC-app_store_readiness-004",
+        "DEC-app_store_readiness-005",
+        "DEC-app_store_readiness-006"
+      ],
+      "open_risks": [
+        "This phase ran single-voice (Codex unavailable) \u2014 the NO-GO verdict and blocker prioritization (transcription+playback as launch-blocking, everything else deferred) has not been adversarially cross-checked by a second perspective.",
+        "The claim that missing transcription cascades into unreachable tags/mood/mentions on real entries is inferred from the human_qa_checklist's own open question (DEC-human_qa_checklist-002) \u2014 it still has not been confirmed by an actual test run, so the exact severity of blocker #1 remains a strong inference, not a verified fact.",
+        "Building on-device transcription and audio playback are both real, non-trivial engineering tasks that this phase only names as required \u2014 no phase has yet scoped or built either, so a return to a build-type phase is implied before resubmission is possible.",
+        "The Privacy Policy and Support URL pages are real deliverables with no assigned owner yet; without them submission cannot proceed regardless of whether the two feature blockers are fixed.",
+        "The unresolved xcodebuild test failure from build_verification (still never named by test method) remains an open item this phase did not re-investigate, and should be resolved before submission independent of the feature-completeness blockers."
+      ]
+    },
+    {
+      "phase": "final_review",
+      "one_paragraph_summary": "This round reviewed build_coordination's enable_demo_data fix (synchronous demo-data seed through a single shared ModelContainer, no race/container/predicate bug \u2014 verified by direct source inspection) and accepted it as correctly scoped and non-regressive, while reaffirming the standing NO-GO verdict from DEC-final_review-012/013/014/016 without modification: audio playback has zero implementation across five-plus consecutive phases and remains the single largest unaddressed gap in the app's core record-and-listen loop, interruption-safety (the project's own top stated priority) has never been empirically observed working by any test or human, and the historical test-suite failure remains unroot-caused. The review sharpened two items from repeated footnotes into explicitly named standing risks: first, that this entire pipeline has never once actually executed docs/ui_crawl.json or an xcodebuild test/UI-test target \u2014 every crawl-fix claim across roughly a dozen phases rests on static code audits agreeing with each other plus a plain compile, which is itself a structural QA-loop gap, not just an access-limitation aside; second, that the six untriaged original '+6 more' crawl failures need active classification, since the two crawl failures triaged so far both turned out to be genuine defects rather than cosmetic issues, undermining any assumption that the remaining six are trivial.",
+      "key_decisions": [
+        "DEC-final_review-017",
+        "DEC-final_review-018",
+        "DEC-final_review-019"
+      ],
+      "open_risks": [
+        "Audio playback has zero implementation and is the single largest fully-unaddressed launch blocker, unchanged across five-plus phases",
+        "Interruption-safety (project priority (a)) has never been empirically observed working by an automated test or human tester",
+        "The historical test-suite failure remains unroot-caused",
+        "No phase in this pipeline has ever actually executed the UI crawl or an xcodebuild test/UI-test target \u2014 all crawl-fix claims rest on static code audit plus plain compile only",
+        "The six untriaged original '+6 more' crawl failures remain unclassified, with a 2-for-2 base rate of prior triaged failures turning out to be genuine defects"
+      ]
+    },
+    {
+      "phase": "portfolio_audit",
+      "one_paragraph_summary": "Portfolio audit for Fieldnotes ran single-voice (Codex unavailable) and confirmed the phase is not substantively applicable: Fieldnotes is one app (1 expected, 1 actual), reaffirming portfolio_selection's original single-app ruling rather than reopening it, since the widget/Live Activity/Share Extension/App Intents/CarPlay surfaces are all required parts of one product sharing one App Group + SwiftData store, and splitting them would have broken the backlink/anchor/audio-path integrity guarantees the build was organized around. No portfolio-json manifest was produced and none was needed. No requested feature category was silently skipped or collapsed \u2014 all 11 numbered features and 4 extension surfaces plus CarPlay remain named somewhere in the Gaps/health-card documentation as built, degraded, or honestly gapped, even though most extension surfaces are entirely unbuilt. The phase's real contribution was reframing two already-known issues through a portfolio-shape lens: the Fieldnotes/Features/ vs Features/ folder fork (two overlapping source roots inside one supposedly-unified project tree, worked around rather than fixed across all six build_coordination rounds) is the single-app analog of a collapsed category and should be tracked as its own ticket; and the four-lane ownership split (data_domain/services_utilities/primary_ui/polish_resilience) was nominal rather than real for most of the build, since two of the four lanes never produced a single file and one participant authored all of Fieldnotes/Core standing in for both \u2014 a distributed-ownership collapse that was never flagged as a shape violation when it happened. Backfill readiness: single project, single backlog, with the two app_store_readiness launch blockers, final_review's ten-item follow-up list, and specifically the Features/ folder consolidation and Core/ lane review named as standalone tickets rather than riding along inside feature-work tickets.",
+      "key_decisions": [
+        "DEC-portfolio_audit-001",
+        "DEC-portfolio_audit-002",
+        "DEC-portfolio_audit-003"
+      ],
+      "open_risks": [
+        "This phase ran single-voice (Codex unavailable) \u2014 not itself a new risk given the pattern across the last ~12 phases, but worth naming again since portfolio_audit is meant to be a check on the whole run and has had no adversarial second opinion.",
+        "The Features/ folder fork and Core/ lane review are named as tickets here but still have no assigned owner \u2014 naming them as standalone work items doesn't resolve them, and they've already gone unaddressed across six-plus build rounds specifically due to lacking ownership.",
+        "This phase's findings don't change the standing NO-GO verdict from app_store_readiness/final_review \u2014 it's a structural lens on an already-assessed build, not a new readiness assessment."
+      ]
+    },
+    {
+      "phase": "iterate_scope",
+      "one_paragraph_summary": "This phase scoped (but, due to lacking real repo access from this working directory, did not itself execute) a diagnose-then-fix plan for the enable_demo_data crawl failure where toggling demo data on and navigating to Timeline still shows the empty state. The plan: add temporary os.Logger calls in SettingsView.swift's setDemoEntries(enabled:) (error path and post-success fetchCount) to distinguish between three named candidate mechanisms \u2014 a fire-and-forget seed Task racing against immediate tab navigation, a ModelContext/container mismatch between Settings and Timeline, or a Timeline query predicate excluding seeded entries' timestamps \u2014 then fix whichever is confirmed, remove the temporary logging, and separately diff enable_demo_data's tap sequence against the already-passing 'Demo entries toggle' flow for a behavioral difference. The group agreed this is a genuine defect with no legitimate honest-degradation excuse (fully local, offline, permission-free write), so relaxing the crawl assertion is explicitly ruled out. Completion must be reported as an actually re-run crawl result, not a compile, and must explicitly restate that this does not change the standing NO-GO verdict, which still rests on missing audio playback, unverified interruption-safety, and an unidentified test-suite failure.",
+      "key_decisions": [
+        "DEC-iterate_scope-008",
+        "DEC-iterate_scope-009",
+        "DEC-iterate_scope-010"
+      ],
+      "open_risks": [
+        "Root cause of the demo-data empty-state bug is still unconfirmed \u2014 race vs. container mismatch vs. query-filter mismatch \u2014 pending an actual diagnostic run",
+        "The enable_demo_data crawl has still never been re-run after any fix in this pipeline; whether this pipeline even has crawl-execution access remains unresolved",
+        "The six untriaged '+6 more' original crawl failures from the initial change request remain unclassified",
+        "Audio playback (zero implementation), unverified interruption-safety, and the unidentified failing test suite remain the three standing launch blockers, untouched by this phase"
+      ]
+    }
+  ]
+}
