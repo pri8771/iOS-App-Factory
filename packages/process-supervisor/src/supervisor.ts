@@ -2,22 +2,30 @@ import { spawn, type ChildProcess, type StdioOptions } from "node:child_process"
 import { isAbsolute } from "node:path";
 
 import {
-  parseSupervisorIdentityV1,
-  SUPERVISOR_IDENTITY_SCHEMA_VERSION,
-  type SupervisorIdentityV1,
+  parseSupervisorIdentity,
+  parseSupervisorIdentityV2,
+  SUPERVISOR_IDENTITY_SCHEMA_VERSION_V2,
+  type SupervisorIdentity,
+  type SupervisorIdentityV2,
 } from "./model.js";
 import {
   createSystemPlatformProbe,
   type PlatformProcessProbe,
+  type ProcessGroupObservation,
   type ProcessObservation,
 } from "./platform.js";
 
 export type IdentityValidation =
   | Readonly<{ kind: "match"; observation: Extract<ProcessObservation, { kind: "live" }> }>
+  | Readonly<{
+      kind: "orphaned-group";
+      observation: Extract<ProcessGroupObservation, { kind: "live" }>;
+      witness: Extract<ProcessObservation, { kind: "live" }>;
+    }>
   | Readonly<{ kind: "not-running" }>
   | Readonly<{
       kind: "mismatch";
-      reason: "boot-identity" | "process-group" | "process-start";
+      reason: "boot-identity" | "primary-child" | "process-group" | "process-start";
     }>
   | Readonly<{ kind: "unprovable"; reason: string }>;
 
@@ -35,7 +43,7 @@ export type LaunchProcessGroupSpec = Readonly<{
 
 export type LaunchedProcessGroup = Readonly<{
   child: ChildProcess;
-  identity: SupervisorIdentityV1;
+  identity: SupervisorIdentityV2;
 }>;
 
 export type SupervisorClock = Readonly<{
@@ -70,6 +78,7 @@ export type StartupReconciliation = Readonly<{
     | "future-fence"
     | "identity-mismatch"
     | "identity-unprovable"
+    | "orphaned-group"
     | "process-missing"
     | "stale-fence";
   maySignal: boolean;
@@ -92,10 +101,10 @@ function assertDuration(value: number, label: string): void {
 }
 
 export function validateSupervisorIdentity(
-  identity: SupervisorIdentityV1,
+  identity: SupervisorIdentity,
   probe: PlatformProcessProbe,
 ): IdentityValidation {
-  const validated = parseSupervisorIdentityV1(identity);
+  const validated = parseSupervisorIdentity(identity);
   let currentBootIdentity: string;
   try {
     currentBootIdentity = probe.currentBootIdentity();
@@ -111,7 +120,27 @@ export function validateSupervisorIdentity(
 
   const observation = probe.inspectProcess(validated.pid);
   if (observation.kind === "missing") {
-    return { kind: "not-running" };
+    const group = probe.inspectProcessGroup(validated.processGroupId);
+    if (group.kind === "missing") return { kind: "not-running" };
+    if (group.kind === "unprovable") {
+      return { kind: "unprovable", reason: `leader-missing:${group.reason}` };
+    }
+    const witness = validated.schemaVersion === 2 ? validated.primaryChild : null;
+    if (witness === null) {
+      return {
+        kind: "unprovable",
+        reason: "leader-missing:live-group-without-primary-child-witness",
+      };
+    }
+    const observedWitness = group.members.find((member) => member.pid === witness.pid);
+    if (
+      observedWitness === undefined ||
+      observedWitness.processGroupId !== witness.processGroupId ||
+      observedWitness.processStartIdentity !== witness.processStartIdentity
+    ) {
+      return { kind: "mismatch", reason: "primary-child" };
+    }
+    return { kind: "orphaned-group", observation: group, witness: observedWitness };
   }
   if (observation.kind === "unprovable") {
     return observation;
@@ -126,7 +155,7 @@ export function validateSupervisorIdentity(
 }
 
 export function classifyStartupReconciliation(
-  identity: SupervisorIdentityV1,
+  identity: SupervisorIdentity,
   expectation: StartupExpectation,
   validation: IdentityValidation,
 ): StartupReconciliation {
@@ -152,6 +181,14 @@ export function classifyStartupReconciliation(
       reason: "process-missing",
       maySignal: false,
       mayRemoveState: true,
+    };
+  }
+  if (validation.kind === "orphaned-group") {
+    return {
+      action: "terminate",
+      reason: "orphaned-group",
+      maySignal: true,
+      mayRemoveState: false,
     };
   }
   if (
@@ -257,14 +294,15 @@ export async function launchProcessGroup(
       );
     }
     provenProcessGroupId = observation.processGroupId;
-    const identity = parseSupervisorIdentityV1({
-      schemaVersion: SUPERVISOR_IDENTITY_SCHEMA_VERSION,
+    const identity = parseSupervisorIdentityV2({
+      schemaVersion: SUPERVISOR_IDENTITY_SCHEMA_VERSION_V2,
       attemptId: spec.attemptId,
       fence: spec.fence,
       pid: child.pid,
       processStartIdentity: observation.processStartIdentity,
       bootIdentity,
       processGroupId: observation.processGroupId,
+      primaryChild: null,
       launchedAt: clock.wallClock().toISOString(),
     });
     return { child, identity };
@@ -278,23 +316,36 @@ export async function launchProcessGroup(
   }
 }
 
-async function waitForExitOrDeadline(
-  identity: SupervisorIdentityV1,
+async function waitForGroupExitOrDeadline(
+  processGroupId: number,
   probe: PlatformProcessProbe,
   deadline: number,
   pollMs: number,
   clock: SupervisorClock,
-): Promise<IdentityValidation> {
-  let validation = validateSupervisorIdentity(identity, probe);
-  while (validation.kind === "match" && clock.now() < deadline) {
+): Promise<ProcessGroupObservation> {
+  let observation = probe.inspectProcessGroup(processGroupId);
+  while (observation.kind === "live" && clock.now() < deadline) {
     await clock.sleep(Math.min(pollMs, Math.max(0, deadline - clock.now())));
-    validation = validateSupervisorIdentity(identity, probe);
+    observation = probe.inspectProcessGroup(processGroupId);
   }
-  return validation;
+  return observation;
+}
+
+function blockedTermination(
+  validation: Exclude<IdentityValidation, { kind: "match" | "orphaned-group" | "not-running" }>,
+): Extract<TerminationResult, { outcome: "blocked" }> {
+  return {
+    outcome: "blocked",
+    forced: false,
+    reason:
+      validation.kind === "mismatch"
+        ? `identity-mismatch:${validation.reason}`
+        : `identity-unprovable:${validation.reason}`,
+  };
 }
 
 export async function terminateProcessGroup(
-  identity: SupervisorIdentityV1,
+  identity: SupervisorIdentity,
   probe: PlatformProcessProbe = createSystemPlatformProbe(),
   options: TerminationOptions = {},
   clock: SupervisorClock = DEFAULT_CLOCK,
@@ -313,62 +364,58 @@ export async function terminateProcessGroup(
   if (initial.kind === "not-running") {
     return { outcome: "already-exited", forced: false };
   }
-  if (initial.kind !== "match") {
-    return {
-      outcome: "blocked",
-      forced: false,
-      reason:
-        initial.kind === "mismatch"
-          ? `identity-mismatch:${initial.reason}`
-          : `identity-unprovable:${initial.reason}`,
-    };
+  if (initial.kind !== "match" && initial.kind !== "orphaned-group") {
+    return blockedTermination(initial);
   }
 
   if (probe.signalProcessGroup(identity.processGroupId, "SIGTERM") === "missing") {
     return { outcome: "already-exited", forced: false };
   }
-  const afterGrace = await waitForExitOrDeadline(
-    identity,
+  const afterGraceGroup = await waitForGroupExitOrDeadline(
+    identity.processGroupId,
     probe,
     clock.now() + graceMs,
     pollMs,
     clock,
   );
-  if (afterGrace.kind === "not-running") {
+  if (afterGraceGroup.kind === "missing") {
     return { outcome: "terminated", forced: false };
   }
-  if (afterGrace.kind !== "match") {
+  if (afterGraceGroup.kind === "unprovable") {
     return {
       outcome: "blocked",
       forced: false,
-      reason:
-        afterGrace.kind === "mismatch"
-          ? `identity-changed-during-grace:${afterGrace.reason}`
-          : `identity-became-unprovable:${afterGrace.reason}`,
+      reason: `group-became-unprovable:${afterGraceGroup.reason}`,
     };
+  }
+
+  const forceAuthorization = validateSupervisorIdentity(identity, probe);
+  if (forceAuthorization.kind === "not-running") {
+    return { outcome: "terminated", forced: false };
+  }
+  if (forceAuthorization.kind !== "match" && forceAuthorization.kind !== "orphaned-group") {
+    const blocked = blockedTermination(forceAuthorization);
+    return { ...blocked, reason: `force-not-authorized:${blocked.reason}` };
   }
 
   if (probe.signalProcessGroup(identity.processGroupId, "SIGKILL") === "missing") {
     return { outcome: "terminated", forced: true };
   }
-  const afterForce = await waitForExitOrDeadline(
-    identity,
+  const afterForceGroup = await waitForGroupExitOrDeadline(
+    identity.processGroupId,
     probe,
     clock.now() + forceWaitMs,
     pollMs,
     clock,
   );
-  if (afterForce.kind === "not-running") {
+  if (afterForceGroup.kind === "missing") {
     return { outcome: "terminated", forced: true };
   }
-  if (afterForce.kind !== "match") {
+  if (afterForceGroup.kind === "unprovable") {
     return {
       outcome: "blocked",
       forced: false,
-      reason:
-        afterForce.kind === "mismatch"
-          ? `identity-changed-during-force:${afterForce.reason}`
-          : `identity-became-unprovable:${afterForce.reason}`,
+      reason: `group-became-unprovable:${afterForceGroup.reason}`,
     };
   }
   return { outcome: "timed-out", forced: true };

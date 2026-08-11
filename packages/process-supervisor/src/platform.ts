@@ -11,11 +11,23 @@ export type ProcessObservation =
   | Readonly<{ kind: "missing" }>
   | Readonly<{ kind: "unprovable"; reason: string }>;
 
+export type LiveProcessObservation = Extract<ProcessObservation, { kind: "live" }>;
+
+export type ProcessGroupObservation =
+  | Readonly<{
+      kind: "live";
+      processGroupId: number;
+      members: readonly LiveProcessObservation[];
+    }>
+  | Readonly<{ kind: "missing" }>
+  | Readonly<{ kind: "unprovable"; reason: string }>;
+
 export type GroupSignalResult = "sent" | "missing";
 
 export interface PlatformProcessProbe {
   currentBootIdentity(): string;
   inspectProcess(pid: number): ProcessObservation;
+  inspectProcessGroup(processGroupId: number): ProcessGroupObservation;
   signalProcessGroup(processGroupId: number, signal: NodeJS.Signals): GroupSignalResult;
 }
 
@@ -93,6 +105,54 @@ function inspectWithPs(pid: number, run: ExecFile): ProcessObservation {
   }
 }
 
+function inspectGroupWithPs(processGroupId: number, run: ExecFile): ProcessGroupObservation {
+  assertPositiveProcessId(processGroupId, "processGroupId");
+  let output: string;
+  try {
+    output = run("/bin/ps", ["-ax", "-o", "pid=", "-o", "pgid=", "-o", "lstart="], {
+      encoding: "utf8",
+      timeout: 1_000,
+      maxBuffer: 1_048_576,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    const failure = error as NodeJS.ErrnoException;
+    return { kind: "unprovable", reason: `ps-group-failed:${failure.code ?? "unknown"}` };
+  }
+
+  const members: LiveProcessObservation[] = [];
+  for (const line of output.split(/\r?\n/u)) {
+    if (line.trim().length === 0) continue;
+    const match = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/u.exec(line);
+    if (match === null) {
+      return { kind: "unprovable", reason: "ps-group-output-was-not-parseable" };
+    }
+    const pid = Number(match[1]);
+    const observedGroupId = Number(match[2]);
+    if (!Number.isSafeInteger(pid) || !Number.isSafeInteger(observedGroupId)) {
+      return { kind: "unprovable", reason: "ps-group-returned-invalid-identifiers" };
+    }
+    if (observedGroupId !== processGroupId) continue;
+    if (pid < 2 || observedGroupId < 2) {
+      return { kind: "unprovable", reason: "ps-group-returned-invalid-identifiers" };
+    }
+    try {
+      members.push({
+        kind: "live",
+        pid,
+        processGroupId: observedGroupId,
+        processStartIdentity: `ps-lstart:${normalizeIdentity(match[3] ?? "", "process start")}`,
+      });
+    } catch (error) {
+      return { kind: "unprovable", reason: (error as Error).message };
+    }
+  }
+
+  if (members.length === 0) return { kind: "missing" };
+  members.sort((left, right) => left.pid - right.pid);
+  return { kind: "live", processGroupId, members };
+}
+
 export function createSystemPlatformProbe(
   options: SystemPlatformProbeOptions = {},
 ): PlatformProcessProbe {
@@ -127,6 +187,13 @@ export function createSystemPlatformProbe(
         return { kind: "unprovable", reason: `unsupported-platform:${platform}` };
       }
       return inspectWithPs(pid, run);
+    },
+
+    inspectProcessGroup(processGroupId: number): ProcessGroupObservation {
+      if (platform !== "darwin" && platform !== "linux") {
+        return { kind: "unprovable", reason: `unsupported-platform:${platform}` };
+      }
+      return inspectGroupWithPs(processGroupId, run);
     },
 
     signalProcessGroup(processGroupId: number, signal: NodeJS.Signals): GroupSignalResult {
