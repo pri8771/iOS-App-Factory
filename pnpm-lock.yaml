@@ -72,6 +72,21 @@ importers:
         specifier: workspace:*
         version: link:../../packages/scheduler
 
+  apps/dashboard:
+    dependencies:
+      '@app-factory/command-client':
+        specifier: workspace:*
+        version: link:../../packages/command-client
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+
+  packages/adapter-sdk:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
   packages/agent-runner:
     dependencies:
       '@app-factory/contracts':
@@ -96,6 +111,24 @@ importers:
         specifier: workspace:*
         version: link:../contracts
 
+  packages/execution-engine:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@app-factory/evidence-store':
+        specifier: workspace:*
+        version: link:../evidence-store
+      '@app-factory/git-workspace':
+        specifier: workspace:*
+        version: link:../git-workspace
+      '@app-factory/independent-review':
+        specifier: workspace:*
+        version: link:../independent-review
+      '@app-factory/trusted-verifier':
+        specifier: workspace:*
+        version: link:../trusted-verifier
+
   packages/git-workspace: {}
 
   packages/independent-review:
@@ -113,11 +146,32 @@ importers:
         specifier: 12.11.1
         version: 12.11.1
 
+  packages/module-sdk:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/policy-engine:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/process-supervisor:
     dependencies:
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../contracts
+
+  packages/project-sdk:
+    dependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
 
   packages/quality:
     dependencies:

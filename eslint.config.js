@@ -20,11 +20,7 @@ export default tseslint.config(
     },
   },
   {
-    files: [
-      "apps/{cli,daemon}/**/*.ts",
-      "packages/{agent-runner,command-client,evidence-store,git-workspace,independent-review,kernel,process-supervisor,quality,scheduler,testkit,trusted-verifier}/**/*.ts",
-      "tests/**/*.ts",
-    ],
+    files: ["apps/**/*.ts", "packages/**/*.ts", "tests/**/*.ts"],
     languageOptions: {
       globals: globals.node,
     },

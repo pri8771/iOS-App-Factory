@@ -2,11 +2,14 @@
   "extends": "./tsconfig.base.json",
   "files": [],
   "references": [
+    { "path": "./packages/adapter-sdk" },
     { "path": "./packages/contracts" },
     { "path": "./packages/evidence-store" },
     { "path": "./packages/git-workspace" },
     { "path": "./packages/independent-review" },
     { "path": "./packages/kernel" },
+    { "path": "./packages/module-sdk" },
+    { "path": "./packages/policy-engine" },
     { "path": "./packages/agent-runner" },
     { "path": "./packages/process-supervisor" },
     { "path": "./packages/quality" },
@@ -15,6 +18,7 @@
     { "path": "./packages/testkit" },
     { "path": "./packages/trusted-verifier" },
     { "path": "./apps/daemon" },
-    { "path": "./apps/cli" }
+    { "path": "./apps/cli" },
+    { "path": "./apps/dashboard" }
   ]
 }
