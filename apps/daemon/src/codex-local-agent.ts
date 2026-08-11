@@ -1172,7 +1172,13 @@ export class CodexLocalAgent {
           `Older-fence Codex reconciliation failed: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
-      if (reconciled.outcome === "terminal" || reconciled.outcome === "prepared") continue;
+      if (reconciled.outcome === "terminal") {
+        return failedOutcome(
+          "agent.supervisor-stale-fence",
+          `An older-fence Codex run at fence ${String(candidate.fence)} has a durable terminal receipt. Its worktree effects cannot be safely replayed into fence ${String(spec.fence)}; inspect the receipt and submit a replacement attempt.`,
+        );
+      }
+      if (reconciled.outcome === "prepared") continue;
       if (reconciled.outcome !== "adopted" && reconciled.outcome !== "blocked") {
         return failedOutcome(
           "agent.supervisor-ambiguous",
@@ -1181,7 +1187,12 @@ export class CodexLocalAgent {
       }
       try {
         const termination = await this.#supervisor.terminate(prepared);
-        if (termination.outcome === "already-terminal") continue;
+        if (termination.outcome === "already-terminal") {
+          return failedOutcome(
+            "agent.supervisor-stale-fence",
+            `An older-fence Codex run at fence ${String(candidate.fence)} became terminal during reconciliation. Its worktree effects cannot be safely replayed into fence ${String(spec.fence)}; inspect the receipt and submit a replacement attempt.`,
+          );
+        }
         if (termination.outcome === "blocked") {
           return failedOutcome(
             "agent.supervisor-ambiguous",

@@ -592,6 +592,66 @@ describe("Codex local agent", () => {
     expect(ambiguousLaunch).toHaveBeenCalledTimes(1);
   });
 
+  it("does not relaunch after an older-fence terminal receipt outlives unpublished adapter evidence", async () => {
+    const fixture = makeFixture();
+    const launch = terminalLaunch({ stdout: completedTranscript() });
+    const reconcile = vi.fn((prepared: PreparedSupervisedRun): ReconcileSupervisedRunResult => ({
+      outcome: "terminal",
+      receipt: parseSupervisedRunReceipt(
+        JSON.parse(readFileSync(prepared.paths.receiptPath, "utf8")) as unknown,
+      ),
+      stateRemoved: false,
+    }));
+    const { agent } = await makeAgent(fixture, { launch, reconcile });
+
+    // Discarding this return simulates a daemon hard-kill after the supervisor
+    // fsynced its receipt but before the caller published the V2 result journal.
+    await expect(agent.run(makeContext(makeSpec(fixture, { fence: 6 })))).resolves.toMatchObject({
+      kind: "succeeded",
+      protocolEvidence: { schemaVersion: 1 },
+    });
+
+    await expect(agent.run(makeContext(makeSpec(fixture, { fence: 7 })))).resolves.toMatchObject({
+      kind: "failed",
+      failure: { code: "agent.supervisor-stale-fence", retryable: false },
+    });
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    expect(reconcile.mock.calls[0]?.[0].intent.fence).toBe(6);
+    expect(launch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not relaunch when older-fence cancellation discovers a terminal receipt", async () => {
+    const fixture = makeFixture();
+    const launch = vi.fn((): LaunchSupervisedRunResult => ({
+      outcome: "blocked",
+      reason: "fake durable launch ambiguity",
+    }));
+    const reconcile = vi.fn((prepared: PreparedSupervisedRun): ReconcileSupervisedRunResult => ({
+      outcome: "adopted",
+      identity: fakeIdentity(prepared),
+    }));
+    const terminate = vi.fn(
+      async (prepared: PreparedSupervisedRun): Promise<RequestSupervisedRunTerminationResult> => ({
+        outcome: "already-terminal",
+        receipt: writeTerminalArtifacts(prepared, { stdout: completedTranscript() }),
+      }),
+    );
+    const { agent } = await makeAgent(fixture, { launch, reconcile, terminate });
+
+    await expect(agent.run(makeContext(makeSpec(fixture, { fence: 6 })))).resolves.toMatchObject({
+      kind: "needs-input",
+      blocker: { code: "agent.supervisor-ambiguous" },
+    });
+    await expect(agent.run(makeContext(makeSpec(fixture, { fence: 7 })))).resolves.toMatchObject({
+      kind: "failed",
+      failure: { code: "agent.supervisor-stale-fence", retryable: false },
+    });
+
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    expect(terminate).toHaveBeenCalledTimes(1);
+    expect(launch).toHaveBeenCalledTimes(1);
+  });
+
   it("reconciles terminal and prepared runs at startup but denies readiness for live or ambiguous runs", async () => {
     const fixture = makeFixture();
     const preparedRuns: PreparedSupervisedRun[] = [];

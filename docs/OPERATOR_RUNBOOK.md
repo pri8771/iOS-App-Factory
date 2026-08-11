@@ -226,6 +226,10 @@ Projects enrolled with trusted agent identity require V2 evidence for every
 live result and replay. A missing envelope or legacy V1 journal fails closed;
 do not edit or delete the journal to force a retry—submit a new attempt after
 correcting enrollment or runtime state.
+Likewise, an older-fence terminal supervisor receipt without a published V2
+journal is never followed by an automatic relaunch. Inspect the receipt and
+worktree, then submit a replacement attempt; do not manually remove the
+supervisor artifacts.
 
 ## 5. Connect an MCP host
 

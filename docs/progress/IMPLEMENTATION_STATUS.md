@@ -50,7 +50,7 @@ or website repository has been mutated by this implementation.
 <!-- prettier-ignore -->
 | Week | Honest status | Implemented modules and tests | Missing connection or gate |
 | --- | --- | --- | --- |
-| 1 — executable foundation | **Implemented** | Versioned contracts and schemas in [`packages/contracts`](../../packages/contracts), durable SQLite kernel in [`packages/kernel`](../../packages/kernel), Codex boundary in [`packages/agent-runner`](../../packages/agent-runner), and Swift fixture/test utilities in [`packages/testkit`](../../packages/testkit/test). Tests: [`contracts`](../../packages/contracts/test), [`kernel`](../../packages/kernel/test), [`agent-runner`](../../packages/agent-runner/test), [`testkit`](../../packages/testkit/test). | Static repository gates are green. The unrestricted test gate is 692/698; two protected scanner-fixture failures and four full-parallel load findings are recorded below. |
+| 1 — executable foundation | **Implemented** | Versioned contracts and schemas in [`packages/contracts`](../../packages/contracts), durable SQLite kernel in [`packages/kernel`](../../packages/kernel), Codex boundary in [`packages/agent-runner`](../../packages/agent-runner), and Swift fixture/test utilities in [`packages/testkit`](../../packages/testkit/test). Tests: [`contracts`](../../packages/contracts/test), [`kernel`](../../packages/kernel/test), [`agent-runner`](../../packages/agent-runner/test), [`testkit`](../../packages/testkit/test). | Static repository gates are green. The unrestricted test gate is 694/700; two protected scanner-fixture failures and four full-parallel load findings are recorded below. |
 | 2 — restart-safe fake execution | **Implemented for fake execution and trusted, non-detaching process supervision** | The daemon, authenticated Unix socket, command journal, scheduler, CLI, cancellation, leases, fencing, bounded response replay, and restart tests live in [`apps/daemon`](../../apps/daemon), [`apps/cli`](../../apps/cli), [`packages/command-client`](../../packages/command-client), [`packages/scheduler`](../../packages/scheduler), and [`packages/process-supervisor`](../../packages/process-supervisor). Durable supervision binds immutable intent, launch claim, execution permission, V2 process identity, exact cwd/environment/argv/stdin, bounded output spools, cancellation, receipts, and reconciliation. | Process groups are not containment: a detached descendant can escape. Darwin `ps lstart` identity is only second-resolution, and stale locks or unprovable identity deliberately require operator intervention. |
 | 3 — real coding path | **Deterministic Swift slice implemented; Codex conformance components dormant** | The supported Swift Greeter profile connects [`git-workspace`](../../packages/git-workspace), [`execution-engine`](../../packages/execution-engine), [`trusted-verifier`](../../packages/trusted-verifier), [`independent-review`](../../packages/independent-review), and [`evidence-store`](../../packages/evidence-store). The Codex adapter additionally pins executable digest, CLI version, model, strict invocation/output schema/environment, and supervisor-bound V2 evidence. A no-network fake executable has passed the actual supervisor → adapter → trusted Swift verification → review → broker commit path. | `daemon-entrypoint` does not expose the Codex profile. No paid/real-model or autonomous application-development run has passed. General coding remains blocked on ADR 0002 containment and trusted-verifier hard-kill recovery. |
 | 4 — reconciliation, review, and proof | **Walking-slice reconciliation and startup recovery barrier implemented; containment/restore gates remain** | Mirror/worktree publication intents reconcile creation crashes; marker refs reconcile commit publication; V2 agent-result journals replay without relaunch; CLI and MCP expose bounded evidence list/inspect/verify; manifests and every referenced blob are digest-checked. Commands return retryable `daemon.starting` until executor/agent recovery completes, and ambiguous recovery releases daemon ownership. Backup/restore primitives are tested in [`recovery-manager/test`](../../packages/recovery-manager/test). | Restored-runtime quarantine consumption remains **blocked by protected approval**. Trusted-verifier hard-kill adoption, escaped-descendant containment, stale-lock recovery, and the complete hard-kill/sleep/provider-failure soak matrix have not passed. |
@@ -82,22 +82,20 @@ step. The fail-closed scanner correctly classifies it as invalid, which also
 makes the linked-worktree case not ready. Until that protected fixture is made
 realistic, do not scan Hindsight and do not describe enrollment as green.
 
-The post-hardening unrestricted `pnpm verify` run completed every static gate
-and passed 692 of 698 tests. It took 82.63 seconds wall time (Vitest duration
-72.75 seconds).
+The final unrestricted `pnpm verify` run completed every static gate and passed
+694 of 700 tests. It took 81.74 seconds wall time (Vitest duration 72.10
+seconds).
 Two failures were the scanner cases above. Four additional tests hit their
 five-second test deadlines or a load-sensitive escaped-descendant branch under
 unrestricted parallel load: two execution-engine cases, one process-supervisor
 overflow case, and one trusted-verifier case. A bounded sequential rerun of
-those three files passed 36 of 36 in 32.94 seconds wall time (Vitest duration
-32.60 seconds), so they are recorded as
+those three files passed 36 of 36 in 32.91 seconds wall time (Vitest duration
+32.59 seconds), so they are recorded as
 parallel-saturation/harness findings rather than silently called green.
 
 Excluding only the protected scanner suite and bounding Vitest to four workers,
-the post-hardening timed run passed 686 of 686 tests in 74.39 seconds (Vitest
-duration 74.07 seconds). The daemon and process-supervisor slice separately
-passed 168 of 168 tests in 67.27 seconds. The no-network fake Codex test
-traversing the real supervisor, V2
+the final timed run passed 688 of 688 tests in 71.57 seconds (Vitest duration
+71.26 seconds). The no-network fake Codex test traversing the real supervisor, V2
 evidence, trusted Swift verifier, reviewer, and broker commit passed in the same
 suite. These timings are observations, not a new performance threshold. The
 protected test harness must be separately approved before changing its worker

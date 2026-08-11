@@ -79,6 +79,11 @@ silently re-executed. Once a project requires protocol evidence, the daemon
 also refuses live results without the complete envelope and rejects legacy V1
 journals instead of downgrading trust during recovery.
 
+If a terminal supervisor receipt survives under an older fence but its V2
+journal does not, recovery neither relaunches Codex nor promotes that receipt
+into the newer fence. The attempt fails with `agent.supervisor-stale-fence`;
+the operator must inspect the durable receipt and submit a replacement attempt.
+
 The Codex conformance adapter is not wired into `daemon-entrypoint`. Its
 no-network fake-executable test traverses the real detached supervisor and
 trusted Swift pipeline, but live-model host execution remains prohibited by
