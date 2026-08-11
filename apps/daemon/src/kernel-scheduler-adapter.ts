@@ -42,8 +42,6 @@ import {
 } from "@app-factory/scheduler";
 import type Database from "better-sqlite3";
 
-import type { ReconcilePort } from "./command-runtime.js";
-
 const STEP_OPERATION_BY_KEY = {
   prepare: "factory.prepare",
   execute: "factory.execute",
@@ -88,7 +86,6 @@ export type KernelSchedulerController = Readonly<{
   persistence: KernelSchedulerPersistenceAdapter;
   scheduler: RestartSafeScheduler;
   tick(): Promise<SchedulerTickResult>;
-  reconcile: ReconcilePort;
   interruptActiveCancellation(attemptId: AttemptId): boolean;
   stop(): Promise<void>;
 }>;
@@ -291,48 +288,6 @@ function planDigest(attempt: ExecutionAttemptV1, key: SchedulerStepKey): string 
   );
 }
 
-function resultAttemptId(result: SchedulerTickResult): AttemptId | null {
-  switch (result.kind) {
-    case "paused":
-    case "cancelled":
-    case "succeeded":
-    case "blocked":
-    case "failed":
-    case "interrupted":
-      return AttemptIdSchema.parse(result.attemptId);
-    case "idle":
-    case "busy":
-    case "stopped":
-    case "contended":
-    case "fenced":
-      return null;
-  }
-}
-
-function scopedPersistence(
-  persistence: KernelSchedulerPersistenceAdapter,
-  attemptId: AttemptId,
-): SchedulerPersistencePort {
-  return {
-    discoverEligible: async (input) => {
-      const candidate = await persistence.discoverEligibleAttempt({
-        attemptId,
-        observedAt: input.observedAt,
-      });
-      return candidate === null ? [] : [candidate];
-    },
-    claimLease: async (input) => await persistence.claimLease(input),
-    renewLease: async (input) => await persistence.renewLease(input),
-    assertLease: async (input) => await persistence.assertLease(input),
-    assertExecutionActive: async (input) => await persistence.assertExecutionActive(input),
-    releaseLease: async (input) => await persistence.releaseLease(input),
-    loadWork: async (input) => await persistence.loadWork(input),
-    ensurePlan: async (input) => await persistence.ensurePlan(input),
-    transitionAttempt: async (input) => await persistence.transitionAttempt(input),
-    transitionStep: async (input) => await persistence.transitionStep(input),
-  };
-}
-
 export class KernelSchedulerPersistenceAdapter implements SchedulerPersistencePort {
   readonly #database: Database.Database;
   readonly #repositories: FactoryRepositories;
@@ -361,22 +316,6 @@ export class KernelSchedulerPersistenceAdapter implements SchedulerPersistencePo
   public isCancellationRequested(attemptIdValue: unknown): boolean {
     const attemptId = AttemptIdSchema.parse(attemptIdValue);
     return this.#repositories.attempts.findById(attemptId)?.desiredState === "cancelled";
-  }
-
-  /** Exact lookup used by command-scoped reconciliation; it never falls back to another attempt. */
-  public async discoverEligibleAttempt(input: {
-    readonly attemptId: string;
-    readonly observedAt: string;
-  }): Promise<SchedulerCandidate | null> {
-    IsoInstantSchema.parse(input.observedAt);
-    const attemptId = AttemptIdSchema.parse(input.attemptId);
-    const attempt = this.#repositories.attempts.findById(attemptId);
-    if (attempt === null || !isEligible(attempt)) return null;
-    return {
-      attemptId: attempt.attemptId,
-      leaseKey: `attempt:${attempt.attemptId}`,
-      updatedAt: attempt.updatedAt,
-    };
   }
 
   public async claimLease(input: {
@@ -1062,45 +1001,11 @@ export function createKernelSchedulerController(
       { kind: "stopped", attemptId: null },
       async () => await scheduler.tick(),
     );
-  const reconcile: ReconcilePort = async (request) => {
-    if (request.attemptId === null) {
-      const result = await tick();
-      const attemptId = resultAttemptId(result);
-      return attemptId === null ? [] : [attemptId];
-    }
-
-    const attemptId = AttemptIdSchema.parse(request.attemptId);
-    const selectedScheduler = new RestartSafeScheduler({
-      ownerId: options.ownerId,
-      persistence: scopedPersistence(persistence, attemptId),
-      executor: options.executor,
-      ...(options.clock === undefined ? {} : { clock: options.clock }),
-      ...(options.observer === undefined ? {} : { observer: options.observer }),
-      ...(options.leaseDurationMs === undefined
-        ? {}
-        : { leaseDurationMs: options.leaseDurationMs }),
-    });
-    const result = await runExclusive(
-      selectedScheduler,
-      null,
-      async () => await selectedScheduler.tick(),
-    );
-    if (result === null) return [];
-    const reconciledAttemptId = resultAttemptId(result);
-    if (reconciledAttemptId === null) return [];
-    if (reconciledAttemptId !== attemptId) {
-      throw new SchedulerInvariantError(
-        "scoped reconciliation returned an attempt outside its requested scope",
-      );
-    }
-    return [attemptId];
-  };
 
   return {
     persistence,
     scheduler,
     tick,
-    reconcile,
     interruptActiveCancellation: (attemptIdValue) => {
       const attemptId = AttemptIdSchema.parse(attemptIdValue);
       if (!persistence.isCancellationRequested(attemptId)) return false;

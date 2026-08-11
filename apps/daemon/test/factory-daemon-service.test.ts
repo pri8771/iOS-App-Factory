@@ -19,7 +19,7 @@ import {
 } from "../src/index.js";
 
 const AUTHORIZATION = "week-two-daemon-service-test-token-0001";
-const T0 = "2026-08-11T12:00:00.000Z";
+const T0 = "2026-08-10T00:00:00.000Z";
 const roots: string[] = [];
 const services: FactoryDaemonService[] = [];
 const clients: CommandClient[] = [];
@@ -324,6 +324,36 @@ describe("single-writer daemon composition", () => {
     expect(service.getLastSchedulerError()).toBeNull();
   });
 
+  it("returns a retryable ambiguous error and recovers with the same command identity", async () => {
+    let failFirstPublication = true;
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: await makeRoot(),
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.2.0-ambiguous-result",
+      wakeOnCommand: false,
+      commandResultLedgerBoundary: ({ request }) => {
+        if (request.operation === "task.run" && failFirstPublication) {
+          failFirstPublication = false;
+          throw new Error("simulated crash after kernel commit");
+        }
+      },
+    });
+    services.push(service);
+    const client = clientFor(service);
+    const identity = client.createIdentity();
+    const spec = taskSpec(12);
+
+    await expect(client.run(spec, identity)).rejects.toMatchObject({
+      code: "command.result-persistence-ambiguous",
+      retryable: true,
+    });
+    const recovered = await client.run(spec, client.createRetryIdentity(identity));
+    const events = await client.events(recovered.attemptId, { limit: 100 });
+
+    expect(recovered).toMatchObject({ operation: "task.run", state: "queued" });
+    expect(events.events.filter((event) => event.type === "attempt.created")).toHaveLength(1);
+  });
+
   it("interrupts only the targeted active attempt and reconciles its persisted cancellation", async () => {
     const executor = new CancelAwareHangingExecutor();
     const service = await startFactoryDaemonService({
@@ -452,7 +482,7 @@ describe("single-writer daemon composition", () => {
     },
   );
 
-  it("reconciles only the requested attempt even when another attempt is runnable", async () => {
+  it("acknowledges reconcile without executing inline when event wakeups are disabled", async () => {
     const suspendedWait = new CooperativeSuspendedWait();
     const service = await startFactoryDaemonService({
       runtimeDirectory: await makeRoot(),
@@ -470,12 +500,12 @@ describe("single-writer daemon composition", () => {
     const requested = await client.submit(taskSpec(31));
     const reconciled = await client.reconcile(requested.attemptId);
 
-    expect(reconciled.reconciledAttemptIds).toEqual([requested.attemptId]);
+    expect(reconciled.reconciledAttemptIds).toEqual([]);
     await expect(client.status(requested.attemptId)).resolves.toMatchObject({
-      attempt: { state: "paused", desiredState: "paused" },
+      attempt: { state: "queued", desiredState: "paused", revision: 0, fence: 0 },
     });
     await expect(client.status(runnable.attemptId)).resolves.toMatchObject({
-      attempt: { state: "queued", desiredState: "running" },
+      attempt: { state: "queued", desiredState: "running", revision: 0, fence: 0 },
     });
   });
 

@@ -547,10 +547,8 @@ export class AttemptDesiredStateRepository {
       assertSame("desired-state event from", event.data.from, current.desiredState);
       assertSame("desired-state event to", event.data.to, command.desiredState);
       assertSame("desired-state event reason", event.data.reason, command.reason);
-      if (event.occurredAt <= current.updatedAt || event.occurredAt < command.issuedAt) {
-        failInvariant(
-          "desired-state event time must advance the attempt and not precede the command",
-        );
+      if (event.occurredAt <= current.updatedAt) {
+        failInvariant("desired-state event time must advance the attempt");
       }
       validateEventCause(this.database, event);
 

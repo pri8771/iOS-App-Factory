@@ -5,6 +5,11 @@ import { isAbsolute, normalize } from "node:path";
 import { CommandAuthorizationV1Schema } from "@app-factory/contracts";
 
 import { startFactoryDaemonService, type FactoryDaemonService } from "./factory-daemon-service.js";
+import {
+  SwiftGreeterFixtureConfigurationError,
+  loadSwiftGreeterFixtureExecutionConfiguration,
+} from "./swift-greeter-fixture-execution.js";
+import type { VerifiedLocalExecutionConfiguration } from "./verified-local-executor.js";
 
 const MAX_SECRET_BYTES = 512;
 const DEFAULT_POLL_INTERVAL_MS = 100;
@@ -14,6 +19,7 @@ export type DaemonProcessEnvironment = Readonly<{
   APP_FACTORY_AUTH_FILE?: string;
   APP_FACTORY_DAEMON_VERSION?: string;
   APP_FACTORY_POLL_INTERVAL_MS?: string;
+  APP_FACTORY_LOCAL_EXECUTION_CONFIG?: string;
 }>;
 
 export type DaemonProcessConfiguration = Readonly<{
@@ -21,6 +27,7 @@ export type DaemonProcessConfiguration = Readonly<{
   authorization: string;
   daemonVersion: string;
   pollIntervalMs: number;
+  localExecution?: VerifiedLocalExecutionConfiguration;
 }>;
 
 export type DaemonProcessIo = Readonly<{
@@ -151,11 +158,32 @@ export async function loadDaemonProcessConfiguration(
     environment.APP_FACTORY_AUTH_FILE,
     "APP_FACTORY_AUTH_FILE",
   );
+  const runtimeDirectory = absolutePath(
+    environment.APP_FACTORY_RUNTIME_DIR,
+    "APP_FACTORY_RUNTIME_DIR",
+  );
+  const authorization = await readPrivateAuthorizationFile(authorizationFile);
+  let localExecution: VerifiedLocalExecutionConfiguration | undefined;
+  if (environment.APP_FACTORY_LOCAL_EXECUTION_CONFIG !== undefined) {
+    const configPath = absolutePath(
+      environment.APP_FACTORY_LOCAL_EXECUTION_CONFIG,
+      "APP_FACTORY_LOCAL_EXECUTION_CONFIG",
+    );
+    try {
+      localExecution = loadSwiftGreeterFixtureExecutionConfiguration(configPath, runtimeDirectory);
+    } catch (error) {
+      if (error instanceof SwiftGreeterFixtureConfigurationError) {
+        configurationError(error.message);
+      }
+      throw error;
+    }
+  }
   return {
-    runtimeDirectory: absolutePath(environment.APP_FACTORY_RUNTIME_DIR, "APP_FACTORY_RUNTIME_DIR"),
-    authorization: await readPrivateAuthorizationFile(authorizationFile),
+    runtimeDirectory,
+    authorization,
     daemonVersion: daemonVersion(environment.APP_FACTORY_DAEMON_VERSION),
     pollIntervalMs: pollInterval(environment.APP_FACTORY_POLL_INTERVAL_MS),
+    ...(localExecution === undefined ? {} : { localExecution }),
   };
 }
 

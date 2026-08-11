@@ -1,6 +1,13 @@
-import { CommandClientError, type CommandClient } from "@app-factory/command-client";
+import {
+  CommandClientError,
+  type CommandClient,
+  type CommandIdentity,
+  type RetryableCommandIdentity,
+} from "@app-factory/command-client";
 import {
   AttemptIdSchema,
+  CommandIdSchema,
+  IsoInstantSchema,
   TaskSpecV1Schema,
   type AttemptId,
   type TaskSpecV1,
@@ -10,18 +17,52 @@ import { z } from "zod";
 
 export type McpCommandPort = Readonly<{
   doctor(signal?: AbortSignal): Promise<unknown>;
-  submit(taskSpec: TaskSpecV1, signal?: AbortSignal): Promise<unknown>;
-  run(taskSpec: TaskSpecV1, signal?: AbortSignal): Promise<unknown>;
+  submit(
+    taskSpec: TaskSpecV1,
+    retryIdentity: RetryableCommandIdentity | null,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
+  run(
+    taskSpec: TaskSpecV1,
+    retryIdentity: RetryableCommandIdentity | null,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
   status(attemptId: AttemptId, signal?: AbortSignal): Promise<unknown>;
   events(
     attemptId: AttemptId,
     options: Readonly<{ afterSequence: number; limit: number }>,
     signal?: AbortSignal,
   ): Promise<unknown>;
-  pause(attemptId: AttemptId, reason: string | null, signal?: AbortSignal): Promise<unknown>;
-  resume(attemptId: AttemptId, reason: string | null, signal?: AbortSignal): Promise<unknown>;
-  cancel(attemptId: AttemptId, reason: string | null, signal?: AbortSignal): Promise<unknown>;
-  reconcile(attemptId: AttemptId | null, signal?: AbortSignal): Promise<unknown>;
+  pause(
+    attemptId: AttemptId,
+    reason: string | null,
+    retryIdentity: RetryableCommandIdentity | null,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
+  resume(
+    attemptId: AttemptId,
+    reason: string | null,
+    retryIdentity: RetryableCommandIdentity | null,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
+  cancel(
+    attemptId: AttemptId,
+    reason: string | null,
+    retryIdentity: RetryableCommandIdentity | null,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
+  reconcile(
+    attemptId: AttemptId | null,
+    retryIdentity: RetryableCommandIdentity | null,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
+  listEvidence(
+    options: Readonly<{ afterAttemptId: AttemptId | null; limit: number }>,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
+  inspectEvidence(attemptId: AttemptId, signal?: AbortSignal): Promise<unknown>;
+  verifyEvidence(attemptId: AttemptId, signal?: AbortSignal): Promise<unknown>;
+  portfolioSnapshot(signal?: AbortSignal): Promise<unknown>;
 }>;
 
 function resultObject(value: unknown): Readonly<Record<string, unknown>> {
@@ -43,7 +84,14 @@ function success(value: unknown): CallToolResult {
 function failure(error: unknown): CallToolResult {
   const normalized =
     error instanceof CommandClientError
-      ? { code: error.code, message: error.message, retryable: error.retryable }
+      ? {
+          code: error.code,
+          message: error.message,
+          retryable: error.retryable,
+          ...(error.retryable && error.retryIdentity !== null
+            ? { retryIdentity: error.retryIdentity }
+            : {}),
+        }
       : { code: "mcp.command-failed", message: "The Factory command failed.", retryable: false };
   return {
     content: [{ type: "text", text: JSON.stringify({ error: normalized }, null, 2) }],
@@ -74,6 +122,39 @@ const CONTROL = {
   openWorldHint: false,
 } as const;
 
+const RETRY_IDENTITY_SHAPE = {
+  commandId: CommandIdSchema.optional(),
+  issuedAt: IsoInstantSchema.optional(),
+} as const;
+
+function requireCompleteRetryIdentity(value: {
+  commandId: string | undefined;
+  issuedAt: string | undefined;
+}): RetryableCommandIdentity | null {
+  if ((value.commandId === undefined) !== (value.issuedAt === undefined)) {
+    throw new CommandClientError(
+      "mcp.incomplete-retry-identity",
+      "commandId and issuedAt must be provided together.",
+      false,
+    );
+  }
+  return value.commandId === undefined || value.issuedAt === undefined
+    ? null
+    : {
+        commandId: CommandIdSchema.parse(value.commandId),
+        issuedAt: IsoInstantSchema.parse(value.issuedAt),
+      };
+}
+
+function deliveryIdentity(
+  client: CommandClient,
+  retryIdentity: RetryableCommandIdentity | null,
+): CommandIdentity {
+  return retryIdentity === null
+    ? client.createIdentity()
+    : client.createRetryIdentity(retryIdentity);
+}
+
 export function createFactoryMcpServer(port: McpCommandPort): McpServer {
   const server = new McpServer({ name: "app-factory", version: "0.1.0" });
 
@@ -94,11 +175,18 @@ export function createFactoryMcpServer(port: McpCommandPort): McpServer {
       title: "Submit Factory task",
       description:
         "Persist a validated TaskSpec without starting it. The daemon remains authoritative.",
-      inputSchema: z.strictObject({ taskSpec: TaskSpecV1Schema }),
+      inputSchema: z.strictObject({ taskSpec: TaskSpecV1Schema, ...RETRY_IDENTITY_SHAPE }),
       annotations: { ...CONTROL, idempotentHint: false },
     },
-    async ({ taskSpec }, context) =>
-      await invoke(async () => await port.submit(taskSpec, context.mcpReq.signal)),
+    async ({ taskSpec, commandId, issuedAt }, context) =>
+      await invoke(
+        async () =>
+          await port.submit(
+            taskSpec,
+            requireCompleteRetryIdentity({ commandId, issuedAt }),
+            context.mcpReq.signal,
+          ),
+      ),
   );
 
   server.registerTool(
@@ -107,11 +195,18 @@ export function createFactoryMcpServer(port: McpCommandPort): McpServer {
       title: "Start Factory task",
       description:
         "Persist and start a validated TaskSpec. This does not bypass policy, approval, or verification gates.",
-      inputSchema: z.strictObject({ taskSpec: TaskSpecV1Schema }),
+      inputSchema: z.strictObject({ taskSpec: TaskSpecV1Schema, ...RETRY_IDENTITY_SHAPE }),
       annotations: { ...CONTROL, idempotentHint: false },
     },
-    async ({ taskSpec }, context) =>
-      await invoke(async () => await port.run(taskSpec, context.mcpReq.signal)),
+    async ({ taskSpec, commandId, issuedAt }, context) =>
+      await invoke(
+        async () =>
+          await port.run(
+            taskSpec,
+            requireCompleteRetryIdentity({ commandId, issuedAt }),
+            context.mcpReq.signal,
+          ),
+      ),
   );
 
   server.registerTool(
@@ -150,11 +245,23 @@ export function createFactoryMcpServer(port: McpCommandPort): McpServer {
     {
       title: "Pause Factory attempt",
       description: "Persist a paused desired state. Running work stops at its fenced boundary.",
-      inputSchema: z.strictObject({ attemptId: AttemptIdSchema, reason: reasonSchema }),
+      inputSchema: z.strictObject({
+        attemptId: AttemptIdSchema,
+        reason: reasonSchema,
+        ...RETRY_IDENTITY_SHAPE,
+      }),
       annotations: CONTROL,
     },
-    async ({ attemptId, reason }, context) =>
-      await invoke(async () => await port.pause(attemptId, reason, context.mcpReq.signal)),
+    async ({ attemptId, reason, commandId, issuedAt }, context) =>
+      await invoke(
+        async () =>
+          await port.pause(
+            attemptId,
+            reason,
+            requireCompleteRetryIdentity({ commandId, issuedAt }),
+            context.mcpReq.signal,
+          ),
+      ),
   );
 
   server.registerTool(
@@ -163,11 +270,23 @@ export function createFactoryMcpServer(port: McpCommandPort): McpServer {
       title: "Resume Factory attempt",
       description:
         "Persist a running desired state and let the daemon reconcile from durable evidence.",
-      inputSchema: z.strictObject({ attemptId: AttemptIdSchema, reason: reasonSchema }),
+      inputSchema: z.strictObject({
+        attemptId: AttemptIdSchema,
+        reason: reasonSchema,
+        ...RETRY_IDENTITY_SHAPE,
+      }),
       annotations: CONTROL,
     },
-    async ({ attemptId, reason }, context) =>
-      await invoke(async () => await port.resume(attemptId, reason, context.mcpReq.signal)),
+    async ({ attemptId, reason, commandId, issuedAt }, context) =>
+      await invoke(
+        async () =>
+          await port.resume(
+            attemptId,
+            reason,
+            requireCompleteRetryIdentity({ commandId, issuedAt }),
+            context.mcpReq.signal,
+          ),
+      ),
   );
 
   server.registerTool(
@@ -176,11 +295,23 @@ export function createFactoryMcpServer(port: McpCommandPort): McpServer {
       title: "Cancel Factory attempt",
       description:
         "Persist cancellation for one attempt. Completed external effects are not undone.",
-      inputSchema: z.strictObject({ attemptId: AttemptIdSchema, reason: reasonSchema }),
+      inputSchema: z.strictObject({
+        attemptId: AttemptIdSchema,
+        reason: reasonSchema,
+        ...RETRY_IDENTITY_SHAPE,
+      }),
       annotations: { ...CONTROL, destructiveHint: true },
     },
-    async ({ attemptId, reason }, context) =>
-      await invoke(async () => await port.cancel(attemptId, reason, context.mcpReq.signal)),
+    async ({ attemptId, reason, commandId, issuedAt }, context) =>
+      await invoke(
+        async () =>
+          await port.cancel(
+            attemptId,
+            reason,
+            requireCompleteRetryIdentity({ commandId, issuedAt }),
+            context.mcpReq.signal,
+          ),
+      ),
   );
 
   server.registerTool(
@@ -188,12 +319,77 @@ export function createFactoryMcpServer(port: McpCommandPort): McpServer {
     {
       title: "Reconcile App Factory",
       description:
-        "Ask the daemon to reconcile one attempt or all attempts against durable local state.",
-      inputSchema: z.strictObject({ attemptId: AttemptIdSchema.nullable().default(null) }),
+        "Durably request a background-scheduler wake for one existing attempt or the daemon queue. Observe later progress through status and events.",
+      inputSchema: z.strictObject({
+        attemptId: AttemptIdSchema.nullable().default(null),
+        ...RETRY_IDENTITY_SHAPE,
+      }),
       annotations: CONTROL,
     },
+    async ({ attemptId, commandId, issuedAt }, context) =>
+      await invoke(
+        async () =>
+          await port.reconcile(
+            attemptId,
+            requireCompleteRetryIdentity({ commandId, issuedAt }),
+            context.mcpReq.signal,
+          ),
+      ),
+  );
+
+  server.registerTool(
+    "factory_evidence_list",
+    {
+      title: "List Factory evidence",
+      description: "List a bounded page of immutable attempt evidence manifests.",
+      inputSchema: z.strictObject({
+        afterAttemptId: AttemptIdSchema.nullable().default(null),
+        limit: z.number().int().positive().max(100).default(50),
+      }),
+      annotations: READ_ONLY,
+    },
+    async ({ afterAttemptId, limit }, context) =>
+      await invoke(
+        async () => await port.listEvidence({ afterAttemptId, limit }, context.mcpReq.signal),
+      ),
+  );
+
+  server.registerTool(
+    "factory_evidence_inspect",
+    {
+      title: "Inspect Factory evidence",
+      description: "Read one immutable evidence manifest and its content digest.",
+      inputSchema: z.strictObject({ attemptId: AttemptIdSchema }),
+      annotations: READ_ONLY,
+    },
     async ({ attemptId }, context) =>
-      await invoke(async () => await port.reconcile(attemptId, context.mcpReq.signal)),
+      await invoke(async () => await port.inspectEvidence(attemptId, context.mcpReq.signal)),
+  );
+
+  server.registerTool(
+    "factory_evidence_verify",
+    {
+      title: "Verify Factory evidence",
+      description:
+        "Recompute one attempt's manifest, evidence, and artifact digests inside the daemon boundary. This verifies storage integrity, not execution semantics.",
+      inputSchema: z.strictObject({ attemptId: AttemptIdSchema }),
+      annotations: READ_ONLY,
+    },
+    async ({ attemptId }, context) =>
+      await invoke(async () => await port.verifyEvidence(attemptId, context.mcpReq.signal)),
+  );
+
+  server.registerTool(
+    "factory_portfolio_snapshot",
+    {
+      title: "Read Factory portfolio",
+      description:
+        "Read the bounded authoritative multi-project snapshot. Unavailable provider values remain null.",
+      inputSchema: z.strictObject({}),
+      annotations: READ_ONLY,
+    },
+    async (_input, context) =>
+      await invoke(async () => await port.portfolioSnapshot(context.mcpReq.signal)),
   );
 
   return server;
@@ -202,17 +398,26 @@ export function createFactoryMcpServer(port: McpCommandPort): McpServer {
 export function commandClientMcpPort(client: CommandClient): McpCommandPort {
   return {
     doctor: async (signal) => await client.doctor(undefined, signal),
-    submit: async (taskSpec, signal) => await client.submit(taskSpec, undefined, signal),
-    run: async (taskSpec, signal) => await client.run(taskSpec, undefined, signal),
+    submit: async (taskSpec, retryIdentity, signal) =>
+      await client.submit(taskSpec, deliveryIdentity(client, retryIdentity), signal),
+    run: async (taskSpec, retryIdentity, signal) =>
+      await client.run(taskSpec, deliveryIdentity(client, retryIdentity), signal),
     status: async (attemptId, signal) => await client.status(attemptId, undefined, signal),
     events: async (attemptId, options, signal) =>
       await client.events(attemptId, options, undefined, signal),
-    pause: async (attemptId, reason, signal) =>
-      await client.pause(attemptId, reason, undefined, signal),
-    resume: async (attemptId, reason, signal) =>
-      await client.resume(attemptId, reason, undefined, signal),
-    cancel: async (attemptId, reason, signal) =>
-      await client.cancel(attemptId, reason, undefined, signal),
-    reconcile: async (attemptId, signal) => await client.reconcile(attemptId, undefined, signal),
+    pause: async (attemptId, reason, retryIdentity, signal) =>
+      await client.pause(attemptId, reason, deliveryIdentity(client, retryIdentity), signal),
+    resume: async (attemptId, reason, retryIdentity, signal) =>
+      await client.resume(attemptId, reason, deliveryIdentity(client, retryIdentity), signal),
+    cancel: async (attemptId, reason, retryIdentity, signal) =>
+      await client.cancel(attemptId, reason, deliveryIdentity(client, retryIdentity), signal),
+    reconcile: async (attemptId, retryIdentity, signal) =>
+      await client.reconcile(attemptId, deliveryIdentity(client, retryIdentity), signal),
+    listEvidence: async (options, signal) => await client.listEvidence(options, undefined, signal),
+    inspectEvidence: async (attemptId, signal) =>
+      await client.inspectEvidence(attemptId, undefined, signal),
+    verifyEvidence: async (attemptId, signal) =>
+      await client.verifyEvidence(attemptId, undefined, signal),
+    portfolioSnapshot: async (signal) => await client.portfolioSnapshot(undefined, signal),
   };
 }

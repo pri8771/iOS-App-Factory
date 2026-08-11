@@ -16,12 +16,13 @@ import {
   readdirSync,
   realpathSync,
   renameSync,
+  rmSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import type { Stats } from "node:fs";
-import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 
 const SHA_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const SAFE_IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
@@ -32,6 +33,8 @@ const DEFAULT_MAX_DIFF_BYTES = 5 * 1024 * 1024;
 const GIT_OUTPUT_LIMIT = 64 * 1024 * 1024;
 const MARKER_FILE = "app-factory-owner.json";
 const MIRROR_MARKER_FILE = "app-factory-mirror.json";
+const IMMUTABLE_MIRROR_BINDING_FILE = "app-factory-immutable-binding.json";
+const PUBLICATION_ROOT = "publication-intents";
 
 type WorkspaceKind = "attempt" | "verification";
 
@@ -40,6 +43,35 @@ type MirrorMarker = Readonly<{
   repositoryId: string;
   sourceRepositoryPath: string;
   mirrorPath: string;
+}>;
+
+type MirrorPublicationIntent = MirrorMarker & Readonly<{ kind: "mirror-publication" }>;
+
+export type ImmutableMirrorBinding = Readonly<{
+  schemaVersion: 1;
+  kind: "prepared-immutable-mirror";
+  repositoryId: string;
+  sourceRepositoryPath: string;
+  sourceIdentityDigest: string;
+  mirrorPath: string;
+  baseCommit: string;
+  baseTree: string;
+}>;
+
+type WorkspacePublicationIntent = Readonly<{
+  schemaVersion: 1;
+  kind: "workspace-publication";
+  workspaceKind: WorkspaceKind;
+  repositoryId: string;
+  attemptId: string;
+  runtimeRoot: string;
+  mirrorPath: string;
+  worktreePath: string;
+  baseSha: string;
+  initialHeadSha: string;
+  candidateTreeId: string | null;
+  ownershipNonce: string;
+  readOnly: boolean;
 }>;
 
 export type FactoryMirror = MirrorMarker &
@@ -68,6 +100,13 @@ export type EnsureMirrorInput = Readonly<{
   runtimeRoot: string;
   repositoryId: string;
 }>;
+
+export type PrepareImmutableMirrorInput = EnsureMirrorInput &
+  Readonly<{
+    sourceIdentityDigest: string;
+    baseCommit: string;
+    baseTree: string;
+  }>;
 
 export type CandidatePolicy = Readonly<{
   authorizedScopes: readonly string[];
@@ -127,6 +166,16 @@ export type BrokerCommitMutationGuard = () => void;
 export type GitWorkspaceManagerOptions = Readonly<{
   gitExecutable?: string;
   verificationCheckpoint?: (worktreePath: string) => void;
+  publicationCheckpoint?: (
+    phase:
+      | "mirror-after-intent"
+      | "mirror-after-git"
+      | "mirror-after-marker"
+      | "workspace-after-intent"
+      | "workspace-after-git"
+      | "workspace-after-marker",
+    targetPath: string,
+  ) => void;
 }>;
 
 type GitInvocationOptions = Readonly<{
@@ -289,7 +338,57 @@ function writePrivateJson(path: string, value: unknown, exclusive: boolean): voi
   }
 }
 
+const PRIVATE_JSON_TEMPORARY_SUFFIX =
+  /^[1-9][0-9]*-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+
+function reconcilePrivateJsonPublicationLinks(path: string): void {
+  const original = lstatSync(path);
+  if (!original.isFile() || original.isSymbolicLink() || (original.mode & 0o077) !== 0) {
+    throw new GitWorkspaceError(`Ownership marker is not one private file: ${path}`);
+  }
+  assertOwned(original, path);
+  if (original.nlink === 1) return;
+  const parent = dirname(path);
+  const prefix = `${basename(path)}.tmp-`;
+  let removed = false;
+  for (const entry of readdirSync(parent, { withFileTypes: true })) {
+    if (
+      !entry.name.startsWith(prefix) ||
+      !PRIVATE_JSON_TEMPORARY_SUFFIX.test(entry.name.slice(prefix.length)) ||
+      !entry.isFile() ||
+      entry.isSymbolicLink()
+    ) {
+      continue;
+    }
+    const temporaryPath = safeChild(parent, entry.name);
+    const temporary = lstatSync(temporaryPath);
+    assertOwned(temporary, temporaryPath);
+    if (
+      temporary.dev === original.dev &&
+      temporary.ino === original.ino &&
+      temporary.isFile() &&
+      !temporary.isSymbolicLink() &&
+      (temporary.mode & 0o077) === 0
+    ) {
+      unlinkSync(temporaryPath);
+      removed = true;
+    }
+  }
+  if (removed) synchronizeDirectory(parent);
+  const recovered = lstatSync(path);
+  if (
+    recovered.dev !== original.dev ||
+    recovered.ino !== original.ino ||
+    recovered.nlink !== 1 ||
+    !recovered.isFile() ||
+    recovered.isSymbolicLink()
+  ) {
+    throw new GitWorkspaceError(`Ownership marker has an unknown hard link: ${path}`);
+  }
+}
+
 function readPrivateJson(path: string): unknown {
+  reconcilePrivateJsonPublicationLinks(path);
   const stats = lstatSync(path);
   if (!stats.isFile() || stats.isSymbolicLink()) {
     throw new GitWorkspaceError(`Ownership marker is not a real file: ${path}`);
@@ -307,6 +406,32 @@ function readPrivateJson(path: string): unknown {
     );
   } finally {
     closeSync(descriptor);
+  }
+}
+
+function removePrivateJson(path: string): void {
+  reconcilePrivateJsonPublicationLinks(path);
+  const stats = lstatSync(path);
+  if (!stats.isFile() || stats.isSymbolicLink() || stats.nlink !== 1) {
+    throw new GitWorkspaceError(`Publication intent is not one real file: ${path}`);
+  }
+  assertOwned(stats, path);
+  if ((stats.mode & 0o077) !== 0) {
+    throw new GitWorkspaceError(`Publication intent is not private: ${path}`);
+  }
+  unlinkSync(path);
+  synchronizeDirectory(dirname(path));
+}
+
+function exactObjectKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+  label: string,
+): void {
+  const actual = Object.keys(value).sort();
+  const wanted = [...expected].sort();
+  if (actual.length !== wanted.length || actual.some((key, index) => key !== wanted[index])) {
+    throw new GitWorkspaceError(`${label} has unexpected or missing fields`);
   }
 }
 
@@ -759,6 +884,74 @@ function parseMirrorMarker(value: unknown): MirrorMarker {
   };
 }
 
+function parseImmutableMirrorBinding(value: unknown): ImmutableMirrorBinding {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new GitWorkspaceError("Immutable mirror binding must be an object");
+  }
+  const candidate = value as Record<string, unknown>;
+  exactObjectKeys(
+    candidate,
+    [
+      "schemaVersion",
+      "kind",
+      "repositoryId",
+      "sourceRepositoryPath",
+      "sourceIdentityDigest",
+      "mirrorPath",
+      "baseCommit",
+      "baseTree",
+    ],
+    "Immutable mirror binding",
+  );
+  if (
+    candidate.schemaVersion !== 1 ||
+    candidate.kind !== "prepared-immutable-mirror" ||
+    typeof candidate.repositoryId !== "string" ||
+    typeof candidate.sourceRepositoryPath !== "string" ||
+    typeof candidate.sourceIdentityDigest !== "string" ||
+    !/^sha256:[0-9a-f]{64}$/u.test(candidate.sourceIdentityDigest) ||
+    typeof candidate.mirrorPath !== "string" ||
+    typeof candidate.baseCommit !== "string" ||
+    typeof candidate.baseTree !== "string"
+  ) {
+    throw new GitWorkspaceError("Immutable mirror binding has an invalid shape");
+  }
+  assertIdentifier(candidate.repositoryId, "Repository ID");
+  assertNormalizedAbsolute(candidate.sourceRepositoryPath, "Source repository path");
+  assertNormalizedAbsolute(candidate.mirrorPath, "Mirror path");
+  assertExplicitSha(candidate.baseCommit, "Immutable mirror base commit");
+  assertExplicitSha(candidate.baseTree, "Immutable mirror base tree");
+  if (candidate.baseCommit.length !== candidate.baseTree.length) {
+    throw new GitWorkspaceError("Immutable mirror commit and tree use different object formats");
+  }
+  return {
+    schemaVersion: 1,
+    kind: "prepared-immutable-mirror",
+    repositoryId: candidate.repositoryId,
+    sourceRepositoryPath: candidate.sourceRepositoryPath,
+    sourceIdentityDigest: candidate.sourceIdentityDigest,
+    mirrorPath: candidate.mirrorPath,
+    baseCommit: candidate.baseCommit,
+    baseTree: candidate.baseTree,
+  };
+}
+
+function parseMirrorPublicationIntent(value: unknown): MirrorPublicationIntent {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new GitWorkspaceError("Mirror publication intent must be an object");
+  }
+  const candidate = value as Record<string, unknown>;
+  exactObjectKeys(
+    candidate,
+    ["schemaVersion", "kind", "repositoryId", "sourceRepositoryPath", "mirrorPath"],
+    "Mirror publication intent",
+  );
+  if (candidate.kind !== "mirror-publication") {
+    throw new GitWorkspaceError("Mirror publication intent has the wrong kind");
+  }
+  return { ...parseMirrorMarker(candidate), kind: "mirror-publication" };
+}
+
 function parseWorkspaceRecord(value: unknown): FactoryWorkspaceRecord {
   if (value === null || typeof value !== "object") {
     throw new GitWorkspaceError("Workspace ownership marker must be an object");
@@ -822,6 +1015,58 @@ function parseWorkspaceRecord(value: unknown): FactoryWorkspaceRecord {
   };
 }
 
+function parseWorkspacePublicationIntent(value: unknown): WorkspacePublicationIntent {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new GitWorkspaceError("Workspace publication intent must be an object");
+  }
+  const candidate = value as Record<string, unknown>;
+  exactObjectKeys(
+    candidate,
+    [
+      "schemaVersion",
+      "kind",
+      "workspaceKind",
+      "repositoryId",
+      "attemptId",
+      "runtimeRoot",
+      "mirrorPath",
+      "worktreePath",
+      "baseSha",
+      "initialHeadSha",
+      "candidateTreeId",
+      "ownershipNonce",
+      "readOnly",
+    ],
+    "Workspace publication intent",
+  );
+  if (candidate.kind !== "workspace-publication") {
+    throw new GitWorkspaceError("Workspace publication intent has the wrong kind");
+  }
+  if (typeof candidate.mirrorPath !== "string") {
+    throw new GitWorkspaceError("Workspace publication intent has an invalid mirror path");
+  }
+  const record = parseWorkspaceRecord({
+    ...candidate,
+    kind: candidate.workspaceKind,
+    gitDirectoryPath: join(candidate.mirrorPath, "placeholder"),
+  });
+  return {
+    schemaVersion: 1,
+    kind: "workspace-publication",
+    workspaceKind: record.kind,
+    repositoryId: record.repositoryId,
+    attemptId: record.attemptId,
+    runtimeRoot: record.runtimeRoot,
+    mirrorPath: record.mirrorPath,
+    worktreePath: record.worktreePath,
+    baseSha: record.baseSha,
+    initialHeadSha: record.initialHeadSha,
+    candidateTreeId: record.candidateTreeId,
+    ownershipNonce: record.ownershipNonce,
+    readOnly: record.readOnly,
+  };
+}
+
 function sameRecord(left: FactoryWorkspaceRecord, right: FactoryWorkspaceRecord): boolean {
   return canonicalJson(left).equals(canonicalJson(right));
 }
@@ -871,10 +1116,12 @@ function restoreOwnerWriteRecursively(path: string): void {
 export class GitWorkspaceManager {
   readonly #gitExecutable: string;
   readonly #verificationCheckpoint: ((worktreePath: string) => void) | undefined;
+  readonly #publicationCheckpoint: GitWorkspaceManagerOptions["publicationCheckpoint"];
 
   constructor(options: GitWorkspaceManagerOptions = {}) {
     this.#gitExecutable = options.gitExecutable ?? "/usr/bin/git";
     this.#verificationCheckpoint = options.verificationCheckpoint;
+    this.#publicationCheckpoint = options.publicationCheckpoint;
     assertNormalizedAbsolute(this.#gitExecutable, "Git executable");
     const stats = statSync(this.#gitExecutable);
     if (!stats.isFile()) {
@@ -897,10 +1144,20 @@ export class GitWorkspaceManager {
       mirrorPath,
     };
 
+    const mirrorIntentRoot = this.#publicationDirectory(runtimeRoot, "mirrors");
+    const mirrorIntentPath = safeChild(mirrorIntentRoot, `${input.repositoryId}.json`);
+    this.#reconcileMirrorPublication(marker, mirrorsRoot, mirrorIntentPath);
+
     if (!existsSync(mirrorPath)) {
+      const intent: MirrorPublicationIntent = { ...marker, kind: "mirror-publication" };
+      writePrivateJson(mirrorIntentPath, intent, true);
+      this.#publicationCheckpoint?.("mirror-after-intent", mirrorPath);
       this.#git(runtimeRoot, ["clone", "--mirror", "--no-local", "--", source, mirrorPath]);
+      this.#publicationCheckpoint?.("mirror-after-git", mirrorPath);
       assertRealDirectory(mirrorPath, "Factory mirror");
       writePrivateJson(safeChild(mirrorPath, MIRROR_MARKER_FILE), marker, true);
+      this.#publicationCheckpoint?.("mirror-after-marker", mirrorPath);
+      removePrivateJson(mirrorIntentPath);
     } else {
       assertRealDirectory(mirrorPath, "Factory mirror");
       const existing = parseMirrorMarker(
@@ -909,6 +1166,11 @@ export class GitWorkspaceManager {
       if (!canonicalJson(existing).equals(canonicalJson(marker))) {
         throw new GitWorkspaceError(
           "Existing mirror ownership marker does not match the requested source",
+        );
+      }
+      if (existsSync(safeChild(mirrorPath, IMMUTABLE_MIRROR_BINDING_FILE))) {
+        throw new GitWorkspaceError(
+          "Prepared immutable mirror cannot be refreshed through ensureMirror",
         );
       }
       this.#gitBare(runtimeRoot, mirrorPath, ["remote", "set-url", "origin", source]);
@@ -927,12 +1189,225 @@ export class GitWorkspaceManager {
     return { ...marker, runtimeRoot };
   }
 
+  /**
+   * Publishes an immutable enrollment boundary after the reviewed commit/tree
+   * have been copied into Factory-owned storage. A later attempt must open this
+   * binding and must never contact or refresh from the mutable source checkout.
+   */
+  prepareImmutableMirror(
+    input: PrepareImmutableMirrorInput,
+    assertSourceStillIdentical: () => void,
+  ): FactoryMirror {
+    if (typeof assertSourceStillIdentical !== "function") {
+      throw new TypeError("Immutable mirror preparation requires a source revalidation callback");
+    }
+    const runtimeRoot = this.#ensureRuntimeRoot(input.runtimeRoot);
+    assertNormalizedAbsolute(input.sourceRepositoryPath, "Source repository path");
+    assertIdentifier(input.repositoryId, "Repository ID");
+    if (!/^sha256:[0-9a-f]{64}$/u.test(input.sourceIdentityDigest)) {
+      throw new GitWorkspaceError("Source identity digest must be a SHA-256 digest");
+    }
+    assertExplicitSha(input.baseCommit, "Immutable mirror base commit");
+    assertExplicitSha(input.baseTree, "Immutable mirror base tree");
+    if (input.baseCommit.length !== input.baseTree.length) {
+      throw new GitWorkspaceError("Immutable mirror commit and tree use different object formats");
+    }
+    const mirrorPath = safeChild(runtimeRoot, "mirrors", `${input.repositoryId}.git`);
+    const binding: ImmutableMirrorBinding = {
+      schemaVersion: 1,
+      kind: "prepared-immutable-mirror",
+      repositoryId: input.repositoryId,
+      sourceRepositoryPath: input.sourceRepositoryPath,
+      sourceIdentityDigest: input.sourceIdentityDigest,
+      mirrorPath,
+      baseCommit: input.baseCommit,
+      baseTree: input.baseTree,
+    };
+    const bindingPath = safeChild(mirrorPath, IMMUTABLE_MIRROR_BINDING_FILE);
+    if (existsSync(bindingPath)) {
+      assertSourceStillIdentical();
+      return this.openPreparedImmutableMirror(input);
+    }
+
+    const mirror = this.ensureMirror(input);
+    this.assertMirrorCommitTree(mirror, input.baseCommit, input.baseTree);
+    // This is the final source access in the enrollment path. Once it returns,
+    // only the already-populated Factory mirror is used and then sealed.
+    assertSourceStillIdentical();
+    try {
+      writePrivateJson(bindingPath, binding, true);
+    } catch (error) {
+      if (!existsSync(bindingPath)) throw error;
+    }
+    return this.openPreparedImmutableMirror(input);
+  }
+
+  /** Opens a previously prepared mirror without reading or refreshing its source. */
+  openPreparedImmutableMirror(input: PrepareImmutableMirrorInput): FactoryMirror {
+    const runtimeRoot = this.#ensureRuntimeRoot(input.runtimeRoot);
+    assertNormalizedAbsolute(input.sourceRepositoryPath, "Source repository path");
+    assertIdentifier(input.repositoryId, "Repository ID");
+    if (!/^sha256:[0-9a-f]{64}$/u.test(input.sourceIdentityDigest)) {
+      throw new GitWorkspaceError("Source identity digest must be a SHA-256 digest");
+    }
+    assertExplicitSha(input.baseCommit, "Immutable mirror base commit");
+    assertExplicitSha(input.baseTree, "Immutable mirror base tree");
+    if (input.baseCommit.length !== input.baseTree.length) {
+      throw new GitWorkspaceError("Immutable mirror commit and tree use different object formats");
+    }
+    const mirrorPath = safeChild(runtimeRoot, "mirrors", `${input.repositoryId}.git`);
+    const pendingIntentPath = safeChild(
+      runtimeRoot,
+      PUBLICATION_ROOT,
+      "mirrors",
+      `${input.repositoryId}.json`,
+    );
+    if (existsSync(pendingIntentPath)) {
+      throw new GitWorkspaceError("Prepared immutable mirror has a pending publication intent");
+    }
+    const expectedBinding: ImmutableMirrorBinding = {
+      schemaVersion: 1,
+      kind: "prepared-immutable-mirror",
+      repositoryId: input.repositoryId,
+      sourceRepositoryPath: input.sourceRepositoryPath,
+      sourceIdentityDigest: input.sourceIdentityDigest,
+      mirrorPath,
+      baseCommit: input.baseCommit,
+      baseTree: input.baseTree,
+    };
+    const actualBinding = parseImmutableMirrorBinding(
+      readPrivateJson(safeChild(mirrorPath, IMMUTABLE_MIRROR_BINDING_FILE)),
+    );
+    if (!canonicalJson(actualBinding).equals(canonicalJson(expectedBinding))) {
+      throw new GitWorkspaceError("Prepared immutable mirror binding does not match enrollment");
+    }
+    const mirror = this.#validateMirror({
+      schemaVersion: 1,
+      repositoryId: input.repositoryId,
+      sourceRepositoryPath: input.sourceRepositoryPath,
+      mirrorPath,
+      runtimeRoot,
+    });
+    this.assertMirrorCommitTree(mirror, input.baseCommit, input.baseTree);
+    return mirror;
+  }
+
+  #publicationDirectory(runtimeRoot: string, category: "mirrors" | "workspaces"): string {
+    const publicationRoot = safeChild(runtimeRoot, PUBLICATION_ROOT);
+    ensurePrivateDirectory(publicationRoot);
+    const categoryRoot = safeChild(publicationRoot, category);
+    ensurePrivateDirectory(categoryRoot);
+    return categoryRoot;
+  }
+
+  #reconcileMirrorPublication(marker: MirrorMarker, mirrorsRoot: string, intentPath: string): void {
+    if (!existsSync(intentPath)) return;
+    const intent = parseMirrorPublicationIntent(readPrivateJson(intentPath));
+    if (!canonicalJson(intent).equals(canonicalJson({ ...marker, kind: "mirror-publication" }))) {
+      throw new GitWorkspaceError("Pending mirror publication does not match this enrollment");
+    }
+    assertPathWithin(mirrorsRoot, marker.mirrorPath, "Pending mirror path");
+    if (existsSync(marker.mirrorPath)) {
+      assertRealDirectory(marker.mirrorPath, "Pending Factory mirror");
+      const finalMarkerPath = safeChild(marker.mirrorPath, MIRROR_MARKER_FILE);
+      if (existsSync(finalMarkerPath)) {
+        const finalMarker = parseMirrorMarker(readPrivateJson(finalMarkerPath));
+        if (!canonicalJson(finalMarker).equals(canonicalJson(marker))) {
+          throw new GitWorkspaceError("Published mirror marker conflicts with its intent");
+        }
+        removePrivateJson(intentPath);
+        return;
+      }
+      rmSync(marker.mirrorPath, { recursive: true, force: false });
+      synchronizeDirectory(mirrorsRoot);
+    }
+    removePrivateJson(intentPath);
+  }
+
+  /** Proves an enrolled commit resolves to the exact reviewed tree in this mirror. */
+  assertMirrorCommitTree(
+    mirrorInput: FactoryMirror,
+    commitSha: string,
+    expectedTreeSha: string,
+  ): void {
+    const mirror = this.#validateMirror(mirrorInput);
+    assertExplicitSha(commitSha, "Enrolled base commit");
+    assertExplicitSha(expectedTreeSha, "Enrolled base tree");
+    if (commitSha.length !== expectedTreeSha.length) {
+      throw new GitWorkspaceError("Enrolled commit and tree use different object formats");
+    }
+    const commit = this.#resolveCommit(
+      mirror.runtimeRoot,
+      mirror.mirrorPath,
+      commitSha,
+      "Enrolled base commit",
+    );
+    if (commit !== commitSha) {
+      throw new GitWorkspaceError("Enrolled base commit did not resolve to its exact object");
+    }
+    const tree = this.#gitBare(mirror.runtimeRoot, mirror.mirrorPath, [
+      "rev-parse",
+      "--verify",
+      `${commitSha}^{tree}`,
+    ])
+      .stdout.toString("utf8")
+      .trim();
+    assertExplicitSha(tree, "Enrolled base tree");
+    if (tree !== expectedTreeSha) {
+      throw new GitWorkspaceError("Enrolled base commit does not contain the reviewed tree");
+    }
+  }
+
   createAttemptWorkspace(
     mirror: FactoryMirror,
     attemptId: string,
     baseSha: string,
   ): FactoryWorkspaceRecord {
     return this.#createWorkspace(mirror, "attempt", attemptId, baseSha, baseSha, null);
+  }
+
+  /**
+   * Creates the deterministic attempt worktree or proves that the existing
+   * worktree is the same Factory-owned checkout. This is the restart path for
+   * an executor that may have stopped after checkout creation or while an
+   * uncommitted candidate was being produced.
+   */
+  createOrReconcileAttemptWorkspace(
+    mirrorInput: FactoryMirror,
+    attemptId: string,
+    baseSha: string,
+  ): FactoryWorkspaceRecord {
+    const mirror = this.#validateMirror(mirrorInput);
+    assertIdentifier(attemptId, "Attempt ID");
+    assertExplicitSha(baseSha, "Base SHA");
+    const repositoryRoot = safeChild(mirror.runtimeRoot, "worktrees", mirror.repositoryId);
+    const worktreePath = safeChild(repositoryRoot, attemptId);
+    const intentPath = this.#workspacePublicationIntentPath(mirror, "attempt", attemptId, null);
+    if (!existsSync(worktreePath) || existsSync(intentPath)) {
+      return this.#createWorkspace(mirror, "attempt", attemptId, baseSha, baseSha, null);
+    }
+
+    assertRealDirectory(worktreePath, "Factory attempt worktree");
+    const gitDirectoryPath = this.#absoluteGitDirectory(mirror.runtimeRoot, worktreePath);
+    const record = parseWorkspaceRecord(readPrivateJson(safeChild(gitDirectoryPath, MARKER_FILE)));
+    if (
+      record.kind !== "attempt" ||
+      record.readOnly ||
+      record.repositoryId !== mirror.repositoryId ||
+      record.attemptId !== attemptId ||
+      record.runtimeRoot !== mirror.runtimeRoot ||
+      record.mirrorPath !== mirror.mirrorPath ||
+      record.worktreePath !== worktreePath ||
+      record.gitDirectoryPath !== gitDirectoryPath ||
+      record.baseSha !== baseSha ||
+      record.initialHeadSha !== baseSha ||
+      record.candidateTreeId !== null
+    ) {
+      throw new GitWorkspaceError(
+        "Existing attempt worktree is not bound to the requested repository, attempt, and base",
+      );
+    }
+    return this.#validateWorkspaceRecord(record, "attempt");
   }
 
   verifyCandidate(record: FactoryWorkspaceRecord, policy: CandidatePolicy): CandidateVerification {
@@ -1447,6 +1922,115 @@ export class GitWorkspaceManager {
     };
   }
 
+  #workspacePublicationIntentPath(
+    mirror: FactoryMirror,
+    kind: WorkspaceKind,
+    attemptId: string,
+    candidateTreeId: string | null,
+  ): string {
+    const workspaceIntentRoot = this.#publicationDirectory(mirror.runtimeRoot, "workspaces");
+    const repositoryIntentRoot = safeChild(workspaceIntentRoot, mirror.repositoryId);
+    ensurePrivateDirectory(repositoryIntentRoot);
+    const suffix =
+      kind === "attempt" ? "attempt" : `verification-${(candidateTreeId as string).slice(0, 16)}`;
+    return safeChild(repositoryIntentRoot, `${suffix}-${attemptId}.json`);
+  }
+
+  #reconcileWorkspacePublication(
+    mirror: FactoryMirror,
+    intentPath: string,
+    expected: Readonly<{
+      kind: WorkspaceKind;
+      attemptId: string;
+      baseSha: string;
+      initialHeadSha: string;
+      candidateTreeId: string | null;
+    }>,
+  ): FactoryWorkspaceRecord | null {
+    if (!existsSync(intentPath)) return null;
+    const intent = parseWorkspacePublicationIntent(readPrivateJson(intentPath));
+    if (
+      intent.workspaceKind !== expected.kind ||
+      intent.repositoryId !== mirror.repositoryId ||
+      intent.attemptId !== expected.attemptId ||
+      intent.runtimeRoot !== mirror.runtimeRoot ||
+      intent.mirrorPath !== mirror.mirrorPath ||
+      intent.baseSha !== expected.baseSha ||
+      intent.initialHeadSha !== expected.initialHeadSha ||
+      intent.candidateTreeId !== expected.candidateTreeId ||
+      intent.readOnly !== (expected.kind === "verification")
+    ) {
+      throw new GitWorkspaceError("Pending workspace publication has conflicting bindings");
+    }
+    const expectedRoot = safeChild(
+      mirror.runtimeRoot,
+      expected.kind === "attempt" ? "worktrees" : "verification",
+      mirror.repositoryId,
+    );
+    const expectedName =
+      expected.kind === "attempt"
+        ? expected.attemptId
+        : `${expected.attemptId}-${(expected.candidateTreeId as string).slice(0, 16)}-${intent.ownershipNonce}`;
+    if (intent.worktreePath !== safeChild(expectedRoot, expectedName)) {
+      throw new GitWorkspaceError("Pending workspace publication targets an unexpected path");
+    }
+
+    if (existsSync(intent.worktreePath)) {
+      assertRealDirectory(intent.worktreePath, "Pending Factory worktree");
+      let gitDirectoryPath: string | null = null;
+      try {
+        gitDirectoryPath = this.#absoluteGitDirectory(mirror.runtimeRoot, intent.worktreePath);
+      } catch {
+        // An interrupted `git worktree add` may not yet have a usable backlink.
+      }
+      if (gitDirectoryPath !== null) {
+        const markerPath = safeChild(gitDirectoryPath, MARKER_FILE);
+        if (existsSync(markerPath)) {
+          const record = parseWorkspaceRecord(readPrivateJson(markerPath));
+          const expectedRecord: FactoryWorkspaceRecord = {
+            schemaVersion: 1,
+            kind: intent.workspaceKind,
+            repositoryId: intent.repositoryId,
+            attemptId: intent.attemptId,
+            runtimeRoot: intent.runtimeRoot,
+            mirrorPath: intent.mirrorPath,
+            worktreePath: intent.worktreePath,
+            gitDirectoryPath,
+            baseSha: intent.baseSha,
+            initialHeadSha: intent.initialHeadSha,
+            candidateTreeId: intent.candidateTreeId,
+            ownershipNonce: intent.ownershipNonce,
+            readOnly: intent.readOnly,
+          };
+          if (!sameRecord(record, expectedRecord)) {
+            throw new GitWorkspaceError("Published workspace marker conflicts with its intent");
+          }
+          const verified = this.#validateWorkspaceRecord(record, expected.kind);
+          removePrivateJson(intentPath);
+          return verified;
+        }
+      }
+      if (intent.readOnly) restoreOwnerWriteRecursively(intent.worktreePath);
+      try {
+        this.#gitBare(mirror.runtimeRoot, mirror.mirrorPath, [
+          "worktree",
+          "remove",
+          "--force",
+          intent.worktreePath,
+        ]);
+      } catch {
+        if (existsSync(intent.worktreePath)) {
+          assertRealDirectory(intent.worktreePath, "Interrupted Factory worktree");
+          rmSync(intent.worktreePath, { recursive: true, force: false });
+          synchronizeDirectory(expectedRoot);
+        }
+      }
+    }
+    this.#gitBare(mirror.runtimeRoot, mirror.mirrorPath, ["worktree", "prune", "--expire=now"]);
+    removePrivateJson(intentPath);
+    return null;
+  }
+
   #createWorkspace(
     mirrorInput: FactoryMirror,
     kind: WorkspaceKind,
@@ -1489,6 +2073,20 @@ export class GitWorkspaceManager {
     ensurePrivateDirectory(categoryRoot);
     const repositoryRoot = safeChild(categoryRoot, mirror.repositoryId);
     ensurePrivateDirectory(repositoryRoot);
+    const intentPath = this.#workspacePublicationIntentPath(
+      mirror,
+      kind,
+      attemptId,
+      candidateTreeId,
+    );
+    const recovered = this.#reconcileWorkspacePublication(mirror, intentPath, {
+      kind,
+      attemptId,
+      baseSha,
+      initialHeadSha,
+      candidateTreeId,
+    });
+    if (recovered !== null) return recovered;
     const ownershipNonce = randomUUID();
     const directoryName =
       kind === "attempt"
@@ -1499,6 +2097,24 @@ export class GitWorkspaceManager {
       throw new GitWorkspaceError(`Deterministic worktree path already exists: ${worktreePath}`);
     }
 
+    const intent: WorkspacePublicationIntent = {
+      schemaVersion: 1,
+      kind: "workspace-publication",
+      workspaceKind: kind,
+      repositoryId: mirror.repositoryId,
+      attemptId,
+      runtimeRoot: mirror.runtimeRoot,
+      mirrorPath: mirror.mirrorPath,
+      worktreePath,
+      baseSha,
+      initialHeadSha,
+      candidateTreeId,
+      ownershipNonce,
+      readOnly: kind === "verification",
+    };
+    writePrivateJson(intentPath, intent, true);
+    this.#publicationCheckpoint?.("workspace-after-intent", worktreePath);
+
     this.#gitBare(mirror.runtimeRoot, mirror.mirrorPath, [
       "worktree",
       "add",
@@ -1506,6 +2122,7 @@ export class GitWorkspaceManager {
       worktreePath,
       initialHeadSha,
     ]);
+    this.#publicationCheckpoint?.("workspace-after-git", worktreePath);
     assertRealDirectory(worktreePath, "Factory worktree");
     const gitDirectoryPath = this.#absoluteGitDirectory(mirror.runtimeRoot, worktreePath);
     assertPathWithin(mirror.mirrorPath, gitDirectoryPath, "Worktree Git directory");
@@ -1524,10 +2141,12 @@ export class GitWorkspaceManager {
       ownershipNonce,
       readOnly: kind === "verification",
     };
-    writePrivateJson(safeChild(gitDirectoryPath, MARKER_FILE), record, true);
     if (kind === "verification") {
       removeOwnerWriteRecursively(worktreePath);
     }
+    writePrivateJson(safeChild(gitDirectoryPath, MARKER_FILE), record, true);
+    this.#publicationCheckpoint?.("workspace-after-marker", worktreePath);
+    removePrivateJson(intentPath);
     return record;
   }
 

@@ -16,6 +16,9 @@ const REQUEST_ID = "00000000-0000-4000-8000-000000000010";
 const COMMAND_ID = "00000000-0000-4000-8000-000000000004";
 const NOW = "2026-08-10T12:00:00.000Z";
 
+const requestId = (suffix: number): string =>
+  `00000000-0000-4000-8000-${String(suffix).padStart(12, "0")}`;
+
 const runtimeRoots: string[] = [];
 const servers: UnixCommandServer[] = [];
 
@@ -242,6 +245,128 @@ describe("Unix command protocol framing", () => {
     expect(handler).toHaveBeenCalledTimes(1);
     expect(duplicate.equals(first)).toBe(true);
     expect(completedReplay.equals(first)).toBe(true);
+  });
+
+  it("coalesces an oversized in-flight replay but does not retain it past the byte budget", async () => {
+    const socketPath = await createSocketPath();
+    let release: ((value: ReturnType<typeof doctorResult>) => void) | undefined;
+    const handler = vi.fn(
+      async () =>
+        await new Promise<ReturnType<typeof doctorResult>>((resolve) => {
+          release = resolve;
+        }),
+    );
+    servers.push(
+      await startUnixCommandServer({
+        socketPath,
+        authorization: AUTHORIZATION,
+        replayResponseByteBudget: 64,
+        handler,
+      }),
+    );
+
+    const firstPromise = exchange(socketPath, doctorFrame());
+    while (handler.mock.calls.length === 0) await new Promise((resolve) => setImmediate(resolve));
+    const duplicatePromise = exchange(socketPath, doctorFrame());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(handler).toHaveBeenCalledTimes(1);
+    release?.(doctorResult());
+    const [first, duplicate] = await Promise.all([firstPromise, duplicatePromise]);
+    expect(duplicate.equals(first)).toBe(true);
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    const lateReplayPromise = exchange(socketPath, doctorFrame());
+    while (handler.mock.calls.length < 2) await new Promise((resolve) => setImmediate(resolve));
+    release?.(doctorResult());
+    const lateReplay = await lateReplayPromise;
+    expect(lateReplay.equals(first)).toBe(true);
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(Buffer.concat([first, duplicate, lateReplay]).toString("utf8")).not.toContain(
+      AUTHORIZATION,
+    );
+  });
+
+  it("evicts completed responses by byte-bounded LRU order", async () => {
+    const socketPath = await createSocketPath();
+    const handler = vi.fn(() => doctorResult());
+    servers.push(
+      await startUnixCommandServer({
+        socketPath,
+        authorization: AUTHORIZATION,
+        replayResponseByteBudget: 470,
+        handler,
+      }),
+    );
+    const first = doctorFrame({ requestId: requestId(101), commandId: requestId(201) });
+    const second = doctorFrame({ requestId: requestId(102), commandId: requestId(202) });
+    const third = doctorFrame({ requestId: requestId(103), commandId: requestId(203) });
+
+    await exchange(socketPath, first);
+    await exchange(socketPath, second);
+    await exchange(socketPath, first);
+    await exchange(socketPath, third);
+    await exchange(socketPath, first);
+    expect(handler).toHaveBeenCalledTimes(3);
+
+    await exchange(socketPath, second);
+    expect(handler).toHaveBeenCalledTimes(4);
+  });
+
+  it("expires completed replay responses after the configured TTL", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(NOW));
+    try {
+      const socketPath = await createSocketPath();
+      const handler = vi.fn(() => doctorResult());
+      servers.push(
+        await startUnixCommandServer({
+          socketPath,
+          authorization: AUTHORIZATION,
+          replayResponseTtlMs: 1_000,
+          handler,
+        }),
+      );
+
+      const first = await exchange(socketPath, doctorFrame());
+      const immediateReplay = await exchange(socketPath, doctorFrame());
+      expect(immediateReplay.equals(first)).toBe(true);
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(new Date("2026-08-10T12:00:01.000Z"));
+      const expiredReplay = await exchange(socketPath, doctorFrame());
+      expect(expiredReplay.equals(first)).toBe(true);
+      expect(handler).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves durable command effects when an evicted delivery is retried", async () => {
+    const socketPath = await createSocketPath();
+    const durableResults = new Map<string, ReturnType<typeof doctorResult>>();
+    let durableEffects = 0;
+    const handler = vi.fn((request: { commandId: string }) => {
+      const existing = durableResults.get(request.commandId);
+      if (existing !== undefined) return existing;
+      durableEffects += 1;
+      const result = doctorResult();
+      durableResults.set(request.commandId, result);
+      return result;
+    });
+    servers.push(
+      await startUnixCommandServer({
+        socketPath,
+        authorization: AUTHORIZATION,
+        replayResponseByteBudget: 64,
+        handler,
+      }),
+    );
+
+    const first = await exchange(socketPath, doctorFrame());
+    const retry = await exchange(socketPath, doctorFrame());
+    expect(retry.equals(first)).toBe(true);
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(durableEffects).toBe(1);
   });
 
   it("rejects reuse of a request ID with a changed issuedAt", async () => {

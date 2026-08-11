@@ -40,6 +40,10 @@ import type { TrustedVerificationPlan } from "@app-factory/trusted-verifier";
 
 import { canonicalDigest, canonicalJsonBytes, sha256Digest } from "./canonical.js";
 import { parseBrokerCommit, parseCandidateVerification } from "./checkpoint.js";
+import {
+  assertVerificationArgsTemplate,
+  verificationArgvMatchesTemplate,
+} from "./verification-scratch.js";
 
 export class ExecutionEvidenceError extends Error {
   constructor(message: string) {
@@ -65,7 +69,7 @@ export type TrustedTestBundleV1 = Readonly<{
 
 export type TrustedVerificationPlanTemplateV1 = Omit<
   TrustedVerificationPlan,
-  "checkoutDirectory" | "expectedTree"
+  "checkoutDirectory" | "expectedTree" | "scratchDirectory"
 >;
 
 export type TrustedVerificationPlanBundleV1 = Readonly<{
@@ -152,6 +156,12 @@ export type VerifiedExecutionEvidence = Readonly<{
   review: ReviewReportV1;
   brokerCommit: BrokerCommitRecord;
   testCount: number;
+  trustedTests: readonly Readonly<{
+    recordDigest: Sha256Digest;
+    claims: VerificationClaimsV1;
+    stdoutDigest: Sha256Digest;
+    stderrDigest: Sha256Digest;
+  }>[];
 }>;
 
 export function parseAgentEventLogBytes(
@@ -305,6 +315,13 @@ export function parseTrustedVerificationPlanBundle(
       throw new ExecutionEvidenceError(`Trusted plan ${checkId} has invalid command data`);
     }
     const protectedFiles = parseStringRecord(item.protectedFiles, "Protected-file map");
+    try {
+      assertVerificationArgsTemplate(item.args as readonly string[]);
+    } catch (error) {
+      throw new ExecutionEvidenceError(
+        error instanceof Error ? error.message : "Trusted verification arguments are invalid",
+      );
+    }
     for (const digest of Object.values(protectedFiles)) Sha256DigestSchema.parse(digest);
     return {
       checkId,
@@ -631,6 +648,8 @@ export function verifyTrustedTestEvidence(
     candidateTree: GitObjectId;
     verificationPlanBundle: TrustedVerificationPlanBundleV1;
     verificationPlanBundleDigest: Sha256Digest;
+    attemptId: AttemptId;
+    fence: number;
   }>,
 ): Readonly<{ testCount: number; rawEvidenceDigests: readonly Sha256Digest[] }> {
   const planBundle = parseTrustedVerificationPlanBundle(input.verificationPlanBundle);
@@ -662,9 +681,10 @@ export function verifyTrustedTestEvidence(
     if (
       record.planDigest !== canonicalDigest(plan) ||
       record.claims.checkId !== plan.checkId ||
-      !canonicalJsonBytes(record.claims.argv).equals(
-        canonicalJsonBytes([plan.executable, ...plan.args]),
-      ) ||
+      !verificationArgvMatchesTemplate(record.claims.argv, plan, {
+        attemptId: input.attemptId,
+        fence: input.fence,
+      }) ||
       !canonicalJsonBytes(record.claims.toolVersions).equals(
         canonicalJsonBytes(plan.toolVersions),
       ) ||
@@ -845,6 +865,7 @@ export function verifyExecutionEvidenceIndex(
     throw new ExecutionEvidenceError("Test bundle targets the wrong tree or verification plan");
   }
   const rawTestEvidence: Sha256Digest[] = [index.testDigest];
+  const trustedTests: VerifiedExecutionEvidence["trustedTests"][number][] = [];
   for (const [recordIndex, digest] of testBundle.recordDigests.entries()) {
     const plan = verificationPlanBundle.plans[recordIndex];
     if (plan === undefined) {
@@ -859,9 +880,10 @@ export function verifyExecutionEvidenceIndex(
     if (
       record.planDigest !== canonicalDigest(plan) ||
       record.claims.checkId !== plan.checkId ||
-      !canonicalJsonBytes(record.claims.argv).equals(
-        canonicalJsonBytes([plan.executable, ...plan.args]),
-      ) ||
+      !verificationArgvMatchesTemplate(record.claims.argv, plan, {
+        attemptId: index.attemptId,
+        fence: index.fence,
+      }) ||
       !canonicalJsonBytes(record.claims.toolVersions).equals(
         canonicalJsonBytes(plan.toolVersions),
       ) ||
@@ -873,6 +895,12 @@ export function verifyExecutionEvidenceIndex(
         "Trusted test record did not execute its bound plan on the candidate tree",
       );
     }
+    trustedTests.push({
+      recordDigest: digest,
+      claims: record.claims,
+      stdoutDigest: record.stdoutDigest,
+      stderrDigest: record.stderrDigest,
+    });
   }
 
   const preReview = parsePreReviewBundle(
@@ -971,6 +999,7 @@ export function verifyExecutionEvidenceIndex(
     review: report,
     brokerCommit: observedCommit,
     testCount: testBundle.recordDigests.length,
+    trustedTests,
   };
 }
 

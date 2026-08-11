@@ -1,66 +1,24 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import type { CommandClient } from "@app-factory/command-client";
+import {
+  CommandClientError,
+  type CommandClient,
+  type CommandIdentity,
+  type RetryableCommandIdentity,
+} from "@app-factory/command-client";
 import {
   AttemptIdSchema,
+  CommandIdSchema,
   IsoInstantSchema,
-  ProjectIdSchema,
-  ProjectLifecycleStageV1Schema,
-  Sha256DigestSchema,
-  StableKeySchema,
+  PortfolioReadModelV1Schema,
+  canonicalPortfolioReadModelDigestInputV1,
   type AttemptId,
 } from "@app-factory/contracts";
-import { z } from "zod";
 
 const MAX_BODY_BYTES = 64 * 1024;
 const SESSION_COOKIE = "factory_dashboard";
 const DEFAULT_PORTFOLIO_TIMEOUT_MS = 5_000;
-const NonNegativeIntegerSchema = z.number().int().nonnegative().safe();
-const DashboardPortfolioProjectV1Schema = z.strictObject({
-  projectId: ProjectIdSchema,
-  slug: StableKeySchema,
-  displayName: z.string().min(1).max(200),
-  lifecycleStage: ProjectLifecycleStageV1Schema,
-  activeAttemptCount: NonNegativeIntegerSchema,
-  blockerCount: NonNegativeIntegerSchema,
-  openPullRequestCount: NonNegativeIntegerSchema,
-  jiraTodoCount: NonNegativeIntegerSchema,
-  jiraInProgressCount: NonNegativeIntegerSchema,
-  unresolvedP0: NonNegativeIntegerSchema,
-  unresolvedP1: NonNegativeIntegerSchema,
-  releaseStage: z.string().min(1).max(100).nullable(),
-  lastDeliveryAt: IsoInstantSchema.nullable(),
-  health: z.enum(["healthy", "attention", "blocked", "unknown"]),
-  healthReasons: z
-    .array(
-      z.enum([
-        "unresolved-p0",
-        "delivery-blocker",
-        "unresolved-p1",
-        "analytics-stale",
-        "analytics-unavailable",
-      ]),
-    )
-    .max(5),
-  analyticsFreshness: z.enum(["fresh", "stale", "unavailable"]),
-});
-const DashboardPortfolioTotalsV1Schema = z.strictObject({
-  projects: NonNegativeIntegerSchema,
-  activeAttempts: NonNegativeIntegerSchema,
-  blockers: NonNegativeIntegerSchema,
-  openPullRequests: NonNegativeIntegerSchema,
-  unresolvedP0: NonNegativeIntegerSchema,
-  unresolvedP1: NonNegativeIntegerSchema,
-});
-const DashboardPortfolioSourceV1Schema = z.strictObject({
-  schemaVersion: z.literal(1),
-  generatedAt: IsoInstantSchema,
-  projects: z.array(DashboardPortfolioProjectV1Schema).max(1_000),
-  totals: DashboardPortfolioTotalsV1Schema,
-  sourceSnapshotDigest: Sha256DigestSchema,
-});
-
 export type DashboardCommandPort = Readonly<{
   doctor(): Promise<unknown>;
   status(attemptId: AttemptId): Promise<unknown>;
@@ -68,10 +26,25 @@ export type DashboardCommandPort = Readonly<{
     attemptId: AttemptId,
     options: Readonly<{ afterSequence: number; limit: number }>,
   ): Promise<unknown>;
-  pause(attemptId: AttemptId, reason: string | null): Promise<unknown>;
-  resume(attemptId: AttemptId, reason: string | null): Promise<unknown>;
-  cancel(attemptId: AttemptId, reason: string | null): Promise<unknown>;
-  reconcile(attemptId: AttemptId | null): Promise<unknown>;
+  pause(
+    attemptId: AttemptId,
+    reason: string | null,
+    retryIdentity: RetryableCommandIdentity | null,
+  ): Promise<unknown>;
+  resume(
+    attemptId: AttemptId,
+    reason: string | null,
+    retryIdentity: RetryableCommandIdentity | null,
+  ): Promise<unknown>;
+  cancel(
+    attemptId: AttemptId,
+    reason: string | null,
+    retryIdentity: RetryableCommandIdentity | null,
+  ): Promise<unknown>;
+  reconcile(
+    attemptId: AttemptId | null,
+    retryIdentity: RetryableCommandIdentity | null,
+  ): Promise<unknown>;
   close(): void;
 }>;
 
@@ -178,6 +151,7 @@ function actionBody(value: unknown): Readonly<{
   action: "pause" | "resume" | "cancel" | "reconcile";
   attemptId: AttemptId | null;
   reason: string | null;
+  retryIdentity: RetryableCommandIdentity | null;
 }> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new DashboardServerError("action body must be an object");
@@ -201,7 +175,26 @@ function actionBody(value: unknown): Readonly<{
   ) {
     throw new DashboardServerError("reason is invalid");
   }
-  return { action: record.action, attemptId, reason: record.reason as string | null };
+  if ((record.commandId === undefined) !== (record.issuedAt === undefined)) {
+    throw new DashboardServerError("commandId and issuedAt must be provided together");
+  }
+  const retryIdentity =
+    record.commandId === undefined || record.issuedAt === undefined
+      ? null
+      : {
+          commandId: CommandIdSchema.parse(record.commandId),
+          issuedAt: IsoInstantSchema.parse(record.issuedAt),
+        };
+  const expectedKeys = new Set(["action", "attemptId", "reason", "commandId", "issuedAt"]);
+  if (Object.keys(record).some((key) => !expectedKeys.has(key))) {
+    throw new DashboardServerError("action body contains an unexpected field");
+  }
+  return {
+    action: record.action,
+    attemptId,
+    reason: record.reason as string | null,
+    retryIdentity,
+  };
 }
 
 function positiveTimeout(value: number): number {
@@ -211,86 +204,20 @@ function positiveTimeout(value: number): number {
   return value;
 }
 
-function canonical(value: unknown): string {
-  const normalized = (input: unknown): unknown => {
-    if (Array.isArray(input)) return input.map(normalized);
-    if (input !== null && typeof input === "object") {
-      return Object.fromEntries(
-        Object.entries(input as Readonly<Record<string, unknown>>)
-          .sort(([left], [right]) => left.localeCompare(right))
-          .map(([key, child]) => [key, normalized(child)]),
-      );
-    }
-    return input;
-  };
-  return JSON.stringify(normalized(value));
-}
-
 function portfolioProjection(value: unknown): unknown {
-  const snapshot = DashboardPortfolioSourceV1Schema.parse(value);
+  const snapshot = PortfolioReadModelV1Schema.parse(value);
+  const expectedDigest = `sha256:${createHash("sha256")
+    .update(canonicalPortfolioReadModelDigestInputV1(snapshot), "utf8")
+    .digest("hex")}`;
   if (
-    new Set(snapshot.projects.map((project) => project.projectId)).size !==
-      snapshot.projects.length ||
-    new Set(snapshot.projects.map((project) => project.slug)).size !== snapshot.projects.length
+    !timingSafeEqual(
+      Buffer.from(snapshot.sourceSnapshotDigest, "utf8"),
+      Buffer.from(expectedDigest, "utf8"),
+    )
   ) {
-    throw new DashboardServerError("portfolio projects must have unique identities");
+    throw new DashboardServerError("portfolio source digest does not match its contents");
   }
-  const generatedAtMs = Date.parse(snapshot.generatedAt);
-  for (const project of snapshot.projects) {
-    if (project.lastDeliveryAt !== null && Date.parse(project.lastDeliveryAt) > generatedAtMs) {
-      throw new DashboardServerError("portfolio contains a future delivery timestamp");
-    }
-    const healthReasons: Array<(typeof project.healthReasons)[number]> = [];
-    if (project.unresolvedP0 > 0) healthReasons.push("unresolved-p0");
-    if (project.blockerCount > 0) healthReasons.push("delivery-blocker");
-    if (project.unresolvedP1 > 0) healthReasons.push("unresolved-p1");
-    if (project.analyticsFreshness === "stale") healthReasons.push("analytics-stale");
-    if (project.analyticsFreshness === "unavailable") {
-      healthReasons.push("analytics-unavailable");
-    }
-    const health =
-      project.unresolvedP0 > 0 || project.blockerCount > 0
-        ? "blocked"
-        : project.unresolvedP1 > 0 || project.analyticsFreshness === "stale"
-          ? "attention"
-          : project.analyticsFreshness === "unavailable"
-            ? "unknown"
-            : "healthy";
-    if (
-      project.health !== health ||
-      canonical(project.healthReasons) !== canonical(healthReasons)
-    ) {
-      throw new DashboardServerError("portfolio health does not match its counters");
-    }
-  }
-  const totals = {
-    projects: snapshot.projects.length,
-    activeAttempts: snapshot.projects.reduce((sum, project) => sum + project.activeAttemptCount, 0),
-    blockers: snapshot.projects.reduce((sum, project) => sum + project.blockerCount, 0),
-    openPullRequests: snapshot.projects.reduce(
-      (sum, project) => sum + project.openPullRequestCount,
-      0,
-    ),
-    unresolvedP0: snapshot.projects.reduce((sum, project) => sum + project.unresolvedP0, 0),
-    unresolvedP1: snapshot.projects.reduce((sum, project) => sum + project.unresolvedP1, 0),
-  };
-  if (
-    Object.values(totals).some((item) => !Number.isSafeInteger(item)) ||
-    canonical(totals) !== canonical(snapshot.totals)
-  ) {
-    throw new DashboardServerError("portfolio totals do not match its projects");
-  }
-  const envelope = {
-    schemaVersion: snapshot.schemaVersion,
-    generatedAt: snapshot.generatedAt,
-    projects: snapshot.projects,
-    totals: snapshot.totals,
-    sourceSnapshotDigest: snapshot.sourceSnapshotDigest,
-  };
-  return {
-    ...envelope,
-    projectionDigest: `sha256:${createHash("sha256").update(canonical(envelope)).digest("hex")}`,
-  };
+  return snapshot;
 }
 
 async function boundedPortfolioSnapshot(
@@ -370,18 +297,55 @@ const DASHBOARD_HTML = `<!doctype html>
 
 const DASHBOARD_CSS = `:root{color-scheme:dark;--bg:#0b0d0e;--panel:#121616;--line:#26302d;--ink:#f2f2eb;--muted:#89938e;--acid:#c9ff49;--red:#ff765e}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 75% -10%,#22331f 0,transparent 32%),var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,sans-serif;min-height:100vh}main{max-width:1240px;margin:auto;padding:32px}.masthead{display:flex;justify-content:space-between;align-items:end;border-bottom:1px solid var(--line);padding-bottom:22px}.eyebrow,.label{color:var(--acid);font:600 11px/1.2 ui-monospace,SFMono-Regular,monospace;letter-spacing:.16em;margin:0 0 8px}.masthead h1{font-size:38px;letter-spacing:-.045em;margin:0}.health{font:600 12px ui-monospace,monospace;color:var(--muted);display:flex;gap:9px;align-items:center}.health span{width:8px;height:8px;border-radius:50%;background:var(--muted)}.health.live{color:var(--acid)}.health.live span{background:var(--acid);box-shadow:0 0 16px var(--acid)}.hero{display:flex;justify-content:space-between;align-items:end;padding:52px 0 34px}.hero>p{font-size:25px;line-height:1.25;letter-spacing:-.025em;max-width:520px;margin:0}.metrics{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}.metrics article{min-width:128px;padding:15px 18px;border-left:1px solid var(--line)}.metrics article:first-child{border-left:0}.metrics span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}.metrics strong{display:block;margin-top:8px;font-size:15px}.workspace{display:grid;grid-template-columns:180px 1fr;gap:24px}nav{display:flex;flex-direction:column;gap:6px}button,input{font:inherit}nav button,.actions button,.section-head button{background:transparent;color:var(--muted);border:1px solid transparent;border-radius:9px;text-align:left;padding:11px 13px}nav .nav-active{background:#172019;color:var(--acid);border-color:#283927}nav button:disabled{opacity:.35}.content{display:grid;gap:18px}.panel{background:linear-gradient(155deg,#151a19,#101312);border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:0 20px 60px #0004}.lookup,.section-head{display:flex;justify-content:space-between;align-items:center}.lookup h2,.summary h2,.section-head h2{margin:0;font-size:22px;letter-spacing:-.025em}.lookup form{display:flex;gap:8px;min-width:52%}input{width:100%;background:#090b0b;color:var(--ink);border:1px solid #343d3a;border-radius:9px;padding:12px}form button{background:var(--acid);color:#111;border:0;border-radius:9px;padding:0 18px;font-weight:700}.empty{text-align:center;padding:76px 24px}.empty h2{margin:18px 0 8px}.empty p{color:var(--muted);margin:auto;max-width:450px}.orb{width:48px;height:48px;background:var(--acid);border-radius:50%;margin:auto;box-shadow:0 0 45px #c9ff4966}.attempt{display:grid;grid-template-columns:1fr 1.2fr;gap:18px}.hidden{display:none!important}.detail{display:grid;gap:8px;margin:22px 0;color:var(--muted);font:13px/1.5 ui-monospace,monospace}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button,.section-head button{border-color:#39423f;color:var(--ink);cursor:pointer}.actions .danger{color:var(--red);border-color:#58322b}.timeline ol{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:14px}.timeline li{position:relative;padding-left:22px;color:var(--muted);font:12px/1.5 ui-monospace,monospace}.timeline li:before{content:'';position:absolute;left:0;top:5px;width:7px;height:7px;background:var(--acid);border-radius:50%}.timeline b{display:block;color:var(--ink);font-size:13px}.portfolio-totals{color:var(--muted);font:12px/1.5 ui-monospace,monospace;margin:24px 0}.project-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.project-card{border:1px solid var(--line);border-radius:12px;padding:17px;background:#0b0e0d}.project-card h3{margin:0 0 7px}.project-card p{margin:5px 0;color:var(--muted);font-size:12px}.project-card .healthy{color:var(--acid)}.project-card .blocked{color:var(--red)}.project-card .attention,.project-card .unknown{color:#ffd166}@media(max-width:800px){main{padding:20px}.hero{display:grid;gap:24px}.metrics{width:100%}.metrics article{min-width:0;flex:1}.workspace{grid-template-columns:1fr}nav{flex-direction:row;overflow:auto}.lookup{display:grid;gap:18px}.lookup form{min-width:0}.attempt{grid-template-columns:1fr}.masthead{align-items:center}}`;
 
-const DASHBOARD_JS = `const csrf=document.querySelector('meta[name=factory-csrf]').content;const health=document.querySelector('#health');const attemptId=document.querySelector('#attempt-id');const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));let selected=null;async function api(path,options={}){const response=await fetch(path,{...options,headers:{'content-type':'application/json','x-factory-csrf':csrf,...options.headers}});const value=await response.json();if(!response.ok)throw new Error(value.error?.message||'Request failed');return value}async function doctor(){try{const value=await api('/api/doctor');health.className='health live';health.innerHTML='<span></span>Operational';document.querySelector('#daemon-state').textContent=value.result.readiness||'Ready'}catch{health.className='health';health.innerHTML='<span></span>Unavailable';document.querySelector('#daemon-state').textContent='Offline'}}async function loadAttempt(){if(!attemptId.value)return;selected=attemptId.value;try{const value=await api('/api/attempt/'+encodeURIComponent(selected));document.querySelector('#empty').classList.add('hidden');document.querySelector('#attempt').classList.remove('hidden');const attempt=value.status.attempt;document.querySelector('#attempt-title').textContent=attempt.state+' · '+attempt.attemptId.slice(0,8);document.querySelector('#attempt-state').textContent=attempt.state;document.querySelector('#event-count').textContent=value.events.events.length+' events';document.querySelector('#attempt-detail').innerHTML='<span>desired: '+escapeHtml(attempt.desiredState)+'</span><span>revision: '+escapeHtml(attempt.revision)+' · fence: '+escapeHtml(attempt.fence)+'</span><span>blocker: '+escapeHtml(attempt.blocker?.summary||'none')+'</span>';document.querySelector('#events').innerHTML=value.events.events.slice().reverse().map(event=>'<li><b>'+escapeHtml(event.type)+'</b>#'+escapeHtml(event.sequence)+' · '+escapeHtml(event.occurredAt)+'</li>').join('')}catch(error){alert(error.message)}}function show(view){const portfolio=view==='portfolio';document.querySelector('.lookup').classList.toggle('hidden',portfolio);document.querySelector('#empty').classList.toggle('hidden',portfolio||selected!==null);document.querySelector('#attempt').classList.toggle('hidden',portfolio||selected===null);document.querySelector('#portfolio').classList.toggle('hidden',!portfolio);document.querySelector('#nav-run').classList.toggle('nav-active',!portfolio);document.querySelector('#nav-portfolio').classList.toggle('nav-active',portfolio)}async function loadPortfolio(){try{const value=await api('/api/portfolio');const snapshot=value.snapshot;const totals=snapshot.totals;document.querySelector('#portfolio-totals').textContent=totals.projects+' projects · '+totals.activeAttempts+' active attempts · '+totals.blockers+' blockers · '+totals.openPullRequests+' open PRs';document.querySelector('#portfolio-projects').innerHTML=snapshot.projects.map(project=>'<article class="project-card"><h3>'+escapeHtml(project.displayName)+'</h3><p class="'+escapeHtml(project.health)+'">'+escapeHtml(project.health)+'</p><p>'+escapeHtml(project.lifecycleStage)+' · '+escapeHtml(project.activeAttemptCount)+' active</p><p>'+escapeHtml(project.openPullRequestCount)+' PRs · '+escapeHtml(project.unresolvedP0)+' P0 · '+escapeHtml(project.unresolvedP1)+' P1</p><p>analytics: '+escapeHtml(project.analyticsFreshness)+'</p></article>').join('')}catch(error){document.querySelector('#portfolio-projects').textContent=error.message}}document.querySelector('#lookup-form').addEventListener('submit',event=>{event.preventDefault();loadAttempt()});document.querySelector('#nav-run').addEventListener('click',()=>show('run'));document.querySelector('#nav-portfolio').addEventListener('click',()=>{show('portfolio');loadPortfolio()});document.querySelector('#refresh-portfolio').addEventListener('click',loadPortfolio);document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',async()=>{if(!selected)return;button.disabled=true;try{await api('/api/action',{method:'POST',body:JSON.stringify({action:button.dataset.action,attemptId:selected,reason:'Dashboard operator action'})});await loadAttempt()}catch(error){alert(error.message)}finally{button.disabled=false}}));doctor();setInterval(doctor,10000);`;
+const DASHBOARD_JS = `const csrf=document.querySelector('meta[name=factory-csrf]').content;
+const health=document.querySelector('#health');
+const attemptId=document.querySelector('#attempt-id');
+const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const display=value=>value===null?'unavailable':String(value);
+let selected=null;
+const retryIdentities=new Map();
+function clearRetryIdentitiesForAttempt(value){for(const key of retryIdentities.keys())if(key.startsWith(value+':'))retryIdentities.delete(key)}
+async function api(path,options={}){const response=await fetch(path,{...options,headers:{'content-type':'application/json','x-factory-csrf':csrf,...options.headers}});const value=await response.json();if(!response.ok){const error=new Error(value.error?.message||'Request failed');error.retryIdentity=value.error?.retryIdentity||null;throw error}return value}
+async function doctor(){try{const value=await api('/api/doctor');health.className='health live';health.innerHTML='<span></span>Operational';document.querySelector('#daemon-state').textContent=value.result.readiness||'Ready'}catch{health.className='health';health.innerHTML='<span></span>Unavailable';document.querySelector('#daemon-state').textContent='Offline'}}
+async function loadAttempt(){if(!attemptId.value)return;selected=attemptId.value;try{const value=await api('/api/attempt/'+encodeURIComponent(selected));clearRetryIdentitiesForAttempt(selected);document.querySelector('#empty').classList.add('hidden');document.querySelector('#attempt').classList.remove('hidden');const attempt=value.status.attempt;document.querySelector('#attempt-title').textContent=attempt.state+' · '+attempt.attemptId.slice(0,8);document.querySelector('#attempt-state').textContent=attempt.state;document.querySelector('#event-count').textContent=value.events.events.length+' events';document.querySelector('#attempt-detail').innerHTML='<span>desired: '+escapeHtml(attempt.desiredState)+'</span><span>revision: '+escapeHtml(attempt.revision)+' · fence: '+escapeHtml(attempt.fence)+'</span><span>blocker: '+escapeHtml(attempt.blocker?.summary||'none')+'</span>';document.querySelector('#events').innerHTML=value.events.events.slice().reverse().map(event=>'<li><b>'+escapeHtml(event.type)+'</b>#'+escapeHtml(event.sequence)+' · '+escapeHtml(event.occurredAt)+'</li>').join('')}catch(error){alert(error.message)}}
+function show(view){const portfolio=view==='portfolio';document.querySelector('.lookup').classList.toggle('hidden',portfolio);document.querySelector('#empty').classList.toggle('hidden',portfolio||selected!==null);document.querySelector('#attempt').classList.toggle('hidden',portfolio||selected===null);document.querySelector('#portfolio').classList.toggle('hidden',!portfolio);document.querySelector('#nav-run').classList.toggle('nav-active',!portfolio);document.querySelector('#nav-portfolio').classList.toggle('nav-active',portfolio)}
+async function loadPortfolio(){try{const value=await api('/api/portfolio');const snapshot=value.snapshot;const totals=snapshot.totals;document.querySelector('#portfolio-totals').textContent=totals.projects+' projects · '+totals.attempts+' attempts · '+totals.activeAttempts+' active · '+totals.blockers+' blockers · PRs '+display(totals.openPullRequests)+' · Jira todo '+display(totals.jiraTodo)+' · P0 '+display(totals.unresolvedP0)+' · P1 '+display(totals.unresolvedP1);document.querySelector('#portfolio-projects').innerHTML=snapshot.projects.length===0?'<p>No local projects recorded yet.</p>':snapshot.projects.map(project=>'<article class="project-card"><h3>'+escapeHtml(project.displayName)+'</h3><p class="'+escapeHtml(project.health)+'">'+escapeHtml(project.health)+'</p><p>lifecycle: '+escapeHtml(display(project.lifecycleStage))+'</p><p>attempts: '+escapeHtml(project.attemptCount)+' total · '+escapeHtml(project.activeAttemptCount)+' active · '+escapeHtml(project.blockerCount)+' blocked</p><p>GitHub PRs: '+escapeHtml(display(project.openPullRequestCount))+'</p><p>Jira: '+escapeHtml(display(project.jiraTodoCount))+' todo · '+escapeHtml(display(project.jiraInProgressCount))+' in progress</p><p>quality: '+escapeHtml(display(project.unresolvedP0))+' P0 · '+escapeHtml(display(project.unresolvedP1))+' P1</p><p>release: '+escapeHtml(display(project.releaseStage))+' · analytics: '+escapeHtml(project.analyticsFreshness)+'</p></article>').join('')}catch(error){document.querySelector('#portfolio-totals').textContent='Portfolio unavailable.';document.querySelector('#portfolio-projects').textContent=error.message}}
+document.querySelector('#lookup-form').addEventListener('submit',event=>{event.preventDefault();loadAttempt()});
+document.querySelector('#nav-run').addEventListener('click',()=>show('run'));
+document.querySelector('#nav-portfolio').addEventListener('click',()=>{show('portfolio');loadPortfolio()});
+document.querySelector('#refresh-portfolio').addEventListener('click',loadPortfolio);
+document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',async()=>{if(!selected)return;button.disabled=true;const retryKey=selected+':'+button.dataset.action;const retryIdentity=retryIdentities.get(retryKey)||{};try{await api('/api/action',{method:'POST',body:JSON.stringify({action:button.dataset.action,attemptId:selected,reason:'Dashboard operator action',...retryIdentity})});clearRetryIdentitiesForAttempt(selected);await loadAttempt()}catch(error){if(error.retryIdentity){retryIdentities.set(retryKey,error.retryIdentity);alert(error.message+' Click the same action again to retry with its original durable identity.')}else alert(error.message)}finally{button.disabled=false}}));
+doctor();setInterval(doctor,10000);`;
+
+function deliveryIdentity(
+  client: CommandClient,
+  retryIdentity: RetryableCommandIdentity | null,
+): CommandIdentity {
+  return retryIdentity === null
+    ? client.createIdentity()
+    : client.createRetryIdentity(retryIdentity);
+}
 
 export function createDashboardCommandPort(client: CommandClient): DashboardCommandPort {
   return {
     doctor: async () => await client.doctor(),
     status: async (attemptId) => await client.status(attemptId),
     events: async (attemptId, options) => await client.events(attemptId, options),
-    pause: async (attemptId, reason) => await client.pause(attemptId, reason),
-    resume: async (attemptId, reason) => await client.resume(attemptId, reason),
-    cancel: async (attemptId, reason) => await client.cancel(attemptId, reason),
-    reconcile: async (attemptId) => await client.reconcile(attemptId),
+    pause: async (attemptId, reason, retryIdentity) =>
+      await client.pause(attemptId, reason, deliveryIdentity(client, retryIdentity)),
+    resume: async (attemptId, reason, retryIdentity) =>
+      await client.resume(attemptId, reason, deliveryIdentity(client, retryIdentity)),
+    cancel: async (attemptId, reason, retryIdentity) =>
+      await client.cancel(attemptId, reason, deliveryIdentity(client, retryIdentity)),
+    reconcile: async (attemptId, retryIdentity) =>
+      await client.reconcile(attemptId, deliveryIdentity(client, retryIdentity)),
     close: () => client.close(),
+  };
+}
+
+export function createDashboardPortfolioPort(client: CommandClient): DashboardPortfolioPort {
+  return {
+    snapshot: async (signal) => (await client.portfolioSnapshot(undefined, signal)).snapshot,
   };
 }
 
@@ -488,15 +452,43 @@ export function createDashboardRequestHandler(
         });
       }
       const body = actionBody(await readBody(request));
-      let result: unknown;
-      if (body.action === "pause")
-        result = await options.commandPort.pause(body.attemptId as AttemptId, body.reason);
-      else if (body.action === "resume")
-        result = await options.commandPort.resume(body.attemptId as AttemptId, body.reason);
-      else if (body.action === "cancel")
-        result = await options.commandPort.cancel(body.attemptId as AttemptId, body.reason);
-      else result = await options.commandPort.reconcile(body.attemptId);
-      return json(response, 200, { result });
+      try {
+        let result: unknown;
+        if (body.action === "pause")
+          result = await options.commandPort.pause(
+            body.attemptId as AttemptId,
+            body.reason,
+            body.retryIdentity,
+          );
+        else if (body.action === "resume")
+          result = await options.commandPort.resume(
+            body.attemptId as AttemptId,
+            body.reason,
+            body.retryIdentity,
+          );
+        else if (body.action === "cancel")
+          result = await options.commandPort.cancel(
+            body.attemptId as AttemptId,
+            body.reason,
+            body.retryIdentity,
+          );
+        else result = await options.commandPort.reconcile(body.attemptId, body.retryIdentity);
+        return json(response, 200, { result });
+      } catch (error) {
+        if (error instanceof CommandClientError) {
+          return json(response, error.retryable ? 503 : 409, {
+            error: {
+              code: error.code,
+              message: error.message,
+              retryable: error.retryable,
+              ...(error.retryable && error.retryIdentity !== null
+                ? { retryIdentity: error.retryIdentity }
+                : {}),
+            },
+          });
+        }
+        throw error;
+      }
     }
     json(response, 404, { error: { code: "dashboard.not-found", message: "Not found." } });
   };

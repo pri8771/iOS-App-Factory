@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createConnection, type Socket } from "node:net";
 import { isAbsolute } from "node:path";
 import { TextDecoder } from "node:util";
@@ -13,6 +13,7 @@ import {
   IsoInstantSchema,
   RequestIdSchema,
   TaskSpecV1Schema,
+  canonicalPortfolioReadModelDigestInputV1,
   type AttemptId,
   type CommandOperationV1,
   type CommandOriginV1,
@@ -48,11 +49,14 @@ export type CommandIdentity = Readonly<{
   issuedAt: IsoInstant;
 }>;
 
+export type RetryableCommandIdentity = Pick<CommandIdentity, "commandId" | "issuedAt">;
+
 export class CommandClientError extends Error {
   public constructor(
     public readonly code: string,
     message: string,
     public readonly retryable: boolean,
+    public readonly retryIdentity: RetryableCommandIdentity | null = null,
   ) {
     super(message);
     this.name = "CommandClientError";
@@ -65,8 +69,9 @@ export class CommandRemoteError extends CommandClientError {
     message: string,
     retryable: boolean,
     public readonly requestId: RequestId | null,
+    retryIdentity: RetryableCommandIdentity | null = null,
   ) {
-    super(code, message, retryable);
+    super(code, message, retryable, retryIdentity);
     this.name = "CommandRemoteError";
   }
 }
@@ -282,6 +287,74 @@ export class CommandClient {
     );
   }
 
+  public async listEvidence(
+    options: Readonly<{ afterAttemptId?: AttemptId | null; limit?: number }> = {},
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"evidence.list">> {
+    return await this.#request(
+      "evidence.list",
+      {
+        afterAttemptId:
+          options.afterAttemptId === undefined || options.afterAttemptId === null
+            ? null
+            : AttemptIdSchema.parse(options.afterAttemptId),
+        limit: options.limit ?? 50,
+      },
+      identity,
+      signal,
+    );
+  }
+
+  public async inspectEvidence(
+    attemptId: AttemptId,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"evidence.inspect">> {
+    return await this.#request(
+      "evidence.inspect",
+      { attemptId: AttemptIdSchema.parse(attemptId) },
+      identity,
+      signal,
+    );
+  }
+
+  public async verifyEvidence(
+    attemptId: AttemptId,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"evidence.verify">> {
+    return await this.#request(
+      "evidence.verify",
+      { attemptId: AttemptIdSchema.parse(attemptId) },
+      identity,
+      signal,
+    );
+  }
+
+  public async portfolioSnapshot(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"portfolio.snapshot">> {
+    const result = await this.#request("portfolio.snapshot", {}, identity, signal);
+    const expectedDigest = `sha256:${createHash("sha256")
+      .update(canonicalPortfolioReadModelDigestInputV1(result.snapshot), "utf8")
+      .digest("hex")}`;
+    if (
+      !timingSafeEqual(
+        Buffer.from(result.snapshot.sourceSnapshotDigest, "utf8"),
+        Buffer.from(expectedDigest, "utf8"),
+      )
+    ) {
+      throw new CommandClientError(
+        "protocol.portfolio-digest-mismatch",
+        "The portfolio source digest does not match its contents.",
+        false,
+      );
+    }
+    return result;
+  }
+
   async #request<Operation extends CommandOperationV1>(
     operation: Operation,
     payload: CommandRequestForOperationV1<Operation>["payload"],
@@ -325,27 +398,38 @@ export class CommandClient {
       );
     }
 
-    const response = await this.#exchange(encoded, requestId, signal);
+    let response: CommandResponseV1;
+    try {
+      response = await this.#exchange(encoded, requestId, signal);
+    } catch (error) {
+      if (error instanceof CommandClientError && error.retryable) {
+        throw new CommandClientError(error.code, error.message, true, { commandId, issuedAt });
+      }
+      throw error;
+    }
     if (!response.ok) {
       throw new CommandRemoteError(
         response.error.code,
         response.error.message,
         response.error.retryable,
         response.requestId,
+        response.error.retryable ? { commandId, issuedAt } : null,
       );
     }
     if (response.requestId !== requestId) {
       throw new CommandClientError(
         "protocol.response-id-mismatch",
-        "The command response ID does not match the request.",
-        false,
+        "The command response ID does not match the dispatched request; its outcome is unknown.",
+        true,
+        { commandId, issuedAt },
       );
     }
     if (response.result.operation !== operation) {
       throw new CommandClientError(
         "protocol.response-operation-mismatch",
-        "The command response operation does not match the request.",
-        false,
+        "The command response operation does not match the dispatched request; its outcome is unknown.",
+        true,
+        { commandId, issuedAt },
       );
     }
     return response.result as CommandResultForOperationV1<Operation>;
@@ -361,6 +445,7 @@ export class CommandClient {
       this.#sockets.add(socket);
       let buffer = Buffer.alloc(0);
       let settled = false;
+      let dispatched = false;
       const timer = setTimeout(() => {
         finish(new CommandClientError("transport.timeout", "The command request timed out.", true));
       }, this.#timeoutMs);
@@ -379,20 +464,33 @@ export class CommandClient {
 
       const onAbort = (): void => {
         finish(
-          new CommandClientError("client.cancelled", "The command request was cancelled.", false),
+          dispatched
+            ? new CommandClientError(
+                "client.cancelled-after-dispatch",
+                "The command request was cancelled after dispatch; its outcome is unknown.",
+                true,
+              )
+            : new CommandClientError(
+                "client.cancelled",
+                "The command request was cancelled before dispatch.",
+                false,
+              ),
         );
       };
       signal?.addEventListener("abort", onAbort, { once: true });
 
-      socket.once("connect", () => socket.write(encoded));
+      socket.once("connect", () => {
+        dispatched = true;
+        socket.write(encoded);
+      });
       socket.on("data", (chunk: Buffer) => {
         buffer = Buffer.concat([buffer, chunk]);
         if (buffer.byteLength > this.#maxResponseBytes) {
           finish(
             new CommandClientError(
               "protocol.response-too-large",
-              "The command response exceeded the configured byte limit.",
-              false,
+              "The dispatched command returned an oversized response; its outcome is unknown.",
+              true,
             ),
           );
           return;
@@ -417,8 +515,8 @@ export class CommandClient {
           finish(
             new CommandClientError(
               "protocol.multiple-responses",
-              "The command server returned multiple response frames.",
-              false,
+              "The dispatched command returned multiple response frames; its outcome is unknown.",
+              true,
             ),
           );
           return;
@@ -433,8 +531,8 @@ export class CommandClient {
           finish(
             new CommandClientError(
               "protocol.malformed-response",
-              "The command server returned malformed JSON.",
-              false,
+              "The dispatched command returned malformed JSON; its outcome is unknown.",
+              true,
             ),
           );
           return;
@@ -444,8 +542,8 @@ export class CommandClient {
           finish(
             new CommandClientError(
               "protocol.invalid-response",
-              "The command server returned an invalid protocol response.",
-              false,
+              "The dispatched command returned an invalid protocol response; its outcome is unknown.",
+              true,
             ),
           );
           return;
@@ -454,8 +552,8 @@ export class CommandClient {
           finish(
             new CommandClientError(
               "protocol.response-id-mismatch",
-              "The command response ID does not match the request.",
-              false,
+              "The command response ID does not match the dispatched request; its outcome is unknown.",
+              true,
             ),
           );
           return;
@@ -473,7 +571,15 @@ export class CommandClient {
       });
       socket.once("close", () => {
         if (this.#closed) {
-          finish(new CommandClientError("client.closed", "The command client is closed.", false));
+          finish(
+            dispatched
+              ? new CommandClientError(
+                  "client.closed-after-dispatch",
+                  "The command client closed after dispatch; the command outcome is unknown.",
+                  true,
+                )
+              : new CommandClientError("client.closed", "The command client is closed.", false),
+          );
         }
       });
     });

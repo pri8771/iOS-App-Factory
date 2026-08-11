@@ -1,5 +1,5 @@
 import { lstatSync, realpathSync } from "node:fs";
-import { isAbsolute } from "node:path";
+import { isAbsolute, join } from "node:path";
 
 import {
   AttemptIdSchema,
@@ -63,6 +63,11 @@ import {
   type TrustedVerificationPlanBundleV1,
   type VerifiedExecutionEvidence,
 } from "./evidence-index.js";
+import {
+  assertVerificationArgsTemplate,
+  materializeVerificationArgs,
+  verificationArgvMatchesTemplate,
+} from "./verification-scratch.js";
 
 export class VerifiedCommitCoordinatorError extends Error {
   constructor(message: string) {
@@ -73,7 +78,7 @@ export class VerifiedCommitCoordinatorError extends Error {
 
 export type TrustedVerificationPlanTemplate = Omit<
   TrustedVerificationPlan,
-  "checkoutDirectory" | "expectedTree"
+  "checkoutDirectory" | "expectedTree" | "scratchDirectory"
 >;
 
 export type CoordinatorFenceCheckpoint =
@@ -123,7 +128,9 @@ export type VerifiedCommitCoordinatorPorts = Readonly<{
   assertActive(checkpoint: CoordinatorFenceCheckpoint): void;
   runVerification?: (
     plan: TrustedVerificationPlan,
+    signal: AbortSignal,
   ) => Promise<TrustedVerificationRun> | TrustedVerificationRun;
+  signal: AbortSignal;
   now?: () => Date;
   afterSideEffect?: (effect: CoordinatorSideEffect) => void;
 }>;
@@ -193,6 +200,7 @@ function safeVerificationTemplates(
     if (!isAbsolute(template.executable)) {
       throw new VerifiedCommitCoordinatorError("Trusted verification executable must be absolute");
     }
+    assertVerificationArgsTemplate(template.args);
     const executable = realpathSync(template.executable);
     if (!lstatSync(executable).isFile()) {
       throw new VerifiedCommitCoordinatorError(
@@ -486,12 +494,23 @@ export async function coordinateVerifiedLocalCommit(
     const recordDigests: Sha256Digest[] = [];
     try {
       for (const template of verificationPlans) {
+        const scratchDirectory = join(
+          inputValue.attemptWorkspace.runtimeRoot,
+          "verification-scratch",
+          attemptId,
+          `fence-${String(fence)}`,
+          `${template.checkId}-${checkout.ownershipNonce}`,
+        );
         const plan: TrustedVerificationPlan = {
           ...template,
+          args: materializeVerificationArgs(template.args, scratchDirectory),
           checkoutDirectory: checkout.worktreePath,
+          scratchDirectory,
           expectedTree: candidate.candidateTreeId,
         };
-        const result = await (ports.runVerification ?? runTrustedVerification)(plan);
+        const result = await (ports.runVerification === undefined
+          ? runTrustedVerification(plan, { signal: ports.signal })
+          : ports.runVerification(plan, ports.signal));
         ports.assertActive("after-tests");
         const claims = VerificationClaimsV1Schema.parse(result.claims);
         const stdoutDigest = ports.evidenceStore.putBlob(result.stdout);
@@ -500,7 +519,11 @@ export async function coordinateVerifiedLocalCommit(
           stdoutDigest !== result.stdoutDigest ||
           stderrDigest !== result.stderrDigest ||
           claims.checkId !== template.checkId ||
-          !sameCanonical(claims.argv, [template.executable, ...template.args]) ||
+          !verificationArgvMatchesTemplate(claims.argv, template, {
+            attemptId,
+            fence,
+            exactFence: true,
+          }) ||
           !sameCanonical(claims.toolVersions, template.toolVersions) ||
           !claims.passed ||
           claims.exitCode !== 0 ||
@@ -554,6 +577,8 @@ export async function coordinateVerifiedLocalCommit(
     candidateTree: candidate.candidateTreeId as TrustedTestBundleV1["candidateTree"],
     verificationPlanBundle,
     verificationPlanBundleDigest,
+    attemptId,
+    fence,
   });
 
   ports.assertActive("before-review-evidence-publication");

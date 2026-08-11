@@ -31,10 +31,11 @@ apps/
 packages/
   contracts/       versioned commands, events, manifests, and schemas
   kernel/          SQLite execution state, leases, approvals, and outbox
-  command-client/  generated client used by CLI, MCP, and dashboard
+  command-client/  typed authenticated client used by CLI, MCP, and dashboard
   process-supervisor/ per-attempt process and recovery boundary
   agent-runner/     credential-minimized Codex process adapter
   adapter-sdk/      Jira, GitHub, Apple, and provider integration ports
+  provider-http-adapters/ strict Jira Cloud/GitHub requests and reconciliation
   module-sdk/       lifecycle/event modules and optional UI contributions
   quality/          deterministic verification and evidence contracts
   project-sdk/      enrollment and project capability contracts
@@ -57,4 +58,7 @@ See [docs/roadmap/BUILD_STAGES.md](docs/roadmap/BUILD_STAGES.md) for the build
 order, [docs/progress/IMPLEMENTATION_STATUS.md](docs/progress/IMPLEMENTATION_STATUS.md)
 for the honest Weeks 1–16 implementation ledger, and
 [docs/OPERATOR_RUNBOOK.md](docs/OPERATOR_RUNBOOK.md) for the supported local
-operator flow.
+operator flow. The daemon is fake-by-default; its only current real-toolchain
+profile is the exact deterministic Swift Greeter conformance slice documented
+in
+[docs/operations/verified-local-execution.md](docs/operations/verified-local-execution.md).

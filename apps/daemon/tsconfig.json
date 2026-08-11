@@ -10,6 +10,10 @@
   "include": ["src/**/*.ts"],
   "references": [
     { "path": "../../packages/contracts" },
+    { "path": "../../packages/evidence-store" },
+    { "path": "../../packages/execution-engine" },
+    { "path": "../../packages/git-workspace" },
+    { "path": "../../packages/independent-review" },
     { "path": "../../packages/kernel" },
     { "path": "../../packages/scheduler" }
   ]

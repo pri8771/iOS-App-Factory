@@ -121,6 +121,162 @@ afterEach(() => {
 });
 
 describe("Factory-owned Git workspace", () => {
+  it.each(["mirror-after-intent", "mirror-after-git", "mirror-after-marker"] as const)(
+    "reconciles a crash boundary at %s without accepting a partial mirror",
+    (phase) => {
+      const f = fixture();
+      let crash = true;
+      const manager = new GitWorkspaceManager({
+        gitExecutable: GIT,
+        publicationCheckpoint: (observed) => {
+          if (crash && observed === phase) {
+            crash = false;
+            throw new Error(`simulated crash at ${phase}`);
+          }
+        },
+      });
+      const input = {
+        sourceRepositoryPath: f.source,
+        runtimeRoot: f.runtime,
+        repositoryId: "sample-app",
+      };
+
+      expect(() => manager.ensureMirror(input)).toThrow(`simulated crash at ${phase}`);
+      const recovered = manager.ensureMirror(input);
+
+      expect(git(f.root, ["--git-dir", recovered.mirrorPath, "rev-parse", f.baseSha])).toBe(
+        f.baseSha,
+      );
+      expect(lstatSync(recovered.mirrorPath).isDirectory()).toBe(true);
+    },
+  );
+
+  it.each(["workspace-after-intent", "workspace-after-git", "workspace-after-marker"] as const)(
+    "reconciles a crash boundary at %s without accepting a partial worktree",
+    (phase) => {
+      const f = fixture();
+      let crash = true;
+      const manager = new GitWorkspaceManager({
+        gitExecutable: GIT,
+        publicationCheckpoint: (observed) => {
+          if (crash && observed === phase) {
+            crash = false;
+            throw new Error(`simulated crash at ${phase}`);
+          }
+        },
+      });
+      const mirror = manager.ensureMirror({
+        sourceRepositoryPath: f.source,
+        runtimeRoot: f.runtime,
+        repositoryId: "sample-app",
+      });
+
+      expect(() => manager.createAttemptWorkspace(mirror, "attempt-crash", f.baseSha)).toThrow(
+        `simulated crash at ${phase}`,
+      );
+      const recovered = manager.createOrReconcileAttemptWorkspace(
+        mirror,
+        "attempt-crash",
+        f.baseSha,
+      );
+
+      expect(git(recovered.worktreePath, ["rev-parse", "HEAD"])).toBe(f.baseSha);
+      expect(git(recovered.worktreePath, ["status", "--porcelain"])).toBe("");
+    },
+  );
+
+  it("reconciles a same-inode mirror-intent temporary link left by hard kill", () => {
+    const f = fixture();
+    let crash = true;
+    const manager = new GitWorkspaceManager({
+      gitExecutable: GIT,
+      publicationCheckpoint: (phase) => {
+        if (crash && phase === "mirror-after-intent") {
+          crash = false;
+          throw new Error("simulated hard kill after mirror intent link");
+        }
+      },
+    });
+    const input = {
+      sourceRepositoryPath: f.source,
+      runtimeRoot: f.runtime,
+      repositoryId: "sample-app",
+    };
+    expect(() => manager.ensureMirror(input)).toThrow("simulated hard kill");
+    const intent = join(f.runtime, "publication-intents", "mirrors", "sample-app.json");
+    const remnant = `${intent}.tmp-123-00000000-0000-4000-8000-000000000099`;
+    linkSync(intent, remnant);
+
+    const recovered = manager.ensureMirror(input);
+
+    expect(git(f.root, ["--git-dir", recovered.mirrorPath, "rev-parse", f.baseSha])).toBe(
+      f.baseSha,
+    );
+    expect(existsSync(remnant)).toBe(false);
+  });
+
+  it("reconciles a same-inode workspace-intent temporary link left by hard kill", () => {
+    const f = fixture();
+    const mirror = f.manager.ensureMirror({
+      sourceRepositoryPath: f.source,
+      runtimeRoot: f.runtime,
+      repositoryId: "sample-app",
+    });
+    let crash = true;
+    const manager = new GitWorkspaceManager({
+      gitExecutable: GIT,
+      publicationCheckpoint: (phase) => {
+        if (crash && phase === "workspace-after-intent") {
+          crash = false;
+          throw new Error("simulated hard kill after workspace intent link");
+        }
+      },
+    });
+    expect(() => manager.createAttemptWorkspace(mirror, "hard-link", f.baseSha)).toThrow(
+      "simulated hard kill",
+    );
+    const intent = join(
+      f.runtime,
+      "publication-intents",
+      "workspaces",
+      "sample-app",
+      "attempt-hard-link.json",
+    );
+    const remnant = `${intent}.tmp-123-00000000-0000-4000-8000-000000000099`;
+    linkSync(intent, remnant);
+
+    const recovered = manager.createOrReconcileAttemptWorkspace(mirror, "hard-link", f.baseSha);
+
+    expect(git(recovered.worktreePath, ["status", "--porcelain"])).toBe("");
+    expect(existsSync(remnant)).toBe(false);
+  });
+
+  it("fails closed when a publication intent has an unknown hard link", () => {
+    const f = fixture();
+    let crash = true;
+    const manager = new GitWorkspaceManager({
+      gitExecutable: GIT,
+      publicationCheckpoint: (phase) => {
+        if (crash && phase === "mirror-after-intent") {
+          crash = false;
+          throw new Error("simulated hard kill before unknown link");
+        }
+      },
+    });
+    const input = {
+      sourceRepositoryPath: f.source,
+      runtimeRoot: f.runtime,
+      repositoryId: "sample-app",
+    };
+    expect(() => manager.ensureMirror(input)).toThrow("simulated hard kill");
+    linkSync(
+      join(f.runtime, "publication-intents", "mirrors", "sample-app.json"),
+      join(f.root, "unknown-intent-hard-link"),
+    );
+
+    expect(() => manager.ensureMirror(input)).toThrow("unknown hard link");
+  });
+
   it("uses a clean detached worktree even when the user's checkout is dirty", () => {
     const f = fixture();
     writeFileSync(join(f.source, "src", "app.ts"), "uncommitted and unsafe\n");
@@ -170,6 +326,32 @@ describe("Factory-owned Git workspace", () => {
         .readVerifiedCandidatePatch(mirror, first, { authorizedScopes: ["src"] })
         .toString("utf8"),
     ).toContain("export const newFeature = true;");
+  });
+
+  it("reconciles the same owned attempt worktree with its uncommitted candidate intact", () => {
+    const f = fixture();
+    const { mirror, workspace } = prepare(f, "attempt-restart");
+    const baseTree = git(f.source, ["rev-parse", "HEAD^{tree}"]);
+    expect(() => f.manager.assertMirrorCommitTree(mirror, f.baseSha, baseTree)).not.toThrow();
+    expect(() =>
+      f.manager.assertMirrorCommitTree(mirror, f.baseSha, "f".repeat(baseTree.length)),
+    ).toThrow(/reviewed tree/u);
+    updateSource(workspace, "export const value = 42;\n");
+
+    const recovered = f.manager.createOrReconcileAttemptWorkspace(
+      mirror,
+      "attempt-restart",
+      f.baseSha,
+    );
+
+    expect(recovered).toEqual(workspace);
+    expect(git(recovered.worktreePath, ["rev-parse", "HEAD"])).toBe(f.baseSha);
+    expect(readFileSync(join(recovered.worktreePath, "src", "app.ts"), "utf8")).toBe(
+      "export const value = 42;\n",
+    );
+    expect(() =>
+      f.manager.createOrReconcileAttemptWorkspace(mirror, "attempt-restart", "f".repeat(40)),
+    ).toThrow();
   });
 
   it("creates ownership-isolated read-only verification checkouts and safely cleans each", () => {
@@ -360,6 +542,88 @@ describe("Factory-owned Git workspace", () => {
     expect(git(second.worktreePath, ["rev-parse", "HEAD"])).toBe(advancedSha);
     expect(first.workspace.baseSha).toBe(f.baseSha);
     expect(second.baseSha).toBe(advancedSha);
+  });
+
+  it("seals a prepared mirror and opens it without touching the source", () => {
+    const f = fixture();
+    const baseTree = git(f.source, ["rev-parse", `${f.baseSha}^{tree}`]);
+    const input = {
+      sourceRepositoryPath: f.source,
+      sourceIdentityDigest: `sha256:${"a".repeat(64)}`,
+      runtimeRoot: f.runtime,
+      repositoryId: "sample-app",
+      baseCommit: f.baseSha,
+      baseTree,
+    } as const;
+    let revalidations = 0;
+    const prepared = f.manager.prepareImmutableMirror(input, () => {
+      revalidations += 1;
+      expect(
+        git(f.root, [
+          "--git-dir",
+          join(f.runtime, "mirrors", "sample-app.git"),
+          "rev-parse",
+          f.baseSha,
+        ]),
+      ).toBe(f.baseSha);
+    });
+    expect(revalidations).toBe(1);
+    expect(() => f.manager.ensureMirror(input)).toThrow(/cannot be refreshed/iu);
+
+    rmSync(f.source, { recursive: true, force: false });
+    const reopened = f.manager.openPreparedImmutableMirror(input);
+    expect(reopened).toEqual(prepared);
+    const workspace = f.manager.createAttemptWorkspace(
+      reopened,
+      "attempt-from-sealed-mirror",
+      f.baseSha,
+    );
+    expect(git(workspace.worktreePath, ["rev-parse", "HEAD"])).toBe(f.baseSha);
+  });
+
+  it("does not publish an immutable binding when source revalidation fails", () => {
+    const f = fixture();
+    const baseTree = git(f.source, ["rev-parse", `${f.baseSha}^{tree}`]);
+    const input = {
+      sourceRepositoryPath: f.source,
+      sourceIdentityDigest: `sha256:${"b".repeat(64)}`,
+      runtimeRoot: f.runtime,
+      repositoryId: "sample-app",
+      baseCommit: f.baseSha,
+      baseTree,
+    } as const;
+
+    expect(() =>
+      f.manager.prepareImmutableMirror(input, () => {
+        throw new Error("source changed during enrollment");
+      }),
+    ).toThrow("source changed during enrollment");
+    expect(
+      existsSync(
+        join(f.runtime, "mirrors", "sample-app.git", "app-factory-immutable-binding.json"),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects a tampered immutable mirror binding", () => {
+    const f = fixture();
+    const input = {
+      sourceRepositoryPath: f.source,
+      sourceIdentityDigest: `sha256:${"c".repeat(64)}`,
+      runtimeRoot: f.runtime,
+      repositoryId: "sample-app",
+      baseCommit: f.baseSha,
+      baseTree: git(f.source, ["rev-parse", `${f.baseSha}^{tree}`]),
+    } as const;
+    const mirror = f.manager.prepareImmutableMirror(input, () => undefined);
+    const bindingPath = join(mirror.mirrorPath, "app-factory-immutable-binding.json");
+    const binding = JSON.parse(readFileSync(bindingPath, "utf8")) as Record<string, unknown>;
+    binding.sourceIdentityDigest = `sha256:${"d".repeat(64)}`;
+    writeFileSync(bindingPath, `${JSON.stringify(binding, null, 2)}\n`);
+
+    expect(() => f.manager.openPreparedImmutableMirror(input)).toThrow(
+      /binding does not match enrollment/iu,
+    );
   });
 
   it("rejects submodules and case-colliding trees before creating an agent worktree", () => {

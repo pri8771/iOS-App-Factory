@@ -14,8 +14,11 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@app-factory/agent-runner": "workspace:*",
     "@app-factory/contracts": "workspace:*",
+    "@app-factory/evidence-store": "workspace:*",
+    "@app-factory/execution-engine": "workspace:*",
+    "@app-factory/git-workspace": "workspace:*",
+    "@app-factory/independent-review": "workspace:*",
     "@app-factory/kernel": "workspace:*",
     "@app-factory/process-supervisor": "workspace:*",
     "@app-factory/scheduler": "workspace:*"

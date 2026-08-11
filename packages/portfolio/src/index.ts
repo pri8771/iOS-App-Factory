@@ -12,6 +12,9 @@ import {
 } from "@app-factory/contracts";
 import { z } from "zod";
 
+// Planning inputs and derived schedule views live here. The authoritative runtime
+// portfolio projection is PortfolioReadModelV1 from @app-factory/contracts.
+
 const PortfolioTaskIdSchema = z
   .string()
   .min(1)
@@ -54,7 +57,7 @@ export const AnalyticsObservationV1Schema = z
   });
 export type AnalyticsObservationV1 = z.infer<typeof AnalyticsObservationV1Schema>;
 
-export const PortfolioProjectInputV1Schema = z.strictObject({
+export const PortfolioPlanningProjectInputV1Schema = z.strictObject({
   schemaVersion: z.literal(1),
   projectId: ProjectIdSchema,
   slug: StableKeySchema,
@@ -71,7 +74,7 @@ export const PortfolioProjectInputV1Schema = z.strictObject({
   lastDeliveryAt: IsoInstantSchema.nullable(),
   observations: z.array(AnalyticsObservationV1Schema).max(2_000),
 });
-export type PortfolioProjectInputV1 = z.infer<typeof PortfolioProjectInputV1Schema>;
+export type PortfolioPlanningProjectInputV1 = z.infer<typeof PortfolioPlanningProjectInputV1Schema>;
 
 const PortfolioHealthSchema = z.enum(["healthy", "attention", "blocked", "unknown"]);
 const AnalyticsFreshnessSchema = z.enum(["fresh", "stale", "unavailable"]);
@@ -83,14 +86,14 @@ const HealthReasonSchema = z.enum([
   "analytics-unavailable",
 ]);
 
-export const PortfolioProjectV1Schema = PortfolioProjectInputV1Schema.extend({
+export const PortfolioPlanningProjectV1Schema = PortfolioPlanningProjectInputV1Schema.extend({
   health: PortfolioHealthSchema,
   healthReasons: z.array(HealthReasonSchema).max(5),
   analyticsFreshness: AnalyticsFreshnessSchema,
 });
-export type PortfolioProjectV1 = z.infer<typeof PortfolioProjectV1Schema>;
+export type PortfolioPlanningProjectV1 = z.infer<typeof PortfolioPlanningProjectV1Schema>;
 
-export const PortfolioTotalsV1Schema = z.strictObject({
+export const PortfolioPlanningTotalsV1Schema = z.strictObject({
   projects: NonNegativeIntegerSchema,
   activeAttempts: NonNegativeIntegerSchema,
   blockers: NonNegativeIntegerSchema,
@@ -99,15 +102,15 @@ export const PortfolioTotalsV1Schema = z.strictObject({
   unresolvedP1: NonNegativeIntegerSchema,
 });
 
-export const PortfolioSnapshotV1Schema = z.strictObject({
+export const PortfolioPlanningSnapshotV1Schema = z.strictObject({
   schemaVersion: z.literal(1),
   generatedAt: IsoInstantSchema,
   maximumAnalyticsAgeMs: z.number().int().positive().safe(),
-  projects: z.array(PortfolioProjectV1Schema).max(MAX_PORTFOLIO_PROJECTS),
-  totals: PortfolioTotalsV1Schema,
+  projects: z.array(PortfolioPlanningProjectV1Schema).max(MAX_PORTFOLIO_PROJECTS),
+  totals: PortfolioPlanningTotalsV1Schema,
   snapshotDigest: Sha256DigestSchema,
 });
-export type PortfolioSnapshotV1 = z.infer<typeof PortfolioSnapshotV1Schema>;
+export type PortfolioPlanningSnapshotV1 = z.infer<typeof PortfolioPlanningSnapshotV1Schema>;
 
 function canonical(value: unknown): string {
   const normalize = (input: unknown): unknown => {
@@ -142,10 +145,10 @@ function freshness(
 }
 
 function deriveHealth(
-  project: PortfolioProjectInputV1,
-  analyticsFreshness: PortfolioProjectV1["analyticsFreshness"],
-): Pick<PortfolioProjectV1, "health" | "healthReasons"> {
-  const reasons: Array<PortfolioProjectV1["healthReasons"][number]> = [];
+  project: PortfolioPlanningProjectInputV1,
+  analyticsFreshness: PortfolioPlanningProjectV1["analyticsFreshness"],
+): Pick<PortfolioPlanningProjectV1, "health" | "healthReasons"> {
+  const reasons: Array<PortfolioPlanningProjectV1["healthReasons"][number]> = [];
   if (project.unresolvedP0 > 0) reasons.push("unresolved-p0");
   if (project.blockerCount > 0) reasons.push("delivery-blocker");
   if (project.unresolvedP1 > 0) reasons.push("unresolved-p1");
@@ -163,11 +166,11 @@ function deriveHealth(
   return { health: "healthy", healthReasons: [] };
 }
 
-export function buildPortfolioSnapshot(
+export function buildPortfolioPlanningSnapshot(
   values: readonly unknown[],
   generatedAtValue: unknown,
   maximumAnalyticsAgeMs = 48 * 60 * 60 * 1_000,
-): PortfolioSnapshotV1 {
+): PortfolioPlanningSnapshotV1 {
   const generatedAt = IsoInstantSchema.parse(generatedAtValue);
   if (!Number.isSafeInteger(maximumAnalyticsAgeMs) || maximumAnalyticsAgeMs < 1) {
     throw new TypeError("maximumAnalyticsAgeMs must be a positive safe integer");
@@ -177,7 +180,7 @@ export function buildPortfolioSnapshot(
       `portfolio cannot contain more than ${String(MAX_PORTFOLIO_PROJECTS)} projects`,
     );
   }
-  const parsed = values.map((value) => PortfolioProjectInputV1Schema.parse(value));
+  const parsed = values.map((value) => PortfolioPlanningProjectInputV1Schema.parse(value));
   if (new Set(parsed.map((project) => project.projectId)).size !== parsed.length) {
     throw new TypeError("portfolio project IDs must be unique");
   }
@@ -194,7 +197,7 @@ export function buildPortfolioSnapshot(
     }
   }
   const projects = parsed
-    .map((project): PortfolioProjectV1 => {
+    .map((project): PortfolioPlanningProjectV1 => {
       const analyticsFreshness = freshness(project.observations, nowMs, maximumAnalyticsAgeMs);
       return { ...project, analyticsFreshness, ...deriveHealth(project, analyticsFreshness) };
     })
@@ -220,8 +223,8 @@ export function buildPortfolioSnapshot(
   return { ...envelope, snapshotDigest: digest(envelope) };
 }
 
-export function parsePortfolioSnapshot(value: unknown): PortfolioSnapshotV1 {
-  const snapshot = PortfolioSnapshotV1Schema.parse(value);
+export function parsePortfolioPlanningSnapshot(value: unknown): PortfolioPlanningSnapshotV1 {
+  const snapshot = PortfolioPlanningSnapshotV1Schema.parse(value);
   if (
     new Set(snapshot.projects.map((project) => project.projectId)).size !== snapshot.projects.length
   ) {

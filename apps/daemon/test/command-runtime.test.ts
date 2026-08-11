@@ -1,9 +1,10 @@
-import { chmod, lstat, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { chmod, lstat, mkdtemp, readFile, readdir, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
-  AttemptIdSchema,
+  canonicalPortfolioReadModelDigestInputV1,
   CommandRequestV1Schema,
   type CommandRequestV1,
   type TaskSpecV1,
@@ -32,6 +33,8 @@ const CANCEL_COMMAND_ID = "20000000-0000-4000-8000-000000000010";
 const RECONCILE_COMMAND_ID = "20000000-0000-4000-8000-000000000011";
 const REQUEST_ID = "20000000-0000-4000-8000-000000000012";
 const DOCTOR_COMMAND_ID = "20000000-0000-4000-8000-000000000020";
+const PORTFOLIO_COMMAND_ID = "20000000-0000-4000-8000-000000000025";
+const FUTURE = "2026-08-11T12:06:03.000Z";
 
 const roots: string[] = [];
 const runtimes: DaemonCommandRuntime[] = [];
@@ -138,6 +141,7 @@ describe("daemon runtime path security and lifecycle", () => {
     const runtime = await openRuntime(await makeRoot());
     expect((await lstat(runtime.paths.root)).mode & 0o777).toBe(0o700);
     expect((await lstat(runtime.paths.commandResults)).mode & 0o777).toBe(0o700);
+    expect((await lstat(runtime.paths.evidence)).mode & 0o777).toBe(0o700);
     expect((await lstat(runtime.paths.database)).mode & 0o777).toBe(0o600);
     runtime.close();
     runtime.close();
@@ -159,7 +163,164 @@ describe("daemon runtime path security and lifecycle", () => {
   });
 });
 
+describe("daemon evidence command boundary", () => {
+  it("lists through the daemon-owned store and returns a stable missing-manifest error", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "evidence.list",
+          "20000000-0000-4000-8000-000000000021",
+          { afterAttemptId: null, limit: 50 },
+          T1,
+        ),
+      ),
+    ).resolves.toEqual({
+      operation: "evidence.list",
+      manifests: [],
+      nextAfterAttemptId: null,
+      hasMore: false,
+    });
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "evidence.inspect",
+          "20000000-0000-4000-8000-000000000022",
+          { attemptId: "20000000-0000-4000-8000-000000000099" },
+          T1,
+        ),
+      ),
+    ).rejects.toMatchObject({ code: "evidence.not-found", retryable: false });
+  });
+});
+
 describe("task intake and authoritative queries", () => {
+  it("uses daemon-owned execution times and rejects excessive client clock skew", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const nearFutureCommand = request(
+      "task.run",
+      "20000000-0000-4000-8000-000000000026",
+      {
+        taskSpec: {
+          ...taskSpec,
+          taskId: "20000000-0000-4000-8000-000000000027",
+          createdAt: T1,
+        },
+      },
+      "2026-08-11T12:00:03.000Z",
+    );
+    const accepted = await invoke(runtime, nearFutureCommand);
+    if (accepted.operation !== "task.run") throw new Error("Unexpected task run result");
+    expect(
+      await status(runtime, accepted.attemptId, "20000000-0000-4000-8000-000000000028"),
+    ).toMatchObject({ createdAt: T2, updatedAt: T2 });
+
+    await expect(
+      invoke(runtime, request("doctor", "20000000-0000-4000-8000-000000000029", {}, FUTURE)),
+    ).rejects.toMatchObject({ code: "command.future-timestamp", retryable: false });
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "task.submit",
+          "20000000-0000-4000-8000-000000000030",
+          {
+            taskSpec: {
+              ...taskSpec,
+              taskId: "20000000-0000-4000-8000-000000000031",
+              createdAt: FUTURE,
+            },
+          },
+          T1,
+        ),
+      ),
+    ).rejects.toMatchObject({ code: "command.future-timestamp", retryable: false });
+  });
+
+  it("projects local project state without fabricating unavailable provider values", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const submitted = await invoke(runtime, submitRequest());
+    if (submitted.operation !== "task.submit") throw new Error("Unexpected submit result");
+    const result = await invoke(
+      runtime,
+      request("portfolio.snapshot", PORTFOLIO_COMMAND_ID, {}, T2),
+    );
+    if (result.operation !== "portfolio.snapshot") {
+      throw new Error("Unexpected portfolio result");
+    }
+    expect(result.snapshot).toMatchObject({
+      schemaVersion: 1,
+      generatedAt: T2,
+      totals: {
+        projects: 1,
+        attempts: 1,
+        activeAttempts: 1,
+        blockers: 0,
+        openPullRequests: null,
+        jiraTodo: null,
+        jiraInProgress: null,
+        unresolvedP0: null,
+        unresolvedP1: null,
+      },
+      projects: [
+        {
+          projectId: PROJECT_ID,
+          slug: `project-${PROJECT_ID}`,
+          metadataSource: "task-derived",
+          lifecycleStage: null,
+          attemptCount: 1,
+          activeAttemptCount: 1,
+          blockerCount: 0,
+          openPullRequestCount: null,
+          jiraTodoCount: null,
+          unresolvedP0: null,
+          releaseStage: null,
+          analyticsFreshness: "unavailable",
+          health: "unknown",
+          healthReasons: [
+            "jira-unavailable",
+            "github-unavailable",
+            "quality-unavailable",
+            "release-unavailable",
+            "analytics-unavailable",
+          ],
+        },
+      ],
+    });
+    expect(result.snapshot.sourceSnapshotDigest).toBe(
+      `sha256:${createHash("sha256")
+        .update(canonicalPortfolioReadModelDigestInputV1(result.snapshot))
+        .digest("hex")}`,
+    );
+  });
+
+  it("keeps generatedAt at or after monotonic project activity under a fixed clock", async () => {
+    const runtime = await openRuntime(await makeRoot(), { now: () => T2 });
+    const running = await invoke(runtime, request("task.run", RUN_COMMAND_ID, { taskSpec }, T2));
+    if (running.operation !== "task.run") throw new Error("Unexpected task run result");
+    await invoke(
+      runtime,
+      request(
+        "attempt.pause",
+        PAUSE_COMMAND_ID,
+        { attemptId: running.attemptId, reason: "fixed-clock regression" },
+        T2,
+      ),
+    );
+
+    const result = await invoke(
+      runtime,
+      request("portfolio.snapshot", PORTFOLIO_COMMAND_ID, {}, T2),
+    );
+    if (result.operation !== "portfolio.snapshot") {
+      throw new Error("Unexpected portfolio result");
+    }
+    expect(result.snapshot.projects[0]?.lastActivityAt).toBe("2026-08-11T12:00:02.001Z");
+    expect(result.snapshot.generatedAt).toBe("2026-08-11T12:00:02.001Z");
+  });
+
   it("atomically submits paused and runs with running desired state", async () => {
     const submitRuntime = await openRuntime(await makeRoot());
     const submitted = await invoke(submitRuntime, submitRequest());
@@ -250,6 +411,36 @@ describe("task intake and authoritative queries", () => {
 });
 
 describe("durable logical command idempotency", () => {
+  it("journals mutations but not repeated authoritative read-only queries", async () => {
+    const boundary = vi.fn();
+    const runtime = await openRuntime(await makeRoot(), {
+      commandResultLedgerBoundary: boundary,
+    });
+    const submitted = await invoke(runtime, submitRequest());
+    if (submitted.operation !== "task.submit") throw new Error("Unexpected submit result");
+
+    await invoke(runtime, request("doctor", DOCTOR_COMMAND_ID, {}, T1));
+    await invoke(runtime, request("doctor", DOCTOR_COMMAND_ID, {}, T2));
+    await status(runtime, submitted.attemptId);
+    await status(runtime, submitted.attemptId, "20000000-0000-4000-8000-000000000023");
+    await invoke(
+      runtime,
+      request(
+        "evidence.list",
+        "20000000-0000-4000-8000-000000000024",
+        { afterAttemptId: null, limit: 50 },
+        T2,
+      ),
+    );
+    await invoke(runtime, request("portfolio.snapshot", PORTFOLIO_COMMAND_ID, {}, T2));
+
+    expect(await readdir(runtime.paths.commandResults)).toEqual([`${SUBMIT_COMMAND_ID}.json`]);
+    expect(boundary).toHaveBeenCalledTimes(1);
+    expect(boundary).toHaveBeenCalledWith(
+      expect.objectContaining({ request: expect.objectContaining({ operation: "task.submit" }) }),
+    );
+  });
+
   it("returns the byte-equivalent original submission result after restart", async () => {
     const root = await makeRoot();
     const firstRuntime = await openRuntime(root);
@@ -350,7 +541,7 @@ describe("desired state and reconciliation commands", () => {
     });
   });
 
-  it("replays a reconciler result after restart without invoking the port again", async () => {
+  it("journals and replays a stable wake acknowledgement without advancing work", async () => {
     const root = await makeRoot();
     const intakeRuntime = await openRuntime(root);
     const reconcileSpec = {
@@ -362,53 +553,90 @@ describe("desired state and reconciliation commands", () => {
       request("task.run", RUN_COMMAND_ID, { taskSpec: reconcileSpec }),
     );
     if (intake.operation !== "task.run") throw new Error("Unexpected run result");
-    const reconciledId = AttemptIdSchema.parse(intake.attemptId);
     intakeRuntime.close();
 
-    const firstPort = vi.fn(() => [reconciledId, reconciledId]);
-    const firstRuntime = await openRuntime(root, { reconcile: firstPort });
-    const command = request("daemon.reconcile", RECONCILE_COMMAND_ID, { attemptId: null }, T1);
+    const firstRuntime = await openRuntime(root);
+    const command = request(
+      "daemon.reconcile",
+      RECONCILE_COMMAND_ID,
+      { attemptId: intake.attemptId },
+      T1,
+    );
     expect(await invoke(firstRuntime, command)).toEqual({
       operation: "daemon.reconcile",
       accepted: true,
-      reconciledAttemptIds: [reconciledId],
+      reconciledAttemptIds: [],
     });
-    expect(firstPort).toHaveBeenCalledTimes(1);
+    await expect(status(firstRuntime, intake.attemptId)).resolves.toMatchObject({
+      state: "queued",
+      desiredState: "running",
+      revision: 0,
+      fence: 0,
+    });
     firstRuntime.close();
 
-    const secondPort = vi.fn(() => []);
-    const secondRuntime = await openRuntime(root, { reconcile: secondPort });
-    expect(await invoke(secondRuntime, command)).toMatchObject({
-      reconciledAttemptIds: [reconciledId],
+    const secondRuntime = await openRuntime(root);
+    await expect(invoke(secondRuntime, command)).resolves.toEqual({
+      operation: "daemon.reconcile",
+      accepted: true,
+      reconciledAttemptIds: [],
     });
-    expect(secondPort).not.toHaveBeenCalled();
+    await expect(status(secondRuntime, intake.attemptId)).resolves.toMatchObject({
+      state: "queued",
+      desiredState: "running",
+      revision: 0,
+      fence: 0,
+    });
   });
 
-  it("reports an explicit no-op when no scheduler reconcile port is configured", async () => {
-    const runtime = await openRuntime(await makeRoot());
-    const noPortSpec = {
+  it("does not advance work before a failed reconcile result-ledger boundary", async () => {
+    const root = await makeRoot();
+    const intakeRuntime = await openRuntime(root);
+    const boundarySpec = {
       ...taskSpec,
       taskId: "20000000-0000-4000-8000-000000000021",
     };
     const run = await invoke(
-      runtime,
-      request("task.run", "20000000-0000-4000-8000-000000000022", { taskSpec: noPortSpec }, T1),
+      intakeRuntime,
+      request("task.run", "20000000-0000-4000-8000-000000000022", { taskSpec: boundarySpec }, T1),
     );
     if (run.operation !== "task.run") throw new Error("Unexpected run result");
+    intakeRuntime.close();
 
+    const runtime = await openRuntime(root, {
+      commandResultLedgerBoundary: ({ request: candidate }) => {
+        if (candidate.operation === "daemon.reconcile") {
+          throw new Error("injected reconcile ledger crash");
+        }
+      },
+    });
+    const command = request(
+      "daemon.reconcile",
+      "20000000-0000-4000-8000-000000000023",
+      { attemptId: run.attemptId },
+      T2,
+    );
+
+    await expect(invoke(runtime, command)).rejects.toMatchObject({
+      code: "command.result-persistence-ambiguous",
+      retryable: true,
+    });
     await expect(
-      invoke(
-        runtime,
-        request(
-          "daemon.reconcile",
-          "20000000-0000-4000-8000-000000000023",
-          { attemptId: run.attemptId },
-          T2,
-        ),
-      ),
-    ).resolves.toMatchObject({ reconciledAttemptIds: [] });
-    expect(
-      await status(runtime, run.attemptId, "20000000-0000-4000-8000-000000000024"),
-    ).toMatchObject({ state: "queued", desiredState: "running" });
+      status(runtime, run.attemptId, "20000000-0000-4000-8000-000000000024"),
+    ).resolves.toMatchObject({ state: "queued", desiredState: "running", revision: 0, fence: 0 });
+    expect(await readdir(runtime.paths.commandResults)).not.toContain(
+      "20000000-0000-4000-8000-000000000023.json",
+    );
+    runtime.close();
+
+    const restarted = await openRuntime(root);
+    await expect(invoke(restarted, command)).resolves.toEqual({
+      operation: "daemon.reconcile",
+      accepted: true,
+      reconciledAttemptIds: [],
+    });
+    await expect(
+      status(restarted, run.attemptId, "20000000-0000-4000-8000-000000000026"),
+    ).resolves.toMatchObject({ state: "queued", desiredState: "running", revision: 0, fence: 0 });
   });
 });

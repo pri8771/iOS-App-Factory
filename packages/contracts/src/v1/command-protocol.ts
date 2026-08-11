@@ -1,19 +1,26 @@
 import { z } from "zod";
 
 import { CommandOriginV1Schema } from "./command.js";
+import {
+  EvidenceKindV1Schema,
+  EvidenceManifestV1Schema,
+  EvidenceSubjectV1Schema,
+} from "./evidence.js";
 import { EventV1Schema } from "./event.js";
 import { ExecutionAttemptV1Schema, type AttemptDesiredStateV1 } from "./execution.js";
 import {
   AttemptIdSchema,
   CommandIdSchema,
+  EvidenceIdSchema,
   IsoInstantSchema,
   NamespacedCodeSchema,
   NonNegativeSafeIntegerSchema,
-  PositiveSafeIntegerSchema,
   RequestIdSchema,
   SchemaVersionV1Schema,
+  Sha256DigestSchema,
   TaskIdSchema,
 } from "./primitives.js";
+import { PortfolioReadModelV1Schema } from "./portfolio-read-model.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
 export const COMMAND_PROTOCOL_VERSION_V1 = 1 as const;
@@ -70,7 +77,7 @@ export const EventsCommandRequestV1Schema = z.strictObject({
   payload: z.strictObject({
     attemptId: AttemptIdSchema,
     afterSequence: NonNegativeSafeIntegerSchema,
-    limit: PositiveSafeIntegerSchema.max(1_000),
+    limit: z.number().int().min(1).max(1_000),
   }),
 });
 
@@ -98,6 +105,33 @@ export const ReconcileCommandRequestV1Schema = z.strictObject({
   payload: z.strictObject({ attemptId: AttemptIdSchema.nullable() }),
 });
 
+export const EvidenceListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("evidence.list"),
+  payload: z.strictObject({
+    afterAttemptId: AttemptIdSchema.nullable(),
+    limit: z.number().int().min(1).max(100),
+  }),
+});
+
+export const EvidenceInspectCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("evidence.inspect"),
+  payload: AttemptPayloadV1Schema,
+});
+
+export const EvidenceVerifyCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("evidence.verify"),
+  payload: AttemptPayloadV1Schema,
+});
+
+export const PortfolioSnapshotCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("portfolio.snapshot"),
+  payload: EmptyPayloadV1Schema,
+});
+
 export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandRequestV1Schema,
   SubmitCommandRequestV1Schema,
@@ -108,6 +142,10 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ResumeCommandRequestV1Schema,
   CancelCommandRequestV1Schema,
   ReconcileCommandRequestV1Schema,
+  EvidenceListCommandRequestV1Schema,
+  EvidenceInspectCommandRequestV1Schema,
+  EvidenceVerifyCommandRequestV1Schema,
+  PortfolioSnapshotCommandRequestV1Schema,
 ]);
 export type CommandRequestV1 = z.infer<typeof CommandRequestV1Schema>;
 export type CommandOperationV1 = CommandRequestV1["operation"];
@@ -179,7 +217,56 @@ export const CancelCommandResultV1Schema = desiredStateResultSchema("attempt.can
 export const ReconcileCommandResultV1Schema = z.strictObject({
   operation: z.literal("daemon.reconcile"),
   accepted: z.boolean(),
+  // Compatibility field: wake-only reconciliation performs no synchronous
+  // attempt work, so daemon v1 returns an empty array and exposes later
+  // progress through authoritative status/events queries.
   reconciledAttemptIds: z.array(AttemptIdSchema).max(10_000),
+});
+
+export const EvidenceManifestDescriptorV1Schema = z.strictObject({
+  attemptId: AttemptIdSchema,
+  createdAt: IsoInstantSchema,
+  manifestDigest: Sha256DigestSchema,
+  subject: EvidenceSubjectV1Schema,
+  entryCount: z.number().int().min(1).max(1_000),
+  requiredKinds: z.array(EvidenceKindV1Schema).min(1).max(5),
+});
+export type EvidenceManifestDescriptorV1 = z.infer<typeof EvidenceManifestDescriptorV1Schema>;
+
+export const EvidenceListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("evidence.list"),
+  manifests: z.array(EvidenceManifestDescriptorV1Schema).max(100),
+  nextAfterAttemptId: AttemptIdSchema.nullable(),
+  hasMore: z.boolean(),
+});
+
+export const EvidenceInspectCommandResultV1Schema = z.strictObject({
+  operation: z.literal("evidence.inspect"),
+  manifest: EvidenceManifestV1Schema,
+  manifestDigest: Sha256DigestSchema,
+});
+
+export const EvidenceItemVerificationV1Schema = z.strictObject({
+  evidenceId: EvidenceIdSchema,
+  digest: Sha256DigestSchema,
+  kind: EvidenceKindV1Schema,
+  createdAt: IsoInstantSchema,
+  producer: NamespacedCodeSchema,
+  artifactCount: z.number().int().min(0).max(100),
+});
+export type EvidenceItemVerificationV1 = z.infer<typeof EvidenceItemVerificationV1Schema>;
+
+export const EvidenceVerifyCommandResultV1Schema = z.strictObject({
+  operation: z.literal("evidence.verify"),
+  integrityVerified: z.literal(true),
+  manifest: EvidenceManifestDescriptorV1Schema,
+  evidence: z.array(EvidenceItemVerificationV1Schema).min(1).max(1_000),
+  artifactCount: NonNegativeSafeIntegerSchema,
+});
+
+export const PortfolioSnapshotCommandResultV1Schema = z.strictObject({
+  operation: z.literal("portfolio.snapshot"),
+  snapshot: PortfolioReadModelV1Schema,
 });
 
 export const CommandResultV1Schema = z.discriminatedUnion("operation", [
@@ -192,6 +279,10 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ResumeCommandResultV1Schema,
   CancelCommandResultV1Schema,
   ReconcileCommandResultV1Schema,
+  EvidenceListCommandResultV1Schema,
+  EvidenceInspectCommandResultV1Schema,
+  EvidenceVerifyCommandResultV1Schema,
+  PortfolioSnapshotCommandResultV1Schema,
 ]);
 export type CommandResultV1 = z.infer<typeof CommandResultV1Schema>;
 export type CommandResultForOperationV1<Operation extends CommandOperationV1> = Extract<

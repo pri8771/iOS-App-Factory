@@ -15,6 +15,7 @@
     { "path": "./packages/module-sdk" },
     { "path": "./packages/policy-engine" },
     { "path": "./packages/portfolio" },
+    { "path": "./packages/provider-http-adapters" },
     { "path": "./packages/agent-runner" },
     { "path": "./packages/process-supervisor" },
     { "path": "./packages/project-sdk" },

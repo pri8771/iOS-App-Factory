@@ -13,16 +13,22 @@ import { isAbsolute, join, resolve } from "node:path";
 
 import {
   AttemptIdSchema,
+  canonicalPortfolioReadModelDigestInputV1,
   CommandRequestV1Schema,
   CommandResultV1Schema,
   EventIdSchema,
   IsoInstantSchema,
+  PortfolioReadModelV1Schema,
+  Sha256DigestSchema,
+  StableKeySchema,
   COMMAND_PROTOCOL_VERSION_V1,
   type AttemptId,
   type CommandId,
   type CommandRequestV1,
   type CommandResultV1,
   type IsoInstant,
+  type PortfolioProjectReadModelV1,
+  type PortfolioReadModelV1,
 } from "@app-factory/contracts";
 import {
   FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME,
@@ -33,12 +39,23 @@ import {
   openMigratedFactoryDatabase,
   type FactoryRepositories,
 } from "@app-factory/kernel";
+import { EvidenceStore } from "@app-factory/evidence-store";
 
+import { executeEvidenceCommand } from "./evidence-command-runtime.js";
 import { CommandHandlerError, type CommandHandler } from "./unix-command-server.js";
 
 const COMMAND_RESULTS_DIRECTORY_NAME = "command-results";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
+const MAX_CLIENT_FUTURE_SKEW_MS = 5 * 60 * 1_000;
+const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation"]> = new Set([
+  "task.submit",
+  "task.run",
+  "attempt.pause",
+  "attempt.resume",
+  "attempt.cancel",
+  "daemon.reconcile",
+]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
 
@@ -49,20 +66,7 @@ export type DaemonRuntimeIdFactory = (
   commandId: CommandId,
 ) => string;
 
-export type ReconcileRequest = Readonly<{
-  commandId: CommandId;
-  issuedAt: IsoInstant;
-  attemptId: AttemptId | null;
-}>;
-
-/**
- * Reconciliation is an idempotent wake-up signal. Implementations must bind
- * any durable side effect to commandId because a process can stop after the
- * port succeeds but before the response journal is synced.
- */
-export type ReconcilePort = (
-  request: ReconcileRequest,
-) => Promise<readonly AttemptId[]> | readonly AttemptId[];
+export type DaemonDatabaseInitializer = (database: FactoryDatabase) => void;
 
 export type OpenDaemonCommandRuntimeOptions = Readonly<{
   runtimeDirectory: string;
@@ -70,13 +74,12 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
   startedAt?: string;
   now?: () => string;
   idFactory?: DaemonRuntimeIdFactory;
-  reconcile?: ReconcilePort;
   /**
    * Daemon-only composition hook. It lets the scheduler share the runtime's
    * single SQLite handle without exposing that handle through the command
    * protocol or opening a second connection.
    */
-  createReconcile?: (database: FactoryDatabase) => ReconcilePort;
+  initializeDatabase?: DaemonDatabaseInitializer;
   /** Deterministic failpoint after the authoritative mutation and before result journaling. */
   commandResultLedgerBoundary?: (
     entry: Readonly<{ request: CommandRequestV1; result: CommandResultV1 }>,
@@ -87,6 +90,7 @@ export type DaemonRuntimePaths = Readonly<{
   root: string;
   database: string;
   commandResults: string;
+  evidence: string;
 }>;
 
 export type DaemonCommandRuntime = Readonly<{
@@ -134,6 +138,7 @@ export function resolveDaemonRuntimePaths(runtimeDirectory: string): DaemonRunti
     root: runtimeDirectory,
     database: join(runtimeDirectory, FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME),
     commandResults: join(runtimeDirectory, COMMAND_RESULTS_DIRECTORY_NAME),
+    evidence: join(runtimeDirectory, "evidence"),
   };
 }
 
@@ -220,6 +225,24 @@ function nextInstant(...values: readonly string[]): IsoInstant {
     throw new RangeError("Cannot advance beyond the maximum supported instant");
   }
   return IsoInstantSchema.parse(new Date(milliseconds + 1).toISOString());
+}
+
+function assertPlausibleClientTimestamps(request: CommandRequestV1, observedAt: IsoInstant): void {
+  const maximumClientTime = Date.parse(observedAt) + MAX_CLIENT_FUTURE_SKEW_MS;
+  const timestamps: readonly Readonly<{ label: string; value: IsoInstant }>[] = [
+    { label: "command issuedAt", value: request.issuedAt },
+    ...(request.operation === "task.submit" || request.operation === "task.run"
+      ? ([{ label: "task createdAt", value: request.payload.taskSpec.createdAt }] as const)
+      : []),
+  ];
+  const future = timestamps.find(({ value }) => Date.parse(value) > maximumClientTime);
+  if (future !== undefined) {
+    throw new CommandHandlerError(
+      "command.future-timestamp",
+      `${future.label} exceeds the daemon clock-skew allowance.`,
+      false,
+    );
+  }
 }
 
 function parseLedgerEntry(value: unknown): ResultLedgerEntry {
@@ -378,8 +401,85 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "attempt.status":
     case "attempt.events":
     case "daemon.reconcile":
+    case "evidence.list":
+    case "evidence.inspect":
+    case "evidence.verify":
+    case "portfolio.snapshot":
       return null;
   }
+}
+
+function buildLocalPortfolioReadModel(
+  repositories: FactoryRepositories,
+  observedAt: string,
+): PortfolioReadModelV1 {
+  const summaries = repositories.portfolio.listProjectSummaries();
+  const generatedAt = laterInstant(
+    observedAt,
+    ...summaries.map((summary) => summary.lastActivityAt),
+  );
+  const unavailableSources = {
+    localExecution: "available",
+    jira: "unavailable",
+    github: "unavailable",
+    quality: "unavailable",
+    release: "unavailable",
+    analytics: "unavailable",
+  } as const;
+  const projects: PortfolioProjectReadModelV1[] = summaries
+    .map((summary): PortfolioProjectReadModelV1 => ({
+      projectId: summary.projectId,
+      slug: StableKeySchema.parse(`project-${summary.projectId}`),
+      displayName: `Project ${summary.projectId}`,
+      metadataSource: "task-derived",
+      lifecycleStage: null,
+      attemptCount: summary.attemptCount,
+      activeAttemptCount: summary.activeAttemptCount,
+      blockerCount: summary.blockerCount,
+      lastActivityAt: summary.lastActivityAt,
+      // A successful coding attempt is not a release or delivery observation.
+      lastDeliveryAt: null,
+      openPullRequestCount: null,
+      jiraTodoCount: null,
+      jiraInProgressCount: null,
+      unresolvedP0: null,
+      unresolvedP1: null,
+      releaseStage: null,
+      analyticsFreshness: "unavailable",
+      sources: unavailableSources,
+      health: summary.blockerCount > 0 ? "blocked" : "unknown",
+      healthReasons: [
+        ...(summary.blockerCount > 0 ? (["delivery-blocker"] as const) : []),
+        "jira-unavailable",
+        "github-unavailable",
+        "quality-unavailable",
+        "release-unavailable",
+        "analytics-unavailable",
+      ],
+    }))
+    .sort((left, right) => left.slug.localeCompare(right.slug));
+  const envelope = {
+    schemaVersion: 1 as const,
+    generatedAt,
+    projects,
+    totals: {
+      projects: projects.length,
+      attempts: projects.reduce((sum, project) => sum + project.attemptCount, 0),
+      activeAttempts: projects.reduce((sum, project) => sum + project.activeAttemptCount, 0),
+      blockers: projects.reduce((sum, project) => sum + project.blockerCount, 0),
+      openPullRequests: null,
+      jiraTodo: null,
+      jiraInProgress: null,
+      unresolvedP0: null,
+      unresolvedP1: null,
+    },
+  };
+  const sourceSnapshotDigest = Sha256DigestSchema.parse(
+    `sha256:${createHash("sha256")
+      .update(canonicalPortfolioReadModelDigestInputV1(envelope))
+      .digest("hex")}`,
+  );
+  return PortfolioReadModelV1Schema.parse({ ...envelope, sourceSnapshotDigest });
 }
 
 function assertKernelCommandIdentity(
@@ -422,11 +522,12 @@ function nextEventContext(repositories: FactoryRepositories, attemptId: AttemptI
 function intakeTask(
   repositories: FactoryRepositories,
   request: Extract<CommandRequestV1, { operation: "task.submit" | "task.run" }>,
+  observedAt: IsoInstant,
   idFactory: DaemonRuntimeIdFactory,
 ): CommandResultV1 {
   const taskSpecDigest = computeTaskSpecDigest(request.payload.taskSpec);
   const attemptId = parseGeneratedAttemptId(idFactory, request.commandId);
-  const createdAt = laterInstant(request.issuedAt, request.payload.taskSpec.createdAt);
+  const createdAt = observedAt;
   const initialDesiredState = request.operation === "task.submit" ? "paused" : "running";
   const created = repositories.createTaskAttempt({
     command: {
@@ -484,7 +585,7 @@ function setDesiredState(
     CommandRequestV1,
     { operation: "attempt.pause" | "attempt.resume" | "attempt.cancel" }
   >,
-  now: () => string,
+  observedAt: IsoInstant,
   idFactory: DaemonRuntimeIdFactory,
 ): CommandResultV1 {
   const desiredState =
@@ -495,7 +596,7 @@ function setDesiredState(
         : "cancelled";
   const attempt = requireAttempt(repositories, request.payload.attemptId);
   const context = nextEventContext(repositories, attempt.attemptId);
-  const occurredAt = nextInstant(now(), request.issuedAt, attempt.updatedAt);
+  const occurredAt = nextInstant(observedAt, attempt.updatedAt);
   repositories.desiredStates.apply({
     command: {
       schemaVersion: 1,
@@ -540,9 +641,9 @@ async function executeRequest(
   dependencies: Readonly<{
     daemonVersion: string;
     startedAt: IsoInstant;
-    now: () => string;
+    observedAt: IsoInstant;
     idFactory: DaemonRuntimeIdFactory;
-    reconcile: ReconcilePort;
+    evidenceStore: EvidenceStore;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -564,7 +665,7 @@ async function executeRequest(
     }
     case "task.submit":
     case "task.run":
-      return intakeTask(repositories, request, dependencies.idFactory);
+      return intakeTask(repositories, request, dependencies.observedAt, dependencies.idFactory);
     case "attempt.status":
       return {
         operation: "attempt.status",
@@ -585,31 +686,36 @@ async function executeRequest(
     case "attempt.pause":
     case "attempt.resume":
     case "attempt.cancel":
-      return setDesiredState(repositories, request, dependencies.now, dependencies.idFactory);
+      return setDesiredState(
+        repositories,
+        request,
+        dependencies.observedAt,
+        dependencies.idFactory,
+      );
     case "daemon.reconcile": {
       if (request.payload.attemptId !== null) {
         requireAttempt(repositories, request.payload.attemptId);
       }
-      const reconciled = await dependencies.reconcile({
-        commandId: request.commandId,
-        issuedAt: request.issuedAt,
-        attemptId: request.payload.attemptId,
-      });
-      const unique = [...new Set(reconciled.map((attemptId) => AttemptIdSchema.parse(attemptId)))];
-      if (unique.length > 10_000) {
-        throw new CommandHandlerError(
-          "daemon.reconcile-result-too-large",
-          "The reconcile port returned more than 10000 attempt IDs.",
-          false,
-        );
-      }
-      for (const attemptId of unique) requireAttempt(repositories, attemptId);
+      // This command is deliberately only a durable wake acknowledgement.
+      // Scheduler progress happens in the service-owned background loop after
+      // this result has been journaled, so a crash cannot advance work before
+      // commandId is durably linked to its response. The legacy result field
+      // records synchronous reconciliation; wake-only v1 commands do none.
       return {
         operation: "daemon.reconcile",
         accepted: true,
-        reconciledAttemptIds: unique,
+        reconciledAttemptIds: [],
       };
     }
+    case "evidence.list":
+    case "evidence.inspect":
+    case "evidence.verify":
+      return executeEvidenceCommand(dependencies.evidenceStore, request);
+    case "portfolio.snapshot":
+      return {
+        operation: "portfolio.snapshot",
+        snapshot: buildLocalPortfolioReadModel(repositories, dependencies.observedAt),
+      };
   }
 }
 
@@ -624,9 +730,6 @@ function closedError(): CommandHandlerError {
 export async function openDaemonCommandRuntime(
   options: OpenDaemonCommandRuntimeOptions,
 ): Promise<DaemonCommandRuntime> {
-  if (options.reconcile !== undefined && options.createReconcile !== undefined) {
-    throw new TypeError("reconcile and createReconcile are mutually exclusive");
-  }
   const paths = resolveDaemonRuntimePaths(options.runtimeDirectory);
   const daemonVersion = parseDaemonVersion(options.daemonVersion);
   const now = options.now ?? (() => new Date().toISOString());
@@ -635,13 +738,14 @@ export async function openDaemonCommandRuntime(
   await prepareRuntimePaths(paths);
 
   const database = openMigratedFactoryDatabase(paths.database);
-  let reconcile: ReconcilePort;
+  let evidenceStore: EvidenceStore;
   let repositories: FactoryRepositories;
   try {
     await chmod(paths.database, 0o600);
     await assertPrivateRegularFile(paths.database);
     repositories = createFactoryRepositories(database);
-    reconcile = options.createReconcile?.(database) ?? options.reconcile ?? (() => []);
+    evidenceStore = new EvidenceStore(paths.evidence);
+    options.initializeDatabase?.(database);
   } catch (error) {
     database.close();
     throw error;
@@ -654,11 +758,17 @@ export async function openDaemonCommandRuntime(
     const request = CommandRequestV1Schema.parse(requestInput);
     return await serial.run(async () => {
       if (closed) throw closedError();
-      const original = await readLedgerEntry(paths, request.commandId);
-      if (original !== null) {
-        assertMatchingRequest(original.request, request);
-        return original.result;
+      const persistResult = DURABLE_COMMAND_RESULT_OPERATIONS.has(request.operation);
+      if (persistResult) {
+        const original = await readLedgerEntry(paths, request.commandId);
+        if (original !== null) {
+          assertMatchingRequest(original.request, request);
+          return original.result;
+        }
       }
+
+      const observedAt = IsoInstantSchema.parse(now());
+      assertPlausibleClientTimestamps(request, observedAt);
 
       assertKernelCommandIdentity(repositories, request);
 
@@ -666,19 +776,31 @@ export async function openDaemonCommandRuntime(
         await executeRequest(repositories, database, request, {
           daemonVersion,
           startedAt,
-          now,
+          observedAt,
           idFactory,
-          reconcile,
+          evidenceStore,
         }),
       );
-      await options.commandResultLedgerBoundary?.({ request, result });
-      const persisted = await persistLedgerEntry(paths, {
-        ledgerVersion: RESULT_LEDGER_VERSION,
-        request,
-        result,
-      });
-      assertMatchingRequest(persisted.request, request);
-      return persisted.result;
+      if (!persistResult) return result;
+      try {
+        await options.commandResultLedgerBoundary?.({ request, result });
+        const persisted = await persistLedgerEntry(paths, {
+          ledgerVersion: RESULT_LEDGER_VERSION,
+          request,
+          result,
+        });
+        assertMatchingRequest(persisted.request, request);
+        return persisted.result;
+      } catch {
+        // The kernel mutation may already be authoritative even though its
+        // command-result journal is not. The same commandId/issuedAt is safe
+        // to retry and lets kernel idempotency reconstruct the exact result.
+        throw new CommandHandlerError(
+          "command.result-persistence-ambiguous",
+          "The command may have completed, but its durable result could not be confirmed. Retry with the same command ID and issuedAt.",
+          true,
+        );
+      }
     });
   };
 

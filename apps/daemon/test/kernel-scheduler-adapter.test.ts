@@ -180,7 +180,7 @@ afterEach(() => {
 });
 
 describe("kernel scheduler adapter", () => {
-  it("reconciles a paused submission, resumes it, and durably completes exactly three steps", async () => {
+  it("resumes a paused submission on the scheduler loop's next durable tick", async () => {
     const database = openDatabase();
     const attemptId = seedAttempt(database, 10, "paused");
     const executor = new RecordingExecutor();
@@ -199,13 +199,7 @@ describe("kernel scheduler adapter", () => {
     expect(executor.calls).toEqual([]);
 
     setDesiredState(database, attemptId, "running", 200);
-    await expect(
-      controller.reconcile({
-        commandId: id(202) as CommandId,
-        issuedAt: T0 as never,
-        attemptId,
-      }),
-    ).resolves.toEqual([attemptId]);
+    await expect(controller.tick()).resolves.toEqual({ kind: "succeeded", attemptId });
 
     const repositories = createFactoryRepositories(database);
     expect(repositories.attempts.findById(attemptId)).toMatchObject({
@@ -385,58 +379,6 @@ describe("kernel scheduler adapter", () => {
       desiredState: "cancelled",
       outcome: { kind: "cancelled" },
     });
-  });
-
-  it("scopes targeted reconciliation to exactly one eligible attempt", async () => {
-    const database = openDatabase();
-    const firstAttemptId = seedAttempt(database, 80);
-    const requestedAttemptId = seedAttempt(database, 90);
-    const controller = createKernelSchedulerController({
-      database,
-      ownerId: "scheduler.targeted",
-      executor: new RecordingExecutor(),
-      clock: { now: () => new Date(T0) },
-    });
-
-    await expect(
-      controller.reconcile({
-        commandId: id(950) as CommandId,
-        issuedAt: T0 as never,
-        attemptId: id(999) as AttemptId,
-      }),
-    ).resolves.toEqual([]);
-
-    await expect(
-      controller.reconcile({
-        commandId: id(951) as CommandId,
-        issuedAt: T0 as never,
-        attemptId: requestedAttemptId,
-      }),
-    ).resolves.toEqual([requestedAttemptId]);
-
-    const repositories = createFactoryRepositories(database);
-    expect(repositories.attempts.findById(requestedAttemptId)).toMatchObject({
-      state: "succeeded",
-    });
-    expect(repositories.attempts.findById(firstAttemptId)).toMatchObject({
-      state: "queued",
-      desiredState: "running",
-      revision: 0,
-      fence: 0,
-    });
-    expect(repositories.steps.listByAttempt(firstAttemptId)).toEqual([]);
-    expect(repositories.events.listByAttempt(firstAttemptId)).toHaveLength(1);
-
-    const terminalEventCount = repositories.events.listByAttempt(requestedAttemptId).length;
-    await expect(
-      controller.reconcile({
-        commandId: id(952) as CommandId,
-        issuedAt: T0 as never,
-        attemptId: requestedAttemptId,
-      }),
-    ).resolves.toEqual([]);
-    expect(repositories.events.listByAttempt(requestedAttemptId)).toHaveLength(terminalEventCount);
-    expect(repositories.attempts.findById(firstAttemptId)).toMatchObject({ state: "queued" });
   });
 
   it("keeps all persisted event timestamps strictly increasing with a frozen wall clock", async () => {

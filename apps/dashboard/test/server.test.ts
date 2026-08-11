@@ -1,6 +1,15 @@
+import { createHash } from "node:crypto";
 import { request } from "node:http";
+import { runInNewContext } from "node:vm";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { CommandClientError } from "@app-factory/command-client";
+
+import {
+  PortfolioReadModelV1Schema,
+  canonicalPortfolioReadModelDigestInputV1,
+} from "@app-factory/contracts";
 
 import {
   startDashboardServer,
@@ -14,6 +23,7 @@ const CSRF = "csrf-token-0000000000000000000000000000000001";
 const SESSION = "session-token-0000000000000000000000000000001";
 const ATTEMPT = "75000000-0000-4000-8000-000000000001";
 const PROJECT = "75000000-0000-4000-8000-000000000002";
+const COMMAND_ID = "75000000-0000-4000-8000-000000000003";
 const NOW = "2026-08-10T12:00:00.000Z";
 const servers: DashboardServer[] = [];
 
@@ -31,7 +41,7 @@ function port(): DashboardCommandPort {
 }
 
 function portfolioSnapshot() {
-  return {
+  const candidate = PortfolioReadModelV1Schema.parse({
     schemaVersion: 1,
     generatedAt: NOW,
     projects: [
@@ -39,31 +49,57 @@ function portfolioSnapshot() {
         projectId: PROJECT,
         slug: "first-app",
         displayName: "First app",
-        lifecycleStage: "building",
+        metadataSource: "task-derived",
+        lifecycleStage: null,
+        attemptCount: 1,
         activeAttemptCount: 0,
         blockerCount: 0,
-        openPullRequestCount: 0,
-        jiraTodoCount: 1,
-        jiraInProgressCount: 0,
-        unresolvedP0: 0,
-        unresolvedP1: 0,
+        openPullRequestCount: null,
+        jiraTodoCount: null,
+        jiraInProgressCount: null,
+        unresolvedP0: null,
+        unresolvedP1: null,
         releaseStage: null,
+        lastActivityAt: "2026-08-10T11:00:00.000Z",
         lastDeliveryAt: null,
         health: "unknown",
-        healthReasons: ["analytics-unavailable"],
+        healthReasons: [
+          "jira-unavailable",
+          "github-unavailable",
+          "quality-unavailable",
+          "release-unavailable",
+          "analytics-unavailable",
+        ],
         analyticsFreshness: "unavailable",
+        sources: {
+          localExecution: "available",
+          jira: "unavailable",
+          github: "unavailable",
+          quality: "unavailable",
+          release: "unavailable",
+          analytics: "unavailable",
+        },
       },
     ],
     totals: {
       projects: 1,
+      attempts: 1,
       activeAttempts: 0,
       blockers: 0,
-      openPullRequests: 0,
-      unresolvedP0: 0,
-      unresolvedP1: 0,
+      openPullRequests: null,
+      jiraTodo: null,
+      jiraInProgress: null,
+      unresolvedP0: null,
+      unresolvedP1: null,
     },
     sourceSnapshotDigest: `sha256:${"a".repeat(64)}`,
-  } as const;
+  });
+  return PortfolioReadModelV1Schema.parse({
+    ...candidate,
+    sourceSnapshotDigest: `sha256:${createHash("sha256")
+      .update(canonicalPortfolioReadModelDigestInputV1(candidate), "utf8")
+      .digest("hex")}`,
+  });
 }
 
 async function exchange(
@@ -186,7 +222,58 @@ describe("local dashboard server", () => {
       body: JSON.stringify({ action: "pause", attemptId: ATTEMPT, reason: "Review" }),
     });
     expect(response.status).toBe(200);
-    expect(commandPort.pause).toHaveBeenCalledWith(ATTEMPT, "Review");
+    expect(commandPort.pause).toHaveBeenCalledWith(ATTEMPT, "Review", null);
+  });
+
+  it("exposes and accepts the durable retry identity after an ambiguous mutation", async () => {
+    const commandPort = port();
+    vi.mocked(commandPort.pause).mockRejectedValueOnce(
+      new CommandClientError("transport.remote-closed", "The response was lost.", true, {
+        commandId: COMMAND_ID,
+        issuedAt: NOW,
+      }),
+    );
+    const server = await startDashboardServer({
+      commandPort,
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+    });
+    servers.push(server);
+    const headers = {
+      cookie: `factory_dashboard=${SESSION}`,
+      "content-type": "application/json",
+      origin: server.origin,
+      "x-factory-csrf": CSRF,
+    };
+    const first = await exchange(server.origin, {
+      path: "/api/action",
+      method: "POST",
+      headers,
+      body: JSON.stringify({ action: "pause", attemptId: ATTEMPT, reason: null }),
+    });
+    expect(first.status).toBe(503);
+    expect(JSON.parse(first.body)).toMatchObject({
+      error: { retryIdentity: { commandId: COMMAND_ID, issuedAt: NOW } },
+    });
+
+    const retry = await exchange(server.origin, {
+      path: "/api/action",
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        action: "pause",
+        attemptId: ATTEMPT,
+        reason: null,
+        commandId: COMMAND_ID,
+        issuedAt: NOW,
+      }),
+    });
+    expect(retry.status).toBe(200);
+    expect(commandPort.pause).toHaveBeenLastCalledWith(ATTEMPT, null, {
+      commandId: COMMAND_ID,
+      issuedAt: NOW,
+    });
   });
 
   it("serves a provider-neutral multi-project snapshot through its read-only port", async () => {
@@ -208,7 +295,10 @@ describe("local dashboard server", () => {
     });
     expect(response.status).toBe(200);
     expect(JSON.parse(response.body)).toMatchObject({
-      snapshot: { projects: [{ displayName: "First app" }] },
+      snapshot: {
+        projects: [{ displayName: "First app", openPullRequestCount: null }],
+        totals: { openPullRequests: null },
+      },
     });
     expect(portfolioPort.snapshot).toHaveBeenCalledOnce();
     expect(portfolioPort.snapshot).toHaveBeenCalledWith(expect.any(AbortSignal));
@@ -257,6 +347,163 @@ describe("local dashboard server", () => {
     });
     expect(response.status).toBe(503);
     expect(response.body).not.toContain(canary);
+  });
+
+  it("rejects a valid-looking portfolio when its source digest is stale", async () => {
+    const snapshot = portfolioSnapshot();
+    const portfolioPort: DashboardPortfolioPort = {
+      snapshot: vi.fn(async () => ({
+        ...snapshot,
+        sourceSnapshotDigest: `sha256:${"f".repeat(64)}`,
+      })),
+    };
+    const server = await startDashboardServer({
+      commandPort: port(),
+      portfolioPort,
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+    });
+    servers.push(server);
+    const response = await exchange(server.origin, {
+      path: "/api/portfolio",
+      headers: { cookie: `factory_dashboard=${SESSION}` },
+    });
+    expect(response.status).toBe(503);
+    expect(response.body).toContain("Portfolio is unavailable.");
+  });
+
+  it("ships explicit unavailable rendering for nullable provider values", async () => {
+    const server = await startDashboardServer({
+      commandPort: port(),
+      portfolioPort: { snapshot: async () => portfolioSnapshot() },
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+    });
+    servers.push(server);
+    const response = await exchange(server.origin, {
+      path: "/dashboard.js",
+      headers: { cookie: `factory_dashboard=${SESSION}` },
+    });
+    expect(response.status).toBe(200);
+    expect(response.body).toContain("value===null?'unavailable'");
+    expect(response.body).toContain("GitHub PRs:");
+  });
+
+  it("discards an ambiguous action identity after a different successful action", async () => {
+    const server = await startDashboardServer({
+      commandPort: port(),
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+    });
+    servers.push(server);
+    const script = await exchange(server.origin, {
+      path: "/dashboard.js",
+      headers: { cookie: `factory_dashboard=${SESSION}` },
+    });
+    const listeners = new Map<string, () => Promise<void>>();
+    const actionBodies: Record<string, unknown>[] = [];
+    const buttons = ["pause", "resume"].map((action) => ({
+      dataset: { action },
+      disabled: false,
+      addEventListener: (_event: string, listener: () => Promise<void>) =>
+        listeners.set(action, listener),
+    }));
+    const elements = new Map<string, Record<string, unknown>>();
+    const element = (selector: string): Record<string, unknown> => {
+      const existing = elements.get(selector);
+      if (existing !== undefined) return existing;
+      const created = {
+        content: CSRF,
+        value: "",
+        textContent: "",
+        innerHTML: "",
+        className: "",
+        classList: {
+          add: () => undefined,
+          remove: () => undefined,
+          toggle: () => undefined,
+        },
+        addEventListener: () => undefined,
+      };
+      elements.set(selector, created);
+      return created;
+    };
+    let firstPause = true;
+    const fetchStub = async (path: string, options: { body?: string } = {}) => {
+      if (path === "/api/doctor") {
+        return { ok: true, json: async () => ({ result: { readiness: "ready" } }) };
+      }
+      if (path.startsWith("/api/attempt/")) {
+        return {
+          ok: true,
+          json: async () => ({
+            status: {
+              attempt: {
+                attemptId: ATTEMPT,
+                state: "running",
+                desiredState: "running",
+                revision: 1,
+                fence: 1,
+                blocker: null,
+              },
+            },
+            events: { events: [] },
+          }),
+        };
+      }
+      if (path === "/api/action") {
+        const body = JSON.parse(options.body ?? "{}") as Record<string, unknown>;
+        actionBodies.push(body);
+        if (body.action === "pause" && firstPause) {
+          firstPause = false;
+          return {
+            ok: false,
+            json: async () => ({
+              error: {
+                message: "The response was lost.",
+                retryIdentity: { commandId: COMMAND_ID, issuedAt: NOW },
+              },
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ result: { accepted: true } }) };
+      }
+      throw new Error(`Unexpected dashboard request: ${path}`);
+    };
+    runInNewContext(
+      `${script.body}\nselected=${JSON.stringify(ATTEMPT)};attemptId.value=selected;`,
+      {
+        document: {
+          querySelector: (selector: string) => element(selector),
+          querySelectorAll: () => buttons,
+        },
+        fetch: fetchStub,
+        alert: () => undefined,
+        setInterval: () => 0,
+        encodeURIComponent,
+        Error,
+        JSON,
+        Map,
+        String,
+      },
+    );
+    const pause = listeners.get("pause");
+    const resume = listeners.get("resume");
+    if (pause === undefined || resume === undefined) {
+      throw new Error("Dashboard action listeners were not registered");
+    }
+
+    await pause();
+    await resume();
+    await pause();
+
+    expect(actionBodies).toHaveLength(3);
+    expect(actionBodies[0]).not.toHaveProperty("commandId");
+    expect(actionBodies[1]).not.toHaveProperty("commandId");
+    expect(actionBodies[2]).not.toHaveProperty("commandId");
   });
 
   it("cancels a portfolio source that exceeds its bounded response time", async () => {

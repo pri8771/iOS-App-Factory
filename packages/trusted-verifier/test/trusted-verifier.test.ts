@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,6 +16,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   TrustedVerificationError,
+  TrustedVerificationCancelledError,
   runTrustedVerification,
   type TrustedVerificationPlan,
 } from "../src/index.js";
@@ -27,11 +36,14 @@ function sha256(bytes: Uint8Array): string {
 
 function makeCheckout(): Readonly<{
   root: string;
+  scratch: string;
   tree: string;
   protectedDigest: string;
 }> {
-  const root = mkdtempSync(join(tmpdir(), "factory-verifier-"));
-  temporaryDirectories.push(root);
+  const container = realpathSync(mkdtempSync(join(tmpdir(), "factory-verifier-")));
+  temporaryDirectories.push(container);
+  const root = join(container, "checkout");
+  mkdirSync(root, { mode: 0o700 });
   git(root, "init", "-q");
   git(root, "config", "user.name", "Factory Test");
   git(root, "config", "user.email", "factory@example.invalid");
@@ -42,6 +54,7 @@ function makeCheckout(): Readonly<{
   git(root, "checkout", "-q", "--detach", "HEAD");
   return {
     root,
+    scratch: join(container, "scratch"),
     tree: git(root, "rev-parse", "HEAD^{tree}"),
     protectedDigest: sha256(readFileSync(join(root, "Protected.txt"))),
   };
@@ -55,6 +68,7 @@ function plan(
   return {
     checkId: "fixture.node",
     checkoutDirectory: checkout.root,
+    scratchDirectory: checkout.scratch,
     expectedTree: checkout.tree,
     executable: process.execPath,
     args,
@@ -91,6 +105,7 @@ describe("trusted verification", () => {
     expect(result.stdoutDigest).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.protectedFilesUnchanged).toBe(true);
     expect(result.checkoutCleanAfter).toBe(true);
+    expect(existsSync(checkout.scratch)).toBe(false);
   });
 
   it("returns failing evidence for a nonzero trusted check", async () => {
@@ -117,6 +132,105 @@ describe("trusted verification", () => {
     );
     expect(result.claims.passed).toBe(false);
     expect(result.timedOut).toBe(true);
+  });
+
+  it("uses isolated scratch identities and removes them after each check", async () => {
+    const firstCheckout = makeCheckout();
+    const secondCheckout = makeCheckout();
+    const printScratch = [
+      "-e",
+      "process.stdout.write(JSON.stringify({tmp:process.env.TMPDIR,swift:process.env.SWIFTPM_BUILD_DIR}))",
+    ];
+    const [first, second] = await Promise.all([
+      runTrustedVerification(plan(firstCheckout, printScratch)),
+      runTrustedVerification(plan(secondCheckout, printScratch)),
+    ]);
+    const firstEnvironment = JSON.parse(first.stdout.toString("utf8")) as {
+      tmp: string;
+      swift: string;
+    };
+    const secondEnvironment = JSON.parse(second.stdout.toString("utf8")) as {
+      tmp: string;
+      swift: string;
+    };
+    expect(firstEnvironment.tmp).toBe(`${firstCheckout.scratch}/tmp`);
+    expect(firstEnvironment.swift).toBe(`${firstCheckout.scratch}/swiftpm-build`);
+    expect(secondEnvironment.tmp).toBe(`${secondCheckout.scratch}/tmp`);
+    expect(secondEnvironment.swift).toBe(`${secondCheckout.scratch}/swiftpm-build`);
+    expect(firstEnvironment.tmp).not.toBe(secondEnvironment.tmp);
+    expect(existsSync(firstCheckout.scratch)).toBe(false);
+    expect(existsSync(secondCheckout.scratch)).toBe(false);
+  });
+
+  it("aborts the entire verifier process group before a grandchild can outlive it", async () => {
+    const checkout = makeCheckout();
+    const orphanMarker = `${checkout.root}-orphan-marker`;
+    temporaryDirectories.push(orphanMarker);
+    const grandchild = [
+      "process.on('SIGTERM', () => {})",
+      `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(orphanMarker)}, 'orphan'), 350)`,
+      "setInterval(() => {}, 1000)",
+    ].join(";");
+    const parent = [
+      "require('node:child_process').spawn(process.execPath, ['-e', " +
+        `${JSON.stringify(grandchild)}], { stdio: 'ignore' })`,
+      "setInterval(() => {}, 1000)",
+    ].join(";");
+    const controller = new AbortController();
+    const running = runTrustedVerification(
+      plan(checkout, ["-e", parent], { terminationGraceMs: 50 }),
+      { signal: controller.signal },
+    );
+    setTimeout(() => controller.abort(new Error("lease lost")), 50).unref();
+
+    await expect(running).rejects.toBeInstanceOf(TrustedVerificationCancelledError);
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 500));
+    expect(existsSync(orphanMarker)).toBe(false);
+    expect(existsSync(checkout.scratch)).toBe(false);
+  });
+
+  it("fails and terminates a background descendant after a successful leader exit", async () => {
+    const checkout = makeCheckout();
+    const orphanMarker = `${checkout.root}-successful-orphan-marker`;
+    temporaryDirectories.push(orphanMarker);
+    const descendant = [
+      `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(orphanMarker)}, 'orphan'), 350)`,
+      "setInterval(() => {}, 1000)",
+    ].join(";");
+    const leader = [
+      "require('node:child_process').spawn(process.execPath, ['-e', " +
+        `${JSON.stringify(descendant)}], { stdio: 'ignore' })`,
+      "process.exit(0)",
+    ].join(";");
+
+    await expect(
+      runTrustedVerification(plan(checkout, ["-e", leader], { terminationGraceMs: 50 })),
+    ).rejects.toThrow("left background processes running");
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 500));
+    expect(existsSync(orphanMarker)).toBe(false);
+    expect(existsSync(checkout.scratch)).toBe(false);
+  });
+
+  it("settles by the termination deadline when an escaped descendant retains verifier pipes", async () => {
+    const checkout = makeCheckout();
+    const escaped = ["setTimeout(() => process.exit(0), 1500)", "setInterval(() => {}, 1000)"].join(
+      ";",
+    );
+    const leader = [
+      "require('node:child_process').spawn(process.execPath, ['-e', " +
+        `${JSON.stringify(escaped)}], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] })`,
+      "setInterval(() => {}, 1000)",
+    ].join(";");
+    const startedAt = Date.now();
+
+    await expect(
+      runTrustedVerification(
+        plan(checkout, ["-e", leader], { timeoutMs: 30, terminationGraceMs: 50 }),
+      ),
+    ).rejects.toThrow("did not terminate after SIGKILL");
+    expect(Date.now() - startedAt).toBeLessThan(1_400);
+    expect(existsSync(checkout.scratch)).toBe(true);
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 600));
   });
 
   it("rejects an attached branch, dirty input, and unsafe environment", async () => {

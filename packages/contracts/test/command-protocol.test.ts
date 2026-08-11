@@ -34,6 +34,10 @@ describe("command protocol V1", () => {
     ["attempt.resume", { attemptId: ATTEMPT_ID, reason: "Continue." }],
     ["attempt.cancel", { attemptId: ATTEMPT_ID, reason: "Stop." }],
     ["daemon.reconcile", { attemptId: null }],
+    ["evidence.list", { afterAttemptId: null, limit: 50 }],
+    ["evidence.inspect", { attemptId: ATTEMPT_ID }],
+    ["evidence.verify", { attemptId: ATTEMPT_ID }],
+    ["portfolio.snapshot", {}],
   ])("accepts the strict %s request", (operation, payload) => {
     expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(true);
   });
@@ -60,6 +64,11 @@ describe("command protocol V1", () => {
           afterSequence: 0,
           limit: 1_001,
         }),
+      ).success,
+    ).toBe(false);
+    expect(
+      CommandRequestV1Schema.safeParse(
+        request("evidence.list", { afterAttemptId: null, limit: 101 }),
       ).success,
     ).toBe(false);
   });
@@ -102,5 +111,11 @@ describe("command protocol V1", () => {
     expectTypeOf<
       CommandResultForOperationV1<"attempt.pause">["desiredState"]
     >().toEqualTypeOf<"paused">();
+    expectTypeOf<CommandRequestForOperationV1<"portfolio.snapshot">["payload"]>().toEqualTypeOf<
+      Record<string, never>
+    >();
+    expectTypeOf<
+      CommandResultForOperationV1<"evidence.verify">["integrityVerified"]
+    >().toEqualTypeOf<true>();
   });
 });

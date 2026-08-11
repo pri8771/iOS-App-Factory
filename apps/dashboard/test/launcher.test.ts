@@ -1,9 +1,16 @@
+import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { chmod, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  PortfolioReadModelV1Schema,
+  canonicalPortfolioReadModelDigestInputV1,
+} from "@app-factory/contracts";
 
 import {
   loadDashboardLauncherConfiguration,
@@ -15,8 +22,72 @@ import {
 } from "../src/index.js";
 
 const AUTHORIZATION = "daemon-authorization-000000000000000000000000000001";
+const NOW = "2026-08-10T12:00:00.000Z";
 const roots: string[] = [];
 const servers: DashboardServer[] = [];
+const daemonServers: Server[] = [];
+const daemonSockets = new Set<Socket>();
+
+function portfolioSnapshot() {
+  const digestInput = {
+    schemaVersion: 1 as const,
+    generatedAt: NOW,
+    projects: [
+      {
+        projectId: "00000000-0000-4000-8000-000000000101",
+        slug: "local-project",
+        displayName: "Local Project",
+        metadataSource: "task-derived" as const,
+        lifecycleStage: "building" as const,
+        attemptCount: 1,
+        activeAttemptCount: 0,
+        blockerCount: 0,
+        lastActivityAt: NOW,
+        lastDeliveryAt: null,
+        openPullRequestCount: null,
+        jiraTodoCount: null,
+        jiraInProgressCount: null,
+        unresolvedP0: null,
+        unresolvedP1: null,
+        releaseStage: null,
+        analyticsFreshness: "unavailable" as const,
+        sources: {
+          localExecution: "available" as const,
+          jira: "unavailable" as const,
+          github: "unavailable" as const,
+          quality: "unavailable" as const,
+          release: "unavailable" as const,
+          analytics: "unavailable" as const,
+        },
+        health: "unknown" as const,
+        healthReasons: [
+          "jira-unavailable" as const,
+          "github-unavailable" as const,
+          "quality-unavailable" as const,
+          "release-unavailable" as const,
+          "analytics-unavailable" as const,
+        ],
+      },
+    ],
+    totals: {
+      projects: 1,
+      attempts: 1,
+      activeAttempts: 0,
+      blockers: 0,
+      openPullRequests: null,
+      jiraTodo: null,
+      jiraInProgress: null,
+      unresolvedP0: null,
+      unresolvedP1: null,
+    },
+  };
+  return PortfolioReadModelV1Schema.parse({
+    ...digestInput,
+    sourceSnapshotDigest: `sha256:${createHash("sha256")
+      .update(canonicalPortfolioReadModelDigestInputV1(digestInput), "utf8")
+      .digest("hex")}`,
+  });
+}
 
 async function privateRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "app-factory-dashboard-"));
@@ -30,8 +101,52 @@ async function writePrivate(path: string, value: string): Promise<void> {
   await chmod(path, 0o600);
 }
 
+async function startFakePortfolioDaemon(
+  root: string,
+  received: Record<string, unknown>[],
+): Promise<string> {
+  const socketPath = join(root, "daemon.sock");
+  const snapshot = portfolioSnapshot();
+  const daemon = createServer((socket) => {
+    daemonSockets.add(socket);
+    socket.once("close", () => daemonSockets.delete(socket));
+    let buffer = "";
+    socket.on("data", (chunk: Buffer) => {
+      buffer += chunk.toString("utf8");
+      const newline = buffer.indexOf("\n");
+      if (newline < 0) return;
+      const frame = JSON.parse(buffer.slice(0, newline)) as Record<string, unknown>;
+      received.push(frame);
+      socket.end(
+        `${JSON.stringify({
+          protocolVersion: 1,
+          requestId: frame.requestId,
+          ok: true,
+          result: { operation: "portfolio.snapshot", snapshot },
+        })}\n`,
+      );
+    });
+  });
+  daemonServers.push(daemon);
+  await new Promise<void>((resolve, reject) => {
+    daemon.once("error", reject);
+    daemon.listen(socketPath, resolve);
+  });
+  return socketPath;
+}
+
 afterEach(async () => {
   await Promise.all(servers.splice(0).map(async (server) => await server.close()));
+  for (const socket of daemonSockets) socket.destroy();
+  daemonSockets.clear();
+  await Promise.all(
+    daemonServers.splice(0).map(
+      async (server) =>
+        await new Promise<void>((resolve) => {
+          server.close(() => resolve());
+        }),
+    ),
+  );
   await Promise.all(roots.splice(0).map(async (root) => await rm(root, { recursive: true })));
 });
 
@@ -115,6 +230,58 @@ describe("dashboard launcher configuration", () => {
 });
 
 describe("packaged dashboard lifecycle", () => {
+  it("serves a digest-verified authoritative portfolio through the packaged launcher", async () => {
+    const root = await privateRoot();
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await startFakePortfolioDaemon(root, received);
+    const server = await startDashboardLauncher({
+      socketPath,
+      authorization: AUTHORIZATION,
+      port: 0,
+    });
+    servers.push(server);
+
+    const authenticated = await fetch(server.launchUrl, { redirect: "manual" });
+    const cookie = authenticated.headers.get("set-cookie")?.split(";", 1)[0];
+    expect(authenticated.status).toBe(303);
+
+    const response = await fetch(`${server.origin}/api/portfolio`, {
+      headers: { cookie: cookie ?? "" },
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Readonly<{ snapshot: unknown }>;
+    const snapshot = PortfolioReadModelV1Schema.parse(body.snapshot);
+    expect(snapshot.projects[0]).toMatchObject({
+      openPullRequestCount: null,
+      jiraTodoCount: null,
+      jiraInProgressCount: null,
+      unresolvedP0: null,
+      unresolvedP1: null,
+      releaseStage: null,
+      analyticsFreshness: "unavailable",
+      sources: {
+        localExecution: "available",
+        jira: "unavailable",
+        github: "unavailable",
+        quality: "unavailable",
+        release: "unavailable",
+        analytics: "unavailable",
+      },
+    });
+    expect(snapshot.totals).toMatchObject({
+      openPullRequests: null,
+      jiraTodo: null,
+      jiraInProgress: null,
+      unresolvedP0: null,
+      unresolvedP1: null,
+    });
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({
+      authorization: AUTHORIZATION,
+      request: { operation: "portfolio.snapshot", payload: {} },
+    });
+  });
+
   it("binds only to IPv4 loopback and does not put daemon authorization in its URL", async () => {
     const root = await privateRoot();
     const server = await startDashboardLauncher({
@@ -137,7 +304,7 @@ describe("packaged dashboard lifecycle", () => {
       headers: { cookie: cookie ?? "" },
     });
     expect(portfolio.status).toBe(503);
-    expect(await portfolio.text()).toContain("Authoritative portfolio source is not configured.");
+    expect(await portfolio.text()).toContain("Portfolio is unavailable.");
   });
 
   it("waits for a termination signal, closes once, and removes signal handlers", async () => {

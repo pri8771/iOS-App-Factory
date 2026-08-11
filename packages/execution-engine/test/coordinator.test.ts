@@ -40,6 +40,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   FileExecutionCheckpointStore,
+  VERIFICATION_SCRATCH_TOKEN,
   VerifiedCommitCoordinatorError,
   canonicalDigest,
   canonicalJsonBytes,
@@ -219,7 +220,7 @@ function fixture(
       {
         checkId: "tests.unit",
         executable: "/usr/bin/true",
-        args: [],
+        args: [`${VERIFICATION_SCRATCH_TOKEN}/probe`],
         environment: { LANG: "C", LC_ALL: "C", PATH: "/usr/bin:/bin" },
         protectedFiles: {},
         timeoutMs: 5_000,
@@ -259,6 +260,7 @@ function ports(
     evidenceStore: new EvidenceStore(f.evidenceRoot),
     checkpoints: new FileExecutionCheckpointStore(f.checkpointRoot),
     assertActive: options.active ?? (() => undefined),
+    signal: new AbortController().signal,
     afterSideEffect: options.effect,
     now: () => new Date("2026-08-11T13:00:00.000Z"),
   };
@@ -294,6 +296,34 @@ afterEach(() => {
 });
 
 describe("verified local commit coordinator", () => {
+  it("isolates materialized verification scratch across lease fences and checkouts", async () => {
+    const firstFixture = fixture();
+    const retryFixture = fixture();
+    const observed: string[] = [];
+    const run = async (f: Fixture, fence: number) => {
+      const portSet = ports(f);
+      await coordinateVerifiedLocalCommit(
+        { ...f.input, fence },
+        {
+          ...portSet,
+          runVerification: async (plan, signal) => {
+            observed.push(plan.scratchDirectory);
+            expect(plan.args).toContain(`${plan.scratchDirectory}/probe`);
+            return await runTrustedVerification(plan, { signal });
+          },
+        },
+      );
+    };
+
+    await Promise.all([run(firstFixture, 7), run(retryFixture, 8)]);
+
+    expect(observed).toHaveLength(2);
+    expect(observed[0]).not.toBe(observed[1]);
+    expect(observed.some((path) => path.includes(`/${ATTEMPT_ID}/fence-7/`))).toBe(true);
+    expect(observed.some((path) => path.includes(`/${ATTEMPT_ID}/fence-8/`))).toBe(true);
+    expect(observed.every((path) => !existsSync(path))).toBe(true);
+  });
+
   it("creates one broker-owned commit after trusted tests and distinct review, then replays idempotently", async () => {
     const reviewCalls = { count: 0 };
     const f = fixture({ reviewer: passingReviewer(reviewCalls) });

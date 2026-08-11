@@ -56,12 +56,21 @@ importers:
 
   apps/daemon:
     dependencies:
-      '@app-factory/agent-runner':
-        specifier: workspace:*
-        version: link:../../packages/agent-runner
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@app-factory/evidence-store':
+        specifier: workspace:*
+        version: link:../../packages/evidence-store
+      '@app-factory/execution-engine':
+        specifier: workspace:*
+        version: link:../../packages/execution-engine
+      '@app-factory/git-workspace':
+        specifier: workspace:*
+        version: link:../../packages/git-workspace
+      '@app-factory/independent-review':
+        specifier: workspace:*
+        version: link:../../packages/independent-review
       '@app-factory/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
@@ -234,6 +243,18 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
+
+  packages/provider-http-adapters:
+    dependencies:
+      '@app-factory/adapter-sdk':
+        specifier: workspace:*
+        version: link:../adapter-sdk
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@app-factory/work-tracking-integrations':
+        specifier: workspace:*
+        version: link:../work-tracking-integrations
 
   packages/quality:
     dependencies:

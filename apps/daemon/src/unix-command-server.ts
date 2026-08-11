@@ -21,7 +21,11 @@ export const DEFAULT_MAX_REQUEST_BYTES = 1024 * 1024;
 export const DEFAULT_MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 export const DEFAULT_HANDLER_TIMEOUT_MS = 30_000;
 export const DEFAULT_REQUEST_ID_CAPACITY = 10_000;
+export const DEFAULT_REPLAY_RESPONSE_BYTE_BUDGET = 8 * 1024 * 1024;
+export const DEFAULT_REPLAY_RESPONSE_TTL_MS = 60_000;
 const MAX_UNIX_SOCKET_PATH_BYTES = 100;
+const MAX_REPLAY_RESPONSE_BYTE_BUDGET = 64 * 1024 * 1024;
+const MAX_REPLAY_RESPONSE_TTL_MS = 24 * 60 * 60 * 1_000;
 
 type LockMetadata = Readonly<{
   instanceId: string;
@@ -45,6 +49,8 @@ export type UnixCommandServerOptions = Readonly<{
   maxResponseBytes?: number;
   handlerTimeoutMs?: number;
   requestIdCapacity?: number;
+  replayResponseByteBudget?: number;
+  replayResponseTtlMs?: number;
 }>;
 
 export type UnixCommandServer = Readonly<{
@@ -83,6 +89,14 @@ function validatePositiveInteger(name: string, value: number): number {
     throw new TypeError(`${name} must be a positive safe integer`);
   }
   return value;
+}
+
+function validateBoundedPositiveInteger(name: string, value: number, maximum: number): number {
+  const parsed = validatePositiveInteger(name, value);
+  if (parsed > maximum) {
+    throw new TypeError(`${name} must not exceed ${String(maximum)}`);
+  }
+  return parsed;
 }
 
 function validateSocketPath(socketPath: string): void {
@@ -263,10 +277,13 @@ function extractRequestId(value: unknown): RequestId | null {
 }
 
 type ReplayEntry = {
+  readonly requestId: RequestId;
   readonly fingerprint: string;
   readonly response: Promise<Buffer | undefined>;
   readonly resolve: (response: Buffer | undefined) => void;
   completed: boolean;
+  completedAtMs: number | null;
+  retainedResponseBytes: number;
 };
 
 type ReplayReservation =
@@ -277,21 +294,27 @@ type ReplayReservation =
 
 class RequestReplayLedger {
   readonly #entries = new Map<RequestId, ReplayEntry>();
+  #completedResponseBytes = 0;
+  #lastObservedAtMs = 0;
 
-  public constructor(private readonly capacity: number) {}
+  public constructor(
+    private readonly capacity: number,
+    private readonly responseByteBudget: number,
+    private readonly responseTtlMs: number,
+  ) {}
 
   public reserve(requestId: RequestId, fingerprint: string): ReplayReservation {
+    const now = this.#now();
+    this.#evictExpired(now);
     const existing = this.#entries.get(requestId);
     if (existing !== undefined) {
-      return existing.fingerprint === fingerprint
-        ? { kind: "existing", entry: existing }
-        : { kind: "conflict" };
+      if (existing.fingerprint !== fingerprint) return { kind: "conflict" };
+      if (existing.completed) this.#touch(existing);
+      return { kind: "existing", entry: existing };
     }
 
     if (this.#entries.size >= this.capacity) {
-      const completed = [...this.#entries].find(([, entry]) => entry.completed);
-      if (completed === undefined) return { kind: "capacity-exhausted" };
-      this.#entries.delete(completed[0]);
+      if (!this.#evictLeastRecentlyUsedCompleted()) return { kind: "capacity-exhausted" };
     }
 
     let resolveResponse: ((response: Buffer | undefined) => void) | undefined;
@@ -300,10 +323,13 @@ class RequestReplayLedger {
     });
     if (resolveResponse === undefined) throw new Error("Unable to create replay reservation.");
     const entry: ReplayEntry = {
+      requestId,
       fingerprint,
       response,
       resolve: resolveResponse,
       completed: false,
+      completedAtMs: null,
+      retainedResponseBytes: 0,
     };
     this.#entries.set(requestId, entry);
     return { kind: "new", entry };
@@ -312,7 +338,62 @@ class RequestReplayLedger {
   public complete(entry: ReplayEntry, response: Buffer | undefined): void {
     if (entry.completed) return;
     entry.completed = true;
+    entry.completedAtMs = this.#now();
+    entry.retainedResponseBytes = response?.byteLength ?? 0;
+    this.#completedResponseBytes += entry.retainedResponseBytes;
     entry.resolve(response);
+    this.#touch(entry);
+    while (this.#completedResponseBytes > this.responseByteBudget) {
+      if (!this.#evictLeastRecentlyUsedCompleted()) {
+        throw new Error("Completed replay response accounting is inconsistent.");
+      }
+    }
+  }
+
+  #now(): number {
+    const observed = Date.now();
+    if (!Number.isFinite(observed)) throw new Error("The replay cache clock is invalid.");
+    this.#lastObservedAtMs = Math.max(this.#lastObservedAtMs, observed);
+    return this.#lastObservedAtMs;
+  }
+
+  #touch(entry: ReplayEntry): void {
+    if (this.#entries.get(entry.requestId) !== entry) return;
+    this.#entries.delete(entry.requestId);
+    this.#entries.set(entry.requestId, entry);
+  }
+
+  #delete(entry: ReplayEntry): void {
+    if (this.#entries.get(entry.requestId) !== entry) return;
+    this.#entries.delete(entry.requestId);
+    if (entry.completed) {
+      this.#completedResponseBytes -= entry.retainedResponseBytes;
+      entry.retainedResponseBytes = 0;
+      if (this.#completedResponseBytes < 0) {
+        throw new Error("Completed replay response accounting became negative.");
+      }
+    }
+  }
+
+  #evictExpired(now: number): void {
+    for (const entry of this.#entries.values()) {
+      if (
+        entry.completed &&
+        entry.completedAtMs !== null &&
+        now - entry.completedAtMs >= this.responseTtlMs
+      ) {
+        this.#delete(entry);
+      }
+    }
+  }
+
+  #evictLeastRecentlyUsedCompleted(): boolean {
+    for (const entry of this.#entries.values()) {
+      if (!entry.completed) continue;
+      this.#delete(entry);
+      return true;
+    }
+    return false;
   }
 }
 
@@ -643,12 +724,26 @@ export async function startUnixCommandServer(
     "requestIdCapacity",
     supplied.requestIdCapacity ?? DEFAULT_REQUEST_ID_CAPACITY,
   );
+  const replayResponseByteBudget = validateBoundedPositiveInteger(
+    "replayResponseByteBudget",
+    supplied.replayResponseByteBudget ?? DEFAULT_REPLAY_RESPONSE_BYTE_BUDGET,
+    MAX_REPLAY_RESPONSE_BYTE_BUDGET,
+  );
+  const replayResponseTtlMs = validateBoundedPositiveInteger(
+    "replayResponseTtlMs",
+    supplied.replayResponseTtlMs ?? DEFAULT_REPLAY_RESPONSE_TTL_MS,
+    MAX_REPLAY_RESPONSE_TTL_MS,
+  );
 
   await assertPrivateRuntimeDirectory(dirname(supplied.socketPath));
   await removeStaleSocket(supplied.socketPath);
   const lockPath = `${supplied.socketPath}.lock`;
   const ownership = await acquireOwnership(lockPath, supplied.socketPath);
-  const replay = new RequestReplayLedger(requestIdCapacity);
+  const replay = new RequestReplayLedger(
+    requestIdCapacity,
+    replayResponseByteBudget,
+    replayResponseTtlMs,
+  );
   const server = createServer((socket) =>
     handleConnection(socket, {
       authorization,

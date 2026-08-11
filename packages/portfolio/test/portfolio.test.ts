@@ -3,10 +3,10 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
-  buildPortfolioSnapshot,
-  parsePortfolioSnapshot,
+  buildPortfolioPlanningSnapshot,
+  parsePortfolioPlanningSnapshot,
   planPortfolioSchedule,
-  type PortfolioProjectInputV1,
+  type PortfolioPlanningProjectInputV1,
   type PortfolioTaskV1,
 } from "../src/index.js";
 
@@ -17,8 +17,8 @@ const PROJECT_B = randomUUID();
 function project(
   projectId: string,
   slug: string,
-  overrides: Partial<PortfolioProjectInputV1> = {},
-): PortfolioProjectInputV1 {
+  overrides: Partial<PortfolioPlanningProjectInputV1> = {},
+): PortfolioPlanningProjectInputV1 {
   return {
     schemaVersion: 1,
     projectId,
@@ -36,7 +36,7 @@ function project(
     lastDeliveryAt: null,
     observations: [],
     ...overrides,
-  } as PortfolioProjectInputV1;
+  } as PortfolioPlanningProjectInputV1;
 }
 
 function task(
@@ -78,7 +78,7 @@ describe("portfolio read model", () => {
         ],
       }),
     ];
-    const snapshot = buildPortfolioSnapshot(inputs, NOW);
+    const snapshot = buildPortfolioPlanningSnapshot(inputs, NOW);
 
     expect(snapshot.projects.map((item) => item.slug)).toEqual(["alpha", "beta"]);
     expect(snapshot.projects[0]).toMatchObject({ health: "healthy", analyticsFreshness: "fresh" });
@@ -87,12 +87,17 @@ describe("portfolio read model", () => {
       analyticsFreshness: "unavailable",
       healthReasons: ["delivery-blocker", "analytics-unavailable"],
     });
-    expect(buildPortfolioSnapshot(inputs, NOW).snapshotDigest).toBe(snapshot.snapshotDigest);
+    expect(buildPortfolioPlanningSnapshot(inputs, NOW).snapshotDigest).toBe(
+      snapshot.snapshotDigest,
+    );
   });
 
   it("rejects duplicate project identities", () => {
     expect(() =>
-      buildPortfolioSnapshot([project(PROJECT_A, "alpha"), project(PROJECT_A, "beta")], NOW),
+      buildPortfolioPlanningSnapshot(
+        [project(PROJECT_A, "alpha"), project(PROJECT_A, "beta")],
+        NOW,
+      ),
     ).toThrow("project IDs must be unique");
   });
 
@@ -109,7 +114,7 @@ describe("portfolio read model", () => {
       status: "available" as const,
     };
     expect(() =>
-      buildPortfolioSnapshot(
+      buildPortfolioPlanningSnapshot(
         [
           project(PROJECT_A, "alpha", {
             observations: [
@@ -124,7 +129,7 @@ describe("portfolio read model", () => {
       ),
     ).toThrow("analytics window");
     expect(() =>
-      buildPortfolioSnapshot(
+      buildPortfolioPlanningSnapshot(
         [
           project(PROJECT_A, "alpha", {
             observations: [
@@ -142,11 +147,16 @@ describe("portfolio read model", () => {
   });
 
   it("strictly validates a bounded digest-bound snapshot", () => {
-    const snapshot = buildPortfolioSnapshot([project(PROJECT_A, "alpha")], NOW);
-    expect(parsePortfolioSnapshot(snapshot)).toEqual(snapshot);
-    expect(() => parsePortfolioSnapshot({ ...snapshot, credential: "must-not-pass" })).toThrow();
+    const snapshot = buildPortfolioPlanningSnapshot([project(PROJECT_A, "alpha")], NOW);
+    expect(parsePortfolioPlanningSnapshot(snapshot)).toEqual(snapshot);
     expect(() =>
-      parsePortfolioSnapshot({ ...snapshot, totals: { ...snapshot.totals, projects: 2 } }),
+      parsePortfolioPlanningSnapshot({ ...snapshot, credential: "must-not-pass" }),
+    ).toThrow();
+    expect(() =>
+      parsePortfolioPlanningSnapshot({
+        ...snapshot,
+        totals: { ...snapshot.totals, projects: 2 },
+      }),
     ).toThrow("totals");
   });
 });

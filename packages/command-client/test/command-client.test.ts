@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -5,11 +6,14 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { canonicalPortfolioReadModelDigestInputV1 } from "@app-factory/contracts";
+
 import { createCommandClient, type CommandClientError } from "../src/index.js";
 
 const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 const REQUEST_ID = "00000000-0000-4000-8000-000000000010";
 const COMMAND_ID = "00000000-0000-4000-8000-000000000004";
+const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
 const NOW = new Date("2026-08-10T12:00:00.000Z");
 
 function identity(requestId = REQUEST_ID) {
@@ -72,6 +76,68 @@ function doctorResponse(requestId: unknown): Record<string, unknown> {
   };
 }
 
+function evidenceListResponse(requestId: unknown): Record<string, unknown> {
+  return {
+    protocolVersion: 1,
+    requestId,
+    ok: true,
+    result: {
+      operation: "evidence.list",
+      manifests: [
+        {
+          attemptId: ATTEMPT_ID,
+          createdAt: NOW.toISOString(),
+          manifestDigest: `sha256:${"1".repeat(64)}`,
+          subject: {
+            taskSpecDigest: `sha256:${"2".repeat(64)}`,
+            policyDigest: `sha256:${"3".repeat(64)}`,
+            baseCommit: "a".repeat(40),
+            candidateTree: "b".repeat(40),
+            fence: 1,
+          },
+          entryCount: 4,
+          requiredKinds: ["agent-run", "verification", "review", "commit"],
+        },
+      ],
+      nextAfterAttemptId: ATTEMPT_ID,
+      hasMore: false,
+    },
+  };
+}
+
+function portfolioResponse(requestId: unknown): Record<string, unknown> {
+  const snapshot = {
+    schemaVersion: 1 as const,
+    generatedAt: NOW.toISOString(),
+    projects: [],
+    totals: {
+      projects: 0,
+      attempts: 0,
+      activeAttempts: 0,
+      blockers: 0,
+      openPullRequests: null,
+      jiraTodo: null,
+      jiraInProgress: null,
+      unresolvedP0: null,
+      unresolvedP1: null,
+    },
+  };
+  return {
+    protocolVersion: 1,
+    requestId,
+    ok: true,
+    result: {
+      operation: "portfolio.snapshot",
+      snapshot: {
+        ...snapshot,
+        sourceSnapshotDigest: `sha256:${createHash("sha256")
+          .update(canonicalPortfolioReadModelDigestInputV1(snapshot), "utf8")
+          .digest("hex")}`,
+      },
+    },
+  };
+}
+
 afterEach(async () => {
   for (const socket of sockets) socket.destroy();
   sockets.clear();
@@ -108,6 +174,88 @@ describe("typed command client", () => {
       authorization: AUTHORIZATION,
       request: { commandId: COMMAND_ID, operation: "doctor" },
     });
+    client.close();
+  });
+
+  it("uses the same authenticated boundary for bounded evidence inspection", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(`${JSON.stringify(evidenceListResponse(frame.requestId))}\n`);
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.listEvidence({ afterAttemptId: ATTEMPT_ID, limit: 25 }, identity()),
+    ).resolves.toMatchObject({ operation: "evidence.list", hasMore: false });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "evidence.list",
+        payload: { afterAttemptId: ATTEMPT_ID, limit: 25 },
+      },
+    });
+    client.close();
+  });
+
+  it("requests the authoritative portfolio snapshot with an empty read-only payload", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(`${JSON.stringify(portfolioResponse(frame.requestId))}\n`);
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    await expect(client.portfolioSnapshot(identity())).resolves.toMatchObject({
+      operation: "portfolio.snapshot",
+      snapshot: { projects: [], totals: { openPullRequests: null } },
+    });
+    expect(received[0]).toMatchObject({
+      request: { operation: "portfolio.snapshot", payload: {} },
+    });
+    client.close();
+  });
+
+  it("rejects a portfolio response whose canonical source digest is stale", async () => {
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        const response = portfolioResponse(frame.requestId);
+        const result = response.result as Record<string, unknown>;
+        const snapshot = result.snapshot as Record<string, unknown>;
+        socket.end(
+          `${JSON.stringify({
+            ...response,
+            result: {
+              ...result,
+              snapshot: { ...snapshot, sourceSnapshotDigest: `sha256:${"f".repeat(64)}` },
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    await expect(client.portfolioSnapshot(identity())).rejects.toMatchObject<
+      Partial<CommandClientError>
+    >({ code: "protocol.portfolio-digest-mismatch", retryable: false });
     client.close();
   });
 
@@ -177,7 +325,15 @@ describe("typed command client", () => {
   });
 
   it("fails closed after close and terminates an in-flight request", async () => {
-    const socketPath = await createFakeServer(onRequest(() => undefined));
+    let observeDispatch: (() => void) | undefined;
+    const dispatched = new Promise<void>((resolve) => {
+      observeDispatch = resolve;
+    });
+    const socketPath = await createFakeServer(
+      onRequest(() => {
+        observeDispatch?.();
+      }),
+    );
     const client = createCommandClient({
       socketPath,
       authorization: AUTHORIZATION,
@@ -186,18 +342,28 @@ describe("typed command client", () => {
     });
 
     const inFlight = client.doctor(identity());
-    await new Promise((resolve) => setImmediate(resolve));
+    await dispatched;
     client.close();
     await expect(inFlight).rejects.toMatchObject<Partial<CommandClientError>>({
-      code: "client.closed",
+      code: "client.closed-after-dispatch",
+      retryable: true,
+      retryIdentity: { commandId: COMMAND_ID, issuedAt: NOW.toISOString() },
     });
     await expect(client.doctor()).rejects.toMatchObject<Partial<CommandClientError>>({
       code: "client.closed",
     });
   });
 
-  it("terminates an in-flight request when its caller cancels", async () => {
-    const socketPath = await createFakeServer(onRequest(() => undefined));
+  it("preserves retry identity when its caller cancels after dispatch", async () => {
+    let observeDispatch: (() => void) | undefined;
+    const dispatched = new Promise<void>((resolve) => {
+      observeDispatch = resolve;
+    });
+    const socketPath = await createFakeServer(
+      onRequest(() => {
+        observeDispatch?.();
+      }),
+    );
     const client = createCommandClient({
       socketPath,
       authorization: AUTHORIZATION,
@@ -207,13 +373,30 @@ describe("typed command client", () => {
     const controller = new AbortController();
 
     const inFlight = client.doctor(identity(), controller.signal);
-    await new Promise((resolve) => setImmediate(resolve));
+    await dispatched;
     controller.abort();
 
     await expect(inFlight).rejects.toMatchObject<Partial<CommandClientError>>({
-      code: "client.cancelled",
-      retryable: false,
+      code: "client.cancelled-after-dispatch",
+      retryable: true,
+      retryIdentity: { commandId: COMMAND_ID, issuedAt: NOW.toISOString() },
     });
+    client.close();
+  });
+
+  it("keeps cancellation terminal when the signal is already aborted before dispatch", async () => {
+    const client = createCommandClient({
+      socketPath: "/private/tmp/does-not-need-to-exist.sock",
+      authorization: AUTHORIZATION,
+      origin: "mcp",
+      now: () => NOW,
+    });
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(client.doctor(identity(), controller.signal)).rejects.toMatchObject<
+      Partial<CommandClientError>
+    >({ code: "client.cancelled", retryable: false, retryIdentity: null });
     client.close();
   });
 
@@ -227,6 +410,8 @@ describe("typed command client", () => {
     });
     await expect(client.doctor(identity())).rejects.toMatchObject<Partial<CommandClientError>>({
       code: "transport.remote-closed",
+      retryable: true,
+      retryIdentity: { commandId: COMMAND_ID, issuedAt: NOW.toISOString() },
     });
     client.close();
   });
@@ -241,7 +426,11 @@ describe("typed command client", () => {
     });
     await expect(malformedClient.doctor(identity())).rejects.toMatchObject<
       Partial<CommandClientError>
-    >({ code: "protocol.malformed-response" });
+    >({
+      code: "protocol.malformed-response",
+      retryable: true,
+      retryIdentity: { commandId: COMMAND_ID, issuedAt: NOW.toISOString() },
+    });
     malformedClient.close();
 
     const oversizedPath = await createFakeServer(
@@ -256,7 +445,11 @@ describe("typed command client", () => {
     });
     await expect(oversizedClient.doctor(identity())).rejects.toMatchObject<
       Partial<CommandClientError>
-    >({ code: "protocol.response-too-large" });
+    >({
+      code: "protocol.response-too-large",
+      retryable: true,
+      retryIdentity: { commandId: COMMAND_ID, issuedAt: NOW.toISOString() },
+    });
     oversizedClient.close();
 
     const mismatchPath = await createFakeServer(
@@ -274,6 +467,8 @@ describe("typed command client", () => {
       Partial<CommandClientError>
     >({
       code: "protocol.response-id-mismatch",
+      retryable: true,
+      retryIdentity: { commandId: COMMAND_ID, issuedAt: NOW.toISOString() },
     });
     mismatchClient.close();
   });

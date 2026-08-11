@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import {
   createDashboardCommandPort,
+  createDashboardPortfolioPort,
   startDashboardServer,
   type DashboardServer,
 } from "./server.js";
@@ -282,6 +283,7 @@ export async function startDashboardLauncher(
   try {
     return await startDashboardServer({
       commandPort: createDashboardCommandPort(client),
+      portfolioPort: createDashboardPortfolioPort(client),
       browserToken: randomBytes(32).toString("base64url"),
       port: configuration.port,
     });

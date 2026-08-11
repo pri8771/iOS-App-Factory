@@ -9,6 +9,7 @@ import {
   IsoInstantSchema,
   NonNegativeSafeIntegerSchema,
   PositiveSafeIntegerSchema,
+  ProjectIdSchema,
   Sha256DigestSchema,
   TaskIdSchema,
   TaskSpecV1Schema,
@@ -16,6 +17,8 @@ import {
   type CommandV1,
   type EventV1,
   type ExecutionAttemptV1,
+  type IsoInstant,
+  type ProjectId,
   type TaskSpecV1,
 } from "@app-factory/contracts";
 import type Database from "better-sqlite3";
@@ -68,6 +71,17 @@ export type RecordArtifactInput = Readonly<{
 
 export type ListAttemptReconciliationCandidatesInput = Readonly<{
   limit: unknown;
+}>;
+
+export const MAX_LOCAL_PORTFOLIO_PROJECTS = 1_000;
+
+export type LocalPortfolioProjectSummary = Readonly<{
+  projectId: ProjectId;
+  attemptCount: number;
+  activeAttemptCount: number;
+  blockerCount: number;
+  lastActivityAt: IsoInstant;
+  lastSuccessfulAttemptAt: IsoInstant | null;
 }>;
 
 type AttemptRow = Readonly<{
@@ -395,6 +409,59 @@ export class EventRepository {
   }
 }
 
+type LocalPortfolioProjectSummaryRow = Readonly<{
+  projectId: string;
+  attemptCount: number;
+  activeAttemptCount: number;
+  blockerCount: number;
+  lastActivityAt: string;
+  lastSuccessfulAttemptAt: string | null;
+}>;
+
+export class PortfolioProjectionRepository {
+  public constructor(private readonly database: Database.Database) {}
+
+  /** Reads the transactionally maintained, provider-free local projection. */
+  public listProjectSummaries(
+    input: Readonly<{ limit: unknown }> = { limit: MAX_LOCAL_PORTFOLIO_PROJECTS },
+  ): readonly LocalPortfolioProjectSummary[] {
+    const limit = PositiveSafeIntegerSchema.parse(input.limit);
+    if (limit > MAX_LOCAL_PORTFOLIO_PROJECTS) {
+      throw new RangeError(
+        `local portfolio project limit cannot exceed ${String(MAX_LOCAL_PORTFOLIO_PROJECTS)}`,
+      );
+    }
+    const rows = this.database
+      .prepare(
+        `SELECT
+           project_id AS projectId,
+           attempt_count AS attemptCount,
+           active_attempt_count AS activeAttemptCount,
+           blocker_count AS blockerCount,
+           last_activity_at AS lastActivityAt,
+           last_successful_attempt_at AS lastSuccessfulAttemptAt
+         FROM project_execution_projections
+         ORDER BY project_id
+         LIMIT ?`,
+      )
+      .all(limit + 1) as readonly LocalPortfolioProjectSummaryRow[];
+    if (rows.length > limit) {
+      throw new RangeError(`local portfolio contains more than ${String(limit)} projects`);
+    }
+    return rows.map((row) => ({
+      projectId: ProjectIdSchema.parse(row.projectId),
+      attemptCount: PositiveSafeIntegerSchema.parse(row.attemptCount),
+      activeAttemptCount: NonNegativeSafeIntegerSchema.parse(row.activeAttemptCount),
+      blockerCount: NonNegativeSafeIntegerSchema.parse(row.blockerCount),
+      lastActivityAt: IsoInstantSchema.parse(row.lastActivityAt),
+      lastSuccessfulAttemptAt:
+        row.lastSuccessfulAttemptAt === null
+          ? null
+          : IsoInstantSchema.parse(row.lastSuccessfulAttemptAt),
+    }));
+  }
+}
+
 export class ArtifactRepository {
   public constructor(private readonly database: Database.Database) {}
 
@@ -437,6 +504,7 @@ export class FactoryRepositories {
   public readonly taskSnapshots: TaskSnapshotRepository;
   public readonly attempts: AttemptRepository;
   public readonly events: EventRepository;
+  public readonly portfolio: PortfolioProjectionRepository;
   public readonly artifacts: ArtifactRepository;
   public readonly desiredStates: AttemptDesiredStateRepository;
   public readonly steps: StepRepository;
@@ -447,6 +515,7 @@ export class FactoryRepositories {
     this.taskSnapshots = new TaskSnapshotRepository(database);
     this.attempts = new AttemptRepository(database);
     this.events = new EventRepository(database);
+    this.portfolio = new PortfolioProjectionRepository(database);
     this.artifacts = new ArtifactRepository(database);
     this.desiredStates = new AttemptDesiredStateRepository(database);
     this.steps = new StepRepository(database);

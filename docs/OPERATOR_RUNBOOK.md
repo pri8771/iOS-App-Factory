@@ -5,9 +5,12 @@ currently wired. It starts the daemon in the foreground, exercises the typed
 CLI, shows the MCP entrypoint, opens the dashboard library surface, and inspects
 the LaunchAgent plan without installing it.
 
-The current daemon uses a deterministic fake executor. Running a task proves
-durable command/scheduler behavior; it does **not** edit an app, open a PR, or
-upload to TestFlight.
+The daemon remains deterministic-fake by default. It also has one explicit
+opt-in conformance profile that makes an exact reviewed edit to a Factory-owned
+Swift Greeter worktree, runs the real Swift toolchain in a separate read-only
+checkout, performs independent review, creates one local broker commit, and
+publishes immutable evidence. That profile is deliberately not a general Codex
+runner. Neither mode edits an enrolled app, opens a PR, or uploads to TestFlight.
 
 ## 1. Build and verify the toolchain
 
@@ -83,9 +86,33 @@ pause ATTEMPT_UUID [--reason TEXT]
 resume ATTEMPT_UUID [--reason TEXT]
 cancel ATTEMPT_UUID [--reason TEXT]
 reconcile [ATTEMPT_UUID]
+evidence list [--after ATTEMPT_UUID] [--limit N]
+evidence inspect ATTEMPT_UUID
+evidence verify ATTEMPT_UUID
+portfolio
 ```
 
 Add `--json` anywhere in the invocation for a stable machine-readable envelope.
+`reconcile` durably acknowledges a scheduler wake request; it does not execute
+an attempt on the command stack. The daemon publishes that acknowledgement
+before waking its background scheduler, and the v1 `reconciledAttemptIds` field
+is empty because progress is observed later through `status` and `events`.
+
+Every command is sent with an explicit durable identity. If a mutation was
+dispatched but its response is unknown, the CLI prints a retry identity (or
+returns it at `error.retryIdentity` in JSON). Repeat the exact same command and
+payload with both fields:
+
+```sh
+node apps/cli/dist/index.js pause ATTEMPT_UUID --reason "Review" \
+  --command-id COMMAND_UUID \
+  --issued-at 2026-08-11T12:00:00.000Z
+```
+
+The retry gets a new request ID but preserves the original logical command.
+Never reuse the pair for a different operation, attempt, reason, or task file;
+the daemon rejects that as an identity conflict. A known terminal failure or a
+cancellation before dispatch has no retry identity.
 
 For a safe synthetic smoke task, save this as
 `/private/tmp/app-factory-task.json`:
@@ -95,7 +122,7 @@ For a safe synthetic smoke task, save this as
   "schemaVersion": 1,
   "taskId": "00000000-0000-4000-8000-000000000003",
   "projectId": "00000000-0000-4000-8000-000000000001",
-  "createdAt": "2026-08-11T12:00:00.000Z",
+  "createdAt": "2026-08-10T00:00:00.000Z",
   "title": "Exercise the deterministic local workflow",
   "objective": "Complete the fake prepare, execute, and verify steps without an external effect.",
   "acceptanceCriteria": [
@@ -126,6 +153,57 @@ node apps/cli/dist/index.js events ATTEMPT_UUID --after 0 --limit 100 --json
 
 Use the returned canonical attempt UUID in the last two commands.
 
+### Opt into the verified Swift walking slice
+
+The default above is intentionally fast and synthetic. For the real local
+Git/Swift/evidence path, materialize a standalone clean Git repository whose
+files exactly match [`fixtures/swift-greeter`](../fixtures/swift-greeter), add
+and commit those files, and create a private reviewed-policy text file. Then
+create a mode-`0600` configuration file:
+
+```json
+{
+  "schemaVersion": 1,
+  "mode": "swift-greeter-fixture-v1",
+  "repositoryId": "62000000-0000-4000-8000-000000000002",
+  "sourceRepositoryPath": "/absolute/path/to/the/standalone/swift-greeter",
+  "policyFile": "/absolute/path/to/reviewed-policy.txt"
+}
+```
+
+Set `APP_FACTORY_LOCAL_EXECUTION_CONFIG` to that absolute path before starting
+the daemon. The submitted TaskSpec must bind the repository's exact `HEAD`, the
+same repository ID, only
+`Sources/Greeter/GreetingFormatter.swift`, and the SHA-256 digest of the exact
+policy-file bytes. Enrollment fails closed on any extra checkout path, unsafe
+Git configuration, unexpected tree, content drift, or policy mismatch. See
+[`docs/operations/verified-local-execution.md`](operations/verified-local-execution.md)
+for the complete security boundary and residual recovery limitation.
+
+This conformance profile is also bound to one exact task meaning; it is not a
+general code generator. Use the title `Add a farewell to GreetingFormatter`,
+the objective
+``Add a public farewell(for:) method that returns `Goodbye, <name>!` without changing greeting behavior.``,
+and these ordered criteria:
+
+```json
+[
+  {
+    "id": "returns-farewell",
+    "statement": "farewell(for: \"Factory\") returns \"Goodbye, Factory!\".",
+    "verification": "automated"
+  },
+  {
+    "id": "preserves-greeting",
+    "statement": "Existing greeting tests continue to pass.",
+    "verification": "automated"
+  }
+]
+```
+
+The daemon hashes those fields and rejects any altered objective or acceptance
+criterion before the deterministic agent runs.
+
 ## 5. Connect an MCP host
 
 The MCP process is a stdio child, not a standalone web server. Configure the
@@ -152,10 +230,18 @@ factory_attempt_pause
 factory_attempt_resume
 factory_attempt_cancel
 factory_reconcile
+factory_evidence_list
+factory_evidence_inspect
+factory_evidence_verify
+factory_portfolio_snapshot
 ```
 
 All tools call the daemon through [`packages/command-client`](../packages/command-client);
-the MCP process has no direct SQLite or provider access.
+the MCP process has no direct SQLite, evidence-directory, or provider access.
+Mutation tools accept `commandId` and `issuedAt` only as a complete pair. When
+an error returns `retryIdentity`, call the same tool with unchanged semantic
+arguments plus those returned fields. Do not invent a new command ID to resolve
+an unknown outcome.
 
 ## 6. Open the local dashboard
 
@@ -192,10 +278,15 @@ only `127.0.0.1`. Ctrl-C or `SIGTERM` gracefully closes both the HTTP server and
 command client.
 
 The current UI supports daemon health, attempt status/events,
-pause/resume/cancel/reconcile. The packaged launcher leaves Portfolio visibly
-unavailable because the daemon command protocol does not yet expose an
-authoritative portfolio operation; `/api/portfolio` therefore returns 503.
-Quality and release panels are not implemented.
+pause/resume/cancel/reconcile, and the daemon's authoritative local portfolio
+projection. The portfolio is maintained transactionally and deliberately shows
+Jira, GitHub, quality, release, and analytics values as unavailable until live
+sources are composed. Quality and release panels are not implemented.
+
+After an ambiguous dashboard mutation, click the same action again to replay
+its returned durable identity. Choosing another successful action or reloading
+authoritative attempt state clears older retry identities for that attempt, so
+a future click starts a fresh command.
 
 ## 7. Inspect the LaunchAgent plan
 

@@ -29,3 +29,10 @@ deterministic, no-external-effect Week 2 fake; production execution adapters are
 injected through `executor`. Scheduler clock, loop timing, lease duration, and
 error observation are also injectable. Process supervision and LaunchAgent
 installation remain later slices.
+
+`daemon.reconcile` is a durable wake request, not a synchronous scheduler tick.
+Its command result is journaled before the service wakes the background loop, so
+a crash at the result-ledger boundary cannot advance an attempt and then replay
+the command as new work. A daemon restart independently begins with a scheduler
+tick. The v1 `reconciledAttemptIds` response field reports synchronous work and
+is therefore always empty for this wake-only operation.

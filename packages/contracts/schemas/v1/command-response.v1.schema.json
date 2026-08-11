@@ -757,15 +757,441 @@
       "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
       "type": "string"
     },
+    "__schema18": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "entryCount": {
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "manifestDigest": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "requiredKinds": {
+          "items": {
+            "$ref": "#/$defs/__schema20"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "type": "array"
+        },
+        "subject": {
+          "$ref": "#/$defs/__schema19"
+        }
+      },
+      "required": [
+        "attemptId",
+        "createdAt",
+        "manifestDigest",
+        "subject",
+        "entryCount",
+        "requiredKinds"
+      ],
+      "type": "object"
+    },
+    "__schema19": {
+      "additionalProperties": false,
+      "properties": {
+        "baseCommit": {
+          "$ref": "#/$defs/__schema17"
+        },
+        "candidateTree": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema17"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "policyDigest": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "taskSpecDigest": {
+          "$ref": "#/$defs/__schema6"
+        }
+      },
+      "required": [
+        "taskSpecDigest",
+        "policyDigest",
+        "baseCommit",
+        "candidateTree",
+        "fence"
+      ],
+      "type": "object"
+    },
     "__schema2": {
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
       "type": "string"
     },
+    "__schema20": {
+      "enum": [
+        "agent-run",
+        "verification",
+        "review",
+        "commit",
+        "event-log"
+      ],
+      "type": "string"
+    },
+    "__schema21": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "evidenceId": {
+          "$ref": "#/$defs/__schema1"
+        }
+      },
+      "required": [
+        "evidenceId",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "__schema22": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactCount": {
+          "maximum": 100,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "digest": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "evidenceId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "kind": {
+          "$ref": "#/$defs/__schema20"
+        },
+        "producer": {
+          "$ref": "#/$defs/__schema11"
+        }
+      },
+      "required": [
+        "evidenceId",
+        "digest",
+        "kind",
+        "createdAt",
+        "producer",
+        "artifactCount"
+      ],
+      "type": "object"
+    },
+    "__schema23": {
+      "items": {
+        "$ref": "#/$defs/__schema24"
+      },
+      "maxItems": 1000,
+      "type": "array"
+    },
+    "__schema24": {
+      "additionalProperties": false,
+      "properties": {
+        "activeAttemptCount": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "analyticsFreshness": {
+          "$ref": "#/$defs/__schema33"
+        },
+        "attemptCount": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "blockerCount": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "displayName": {
+          "$ref": "#/$defs/__schema26"
+        },
+        "health": {
+          "$ref": "#/$defs/__schema36"
+        },
+        "healthReasons": {
+          "$ref": "#/$defs/__schema37"
+        },
+        "jiraInProgressCount": {
+          "$ref": "#/$defs/__schema31"
+        },
+        "jiraTodoCount": {
+          "$ref": "#/$defs/__schema31"
+        },
+        "lastActivityAt": {
+          "$ref": "#/$defs/__schema29"
+        },
+        "lastDeliveryAt": {
+          "$ref": "#/$defs/__schema30"
+        },
+        "lifecycleStage": {
+          "$ref": "#/$defs/__schema28"
+        },
+        "metadataSource": {
+          "$ref": "#/$defs/__schema27"
+        },
+        "openPullRequestCount": {
+          "$ref": "#/$defs/__schema31"
+        },
+        "projectId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "releaseStage": {
+          "$ref": "#/$defs/__schema32"
+        },
+        "slug": {
+          "$ref": "#/$defs/__schema25"
+        },
+        "sources": {
+          "$ref": "#/$defs/__schema34"
+        },
+        "unresolvedP0": {
+          "$ref": "#/$defs/__schema31"
+        },
+        "unresolvedP1": {
+          "$ref": "#/$defs/__schema31"
+        }
+      },
+      "required": [
+        "projectId",
+        "slug",
+        "displayName",
+        "metadataSource",
+        "lifecycleStage",
+        "attemptCount",
+        "activeAttemptCount",
+        "blockerCount",
+        "lastActivityAt",
+        "lastDeliveryAt",
+        "openPullRequestCount",
+        "jiraTodoCount",
+        "jiraInProgressCount",
+        "unresolvedP0",
+        "unresolvedP1",
+        "releaseStage",
+        "analyticsFreshness",
+        "sources",
+        "health",
+        "healthReasons"
+      ],
+      "type": "object"
+    },
+    "__schema25": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema26": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema27": {
+      "const": "task-derived",
+      "type": "string"
+    },
+    "__schema28": {
+      "anyOf": [
+        {
+          "enum": [
+            "exploring",
+            "planned",
+            "building",
+            "qa",
+            "internal-testflight",
+            "released",
+            "paused",
+            "archived"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema29": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema2"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "__schema3": {
       "maxLength": 1000,
       "minLength": 1,
       "type": "string"
+    },
+    "__schema30": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema2"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema31": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema9"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema32": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema33": {
+      "enum": [
+        "fresh",
+        "stale",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "__schema34": {
+      "additionalProperties": false,
+      "properties": {
+        "analytics": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "github": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "jira": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "localExecution": {
+          "const": "available",
+          "type": "string"
+        },
+        "quality": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "release": {
+          "$ref": "#/$defs/__schema35"
+        }
+      },
+      "required": [
+        "localExecution",
+        "jira",
+        "github",
+        "quality",
+        "release",
+        "analytics"
+      ],
+      "type": "object"
+    },
+    "__schema35": {
+      "enum": [
+        "available",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "__schema36": {
+      "enum": [
+        "healthy",
+        "attention",
+        "blocked",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "__schema37": {
+      "items": {
+        "$ref": "#/$defs/__schema38"
+      },
+      "maxItems": 9,
+      "type": "array"
+    },
+    "__schema38": {
+      "enum": [
+        "unresolved-p0",
+        "delivery-blocker",
+        "unresolved-p1",
+        "jira-unavailable",
+        "github-unavailable",
+        "quality-unavailable",
+        "release-unavailable",
+        "analytics-stale",
+        "analytics-unavailable"
+      ],
+      "type": "string"
+    },
+    "__schema39": {
+      "additionalProperties": false,
+      "properties": {
+        "activeAttempts": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "attempts": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "blockers": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "jiraInProgress": {
+          "$ref": "#/$defs/__schema31"
+        },
+        "jiraTodo": {
+          "$ref": "#/$defs/__schema31"
+        },
+        "openPullRequests": {
+          "$ref": "#/$defs/__schema31"
+        },
+        "projects": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "unresolvedP0": {
+          "$ref": "#/$defs/__schema31"
+        },
+        "unresolvedP1": {
+          "$ref": "#/$defs/__schema31"
+        }
+      },
+      "required": [
+        "projects",
+        "attempts",
+        "activeAttempts",
+        "blockers",
+        "openPullRequests",
+        "jiraTodo",
+        "jiraInProgress",
+        "unresolvedP0",
+        "unresolvedP1"
+      ],
+      "type": "object"
     },
     "__schema4": {
       "enum": [
@@ -1152,6 +1578,179 @@
                 "operation",
                 "accepted",
                 "reconciledAttemptIds"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "hasMore": {
+                  "type": "boolean"
+                },
+                "manifests": {
+                  "items": {
+                    "$ref": "#/$defs/__schema18"
+                  },
+                  "maxItems": 100,
+                  "type": "array"
+                },
+                "nextAfterAttemptId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "operation": {
+                  "const": "evidence.list",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "operation",
+                "manifests",
+                "nextAfterAttemptId",
+                "hasMore"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "manifest": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "attemptId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "createdAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "entries": {
+                      "items": {
+                        "$ref": "#/$defs/__schema21"
+                      },
+                      "maxItems": 1000,
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "requiredKinds": {
+                      "items": {
+                        "$ref": "#/$defs/__schema20"
+                      },
+                      "maxItems": 5,
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "subject": {
+                      "$ref": "#/$defs/__schema19"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "attemptId",
+                    "createdAt",
+                    "subject",
+                    "entries",
+                    "requiredKinds"
+                  ],
+                  "type": "object"
+                },
+                "manifestDigest": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "operation": {
+                  "const": "evidence.inspect",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "operation",
+                "manifest",
+                "manifestDigest"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "artifactCount": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "evidence": {
+                  "items": {
+                    "$ref": "#/$defs/__schema22"
+                  },
+                  "maxItems": 1000,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "integrityVerified": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "manifest": {
+                  "$ref": "#/$defs/__schema18"
+                },
+                "operation": {
+                  "const": "evidence.verify",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "operation",
+                "integrityVerified",
+                "manifest",
+                "evidence",
+                "artifactCount"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "operation": {
+                  "const": "portfolio.snapshot",
+                  "type": "string"
+                },
+                "snapshot": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "generatedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "projects": {
+                      "$ref": "#/$defs/__schema23"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "sourceSnapshotDigest": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "totals": {
+                      "$ref": "#/$defs/__schema39"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "generatedAt",
+                    "projects",
+                    "totals",
+                    "sourceSnapshotDigest"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "operation",
+                "snapshot"
               ],
               "type": "object"
             }

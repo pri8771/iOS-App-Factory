@@ -58,7 +58,11 @@ export const ProjectCommandV1Schema = z.strictObject({
     )
     .max(256),
   environmentNames: z.array(EnvironmentNameSchema).max(128),
-  timeoutMs: PositiveSafeIntegerSchema.max(24 * 60 * 60 * 1_000),
+  timeoutMs: z
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 60 * 60 * 1_000),
 });
 export type ProjectCommandV1 = z.infer<typeof ProjectCommandV1Schema>;
 

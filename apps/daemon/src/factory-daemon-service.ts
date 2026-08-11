@@ -25,6 +25,12 @@ import {
   createKernelSchedulerController,
   type KernelSchedulerController,
 } from "./kernel-scheduler-adapter.js";
+import {
+  VerifiedLocalExecutionExecutor,
+  resolveVerifiedLocalExecutionPaths,
+  type VerifiedLocalExecutionConfiguration,
+  type VerifiedLocalExecutionPaths,
+} from "./verified-local-executor.js";
 
 const COMMAND_SOCKET_FILE_NAME = "daemon.sock";
 const DEFAULT_POLL_INTERVAL_MS = 100;
@@ -50,6 +56,11 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   now?: () => string;
   schedulerClock?: SchedulerClockPort;
   executor?: SchedulerStepExecutorPort;
+  /**
+   * Explicit local-only real execution. Omitted by default; it is mutually
+   * exclusive with a directly injected executor.
+   */
+  localExecution?: VerifiedLocalExecutionConfiguration;
   leaseDurationMs?: number;
   pollIntervalMs?: number;
   wait?: DaemonLoopWait;
@@ -62,6 +73,7 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
 export type FactoryDaemonService = Readonly<{
   runtimeDirectory: string;
   socketPath: string;
+  executionPaths: VerifiedLocalExecutionPaths;
   startedAt: string;
   getLastSchedulerError(): unknown | null;
   close(): Promise<void>;
@@ -253,7 +265,8 @@ function shouldWakeScheduler(operation: string): boolean {
     operation === "task.run" ||
     operation === "attempt.pause" ||
     operation === "attempt.resume" ||
-    operation === "attempt.cancel"
+    operation === "attempt.cancel" ||
+    operation === "daemon.reconcile"
   );
 }
 
@@ -280,7 +293,11 @@ function startingError(): CommandHandlerError {
 export async function startFactoryDaemonService(
   options: StartFactoryDaemonServiceOptions,
 ): Promise<FactoryDaemonService> {
+  if (options.executor !== undefined && options.localExecution !== undefined) {
+    throw new TypeError("executor and localExecution are mutually exclusive");
+  }
   const paths = resolveDaemonRuntimePaths(options.runtimeDirectory);
+  const executionPaths = resolveVerifiedLocalExecutionPaths(paths.root);
   const socketPath = join(paths.root, COMMAND_SOCKET_FILE_NAME);
   const pollIntervalMs = validateDelay(
     "pollIntervalMs",
@@ -290,6 +307,7 @@ export async function startFactoryDaemonService(
     throw new TypeError("pollIntervalMs must be greater than zero");
   }
   const wait = options.wait ?? defaultWait;
+  const ownerId = options.ownerId ?? `daemon.${randomUUID()}`;
 
   let runtime: DaemonCommandRuntime | null = null;
   const schedulerState: { controller: KernelSchedulerController | null } = {
@@ -309,6 +327,10 @@ export async function startFactoryDaemonService(
         options.wakeOnCommand !== false &&
         shouldWakeScheduler(request.operation)
       ) {
+        // activeRuntime.handler returns mutating command results only after
+        // their durable result-ledger entry is published. In particular,
+        // daemon.reconcile never executes a scheduler tick on the command
+        // stack; this transient wake happens strictly after durable linkage.
         loop?.wake();
       }
       return result;
@@ -343,17 +365,26 @@ export async function startFactoryDaemonService(
       ...(options.commandResultLedgerBoundary === undefined
         ? {}
         : { commandResultLedgerBoundary: options.commandResultLedgerBoundary }),
-      createReconcile: (database) => {
+      initializeDatabase: (database) => {
+        const executor =
+          options.executor ??
+          (options.localExecution === undefined
+            ? new DeterministicFakeExecutor()
+            : new VerifiedLocalExecutionExecutor({
+                ...options.localExecution,
+                database,
+                ownerId,
+                runtimeDirectory: paths.root,
+              }));
         schedulerState.controller = createKernelSchedulerController({
           database,
-          ownerId: options.ownerId ?? `daemon.${randomUUID()}`,
-          executor: options.executor ?? new DeterministicFakeExecutor(),
+          ownerId,
+          executor,
           ...(options.schedulerClock === undefined ? {} : { clock: options.schedulerClock }),
           ...(options.leaseDurationMs === undefined
             ? {}
             : { leaseDurationMs: options.leaseDurationMs }),
         });
-        return schedulerState.controller.reconcile;
       },
     });
     const activeController = schedulerState.controller;
@@ -384,6 +415,7 @@ export async function startFactoryDaemonService(
   return {
     runtimeDirectory: paths.root,
     socketPath,
+    executionPaths,
     startedAt: activeRuntime.startedAt,
     getLastSchedulerError: () => activeLoop.lastError,
     close: async () => {

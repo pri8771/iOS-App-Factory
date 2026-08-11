@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   chmodSync,
+  linkSync,
   lstatSync,
   mkdtempSync,
   mkdirSync,
@@ -115,6 +116,7 @@ describe("EvidenceStore", () => {
 
     expect(result.evidence).toEqual([stored.evidence]);
     expect(result.artifactCount).toBe(1);
+    expect(result.manifestDigest).toBe(store.readManifestRecord(stored.evidence.attemptId).digest);
     expect(store.readBlob(artifactDigest)).toEqual(artifactBytes);
     expect(
       lstatSync(join(root, "manifests", `${stored.evidence.attemptId}.json`)).mode & 0o777,
@@ -134,6 +136,9 @@ describe("EvidenceStore", () => {
         createdAt: IsoInstantSchema.parse("2026-08-10T12:02:00.000Z"),
       }),
     ).toThrow(/Immutable evidence collision/);
+    expect(
+      store.findManifestRecord(AttemptIdSchema.parse("75000000-0000-4000-8000-000000000099")),
+    ).toBeNull();
   });
 
   it("rejects a missing referenced artifact before publishing a manifest", () => {
@@ -156,6 +161,95 @@ describe("EvidenceStore", () => {
     writeFileSync(blob, "tampered\n", { mode: 0o600 });
 
     expect(() => store.verify(stored.evidence.attemptId)).toThrow(/digest mismatch/);
+  });
+
+  it("lists immutable manifests with stable bounded pagination", () => {
+    const store = new EvidenceStore(makeRoot());
+    const attemptIds = [
+      AttemptIdSchema.parse("75000000-0000-4000-8000-000000000003"),
+      AttemptIdSchema.parse("75000000-0000-4000-8000-000000000001"),
+      AttemptIdSchema.parse("75000000-0000-4000-8000-000000000002"),
+    ];
+    for (const attemptId of attemptIds) {
+      const stored = store.putEvidence(eventEvidence(attemptId));
+      store.commitManifest(manifestFor(stored.evidence, stored.digest));
+    }
+
+    const first = store.listManifests({ limit: 2 });
+    expect(first.records.map((record) => record.manifest.attemptId)).toEqual([
+      attemptIds[1],
+      attemptIds[2],
+    ]);
+    expect(first.nextAfterAttemptId).toBe(attemptIds[2]);
+    expect(first.hasMore).toBe(true);
+    expect(
+      store.listManifests({ afterAttemptId: first.nextAfterAttemptId, limit: 2 }),
+    ).toMatchObject({
+      records: [{ manifest: { attemptId: attemptIds[0] } }],
+      nextAfterAttemptId: attemptIds[0],
+      hasMore: false,
+    });
+    expect(() => store.listManifests({ limit: 0 })).toThrow(/between 1 and 1000/);
+  });
+
+  it("keeps a before-link publication remnant outside the manifest namespace", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    writeFileSync(
+      join(root, "publication-temporary", "immutable-123-before-link"),
+      "unpublished bytes\n",
+      { mode: 0o600 },
+    );
+    const stored = store.putEvidence(eventEvidence());
+    store.commitManifest(manifestFor(stored.evidence, stored.digest));
+
+    expect(store.listManifests()).toMatchObject({
+      records: [{ manifest: { attemptId: stored.evidence.attemptId } }],
+      hasMore: false,
+    });
+  });
+
+  it("keeps an after-link publication remnant from poisoning replay or listing", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    const stored = store.putEvidence(eventEvidence());
+    const manifest = manifestFor(stored.evidence, stored.digest);
+    store.commitManifest(manifest);
+    linkSync(
+      join(root, "manifests", `${stored.evidence.attemptId}.json`),
+      join(root, "publication-temporary", "immutable-123-after-link"),
+    );
+
+    expect(() => store.commitManifest(manifest)).not.toThrow();
+    expect(store.listManifests()).toMatchObject({
+      records: [{ manifest: { attemptId: stored.evidence.attemptId } }],
+      hasMore: false,
+    });
+  });
+
+  it("fails closed when the manifest directory contains an unexpected entry", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    writeFileSync(join(root, "manifests", "untrusted.txt"), "not a manifest\n", { mode: 0o600 });
+
+    expect(() => store.listManifests()).toThrow(/unexpected entry/);
+  });
+
+  it("rejects a manifest whose immutable filename and embedded attempt identity disagree", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    const stored = store.putEvidence(eventEvidence());
+    store.commitManifest(manifestFor(stored.evidence, stored.digest));
+    const manifestPath = join(root, "manifests", `${stored.evidence.attemptId}.json`);
+    const tampered = {
+      ...JSON.parse(readFileSync(manifestPath, "utf8")),
+      attemptId: "75000000-0000-4000-8000-000000000099",
+    };
+    writeFileSync(manifestPath, `${JSON.stringify(tampered)}\n`, { mode: 0o600 });
+
+    expect(() => store.readManifestRecord(stored.evidence.attemptId)).toThrow(
+      /identity does not match/u,
+    );
   });
 
   it("rejects public paths and symbolic-link roots", () => {

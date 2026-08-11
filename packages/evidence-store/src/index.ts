@@ -8,6 +8,7 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   unlinkSync,
@@ -17,6 +18,7 @@ import type { Stats } from "node:fs";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 import {
+  AttemptIdSchema,
   EvidenceManifestV1Schema,
   EvidenceV1Schema,
   Sha256DigestSchema,
@@ -40,12 +42,33 @@ export class EvidenceStoreError extends Error {
 
 export type EvidenceVerification = Readonly<{
   manifest: EvidenceManifestV1;
+  manifestDigest: Sha256Digest;
   evidence: readonly EvidenceV1[];
   artifactCount: number;
 }>;
 
+export type EvidenceManifestRecord = Readonly<{
+  manifest: EvidenceManifestV1;
+  digest: Sha256Digest;
+}>;
+
+export type EvidenceManifestPage = Readonly<{
+  records: readonly EvidenceManifestRecord[];
+  nextAfterAttemptId: AttemptId | null;
+  hasMore: boolean;
+}>;
+
+export type ListEvidenceManifestsOptions = Readonly<{
+  afterAttemptId?: AttemptId | null;
+  limit?: number;
+}>;
+
 function currentUserId(): number | undefined {
   return typeof process.getuid === "function" ? process.getuid() : undefined;
+}
+
+function isNodeError(error: unknown, code: string): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error && error.code === code;
 }
 
 function assertAbsolute(path: string, label: string): void {
@@ -149,8 +172,9 @@ function readPrivateFile(path: string): Buffer {
   }
 }
 
-function writeImmutable(path: string, bytes: Buffer): void {
+function writeImmutable(path: string, bytes: Buffer, temporaryRoot: string): void {
   ensurePrivateDirectory(dirname(path));
+  ensurePrivateDirectory(temporaryRoot);
   if (existsSync(path)) {
     if (!readPrivateFile(path).equals(bytes)) {
       throw new EvidenceStoreError(`Immutable evidence collision at ${path}`);
@@ -158,7 +182,10 @@ function writeImmutable(path: string, bytes: Buffer): void {
     return;
   }
 
-  const temporaryPath = `${path}.tmp-${process.pid}-${randomUUID()}`;
+  const temporaryPath = safeChild(
+    temporaryRoot,
+    `immutable-${String(process.pid)}-${randomUUID()}`,
+  );
   const descriptor = openSync(
     temporaryPath,
     constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
@@ -191,6 +218,7 @@ export class EvidenceStore {
   readonly #root: string;
   readonly #blobsRoot: string;
   readonly #manifestsRoot: string;
+  readonly #temporaryRoot: string;
 
   constructor(rootPath: string) {
     assertAbsolute(rootPath, "Evidence root");
@@ -198,9 +226,11 @@ export class EvidenceStore {
     this.#root = realpathSync(rootPath);
     this.#blobsRoot = safeChild(this.#root, "blobs", "sha256");
     this.#manifestsRoot = safeChild(this.#root, "manifests");
+    this.#temporaryRoot = safeChild(this.#root, "publication-temporary");
     ensurePrivateDirectory(safeChild(this.#root, "blobs"));
     ensurePrivateDirectory(this.#blobsRoot);
     ensurePrivateDirectory(this.#manifestsRoot);
+    ensurePrivateDirectory(this.#temporaryRoot);
   }
 
   putBlob(bytes: Uint8Array): ArtifactRefV1["digest"] {
@@ -208,7 +238,7 @@ export class EvidenceStore {
     const hex = digestHex(digest);
     const shard = safeChild(this.#blobsRoot, hex.slice(0, 2));
     ensurePrivateDirectory(shard);
-    writeImmutable(safeChild(shard, hex.slice(2)), Buffer.from(bytes));
+    writeImmutable(safeChild(shard, hex.slice(2)), Buffer.from(bytes), this.#temporaryRoot);
     return digest;
   }
 
@@ -233,13 +263,73 @@ export class EvidenceStore {
     const manifest = EvidenceManifestV1Schema.parse(value);
     this.verifyManifestValue(manifest);
     const path = this.manifestPath(manifest.attemptId);
-    writeImmutable(path, canonicalJsonBytes(manifest));
+    writeImmutable(path, canonicalJsonBytes(manifest), this.#temporaryRoot);
     return manifest;
   }
 
   readManifest(attemptId: AttemptId): EvidenceManifestV1 {
+    return this.readManifestRecord(attemptId).manifest;
+  }
+
+  readManifestRecord(attemptId: AttemptId): EvidenceManifestRecord {
     const bytes = readPrivateFile(this.manifestPath(attemptId));
-    return EvidenceManifestV1Schema.parse(JSON.parse(bytes.toString("utf8")));
+    const manifest = EvidenceManifestV1Schema.parse(JSON.parse(bytes.toString("utf8")));
+    if (manifest.attemptId !== attemptId) {
+      throw new EvidenceStoreError(
+        "Evidence manifest identity does not match its immutable filename",
+      );
+    }
+    if (!canonicalJsonBytes(manifest).equals(bytes)) {
+      throw new EvidenceStoreError("Evidence manifest is not canonically encoded");
+    }
+    return {
+      manifest,
+      digest: sha256(bytes),
+    };
+  }
+
+  findManifestRecord(attemptId: AttemptId): EvidenceManifestRecord | null {
+    try {
+      return this.readManifestRecord(attemptId);
+    } catch (error) {
+      if (isNodeError(error, "ENOENT")) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Lists immutable manifest records without reading their referenced blobs.
+   * Ordering is the canonical attempt UUID, which gives callers a stable,
+   * restart-safe pagination cursor without introducing another mutable index.
+   */
+  listManifests(options: ListEvidenceManifestsOptions = {}): EvidenceManifestPage {
+    const limit = options.limit ?? 100;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1_000) {
+      throw new EvidenceStoreError("Evidence manifest page limit must be between 1 and 1000");
+    }
+    const afterAttemptId =
+      options.afterAttemptId === undefined || options.afterAttemptId === null
+        ? null
+        : AttemptIdSchema.parse(options.afterAttemptId);
+    const attemptIds = readdirSync(this.#manifestsRoot, { withFileTypes: true })
+      .map((entry) => {
+        if (!entry.isFile() || entry.isSymbolicLink() || !entry.name.endsWith(".json")) {
+          throw new EvidenceStoreError(
+            `Evidence manifest directory contains an unexpected entry: ${entry.name}`,
+          );
+        }
+        return AttemptIdSchema.parse(entry.name.slice(0, -".json".length));
+      })
+      .sort();
+    const eligible = attemptIds.filter(
+      (attemptId) => afterAttemptId === null || attemptId > afterAttemptId,
+    );
+    const selected = eligible.slice(0, limit);
+    return {
+      records: selected.map((attemptId) => this.readManifestRecord(attemptId)),
+      nextAfterAttemptId: selected.at(-1) ?? afterAttemptId,
+      hasMore: eligible.length > selected.length,
+    };
   }
 
   verify(attemptId: AttemptId): EvidenceVerification {
@@ -290,6 +380,11 @@ export class EvidenceStore {
         throw new EvidenceStoreError(`Required evidence kind is missing: ${requiredKind}`);
       }
     }
-    return { manifest, evidence, artifactCount };
+    return {
+      manifest,
+      manifestDigest: sha256(canonicalJsonBytes(manifest)),
+      evidence,
+      artifactCount,
+    };
   }
 }

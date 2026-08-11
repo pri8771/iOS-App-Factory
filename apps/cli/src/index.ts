@@ -3,9 +3,15 @@
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
-import { CommandClientError, createCommandClient } from "@app-factory/command-client";
+import {
+  CommandClientError,
+  createCommandClient,
+  type RetryableCommandIdentity,
+} from "@app-factory/command-client";
 import {
   AttemptIdSchema,
+  CommandIdSchema,
+  IsoInstantSchema,
   TaskSpecV1Schema,
   type AttemptId,
   type CommandResultV1,
@@ -16,6 +22,7 @@ export type CliOutputMode = "human" | "json";
 
 export type ParsedCliCommand =
   | Readonly<{ kind: "doctor" }>
+  | Readonly<{ kind: "portfolio.snapshot" }>
   | Readonly<{ kind: "task.submit" | "task.run"; taskFile: string }>
   | Readonly<{ kind: "attempt.status"; attemptId: AttemptId }>
   | Readonly<{
@@ -29,10 +36,17 @@ export type ParsedCliCommand =
       attemptId: AttemptId;
       reason: string | null;
     }>
-  | Readonly<{ kind: "daemon.reconcile"; attemptId: AttemptId | null }>;
+  | Readonly<{ kind: "daemon.reconcile"; attemptId: AttemptId | null }>
+  | Readonly<{
+      kind: "evidence.list";
+      afterAttemptId: AttemptId | null;
+      limit: number;
+    }>
+  | Readonly<{ kind: "evidence.inspect" | "evidence.verify"; attemptId: AttemptId }>;
 
 export type ParsedCliInvocation = Readonly<{
   outputMode: CliOutputMode;
+  retryIdentity: RetryableCommandIdentity | null;
   command: ParsedCliCommand;
 }>;
 
@@ -99,13 +113,37 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
   if (jsonIndexes.length > 1) usageError("--json may only be provided once.");
   if (jsonIndexes[0] !== undefined) arguments_.splice(jsonIndexes[0], 1);
   const outputMode: CliOutputMode = jsonIndexes.length === 1 ? "json" : "human";
+  const commandIdValue = consumeOption(arguments_, "--command-id");
+  const issuedAtValue = consumeOption(arguments_, "--issued-at");
+  if ((commandIdValue === undefined) !== (issuedAtValue === undefined)) {
+    usageError("--command-id and --issued-at must be provided together.");
+  }
+  const retryIdentity: RetryableCommandIdentity | null =
+    commandIdValue === undefined || issuedAtValue === undefined
+      ? null
+      : (() => {
+          const commandId = CommandIdSchema.safeParse(commandIdValue);
+          if (!commandId.success) {
+            usageError("--command-id must be a canonical lowercase UUID.");
+          }
+          const issuedAt = IsoInstantSchema.safeParse(issuedAtValue);
+          if (!issuedAt.success) {
+            usageError("--issued-at must be a canonical ISO-8601 instant.");
+          }
+          return { commandId: commandId.data, issuedAt: issuedAt.data };
+        })();
 
   const command = arguments_.shift();
   if (command === undefined) usageError("A command is required.");
 
   if (command === "doctor") {
     rejectUnexpected(arguments_);
-    return { outputMode, command: { kind: "doctor" } };
+    return { outputMode, retryIdentity, command: { kind: "doctor" } };
+  }
+
+  if (command === "portfolio") {
+    rejectUnexpected(arguments_);
+    return { outputMode, retryIdentity, command: { kind: "portfolio.snapshot" } };
   }
 
   if (command === "submit" || command === "run") {
@@ -114,6 +152,7 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     rejectUnexpected(arguments_);
     return {
       outputMode,
+      retryIdentity,
       command: { kind: command === "submit" ? "task.submit" : "task.run", taskFile },
     };
   }
@@ -121,7 +160,7 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
   if (command === "status") {
     const attemptId = parseAttemptId(arguments_.shift());
     rejectUnexpected(arguments_);
-    return { outputMode, command: { kind: "attempt.status", attemptId } };
+    return { outputMode, retryIdentity, command: { kind: "attempt.status", attemptId } };
   }
 
   if (command === "events") {
@@ -131,6 +170,7 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     rejectUnexpected(arguments_);
     return {
       outputMode,
+      retryIdentity,
       command: {
         kind: "attempt.events",
         attemptId,
@@ -147,6 +187,7 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     rejectUnexpected(arguments_);
     return {
       outputMode,
+      retryIdentity,
       command: {
         kind: `attempt.${command}`,
         attemptId,
@@ -158,7 +199,35 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
   if (command === "reconcile") {
     const attemptId = arguments_.length === 0 ? null : parseAttemptId(arguments_.shift());
     rejectUnexpected(arguments_);
-    return { outputMode, command: { kind: "daemon.reconcile", attemptId } };
+    return { outputMode, retryIdentity, command: { kind: "daemon.reconcile", attemptId } };
+  }
+
+  if (command === "evidence") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "list") {
+      const afterValue = consumeOption(arguments_, "--after");
+      const limitValue = consumeOption(arguments_, "--limit");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "evidence.list",
+          afterAttemptId: afterValue === undefined ? null : parseAttemptId(afterValue),
+          limit: limitValue === undefined ? 50 : parsePositiveInteger("--limit", limitValue, 100),
+        },
+      };
+    }
+    if (subcommand === "inspect" || subcommand === "verify") {
+      const attemptId = parseAttemptId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: `evidence.${subcommand}`, attemptId },
+      };
+    }
+    usageError("Evidence requires one of: list, inspect, verify.");
   }
 
   usageError(`Unknown command: ${command}`);
@@ -188,20 +257,51 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
     case "attempt.cancel":
       return `${result.operation}: ${result.accepted ? "accepted" : "not accepted"} for ${result.attemptId}\n`;
     case "daemon.reconcile":
-      return `daemon.reconcile: ${result.accepted ? "accepted" : "not accepted"}; ${result.reconciledAttemptIds.length} attempt(s)\n`;
+      return `daemon.reconcile: scheduler wake ${result.accepted ? "accepted" : "not accepted"}; ${result.reconciledAttemptIds.length} synchronous attempt(s)\n`;
+    case "evidence.list":
+      return result.manifests.length === 0
+        ? "no evidence manifests\n"
+        : `${result.manifests
+            .map(
+              (manifest) =>
+                `${manifest.attemptId}\t${String(manifest.entryCount)} entries\t${manifest.manifestDigest}`,
+            )
+            .join(
+              "\n",
+            )}\n${result.hasMore ? `more after ${result.nextAfterAttemptId ?? ""}\n` : ""}`;
+    case "evidence.inspect":
+      return `evidence manifest ${result.manifest.attemptId}: ${String(result.manifest.entries.length)} entries (${result.manifestDigest})\n`;
+    case "evidence.verify":
+      return `evidence storage integrity verified for ${result.manifest.attemptId}: ${String(result.evidence.length)} records, ${String(result.artifactCount)} artifacts (${result.manifest.manifestDigest})\n`;
+    case "portfolio.snapshot": {
+      const available = (value: number | null): string =>
+        value === null ? "unavailable" : String(value);
+      return `portfolio: ${String(result.snapshot.totals.projects)} projects, ${String(result.snapshot.totals.attempts)} attempts, ${String(result.snapshot.totals.activeAttempts)} active, ${String(result.snapshot.totals.blockers)} blockers; PRs ${available(result.snapshot.totals.openPullRequests)}, Jira todo ${available(result.snapshot.totals.jiraTodo)}, P0 ${available(result.snapshot.totals.unresolvedP0)}, P1 ${available(result.snapshot.totals.unresolvedP1)}\n`;
+    }
   }
 }
 
 export function renderCliError(error: unknown, mode: CliOutputMode): string {
+  const retryIdentity =
+    error instanceof CommandClientError && error.retryable ? error.retryIdentity : null;
   const normalized =
     error instanceof CommandClientError
-      ? { code: error.code, message: error.message, retryable: error.retryable }
+      ? {
+          code: error.code,
+          message: error.message,
+          retryable: error.retryable,
+          ...(retryIdentity === null ? {} : { retryIdentity }),
+        }
       : error instanceof CliUsageError
         ? { code: "cli.usage", message: error.message, retryable: false }
         : { code: "cli.failed", message: "The command failed.", retryable: false };
   return mode === "json"
     ? `${JSON.stringify({ ok: false, error: normalized })}\n`
-    : `ERROR [${normalized.code}] ${normalized.message}\n`;
+    : `ERROR [${normalized.code}] ${normalized.message}${
+        retryIdentity === null
+          ? ""
+          : `\nretry with: --command-id ${retryIdentity.commandId} --issued-at ${retryIdentity.issuedAt}`
+      }\n`;
 }
 
 async function loadTaskSpec(path: string): Promise<TaskSpecV1> {
@@ -255,38 +355,76 @@ export async function runCli(
   }
 
   const client = createCommandClient({ socketPath, authorization, origin: "cli" });
+  const identity =
+    invocation.retryIdentity === null
+      ? client.createIdentity()
+      : client.createRetryIdentity(invocation.retryIdentity);
   try {
     let result: CommandResultV1;
     switch (invocation.command.kind) {
       case "doctor":
-        result = await client.doctor();
+        result = await client.doctor(identity);
+        break;
+      case "portfolio.snapshot":
+        result = await client.portfolioSnapshot(identity);
         break;
       case "task.submit":
-        result = await client.submit(await loadTaskSpec(invocation.command.taskFile));
+        result = await client.submit(await loadTaskSpec(invocation.command.taskFile), identity);
         break;
       case "task.run":
-        result = await client.run(await loadTaskSpec(invocation.command.taskFile));
+        result = await client.run(await loadTaskSpec(invocation.command.taskFile), identity);
         break;
       case "attempt.status":
-        result = await client.status(invocation.command.attemptId);
+        result = await client.status(invocation.command.attemptId, identity);
         break;
       case "attempt.events":
-        result = await client.events(invocation.command.attemptId, {
-          afterSequence: invocation.command.afterSequence,
-          limit: invocation.command.limit,
-        });
+        result = await client.events(
+          invocation.command.attemptId,
+          {
+            afterSequence: invocation.command.afterSequence,
+            limit: invocation.command.limit,
+          },
+          identity,
+        );
         break;
       case "attempt.pause":
-        result = await client.pause(invocation.command.attemptId, invocation.command.reason);
+        result = await client.pause(
+          invocation.command.attemptId,
+          invocation.command.reason,
+          identity,
+        );
         break;
       case "attempt.resume":
-        result = await client.resume(invocation.command.attemptId, invocation.command.reason);
+        result = await client.resume(
+          invocation.command.attemptId,
+          invocation.command.reason,
+          identity,
+        );
         break;
       case "attempt.cancel":
-        result = await client.cancel(invocation.command.attemptId, invocation.command.reason);
+        result = await client.cancel(
+          invocation.command.attemptId,
+          invocation.command.reason,
+          identity,
+        );
         break;
       case "daemon.reconcile":
-        result = await client.reconcile(invocation.command.attemptId);
+        result = await client.reconcile(invocation.command.attemptId, identity);
+        break;
+      case "evidence.list":
+        result = await client.listEvidence(
+          {
+            afterAttemptId: invocation.command.afterAttemptId,
+            limit: invocation.command.limit,
+          },
+          identity,
+        );
+        break;
+      case "evidence.inspect":
+        result = await client.inspectEvidence(invocation.command.attemptId, identity);
+        break;
+      case "evidence.verify":
+        result = await client.verifyEvidence(invocation.command.attemptId, identity);
         break;
     }
     io.stdout(renderCommandResult(result, invocation.outputMode));

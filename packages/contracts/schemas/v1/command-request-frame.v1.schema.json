@@ -24,10 +24,15 @@
     },
     "__schema4": {
       "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "__schema5": {
+      "additionalProperties": false,
       "properties": {
         "acceptanceCriteria": {
           "items": {
-            "$ref": "#/$defs/__schema5"
+            "$ref": "#/$defs/__schema6"
           },
           "maxItems": 50,
           "minItems": 1,
@@ -70,7 +75,7 @@
           "properties": {
             "paths": {
               "items": {
-                "$ref": "#/$defs/__schema6"
+                "$ref": "#/$defs/__schema7"
               },
               "maxItems": 100,
               "minItems": 1,
@@ -108,7 +113,7 @@
       ],
       "type": "object"
     },
-    "__schema5": {
+    "__schema6": {
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -136,13 +141,25 @@
       ],
       "type": "object"
     },
-    "__schema6": {
+    "__schema7": {
       "maxLength": 1024,
       "minLength": 1,
       "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
       "type": "string"
     },
-    "__schema7": {
+    "__schema8": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "required": [
+        "attemptId"
+      ],
+      "type": "object"
+    },
+    "__schema9": {
       "additionalProperties": false,
       "properties": {
         "attemptId": {
@@ -201,9 +218,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "additionalProperties": false,
-              "properties": {},
-              "type": "object"
+              "$ref": "#/$defs/__schema4"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -239,7 +254,7 @@
               "additionalProperties": false,
               "properties": {
                 "taskSpec": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 }
               },
               "required": [
@@ -281,7 +296,7 @@
               "additionalProperties": false,
               "properties": {
                 "taskSpec": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 }
               },
               "required": [
@@ -320,16 +335,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "additionalProperties": false,
-              "properties": {
-                "attemptId": {
-                  "$ref": "#/$defs/__schema0"
-                }
-              },
-              "required": [
-                "attemptId"
-              ],
-              "type": "object"
+              "$ref": "#/$defs/__schema8"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -416,7 +422,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema7"
+              "$ref": "#/$defs/__schema9"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -449,7 +455,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema7"
+              "$ref": "#/$defs/__schema9"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -482,7 +488,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema7"
+              "$ref": "#/$defs/__schema9"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -532,6 +538,160 @@
                 "attemptId"
               ],
               "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "evidence.list",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "afterAttemptId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "limit": {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "afterAttemptId",
+                "limit"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "evidence.inspect",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "evidence.verify",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "portfolio.snapshot",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema4"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"

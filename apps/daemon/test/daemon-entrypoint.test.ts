@@ -1,5 +1,8 @@
-import { chmod, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { chmod, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { cp } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +18,34 @@ import type { FactoryDaemonService } from "../src/factory-daemon-service.js";
 
 const roots: string[] = [];
 const TOKEN = "daemon-private-authorization-token-000001";
+const SWIFT_GREETER_TEMPLATE = fileURLToPath(
+  new URL("../../../fixtures/swift-greeter", import.meta.url),
+);
+
+function git(cwd: string, args: readonly string[]): string {
+  const result = spawnSync("/usr/bin/git", args, {
+    cwd,
+    encoding: "utf8",
+    env: {
+      GIT_AUTHOR_DATE: "2000-01-01T00:00:00Z",
+      GIT_AUTHOR_EMAIL: "fixture@app-factory.invalid",
+      GIT_AUTHOR_NAME: "App Factory Fixture",
+      GIT_COMMITTER_DATE: "2000-01-01T00:00:00Z",
+      GIT_COMMITTER_EMAIL: "fixture@app-factory.invalid",
+      GIT_COMMITTER_NAME: "App Factory Fixture",
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_TERMINAL_PROMPT: "0",
+      LANG: "C",
+      LC_ALL: "C",
+      PATH: "/usr/bin:/bin",
+      TZ: "UTC",
+    },
+    shell: false,
+  });
+  if (result.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
+  return result.stdout.trim();
+}
 
 async function root(): Promise<string> {
   const path = await mkdtemp(join("/private/tmp", "factory-daemon-entrypoint-"));
@@ -92,6 +123,156 @@ describe("daemon process configuration", () => {
         APP_FACTORY_POLL_INTERVAL_MS: "60001",
       }),
     ).rejects.toThrow("must not exceed 60000");
+  });
+
+  it("loads the packaged deterministic Swift Greeter profile only from a private file", async () => {
+    const directory = await root();
+    const authFile = join(directory, "authorization");
+    const policyFile = join(directory, "reviewed-policy");
+    const executionConfig = join(directory, "local-execution.json");
+    const sourceRepositoryPath = join(directory, "swift-greeter");
+    await cp(SWIFT_GREETER_TEMPLATE, sourceRepositoryPath, { recursive: true });
+    git(sourceRepositoryPath, ["init", "--quiet", "--initial-branch=main", "--object-format=sha1"]);
+    git(sourceRepositoryPath, ["add", "--all"]);
+    git(sourceRepositoryPath, [
+      "-c",
+      "commit.gpgSign=false",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "commit",
+      "--quiet",
+      "--no-gpg-sign",
+      "--no-verify",
+      "--message=Create deterministic Swift Greeter baseline",
+    ]);
+    await writeFile(authFile, TOKEN, { mode: 0o600 });
+    await writeFile(policyFile, "Reviewed Swift Greeter fixture policy v1\n", { mode: 0o600 });
+    await writeFile(
+      executionConfig,
+      JSON.stringify({
+        schemaVersion: 1,
+        mode: "swift-greeter-fixture-v1",
+        repositoryId: "62000000-0000-4000-8000-000000000002",
+        sourceRepositoryPath: await realpath(sourceRepositoryPath),
+        policyFile,
+      }),
+      { mode: 0o600 },
+    );
+
+    const loaded = await loadDaemonProcessConfiguration({
+      APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+      APP_FACTORY_AUTH_FILE: authFile,
+      APP_FACTORY_DAEMON_VERSION: "0.4.0-fixture",
+      APP_FACTORY_LOCAL_EXECUTION_CONFIG: executionConfig,
+    });
+    expect(loaded.localExecution?.projects).toHaveLength(1);
+    expect(loaded.localExecution?.projects[0]).toMatchObject({
+      repositoryId: "62000000-0000-4000-8000-000000000002",
+      mirrorMode: "prepared-immutable",
+      sourceIdentityDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
+      allowedBaseCommit: git(sourceRepositoryPath, ["rev-parse", "HEAD"]),
+      allowedBaseTree: "4b0f3837c058d6aa3438fc6d0c386324fd074005",
+      taskSemanticProfileDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
+      agent: {
+        adapterId: "fixture.swift-greeter-agent",
+        adapterVersion: "1.0.0",
+      },
+    });
+
+    const helperMarker = join(directory, "fsmonitor-ran");
+    const helper = join(directory, "hostile-fsmonitor");
+    await writeFile(helper, `#!/bin/sh\nprintf ran > ${JSON.stringify(helperMarker)}\n`, {
+      mode: 0o700,
+    });
+    git(sourceRepositoryPath, ["config", "core.fsmonitor", helper]);
+    await expect(
+      loadDaemonProcessConfiguration({
+        APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+        APP_FACTORY_AUTH_FILE: authFile,
+        APP_FACTORY_DAEMON_VERSION: "0.4.0-fixture",
+        APP_FACTORY_LOCAL_EXECUTION_CONFIG: executionConfig,
+      }),
+    ).rejects.toThrow("unreviewed setting");
+    expect(spawnSync("/usr/bin/test", ["-e", helperMarker]).status).not.toBe(0);
+    git(sourceRepositoryPath, ["config", "--unset", "core.fsmonitor"]);
+
+    const ignoredBuild = join(sourceRepositoryPath, ".build");
+    await mkdir(ignoredBuild);
+    await writeFile(join(ignoredBuild, "unreviewed"), "hidden\n");
+    await expect(
+      loadDaemonProcessConfiguration({
+        APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+        APP_FACTORY_AUTH_FILE: authFile,
+        APP_FACTORY_DAEMON_VERSION: "0.4.0-fixture",
+        APP_FACTORY_LOCAL_EXECUTION_CONFIG: executionConfig,
+      }),
+    ).rejects.toThrow("unreviewed tracked, ignored, or untracked paths");
+    await rm(ignoredBuild, { recursive: true });
+
+    await chmod(executionConfig, 0o640);
+    await expect(
+      loadDaemonProcessConfiguration({
+        APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+        APP_FACTORY_AUTH_FILE: authFile,
+        APP_FACTORY_DAEMON_VERSION: "0.4.0-fixture",
+        APP_FACTORY_LOCAL_EXECUTION_CONFIG: executionConfig,
+      }),
+    ).rejects.toThrow("must be private to the current user");
+
+    await chmod(executionConfig, 0o600);
+    await writeFile(
+      executionConfig,
+      JSON.stringify({
+        schemaVersion: 1,
+        mode: "swift-greeter-fixture-v1",
+        repositoryId: "62000000-0000-4000-8000-000000000002",
+        sourceRepositoryPath: await realpath(sourceRepositoryPath),
+        policyFile,
+        swiftExecutable: "/private/tmp/untrusted-swift",
+      }),
+      { mode: 0o600 },
+    );
+    await expect(
+      loadDaemonProcessConfiguration({
+        APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+        APP_FACTORY_AUTH_FILE: authFile,
+        APP_FACTORY_DAEMON_VERSION: "0.4.0-fixture",
+        APP_FACTORY_LOCAL_EXECUTION_CONFIG: executionConfig,
+      }),
+    ).rejects.toThrow("unsupported or non-exact shape");
+
+    await writeFile(join(sourceRepositoryPath, "Package.swift"), "// unreviewed package\n");
+    git(sourceRepositoryPath, ["add", "--all"]);
+    git(sourceRepositoryPath, [
+      "-c",
+      "commit.gpgSign=false",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "commit",
+      "--quiet",
+      "--no-gpg-sign",
+      "--no-verify",
+      "--message=Unreviewed fixture",
+    ]);
+    await writeFile(
+      executionConfig,
+      JSON.stringify({
+        schemaVersion: 1,
+        mode: "swift-greeter-fixture-v1",
+        repositoryId: "62000000-0000-4000-8000-000000000002",
+        sourceRepositoryPath: await realpath(sourceRepositoryPath),
+        policyFile,
+      }),
+      { mode: 0o600 },
+    );
+    await expect(
+      loadDaemonProcessConfiguration({
+        APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+        APP_FACTORY_AUTH_FILE: authFile,
+        APP_FACTORY_DAEMON_VERSION: "0.4.0-fixture",
+        APP_FACTORY_LOCAL_EXECUTION_CONFIG: executionConfig,
+      }),
+    ).rejects.toThrow("not the exact reviewed Swift Greeter tree");
   });
 
   it("zeroes the raw authorization read buffer after decoding", async () => {
