@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AgentRunSpecV1Schema, type AgentRunSpecV1 } from "@app-factory/contracts";
 
@@ -16,6 +20,22 @@ import {
 } from "../src/codex.js";
 
 const SHA256 = `sha256:${"a".repeat(64)}`;
+const temporaryDirectories: string[] = [];
+
+function makeWorkspace(): string {
+  const workspace = mkdtempSync(join(tmpdir(), "app-factory-codex-test-"));
+  temporaryDirectories.push(workspace);
+  mkdirSync(join(workspace, "Sources", "App"), { recursive: true });
+  mkdirSync(join(workspace, "Tests"), { recursive: true });
+  writeFileSync(join(workspace, "Sources", "App", "Protected.swift"), "protected\n");
+  return realpathSync.native(workspace);
+}
+
+afterEach(() => {
+  for (const directory of temporaryDirectories.splice(0)) {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
 
 function makeRunSpec(overrides: Partial<AgentRunSpecV1> = {}): AgentRunSpecV1 {
   return AgentRunSpecV1Schema.parse({
@@ -28,8 +48,8 @@ function makeRunSpec(overrides: Partial<AgentRunSpecV1> = {}): AgentRunSpecV1 {
     taskSpecDigest: SHA256,
     workingDirectory: "/private/tmp/app-factory-attempt",
     instruction: "Make the bounded source change.",
-    authorizedWritePaths: ["Sources/App"],
-    environmentAllowlist: ["HOME", "PATH", "TMPDIR"],
+    authorizedWritePaths: ["Sources/App/Feature.swift"],
+    environmentAllowlist: ["PATH", "TMPDIR"],
     limits: {
       timeoutMs: 1_200_000,
       terminationGraceMs: 5_000,
@@ -85,13 +105,13 @@ function completedJsonl(result: CodexReportedResultV1): string {
 
 describe("Codex invocation policy", () => {
   it("builds a no-TTY stdin invocation with a least-privilege permission profile", () => {
-    const invocation = buildCodexInvocation(makeRunSpec(), {
+    const workingDirectory = makeWorkspace();
+    const invocation = buildCodexInvocation(makeRunSpec({ workingDirectory }), {
       executable: "/Applications/ChatGPT.app/Contents/Resources/codex",
       codexHome: "/private/tmp/app-factory-codex-home",
       outputSchemaPath: "/private/tmp/app-factory-schema.json",
       readOnlyPaths: ["Sources/App/Protected.swift", "Tests"],
       sourceEnvironment: {
-        HOME: "/Users/tester",
         PATH: "/usr/bin:/bin",
         TMPDIR: "/private/tmp/attempt-tmp",
         OPENAI_API_KEY: "must-not-leak",
@@ -100,7 +120,7 @@ describe("Codex invocation policy", () => {
     });
 
     expect(invocation.executable).toBe("/Applications/ChatGPT.app/Contents/Resources/codex");
-    expect(invocation.cwd).toBe("/private/tmp/app-factory-attempt");
+    expect(invocation.cwd).toBe(workingDirectory);
     expect(invocation.stdin).toBe("Make the bounded source change.");
     expect(invocation.args).not.toContain(invocation.stdin);
     expect(invocation.args).not.toContain("--sandbox");
@@ -114,7 +134,7 @@ describe("Codex invocation policy", () => {
     const configOverrides = invocation.args.filter((argument) => argument.includes("="));
     expect(configOverrides.join("\n")).toContain('":root"="deny"');
     expect(configOverrides.join("\n")).toContain('"."="read"');
-    expect(configOverrides.join("\n")).toContain('"Sources/App"="write"');
+    expect(configOverrides.join("\n")).toContain('"Sources/App/Feature.swift"="write"');
     expect(configOverrides.join("\n")).toContain('"Sources/App/Protected.swift"="read"');
     expect(configOverrides.join("\n")).toContain('Tests="read"');
     expect(configOverrides.join("\n")).toContain("enabled=false");
@@ -122,7 +142,6 @@ describe("Codex invocation policy", () => {
 
     expect(invocation.environment).toEqual({
       CODEX_HOME: "/private/tmp/app-factory-codex-home",
-      HOME: "/Users/tester",
       NO_COLOR: "1",
       PATH: "/usr/bin:/bin",
       RUST_LOG: "error",
@@ -133,8 +152,9 @@ describe("Codex invocation policy", () => {
   });
 
   it("rejects sensitive or protected write scopes before launching Codex", () => {
+    const workingDirectory = makeWorkspace();
     expect(() =>
-      buildCodexInvocation(makeRunSpec({ authorizedWritePaths: [".env"] }), {
+      buildCodexInvocation(makeRunSpec({ workingDirectory, authorizedWritePaths: [".env"] }), {
         executable: "/usr/local/bin/codex",
         codexHome: "/private/tmp/codex-home",
         outputSchemaPath: "/private/tmp/schema.json",
@@ -142,27 +162,68 @@ describe("Codex invocation policy", () => {
     ).toThrow(/Sensitive path/);
 
     expect(() =>
-      buildCodexInvocation(makeRunSpec({ authorizedWritePaths: ["Tests/Fixtures"] }), {
-        executable: "/usr/local/bin/codex",
-        codexHome: "/private/tmp/codex-home",
-        outputSchemaPath: "/private/tmp/schema.json",
-        readOnlyPaths: ["Tests"],
-      }),
-    ).toThrow(/inside read-only path/);
+      buildCodexInvocation(
+        makeRunSpec({ workingDirectory, authorizedWritePaths: ["Tests/Fixtures"] }),
+        {
+          executable: "/usr/local/bin/codex",
+          codexHome: "/private/tmp/codex-home",
+          outputSchemaPath: "/private/tmp/schema.json",
+          readOnlyPaths: ["Tests"],
+        },
+      ),
+    ).toThrow(/overlaps read-only path/);
+
+    expect(() =>
+      buildCodexInvocation(
+        makeRunSpec({ workingDirectory, authorizedWritePaths: ["Sources/App"] }),
+        {
+          executable: "/usr/local/bin/codex",
+          codexHome: "/private/tmp/codex-home",
+          outputSchemaPath: "/private/tmp/schema.json",
+          readOnlyPaths: ["Sources/App/Protected.swift"],
+        },
+      ),
+    ).toThrow(/overlaps read-only path/);
   });
 
-  it("rejects secret-bearing environment names even when allowlisted", () => {
+  it("rejects every environment name outside the adapter-owned safe allowlist", () => {
+    const workingDirectory = makeWorkspace();
     expect(() =>
-      buildCodexInvocation(makeRunSpec({ environmentAllowlist: ["PATH", "OPENAI_API_KEY"] }), {
-        executable: "/usr/local/bin/codex",
-        codexHome: "/private/tmp/codex-home",
-        outputSchemaPath: "/private/tmp/schema.json",
-        sourceEnvironment: {
-          PATH: "/usr/bin",
-          OPENAI_API_KEY: "secret",
+      buildCodexInvocation(
+        makeRunSpec({ workingDirectory, environmentAllowlist: ["PATH", "NODE_OPTIONS"] }),
+        {
+          executable: "/usr/local/bin/codex",
+          codexHome: "/private/tmp/codex-home",
+          outputSchemaPath: "/private/tmp/schema.json",
+          sourceEnvironment: {
+            PATH: "/usr/bin",
+            NODE_OPTIONS: "--require=/tmp/inject.js",
+          },
         },
-      }),
-    ).toThrow(/sensitive environment variable/);
+      ),
+    ).toThrow(/adapter-owned safe allowlist/);
+  });
+
+  it("rejects authorized paths with symbolic-link components", () => {
+    const workingDirectory = makeWorkspace();
+    const outsideDirectory = mkdtempSync(join(tmpdir(), "app-factory-codex-outside-"));
+    temporaryDirectories.push(outsideDirectory);
+    writeFileSync(join(outsideDirectory, "escaped.swift"), "outside\n");
+    symlinkSync(outsideDirectory, join(workingDirectory, "Sources", "Escape"));
+
+    expect(() =>
+      buildCodexInvocation(
+        makeRunSpec({
+          workingDirectory,
+          authorizedWritePaths: ["Sources/Escape/escaped.swift"],
+        }),
+        {
+          executable: "/usr/local/bin/codex",
+          codexHome: "/private/tmp/codex-home",
+          outputSchemaPath: "/private/tmp/schema.json",
+        },
+      ),
+    ).toThrow(/symbolic-link component/);
   });
 });
 

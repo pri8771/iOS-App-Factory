@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { isAbsolute } from "node:path";
+import { existsSync, lstatSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { AgentRunSpecV1Schema, type AgentRunSpecV1 } from "@app-factory/contracts";
 
@@ -29,6 +30,17 @@ export const CODEX_DISABLED_FEATURES = [
   "workspace_dependencies",
 ] as const;
 
+export const CODEX_SAFE_AGENT_ENVIRONMENT_NAMES = [
+  "DEVELOPER_DIR",
+  "LANG",
+  "LC_ALL",
+  "PATH",
+  "SDKROOT",
+  "SWIFT_DETERMINISTIC_HASHING",
+  "TMPDIR",
+  "TZ",
+] as const;
+
 const DEFAULT_DENIED_WORKSPACE_PATHS = [
   ".codex",
   "**/.env*",
@@ -45,7 +57,7 @@ const CONCRETE_RELATIVE_PATH_PATTERN = /^[^*?[\]{}]+$/;
 const NAMESPACED_CODE_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$/;
 const SENSITIVE_ENVIRONMENT_NAME_PATTERN = /(?:AUTH|COOKIE|CREDENTIAL|KEY|PASSWORD|SECRET|TOKEN)/i;
 const SENSITIVE_WORKSPACE_PATH_PATTERN =
-  /(?:^|\/)(?:\.env(?:\..*)?|[^/]+\.(?:mobileprovision|p12|pem))$/i;
+  /(?:^|\/)(?:\.codex(?:\/.*)?|\.env(?:\..*)?|[^/]+\.(?:mobileprovision|p12|pem))$/i;
 const AUTHENTICATION_ERROR_PATTERN =
   /(?:401\s+unauthorized|authentication|missing bearer|not logged in)/i;
 
@@ -91,6 +103,65 @@ function assertConcreteRelativePath(value: string, label: string): void {
   ) {
     throw new TypeError(`${label} must be a concrete normalized relative path: ${value}`);
   }
+}
+
+function assertInsideWorkspace(root: string, candidate: string, label: string): void {
+  const child = relative(root, candidate);
+  if (child === ".." || child.startsWith(`..${sep}`) || isAbsolute(child)) {
+    throw new TypeError(`${label} resolves outside the working directory`);
+  }
+}
+
+function validateWorkspacePath(
+  realWorkspaceRoot: string,
+  relativePath: string,
+  label: string,
+): void {
+  assertConcreteRelativePath(relativePath, label);
+  const segments = relativePath.split("/");
+  let current = realWorkspaceRoot;
+
+  for (const [index, segment] of segments.entries()) {
+    current = join(current, segment);
+    assertInsideWorkspace(realWorkspaceRoot, resolve(current), label);
+
+    if (!existsSync(current)) {
+      if (index !== segments.length - 1) {
+        throw new TypeError(`${label} has a missing parent component: ${relativePath}`);
+      }
+      return;
+    }
+
+    const stat = lstatSync(current);
+    if (stat.isSymbolicLink()) {
+      throw new TypeError(`${label} contains a symbolic-link component: ${relativePath}`);
+    }
+    assertInsideWorkspace(realWorkspaceRoot, realpathSync.native(current), label);
+  }
+}
+
+export function validateCodexWorkspaceScope(
+  workingDirectory: string,
+  authorizedWritePaths: readonly string[],
+  readOnlyPaths: readonly string[],
+): string {
+  assertAbsolutePath(workingDirectory, "Codex working directory");
+  if (!existsSync(workingDirectory)) {
+    throw new TypeError(`Codex working directory does not exist: ${workingDirectory}`);
+  }
+  const rootStat = lstatSync(workingDirectory);
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+    throw new TypeError(`Codex working directory must be a real directory: ${workingDirectory}`);
+  }
+
+  const realWorkspaceRoot = realpathSync.native(workingDirectory);
+  for (const path of authorizedWritePaths) {
+    validateWorkspacePath(realWorkspaceRoot, path, "authorized write path");
+  }
+  for (const path of readOnlyPaths) {
+    validateWorkspacePath(realWorkspaceRoot, path, "read-only path");
+  }
+  return realWorkspaceRoot;
 }
 
 function isSameOrDescendant(path: string, possibleAncestor: string): boolean {
@@ -314,9 +385,13 @@ function buildControllerEnvironment(
   allowlist: readonly string[],
   codexHome: string,
 ): Readonly<Record<string, string>> {
+  const safeNames = new Set<string>(CODEX_SAFE_AGENT_ENVIRONMENT_NAMES);
   const environment: Record<string, string> = {};
   for (const name of [...new Set(allowlist)].sort()) {
-    if (name !== "CODEX_HOME" && SENSITIVE_ENVIRONMENT_NAME_PATTERN.test(name)) {
+    if (!safeNames.has(name)) {
+      throw new Error(`Environment variable is not in the adapter-owned safe allowlist: ${name}`);
+    }
+    if (SENSITIVE_ENVIRONMENT_NAME_PATTERN.test(name)) {
       throw new Error(`Refusing to expose sensitive environment variable: ${name}`);
     }
     const value = source[name];
@@ -355,12 +430,13 @@ function buildPermissionProfile(
     if (SENSITIVE_WORKSPACE_PATH_PATTERN.test(path)) {
       throw new Error(`Sensitive path cannot be authorized for agent writes: ${path}`);
     }
-    const containingReadOnlyPath = normalizedReadOnlyPaths.find((readOnlyPath) =>
-      isSameOrDescendant(path, readOnlyPath),
+    const overlappingReadOnlyPath = normalizedReadOnlyPaths.find(
+      (readOnlyPath) =>
+        isSameOrDescendant(path, readOnlyPath) || isSameOrDescendant(readOnlyPath, path),
     );
-    if (containingReadOnlyPath !== undefined) {
+    if (overlappingReadOnlyPath !== undefined) {
       throw new Error(
-        `Authorized write path ${path} is inside read-only path ${containingReadOnlyPath}`,
+        `Authorized write path ${path} overlaps read-only path ${overlappingReadOnlyPath}`,
       );
     }
     workspaceRules[path] = "write";
@@ -405,10 +481,13 @@ export function buildCodexInvocation(
     }
   }
 
-  const permissionProfile = buildPermissionProfile(
+  const readOnlyPaths = options.readOnlyPaths ?? [];
+  const workingDirectory = validateCodexWorkspaceScope(
+    spec.workingDirectory,
     spec.authorizedWritePaths,
-    options.readOnlyPaths ?? [],
+    readOnlyPaths,
   );
+  const permissionProfile = buildPermissionProfile(spec.authorizedWritePaths, readOnlyPaths);
   const shellEnvironmentPolicy = {
     filters: {
       "*_KEY": "exclude",
@@ -424,7 +503,7 @@ export function buildCodexInvocation(
     inherit: "core",
   } as const satisfies Readonly<Record<string, TomlInlineValue>>;
   const projectTrust = {
-    [spec.workingDirectory]: { trust_level: "untrusted" },
+    [workingDirectory]: { trust_level: "untrusted" },
   } as const satisfies Readonly<Record<string, TomlInlineValue>>;
 
   const args: string[] = [
@@ -432,7 +511,7 @@ export function buildCodexInvocation(
     "--ask-for-approval",
     "never",
     "--cd",
-    spec.workingDirectory,
+    workingDirectory,
   ];
   for (const feature of disabledFeatures) {
     args.push("--disable", feature);
@@ -461,7 +540,7 @@ export function buildCodexInvocation(
   return {
     executable: options.executable,
     args,
-    cwd: spec.workingDirectory,
+    cwd: workingDirectory,
     environment: buildControllerEnvironment(
       options.sourceEnvironment ?? process.env,
       spec.environmentAllowlist,
