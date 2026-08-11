@@ -1311,23 +1311,290 @@ type TargetCatalogEntry = Readonly<{
   containerPath: RelativeProjectPath;
 }>;
 
-function pbxObjectRecords(content: string): ReadonlyMap<string, string> {
-  const starts = [
-    ...content.matchAll(/^\s*([0-9A-Fa-f]{24})(?:\s+\/\*[^\r\n]*?\*\/)?\s*=\s*\{\s*$/gmu),
-  ];
-  const records = new Map<string, string>();
-  for (const [index, match] of starts.entries()) {
-    const identifier = match[1]?.toUpperCase();
-    const start = match.index;
-    if (identifier === undefined || start === undefined) continue;
-    const end = starts[index + 1]?.index ?? content.length;
-    records.set(identifier, content.slice(start, end));
+function pbxStructuralSource(content: string): string | null {
+  // Preserve offsets while removing syntax whose contents cannot delimit PBX dictionaries.
+  const structural = content.split("");
+  let state: "source" | "string" | "line-comment" | "block-comment" = "source";
+
+  for (let index = 0; index < structural.length; index += 1) {
+    const current = content[index];
+    const next = content[index + 1];
+    if (state === "source") {
+      if (current === '"') {
+        state = "string";
+      } else if (current === "'") {
+        // OpenStep plists accept single-quoted keys and values, but the supported PBX grammar
+        // deliberately does not. Reject them rather than interpreting their contents as syntax.
+        return null;
+      } else if (current === "/" && next === "/") {
+        structural[index] = " ";
+        structural[index + 1] = " ";
+        index += 1;
+        state = "line-comment";
+      } else if (current === "/" && next === "*") {
+        structural[index] = " ";
+        structural[index + 1] = " ";
+        index += 1;
+        state = "block-comment";
+      }
+      continue;
+    }
+
+    if (state === "string") {
+      if (current === "\\") {
+        structural[index] = " ";
+        if (next === undefined) return null;
+        structural[index + 1] = next === "\n" || next === "\r" ? next : " ";
+        index += 1;
+      } else if (current === '"') {
+        state = "source";
+      } else {
+        structural[index] = current === "\n" || current === "\r" ? current : " ";
+      }
+      continue;
+    }
+
+    if (state === "line-comment") {
+      if (current === "\n" || current === "\r") {
+        state = "source";
+      } else {
+        structural[index] = " ";
+      }
+      continue;
+    }
+
+    structural[index] = current === "\n" || current === "\r" ? current : " ";
+    if (current === "*" && next === "/") {
+      structural[index + 1] = " ";
+      index += 1;
+      state = "source";
+    }
+  }
+
+  return state === "source" || state === "line-comment" ? structural.join("") : null;
+}
+
+function matchingPbxBrace(structural: string, openingIndex: number): number | null {
+  if (structural[openingIndex] !== "{") return null;
+  let depth = 1;
+  for (let index = openingIndex + 1; index < structural.length; index += 1) {
+    if (structural[index] === "{") depth += 1;
+    if (structural[index] === "}") depth -= 1;
+    if (depth === 0) return index;
+  }
+  return null;
+}
+
+type PbxDictionary = Readonly<{
+  source: string;
+  structural: string;
+  openingIndex: number;
+  closingIndex: number;
+}>;
+
+function skipPbxWhitespace(structural: string, index: number): number {
+  let cursor = index;
+  while (/\s/u.test(structural[cursor] ?? "")) cursor += 1;
+  return cursor;
+}
+
+function parsePbxDocument(content: string): PbxDictionary | null {
+  const structural = pbxStructuralSource(content);
+  if (structural === null) return null;
+  const openingIndex = skipPbxWhitespace(structural, 0);
+  if (structural[openingIndex] !== "{") return null;
+  const closingIndex = matchingPbxBrace(structural, openingIndex);
+  if (
+    closingIndex === null ||
+    skipPbxWhitespace(structural, closingIndex + 1) !== structural.length
+  ) {
+    return null;
+  }
+  const document = { source: content, structural, openingIndex, closingIndex };
+  return hasQuotedDirectAssignmentKey(document) ? null : document;
+}
+
+function hasQuotedDirectAssignmentKey(dictionary: PbxDictionary): boolean {
+  let braceDepth = 1;
+  let parenthesisDepth = 0;
+  for (let index = dictionary.openingIndex + 1; index < dictionary.closingIndex; index += 1) {
+    const current = dictionary.structural[index];
+    if (current === "{") {
+      braceDepth += 1;
+      continue;
+    }
+    if (current === "}") {
+      braceDepth -= 1;
+      continue;
+    }
+    if (braceDepth !== 1) continue;
+    if (current === "(") {
+      parenthesisDepth += 1;
+      continue;
+    }
+    if (current === ")") {
+      parenthesisDepth -= 1;
+      continue;
+    }
+    if (parenthesisDepth !== 0 || current !== '"') continue;
+
+    let previous = index - 1;
+    while (/\s/u.test(dictionary.structural[previous] ?? "")) previous -= 1;
+    if (dictionary.structural[previous] !== "{" && dictionary.structural[previous] !== ";") {
+      continue;
+    }
+
+    let closingQuote = index + 1;
+    while (closingQuote < dictionary.closingIndex && dictionary.structural[closingQuote] !== '"') {
+      closingQuote += 1;
+    }
+    if (closingQuote >= dictionary.closingIndex) return true;
+    const afterKey = skipPbxWhitespace(dictionary.structural, closingQuote + 1);
+    if (dictionary.structural[afterKey] === "=") return true;
+    index = closingQuote;
+  }
+  return false;
+}
+
+function directPbxAssignmentValueStart(dictionary: PbxDictionary, key: string): number | null {
+  const starts: number[] = [];
+  let braceDepth = 1;
+  let parenthesisDepth = 0;
+  for (let index = dictionary.openingIndex + 1; index < dictionary.closingIndex; index += 1) {
+    const current = dictionary.structural[index];
+    if (current === "{") {
+      braceDepth += 1;
+      continue;
+    }
+    if (current === "}") {
+      braceDepth -= 1;
+      continue;
+    }
+    if (braceDepth !== 1) continue;
+    if (current === "(") {
+      parenthesisDepth += 1;
+      continue;
+    }
+    if (current === ")") {
+      parenthesisDepth -= 1;
+      if (parenthesisDepth < 0) return null;
+      continue;
+    }
+    if (parenthesisDepth !== 0 || !dictionary.structural.startsWith(key, index)) continue;
+
+    let previous = index - 1;
+    while (/\s/u.test(dictionary.structural[previous] ?? "")) previous -= 1;
+    if (dictionary.structural[previous] !== "{" && dictionary.structural[previous] !== ";") {
+      continue;
+    }
+    let cursor = index + key.length;
+    const afterKey = dictionary.structural[cursor];
+    if (afterKey !== "=" && !/\s/u.test(afterKey ?? "")) continue;
+    cursor = skipPbxWhitespace(dictionary.structural, cursor);
+    if (dictionary.structural[cursor] !== "=") continue;
+    starts.push(skipPbxWhitespace(dictionary.structural, cursor + 1));
+  }
+  if (parenthesisDepth !== 0 || starts.length !== 1) return null;
+  return starts[0] ?? null;
+}
+
+function directPbxBareValue(dictionary: PbxDictionary, key: string): string | null {
+  const valueStart = directPbxAssignmentValueStart(dictionary, key);
+  if (valueStart === null) return null;
+  const valuePattern = /([0-9A-Za-z_.-]+)\s*;/uy;
+  valuePattern.lastIndex = valueStart;
+  return valuePattern.exec(dictionary.structural)?.[1] ?? null;
+}
+
+function directPbxScalarValue(dictionary: PbxDictionary, key: string): string | null {
+  const valueStart = directPbxAssignmentValueStart(dictionary, key);
+  if (valueStart === null) return null;
+  if (dictionary.structural[valueStart] !== '"') {
+    return directPbxBareValue(dictionary, key);
+  }
+  let closingQuote = valueStart + 1;
+  while (closingQuote < dictionary.closingIndex && dictionary.structural[closingQuote] !== '"') {
+    closingQuote += 1;
+  }
+  if (closingQuote >= dictionary.closingIndex) return null;
+  const terminator = skipPbxWhitespace(dictionary.structural, closingQuote + 1);
+  if (dictionary.structural[terminator] !== ";") return null;
+  return dictionary.source.slice(valueStart + 1, closingQuote);
+}
+
+function directPbxListBody(dictionary: PbxDictionary, key: string): string | null {
+  const valueStart = directPbxAssignmentValueStart(dictionary, key);
+  if (valueStart === null || dictionary.structural[valueStart] !== "(") return null;
+  let depth = 1;
+  for (let index = valueStart + 1; index < dictionary.closingIndex; index += 1) {
+    if (dictionary.structural[index] === "(") depth += 1;
+    if (dictionary.structural[index] === ")") depth -= 1;
+    if (depth !== 0) continue;
+    const terminator = skipPbxWhitespace(dictionary.structural, index + 1);
+    if (dictionary.structural[terminator] !== ";") return null;
+    return dictionary.structural.slice(valueStart + 1, index);
+  }
+  return null;
+}
+
+function pbxObjectRecords(document: PbxDictionary): ReadonlyMap<string, PbxDictionary> {
+  const empty = (): ReadonlyMap<string, PbxDictionary> => new Map();
+  const objectsOpening = directPbxAssignmentValueStart(document, "objects");
+  if (objectsOpening === null || document.structural[objectsOpening] !== "{") return empty();
+  const objectsClosing = matchingPbxBrace(document.structural, objectsOpening);
+  if (objectsClosing === null || objectsClosing >= document.closingIndex) return empty();
+  const dictionaryTerminator = skipPbxWhitespace(document.structural, objectsClosing + 1);
+  if (document.structural[dictionaryTerminator] !== ";") return empty();
+  const objectsDictionary = {
+    source: document.source,
+    structural: document.structural,
+    openingIndex: objectsOpening,
+    closingIndex: objectsClosing,
+  };
+  if (hasQuotedDirectAssignmentKey(objectsDictionary)) return empty();
+
+  const records = new Map<string, PbxDictionary>();
+  // Xcode accepts legacy opaque keys in this dictionary. Traverse them structurally, but only
+  // catalog the canonical 24-hex identifiers supported by the scanner's link validation.
+  const directEntryPattern = /([0-9A-Za-z_-]+)\s*=\s*\{/uy;
+  const seenKeys = new Set<string>();
+  let cursor = objectsOpening + 1;
+  while (cursor < objectsClosing) {
+    cursor = skipPbxWhitespace(document.structural, cursor);
+    if (cursor === objectsClosing) break;
+
+    directEntryPattern.lastIndex = cursor;
+    const match = directEntryPattern.exec(document.structural);
+    const entryKey = match?.[1];
+    const openingOffset = match?.[0].lastIndexOf("{") ?? -1;
+    if (entryKey === undefined || openingOffset < 0 || seenKeys.has(entryKey)) return empty();
+    seenKeys.add(entryKey);
+    const recordOpening = cursor + openingOffset;
+    const recordClosing = matchingPbxBrace(document.structural, recordOpening);
+    if (recordClosing === null || recordClosing >= objectsClosing) return empty();
+
+    let recordTerminator = recordClosing + 1;
+    recordTerminator = skipPbxWhitespace(document.structural, recordTerminator);
+    if (document.structural[recordTerminator] !== ";") return empty();
+    const record = {
+      source: document.source.slice(cursor, recordTerminator + 1),
+      structural: document.structural.slice(cursor, recordTerminator + 1),
+      openingIndex: recordOpening - cursor,
+      closingIndex: recordClosing - cursor,
+    };
+    if (hasQuotedDirectAssignmentKey(record)) return empty();
+    if (/^[0-9A-Fa-f]{24}$/u.test(entryKey)) {
+      const identifier = entryKey.toUpperCase();
+      if (records.has(identifier)) return empty();
+      records.set(identifier, record);
+    }
+    cursor = recordTerminator + 1;
   }
   return records;
 }
 
-function pbxProductType(record: string): string | null {
-  return /\bproductType\s*=\s*"?([^";\s]+)"?\s*;/u.exec(record)?.[1] ?? null;
+function pbxProductType(record: PbxDictionary): string | null {
+  return directPbxScalarValue(record, "productType");
 }
 
 function analyzeProjectDefinition(entry: FileEntry | undefined): ProjectDefinitionAnalysis {
@@ -1342,29 +1609,35 @@ function analyzeProjectDefinition(entry: FileEntry | undefined): ProjectDefiniti
     return empty(validation("invalid", "xcode.definition-unparseable"));
   }
   const content = secureUtf8(entry);
-  const rootObjectId = /\brootObject\s*=\s*([0-9A-Fa-f]{24})(?:\s+\/\*[^\r\n]*?\*\/)?\s*;/u
-    .exec(content)?.[1]
-    ?.toUpperCase();
-  if (rootObjectId === undefined) {
+  const document = parsePbxDocument(content);
+  if (document === null) {
+    return empty(validation("invalid", "xcode.definition-unparseable"));
+  }
+  const rootObjectValue = directPbxBareValue(document, "rootObject");
+  const rootObjectId =
+    rootObjectValue !== null && /^[0-9A-Fa-f]{24}$/u.test(rootObjectValue)
+      ? rootObjectValue.toUpperCase()
+      : null;
+  if (rootObjectId === null) {
     return empty(validation("invalid", "xcode.root-object-missing"));
   }
-  const records = pbxObjectRecords(content);
+  const records = pbxObjectRecords(document);
   const projectRecord = records.get(rootObjectId);
-  if (projectRecord === undefined || !/\bisa\s*=\s*PBXProject\s*;/u.test(projectRecord)) {
+  if (projectRecord === undefined || directPbxBareValue(projectRecord, "isa") !== "PBXProject") {
     return empty(validation("invalid", "xcode.root-object-unlinked"));
   }
+  const declaredTargets = directPbxListBody(projectRecord, "targets");
   const declaredTargetIds = new Set(
-    [
-      ...(/\btargets\s*=\s*\(([\s\S]*?)\)\s*;/u.exec(projectRecord)?.[1] ?? "").matchAll(
-        /\b([0-9A-Fa-f]{24})\b/gu,
-      ),
-    ]
+    [...(declaredTargets ?? "").matchAll(/\b([0-9A-Fa-f]{24})\b/gu)]
       .map((match) => match[1]?.toUpperCase())
       .filter((identifier): identifier is string => identifier !== undefined),
   );
   const targets: Array<Readonly<{ identifier: string; kind: TargetKind }>> = [];
   for (const [identifier, record] of records) {
-    if (!declaredTargetIds.has(identifier) || !/\bisa\s*=\s*PBXNativeTarget\s*;/u.test(record)) {
+    if (
+      !declaredTargetIds.has(identifier) ||
+      directPbxBareValue(record, "isa") !== "PBXNativeTarget"
+    ) {
       continue;
     }
     const productType = pbxProductType(record);
@@ -1376,7 +1649,7 @@ function analyzeProjectDefinition(entry: FileEntry | undefined): ProjectDefiniti
           : productType === "com.apple.product-type.bundle.ui-testing"
             ? "ui-test"
             : null;
-    if (kind !== null && /\bbuildPhases\s*=\s*\(/u.test(record)) {
+    if (kind !== null && directPbxListBody(record, "buildPhases") !== null) {
       targets.push({ identifier, kind });
     }
   }
