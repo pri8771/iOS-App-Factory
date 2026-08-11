@@ -96,6 +96,14 @@ export type LeaseRecord = Readonly<{
   expiresAt: string;
 }>;
 
+export type ActiveAttemptLeaseInput = Readonly<{
+  leaseKey: unknown;
+  attemptId: unknown;
+  ownerId: unknown;
+  fence: unknown;
+  observedAt: unknown;
+}>;
+
 export type ApplyDesiredStateCommandInput = Readonly<{
   command: unknown;
   expectedRevision: unknown;
@@ -109,11 +117,17 @@ export type DesiredStateCommandResult = Readonly<{
 }>;
 
 export type CreateStepInput = Readonly<{
+  leaseKey: unknown;
+  ownerId: unknown;
+  observedAt: unknown;
   step: unknown;
   event: unknown;
 }>;
 
 export type TransitionStepInput = Readonly<{
+  leaseKey: unknown;
+  ownerId: unknown;
+  observedAt: unknown;
   expectedRevision: unknown;
   fence: unknown;
   step: unknown;
@@ -440,6 +454,37 @@ function decodeLease(row: LeaseRow): LeaseRecord {
   };
 }
 
+/**
+ * Validates the lease at a trusted observation time while the caller's write
+ * transaction is active. A fencing token alone is insufficient after release
+ * or expiry because it does not advance until the next claim.
+ */
+export function assertActiveAttemptLease(
+  database: Database.Database,
+  input: ActiveAttemptLeaseInput,
+): LeaseRecord {
+  const leaseKey = parseLeaseKey(input.leaseKey);
+  const attemptId = AttemptIdSchema.parse(input.attemptId);
+  const ownerId = parseOwnerId(input.ownerId);
+  const fence = NonNegativeSafeIntegerSchema.parse(input.fence);
+  const observedAt = IsoInstantSchema.parse(input.observedAt);
+  const row = database.prepare("SELECT * FROM leases WHERE lease_key = ?").get(leaseKey) as
+    LeaseRow | undefined;
+  if (row === undefined) throw new Error(`Active lease does not exist: ${leaseKey}`);
+
+  const lease = decodeLease(row);
+  assertSame("active lease attempt", lease.attemptId, attemptId);
+  assertSame("active lease owner", lease.ownerId, ownerId);
+  assertSame("active lease fence", lease.fence, fence);
+  if (observedAt < lease.acquiredAt || observedAt < lease.heartbeatAt) {
+    failInvariant("trusted lease observation cannot precede acquisition or heartbeat");
+  }
+  if (observedAt >= lease.expiresAt) {
+    failInvariant(`lease ${leaseKey} is expired at ${observedAt}`);
+  }
+  return lease;
+}
+
 function assertAttemptCanMutate(attempt: ExecutionAttemptV1): void {
   if (
     attempt.state === "succeeded" ||
@@ -544,6 +589,7 @@ export class StepRepository {
   }
 
   public create(input: CreateStepInput): StepV1 {
+    const observedAt = IsoInstantSchema.parse(input.observedAt);
     const step = assertStepSnapshotCoherence(input.step);
     const event = parseStepCreatedEvent(input.event);
 
@@ -553,9 +599,17 @@ export class StepRepository {
       assertSame("initial step revision", step.revision, 0);
       assertSame("initial step state", step.state, "pending");
       assertSame("initial step fence", step.lastFence, attempt.fence);
+      assertActiveAttemptLease(this.database, {
+        leaseKey: input.leaseKey,
+        attemptId: attempt.attemptId,
+        ownerId: input.ownerId,
+        fence: attempt.fence,
+        observedAt,
+      });
       assertSame("step-created event attemptId", event.attemptId, attempt.attemptId);
       assertSame("step-created event fence", event.fence, attempt.fence);
       assertSame("step-created event commandId", event.commandId, null);
+      assertSame("step-created event occurredAt", event.occurredAt, observedAt);
       assertSame(
         "step-created event sequence",
         event.sequence,
@@ -601,6 +655,7 @@ export class StepRepository {
   }
 
   public transition(input: TransitionStepInput): StepV1 {
+    const observedAt = IsoInstantSchema.parse(input.observedAt);
     const expectedRevision = NonNegativeSafeIntegerSchema.parse(input.expectedRevision);
     const fence = NonNegativeSafeIntegerSchema.parse(input.fence);
     const next = assertStepSnapshotCoherence(input.step);
@@ -615,6 +670,13 @@ export class StepRepository {
       const attempt = readAttempt(this.database, current.attemptId);
       assertAttemptCanMutate(attempt);
       assertSame("step mutation fence", fence, attempt.fence);
+      assertActiveAttemptLease(this.database, {
+        leaseKey: input.leaseKey,
+        attemptId: attempt.attemptId,
+        ownerId: input.ownerId,
+        fence,
+        observedAt,
+      });
       assertSame("expected step revision", current.revision, expectedRevision);
       assertLegalStepStateTransition(current.state, next.state);
       assertSame("next step revision", next.revision, current.revision + 1);
@@ -623,6 +685,29 @@ export class StepRepository {
       assertSame("immutable step operation", next.operation, current.operation);
       assertSame("immutable step inputDigest", next.inputDigest, current.inputDigest);
       assertSame("next step fence", next.lastFence, fence);
+
+      if (next.state === "running" && attempt.desiredState !== "running") {
+        failInvariant(
+          `attempt ${attempt.attemptId} cannot enter or resume step work while desiredState is ${attempt.desiredState}`,
+        );
+      }
+
+      let projectedCurrentStepId = attempt.currentStepId;
+      if (current.state === "running" || current.state === "blocked") {
+        assertSame("attempt current step", attempt.currentStepId, current.stepId);
+      }
+      if (next.state === "running") {
+        if (current.state === "pending") {
+          assertSame("attempt has no other current step", attempt.currentStepId, null);
+        }
+        projectedCurrentStepId = next.stepId;
+      } else if (
+        next.state === "succeeded" ||
+        next.state === "failed" ||
+        next.state === "cancelled"
+      ) {
+        projectedCurrentStepId = null;
+      }
 
       if (next.state === "running") {
         assertSame("running step runCount", next.runCount, current.runCount + 1);
@@ -641,6 +726,8 @@ export class StepRepository {
 
       assertSame("step-state event attemptId", event.attemptId, current.attemptId);
       assertSame("step-state event fence", event.fence, fence);
+      assertSame("step-state event commandId", event.commandId, null);
+      assertSame("step-state event occurredAt", event.occurredAt, observedAt);
       assertSame(
         "step-state event sequence",
         event.sequence,
@@ -680,6 +767,18 @@ export class StepRepository {
         );
       if (result.changes !== 1) {
         throw new Error(`Step revision conflict: ${next.stepId}`);
+      }
+      if (projectedCurrentStepId !== attempt.currentStepId) {
+        if (observedAt <= attempt.updatedAt) {
+          failInvariant("current-step projection time must advance the attempt");
+        }
+        const projectedAttempt = assertAttemptSnapshotCoherence({
+          ...attempt,
+          currentStepId: projectedCurrentStepId,
+          revision: attempt.revision + 1,
+          updatedAt: observedAt,
+        });
+        updateAttempt(this.database, projectedAttempt, attempt.revision, attempt.fence);
       }
       insertEvent(this.database, event);
       return next;

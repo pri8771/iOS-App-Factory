@@ -77,6 +77,9 @@ export function assertAttemptSnapshotCoherence(attemptInput: unknown): Execution
     if (attempt.terminalAt === null || attempt.terminalAt !== attempt.updatedAt) {
       failStateInvariant("terminal attempt must set terminalAt to updatedAt");
     }
+    if (attempt.currentStepId !== null) {
+      failStateInvariant("terminal attempt cannot retain a current step");
+    }
   } else if (attempt.outcome !== null || attempt.terminalAt !== null) {
     failStateInvariant("nonterminal attempt cannot have outcome or terminalAt");
   }

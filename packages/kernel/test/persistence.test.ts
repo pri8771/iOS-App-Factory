@@ -17,6 +17,8 @@ import {
 
 const NOW = "2026-08-10T12:00:00.000Z";
 const LATER = "2026-08-10T12:00:01.000Z";
+const RUNNING_AT = "2026-08-10T12:00:02.000Z";
+const LEASE_EXPIRES_AT = "2026-08-10T12:00:05.000Z";
 const PROJECT_ID = "00000000-0000-4000-8000-000000000001";
 const REPOSITORY_ID = "00000000-0000-4000-8000-000000000002";
 const POLICY_DIGEST = `sha256:${"a".repeat(64)}`;
@@ -28,6 +30,7 @@ const IDS_A = {
   attempt: "00000000-0000-4000-8000-000000000005",
   event: "00000000-0000-4000-8000-000000000006",
   transitionEvent: "00000000-0000-4000-8000-000000000007",
+  fenceEvent: "00000000-0000-4000-8000-000000000008",
 } as const;
 
 const IDS_B = {
@@ -36,6 +39,7 @@ const IDS_B = {
   attempt: "00000000-0000-4000-8000-000000000015",
   event: "00000000-0000-4000-8000-000000000016",
   transitionEvent: "00000000-0000-4000-8000-000000000017",
+  fenceEvent: "00000000-0000-4000-8000-000000000018",
 } as const;
 
 const temporaryDirectories: string[] = [];
@@ -108,26 +112,53 @@ function makeBundle(ids: typeof IDS_A | typeof IDS_B) {
 
 function makeRunningTransition(ids: typeof IDS_A | typeof IDS_B) {
   return {
-    expectedRevision: 0,
+    leaseKey: `attempt:${ids.attempt}`,
+    ownerId: "worker.persistence",
+    observedAt: RUNNING_AT,
+    expectedRevision: 1,
     attempt: {
       ...makeBundle(ids).attempt,
       state: "running",
-      revision: 1,
-      updatedAt: LATER,
+      revision: 2,
+      fence: 1,
+      updatedAt: RUNNING_AT,
     },
     event: {
       schemaVersion: 1,
       eventId: ids.transitionEvent,
       attemptId: ids.attempt,
-      sequence: 2,
-      occurredAt: LATER,
+      sequence: 3,
+      occurredAt: RUNNING_AT,
       commandId: null,
-      causationEventId: ids.event,
-      fence: 0,
+      causationEventId: ids.fenceEvent,
+      fence: 1,
       type: "attempt.state-changed",
       data: { from: "queued", to: "running", blocker: null, outcome: null },
     },
   };
+}
+
+function makeLeaseClaim(ids: typeof IDS_A | typeof IDS_B) {
+  return {
+    leaseKey: `attempt:${ids.attempt}`,
+    attemptId: ids.attempt,
+    ownerId: "worker.persistence",
+    expectedAttemptRevision: 0,
+    acquiredAt: LATER,
+    expiresAt: LEASE_EXPIRES_AT,
+    event: {
+      schemaVersion: 1,
+      eventId: ids.fenceEvent,
+      attemptId: ids.attempt,
+      sequence: 2,
+      occurredAt: LATER,
+      commandId: null,
+      causationEventId: ids.event,
+      fence: 1,
+      type: "attempt.fence-claimed",
+      data: { previousFence: 0, newFence: 1, ownerId: "worker.persistence" },
+    },
+  } as const;
 }
 
 afterEach(() => {
@@ -270,6 +301,7 @@ describe("Factory repositories", () => {
       attempt: bundle.attempt,
       event: bundle.event,
     });
+    repositories.leases.claim(makeLeaseClaim(IDS_A));
     repositories.transitionAttemptState(makeRunningTransition(IDS_A));
     database.close();
 
@@ -282,11 +314,13 @@ describe("Factory repositories", () => {
     expect(repositories.taskSnapshots.findById(IDS_A.task)).toEqual(bundle.command.taskSpec);
     expect(repositories.attempts.findById(IDS_A.attempt)).toMatchObject({
       state: "running",
-      revision: 1,
-      updatedAt: LATER,
+      revision: 2,
+      fence: 1,
+      updatedAt: RUNNING_AT,
     });
     expect(repositories.events.listByAttempt(IDS_A.attempt).map((event) => event.type)).toEqual([
       "attempt.created",
+      "attempt.fence-claimed",
       "attempt.state-changed",
     ]);
     database.close();
@@ -314,6 +348,7 @@ describe("Factory repositories", () => {
     const database = openMigratedFactoryDatabase(makeDatabasePath());
     const repositories = createFactoryRepositories(database);
     repositories.createTaskAttempt(makeBundle(IDS_A));
+    repositories.leases.claim(makeLeaseClaim(IDS_A));
     const transition = makeRunningTransition(IDS_A);
 
     expect(() =>
@@ -324,10 +359,11 @@ describe("Factory repositories", () => {
     ).toThrow();
     expect(repositories.attempts.findById(IDS_A.attempt)).toMatchObject({
       state: "queued",
-      revision: 0,
-      updatedAt: NOW,
+      revision: 1,
+      fence: 1,
+      updatedAt: LATER,
     });
-    expect(repositories.events.listByAttempt(IDS_A.attempt)).toHaveLength(1);
+    expect(repositories.events.listByAttempt(IDS_A.attempt)).toHaveLength(2);
     database.close();
   });
 

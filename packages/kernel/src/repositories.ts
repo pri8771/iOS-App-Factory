@@ -28,6 +28,7 @@ import {
   AttemptDesiredStateRepository,
   LeaseRepository,
   StepRepository,
+  assertActiveAttemptLease,
 } from "./durability-repositories.js";
 
 type SubmitTaskCommandV1 = Extract<CommandV1, { kind: "task.submit" }>;
@@ -50,6 +51,9 @@ export type CreatedTaskAttempt = Readonly<{
 }>;
 
 export type TransitionAttemptStateInput = Readonly<{
+  leaseKey: unknown;
+  ownerId: unknown;
+  observedAt: unknown;
   expectedRevision: unknown;
   attempt: unknown;
   event: unknown;
@@ -423,7 +427,9 @@ export class FactoryRepositories {
     assertSame("attempt taskSpecDigest", attempt.taskSpecDigest, taskSpecDigest);
     assertSame("initial attempt state", attempt.state, "queued");
     assertSame("initial attempt desiredState", attempt.desiredState, "running");
+    assertSame("initial attempt number", attempt.attemptNumber, 1);
     assertSame("initial attempt revision", attempt.revision, 0);
+    assertSame("initial attempt fence", attempt.fence, 0);
     assertSame("initial attempt currentStepId", attempt.currentStepId, null);
     assertSame("initial attempt blocker", attempt.blocker, null);
     assertSame("initial attempt outcome", attempt.outcome, null);
@@ -512,6 +518,7 @@ export class FactoryRepositories {
   }
 
   public transitionAttemptState(input: TransitionAttemptStateInput): ExecutionAttemptV1 {
+    const observedAt = IsoInstantSchema.parse(input.observedAt);
     const expectedRevision = NonNegativeSafeIntegerSchema.parse(input.expectedRevision);
     const nextAttempt = ExecutionAttemptV1Schema.parse(input.attempt);
     const event = parseAttemptStateChangedEvent(input.event);
@@ -545,10 +552,25 @@ export class FactoryRepositories {
       if (nextAttempt.updatedAt <= current.updatedAt) {
         failInvariant("attempt updatedAt must advance");
       }
+      if (nextAttempt.state === "running" && current.desiredState !== "running") {
+        failInvariant(
+          `attempt ${current.attemptId} cannot enter or resume running while desiredState is ${current.desiredState}`,
+        );
+      }
+
+      assertActiveAttemptLease(this.database, {
+        leaseKey: input.leaseKey,
+        attemptId: current.attemptId,
+        ownerId: input.ownerId,
+        fence: current.fence,
+        observedAt,
+      });
 
       assertSame("state event attemptId", event.attemptId, current.attemptId);
       assertSame("state event fence", event.fence, current.fence);
+      assertSame("state event commandId", event.commandId, null);
       assertSame("state event occurredAt", event.occurredAt, nextAttempt.updatedAt);
+      assertSame("state event trusted observedAt", event.occurredAt, observedAt);
       assertSame("state event from", event.data.from, current.state);
       assertSame("state event to", event.data.to, nextAttempt.state);
       assertJsonSame("state event blocker", event.data.blocker, nextAttempt.blocker);

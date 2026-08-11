@@ -225,6 +225,9 @@ function pendingStep(fence: number) {
 
 function createStepInput(fence: number, sequence: number) {
   return {
+    leaseKey: `attempt:${ATTEMPT_ID}`,
+    ownerId: "worker.one",
+    observedAt: T2,
     step: pendingStep(fence),
     event: {
       schemaVersion: 1,
@@ -245,6 +248,12 @@ function createStepInput(fence: number, sequence: number) {
     },
   } as const;
 }
+
+const MISSING_LEASE_CONTEXT = {
+  leaseKey: `attempt:${ATTEMPT_ID}`,
+  ownerId: "worker.missing",
+  observedAt: T1,
+} as const;
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
@@ -299,6 +308,7 @@ describe("table-driven state machines", () => {
     } as const;
     expect(() =>
       repositories.transitionAttemptState({
+        ...MISSING_LEASE_CONTEXT,
         expectedRevision: 0,
         attempt: succeeded,
         event: {
@@ -318,6 +328,7 @@ describe("table-driven state machines", () => {
 
     expect(() =>
       repositories.transitionAttemptState({
+        ...MISSING_LEASE_CONTEXT,
         expectedRevision: 0,
         attempt: {
           ...submission.attempt,
@@ -343,6 +354,7 @@ describe("table-driven state machines", () => {
 
     expect(() =>
       repositories.transitionAttemptState({
+        ...MISSING_LEASE_CONTEXT,
         expectedRevision: 0,
         attempt: {
           ...submission.attempt,
@@ -391,6 +403,7 @@ describe("table-driven state machines", () => {
 
     expect(() =>
       repositories.transitionAttemptState({
+        ...MISSING_LEASE_CONTEXT,
         expectedRevision: 0,
         attempt: {
           ...submission.attempt,
@@ -446,6 +459,29 @@ describe("canonical task binding", () => {
       }),
     ).toThrow(/canonical taskSpecDigest/);
     expect(database.prepare("SELECT COUNT(*) AS count FROM commands").get()).toEqual({ count: 0 });
+    database.close();
+  });
+
+  it("rejects noncanonical initial attempt numbers and fences before persistence", () => {
+    const database = openMigratedFactoryDatabase(makeDatabasePath());
+    const repositories = createFactoryRepositories(database);
+    const submission = makeSubmission();
+
+    expect(() =>
+      repositories.createTaskAttempt({
+        ...submission,
+        attempt: { ...submission.attempt, attemptNumber: 2 },
+      }),
+    ).toThrow(/initial attempt number/);
+    expect(() =>
+      repositories.createTaskAttempt({
+        ...submission,
+        attempt: { ...submission.attempt, fence: 1 },
+        event: { ...submission.event, fence: 1 },
+      }),
+    ).toThrow(/initial attempt fence/);
+    expect(database.prepare("SELECT COUNT(*) AS count FROM commands").get()).toEqual({ count: 0 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM attempts").get()).toEqual({ count: 0 });
     database.close();
   });
 });
@@ -561,6 +597,9 @@ describe("durable steps and fenced attempt leases", () => {
       startedAt: T3,
     } as const;
     repositories.steps.transition({
+      leaseKey: firstClaim.leaseKey,
+      ownerId: "worker.one",
+      observedAt: T3,
       expectedRevision: 0,
       fence: 1,
       step: runningStep,
@@ -589,10 +628,15 @@ describe("durable steps and fenced attempt leases", () => {
       ownerId: "worker.one",
       fence: 1,
     });
-    const secondClaim = fenceClaim("worker.two", 1, 1, T4, T6, SECOND_FENCE_EVENT_ID, 5);
+    expect(repositories.attempts.findById(ATTEMPT_ID)).toMatchObject({
+      currentStepId: STEP_ID,
+      revision: 2,
+      updatedAt: T3,
+    });
+    const secondClaim = fenceClaim("worker.two", 2, 1, T4, T6, SECOND_FENCE_EVENT_ID, 5);
     expect(repositories.leases.claim(secondClaim)).toMatchObject({
       lease: { ownerId: "worker.two", fence: 2 },
-      attempt: { fence: 2, revision: 2 },
+      attempt: { fence: 2, revision: 3, currentStepId: STEP_ID },
     });
 
     const succeededStep = {
@@ -623,6 +667,9 @@ describe("durable steps and fenced attempt leases", () => {
     } as const;
     expect(() =>
       repositories.steps.transition({
+        leaseKey: secondClaim.leaseKey,
+        ownerId: "worker.one",
+        observedAt: T5,
         expectedRevision: 1,
         fence: 1,
         step: { ...succeededStep, lastFence: 1 },
@@ -631,6 +678,9 @@ describe("durable steps and fenced attempt leases", () => {
     ).toThrow(/step mutation fence/);
     expect(repositories.steps.findById(STEP_ID)).toEqual(runningStep);
     repositories.steps.transition({
+      leaseKey: secondClaim.leaseKey,
+      ownerId: "worker.two",
+      observedAt: T5,
       expectedRevision: 1,
       fence: 2,
       step: succeededStep,
@@ -645,7 +695,12 @@ describe("durable steps and fenced attempt leases", () => {
       ownerId: "worker.two",
       fence: 2,
     });
-    expect(repositories.attempts.findById(ATTEMPT_ID)).toMatchObject({ fence: 2, revision: 2 });
+    expect(repositories.attempts.findById(ATTEMPT_ID)).toMatchObject({
+      fence: 2,
+      revision: 4,
+      currentStepId: null,
+      updatedAt: T5,
+    });
     database.close();
   });
 
@@ -661,6 +716,275 @@ describe("durable steps and fenced attempt leases", () => {
     expect(() =>
       repositories.leases.release({ leaseKey: first.leaseKey, ownerId: "worker.old", fence: 1 }),
     ).toThrow(/lease release owner/);
+    database.close();
+  });
+
+  it("requires a present, matching, unexpired lease for every scheduler mutation", () => {
+    const { database, repositories, submission } = seed();
+    const claim = fenceClaim("worker.one", 0, 0, T1, T4, FIRST_FENCE_EVENT_ID, 2);
+    repositories.leases.claim(claim);
+    repositories.leases.release({
+      leaseKey: claim.leaseKey,
+      ownerId: "worker.one",
+      fence: 1,
+    });
+
+    const runningAttempt = {
+      ...submission.attempt,
+      state: "running",
+      revision: 2,
+      fence: 1,
+      updatedAt: T2,
+    } as const;
+    expect(() =>
+      repositories.transitionAttemptState({
+        leaseKey: claim.leaseKey,
+        ownerId: "worker.one",
+        observedAt: T2,
+        expectedRevision: 1,
+        attempt: runningAttempt,
+        event: {
+          schemaVersion: 1,
+          eventId: STATE_EVENT_ID,
+          attemptId: ATTEMPT_ID,
+          sequence: 3,
+          occurredAt: T2,
+          commandId: null,
+          causationEventId: FIRST_FENCE_EVENT_ID,
+          fence: 1,
+          type: "attempt.state-changed",
+          data: { from: "queued", to: "running", blocker: null, outcome: null },
+        },
+      }),
+    ).toThrow(/Active lease does not exist/);
+    expect(repositories.attempts.findById(ATTEMPT_ID)).toMatchObject({
+      state: "queued",
+      revision: 1,
+      fence: 1,
+    });
+    database.close();
+
+    const expired = seed();
+    const expiredClaim = fenceClaim("worker.one", 0, 0, T1, T2, FIRST_FENCE_EVENT_ID, 2);
+    expired.repositories.leases.claim(expiredClaim);
+    expect(() => expired.repositories.steps.create(createStepInput(1, 3))).toThrow(/is expired/);
+    expect(expired.repositories.steps.findById(STEP_ID)).toBeNull();
+    expired.database.close();
+
+    const mismatched = seed();
+    const liveClaim = fenceClaim("worker.one", 0, 0, T1, T5, FIRST_FENCE_EVENT_ID, 2);
+    mismatched.repositories.leases.claim(liveClaim);
+    mismatched.repositories.steps.create(createStepInput(1, 3));
+    const runningStep = {
+      ...pendingStep(1),
+      state: "running",
+      revision: 1,
+      runCount: 1,
+      startedAt: T3,
+    } as const;
+    expect(() =>
+      mismatched.repositories.steps.transition({
+        leaseKey: liveClaim.leaseKey,
+        ownerId: "worker.two",
+        observedAt: T3,
+        expectedRevision: 0,
+        fence: 1,
+        step: runningStep,
+        event: {
+          schemaVersion: 1,
+          eventId: STEP_RUNNING_EVENT_ID,
+          attemptId: ATTEMPT_ID,
+          sequence: 4,
+          occurredAt: T3,
+          commandId: null,
+          causationEventId: STEP_CREATED_EVENT_ID,
+          fence: 1,
+          type: "step.state-changed",
+          data: {
+            stepId: STEP_ID,
+            from: "pending",
+            to: "running",
+            outputDigest: null,
+            failureCode: null,
+          },
+        },
+      }),
+    ).toThrow(/active lease owner/);
+    expect(mismatched.repositories.steps.findById(STEP_ID)).toEqual(pendingStep(1));
+    mismatched.database.close();
+  });
+
+  it("rejects scheduler state events that claim an existing command result", () => {
+    const { database, repositories, submission } = seed();
+    const claim = fenceClaim("worker.one", 0, 0, T1, T5, FIRST_FENCE_EVENT_ID, 2);
+    repositories.leases.claim(claim);
+    expect(() =>
+      repositories.transitionAttemptState({
+        leaseKey: claim.leaseKey,
+        ownerId: "worker.one",
+        observedAt: T2,
+        expectedRevision: 1,
+        attempt: {
+          ...submission.attempt,
+          state: "running",
+          revision: 2,
+          fence: 1,
+          updatedAt: T2,
+        },
+        event: {
+          schemaVersion: 1,
+          eventId: STATE_EVENT_ID,
+          attemptId: ATTEMPT_ID,
+          sequence: 3,
+          occurredAt: T2,
+          commandId: SUBMIT_COMMAND_ID,
+          causationEventId: FIRST_FENCE_EVENT_ID,
+          fence: 1,
+          type: "attempt.state-changed",
+          data: { from: "queued", to: "running", blocker: null, outcome: null },
+        },
+      }),
+    ).toThrow(/state event commandId/);
+
+    repositories.steps.create(createStepInput(1, 3));
+    expect(() =>
+      repositories.steps.transition({
+        leaseKey: claim.leaseKey,
+        ownerId: "worker.one",
+        observedAt: T3,
+        expectedRevision: 0,
+        fence: 1,
+        step: {
+          ...pendingStep(1),
+          state: "running",
+          revision: 1,
+          runCount: 1,
+          startedAt: T3,
+        },
+        event: {
+          schemaVersion: 1,
+          eventId: STEP_RUNNING_EVENT_ID,
+          attemptId: ATTEMPT_ID,
+          sequence: 4,
+          occurredAt: T3,
+          commandId: SUBMIT_COMMAND_ID,
+          causationEventId: STEP_CREATED_EVENT_ID,
+          fence: 1,
+          type: "step.state-changed",
+          data: {
+            stepId: STEP_ID,
+            from: "pending",
+            to: "running",
+            outputDigest: null,
+            failureCode: null,
+          },
+        },
+      }),
+    ).toThrow(/step-state event commandId/);
+    expect(repositories.events.listByAttempt(ATTEMPT_ID)).toHaveLength(3);
+    expect(repositories.createTaskAttempt(submission)).toMatchObject({ duplicate: true });
+    database.close();
+  });
+
+  it("does not enter or resume work while desired state is paused", () => {
+    const { database, repositories, submission } = seed();
+    const claim = fenceClaim("worker.one", 0, 0, T1, T6, FIRST_FENCE_EVENT_ID, 2);
+    repositories.leases.claim(claim);
+    const pause = {
+      command: {
+        ...desiredStateChange().command,
+        issuedAt: T2,
+      },
+      expectedRevision: 1,
+      event: {
+        ...desiredStateChange().event,
+        sequence: 3,
+        occurredAt: T2,
+        causationEventId: FIRST_FENCE_EVENT_ID,
+        fence: 1,
+      },
+    } as const;
+    repositories.desiredStates.apply(pause);
+
+    expect(() =>
+      repositories.transitionAttemptState({
+        leaseKey: claim.leaseKey,
+        ownerId: "worker.one",
+        observedAt: T3,
+        expectedRevision: 2,
+        attempt: {
+          ...submission.attempt,
+          state: "running",
+          desiredState: "paused",
+          revision: 3,
+          fence: 1,
+          updatedAt: T3,
+        },
+        event: {
+          schemaVersion: 1,
+          eventId: STATE_EVENT_ID,
+          attemptId: ATTEMPT_ID,
+          sequence: 4,
+          occurredAt: T3,
+          commandId: null,
+          causationEventId: DESIRED_EVENT_ID,
+          fence: 1,
+          type: "attempt.state-changed",
+          data: { from: "queued", to: "running", blocker: null, outcome: null },
+        },
+      }),
+    ).toThrow(/desiredState is paused/);
+
+    repositories.steps.create({
+      ...createStepInput(1, 4),
+      observedAt: T3,
+      event: {
+        ...createStepInput(1, 4).event,
+        sequence: 4,
+        occurredAt: T3,
+        causationEventId: DESIRED_EVENT_ID,
+      },
+    });
+    expect(() =>
+      repositories.steps.transition({
+        leaseKey: claim.leaseKey,
+        ownerId: "worker.one",
+        observedAt: T4,
+        expectedRevision: 0,
+        fence: 1,
+        step: {
+          ...pendingStep(1),
+          state: "running",
+          revision: 1,
+          runCount: 1,
+          startedAt: T4,
+        },
+        event: {
+          schemaVersion: 1,
+          eventId: STEP_RUNNING_EVENT_ID,
+          attemptId: ATTEMPT_ID,
+          sequence: 5,
+          occurredAt: T4,
+          commandId: null,
+          causationEventId: STEP_CREATED_EVENT_ID,
+          fence: 1,
+          type: "step.state-changed",
+          data: {
+            stepId: STEP_ID,
+            from: "pending",
+            to: "running",
+            outputDigest: null,
+            failureCode: null,
+          },
+        },
+      }),
+    ).toThrow(/desiredState is paused/);
+    expect(repositories.attempts.findById(ATTEMPT_ID)).toMatchObject({
+      state: "queued",
+      desiredState: "paused",
+      currentStepId: null,
+      revision: 2,
+    });
     database.close();
   });
 
@@ -683,6 +1007,9 @@ describe("durable steps and fenced attempt leases", () => {
     } as const;
     expect(() =>
       repositories.steps.transition({
+        leaseKey: claim.leaseKey,
+        ownerId: "worker.one",
+        observedAt: T3,
         expectedRevision: 0,
         fence: 1,
         step: running,
@@ -707,6 +1034,11 @@ describe("durable steps and fenced attempt leases", () => {
       }),
     ).toThrow();
     expect(repositories.steps.findById(STEP_ID)).toEqual(pendingStep(1));
+    expect(repositories.attempts.findById(ATTEMPT_ID)).toMatchObject({
+      currentStepId: null,
+      revision: 1,
+      updatedAt: T1,
+    });
     expect(repositories.events.listByAttempt(ATTEMPT_ID)).toHaveLength(3);
     database.close();
   });
