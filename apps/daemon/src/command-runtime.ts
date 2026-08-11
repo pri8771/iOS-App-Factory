@@ -40,6 +40,8 @@ const COMMAND_RESULTS_DIRECTORY_NAME = "command-results";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
 
+type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
+
 export type DaemonRuntimeIdPurpose = "attempt" | "attempt-created-event" | "desired-state-event";
 
 export type DaemonRuntimeIdFactory = (
@@ -69,6 +71,12 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
   now?: () => string;
   idFactory?: DaemonRuntimeIdFactory;
   reconcile?: ReconcilePort;
+  /**
+   * Daemon-only composition hook. It lets the scheduler share the runtime's
+   * single SQLite handle without exposing that handle through the command
+   * protocol or opening a second connection.
+   */
+  createReconcile?: (database: FactoryDatabase) => ReconcilePort;
 }>;
 
 export type DaemonRuntimePaths = Readonly<{
@@ -612,6 +620,9 @@ function closedError(): CommandHandlerError {
 export async function openDaemonCommandRuntime(
   options: OpenDaemonCommandRuntimeOptions,
 ): Promise<DaemonCommandRuntime> {
+  if (options.reconcile !== undefined && options.createReconcile !== undefined) {
+    throw new TypeError("reconcile and createReconcile are mutually exclusive");
+  }
   const paths = resolveDaemonRuntimePaths(options.runtimeDirectory);
   const daemonVersion = parseDaemonVersion(options.daemonVersion);
   const now = options.now ?? (() => new Date().toISOString());
@@ -620,15 +631,17 @@ export async function openDaemonCommandRuntime(
   await prepareRuntimePaths(paths);
 
   const database = openMigratedFactoryDatabase(paths.database);
+  let reconcile: ReconcilePort;
+  let repositories: FactoryRepositories;
   try {
     await chmod(paths.database, 0o600);
     await assertPrivateRegularFile(paths.database);
+    repositories = createFactoryRepositories(database);
+    reconcile = options.createReconcile?.(database) ?? options.reconcile ?? (() => []);
   } catch (error) {
     database.close();
     throw error;
   }
-  const repositories = createFactoryRepositories(database);
-  const reconcile: ReconcilePort = options.reconcile ?? (() => []);
   const serial = new SerialExecutor();
   let closed = false;
 
