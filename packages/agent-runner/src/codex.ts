@@ -771,7 +771,7 @@ export async function preflightCodex(
   }
 }
 
-export type CodexTerminationOrigin = "none" | "cancelled" | "timed-out";
+export type CodexTerminationOrigin = "none" | "cancelled" | "timed-out" | "output-overflow";
 
 export type CodexProcessCapture = Readonly<{
   exitCode: number | null;
@@ -779,6 +779,8 @@ export type CodexProcessCapture = Readonly<{
   terminationOrigin: CodexTerminationOrigin;
   stdout: string;
   stderr: string;
+  stdoutTruncated: boolean;
+  stderrTruncated: boolean;
 }>;
 
 export type CodexProcessClassification =
@@ -810,6 +812,9 @@ export function classifyCodexProcess(
   }
   if (capture.terminationOrigin === "timed-out") {
     return { kind: "timed-out", reason: "Factory deadline terminated Codex" };
+  }
+  if (capture.terminationOrigin === "output-overflow") {
+    return { kind: "protocol-error", reason: "Codex output exceeded its capture limit" };
   }
   if (Buffer.byteLength(capture.stdout, "utf8") > limits.maxStdoutBytes) {
     return { kind: "protocol-error", reason: "Codex stdout exceeded its byte limit" };

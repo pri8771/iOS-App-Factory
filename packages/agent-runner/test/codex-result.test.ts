@@ -112,6 +112,8 @@ function capture(overrides: Partial<CodexProcessCapture> = {}): CodexProcessCapt
     terminationOrigin: "none",
     stdout: completedJsonl(),
     stderr: "",
+    stdoutTruncated: false,
+    stderrTruncated: false,
     ...overrides,
   };
 }
@@ -259,6 +261,38 @@ describe("Codex run result materialization", () => {
       byteLength: Buffer.byteLength(stderr, "utf8"),
       truncated: false,
     });
+  });
+
+  it("preserves output truncation provenance and fails closed on overflow", () => {
+    const stdout = completedJsonl();
+    const overflow = materialize({
+      capture: capture({
+        exitCode: null,
+        signal: "SIGTERM",
+        terminationOrigin: "output-overflow",
+        stdout,
+        stdoutTruncated: true,
+      }),
+    });
+
+    expect(overflow.result).toMatchObject({
+      status: "failed",
+      stdout: {
+        byteLength: Buffer.byteLength(stdout, "utf8"),
+        truncated: true,
+      },
+      stderr: { truncated: false },
+      failure: { code: "agent.output-limit-exceeded", retryable: false },
+    });
+    expect(() =>
+      materialize({
+        capture: capture({
+          terminationOrigin: "output-overflow",
+          stdoutTruncated: false,
+          stderrTruncated: false,
+        }),
+      }),
+    ).toThrow(/requires truncated output provenance/u);
   });
 
   it("fails closed and non-retryably for stdout, stderr, event, and turn limit violations", () => {

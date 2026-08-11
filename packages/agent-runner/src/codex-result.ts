@@ -116,11 +116,11 @@ function failure(code: string, summary: string, retryable: boolean): FailureV1 {
   };
 }
 
-function capturedOutput(contents: string): CapturedOutputV1 {
+function capturedOutput(contents: string, truncated: boolean): CapturedOutputV1 {
   return {
     digest: Sha256DigestSchema.parse(sha256(contents)),
     byteLength: Buffer.byteLength(contents, "utf8"),
-    truncated: false,
+    truncated,
   };
 }
 
@@ -157,12 +157,26 @@ function normalizeCapture(capture: CodexProcessCapture): CodexProcessCapture {
   if (
     capture.terminationOrigin !== "none" &&
     capture.terminationOrigin !== "cancelled" &&
-    capture.terminationOrigin !== "timed-out"
+    capture.terminationOrigin !== "timed-out" &&
+    capture.terminationOrigin !== "output-overflow"
   ) {
     throw new TypeError("Codex termination origin is invalid");
   }
   if (typeof capture.stdout !== "string" || typeof capture.stderr !== "string") {
     throw new TypeError("Codex stdout and stderr must be strings");
+  }
+  if (
+    typeof capture.stdoutTruncated !== "boolean" ||
+    typeof capture.stderrTruncated !== "boolean"
+  ) {
+    throw new TypeError("Codex output truncation provenance must be boolean");
+  }
+  if (
+    capture.terminationOrigin === "output-overflow" &&
+    !capture.stdoutTruncated &&
+    !capture.stderrTruncated
+  ) {
+    throw new TypeError("Codex output-overflow termination requires truncated output provenance");
   }
   return capture;
 }
@@ -473,11 +487,28 @@ export function materializeCodexRunV1(
     throw new TypeError("finishedAt must not precede startedAt");
   }
 
-  const stdout = capturedOutput(capture.stdout);
-  const stderr = capturedOutput(capture.stderr);
+  const stdout = capturedOutput(capture.stdout, capture.stdoutTruncated);
+  const stderr = capturedOutput(capture.stderr, capture.stderrTruncated);
   let outcome = identityFailure(spec, identity);
   let classification: CodexProcessClassification | null = null;
 
+  if (
+    outcome === null &&
+    capture.terminationOrigin !== "cancelled" &&
+    capture.terminationOrigin !== "timed-out" &&
+    (capture.stdoutTruncated || capture.stderrTruncated)
+  ) {
+    outcome = {
+      status: "failed",
+      failure: failure(
+        "agent.output-limit-exceeded",
+        "Codex output exceeded its configured capture limit",
+        false,
+      ),
+      blocker: null,
+      summary: "Codex output exceeded its configured capture limit",
+    };
+  }
   if (outcome === null && stderr.byteLength > spec.limits.maxStderrBytes) {
     outcome = {
       status: "failed",

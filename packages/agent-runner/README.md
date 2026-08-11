@@ -22,7 +22,7 @@ has no structural fields for adapter/CLI versions, reported summaries, or
 reported changed paths; deterministic event IDs bind the identity and capture,
 but the supervisor/evidence layer must preserve those additional inputs.
 
-`CodexProcessCapture` does not carry truncation provenance, so materialized
-captured outputs are marked `truncated: false`. The supervising process must
-provide complete bounded strings; an over-limit capture is converted to a
-non-retryable failure.
+`CodexProcessCapture` carries per-stream truncation provenance. A supervising
+process must provide the exact captured bytes and mark any partial stream;
+output-overflow captures become non-retryable failures and can never be parsed
+as successful Codex transcripts.

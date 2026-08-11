@@ -340,6 +340,8 @@ describe("Codex JSONL process classification", () => {
       terminationOrigin: "none",
       stdout: completedJsonl(reportedResult()),
       stderr: "diagnostics are not protocol events",
+      stdoutTruncated: false,
+      stderrTruncated: false,
     });
     expect(result).toMatchObject({
       kind: "process-completed",
@@ -366,6 +368,8 @@ describe("Codex JSONL process classification", () => {
       terminationOrigin: "none",
       stdout: completedJsonl(blocked),
       stderr: "",
+      stdoutTruncated: false,
+      stderrTruncated: false,
     });
     expect(result).toMatchObject({
       kind: "process-completed",
@@ -391,6 +395,8 @@ describe("Codex JSONL process classification", () => {
         terminationOrigin: "none",
         stdout,
         stderr: "",
+        stdoutTruncated: false,
+        stderrTruncated: false,
       }),
     ).toMatchObject({ kind: "protocol-error" });
   });
@@ -412,6 +418,8 @@ describe("Codex JSONL process classification", () => {
         terminationOrigin: "none",
         stdout,
         stderr: "untrusted diagnostic text",
+        stdoutTruncated: false,
+        stderrTruncated: false,
       }),
     ).toMatchObject({ kind: "blocked-auth" });
   });
@@ -425,6 +433,8 @@ describe("Codex JSONL process classification", () => {
         terminationOrigin: "cancelled",
         stdout,
         stderr: "",
+        stdoutTruncated: false,
+        stderrTruncated: false,
       }),
     ).toMatchObject({ kind: "cancelled" });
     expect(
@@ -434,8 +444,21 @@ describe("Codex JSONL process classification", () => {
         terminationOrigin: "timed-out",
         stdout,
         stderr: "",
+        stdoutTruncated: false,
+        stderrTruncated: false,
       }),
     ).toMatchObject({ kind: "timed-out" });
+    expect(
+      classifyCodexProcess({
+        exitCode: null,
+        signal: "SIGTERM",
+        terminationOrigin: "output-overflow",
+        stdout,
+        stderr: "",
+        stdoutTruncated: true,
+        stderrTruncated: false,
+      }),
+    ).toMatchObject({ kind: "protocol-error", reason: expect.stringContaining("capture limit") });
   });
 
   it("fails closed on malformed, oversized, or non-terminal JSONL", () => {
@@ -444,6 +467,8 @@ describe("Codex JSONL process classification", () => {
       signal: null,
       terminationOrigin: "none" as const,
       stderr: "",
+      stdoutTruncated: false,
+      stderrTruncated: false,
     };
     expect(classifyCodexProcess({ ...baseCapture, stdout: "not-json\n" })).toMatchObject({
       kind: "protocol-error",
