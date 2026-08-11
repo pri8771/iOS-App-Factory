@@ -73,11 +73,20 @@ The implemented runner controls are:
   label, environment, privilege, resource, and logging state; and
 - private fsynced lifecycle artifacts with failure-injection tests across
   `planned -> created -> running -> terminal -> removed`, cancellation, output
-  capture, removal proof, and lost-response reconciliation; and
+  capture, removal proof, and lost-response reconciliation;
 - a post-launch quarantine state plus an explicit exact-identity reaper. Actual
   start, inspection, or isolation-attestation failures permanently block the
   run, and reaping closes only after exact-ID and exact-label absence are both
-  observed. It never emits a normal execution receipt.
+  observed. It never emits a normal execution receipt; and
+- an async, read-only `readOciEvidenceClosure` prerequisite for a future OCI
+  journal. It reopens the exact prepared identity, takes the same per-run
+  operation lock as reconciliation, invokes no engine operation, and does not
+  mutate lifecycle evidence. It exports a canonical digest-and-length-bound
+  artifact chain only for a fully validated `removed`, `quarantined`, or
+  `quarantine-removed` closure. Normal removal requires create, start-dispatch,
+  post-start-inspection, and post-start-attestation proof in addition to the
+  terminal/output/removal chain. Incomplete state returns no closure; missing,
+  conflicting, or tampered terminal evidence fails closed.
 
 The earlier live natural receipt succeeded as UID/GID `10001`, proved the private tmpfs
 owner and mode, observed `ENETUNREACH` with no non-loopback interface, made the
@@ -106,10 +115,12 @@ particular, the current implementation does not yet provide:
    real-engine failure campaign for its start, inspect, kill, remove, and
    absence-proof boundaries. The dormant library closure is fake-engine tested;
    no autonomous process currently schedules it after a daemon failure.
-5. Daemon/scheduler composition or an OCI-specific agent-result journal V3 that
-   binds the OCI intent, image and engine identities, inspections, raw output,
-   terminal state, removal evidence, and lease/fence closure. The host-process
-   V2 journal is not sufficient evidence for an OCI run.
+5. Daemon/scheduler composition and an OCI-specific agent-result journal V3
+   consumer that binds the exported OCI intent, image and engine identities,
+   inspections, raw output, terminal state, removal evidence, and lease/fence
+   closure. The library exporter is only the validated lifecycle-evidence
+   prerequisite: no daemon consumes it and no OCI journal V3 exists. The
+   host-process V2 journal is not sufficient evidence for an OCI run.
 6. Digest attestation of the effective default seccomp and AppArmor profiles.
    The configured privilege fields are strictly inspected, but the runtime's
    implicit profiles are not yet bound to the policy digest.

@@ -67,6 +67,45 @@ export type PreparedOciRun = Readonly<{
   preparation: "created" | "already-prepared";
 }>;
 
+export type OciEvidenceArtifactV1 = Readonly<{
+  logicalName: string;
+  mediaType: "application/json" | "application/octet-stream";
+  digest: string;
+  byteLength: number;
+  bytes: Buffer;
+}>;
+
+export type OciEvidenceEnvelopeV1 = Readonly<{
+  schemaVersion: 1;
+  phase: "removed" | "quarantined" | "quarantine-removed";
+  runKey: string;
+  attemptId: string;
+  runId: string;
+  fence: number;
+  taskSpecDigest: string;
+  policyDigest: string;
+  baseCommit: string;
+  baseTree: string;
+  intentDigest: string;
+  engineIdentityDigest: string;
+  imageReference: string;
+  imageId: string;
+  containerId: string;
+  artifacts: readonly Readonly<{
+    logicalName: string;
+    mediaType: "application/json" | "application/octet-stream";
+    digest: string;
+    byteLength: number;
+  }>[];
+}>;
+
+export type OciEvidenceClosureV1 = Readonly<{
+  envelope: OciEvidenceEnvelopeV1;
+  envelopeBytes: Buffer;
+  envelopeDigest: string;
+  artifacts: readonly OciEvidenceArtifactV1[];
+}>;
+
 export type OciPreStartCancellationEvidenceV1 = Readonly<{
   schemaVersion: 1;
   runKey: string;
@@ -1652,6 +1691,16 @@ function validatedReceiptFromPath(prepared: PreparedOciRun): OciRunReceiptV1 | n
   if (launch === null || launch.containerId !== terminal.inspection.containerId) {
     throw new OciRunnerError("OCI receipt is missing its launch binding");
   }
+  const dispatch = startDispatchFromPath(prepared);
+  const postStart = postStartAttestationFromPath(prepared);
+  if (
+    dispatch === null ||
+    postStart === null ||
+    dispatch.containerId !== terminal.inspection.containerId ||
+    postStart.containerId !== terminal.inspection.containerId
+  ) {
+    throw new OciRunnerError("OCI receipt is missing its durable start acknowledgement");
+  }
   const removal = removalEvidenceFromPath(prepared, terminal.inspection.containerId);
   if (removal === null) throw new OciRunnerError("OCI receipt is missing removal evidence");
   const expected = receiptFor(prepared, terminal, removal);
@@ -1805,6 +1854,9 @@ function assertQuarantineLifecycleConsistency(
     "OCI running inspection",
   );
   if (runningArtifact !== null) {
+    if (dispatch === null || postStart === null || postStart.inspectionStatus !== "running") {
+      throw new OciRunnerError("OCI running evidence is missing its running start attestation");
+    }
     const running = parseInspectionArtifact(
       runningArtifact.value,
       prepared,
@@ -1855,6 +1907,398 @@ function assertQuarantineLifecycleConsistency(
   ) {
     throw new OciRunnerError("OCI quarantine conflicts with final lifecycle evidence");
   }
+}
+
+function evidenceArtifact(
+  path: string,
+  logicalName: string,
+  mediaType: OciEvidenceArtifactV1["mediaType"],
+  maximumBytes = MAX_ARTIFACT_BYTES,
+): OciEvidenceArtifactV1 {
+  const bytes = readPrivateFile(path, maximumBytes);
+  if (bytes === null) throw new OciRunnerError(`OCI evidence artifact is missing: ${logicalName}`);
+  const exportedBytes = Buffer.from(bytes);
+  return {
+    logicalName,
+    mediaType,
+    digest: sha256Digest(exportedBytes),
+    byteLength: exportedBytes.byteLength,
+    bytes: exportedBytes,
+  };
+}
+
+function evidenceEnvelope(
+  prepared: PreparedOciRun,
+  phase: OciEvidenceEnvelopeV1["phase"],
+  engineIdentityDigest: string,
+  containerId: string,
+  artifacts: readonly OciEvidenceArtifactV1[],
+): OciEvidenceClosureV1 {
+  const names = new Set<string>();
+  for (const artifact of artifacts) {
+    if (names.has(artifact.logicalName)) {
+      throw new OciRunnerError("OCI evidence closure has duplicate logical artifact names");
+    }
+    names.add(artifact.logicalName);
+  }
+  const envelope: OciEvidenceEnvelopeV1 = {
+    schemaVersion: 1,
+    phase,
+    runKey: prepared.intent.runKey,
+    attemptId: prepared.intent.attemptId,
+    runId: prepared.intent.runId,
+    fence: prepared.intent.fence,
+    taskSpecDigest: prepared.intent.taskSpecDigest,
+    policyDigest: prepared.intent.policyDigest,
+    baseCommit: prepared.intent.baseCommit,
+    baseTree: prepared.intent.baseTree,
+    intentDigest: prepared.intentDigest,
+    engineIdentityDigest,
+    imageReference: prepared.intent.image.reference,
+    imageId: prepared.intent.image.imageId,
+    containerId,
+    artifacts: artifacts.map(({ logicalName, mediaType, digest, byteLength }) => ({
+      logicalName,
+      mediaType,
+      digest,
+      byteLength,
+    })),
+  };
+  const envelopeBytes = canonicalJsonLine(envelope);
+  return {
+    envelope,
+    envelopeBytes,
+    envelopeDigest: sha256Digest(envelopeBytes),
+    artifacts,
+  };
+}
+
+function assertSameEvidenceExecution(
+  created: OciContainerInspection,
+  observed: OciContainerInspection,
+  expectedStartedAt: string | null,
+  label: string,
+): string | null {
+  if (
+    observed.containerId !== created.containerId ||
+    observed.createdAt !== created.createdAt ||
+    (expectedStartedAt !== null && observed.startedAt !== expectedStartedAt)
+  ) {
+    throw new OciRunnerError(`${label} does not describe the same OCI execution`);
+  }
+  return expectedStartedAt ?? observed.startedAt;
+}
+
+const OCI_RUN_PATH_KEYS = [
+  "runDirectory",
+  "intentPath",
+  "createdInspectionPath",
+  "runningInspectionPath",
+  "terminalInspectionPath",
+  "stdoutPath",
+  "stderrPath",
+  "removalPath",
+  "receiptPath",
+] as const satisfies readonly (keyof OciRunPaths)[];
+
+function reopenExactPreparedOciRun(preparedInput: PreparedOciRun): PreparedOciRun {
+  const inputIntent = parseOciRunIntent(preparedInput.intent);
+  const prepared = openPreparedOciRun(
+    dirname(preparedInput.paths.runDirectory),
+    inputIntent.runKey,
+  );
+  const suppliedPathKeys = Object.keys(preparedInput.paths).sort();
+  const expectedPathKeys = [...OCI_RUN_PATH_KEYS].sort();
+  if (
+    prepared === null ||
+    preparedInput.intentDigest !== digestOciRunIntent(inputIntent) ||
+    prepared.intentDigest !== preparedInput.intentDigest ||
+    !canonicalJsonLine(inputIntent).equals(canonicalJsonLine(prepared.intent)) ||
+    suppliedPathKeys.length !== expectedPathKeys.length ||
+    suppliedPathKeys.some((key, index) => key !== expectedPathKeys[index]) ||
+    OCI_RUN_PATH_KEYS.some((key) => preparedInput.paths[key] !== prepared.paths[key]) ||
+    (preparedInput.preparation !== "created" && preparedInput.preparation !== "already-prepared")
+  ) {
+    throw new OciRunnerError("Prepared OCI evidence run is missing or changed identity");
+  }
+  return prepared;
+}
+
+/**
+ * Exports one read-only, fully validated OCI lifecycle closure. This function
+ * never invokes the engine or mutates lifecycle evidence. It uses the same
+ * transient per-run operation lock as reconciliation so every returned closure
+ * is one coherent snapshot. A running or otherwise incomplete lifecycle returns
+ * null; a claimed terminal closure with missing, conflicting, or tampered
+ * evidence throws.
+ */
+export async function readOciEvidenceClosure(
+  preparedInput: PreparedOciRun,
+): Promise<OciEvidenceClosureV1 | null> {
+  const prepared = reopenExactPreparedOciRun(preparedInput);
+  return await whileRunLocked(prepared, new Date(), async () =>
+    readOciEvidenceClosureLocked(prepared),
+  );
+}
+
+function readOciEvidenceClosureLocked(prepared: PreparedOciRun): OciEvidenceClosureV1 | null {
+  const receipt = validatedReceiptFromPath(prepared);
+  const quarantine = quarantineFromPath(prepared);
+  const quarantineRemoval = quarantineRemovalFromPath(prepared);
+  const reapRequest = quarantineReapRequestFromPath(prepared);
+  const cancellation = preStartCancellationFromPath(prepared);
+  if (receipt !== null && (quarantine !== null || quarantineRemoval !== null)) {
+    throw new OciRunnerError("OCI evidence has conflicting normal and quarantine closures");
+  }
+  if (cancellation !== null && (receipt !== null || quarantine !== null)) {
+    throw new OciRunnerError("OCI evidence has conflicting cancellation and execution closures");
+  }
+  if (receipt === null && quarantine === null) {
+    const paths = artifactPaths(prepared);
+    const hasTerminalOnlyArtifact = [
+      prepared.paths.terminalInspectionPath,
+      paths.terminalRecord,
+      prepared.paths.stdoutPath,
+      prepared.paths.stderrPath,
+    ].some((path) => readPrivateFile(path) !== null);
+    const hasUnboundRemoval =
+      cancellation === null && readPrivateFile(prepared.paths.removalPath) !== null;
+    if (reapRequest !== null || hasTerminalOnlyArtifact || hasUnboundRemoval) {
+      throw new OciRunnerError("OCI evidence has a partial terminal closure");
+    }
+    return null;
+  }
+
+  const paths = artifactPaths(prepared);
+  const binding = engineBindingFromPath(prepared);
+  const createAttempt = createAttemptFromPath(prepared);
+  const launch = launchAttemptFromPath(prepared);
+  if (binding === null || createAttempt === null || launch === null) {
+    throw new OciRunnerError("OCI evidence closure is missing its engine/create/launch chain");
+  }
+  if (createAttempt.engineBindingDigest !== launch.engineBindingDigest) {
+    throw new OciRunnerError("OCI evidence create and launch attempts use different engines");
+  }
+  const createdArtifact = parsedArtifact(
+    prepared.paths.createdInspectionPath,
+    "OCI created inspection",
+  );
+  if (createdArtifact === null) {
+    throw new OciRunnerError("OCI evidence closure is missing its created inspection");
+  }
+  const createdInspection = parseInspectionArtifact(
+    createdArtifact.value,
+    prepared,
+    "created",
+    "OCI created inspection",
+  );
+  if (createdInspection.containerId !== launch.containerId) {
+    throw new OciRunnerError("OCI evidence closure changed its created container identity");
+  }
+  let executionStartedAt: string | null = null;
+
+  const artifacts: OciEvidenceArtifactV1[] = [
+    evidenceArtifact(prepared.paths.intentPath, "intent.json", "application/json"),
+    evidenceArtifact(paths.engineBinding, "engine-binding.json", "application/json"),
+    evidenceArtifact(paths.createAttempt, "create-attempt.json", "application/json"),
+    evidenceArtifact(
+      prepared.paths.createdInspectionPath,
+      "created.inspect.json",
+      "application/json",
+    ),
+    evidenceArtifact(paths.launchAttempt, "launch-attempt.json", "application/json"),
+  ];
+
+  const dispatch = startDispatchFromPath(prepared);
+  const postStartArtifact = parsedArtifact(paths.postStartInspection, "OCI post-start inspection");
+  const postStart = postStartAttestationFromPath(prepared);
+  if (dispatch !== null) {
+    artifacts.push(
+      evidenceArtifact(paths.startDispatch, "start-dispatched.json", "application/json"),
+    );
+  }
+  if (postStartArtifact !== null) {
+    const status = artifactRecord(postStartArtifact.value, "OCI post-start inspection").status;
+    if (status !== "running" && status !== "terminal") {
+      throw new OciRunnerError("OCI post-start evidence has an invalid status");
+    }
+    const inspection = parseInspectionArtifact(
+      postStartArtifact.value,
+      prepared,
+      status,
+      "OCI post-start inspection",
+    );
+    if (dispatch === null || inspection.containerId !== launch.containerId) {
+      throw new OciRunnerError("OCI post-start evidence is missing its dispatch binding");
+    }
+    executionStartedAt = assertSameEvidenceExecution(
+      createdInspection,
+      inspection,
+      executionStartedAt,
+      "OCI post-start inspection",
+    );
+    artifacts.push(
+      evidenceArtifact(paths.postStartInspection, "post-start.inspect.json", "application/json"),
+    );
+  }
+  if (postStart !== null) {
+    artifacts.push(
+      evidenceArtifact(paths.postStartAttestation, "post-start-attested.json", "application/json"),
+    );
+  }
+
+  const runningArtifact = parsedArtifact(
+    prepared.paths.runningInspectionPath,
+    "OCI running inspection",
+  );
+  if (runningArtifact !== null) {
+    if (dispatch === null || postStart === null || postStart.inspectionStatus !== "running") {
+      throw new OciRunnerError("OCI running evidence is missing its running start attestation");
+    }
+    const running = parseInspectionArtifact(
+      runningArtifact.value,
+      prepared,
+      "running",
+      "OCI running inspection",
+    );
+    if (running.containerId !== launch.containerId) {
+      throw new OciRunnerError("OCI running evidence changed container identity");
+    }
+    executionStartedAt = assertSameEvidenceExecution(
+      createdInspection,
+      running,
+      executionStartedAt,
+      "OCI running inspection",
+    );
+    artifacts.push(
+      evidenceArtifact(
+        prepared.paths.runningInspectionPath,
+        "running.inspect.json",
+        "application/json",
+      ),
+    );
+  }
+  const termination = terminationRequestFromPath(prepared);
+  if (termination !== null) {
+    if (
+      termination.phase === "running" &&
+      (runningArtifact === null ||
+        executionStartedAt === null ||
+        termination.startedAt !== executionStartedAt)
+    ) {
+      throw new OciRunnerError("OCI termination request does not describe the same execution");
+    }
+    artifacts.push(
+      evidenceArtifact(paths.terminationRequest, "termination-request.json", "application/json"),
+    );
+  }
+
+  if (receipt !== null) {
+    if (dispatch === null || postStartArtifact === null || postStart === null) {
+      throw new OciRunnerError("OCI removed closure is missing durable start evidence");
+    }
+    if (receipt.containerId !== launch.containerId) {
+      throw new OciRunnerError("OCI removed closure changed container identity");
+    }
+    const terminalArtifact = parsedArtifact(
+      prepared.paths.terminalInspectionPath,
+      "OCI terminal inspection",
+    );
+    if (terminalArtifact === null) {
+      throw new OciRunnerError("OCI removed closure is missing terminal inspection evidence");
+    }
+    const terminalInspection = parseInspectionArtifact(
+      terminalArtifact.value,
+      prepared,
+      "terminal",
+      "OCI terminal inspection",
+    );
+    if (terminalInspection.containerId !== launch.containerId) {
+      throw new OciRunnerError("OCI removed closure changed terminal container identity");
+    }
+    executionStartedAt = assertSameEvidenceExecution(
+      createdInspection,
+      terminalInspection,
+      executionStartedAt,
+      "OCI terminal inspection",
+    );
+    if (executionStartedAt === null) {
+      throw new OciRunnerError("OCI removed closure has no proven execution start");
+    }
+    if (
+      postStart.inspectionStatus === "terminal" &&
+      sha256Digest(postStartArtifact.bytes) !== sha256Digest(terminalArtifact.bytes)
+    ) {
+      throw new OciRunnerError("OCI terminal start acknowledgement changed before closure");
+    }
+    const terminal = terminalRecordFromPath(prepared);
+    const removal = removalEvidenceFromPath(prepared, launch.containerId);
+    if (terminal === null || removal === null) {
+      throw new OciRunnerError("OCI removed closure is missing terminal or removal evidence");
+    }
+    artifacts.push(
+      evidenceArtifact(
+        prepared.paths.terminalInspectionPath,
+        "terminal.inspect.json",
+        "application/json",
+      ),
+      evidenceArtifact(
+        prepared.paths.stdoutPath,
+        "stdout.bin",
+        "application/octet-stream",
+        prepared.intent.limits.outputBytesPerStream,
+      ),
+      evidenceArtifact(
+        prepared.paths.stderrPath,
+        "stderr.bin",
+        "application/octet-stream",
+        prepared.intent.limits.outputBytesPerStream,
+      ),
+      evidenceArtifact(paths.terminalRecord, "terminal.json", "application/json"),
+      evidenceArtifact(prepared.paths.removalPath, "removed.json", "application/json"),
+      evidenceArtifact(prepared.paths.receiptPath, "receipt.json", "application/json"),
+    );
+    return evidenceEnvelope(
+      prepared,
+      "removed",
+      binding.engineIdentityDigest,
+      launch.containerId,
+      artifacts,
+    );
+  }
+
+  if (quarantine === null) {
+    throw new OciRunnerError("OCI evidence closure has no terminal disposition");
+  }
+  assertQuarantineLifecycleConsistency(prepared, quarantine);
+  if (quarantine.containerId !== launch.containerId) {
+    throw new OciRunnerError("OCI quarantine closure changed container identity");
+  }
+  artifacts.push(evidenceArtifact(paths.quarantine, "quarantine.json", "application/json"));
+  if (reapRequest !== null) {
+    artifacts.push(
+      evidenceArtifact(
+        paths.quarantineReapRequest,
+        "quarantine-reap-request.json",
+        "application/json",
+      ),
+    );
+  }
+  if (quarantineRemoval !== null) {
+    if (reapRequest === null) {
+      throw new OciRunnerError("OCI quarantine removal has no durable reap request");
+    }
+    artifacts.push(
+      evidenceArtifact(paths.quarantineRemoval, "quarantine-removed.json", "application/json"),
+    );
+  }
+  return evidenceEnvelope(
+    prepared,
+    quarantineRemoval === null ? "quarantined" : "quarantine-removed",
+    binding.engineIdentityDigest,
+    launch.containerId,
+    artifacts,
+  );
 }
 
 export class OciRunner {

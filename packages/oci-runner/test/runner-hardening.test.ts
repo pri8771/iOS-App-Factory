@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdtempSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -18,6 +19,7 @@ import {
   labelsForOciRun,
   parseOciRunIntent,
   prepareOciRun,
+  readOciEvidenceClosure,
   sha256Digest,
   type OciContainerInspection,
   type OciEnginePort,
@@ -296,6 +298,38 @@ function engineObservations(engine: HardeningEngine): Readonly<Record<string, nu
     inspect: engine.inspectCount,
     find: engine.findCount,
   };
+}
+
+function runDirectorySnapshot(path: string): Readonly<Record<string, Buffer>> {
+  return Object.fromEntries(
+    readdirSync(path)
+      .sort()
+      .map((name) => [name, readFileSync(join(path, name))]),
+  );
+}
+
+function expectCanonicalEvidenceClosure(
+  closure: Awaited<ReturnType<typeof readOciEvidenceClosure>> & object,
+): void {
+  expect(closure.envelopeBytes).toEqual(canonicalJsonLine(closure.envelope));
+  expect(closure.envelopeDigest).toBe(sha256Digest(closure.envelopeBytes));
+  expect(closure.envelope.artifacts).toEqual(
+    closure.artifacts.map(({ logicalName, mediaType, digest, byteLength }) => ({
+      logicalName,
+      mediaType,
+      digest,
+      byteLength,
+    })),
+  );
+  for (const artifact of closure.artifacts) {
+    expect(artifact.byteLength).toBe(artifact.bytes.byteLength);
+    expect(artifact.digest).toBe(sha256Digest(artifact.bytes));
+    if (artifact.mediaType === "application/json") {
+      expect(canonicalJsonLine(JSON.parse(artifact.bytes.toString("utf8")) as unknown)).toEqual(
+        artifact.bytes,
+      );
+    }
+  }
 }
 
 function writeSyntheticQuarantine(
@@ -1421,5 +1455,330 @@ describe("runner P1 durable state hardening", () => {
     });
     expect(readFileSync(prepared.paths.removalPath)).toEqual(originalRemoval);
     expect(engine.removeCount).toBe(1);
+  });
+});
+
+describe("read-only OCI evidence closure", () => {
+  it("exports one canonical removed closure with the complete ordered lifecycle chain", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await runner.reconcile(prepared);
+    engine.finish();
+    await runner.reconcile(prepared);
+    const beforeFiles = runDirectorySnapshot(prepared.paths.runDirectory);
+    const beforeEngine = engineObservations(engine);
+
+    const closure = await readOciEvidenceClosure(prepared);
+    if (closure === null) throw new Error("Expected a removed OCI evidence closure");
+    expectCanonicalEvidenceClosure(closure);
+    expect(closure.envelope).toMatchObject({
+      schemaVersion: 1,
+      phase: "removed",
+      runKey: intent.runKey,
+      attemptId: intent.attemptId,
+      runId: intent.runId,
+      fence: intent.fence,
+      taskSpecDigest: intent.taskSpecDigest,
+      policyDigest: intent.policyDigest,
+      baseCommit: intent.baseCommit,
+      baseTree: intent.baseTree,
+      intentDigest: prepared.intentDigest,
+      engineIdentityDigest: ENGINE_ID,
+      imageReference: intent.image.reference,
+      imageId: intent.image.imageId,
+      containerId: CONTAINER_ID,
+    });
+    expect(closure.artifacts.map(({ logicalName }) => logicalName)).toEqual([
+      "intent.json",
+      "engine-binding.json",
+      "create-attempt.json",
+      "created.inspect.json",
+      "launch-attempt.json",
+      "start-dispatched.json",
+      "post-start.inspect.json",
+      "post-start-attested.json",
+      "running.inspect.json",
+      "terminal.inspect.json",
+      "stdout.bin",
+      "stderr.bin",
+      "terminal.json",
+      "removed.json",
+      "receipt.json",
+    ]);
+
+    const replay = await readOciEvidenceClosure(prepared);
+    expect(replay).toEqual(closure);
+    expect(engineObservations(engine)).toEqual(beforeEngine);
+    expect(runDirectorySnapshot(prepared.paths.runDirectory)).toEqual(beforeFiles);
+  });
+
+  it("exports disjoint quarantined and quarantine-removed closures without normal output", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await expect(runner.reconcile(prepared)).resolves.toMatchObject({ phase: "quarantined" });
+    const quarantinedFiles = runDirectorySnapshot(prepared.paths.runDirectory);
+    const quarantinedEngine = engineObservations(engine);
+
+    const quarantined = await readOciEvidenceClosure(prepared);
+    if (quarantined === null) throw new Error("Expected a quarantined OCI evidence closure");
+    expectCanonicalEvidenceClosure(quarantined);
+    expect(quarantined.envelope.phase).toBe("quarantined");
+    expect(quarantined.artifacts.map(({ logicalName }) => logicalName)).toEqual([
+      "intent.json",
+      "engine-binding.json",
+      "create-attempt.json",
+      "created.inspect.json",
+      "launch-attempt.json",
+      "start-dispatched.json",
+      "quarantine.json",
+    ]);
+    expect(
+      quarantined.artifacts.some(({ logicalName }) =>
+        ["stdout.bin", "stderr.bin", "terminal.json", "removed.json", "receipt.json"].includes(
+          logicalName,
+        ),
+      ),
+    ).toBe(false);
+    expect(engineObservations(engine)).toEqual(quarantinedEngine);
+    expect(runDirectorySnapshot(prepared.paths.runDirectory)).toEqual(quarantinedFiles);
+
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:11.000Z"),
+    }).reapQuarantined(prepared);
+    const reapedFiles = runDirectorySnapshot(prepared.paths.runDirectory);
+    const reapedEngine = engineObservations(engine);
+    const reaped = await readOciEvidenceClosure(prepared);
+    if (reaped === null) throw new Error("Expected a quarantine-removed OCI evidence closure");
+    expectCanonicalEvidenceClosure(reaped);
+    expect(reaped.envelope.phase).toBe("quarantine-removed");
+    expect(reaped.artifacts.map(({ logicalName }) => logicalName)).toEqual([
+      "intent.json",
+      "engine-binding.json",
+      "create-attempt.json",
+      "created.inspect.json",
+      "launch-attempt.json",
+      "start-dispatched.json",
+      "quarantine.json",
+      "quarantine-reap-request.json",
+      "quarantine-removed.json",
+    ]);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+    expect(engineObservations(engine)).toEqual(reapedEngine);
+    expect(runDirectorySnapshot(prepared.paths.runDirectory)).toEqual(reapedFiles);
+  });
+
+  it("rejects running evidence without a durable running start attestation", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+    if (engine.inspection === null) throw new Error("Expected the ambiguous start to have run");
+    writeFileSync(prepared.paths.runningInspectionPath, canonicalJsonLine(engine.inspection), {
+      flag: "wx",
+      mode: 0o600,
+    });
+    const beforeEngine = engineObservations(engine);
+
+    await expect(readOciEvidenceClosure(prepared)).rejects.toThrow(/running.*attestation/iu);
+    expect(engineObservations(engine)).toEqual(beforeEngine);
+  });
+
+  it("rejects a running snapshot after a terminal post-start acknowledgement", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startInspectionOverrides = {
+      status: "terminal",
+      running: false,
+      finishedAt: "2026-08-11T16:00:03.000Z",
+      exitCode: 0,
+    };
+    await expect(
+      new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:10.000Z"),
+      }).reconcile(prepared),
+    ).resolves.toMatchObject({ phase: "removed" });
+    writeFileSync(
+      prepared.paths.runningInspectionPath,
+      canonicalJsonLine(inspectionFor(intent, "running")),
+      { flag: "wx", mode: 0o600 },
+    );
+    const beforeEngine = engineObservations(engine);
+
+    await expect(readOciEvidenceClosure(prepared)).rejects.toThrow(/running.*attestation/iu);
+    expect(engineObservations(engine)).toEqual(beforeEngine);
+  });
+
+  it("returns no closure for a valid running lifecycle without mutating it", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+    const beforeFiles = runDirectorySnapshot(prepared.paths.runDirectory);
+    const beforeEngine = engineObservations(engine);
+
+    await expect(readOciEvidenceClosure(prepared)).resolves.toBeNull();
+    expect(engineObservations(engine)).toEqual(beforeEngine);
+    expect(runDirectorySnapshot(prepared.paths.runDirectory)).toEqual(beforeFiles);
+  });
+
+  it("fails closed on an operation lock without observing or mutating the engine", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+    engine.finish();
+    await new OciRunner(engine).reconcile(prepared);
+    const lockPath = join(prepared.paths.runDirectory, "operation.lock");
+    writeFileSync(lockPath, "owned elsewhere\n", { flag: "wx", mode: 0o600 });
+    const beforeEngine = engineObservations(engine);
+    const lockBytes = readFileSync(lockPath);
+
+    await expect(readOciEvidenceClosure(prepared)).rejects.toMatchObject({
+      name: "OciRunnerBusyError",
+      code: "OCI_RUN_BUSY",
+      retryable: true,
+    });
+    expect(engineObservations(engine)).toEqual(beforeEngine);
+    expect(readFileSync(lockPath)).toEqual(lockBytes);
+  });
+
+  it.each(["create-attempt.json", "start-dispatched.json", "post-start-attested.json"])(
+    "rejects removed evidence missing required lifecycle artifact %s",
+    async (artifactName) => {
+      const intent = fixtureIntent();
+      const prepared = prepare(intent);
+      const engine = new HardeningEngine(intent);
+      const runner = new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:10.000Z"),
+      });
+      await runner.reconcile(prepared);
+      engine.finish();
+      await runner.reconcile(prepared);
+      rmSync(join(prepared.paths.runDirectory, artifactName));
+      const beforeEngine = engineObservations(engine);
+
+      await expect(readOciEvidenceClosure(prepared)).rejects.toThrow();
+      expect(engineObservations(engine)).toEqual(beforeEngine);
+    },
+  );
+
+  it("rejects a running termination closure missing its running inspection", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await runner.reconcile(prepared);
+    await expect(runner.cancel(prepared)).resolves.toMatchObject({ phase: "removed" });
+    rmSync(prepared.paths.runningInspectionPath);
+    const beforeEngine = engineObservations(engine);
+
+    await expect(readOciEvidenceClosure(prepared)).rejects.toThrow(/termination.*execution/iu);
+    expect(engineObservations(engine)).toEqual(beforeEngine);
+  });
+
+  it("rejects a forged PreparedOciRun path before reading closure artifacts", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const forged = {
+      ...prepared,
+      paths: {
+        ...prepared.paths,
+        receiptPath: join(prepared.paths.runDirectory, "forged-receipt.json"),
+      },
+    };
+    const beforeFiles = runDirectorySnapshot(prepared.paths.runDirectory);
+
+    await expect(readOciEvidenceClosure(forged)).rejects.toThrow(/identity/u);
+    expect(runDirectorySnapshot(prepared.paths.runDirectory)).toEqual(beforeFiles);
+  });
+
+  it("rejects a partial final lifecycle instead of treating it as merely in progress", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await runner.reconcile(prepared);
+    engine.finish();
+    await runner.reconcile(prepared);
+    rmSync(prepared.paths.receiptPath);
+    const beforeEngine = engineObservations(engine);
+
+    await expect(readOciEvidenceClosure(prepared)).rejects.toThrow(/partial|final|receipt/iu);
+    expect(engineObservations(engine)).toEqual(beforeEngine);
+  });
+
+  it.each([
+    {
+      name: "engine binding unknown field",
+      mutate: (prepared: ReturnType<typeof prepare>) =>
+        rewriteJson(join(prepared.paths.runDirectory, "engine-binding.json"), (value) => {
+          value.unexpected = true;
+        }),
+    },
+    {
+      name: "captured stdout bytes",
+      mutate: (prepared: ReturnType<typeof prepare>) =>
+        writeFileSync(prepared.paths.stdoutPath, "tampered\n"),
+    },
+    {
+      name: "running inspection execution time",
+      mutate: (prepared: ReturnType<typeof prepare>) =>
+        rewriteJson(prepared.paths.runningInspectionPath, (value) => {
+          value.startedAt = "2026-08-11T16:00:02.500Z";
+        }),
+    },
+  ])("rejects tampered closure evidence without engine mutation: $name", async (testCase) => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await runner.reconcile(prepared);
+    engine.finish();
+    await runner.reconcile(prepared);
+    testCase.mutate(prepared);
+    const beforeEngine = engineObservations(engine);
+
+    await expect(readOciEvidenceClosure(prepared)).rejects.toThrow();
+    expect(engineObservations(engine)).toEqual(beforeEngine);
+  });
+
+  it("rejects a quarantine closure that conflicts with normal terminal evidence", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await runner.reconcile(prepared);
+    engine.finish();
+    await runner.reconcile(prepared);
+    writeSyntheticQuarantine(prepared);
+    const beforeEngine = engineObservations(engine);
+
+    await expect(readOciEvidenceClosure(prepared)).rejects.toThrow(/conflict/u);
+    expect(engineObservations(engine)).toEqual(beforeEngine);
   });
 });

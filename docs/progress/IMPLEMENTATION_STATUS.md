@@ -38,7 +38,7 @@ not a paid or real-model run, and is intentionally unreachable from the
 operator daemon entrypoint until ADR 0002 production containment closes. A separate
 dormant [`oci-runner`](../../packages/oci-runner) implements exact no-network
 container intents, isolation attestation, and durable lifecycle reconciliation.
-Its fake/injected-engine suite passes 154/154. A separate live Colima `OciRunner`
+Its fake/injected-engine suite passes 170/170. A separate live Colima `OciRunner`
 smoke completed a natural lifecycle and recovered from a persisted launch
 marker after a strict-inspection process failure. It pinned Docker CLI `29.6.1`,
 server `29.5.2`, and
@@ -55,11 +55,18 @@ quarantines actual post-launch start, inspect, or isolation-attestation failures
 and closes them only after exact-ID and exact-label absence are proved.
 Cross-process reconcile/cancel calls are serialized
 by a private exact-identity operation lock; ambiguous dispatched creates fail
-closed rather than becoming a false pre-start cancellation. The CLI, MCP server,
-and packaged loopback dashboard use the same typed command client. The daemon publishes a
-transactionally maintained local portfolio snapshot; unavailable provider
-values remain null. The remaining generic modules exist with the limitations
-below.
+closed rather than becoming a false pre-start cancellation. The async,
+read-only `readOciEvidenceClosure` reopens that exact prepared identity under
+the same operation lock, makes no engine call or lifecycle mutation, and exports
+only a strict canonical `removed`, `quarantined`, or `quarantine-removed`
+artifact chain. Normal removal requires durable create, start-dispatch, and
+post-start-inspection/attestation proof; incomplete state returns no closure and
+missing, conflicting, or tampered terminal evidence fails closed. This is an
+export prerequisite only: the daemon does not consume it and no OCI journal V3
+exists. The CLI, MCP server, and packaged loopback dashboard use the same typed
+command client. The daemon publishes a transactionally maintained local
+portfolio snapshot; unavailable provider values remain null. The remaining
+generic modules exist with the limitations below.
 
 It cannot honestly produce a Hindsight TestFlight build yet. The only Hindsight
 write was the user-authorized local checkpoint branch and commit that preserved
@@ -77,8 +84,8 @@ website repository has been mutated. See the
 | --- | --- | --- | --- |
 | 1 — executable foundation | **Implemented** | Versioned contracts and schemas in [`packages/contracts`](../../packages/contracts), durable SQLite kernel in [`packages/kernel`](../../packages/kernel), Codex boundary in [`packages/agent-runner`](../../packages/agent-runner), and Swift fixture/test utilities in [`packages/testkit`](../../packages/testkit/test). Tests: [`contracts`](../../packages/contracts/test), [`kernel`](../../packages/kernel/test), [`agent-runner`](../../packages/agent-runner/test), [`testkit`](../../packages/testkit/test). | The authoritative post-OCI/scanner root gate is green; operational gaps are recorded in the later rows. |
 | 2 — restart-safe fake execution | **Implemented for fake execution and trusted, non-detaching process supervision** | The daemon, authenticated Unix socket, command journal, scheduler, CLI, cancellation, leases, fencing, bounded response replay, and restart tests live in [`apps/daemon`](../../apps/daemon), [`apps/cli`](../../apps/cli), [`packages/command-client`](../../packages/command-client), [`packages/scheduler`](../../packages/scheduler), and [`packages/process-supervisor`](../../packages/process-supervisor). Durable supervision binds immutable intent, launch claim, execution permission, V2 process identity, exact cwd/environment/argv/stdin, bounded output spools, cancellation, receipts, and reconciliation. | Process groups are not containment: a detached descendant can escape. Darwin `ps lstart` identity is only second-resolution, and stale locks or unprovable identity deliberately require operator intervention. |
-| 3 — real coding path | **Deterministic Swift slice implemented; Codex/OCI coding plane dormant and partial** | The supported Swift Greeter profile connects [`git-workspace`](../../packages/git-workspace), [`execution-engine`](../../packages/execution-engine), [`trusted-verifier`](../../packages/trusted-verifier), [`independent-review`](../../packages/independent-review), and [`evidence-store`](../../packages/evidence-store). The Codex adapter additionally pins executable digest, CLI version, model, strict invocation/output schema/environment, and supervisor-bound V2 evidence. A no-network fake executable has passed the actual supervisor → adapter → trusted Swift verification → review → broker commit path. [`oci-runner`](../../packages/oci-runner) adds pinned no-network container controls, exact Docker-engine binding, a post-launch quarantine/reaper closure, and a 154/154 fake/injected-engine suite. An earlier live Colima runner smoke completed natural success, and a separate persisted-launch-marker attempt reconciled without relaunch after strict inspection failed; both predate the current engine-binding/quarantine tree. | Neither the Codex profile nor OCI runner is exposed by `daemon-entrypoint`. No paid/real-model or autonomous application-development run has passed. The recorded live smoke is not current-tree validation or production containment. Missing OCI gates include the autonomous PID 1 watchdog/total-output proof, controlled model egress/auth, autonomous stale-lock recovery, daemon-owned reaper scheduling, daemon/journal V3 composition, effective seccomp/AppArmor digest, host-bind quota/disk-exhaustion bound, and remaining real-engine failure paths including a live quarantine campaign. Trusted-verifier hard-kill recovery also remains open. |
-| 4 — reconciliation, review, and proof | **Walking-slice reconciliation and startup recovery barrier implemented; containment/restore gates remain** | Mirror/worktree publication intents reconcile creation crashes; marker refs reconcile commit publication; V2 agent-result journals replay without relaunch; CLI and MCP expose bounded evidence list/inspect/verify; manifests and every referenced blob are digest-checked. Commands return retryable `daemon.starting` until executor/agent recovery completes, and ambiguous recovery releases daemon ownership. The dormant OCI library separately reconciles private `planned → created → running → terminal → removed` artifacts under failure injection, serializes cross-process reconcile/cancel calls, blocks ambiguous create dispatch, and records immutable quarantine → reap-request → exact-absence closure evidence without relaunch or a normal receipt. Its live smoke persisted terminal/removal/receipt evidence, proved exact cleanup, and recovered from a persisted launch marker without duplication. Backup/restore primitives are tested in [`recovery-manager/test`](../../packages/recovery-manager/test). | Restored-runtime quarantine consumption remains **blocked by protected approval**. The OCI lifecycle is not daemon- or scheduler-wired and has no journal V3. Independent daemon reaper scheduling and real-engine quarantine/timeout/overflow/stop/kill cases remain unproved. Trusted-verifier hard-kill adoption, autonomous stale-lock recovery, and the complete hard-kill/sleep/provider-failure soak matrix have not passed. |
+| 3 — real coding path | **Deterministic Swift slice implemented; Codex/OCI coding plane dormant and partial** | The supported Swift Greeter profile connects [`git-workspace`](../../packages/git-workspace), [`execution-engine`](../../packages/execution-engine), [`trusted-verifier`](../../packages/trusted-verifier), [`independent-review`](../../packages/independent-review), and [`evidence-store`](../../packages/evidence-store). The Codex adapter additionally pins executable digest, CLI version, model, strict invocation/output schema/environment, and supervisor-bound V2 evidence. A no-network fake executable has passed the actual supervisor → adapter → trusted Swift verification → review → broker commit path. [`oci-runner`](../../packages/oci-runner) adds pinned no-network container controls, exact Docker-engine binding, a post-launch quarantine/reaper closure, strict read-only export of complete canonical lifecycle evidence, and a 170/170 fake/injected-engine suite. An earlier live Colima runner smoke completed natural success, and a separate persisted-launch-marker attempt reconciled without relaunch after strict inspection failed; both predate the current engine-binding/quarantine/export tree. | Neither the Codex profile nor OCI runner is exposed by `daemon-entrypoint`. No paid/real-model or autonomous application-development run has passed. The recorded live smoke is not current-tree validation or production containment. Missing OCI gates include the autonomous PID 1 watchdog/total-output proof, controlled model egress/auth, autonomous stale-lock recovery, daemon-owned reaper scheduling, daemon consumption of the exporter and journal V3 composition, effective seccomp/AppArmor digest, host-bind quota/disk-exhaustion bound, and remaining real-engine failure paths including a live quarantine campaign. Trusted-verifier hard-kill recovery also remains open. |
+| 4 — reconciliation, review, and proof | **Walking-slice reconciliation and startup recovery barrier implemented; containment/restore gates remain** | Mirror/worktree publication intents reconcile creation crashes; marker refs reconcile commit publication; V2 agent-result journals replay without relaunch; CLI and MCP expose bounded evidence list/inspect/verify; manifests and every referenced blob are digest-checked. Commands return retryable `daemon.starting` until executor/agent recovery completes, and ambiguous recovery releases daemon ownership. The dormant OCI library separately reconciles private `planned → created → running → terminal → removed` artifacts under failure injection, serializes cross-process reconcile/cancel calls, blocks ambiguous create dispatch, and records immutable quarantine → reap-request → exact-absence closure evidence without relaunch or a normal receipt. Under the same operation lock, its async read-only exporter invokes no engine and emits only complete canonical `removed`, `quarantined`, or `quarantine-removed` lifecycle evidence; partial or tampered terminal closure fails closed. Its earlier live smoke persisted terminal/removal/receipt evidence, proved exact cleanup, and recovered from a persisted launch marker without duplication, but predates the exporter. Backup/restore primitives are tested in [`recovery-manager/test`](../../packages/recovery-manager/test). | Restored-runtime quarantine consumption remains **blocked by protected approval**. The OCI lifecycle and evidence exporter are not daemon- or scheduler-wired and there is no journal V3. Independent daemon reaper scheduling and real-engine quarantine/timeout/overflow/stop/kill cases remain unproved. Trusted-verifier hard-kill adoption, autonomous stale-lock recovery, and the complete hard-kill/sleep/provider-failure soak matrix have not passed. |
 | 5 — operational clients and enrollment primitives | **Partly implemented; partly dormant/blocked** | CLI, MCP, and the packaged loopback dashboard share the typed daemon client. Evidence and portfolio reads are available through CLI/MCP, and the launcher renders a digest-verified, migration-backed local portfolio projection. The launcher validates private path configuration, uses a one-use browser token plus separate HttpOnly session, and shuts down gracefully. Read-only LaunchAgent plan/status is in [`packages/service-manager`](../../packages/service-manager); enrollment discovery and realistic Xcode/PBX regression fixtures are in [`packages/project-sdk`](../../packages/project-sdk). The corrected fixture received real `xcodebuild -list` and `xcodebuild build-for-testing` validation, and the preservation-bound post-fix Hindsight scan completed without changing its checkout after the authorized checkpoint. | Project/enrollment commands and LaunchAgent install/uninstall/logs remain unavailable pending their gates. The post-fix production scan verified one Xcode container and one shared scheme with no Xcode gaps; its only blockers are the legacy Factory layout, canonical rule declarations, and Cursor authority binding. |
 | 6 — safe Hindsight enrollment | **Preservation and read-only discovery completed; enrollment blocked** | The user-authorized local branch `checkpoint/factory-enrollment-2026-08-11` and commit `c66c690c21c0d662fa623ea104bd8d5dc0a700c0` preserved the pre-enrollment tree without a remote push. The post-fix scan bound source `e96dff…`, inventory `21c1b7…`, and plan `b70311…`; all four preservation checks remained true, and no Xcode gap was reported. Trusted Xcode verification built the existing shared scheme and reported 126/127 tests; the isolated failing UI test reproduced a `TodayView.upcomingForecastsSection` array-subscript crash. A separate serial unit run passed 121/121. | No enrollment plan has been applied. The scan has exactly three rule/legacy blockers: legacy `.factory` migration, canonical rule declarations, and Cursor authority binding. Product/design authority, manifest, pilot scope, the deterministic production crash, and separate SwiftData concurrency/lifetime diagnostics also remain unresolved delivery inputs. The temporary `.xcresult` paths are observations, not a Factory evidence manifest or release certification. See [`HINDSIGHT_ENROLLMENT_STATUS.md`](HINDSIGHT_ENROLLMENT_STATUS.md). |
 | 7 — durable Jira/GitHub boundary | **Implemented as deterministic code; provider runtime dormant** | Provider-neutral planning, revision/base drift, and work packages are in [`packages/work-tracking-integrations`](../../packages/work-tracking-integrations). Generic validation, Keychain references, durable effects, and dispatch are in [`packages/adapter-sdk`](../../packages/adapter-sdk), [`packages/credential-broker`](../../packages/credential-broker), [`packages/kernel`](../../packages/kernel), and [`packages/effect-worker`](../../packages/effect-worker). Strict injected-transport Jira Cloud/GitHub adapters, marker reconciliation, pagination, ETag/version handling, and read-only repository/PR/comment/check observations are in [`packages/provider-http-adapters`](../../packages/provider-http-adapters). | No trusted live HTTP transport is composed into the daemon, no live credential reference is configured, and no provision/apply operation is approved. Activation additionally requires immutable Jira tenant/URL/credential-origin binding, authenticated GitHub owner-node binding, payload-bound provider-neutral observations, and a contract-consistent Jira project marker. Jira issue-link and project-level remote-link intents also fail closed because v1 cannot express safe provider correlation/issue targeting; all gaps are documented in the adapter README. |
@@ -95,7 +102,7 @@ website repository has been mutated. See the
 ## Repository verification
 
 The authoritative `pnpm verify` passed on 2026-08-11 against the final
-pre-commit candidate based on `109bdb1`. Local commit identifiers are reported
+pre-commit evidence-export candidate based on `8aea9e9`. Local commit identifiers are reported
 separately at handoff rather than used as a self-referential verification
 identity. Any later executable, test, policy, or configuration change invalidates
 these results and requires the gate to run again; a documentation-only result
@@ -106,29 +113,30 @@ record still requires formatting and diff validation.
 - Dependency boundaries: 195 modules and 459 dependencies cruised with no
   violation; five invalid fixture graphs were rejected.
 - TypeScript project build and generated-schema check: passed.
-- Vitest: 68/68 files and 862/862 tests passed with `--maxWorkers=4`.
-- Vitest duration: 58.29 seconds.
-- Full `pnpm verify`: 65.52 seconds real, 66.62 seconds user, 39.68 seconds
+- Vitest: 68/68 files and 878/878 tests passed with `--maxWorkers=4`.
+- Vitest duration: 61.94 seconds.
+- Full `pnpm verify`: 69.78 seconds real, 72.15 seconds user, 44.80 seconds
   system.
-- Focused checks: Xcode scanner 20/20; OCI runner 154/154.
-- Independent final OCI review: no P0/P1 finding.
+- Focused checks: Xcode scanner 20/20; OCI runner 170/170.
+- Independent final OCI/export review: no P0/P1 finding.
 - Recorded pre-current-tree live no-network smoke:
   `/Users/pchordia/Documents/oci-runner-smoke-hardening-Vhj2LP/smoke-summary.json`,
   digest
   `sha256:3ba392b0012dd11e89d0647b434a33ce94eae414733bec5b1ceb942058b8cc96`.
 
-The first root attempt encountered a supervised-run gate-publication race in
-unchanged code; one isolated rerun reproduced it, a second isolated rerun
-passed, and the authoritative full rerun passed 862/862. No process-supervisor
-deadline, assertion, isolation, quality threshold, fixture, or worker-cap
-change was made to obtain the retry. The explicitly approved worker cap remains
-four.
+During the preceding quarantine checkpoint, the first root attempt encountered
+a supervised-run gate-publication race in unchanged code; one isolated rerun
+reproduced it, a second isolated rerun passed, and that checkpoint's full rerun
+passed 862/862. No process-supervisor deadline, assertion, isolation, quality
+threshold, fixture, or worker-cap change was made to obtain the retry. The
+evidence-export candidate's full gate passed 878/878 on its first attempt. The
+explicitly approved worker cap remains four.
 
 Eight package-local `test` scripts currently use repository-relative paths even
 though pnpm launches them from the package directory: credential broker,
 execution engine, Git workspace, portfolio, process supervisor, project SDK,
 service manager, and simulator runner. Root `pnpm test` still discovers their
-tests. The corrected OCI package-local script passed 154/154. The eight unrelated
+tests. The corrected OCI package-local script passed 170/170. The eight unrelated
 package-local script defects were not modified in this slice; use the root-level
 commands in the operator runbook rather than treating another package-local "no
 test files found" result as success.

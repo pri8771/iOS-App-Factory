@@ -38,6 +38,21 @@ bound container ID, and accepts completion only after both exact-ID inspection
 and exact-label discovery prove absence. Ambiguous kill or remove responses
 therefore remain retryable instead of being treated as cleanup evidence.
 
+The async `readOciEvidenceClosure` export is a read-only prerequisite for a
+future OCI result journal. It reopens the exact `PreparedOciRun` identity from
+disk, takes the same per-run operation lock as reconciliation, makes no engine
+call, and does not mutate lifecycle evidence. It returns a canonical,
+digest-and-byte-length-bound artifact envelope only for a fully validated
+`removed`, `quarantined`, or `quarantine-removed` closure. A normal removal
+requires the complete engine-binding, create-attempt, created-inspection,
+launch-attempt, start-dispatch, post-start inspection and attestation, terminal,
+output, removal, and receipt chain. Quarantine exports require the corresponding
+phase-complete quarantine chain, with a durable reap request and exact-absence
+record before `quarantine-removed` can be exported. A running or otherwise
+incomplete lifecycle returns `null`; a claimed terminal closure with missing,
+conflicting, or tampered evidence fails closed. This exporter is not daemon
+composition or an OCI journal V3.
+
 The Docker log driver bounds retained output and the adapter records captured
 and observed byte counts. Wall time is reconciled from the engine's immutable
 start time; a production Codex image must additionally contain a pinned PID 1
@@ -46,7 +61,7 @@ offline.
 
 ## Live no-network smoke evidence
 
-The package-local suite passes 154/154. An explicitly invoked live Colima
+The package-local suite passes 170/170. An explicitly invoked live Colima
 `OciRunner` smoke also completed on 2026-08-11 with Docker CLI `29.6.1`, server
 `29.5.2` on `linux/arm64`, and pinned image
 `node@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2`.
@@ -76,8 +91,8 @@ that controls that endpoint.
 mount a host Codex home, `auth.json`, API key, Docker socket, Factory runtime,
 source checkout, Git credentials, or host home into the coding container.
 Live Codex requires a separately reviewed, quota-bound egress/auth broker and
-an OCI-specific daemon evidence-journal version. Production containment also
-still requires:
+daemon composition that consumes the exported closure into an OCI-specific
+evidence-journal version. Production containment also still requires:
 
 - an autonomous in-container PID 1 wall/output watchdog and proof that retained
   logs bound total generated output;
