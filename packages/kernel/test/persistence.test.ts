@@ -174,13 +174,19 @@ describe("migration runner", () => {
     const first = runMigrations(database, { now: () => new Date(NOW) });
     const second = runMigrations(database, { now: () => new Date(LATER) });
 
-    expect(first).toEqual({ currentVersion: 1, newlyAppliedVersions: [1] });
-    expect(second).toEqual({ currentVersion: 1, newlyAppliedVersions: [] });
-    expect(database.pragma("user_version", { simple: true })).toBe(1);
+    expect(first).toEqual({ currentVersion: 2, newlyAppliedVersions: [1, 2] });
+    expect(second).toEqual({ currentVersion: 2, newlyAppliedVersions: [] });
+    expect(database.pragma("user_version", { simple: true })).toBe(2);
     expect(listAppliedMigrations(database)).toEqual([
       {
         version: 1,
         name: "initial-control-plane",
+        checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+        appliedAt: NOW,
+      },
+      {
+        version: 2,
+        name: "approvals-outbox",
         checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
         appliedAt: NOW,
       },
@@ -194,10 +200,20 @@ describe("migration runner", () => {
       )
       .all() as readonly Readonly<{ name: string; sql: string }>[];
     expect(rows.map((row) => row.name)).toEqual([
+      "approvals",
       "artifacts",
       "attempts",
       "commands",
+      "effect_observations",
+      "effect_origin_checkpoints",
+      "effect_outbox",
+      "effect_reconciliation_attempts",
+      "effect_rejections",
+      "effect_send_attempts",
+      "effect_transitions",
       "events",
+      "external_effects",
+      "external_resources",
       "leases",
       "schema_migrations",
       "steps",
@@ -211,7 +227,7 @@ describe("migration runner", () => {
     const database = openFactoryDatabase(makeDatabasePath());
     runMigrations(database, { now: () => new Date(NOW) });
     const brokenMigration: SqlMigration = {
-      version: 2,
+      version: 3,
       name: "broken-probe",
       sql: `
         CREATE TABLE must_rollback (id INTEGER PRIMARY KEY) STRICT;
@@ -224,14 +240,75 @@ describe("migration runner", () => {
         migrations: [...FACTORY_MIGRATIONS, brokenMigration],
         now: () => new Date(LATER),
       }),
-    ).toThrow(/Migration 2 \(broken-probe\) failed/);
-    expect(database.pragma("user_version", { simple: true })).toBe(1);
-    expect(listAppliedMigrations(database).map((migration) => migration.version)).toEqual([1]);
+    ).toThrow(/Migration 3 \(broken-probe\) failed/);
+    expect(database.pragma("user_version", { simple: true })).toBe(2);
+    expect(listAppliedMigrations(database).map((migration) => migration.version)).toEqual([1, 2]);
     expect(
       database
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'must_rollback'")
         .get(),
     ).toBeUndefined();
+    database.close();
+  });
+
+  it("upgrades an existing v1 database and leaves every new foreign key valid", () => {
+    const database = openFactoryDatabase(makeDatabasePath());
+    const v1 = FACTORY_MIGRATIONS[0];
+    if (v1 === undefined) throw new Error("Expected v1 migration fixture");
+    expect(runMigrations(database, { migrations: [v1], now: () => new Date(NOW) })).toEqual({
+      currentVersion: 1,
+      newlyAppliedVersions: [1],
+    });
+    expect(database.pragma("user_version", { simple: true })).toBe(1);
+
+    expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
+      currentVersion: 2,
+      newlyAppliedVersions: [2],
+    });
+    expect(database.pragma("user_version", { simple: true })).toBe(2);
+    const stepColumns = database.pragma("table_info(steps)") as readonly Readonly<{
+      name: string;
+    }>[];
+    expect(stepColumns.map(({ name }) => name)).toContain("effect_checkpoint_revision");
+    expect(database.pragma("foreign_key_check")).toEqual([]);
+    database.close();
+  });
+
+  it("rolls a failed v1-to-v2 upgrade back, including ALTER TABLE changes", () => {
+    const database = openFactoryDatabase(makeDatabasePath());
+    const v1 = FACTORY_MIGRATIONS[0];
+    if (v1 === undefined) throw new Error("Expected v1 migration fixture");
+    runMigrations(database, { migrations: [v1], now: () => new Date(NOW) });
+    const failingUpgrade: SqlMigration = {
+      version: 2,
+      name: "failing-upgrade-probe",
+      sql: `
+        ALTER TABLE steps ADD COLUMN must_rollback INTEGER NOT NULL DEFAULT 0;
+        CREATE TABLE upgrade_must_rollback (id INTEGER PRIMARY KEY) STRICT;
+        INSERT INTO table_that_does_not_exist(id) VALUES (1);
+      `,
+    };
+
+    expect(() =>
+      runMigrations(database, {
+        migrations: [v1, failingUpgrade],
+        now: () => new Date(LATER),
+      }),
+    ).toThrow(/Migration 2 \(failing-upgrade-probe\) failed/);
+    expect(database.pragma("user_version", { simple: true })).toBe(1);
+    expect(listAppliedMigrations(database).map(({ version }) => version)).toEqual([1]);
+    const stepColumns = database.pragma("table_info(steps)") as readonly Readonly<{
+      name: string;
+    }>[];
+    expect(stepColumns.map(({ name }) => name)).not.toContain("must_rollback");
+    expect(
+      database
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'upgrade_must_rollback'",
+        )
+        .get(),
+    ).toBeUndefined();
+    expect(database.pragma("foreign_key_check")).toEqual([]);
     database.close();
   });
 });

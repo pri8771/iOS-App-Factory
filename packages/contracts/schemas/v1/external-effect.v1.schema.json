@@ -122,7 +122,8 @@
         "observed",
         "confirmed",
         "unknown",
-        "manual-intervention"
+        "manual-intervention",
+        "rejected"
       ],
       "type": "string"
     },

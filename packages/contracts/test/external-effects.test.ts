@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   ApprovalV1Schema,
   ExternalEffectV1Schema,
+  ExternalObservationV1Schema,
   ExternalResourceV1Schema,
 } from "../src/index.js";
 
@@ -100,6 +101,26 @@ describe("approval and external-effect contracts", () => {
       observedAt: NOW,
     });
     expect(resource.effectId).toBe(effectId);
+  });
+
+  it("requires versioned, evidence-bound provider observation invocations", () => {
+    const observation = {
+      schemaVersion: 1,
+      invocationId: randomUUID(),
+      source: "provider-reconciliation",
+      adapterId: "github.rest",
+      adapterVersion: "1.0.0",
+      evidenceDigest: DIGEST,
+      attestationDigest: DIGEST,
+      observedAt: NOW,
+    } as const;
+    expect(ExternalObservationV1Schema.parse(observation)).toEqual(observation);
+    expect(
+      ExternalObservationV1Schema.safeParse({ ...observation, source: "agent-assertion" }).success,
+    ).toBe(false);
+    expect(
+      ExternalObservationV1Schema.safeParse({ ...observation, evidenceDigest: null }).success,
+    ).toBe(false);
   });
 
   it("rejects unversioned markers, unknown fields, and unsupported providers", () => {

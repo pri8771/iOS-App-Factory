@@ -8,6 +8,7 @@ import {
   IsoInstantSchema,
   NamespacedCodeSchema,
   NonNegativeSafeIntegerSchema,
+  RunIdSchema,
   SchemaVersionV1Schema,
   Sha256DigestSchema,
 } from "./primitives.js";
@@ -31,6 +32,7 @@ export const ExternalEffectStateV1Schema = z.enum([
   "confirmed",
   "unknown",
   "manual-intervention",
+  "rejected",
 ]);
 export type ExternalEffectStateV1 = z.infer<typeof ExternalEffectStateV1Schema>;
 
@@ -47,6 +49,29 @@ export const ExternalTargetV1Schema = z.strictObject({
   resourceKey: z.string().min(1).max(1_000),
 });
 export type ExternalTargetV1 = z.infer<typeof ExternalTargetV1Schema>;
+
+export const ExternalObservationSourceV1Schema = z.enum([
+  "provider-send",
+  "provider-reconciliation",
+]);
+export type ExternalObservationSourceV1 = z.infer<typeof ExternalObservationSourceV1Schema>;
+
+/**
+ * A provider observation is a separately attested invocation whose raw result
+ * is retained as immutable evidence. Merely advancing a timestamp is not an
+ * independent observation.
+ */
+export const ExternalObservationV1Schema = z.strictObject({
+  schemaVersion: SchemaVersionV1Schema,
+  invocationId: RunIdSchema,
+  source: ExternalObservationSourceV1Schema,
+  adapterId: NamespacedCodeSchema,
+  adapterVersion: z.string().min(1).max(200),
+  evidenceDigest: Sha256DigestSchema,
+  attestationDigest: Sha256DigestSchema,
+  observedAt: IsoInstantSchema,
+});
+export type ExternalObservationV1 = z.infer<typeof ExternalObservationV1Schema>;
 
 export const ExternalEffectV1Schema = z.strictObject({
   schemaVersion: SchemaVersionV1Schema,

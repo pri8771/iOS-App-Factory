@@ -12,7 +12,11 @@ import {
 } from "./evidence.js";
 import { EventV1Schema } from "./event.js";
 import { ExecutionAttemptV1Schema, StepV1Schema } from "./execution.js";
-import { ExternalEffectV1Schema, ExternalResourceV1Schema } from "./external-effect.js";
+import {
+  ExternalEffectV1Schema,
+  ExternalObservationV1Schema,
+  ExternalResourceV1Schema,
+} from "./external-effect.js";
 import { LessonV1Schema, LifecycleEventV1Schema } from "./learning.js";
 import { ModuleManifestV1Schema } from "./module.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
@@ -38,6 +42,12 @@ export const contractSchemaCatalogV1 = [
     fileName: "external-effect.v1.schema.json",
     id: "urn:app-factory:contracts:v1:external-effect",
     schema: ExternalEffectV1Schema,
+  },
+  {
+    name: "external-observation",
+    fileName: "external-observation.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:external-observation",
+    schema: ExternalObservationV1Schema,
   },
   {
     name: "external-resource",
