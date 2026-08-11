@@ -21,19 +21,23 @@ pnpm --filter @app-factory/oci-runner test
 ```
 
 The corrected package-local test script is authoritative for this focused
-suite. Its latest run passed 93 of 93 tests.
+suite. Its latest run passed 154 of 154 tests.
 
 The suite uses fake lifecycle engines and an injected Docker command transport
 to validate:
 
 - exact intent, image, Docker endpoint, label, mount, environment, resource,
   privilege, network, and inspection bindings;
+- durable engine identity binding plus fresh daemon observations before every
+  mutation and after exact absence, with ordinary daemon-drift rejection;
 - the locked `network=none`, read-only-root, non-root execution profile;
 - rejection of credentials and unsafe worktree filesystem entries;
 - private immutable lifecycle artifacts and digest-bound receipts; and
 - cross-process operation serialization, create-dispatch ambiguity, deterministic
   cancellation, and lost-response recovery across create, start, inspect, logs,
-  stop, kill, and removal boundaries.
+  stop, kill, and removal boundaries; and
+- durable post-launch quarantine, no-relaunch behavior, exact-identity reaping,
+  ambiguous reaper responses, and exact-ID plus exact-label absence proof.
 
 This suite does not contact a Docker daemon or start a real container.
 
@@ -66,12 +70,15 @@ a strict-inspection process failure instead of creating a duplicate. No Codex
 binary, credentials, home directory, or Docker socket was mounted into the
 container.
 
-The current hardened-tree evidence summary is
+The recorded evidence summary is
 `/Users/pchordia/Documents/oci-runner-smoke-hardening-Vhj2LP/smoke-summary.json`
 with digest
 `sha256:3ba392b0012dd11e89d0647b434a33ce94eae414733bec5b1ceb942058b8cc96`.
-It is local observational evidence, not an OCI journal V3 or production
-certification.
+It predates the current engine-binding and quarantine/reaper changes, so it is
+not current-tree validation. It is local observational evidence for the earlier
+tree, not an OCI journal V3 or production certification. The local Unix socket
+is trusted; the identity observations do not attest a malicious proxy that
+controls that endpoint.
 
 ## Prohibited interpretation and actions
 
@@ -84,12 +91,14 @@ Codex home, `auth.json`, model/API credential, Git credential, Docker socket,
 Factory runtime, source checkout, or host home. Do not change `network=none` or
 point the fixture command at a real agent.
 
-A green deterministic suite proves the library controls only. The completed
-live smoke additionally proves one natural full lifecycle and one persisted
-launch-marker recovery case. Neither proves an autonomous PID 1 wall/output
+A green deterministic suite proves the current library controls only. The
+earlier completed live smoke additionally proved one natural full lifecycle and
+one persisted launch-marker recovery case for its recorded tree. It has not yet
+been rerun against the current tree. Neither proves an autonomous PID 1 wall/output
 watchdog or a retained-log total-output bound; controlled live-model
 egress/auth; autonomous stale-operation-lock recovery; a post-launch
-start/attestation quarantine and reaper; daemon composition and OCI journal V3;
+quarantine reaper scheduled independently by the daemon and a corresponding
+real-engine failure campaign; daemon composition and OCI journal V3;
 digest-attested default seccomp/AppArmor profiles; quota-bound host writes and
 disk-exhaustion behavior; or real-engine timeout, overflow, stop, and kill
 paths. Trusted macOS Xcode integration also remains separate. Those gates are

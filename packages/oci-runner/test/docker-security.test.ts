@@ -20,6 +20,7 @@ import {
   buildDockerCreateArguments,
   labelsForOciRun,
   parseOciRunIntent,
+  type DockerCliConfiguration,
   type DockerCommandResult,
   type OciRunIntentV1,
 } from "../src/index.js";
@@ -29,6 +30,9 @@ const OTHER_CONTAINER_ID = "b".repeat(64);
 const IMAGE_ID = `sha256:${"1".repeat(64)}`;
 const IMAGE_REFERENCE = `factory/codex@sha256:${"2".repeat(64)}`;
 const MAX_CONTROL_OUTPUT = 2 * 1024 * 1024;
+const DOCKER_SERVER_ID = "11111111-2222-4333-8444-555555555555";
+const OTHER_DOCKER_SERVER_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+const DOCKER_SERVER_IDENTITY = `${DOCKER_SERVER_ID}|29.5.2|linux|aarch64`;
 const temporaryDirectories: string[] = [];
 const servers: Server[] = [];
 
@@ -236,6 +240,11 @@ function missingContainerResult(
   });
 }
 
+function serverIdentityLine(serverId: string, configuration: DockerCliConfiguration): string {
+  const architecture = configuration.expectedServerArchitecture === "arm64" ? "aarch64" : "x86_64";
+  return `${serverId}|${configuration.expectedServerVersion}|${configuration.expectedServerOs}|${architecture}\n`;
+}
+
 async function privateSocket(directory: string): Promise<string> {
   const path = join(directory, "s");
   const server = createServer();
@@ -249,14 +258,24 @@ async function privateSocket(directory: string): Promise<string> {
 }
 
 async function engineFixture(
-  afterVersion: (args: readonly string[]) => DockerCommandResult,
-  options: Readonly<{ executableAlias?: boolean; socketAlias?: boolean }> = {},
+  afterIdentity: (args: readonly string[]) => DockerCommandResult,
+  options: Readonly<{
+    executableAlias?: boolean;
+    socketAlias?: boolean;
+    serverId?: string;
+    serverIds?: readonly string[];
+    serverIdentityResult?: DockerCommandResult;
+  }> = {},
 ): Promise<
   Readonly<{
     engine: DockerCliEngine;
     executable: string;
     socketPath: string;
     calls: readonly Readonly<{ executable: string; args: readonly string[] }>[];
+    createEngine: (
+      serverId?: string,
+      configurationOverrides?: Partial<DockerCliConfiguration>,
+    ) => Promise<DockerCliEngine>;
   }>
 > {
   const directory = temporaryDirectory("fd-");
@@ -272,27 +291,46 @@ async function engineFixture(
     .update("fixture docker executable\n")
     .digest("hex")}`;
   const calls: { executable: string; args: readonly string[] }[] = [];
-  let invocation = 0;
-  const engine = await DockerCliEngine.create(
-    {
-      executable,
-      executableDigest: digest,
-      host: `unix://${socketPath}`,
-      expectedClientVersion: "29.6.1",
-      expectedServerVersion: "29.5.2",
-      expectedServerOs: "linux",
-      expectedServerArchitecture: "arm64",
-    },
-    {
+  const configuration: DockerCliConfiguration = {
+    executable,
+    executableDigest: digest,
+    host: `unix://${socketPath}`,
+    expectedClientVersion: "29.6.1",
+    expectedServerVersion: "29.5.2",
+    expectedServerOs: "linux",
+    expectedServerArchitecture: "arm64",
+  };
+  const createEngine = async (
+    serverId = options.serverId ?? DOCKER_SERVER_ID,
+    configurationOverrides: Partial<DockerCliConfiguration> = {},
+  ): Promise<DockerCliEngine> => {
+    const configured = { ...configuration, ...configurationOverrides };
+    let serverObservation = 0;
+    return await DockerCliEngine.create(configured, {
       invoke: async (invokedExecutable, args) => {
         calls.push({ executable: invokedExecutable, args: [...args] });
-        invocation += 1;
-        if (invocation === 1) return result("29.6.1|29.5.2|linux|arm64\n");
-        return afterVersion(args);
+        if (args[2] === "version") {
+          return result(`${configured.expectedClientVersion}\n`);
+        }
+        if (args[2] === "info") {
+          const observedServerId = options.serverIds?.[serverObservation] ?? serverId;
+          serverObservation += 1;
+          return (
+            options.serverIdentityResult ?? result(serverIdentityLine(observedServerId, configured))
+          );
+        }
+        return afterIdentity(args);
       },
-    },
-  );
-  return { engine, executable: realExecutable, socketPath: realSocketPath, calls };
+    });
+  };
+  const engine = await createEngine();
+  return {
+    engine,
+    executable: realExecutable,
+    socketPath: realSocketPath,
+    calls,
+    createEngine,
+  };
 }
 
 function cloneRaw(raw: RawInspection): RawInspection {
@@ -519,6 +557,69 @@ describe("Docker OCI containment contract", () => {
     await expect(fixture.engine.inspect(CONTAINER_ID)).rejects.toThrow(/different container/u);
   });
 
+  it("accepts exact empty label reconciliation output as absence", async () => {
+    const fixture = await engineFixture(() => result(""));
+    await expect(
+      fixture.engine.findByLabels({ "com.example.z": "last", "com.example.a": "first" }),
+    ).resolves.toBeNull();
+    expect(fixture.calls.at(-1)?.args.slice(2)).toEqual([
+      "ps",
+      "-a",
+      "--no-trunc",
+      "--filter",
+      "label=com.example.a=first",
+      "--filter",
+      "label=com.example.z=last",
+      "--format",
+      "{{.ID}}",
+    ]);
+  });
+
+  it("accepts one exact LF-terminated label reconciliation ID", async () => {
+    const intent = fixtureIntent();
+    const fixture = await engineFixture((args) => {
+      if (args[2] === "ps") return result(`${CONTAINER_ID}\n`);
+      if (args.includes("inspect")) return result(JSON.stringify(safeRawInspection(intent)));
+      throw new Error(`unexpected Docker fixture command: ${args.join(" ")}`);
+    });
+    await expect(fixture.engine.findByLabels(labelsForOciRun(intent))).resolves.toMatchObject({
+      containerId: CONTAINER_ID,
+    });
+  });
+
+  const unsafeLabelReconciliationResults: readonly Readonly<{
+    name: string;
+    response: DockerCommandResult;
+  }>[] = [
+    {
+      name: "stderr diagnostic on empty stdout",
+      response: (() => {
+        const stderr = Buffer.from("warning\n", "utf8");
+        return result("", { stderr, stderrObservedBytes: stderr.byteLength });
+      })(),
+    },
+    { name: "incomplete stdout capture", response: result("", { stdoutObservedBytes: 1 }) },
+    { name: "incomplete stderr capture", response: result("", { stderrObservedBytes: 1 }) },
+    { name: "missing final LF", response: result(CONTAINER_ID) },
+    { name: "malformed ID line", response: result("not-a-container-id\n") },
+    { name: "whitespace-padded line", response: result(` ${CONTAINER_ID}\n`) },
+    { name: "CRLF line", response: result(`${CONTAINER_ID}\r\n`) },
+    { name: "empty interior line", response: result(`${CONTAINER_ID}\n\n`) },
+    {
+      name: "multiple exact IDs",
+      response: result(`${CONTAINER_ID}\n${OTHER_CONTAINER_ID}\n`),
+    },
+  ];
+
+  for (const scenario of unsafeLabelReconciliationResults) {
+    it(`rejects unsafe label reconciliation output: ${scenario.name}`, async () => {
+      const fixture = await engineFixture(() => scenario.response);
+      await expect(fixture.engine.findByLabels({ "com.example.run": "one" })).rejects.toThrow(
+        /label reconciliation|bounded process metadata/u,
+      );
+    });
+  }
+
   it("removes the exact never-started container when create attestation fails", async () => {
     const intent = fixtureIntent();
     const unsafe = cloneRaw(safeRawInspection(intent));
@@ -702,20 +803,116 @@ describe("Docker OCI containment contract", () => {
     });
   });
 
+  it("derives a stable canonical engine identity bound to configuration and server ID", async () => {
+    const fixture = await engineFixture(() => result("[]"), { executableAlias: true });
+    const originalDigest = fixture.engine.engineIdentityDigest;
+    expect(originalDigest).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(fixture.calls.slice(0, 2).map(({ args }) => args.slice(-3))).toEqual([
+      ["version", "--format", "{{.Client.Version}}"],
+      ["info", "--format", "{{.ID}}|{{.ServerVersion}}|{{.OSType}}|{{.Architecture}}"],
+    ]);
+
+    const samePins = await fixture.createEngine();
+    expect(samePins.engineIdentityDigest).toBe(originalDigest);
+    await expect(fixture.engine.observeEngineIdentityDigest()).resolves.toBe(originalDigest);
+    expect(fixture.engine.engineIdentityDigest).toBe(originalDigest);
+
+    const otherServer = await fixture.createEngine(OTHER_DOCKER_SERVER_ID);
+    expect(otherServer.engineIdentityDigest).not.toBe(originalDigest);
+
+    const sameTargetOtherConfiguration = await fixture.createEngine(DOCKER_SERVER_ID, {
+      executable: fixture.executable,
+    });
+    expect(sameTargetOtherConfiguration.engineIdentityDigest).not.toBe(originalDigest);
+
+    rmSync(fixture.executable);
+    writeFileSync(fixture.executable, "fixture docker executable\n");
+    chmodSync(fixture.executable, 0o555);
+    const replacedExecutable = await fixture.createEngine();
+    expect(replacedExecutable.engineIdentityDigest).not.toBe(originalDigest);
+
+    chmodSync(fixture.socketPath, 0o700);
+    chmodSync(fixture.socketPath, 0o600);
+    const changedSocketIdentity = await fixture.createEngine();
+    expect(changedSocketIdentity.engineIdentityDigest).not.toBe(
+      replacedExecutable.engineIdentityDigest,
+    );
+  });
+
+  it("returns a fresh digest when the daemon changes without mutating the creation digest", async () => {
+    const fixture = await engineFixture(() => result("[]"), {
+      serverIds: [DOCKER_SERVER_ID, OTHER_DOCKER_SERVER_ID],
+    });
+    const creationDigest = fixture.engine.engineIdentityDigest;
+    await expect(fixture.engine.observeEngineIdentityDigest()).resolves.not.toBe(creationDigest);
+    expect(fixture.engine.engineIdentityDigest).toBe(creationDigest);
+  });
+
+  const malformedServerIdentities: readonly Readonly<{
+    name: string;
+    response: DockerCommandResult;
+  }>[] = [
+    { name: "empty value", response: result("\n") },
+    { name: "missing final newline", response: result(DOCKER_SERVER_IDENTITY) },
+    { name: "multiple lines", response: result(`${DOCKER_SERVER_IDENTITY}\nsecond\n`) },
+    { name: "carriage return", response: result(`${DOCKER_SERVER_IDENTITY}\r\n`) },
+    { name: "unsafe token", response: result("server id|29.5.2|linux|aarch64\n") },
+    {
+      name: "server version mismatch",
+      response: result(`${DOCKER_SERVER_ID}|29.5.3|linux|aarch64\n`),
+    },
+    {
+      name: "server OS mismatch",
+      response: result(`${DOCKER_SERVER_ID}|29.5.2|windows|aarch64\n`),
+    },
+    {
+      name: "server architecture mismatch",
+      response: result(`${DOCKER_SERVER_ID}|29.5.2|linux|riscv64\n`),
+    },
+    {
+      name: "oversized value",
+      response: result(`${"a".repeat(129)}|29.5.2|linux|aarch64\n`),
+    },
+    {
+      name: "stderr diagnostic",
+      response: (() => {
+        const stderr = Buffer.from("warning\n", "utf8");
+        return result(`${DOCKER_SERVER_IDENTITY}\n`, {
+          stderr,
+          stderrObservedBytes: stderr.byteLength,
+        });
+      })(),
+    },
+    {
+      name: "incomplete capture",
+      response: result(`${DOCKER_SERVER_IDENTITY}\n`, {
+        stdoutObservedBytes: Buffer.byteLength(`${DOCKER_SERVER_IDENTITY}\n`) + 1,
+      }),
+    },
+  ];
+
+  for (const scenario of malformedServerIdentities) {
+    it(`rejects malformed Docker server identity: ${scenario.name}`, async () => {
+      await expect(
+        engineFixture(() => result("[]"), { serverIdentityResult: scenario.response }),
+      ).rejects.toThrow(/Docker server (?:identity|ID)|bounded process metadata/u);
+    });
+  }
+
   it("revalidates executable metadata and digest before every invocation", async () => {
     const fixture = await engineFixture(() => result("[]"));
     chmodSync(fixture.executable, 0o755);
     writeFileSync(fixture.executable, "replacement executable\n");
     chmodSync(fixture.executable, 0o555);
     await expect(fixture.engine.inspect(CONTAINER_ID)).rejects.toThrow(/executable identity/u);
-    expect(fixture.calls).toHaveLength(1);
+    expect(fixture.calls).toHaveLength(2);
   });
 
   it("revalidates private socket identity before every invocation", async () => {
     const fixture = await engineFixture(() => result("[]"));
     chmodSync(fixture.socketPath, 0o660);
     await expect(fixture.engine.inspect(CONTAINER_ID)).rejects.toThrow(/socket no longer/u);
-    expect(fixture.calls).toHaveLength(1);
+    expect(fixture.calls).toHaveLength(2);
   });
 
   it("resolves a Homebrew-style executable symlink once and invokes the pinned target", async () => {

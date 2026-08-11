@@ -1,14 +1,24 @@
-import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  canonicalJsonLine,
   OciRunner,
   labelsForOciRun,
   parseOciRunIntent,
   prepareOciRun,
+  sha256Digest,
   type OciContainerInspection,
   type OciEnginePort,
   type OciImageIdentityV1,
@@ -18,6 +28,8 @@ import {
 
 const CONTAINER_ID = "b".repeat(64);
 const IMAGE_ID = `sha256:${"1".repeat(64)}`;
+const ENGINE_ID = `sha256:${"7".repeat(64)}`;
+const OTHER_ENGINE_ID = `sha256:${"8".repeat(64)}`;
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
@@ -131,9 +143,24 @@ function inspectionFor(
 }
 
 class HardeningEngine implements OciEnginePort {
+  public readonly engineIdentityDigest: string;
+  public observedEngineIdentityDigest: string;
+  public observedEngineIdentityDigests: string[] = [];
+  public identityObservationError: Error | null = null;
+  public identityObservationCount = 0;
   public inspection: OciContainerInspection | null = null;
   public failVerification = false;
   public createError: Error | null = null;
+  public startErrorAfterMutation: Error | null = null;
+  public inspectError: Error | null = null;
+  public inspectFailureStatus: OciContainerInspection["status"] | "absent" | null = null;
+  public startInspectionOverrides: Partial<OciContainerInspection> = {};
+  public killErrorBeforeMutation: Error | null = null;
+  public killErrorAfterMutation: Error | null = null;
+  public removeErrorBeforeMutation: Error | null = null;
+  public removeErrorAfterMutation: Error | null = null;
+  public labelMatch: OciContainerInspection | null = null;
+  public lastFindLabels: Readonly<Record<string, string>> | null = null;
   public onVerification: (() => void) | null = null;
   public verificationGate: Promise<void> | null = null;
   public verifyCount = 0;
@@ -142,6 +169,8 @@ class HardeningEngine implements OciEnginePort {
   public stopCount = 0;
   public killCount = 0;
   public removeCount = 0;
+  public findCount = 0;
+  public inspectCount = 0;
   public stopLeavesRunning = false;
   public logsResult: OciLogCapture = {
     stdout: Buffer.from("ok\n"),
@@ -151,8 +180,16 @@ class HardeningEngine implements OciEnginePort {
   };
   readonly #intent: OciRunIntentV1;
 
-  public constructor(intent: OciRunIntentV1) {
+  public constructor(intent: OciRunIntentV1, engineIdentityDigest = ENGINE_ID) {
     this.#intent = intent;
+    this.engineIdentityDigest = engineIdentityDigest;
+    this.observedEngineIdentityDigest = engineIdentityDigest;
+  }
+
+  public async observeEngineIdentityDigest(): Promise<string> {
+    this.identityObservationCount += 1;
+    if (this.identityObservationError !== null) throw this.identityObservationError;
+    return this.observedEngineIdentityDigests.shift() ?? this.observedEngineIdentityDigest;
   }
 
   public async verifyImage(image: OciImageIdentityV1): Promise<void> {
@@ -165,8 +202,12 @@ class HardeningEngine implements OciEnginePort {
     }
   }
 
-  public async findByLabels(): Promise<OciContainerInspection | null> {
-    return this.inspection;
+  public async findByLabels(
+    labels: Readonly<Record<string, string>>,
+  ): Promise<OciContainerInspection | null> {
+    this.findCount += 1;
+    this.lastFindLabels = { ...labels };
+    return this.labelMatch ?? this.inspection;
   }
 
   public async create(): Promise<string> {
@@ -177,13 +218,22 @@ class HardeningEngine implements OciEnginePort {
   }
 
   public async inspect(containerId: string): Promise<OciContainerInspection | null> {
+    this.inspectCount += 1;
     if (containerId !== CONTAINER_ID) throw new Error("wrong container");
+    const status = this.inspection?.status ?? "absent";
+    if (this.inspectError !== null && this.inspectFailureStatus === status) {
+      const error = this.inspectError;
+      this.inspectError = null;
+      this.inspectFailureStatus = null;
+      throw error;
+    }
     return this.inspection;
   }
 
   public async start(): Promise<void> {
     this.startCount += 1;
-    this.inspection = inspectionFor(this.#intent, "running");
+    this.inspection = inspectionFor(this.#intent, "running", this.startInspectionOverrides);
+    if (this.startErrorAfterMutation !== null) throw this.startErrorAfterMutation;
   }
 
   public async logs(): Promise<OciLogCapture> {
@@ -202,15 +252,23 @@ class HardeningEngine implements OciEnginePort {
 
   public async kill(): Promise<void> {
     this.killCount += 1;
+    if (this.killErrorBeforeMutation !== null) throw this.killErrorBeforeMutation;
+    if (this.inspection?.status !== "running") throw new Error("container is not running");
     this.inspection = inspectionFor(this.#intent, "terminal", {
       exitCode: 137,
       finishedAt: "2026-08-11T16:01:04.000Z",
     });
+    if (this.killErrorAfterMutation !== null) throw this.killErrorAfterMutation;
   }
 
   public async remove(): Promise<void> {
     this.removeCount += 1;
+    if (this.removeErrorBeforeMutation !== null) throw this.removeErrorBeforeMutation;
+    if (this.inspection === null || this.inspection.status === "running") {
+      throw new Error("container cannot be removed in its current state");
+    }
     this.inspection = null;
+    if (this.removeErrorAfterMutation !== null) throw this.removeErrorAfterMutation;
   }
 
   public finish(exitCode = 0): void {
@@ -226,6 +284,41 @@ function rewriteJson(path: string, mutate: (value: Record<string, unknown>) => v
   const value = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
   mutate(value);
   writeFileSync(path, `${JSON.stringify(value)}\n`);
+}
+
+function engineObservations(engine: HardeningEngine): Readonly<Record<string, number>> {
+  return {
+    create: engine.createCount,
+    start: engine.startCount,
+    stop: engine.stopCount,
+    kill: engine.killCount,
+    remove: engine.removeCount,
+    inspect: engine.inspectCount,
+    find: engine.findCount,
+  };
+}
+
+function writeSyntheticQuarantine(
+  prepared: ReturnType<typeof prepare>,
+  quarantinedAt = "2026-08-11T16:00:12.000Z",
+): void {
+  const launchPath = join(prepared.paths.runDirectory, "launch-attempt.json");
+  const engineBindingPath = join(prepared.paths.runDirectory, "engine-binding.json");
+  const quarantinePath = join(prepared.paths.runDirectory, "quarantine.json");
+  const quarantine = {
+    schemaVersion: 1,
+    runKey: prepared.intent.runKey,
+    attemptId: prepared.intent.attemptId,
+    runId: prepared.intent.runId,
+    fence: prepared.intent.fence,
+    intentDigest: prepared.intentDigest,
+    containerId: CONTAINER_ID,
+    engineBindingDigest: sha256Digest(readFileSync(engineBindingPath)),
+    launchAttemptDigest: sha256Digest(readFileSync(launchPath)),
+    reason: "inspect-ambiguous",
+    quarantinedAt,
+  };
+  writeFileSync(quarantinePath, canonicalJsonLine(quarantine), { flag: "wx", mode: 0o600 });
 }
 
 describe("runner P1 durable state hardening", () => {
@@ -477,11 +570,13 @@ describe("runner P1 durable state hardening", () => {
     const crashing = new OciRunner(engine, {
       now: () => new Date("2026-08-11T16:00:10.000Z"),
       afterBoundary: (boundary) => {
-        if (boundary === "after-start") throw new Error("injected start response loss");
+        if (boundary === "after-post-start-attestation") {
+          throw new Error("injected acknowledged start recovery boundary");
+        }
       },
     });
 
-    await expect(crashing.reconcile(prepared)).rejects.toThrow(/injected start response/u);
+    await expect(crashing.reconcile(prepared)).rejects.toThrow(/acknowledged start recovery/u);
     engine.inspection = inspectionFor(intent, "terminal", {
       exitCode: 0,
       finishedAt: "2026-08-11T16:01:02.001Z",
@@ -500,6 +595,660 @@ describe("runner P1 durable state hardening", () => {
     expect(engine.removeCount).toBe(1);
   });
 
+  it("quarantines an actual ambiguous start and reaps it without relaunch or receipt", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+
+    await expect(runner.reconcile(prepared)).resolves.toMatchObject({
+      phase: "quarantined",
+      quarantine: {
+        containerId: CONTAINER_ID,
+        reason: "start-ambiguous",
+      },
+    });
+    expect(engine.startCount).toBe(1);
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine.json"))).toBe(true);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+
+    const mutationCounts = {
+      create: engine.createCount,
+      start: engine.startCount,
+      kill: engine.killCount,
+      remove: engine.removeCount,
+    };
+    await expect(runner.reconcile(prepared)).resolves.toMatchObject({ phase: "quarantined" });
+    await expect(runner.cancel(prepared)).resolves.toMatchObject({ phase: "quarantined" });
+    expect(engine.createCount).toBe(mutationCounts.create);
+    expect(engine.startCount).toBe(mutationCounts.start);
+    expect(engine.killCount).toBe(mutationCounts.kill);
+    expect(engine.removeCount).toBe(mutationCounts.remove);
+
+    const reaper = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:11.000Z"),
+    });
+    const reaped = await reaper.reapQuarantined(prepared);
+    expect(reaped).toMatchObject({
+      phase: "quarantine-removed",
+      removal: {
+        containerId: CONTAINER_ID,
+        containerAbsent: true,
+        labelsAbsent: true,
+      },
+    });
+    expect(engine.inspection).toBeNull();
+    expect(engine.startCount).toBe(1);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+    await expect(reaper.reconcile(prepared)).resolves.toEqual(reaped);
+    await expect(reaper.reapQuarantined(prepared)).resolves.toEqual(reaped);
+  });
+
+  it("rejects a different Docker engine before reaping and proves exact labels on the bound engine", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const originalEngine = new HardeningEngine(intent);
+    originalEngine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    await new OciRunner(originalEngine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+
+    const differentEngine = new HardeningEngine(intent, OTHER_ENGINE_ID);
+    await expect(
+      new OciRunner(differentEngine, {
+        now: () => new Date("2026-08-11T16:00:11.000Z"),
+      }).reapQuarantined(prepared),
+    ).rejects.toThrow(/engine identity differs/u);
+    expect(engineObservations(differentEngine)).toEqual({
+      create: 0,
+      start: 0,
+      stop: 0,
+      kill: 0,
+      remove: 0,
+      inspect: 0,
+      find: 0,
+    });
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine-removed.json"))).toBe(false);
+
+    await expect(
+      new OciRunner(originalEngine, {
+        now: () => new Date("2026-08-11T16:00:12.000Z"),
+      }).reapQuarantined(prepared),
+    ).resolves.toMatchObject({ phase: "quarantine-removed" });
+    expect(originalEngine.lastFindLabels).toEqual(labelsForOciRun(intent));
+  });
+
+  it("rejects daemon identity drift before quarantine mutation", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+    engine.observedEngineIdentityDigest = OTHER_ENGINE_ID;
+    const stableCounts = engineObservations(engine);
+
+    await expect(
+      new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:11.000Z"),
+      }).reapQuarantined(prepared),
+    ).rejects.toThrow(/engine identity changed/u);
+    expect(engineObservations(engine)).toEqual(stableCounts);
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine-removed.json"))).toBe(false);
+  });
+
+  it("rechecks daemon identity after absence before publishing quarantine closure", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+    engine.observedEngineIdentityDigests.push(ENGINE_ID, ENGINE_ID, ENGINE_ID, OTHER_ENGINE_ID);
+    const reaper = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:11.000Z"),
+    });
+
+    await expect(reaper.reapQuarantined(prepared)).rejects.toMatchObject({
+      code: "OCI_QUARANTINE_REAP_PENDING",
+      retryable: true,
+    });
+    expect(engine.inspection).toBeNull();
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine-removed.json"))).toBe(false);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+
+    await expect(reaper.reapQuarantined(prepared)).resolves.toMatchObject({
+      phase: "quarantine-removed",
+    });
+    expect(engine.startCount).toBe(1);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+  });
+
+  it("checks daemon identity immediately before create without publishing a false dispatch", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.observedEngineIdentityDigests.push(ENGINE_ID, OTHER_ENGINE_ID);
+
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await expect(runner.reconcile(prepared)).rejects.toThrow(/engine identity changed/u);
+    expect(engine.createCount).toBe(0);
+    expect(engine.startCount).toBe(0);
+    expect(existsSync(join(prepared.paths.runDirectory, "create-attempt.json"))).toBe(false);
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine.json"))).toBe(false);
+
+    await expect(runner.reconcile(prepared)).resolves.toMatchObject({
+      phase: "running",
+    });
+    expect(engine.createCount).toBe(1);
+    expect(engine.startCount).toBe(1);
+  });
+
+  it("checks daemon identity immediately before start and quarantines without starting on drift", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.observedEngineIdentityDigests.push(ENGINE_ID, ENGINE_ID, OTHER_ENGINE_ID);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+
+    await expect(runner.reconcile(prepared)).resolves.toMatchObject({
+      phase: "quarantined",
+      quarantine: { reason: "start-ambiguous" },
+    });
+    expect(engine.createCount).toBe(1);
+    expect(engine.startCount).toBe(0);
+    expect(engine.inspection?.status).toBe("created");
+    await expect(runner.reapQuarantined(prepared)).resolves.toMatchObject({
+      phase: "quarantine-removed",
+    });
+    expect(engine.startCount).toBe(0);
+  });
+
+  it.each([
+    {
+      stage: "kill",
+      observations: [ENGINE_ID, OTHER_ENGINE_ID],
+      expectedKills: 0,
+    },
+    {
+      stage: "remove",
+      observations: [ENGINE_ID, ENGINE_ID, OTHER_ENGINE_ID],
+      expectedKills: 1,
+    },
+  ])("checks daemon identity immediately before quarantine $stage", async (testCase) => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+    engine.observedEngineIdentityDigests.push(...testCase.observations);
+
+    await expect(new OciRunner(engine).reapQuarantined(prepared)).rejects.toMatchObject({
+      code: "OCI_QUARANTINE_REAP_PENDING",
+      retryable: true,
+    });
+    expect(engine.killCount).toBe(testCase.expectedKills);
+    expect(engine.removeCount).toBe(0);
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine-removed.json"))).toBe(false);
+
+    await expect(new OciRunner(engine).reapQuarantined(prepared)).resolves.toMatchObject({
+      phase: "quarantine-removed",
+    });
+    expect(engine.startCount).toBe(1);
+  });
+
+  it.each([
+    {
+      stage: "stop",
+      observations: [ENGINE_ID, OTHER_ENGINE_ID],
+      stopLeavesRunning: false,
+      expectedStops: 0,
+    },
+    {
+      stage: "kill",
+      observations: [ENGINE_ID, ENGINE_ID, OTHER_ENGINE_ID],
+      stopLeavesRunning: true,
+      expectedStops: 1,
+    },
+  ])("checks daemon identity immediately before normal $stage", async (testCase) => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await runner.reconcile(prepared);
+    engine.stopLeavesRunning = testCase.stopLeavesRunning;
+    engine.observedEngineIdentityDigests.push(...testCase.observations);
+
+    await expect(runner.cancel(prepared)).rejects.toThrow(/engine identity changed/u);
+    expect(engine.stopCount).toBe(testCase.expectedStops);
+    expect(engine.killCount).toBe(0);
+    expect(engine.removeCount).toBe(0);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+
+    engine.stopLeavesRunning = false;
+    await expect(runner.reconcile(prepared)).resolves.toMatchObject({
+      phase: "removed",
+      receipt: { outcome: "cancelled", terminationOrigin: "cancellation" },
+    });
+  });
+
+  it("checks daemon identity immediately before normal terminal removal", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await runner.reconcile(prepared);
+    engine.finish();
+    engine.observedEngineIdentityDigests.push(ENGINE_ID, OTHER_ENGINE_ID);
+
+    await expect(runner.reconcile(prepared)).rejects.toThrow(/engine identity changed/u);
+    expect(engine.removeCount).toBe(0);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+
+    await expect(runner.reconcile(prepared)).resolves.toMatchObject({
+      phase: "removed",
+      receipt: { outcome: "succeeded" },
+    });
+    expect(engine.removeCount).toBe(1);
+  });
+
+  it.each([
+    { boundary: "after-start-dispatched" as const, expectedStarts: 0 },
+    { boundary: "after-start" as const, expectedStarts: 1 },
+  ])(
+    "never reissues an unacknowledged start after $boundary",
+    async ({ boundary, expectedStarts }) => {
+      const intent = fixtureIntent();
+      const prepared = prepare(intent);
+      const engine = new HardeningEngine(intent);
+      const crashing = new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:10.000Z"),
+        afterBoundary: (observed) => {
+          if (observed === boundary) throw new Error(`injected ${boundary}`);
+        },
+      });
+
+      await expect(crashing.reconcile(prepared)).rejects.toThrow(`injected ${boundary}`);
+      expect(engine.startCount).toBe(expectedStarts);
+      const recovered = new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:11.000Z"),
+      });
+      await expect(recovered.reconcile(prepared)).resolves.toMatchObject({
+        phase: "quarantined",
+        quarantine: { reason: "start-ambiguous", containerId: CONTAINER_ID },
+      });
+      expect(engine.startCount).toBe(expectedStarts);
+      await expect(recovered.reapQuarantined(prepared)).resolves.toMatchObject({
+        phase: "quarantine-removed",
+      });
+      expect(engine.startCount).toBe(expectedStarts);
+      expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+    },
+  );
+
+  it("clamps quarantine time when the clock regresses across an ambiguous start", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start with a regressed clock");
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T15:59:59.000Z"),
+    });
+
+    await expect(runner.reconcile(prepared)).resolves.toMatchObject({
+      phase: "quarantined",
+      quarantine: {
+        reason: "start-ambiguous",
+        quarantinedAt: intent.createdAt,
+      },
+    });
+    expect(engine.startCount).toBe(1);
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine.json"))).toBe(true);
+  });
+
+  it("can quarantine and reap a terminal post-start acknowledgement after later inspection ambiguity", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startInspectionOverrides = {
+      status: "terminal",
+      running: false,
+      finishedAt: "2026-08-11T16:00:03.000Z",
+      exitCode: 0,
+    };
+    const crashing = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+      afterBoundary: (boundary) => {
+        if (boundary === "after-post-start-attestation") {
+          throw new Error("injected terminal acknowledgement crash");
+        }
+      },
+    });
+
+    await expect(crashing.reconcile(prepared)).rejects.toThrow(/terminal acknowledgement crash/u);
+    engine.inspectError = new Error("terminal inspection transport failure");
+    engine.inspectFailureStatus = "terminal";
+    const recovered = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:11.000Z"),
+    });
+    await expect(recovered.reconcile(prepared)).resolves.toMatchObject({
+      phase: "quarantined",
+      quarantine: { reason: "inspect-ambiguous" },
+    });
+    await expect(recovered.reapQuarantined(prepared)).resolves.toMatchObject({
+      phase: "quarantine-removed",
+    });
+    expect(engine.startCount).toBe(1);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+  });
+
+  it("quarantines actual post-launch inspect and isolation-attestation failures", async () => {
+    for (const failure of ["inspect", "attestation"] as const) {
+      const intent = fixtureIntent();
+      const prepared = prepare(intent);
+      const engine = new HardeningEngine(intent);
+      if (failure === "inspect") {
+        engine.inspectError = new Error("ambiguous inspect response");
+        engine.inspectFailureStatus = "running";
+      } else {
+        engine.startInspectionOverrides = { networkMode: "bridge" };
+      }
+      const runner = new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:10.000Z"),
+      });
+
+      await expect(runner.reconcile(prepared)).resolves.toMatchObject({
+        phase: "quarantined",
+        quarantine: {
+          reason: failure === "inspect" ? "inspect-ambiguous" : "attestation-failed",
+        },
+      });
+      expect(engine.startCount).toBe(1);
+      await expect(
+        new OciRunner(engine, {
+          now: () => new Date("2026-08-11T16:00:11.000Z"),
+        }).reapQuarantined(prepared),
+      ).resolves.toMatchObject({ phase: "quarantine-removed" });
+      expect(engine.inspection).toBeNull();
+      expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+    }
+  });
+
+  it("accepts lost reaper mutation responses only after exact absence proofs", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    const initial = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await initial.reconcile(prepared);
+    engine.killErrorAfterMutation = new Error("lost kill response");
+    engine.removeErrorAfterMutation = new Error("lost remove response");
+
+    const reaper = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:11.000Z"),
+    });
+    await expect(reaper.reapQuarantined(prepared)).resolves.toMatchObject({
+      phase: "quarantine-removed",
+      removal: { containerAbsent: true, labelsAbsent: true },
+    });
+    expect(engine.killCount).toBe(1);
+    expect(engine.removeCount).toBe(1);
+  });
+
+  it("keeps reaping retryable until exact-ID and exact-label absence are both observable", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+    engine.inspectError = new Error("daemon inspect unavailable");
+    engine.inspectFailureStatus = "absent";
+
+    const reaper = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:11.000Z"),
+    });
+    await expect(reaper.reapQuarantined(prepared)).rejects.toMatchObject({
+      code: "OCI_QUARANTINE_REAP_PENDING",
+      retryable: true,
+    });
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine-removed.json"))).toBe(false);
+
+    engine.labelMatch = inspectionFor(intent, "terminal", { exitCode: 137 });
+    await expect(reaper.reapQuarantined(prepared)).rejects.toMatchObject({
+      code: "OCI_QUARANTINE_REAP_PENDING",
+    });
+    engine.labelMatch = null;
+    await expect(reaper.reapQuarantined(prepared)).resolves.toMatchObject({
+      phase: "quarantine-removed",
+    });
+  });
+
+  it("keeps quarantine open when failed kill and remove leave the exact container alive", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).reconcile(prepared);
+    engine.killErrorBeforeMutation = new Error("kill rejected before effect");
+    engine.removeErrorBeforeMutation = new Error("remove rejected before effect");
+
+    await expect(
+      new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:11.000Z"),
+      }).reapQuarantined(prepared),
+    ).rejects.toMatchObject({
+      code: "OCI_QUARANTINE_REAP_PENDING",
+      retryable: true,
+    });
+    expect(engine.inspection?.status).toBe("running");
+    expect(engine.killCount).toBe(1);
+    expect(engine.removeCount).toBe(1);
+    expect(existsSync(join(prepared.paths.runDirectory, "quarantine-removed.json"))).toBe(false);
+    expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+  });
+
+  it.each([
+    { boundary: "after-quarantine" as const, transitionBoundary: true },
+    { boundary: "after-quarantine-reap-request" as const, transitionBoundary: false },
+    { boundary: "after-quarantine-kill" as const, transitionBoundary: false },
+    { boundary: "after-quarantine-remove" as const, transitionBoundary: false },
+    { boundary: "after-quarantine-absence" as const, transitionBoundary: false },
+  ])(
+    "recovers $boundary without relaunching or publishing a normal receipt",
+    async ({ boundary, transitionBoundary }) => {
+      const intent = fixtureIntent();
+      const prepared = prepare(intent);
+      const engine = new HardeningEngine(intent);
+      engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+
+      if (transitionBoundary) {
+        const crashingTransition = new OciRunner(engine, {
+          now: () => new Date("2026-08-11T16:00:10.000Z"),
+          afterBoundary: (observed) => {
+            if (observed === boundary) throw new Error(`injected ${boundary}`);
+          },
+        });
+        await expect(crashingTransition.reconcile(prepared)).rejects.toThrow(
+          `injected ${boundary}`,
+        );
+        await expect(new OciRunner(engine).reconcile(prepared)).resolves.toMatchObject({
+          phase: "quarantined",
+        });
+      } else {
+        await new OciRunner(engine, {
+          now: () => new Date("2026-08-11T16:00:10.000Z"),
+        }).reconcile(prepared);
+        const crashingReaper = new OciRunner(engine, {
+          now: () => new Date("2026-08-11T16:00:11.000Z"),
+          afterBoundary: (observed) => {
+            if (observed === boundary) throw new Error(`injected ${boundary}`);
+          },
+        });
+        await expect(crashingReaper.reapQuarantined(prepared)).rejects.toThrow(
+          `injected ${boundary}`,
+        );
+      }
+
+      const recovered = new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:12.000Z"),
+      });
+      const result = await recovered.reapQuarantined(prepared);
+      expect(result).toMatchObject({
+        phase: "quarantine-removed",
+        removal: { containerAbsent: true, labelsAbsent: true },
+      });
+      expect(engine.startCount).toBe(1);
+      expect(existsSync(prepared.paths.receiptPath)).toBe(false);
+
+      const stableCounts = engineObservations(engine);
+      await expect(recovered.reconcile(prepared)).resolves.toEqual(result);
+      await expect(recovered.cancel(prepared)).resolves.toEqual(result);
+      await expect(recovered.reapQuarantined(prepared)).resolves.toEqual(result);
+      expect(engineObservations(engine)).toEqual(stableCounts);
+    },
+  );
+
+  it.each(["identity", "digest", "timestamp", "unknown"] as const)(
+    "rejects tampered quarantine %s evidence before engine observation",
+    async (target) => {
+      const intent = fixtureIntent();
+      const prepared = prepare(intent);
+      const engine = new HardeningEngine(intent);
+      engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+      const runner = new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:10.000Z"),
+      });
+      await runner.reconcile(prepared);
+      const quarantinePath = join(prepared.paths.runDirectory, "quarantine.json");
+      rewriteJson(quarantinePath, (value) => {
+        if (target === "identity") {
+          value.runId = "55555555-5555-4555-8555-555555555555";
+        } else if (target === "digest") {
+          value.engineBindingDigest = `sha256:${"9".repeat(64)}`;
+        } else if (target === "timestamp") {
+          value.quarantinedAt = "2026-08-11T15:59:59.000Z";
+        } else {
+          value.unexpected = true;
+        }
+      });
+      const stableCounts = engineObservations(engine);
+
+      await expect(runner.reconcile(prepared)).rejects.toThrow();
+      await expect(runner.reapQuarantined(prepared)).rejects.toThrow();
+      expect(engineObservations(engine)).toEqual(stableCounts);
+    },
+  );
+
+  it.each(["container", "digest", "timestamp", "unknown"] as const)(
+    "rejects tampered quarantine reap-request %s evidence before engine observation",
+    async (target) => {
+      const intent = fixtureIntent();
+      const prepared = prepare(intent);
+      const engine = new HardeningEngine(intent);
+      engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+      await new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:10.000Z"),
+      }).reconcile(prepared);
+      const crashing = new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:11.000Z"),
+        afterBoundary: (boundary) => {
+          if (boundary === "after-quarantine-reap-request") {
+            throw new Error("injected reap request crash");
+          }
+        },
+      });
+      await expect(crashing.reapQuarantined(prepared)).rejects.toThrow(/reap request crash/u);
+      const requestPath = join(prepared.paths.runDirectory, "quarantine-reap-request.json");
+      rewriteJson(requestPath, (value) => {
+        if (target === "container") {
+          value.containerId = "c".repeat(64);
+        } else if (target === "digest") {
+          value.quarantineDigest = `sha256:${"9".repeat(64)}`;
+        } else if (target === "timestamp") {
+          value.requestedAt = "2026-08-11T15:59:59.000Z";
+        } else {
+          value.unexpected = true;
+        }
+      });
+      const stableCounts = engineObservations(engine);
+
+      await expect(new OciRunner(engine).reconcile(prepared)).rejects.toThrow();
+      await expect(new OciRunner(engine).reapQuarantined(prepared)).rejects.toThrow();
+      expect(engineObservations(engine)).toEqual(stableCounts);
+    },
+  );
+
+  it.each(["absence", "digest", "timestamp", "unknown"] as const)(
+    "rejects tampered quarantine removal %s evidence before engine observation",
+    async (target) => {
+      const intent = fixtureIntent();
+      const prepared = prepare(intent);
+      const engine = new HardeningEngine(intent);
+      engine.startErrorAfterMutation = new Error("ambiguous start transport failure");
+      const runner = new OciRunner(engine, {
+        now: () => new Date("2026-08-11T16:00:10.000Z"),
+      });
+      await runner.reconcile(prepared);
+      await runner.reapQuarantined(prepared);
+      const removalPath = join(prepared.paths.runDirectory, "quarantine-removed.json");
+      rewriteJson(removalPath, (value) => {
+        if (target === "absence") {
+          value.containerAbsent = false;
+        } else if (target === "digest") {
+          value.reapRequestDigest = `sha256:${"9".repeat(64)}`;
+        } else if (target === "timestamp") {
+          value.observedAt = "2026-08-11T15:59:59.000Z";
+        } else {
+          value.unexpected = true;
+        }
+      });
+      const stableCounts = engineObservations(engine);
+
+      await expect(runner.reconcile(prepared)).rejects.toThrow();
+      await expect(runner.reapQuarantined(prepared)).rejects.toThrow();
+      expect(engineObservations(engine)).toEqual(stableCounts);
+    },
+  );
+
+  it("rejects quarantine that conflicts with terminal output and receipt evidence", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await runner.reconcile(prepared);
+    engine.finish();
+    await runner.reconcile(prepared);
+    writeSyntheticQuarantine(prepared);
+    const stableCounts = engineObservations(engine);
+
+    await expect(runner.reconcile(prepared)).rejects.toThrow(/conflict/u);
+    await expect(runner.reapQuarantined(prepared)).rejects.toThrow(/conflict/u);
+    expect(engineObservations(engine)).toEqual(stableCounts);
+  });
+
   it("fails closed when a container disappears after its durable launch attempt", async () => {
     const intent = fixtureIntent();
     const prepared = prepare(intent);
@@ -514,7 +1263,10 @@ describe("runner P1 durable state hardening", () => {
     await expect(crashing.reconcile(prepared)).rejects.toThrow(/injected launch/u);
     engine.inspection = null;
     const recovered = new OciRunner(engine);
-    await expect(recovered.reconcile(prepared)).rejects.toThrow(/recreation is forbidden/u);
+    await expect(recovered.reconcile(prepared)).resolves.toMatchObject({
+      phase: "quarantined",
+      quarantine: { reason: "container-disappeared", containerId: CONTAINER_ID },
+    });
     expect(engine.createCount).toBe(1);
     expect(engine.startCount).toBe(0);
   });

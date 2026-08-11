@@ -22,8 +22,10 @@ marker after a strict-inspection process failure. The natural receipt succeeded
 with no residual container and no network, credential, Codex, home, or socket
 mount. This is live runner evidence, but not daemon/journal V3, autonomous PID 1
 watchdog, live-model egress/auth, autonomous stale-lock recovery,
-failure-quarantine, effective seccomp/AppArmor digest, disk-quota, or complete
-real-engine failure conformance. Use only the
+daemon-owned quarantine-reaper scheduling or a current-tree live quarantine
+campaign, effective seccomp/AppArmor digest, disk-quota, or complete real-engine
+failure conformance. The recorded smoke predates the current engine-binding and
+quarantine/reaper tree. Use only the
 [local no-network OCI validation procedure](oci-no-network-validation.md).
 
 Set `APP_FACTORY_LOCAL_EXECUTION_CONFIG` to an absolute path naming a current-user-owned `0600` JSON file:

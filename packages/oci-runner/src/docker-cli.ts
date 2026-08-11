@@ -19,7 +19,13 @@ const CONTAINER_USER = "10001:10001";
 const MAX_WORKTREE_ENTRIES = 200_000;
 const UNIX_SOCKET_PREFIX = "unix://";
 const SAFE_CONTAINER_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u;
+const SAFE_DOCKER_SERVER_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/u;
 const INSPECT_FORMAT = "{{json .}}";
+const CLIENT_VERSION_FORMAT = "{{.Client.Version}}";
+const SERVER_IDENTITY_FORMAT = "{{.ID}}|{{.ServerVersion}}|{{.OSType}}|{{.Architecture}}";
+const MAX_DOCKER_VERSION_BYTES = 128;
+const MAX_DOCKER_SERVER_ID_BYTES = 128;
+const MAX_DOCKER_SERVER_IDENTITY_LINE_BYTES = MAX_DOCKER_SERVER_ID_BYTES + 3 * 129;
 
 type PinnedFilesystemIdentity = Readonly<{
   path: string;
@@ -85,6 +91,8 @@ export type OciRemovalEvidence = Readonly<{
 }>;
 
 export type OciEnginePort = Readonly<{
+  readonly engineIdentityDigest: string;
+  observeEngineIdentityDigest(): Promise<string>;
   verifyImage(image: OciImageIdentityV1): Promise<void>;
   findByLabels(labels: Readonly<Record<string, string>>): Promise<OciContainerInspection | null>;
   create(intent: OciRunIntentV1): Promise<string>;
@@ -126,6 +134,13 @@ export type DockerCliDependencies = Readonly<{
   digestExecutable?: (path: string) => string;
 }>;
 
+type ObservedDockerServerIdentity = Readonly<{
+  serverId: string;
+  serverVersion: string;
+  serverOs: string;
+  serverArchitecture: string;
+}>;
+
 function boundedLine(value: unknown, label: string, maximum = 512): string {
   if (
     typeof value !== "string" ||
@@ -138,6 +153,139 @@ function boundedLine(value: unknown, label: string, maximum = 512): string {
     throw new TypeError(`${label} must be one bounded line`);
   }
   return value;
+}
+
+function exactDockerControlLine(
+  result: DockerCommandResult,
+  label: string,
+  maximumValueBytes: number,
+): string {
+  if (
+    result.stderr.byteLength !== 0 ||
+    result.stderrObservedBytes !== 0 ||
+    result.stdoutObservedBytes !== result.stdout.byteLength
+  ) {
+    throw new Error(`${label} must have one exact bounded output and no diagnostics`);
+  }
+  const encoded = result.stdout;
+  const decoded = encoded.toString("utf8");
+  if (!Buffer.from(decoded, "utf8").equals(encoded) || !decoded.endsWith("\n")) {
+    throw new Error(`${label} must be one exact UTF-8 line`);
+  }
+  const value = decoded.slice(0, -1);
+  if (Buffer.byteLength(value, "utf8") > maximumValueBytes) {
+    throw new Error(`${label} exceeds its byte limit`);
+  }
+  return boundedLine(value, label, maximumValueBytes);
+}
+
+function exactDockerIdentifierLines(result: DockerCommandResult, label: string): readonly string[] {
+  if (
+    result.stderr.byteLength !== 0 ||
+    result.stderrObservedBytes !== 0 ||
+    result.stdoutObservedBytes !== result.stdout.byteLength
+  ) {
+    throw new Error(`${label} must have exact complete output and no diagnostics`);
+  }
+  if (result.stdout.byteLength === 0) return [];
+  const decoded = result.stdout.toString("utf8");
+  if (!Buffer.from(decoded, "utf8").equals(result.stdout) || !decoded.endsWith("\n")) {
+    throw new Error(`${label} must contain complete LF-terminated UTF-8 lines`);
+  }
+  const lines = decoded.slice(0, -1).split("\n");
+  if (lines.some((line) => !CONTAINER_ID.test(line))) {
+    throw new Error(`${label} contains a malformed container ID line`);
+  }
+  return lines;
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError("Canonical JSON requires finite numbers");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return `[${value.map((entry) => canonicalJson(entry)).join(",")}]`;
+  if (typeof value === "object") {
+    const record = value as Readonly<Record<string, unknown>>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+      .join(",")}}`;
+  }
+  throw new TypeError(`Canonical JSON cannot encode ${typeof value}`);
+}
+
+function verifiedDockerClientVersion(value: string, configuration: DockerCliConfiguration): string {
+  const clientVersion = boundedLine(value, "Docker client version", MAX_DOCKER_VERSION_BYTES);
+  if (clientVersion !== configuration.expectedClientVersion) {
+    throw new Error("Docker client identity does not match the pinned configuration");
+  }
+  return clientVersion;
+}
+
+function observedDockerServerIdentity(
+  value: string,
+  configuration: DockerCliConfiguration,
+): ObservedDockerServerIdentity {
+  const fields = value.split("|");
+  if (fields.length !== 4) {
+    throw new Error("Docker server identity is not one exact four-field line");
+  }
+  const serverId = boundedLine(fields[0], "Docker server ID", MAX_DOCKER_SERVER_ID_BYTES);
+  const serverVersion = boundedLine(fields[1], "Docker server version", MAX_DOCKER_VERSION_BYTES);
+  const serverOs = boundedLine(fields[2], "Docker server OS", 128);
+  const serverArchitecture = boundedLine(fields[3], "Docker server architecture", 128);
+  const normalizedServerArchitecture =
+    serverArchitecture === "aarch64"
+      ? "arm64"
+      : serverArchitecture === "x86_64"
+        ? "amd64"
+        : serverArchitecture;
+  if (
+    serverVersion !== configuration.expectedServerVersion ||
+    serverOs !== configuration.expectedServerOs ||
+    normalizedServerArchitecture !== configuration.expectedServerArchitecture
+  ) {
+    throw new Error("Docker server identity does not match the pinned configuration");
+  }
+  if (!SAFE_DOCKER_SERVER_ID.test(serverId)) {
+    throw new Error("Docker server ID must be one bounded safe identifier");
+  }
+  return { serverId, serverVersion, serverOs, serverArchitecture };
+}
+
+function dockerEngineIdentityDigest(
+  configuration: DockerCliConfiguration,
+  executableIdentity: PinnedFilesystemIdentity,
+  socketIdentity: PinnedFilesystemIdentity | null,
+  verifiedClientVersion: string,
+  serverIdentity: ObservedDockerServerIdentity,
+): string {
+  const identity = {
+    schemaVersion: 1,
+    configuration: {
+      executable: configuration.executable,
+      executableDigest: configuration.executableDigest,
+      host: configuration.host,
+      expectedClientVersion: configuration.expectedClientVersion,
+      expectedServerVersion: configuration.expectedServerVersion,
+      expectedServerOs: configuration.expectedServerOs,
+      expectedServerArchitecture: configuration.expectedServerArchitecture,
+    },
+    executableFilesystemIdentity: executableIdentity,
+    socketFilesystemIdentity: socketIdentity,
+    verifiedDockerIdentity: {
+      clientVersion: verifiedClientVersion,
+      serverVersion: serverIdentity.serverVersion,
+      serverOs: serverIdentity.serverOs,
+      serverArchitecture: serverIdentity.serverArchitecture,
+      serverId: serverIdentity.serverId,
+    },
+  };
+  return `sha256:${createHash("sha256").update(canonicalJson(identity), "utf8").digest("hex")}`;
 }
 
 function currentUserId(): bigint {
@@ -874,43 +1022,56 @@ function assertInspectionMatches(inspection: OciContainerInspection, intent: Oci
 }
 
 export class DockerCliEngine implements OciEnginePort {
+  readonly #identityConfiguration: DockerCliConfiguration;
   readonly #configuration: DockerCliConfiguration;
   readonly #invoke: NonNullable<DockerCliDependencies["invoke"]>;
   readonly #digestExecutable: NonNullable<DockerCliDependencies["digestExecutable"]>;
   readonly #executableIdentity: PinnedFilesystemIdentity;
   readonly #socketIdentity: PinnedFilesystemIdentity | null;
+  #verifiedClientVersion: string | null;
+  #engineIdentityDigest: string | null;
 
   public static async create(
     input: DockerCliConfiguration,
     dependencies: DockerCliDependencies = {},
   ): Promise<DockerCliEngine> {
+    const configuration: DockerCliConfiguration = {
+      executable: input.executable,
+      executableDigest: input.executableDigest,
+      host: input.host,
+      expectedClientVersion: input.expectedClientVersion,
+      expectedServerVersion: input.expectedServerVersion,
+      expectedServerOs: input.expectedServerOs,
+      expectedServerArchitecture: input.expectedServerArchitecture,
+    };
+    const configuredInvoke = dependencies.invoke;
     const digest = dependencies.digestExecutable ?? executableDigest;
     const executableIdentity = captureExecutableIdentity(
-      input.executable,
-      input.executableDigest,
+      configuration.executable,
+      configuration.executableDigest,
       digest,
     );
-    const socketIdentity = captureSocketIdentity(input.host, dependencies.invoke === undefined);
+    const socketIdentity = captureSocketIdentity(
+      configuration.host,
+      configuredInvoke === undefined,
+    );
     const engine = new DockerCliEngine(
-      { ...input, executable: executableIdentity.path },
-      dependencies.invoke ?? invokeDocker,
+      configuration,
+      configuredInvoke ?? invokeDocker,
       digest,
       executableIdentity,
       socketIdentity,
     );
     const result = await engine.#command(
-      [
-        "version",
-        "--format",
-        "{{.Client.Version}}|{{.Server.Version}}|{{.Server.Os}}|{{.Server.Arch}}",
-      ],
-      MAX_DOCKER_CONTROL_OUTPUT,
+      ["version", "--format", CLIENT_VERSION_FORMAT],
+      MAX_DOCKER_VERSION_BYTES + 1,
       5_000,
     );
-    const expected = `${input.expectedClientVersion}|${input.expectedServerVersion}|${input.expectedServerOs}|${input.expectedServerArchitecture}`;
-    if (result.stdout.toString("utf8").trim() !== expected) {
-      throw new Error("Docker client/server identity does not match the pinned configuration");
-    }
+    engine.#verifiedClientVersion = verifiedDockerClientVersion(
+      exactDockerControlLine(result, "Docker client version", MAX_DOCKER_VERSION_BYTES),
+      configuration,
+    );
+    engine.#engineIdentityDigest = await engine.observeEngineIdentityDigest();
     return engine;
   }
 
@@ -921,11 +1082,50 @@ export class DockerCliEngine implements OciEnginePort {
     executableIdentity: PinnedFilesystemIdentity,
     socketIdentity: PinnedFilesystemIdentity | null,
   ) {
-    this.#configuration = configuration;
+    this.#identityConfiguration = configuration;
+    this.#configuration = { ...configuration, executable: executableIdentity.path };
     this.#invoke = invoke;
     this.#digestExecutable = digestExecutable;
     this.#executableIdentity = executableIdentity;
     this.#socketIdentity = socketIdentity;
+    this.#verifiedClientVersion = null;
+    this.#engineIdentityDigest = null;
+  }
+
+  public get engineIdentityDigest(): string {
+    if (this.#engineIdentityDigest === null) {
+      throw new Error("Docker engine identity has not been verified");
+    }
+    return this.#engineIdentityDigest;
+  }
+
+  public async observeEngineIdentityDigest(): Promise<string> {
+    if (this.#verifiedClientVersion === null) {
+      throw new Error("Docker client identity has not been verified");
+    }
+    // This binds one bounded daemon-info response on the already pinned local
+    // Unix socket. It detects ordinary backend replacement; it is not remote
+    // attestation against a malicious proxy controlling that trusted endpoint.
+    const result = await this.#command(
+      ["info", "--format", SERVER_IDENTITY_FORMAT],
+      MAX_DOCKER_SERVER_IDENTITY_LINE_BYTES + 1,
+      5_000,
+    );
+    const serverIdentity = observedDockerServerIdentity(
+      exactDockerControlLine(
+        result,
+        "Docker server identity",
+        MAX_DOCKER_SERVER_IDENTITY_LINE_BYTES,
+      ),
+      this.#identityConfiguration,
+    );
+    return dockerEngineIdentityDigest(
+      this.#identityConfiguration,
+      this.#executableIdentity,
+      this.#socketIdentity,
+      this.#verifiedClientVersion,
+      serverIdentity,
+    );
   }
 
   #assertRuntimeIdentity(): void {
@@ -1008,13 +1208,9 @@ export class DockerCliEngine implements OciEnginePort {
     }
     args.push("--format", "{{.ID}}");
     const result = await this.#command(args, MAX_DOCKER_CONTROL_OUTPUT, 10_000);
-    const ids = result.stdout
-      .toString("utf8")
-      .split("\n")
-      .map((value) => value.trim())
-      .filter(Boolean);
+    const ids = exactDockerIdentifierLines(result, "Docker label reconciliation");
     if (ids.length === 0) return null;
-    if (ids.length !== 1 || !CONTAINER_ID.test(ids[0] as string)) {
+    if (ids.length !== 1) {
       throw new Error("Docker label reconciliation is ambiguous");
     }
     return await this.inspect(ids[0] as string);

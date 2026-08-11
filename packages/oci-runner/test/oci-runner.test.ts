@@ -148,6 +148,7 @@ function inspectionFor(
 }
 
 class FakeEngine implements OciEnginePort {
+  public readonly engineIdentityDigest = `sha256:${"7".repeat(64)}`;
   public inspection: OciContainerInspection | null = null;
   public createCount = 0;
   public startCount = 0;
@@ -164,6 +165,10 @@ class FakeEngine implements OciEnginePort {
 
   public constructor(intent: OciRunIntentV1) {
     this.#intent = intent;
+  }
+
+  public async observeEngineIdentityDigest(): Promise<string> {
+    return this.engineIdentityDigest;
   }
 
   public async verifyImage(image: OciImageIdentityV1): Promise<void> {
@@ -335,7 +340,7 @@ describe("OCI intent and Docker create contract", () => {
     expect(parsed).toEqual(expected);
   });
 
-  it("pins the Docker executable and client/server identity before use", async () => {
+  it("pins the Docker executable, client/server platform, and daemon identity before use", async () => {
     const directory = temporaryDirectory("factory-docker-cli-");
     const executable = join(directory, "docker");
     writeFileSync(executable, "fixture docker executable\n");
@@ -348,7 +353,11 @@ describe("OCI intent and Docker create contract", () => {
       args: readonly string[],
     ): Promise<DockerCommandResult> => {
       mutableCalls.push([...args]);
-      const stdout = Buffer.from("29.6.1|29.6.1|linux|arm64\n");
+      const stdout = Buffer.from(
+        args.includes("version")
+          ? "29.6.1\n"
+          : "11111111-2222-4333-8444-555555555555|29.6.1|linux|aarch64\n",
+      );
       return {
         exitCode: 0,
         signal: null,
@@ -359,7 +368,7 @@ describe("OCI intent and Docker create contract", () => {
         timedOut: false,
       };
     };
-    await DockerCliEngine.create(
+    const engine = await DockerCliEngine.create(
       {
         executable,
         executableDigest: digest,
@@ -376,8 +385,17 @@ describe("OCI intent and Docker create contract", () => {
       "unix:///private/tmp/factory-docker.sock",
       "version",
       "--format",
-      "{{.Client.Version}}|{{.Server.Version}}|{{.Server.Os}}|{{.Server.Arch}}",
+      "{{.Client.Version}}",
     ]);
+    expect(calls[1]).toEqual([
+      "--host",
+      "unix:///private/tmp/factory-docker.sock",
+      "info",
+      "--format",
+      "{{.ID}}|{{.ServerVersion}}|{{.OSType}}|{{.Architecture}}",
+    ]);
+    expect(engine.engineIdentityDigest).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    await expect(engine.observeEngineIdentityDigest()).resolves.toBe(engine.engineIdentityDigest);
   });
 });
 
@@ -427,7 +445,7 @@ describe("durable OCI lifecycle", () => {
     expect(engine.createCount).toBe(1);
   });
 
-  it("recovers a lost start response without relaunching", async () => {
+  it("quarantines a lost start response without relaunching", async () => {
     const intent = fixtureIntent();
     const prepared = prepare(intent);
     const engine = new FakeEngine(intent);
@@ -443,7 +461,10 @@ describe("durable OCI lifecycle", () => {
     });
     await expect(crashing.reconcile(prepared)).rejects.toThrow(/injected/u);
     const recovered = new OciRunner(engine, { now: () => new Date("2026-08-11T16:00:10.000Z") });
-    expect(await recovered.reconcile(prepared)).toMatchObject({ phase: "running" });
+    expect(await recovered.reconcile(prepared)).toMatchObject({
+      phase: "quarantined",
+      quarantine: { reason: "start-ambiguous", containerId: CONTAINER_ID },
+    });
     expect(engine.createCount).toBe(1);
     expect(engine.startCount).toBe(1);
   });

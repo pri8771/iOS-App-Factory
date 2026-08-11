@@ -61,6 +61,11 @@ The implemented runner controls are:
   socket, FIFO, device, and other special-file rejection;
 - labels binding attempt, run, fence, TaskSpec, policy, base commit, base tree,
   and immutable intent digest;
+- a durable engine binding over the pinned Docker configuration, executable and
+  socket filesystem identities, client version, and one atomic server
+  ID/version/OS/architecture observation. The identity is freshly observed
+  before every mutation and after absence proof; ordinary daemon drift fails
+  closed;
 - a private per-run cross-process operation lock plus a durable create-dispatch
   marker, so reconcile and cancel cannot race into a false pre-start final state
   while a Docker create may still become visible;
@@ -68,14 +73,21 @@ The implemented runner controls are:
   label, environment, privilege, resource, and logging state; and
 - private fsynced lifecycle artifacts with failure-injection tests across
   `planned -> created -> running -> terminal -> removed`, cancellation, output
-  capture, removal proof, and lost-response reconciliation.
+  capture, removal proof, and lost-response reconciliation; and
+- a post-launch quarantine state plus an explicit exact-identity reaper. Actual
+  start, inspection, or isolation-attestation failures permanently block the
+  run, and reaping closes only after exact-ID and exact-label absence are both
+  observed. It never emits a normal execution receipt.
 
-The live natural receipt succeeded as UID/GID `10001`, proved the private tmpfs
+The earlier live natural receipt succeeded as UID/GID `10001`, proved the private tmpfs
 owner and mode, observed `ENETUNREACH` with no non-loopback interface, made the
 one expected isolated-worktree write, persisted terminal/removal/receipt
 artifacts, and left no container by ID, exact labels, or exact name. No Codex
 binary, credential, home directory, or Docker socket was mounted into the
-container.
+container. That recorded campaign predates the current engine-binding and
+quarantine/reaper tree and is not current-tree validation. The local private
+Unix socket remains a trusted endpoint; repeated observations are not remote
+attestation against a malicious proxy controlling it.
 
 These controls are meaningful progress, not production conformance. In
 particular, the current implementation does not yet provide:
@@ -90,9 +102,10 @@ particular, the current implementation does not yet provide:
 3. Autonomous stale-operation-lock recovery. Current lock contention and a
    lock left by a killed owner fail closed for explicit operator intervention;
    safe automatic recovery still needs process-generation ownership proof.
-4. A quarantine/reaper closure for post-launch start or attestation failures.
-   An ambiguous launched container must remain blocked and be independently
-   contained until exact removal is proved.
+4. Daemon-owned independent invocation of the package quarantine reaper and a
+   real-engine failure campaign for its start, inspect, kill, remove, and
+   absence-proof boundaries. The dormant library closure is fake-engine tested;
+   no autonomous process currently schedules it after a daemon failure.
 5. Daemon/scheduler composition or an OCI-specific agent-result journal V3 that
    binds the OCI intent, image and engine identities, inspections, raw output,
    terminal state, removal evidence, and lease/fence closure. The host-process

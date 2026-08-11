@@ -9,7 +9,10 @@ The current slice is dormant and no-network. It proves the engine contract and
 crash-reconciliation protocol without enabling a live model:
 
 - the Docker executable, client, server, platform, image repository digest, and
-  local image ID are exact pins;
+  local image ID are exact pins. A canonical engine identity binds the pinned
+  configuration, executable and socket filesystem identities, client version,
+  and one atomic server ID/version/OS/architecture observation. The runner
+  observes that identity again before each mutation and after absence proofs;
 - the image is launched with a read-only root filesystem, `network=none`, a
   fixed non-root user, all capabilities dropped, no-new-privileges, explicit
   CPU/memory/swap/PID/log/wall-time limits, and a private `nosuid,nodev,noexec`
@@ -27,6 +30,14 @@ crash-reconciliation protocol without enabling a live model:
   log, inspect, stop, kill, or remove response fails closed and is replayed from
   labels plus exact container identity rather than launching a duplicate.
 
+After a durable launch, an actual start transport failure or an inspection or
+isolation-attestation failure now publishes immutable quarantine evidence. A
+quarantined run cannot reconcile, cancel, restart, or produce a normal receipt.
+The explicit package reaper records its request before acting, targets only the
+bound container ID, and accepts completion only after both exact-ID inspection
+and exact-label discovery prove absence. Ambiguous kill or remove responses
+therefore remain retryable instead of being treated as cleanup evidence.
+
 The Docker log driver bounds retained output and the adapter records captured
 and observed byte counts. Wall time is reconciled from the engine's immutable
 start time; a production Codex image must additionally contain a pinned PID 1
@@ -35,7 +46,7 @@ offline.
 
 ## Live no-network smoke evidence
 
-The package-local suite passes 93/93. An explicitly invoked live Colima
+The package-local suite passes 154/154. An explicitly invoked live Colima
 `OciRunner` smoke also completed on 2026-08-11 with Docker CLI `29.6.1`, server
 `29.5.2` on `linux/arm64`, and pinned image
 `node@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2`.
@@ -48,12 +59,16 @@ launch marker after a process failure during strict inspection without creating
 a duplicate. It mounted no Codex binary, credential, home directory, or Docker
 socket.
 
-The current hardened-tree summary is
+The recorded summary is
 `/Users/pchordia/Documents/oci-runner-smoke-hardening-Vhj2LP/smoke-summary.json`,
 whose digest is
 `sha256:3ba392b0012dd11e89d0647b434a33ce94eae414733bec5b1ceb942058b8cc96`.
-This is live no-network runner evidence, not production conformance or an OCI
-journal V3.
+It predates the current engine-binding and quarantine/reaper changes and is not
+current-tree validation. It remains live no-network runner evidence for the
+earlier tree, not production conformance or an OCI journal V3. The local Unix
+socket is a trusted endpoint: repeated server observations detect ordinary
+daemon replacement but are not remote attestation against a malicious proxy
+that controls that endpoint.
 
 ## Not enabled yet
 
@@ -66,7 +81,8 @@ still requires:
 
 - an autonomous in-container PID 1 wall/output watchdog and proof that retained
   logs bound total generated output;
-- quarantine and reaping after post-launch start or attestation failures;
+- daemon-owned independent scheduling of the quarantine reaper and a live-engine
+  quarantine failure campaign;
 - autonomous stale-operation-lock recovery with process-generation proof;
 - digest attestation of the effective default seccomp/AppArmor profile;
 - a quota on the writable host bind and bounded disk-exhaustion behavior; and

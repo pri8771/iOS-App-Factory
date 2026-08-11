@@ -39,7 +39,14 @@ const PRIVATE_MASK = 0o077;
 const MAX_ARTIFACT_BYTES = 4 * 1024 * 1024;
 
 export type OciRunPhase =
-  "planned" | "created" | "running" | "terminal" | "removed" | "cancelled-before-start";
+  | "planned"
+  | "created"
+  | "running"
+  | "terminal"
+  | "removed"
+  | "cancelled-before-start"
+  | "quarantined"
+  | "quarantine-removed";
 
 export type OciRunPaths = Readonly<{
   runDirectory: string;
@@ -74,12 +81,53 @@ export type OciPreStartCancellationEvidenceV1 = Readonly<{
   cancelledAt: string;
 }>;
 
+export type OciQuarantineReason =
+  | "start-ambiguous"
+  | "inspect-ambiguous"
+  | "attestation-failed"
+  | "container-disappeared"
+  | "post-start-state-unproven";
+
+export type OciQuarantineEvidenceV1 = Readonly<{
+  schemaVersion: 1;
+  runKey: string;
+  attemptId: string;
+  runId: string;
+  fence: number;
+  intentDigest: string;
+  containerId: string;
+  engineBindingDigest: string;
+  launchAttemptDigest: string;
+  reason: OciQuarantineReason;
+  quarantinedAt: string;
+}>;
+
+export type OciQuarantineRemovalEvidenceV1 = Readonly<{
+  schemaVersion: 1;
+  runKey: string;
+  attemptId: string;
+  runId: string;
+  fence: number;
+  intentDigest: string;
+  containerId: string;
+  quarantineDigest: string;
+  reapRequestDigest: string;
+  containerAbsent: true;
+  labelsAbsent: true;
+  observedAt: string;
+}>;
+
 export type ReconcileOciRunResult =
   | Readonly<{ phase: "created" | "running"; containerId: string }>
   | Readonly<{ phase: "removed"; receipt: OciRunReceiptV1 }>
   | Readonly<{
       phase: "cancelled-before-start";
       cancellation: OciPreStartCancellationEvidenceV1;
+    }>
+  | Readonly<{ phase: "quarantined"; quarantine: OciQuarantineEvidenceV1 }>
+  | Readonly<{
+      phase: "quarantine-removed";
+      removal: OciQuarantineRemovalEvidenceV1;
     }>;
 
 export type OciFailureBoundary =
@@ -89,13 +137,20 @@ export type OciFailureBoundary =
   | "after-create"
   | "after-inspect"
   | "after-launch-attempt"
+  | "after-start-dispatched"
   | "after-start"
+  | "after-post-start-attestation"
   | "after-logs"
   | "after-termination-request"
   | "after-stop"
   | "after-kill"
   | "after-remove"
-  | "after-removal-evidence";
+  | "after-removal-evidence"
+  | "after-quarantine"
+  | "after-quarantine-reap-request"
+  | "after-quarantine-kill"
+  | "after-quarantine-remove"
+  | "after-quarantine-absence";
 
 export type OciRunnerDependencies = Readonly<{
   now?: () => Date;
@@ -131,6 +186,19 @@ export class OciRunnerCreatePendingError extends OciRunnerError {
       `OCI run ${runKey} has a durable create attempt but no visible container; retry exact-label reconciliation without recreating or finalizing cancellation`,
     );
     this.name = "OciRunnerCreatePendingError";
+  }
+}
+
+export class OciRunnerReapPendingError extends OciRunnerError {
+  public readonly code = "OCI_QUARANTINE_REAP_PENDING";
+  public readonly retryable = true;
+
+  public constructor(runKey: string, options?: ErrorOptions) {
+    super(
+      `OCI run ${runKey} remains quarantined until exact container and label absence can be proved`,
+      options,
+    );
+    this.name = "OciRunnerReapPendingError";
   }
 }
 
@@ -342,14 +410,61 @@ type LaunchAttemptV1 = BoundIdentity &
     schemaVersion: 1;
     containerId: string;
     createdInspectionDigest: string;
+    engineBindingDigest: string;
     attemptedAt: string;
   }>;
 
 type CreateAttemptV1 = BoundIdentity &
   Readonly<{
     schemaVersion: 1;
+    engineBindingDigest: string;
     attemptedAt: string;
   }>;
+
+type EngineBindingV1 = BoundIdentity &
+  Readonly<{
+    schemaVersion: 1;
+    engineIdentityDigest: string;
+    boundAt: string;
+  }>;
+
+type StartDispatchV1 = BoundIdentity &
+  Readonly<{
+    schemaVersion: 1;
+    containerId: string;
+    engineBindingDigest: string;
+    launchAttemptDigest: string;
+    dispatchedAt: string;
+  }>;
+
+type PostStartAttestationV1 = BoundIdentity &
+  Readonly<{
+    schemaVersion: 1;
+    containerId: string;
+    engineBindingDigest: string;
+    inspectionDigest: string;
+    inspectionStatus: "running" | "terminal";
+    startDispatchDigest: string;
+    attestedAt: string;
+  }>;
+
+type OciQuarantineReapRequestV1 = BoundIdentity &
+  Readonly<{
+    schemaVersion: 1;
+    containerId: string;
+    quarantineDigest: string;
+    requestedAt: string;
+  }>;
+
+class OciQuarantineTransition extends OciRunnerError {
+  public readonly quarantine: OciQuarantineEvidenceV1;
+
+  public constructor(quarantine: OciQuarantineEvidenceV1, options?: ErrorOptions) {
+    super(`OCI run ${quarantine.runKey} entered durable quarantine`, options);
+    this.name = "OciQuarantineTransition";
+    this.quarantine = quarantine;
+  }
+}
 
 type TerminationRequestV1 = BoundIdentity &
   Readonly<{
@@ -406,15 +521,29 @@ const INSPECTION_KEYS = [
 ] as const;
 
 function artifactPaths(prepared: PreparedOciRun): Readonly<{
+  engineBinding: string;
   createAttempt: string;
   launchAttempt: string;
+  startDispatch: string;
+  postStartInspection: string;
+  postStartAttestation: string;
+  quarantine: string;
+  quarantineReapRequest: string;
+  quarantineRemoval: string;
   terminationRequest: string;
   preStartCancellation: string;
   terminalRecord: string;
 }> {
   return {
+    engineBinding: join(prepared.paths.runDirectory, "engine-binding.json"),
     createAttempt: join(prepared.paths.runDirectory, "create-attempt.json"),
     launchAttempt: join(prepared.paths.runDirectory, "launch-attempt.json"),
+    startDispatch: join(prepared.paths.runDirectory, "start-dispatched.json"),
+    postStartInspection: join(prepared.paths.runDirectory, "post-start.inspect.json"),
+    postStartAttestation: join(prepared.paths.runDirectory, "post-start-attested.json"),
+    quarantine: join(prepared.paths.runDirectory, "quarantine.json"),
+    quarantineReapRequest: join(prepared.paths.runDirectory, "quarantine-reap-request.json"),
+    quarantineRemoval: join(prepared.paths.runDirectory, "quarantine-removed.json"),
     terminationRequest: join(prepared.paths.runDirectory, "termination-request.json"),
     preStartCancellation: join(prepared.paths.runDirectory, "pre-start-cancellation.json"),
     terminalRecord: join(prepared.paths.runDirectory, "terminal.json"),
@@ -469,6 +598,15 @@ function artifactInstant(value: unknown, label: string): string {
     throw new OciRunnerError(`${label} must be a canonical UTC instant`);
   }
   return instant;
+}
+
+function nondecreasingInstant(now: Date, ...lowerBounds: readonly string[]): string {
+  const nowValue = now.valueOf();
+  const lowerBound = lowerBounds.reduce(
+    (maximum, value) => Math.max(maximum, Date.parse(value)),
+    Number.NEGATIVE_INFINITY,
+  );
+  return new Date(Math.max(nowValue, lowerBound)).toISOString();
 }
 
 function artifactInteger(value: unknown, label: string): number {
@@ -667,7 +805,7 @@ function assertSameCanonical(actual: unknown, expected: unknown, label: string):
 function parseInspectionArtifact(
   value: unknown,
   prepared: PreparedOciRun,
-  expectedStatus: "created" | "terminal",
+  expectedStatus: "created" | "running" | "terminal",
   label: string,
 ): OciContainerInspection {
   const input = artifactRecord(value, label);
@@ -679,7 +817,10 @@ function parseInspectionArtifact(
     throw new OciRunnerError(`${label} has invalid state flags`);
   }
   assertOciInspectionMatchesIntent(inspection, prepared.intent);
-  if (inspection.status !== expectedStatus || inspection.running) {
+  if (
+    inspection.status !== expectedStatus ||
+    inspection.running !== (expectedStatus === "running")
+  ) {
     throw new OciRunnerError(`${label} has an invalid lifecycle state`);
   }
   if (expectedStatus === "created") {
@@ -689,6 +830,15 @@ function parseInspectionArtifact(
       inspection.exitCode !== null
     ) {
       throw new OciRunnerError(`${label} is not a pre-start inspection`);
+    }
+  } else if (expectedStatus === "running") {
+    const startedAt = artifactInstant(inspection.startedAt, `${label}.startedAt`);
+    if (
+      inspection.finishedAt !== null ||
+      inspection.exitCode !== null ||
+      Date.parse(createdAt) > Date.parse(startedAt)
+    ) {
+      throw new OciRunnerError(`${label} has invalid running timing or exit state`);
     }
   } else {
     const startedAt = artifactInstant(inspection.startedAt, `${label}.startedAt`);
@@ -787,20 +937,71 @@ function outcomeFor(
   };
 }
 
+function engineBindingFromPath(prepared: PreparedOciRun): EngineBindingV1 | null {
+  const artifact = parsedArtifact(artifactPaths(prepared).engineBinding, "OCI engine binding");
+  if (artifact === null) return null;
+  const input = artifactRecord(artifact.value, "OCI engine binding");
+  exactArtifactKeys(
+    input,
+    [
+      "attemptId",
+      "boundAt",
+      "engineIdentityDigest",
+      "fence",
+      "intentDigest",
+      "runId",
+      "runKey",
+      "schemaVersion",
+    ],
+    "OCI engine binding",
+  );
+  if (input.schemaVersion !== 1) throw new OciRunnerError("OCI engine binding schema is invalid");
+  assertBoundIdentity(input, prepared, "OCI engine binding");
+  return {
+    schemaVersion: 1,
+    ...boundIdentity(prepared),
+    engineIdentityDigest: artifactDigest(input.engineIdentityDigest, "OCI engine identity digest"),
+    boundAt: artifactInstant(input.boundAt, "OCI engine binding time"),
+  };
+}
+
+function engineBindingArtifactDigest(prepared: PreparedOciRun): string {
+  const binding = engineBindingFromPath(prepared);
+  if (binding === null) throw new OciRunnerError("OCI run is missing its engine binding");
+  return persistedArtifactDigest(artifactPaths(prepared).engineBinding, "OCI engine binding");
+}
+
 function createAttemptFromPath(prepared: PreparedOciRun): CreateAttemptV1 | null {
   const artifact = parsedArtifact(artifactPaths(prepared).createAttempt, "OCI create attempt");
   if (artifact === null) return null;
   const input = artifactRecord(artifact.value, "OCI create attempt");
   exactArtifactKeys(
     input,
-    ["attemptId", "attemptedAt", "fence", "intentDigest", "runId", "runKey", "schemaVersion"],
+    [
+      "attemptId",
+      "attemptedAt",
+      "engineBindingDigest",
+      "fence",
+      "intentDigest",
+      "runId",
+      "runKey",
+      "schemaVersion",
+    ],
     "OCI create attempt",
   );
   if (input.schemaVersion !== 1) throw new OciRunnerError("OCI create attempt schema is invalid");
   assertBoundIdentity(input, prepared, "OCI create attempt");
+  const engineBindingDigest = artifactDigest(
+    input.engineBindingDigest,
+    "OCI create attempt engine binding digest",
+  );
+  if (engineBindingDigest !== engineBindingArtifactDigest(prepared)) {
+    throw new OciRunnerError("OCI create attempt conflicts with its engine binding");
+  }
   return {
     schemaVersion: 1,
     ...boundIdentity(prepared),
+    engineBindingDigest,
     attemptedAt: artifactInstant(input.attemptedAt, "OCI create attempt time"),
   };
 }
@@ -816,6 +1017,7 @@ function launchAttemptFromPath(prepared: PreparedOciRun): LaunchAttemptV1 | null
       "attemptedAt",
       "containerId",
       "createdInspectionDigest",
+      "engineBindingDigest",
       "fence",
       "intentDigest",
       "runId",
@@ -830,6 +1032,10 @@ function launchAttemptFromPath(prepared: PreparedOciRun): LaunchAttemptV1 | null
     schemaVersion: 1,
     ...boundIdentity(prepared),
     containerId: validateContainerId(input.containerId),
+    engineBindingDigest: artifactDigest(
+      input.engineBindingDigest,
+      "OCI launch attempt engine binding digest",
+    ),
     createdInspectionDigest: artifactDigest(
       input.createdInspectionDigest,
       "OCI launch attempt created inspection digest",
@@ -851,11 +1057,340 @@ function launchAttemptFromPath(prepared: PreparedOciRun): LaunchAttemptV1 | null
   );
   if (
     createdInspection.containerId !== launch.containerId ||
+    launch.engineBindingDigest !== engineBindingArtifactDigest(prepared) ||
     sha256Digest(createdArtifact.bytes) !== launch.createdInspectionDigest
   ) {
     throw new OciRunnerError("OCI launch attempt conflicts with its created inspection");
   }
   return launch;
+}
+
+function startDispatchFromPath(prepared: PreparedOciRun): StartDispatchV1 | null {
+  const artifact = parsedArtifact(artifactPaths(prepared).startDispatch, "OCI start dispatch");
+  if (artifact === null) return null;
+  const input = artifactRecord(artifact.value, "OCI start dispatch");
+  exactArtifactKeys(
+    input,
+    [
+      "attemptId",
+      "containerId",
+      "dispatchedAt",
+      "engineBindingDigest",
+      "fence",
+      "intentDigest",
+      "launchAttemptDigest",
+      "runId",
+      "runKey",
+      "schemaVersion",
+    ],
+    "OCI start dispatch",
+  );
+  if (input.schemaVersion !== 1) throw new OciRunnerError("OCI start dispatch schema is invalid");
+  assertBoundIdentity(input, prepared, "OCI start dispatch");
+  const launch = launchAttemptFromPath(prepared);
+  if (launch === null) throw new OciRunnerError("OCI start dispatch has no launch attempt");
+  const dispatch: StartDispatchV1 = {
+    schemaVersion: 1,
+    ...boundIdentity(prepared),
+    containerId: validateContainerId(input.containerId),
+    engineBindingDigest: artifactDigest(
+      input.engineBindingDigest,
+      "OCI start dispatch engine binding digest",
+    ),
+    launchAttemptDigest: artifactDigest(
+      input.launchAttemptDigest,
+      "OCI start dispatch launch digest",
+    ),
+    dispatchedAt: artifactInstant(input.dispatchedAt, "OCI start dispatch time"),
+  };
+  if (
+    dispatch.containerId !== launch.containerId ||
+    dispatch.engineBindingDigest !== launch.engineBindingDigest ||
+    dispatch.engineBindingDigest !== engineBindingArtifactDigest(prepared) ||
+    dispatch.launchAttemptDigest !==
+      persistedArtifactDigest(artifactPaths(prepared).launchAttempt, "OCI launch attempt") ||
+    Date.parse(dispatch.dispatchedAt) < Date.parse(launch.attemptedAt)
+  ) {
+    throw new OciRunnerError("OCI start dispatch conflicts with its launch attempt");
+  }
+  return dispatch;
+}
+
+function postStartAttestationFromPath(prepared: PreparedOciRun): PostStartAttestationV1 | null {
+  const artifact = parsedArtifact(
+    artifactPaths(prepared).postStartAttestation,
+    "OCI post-start attestation",
+  );
+  if (artifact === null) return null;
+  const input = artifactRecord(artifact.value, "OCI post-start attestation");
+  exactArtifactKeys(
+    input,
+    [
+      "attemptId",
+      "attestedAt",
+      "containerId",
+      "engineBindingDigest",
+      "fence",
+      "inspectionDigest",
+      "inspectionStatus",
+      "intentDigest",
+      "runId",
+      "runKey",
+      "schemaVersion",
+      "startDispatchDigest",
+    ],
+    "OCI post-start attestation",
+  );
+  if (
+    input.schemaVersion !== 1 ||
+    (input.inspectionStatus !== "running" && input.inspectionStatus !== "terminal")
+  ) {
+    throw new OciRunnerError("OCI post-start attestation schema or status is invalid");
+  }
+  assertBoundIdentity(input, prepared, "OCI post-start attestation");
+  const dispatch = startDispatchFromPath(prepared);
+  if (dispatch === null) {
+    throw new OciRunnerError("OCI post-start attestation has no start dispatch");
+  }
+  const inspectionArtifact = parsedArtifact(
+    artifactPaths(prepared).postStartInspection,
+    "OCI post-start inspection",
+  );
+  if (inspectionArtifact === null) {
+    throw new OciRunnerError("OCI post-start attestation is missing its inspection");
+  }
+  const inspection = parseInspectionArtifact(
+    inspectionArtifact.value,
+    prepared,
+    input.inspectionStatus,
+    "OCI post-start inspection",
+  );
+  const attestation: PostStartAttestationV1 = {
+    schemaVersion: 1,
+    ...boundIdentity(prepared),
+    containerId: validateContainerId(input.containerId),
+    engineBindingDigest: artifactDigest(
+      input.engineBindingDigest,
+      "OCI post-start engine binding digest",
+    ),
+    inspectionDigest: artifactDigest(input.inspectionDigest, "OCI post-start inspection digest"),
+    inspectionStatus: input.inspectionStatus,
+    startDispatchDigest: artifactDigest(
+      input.startDispatchDigest,
+      "OCI post-start dispatch digest",
+    ),
+    attestedAt: artifactInstant(input.attestedAt, "OCI post-start attestation time"),
+  };
+  if (
+    attestation.containerId !== dispatch.containerId ||
+    inspection.containerId !== dispatch.containerId ||
+    attestation.engineBindingDigest !== dispatch.engineBindingDigest ||
+    attestation.inspectionDigest !== sha256Digest(inspectionArtifact.bytes) ||
+    attestation.startDispatchDigest !==
+      persistedArtifactDigest(artifactPaths(prepared).startDispatch, "OCI start dispatch") ||
+    Date.parse(attestation.attestedAt) < Date.parse(dispatch.dispatchedAt)
+  ) {
+    throw new OciRunnerError(
+      "OCI post-start attestation conflicts with its dispatch or inspection",
+    );
+  }
+  return attestation;
+}
+
+const OCI_QUARANTINE_REASONS: readonly OciQuarantineReason[] = [
+  "start-ambiguous",
+  "inspect-ambiguous",
+  "attestation-failed",
+  "container-disappeared",
+  "post-start-state-unproven",
+];
+
+function quarantineFromPath(prepared: PreparedOciRun): OciQuarantineEvidenceV1 | null {
+  const artifact = parsedArtifact(artifactPaths(prepared).quarantine, "OCI quarantine");
+  if (artifact === null) return null;
+  const input = artifactRecord(artifact.value, "OCI quarantine");
+  exactArtifactKeys(
+    input,
+    [
+      "attemptId",
+      "containerId",
+      "engineBindingDigest",
+      "fence",
+      "intentDigest",
+      "launchAttemptDigest",
+      "quarantinedAt",
+      "reason",
+      "runId",
+      "runKey",
+      "schemaVersion",
+    ],
+    "OCI quarantine",
+  );
+  if (input.schemaVersion !== 1 || !OCI_QUARANTINE_REASONS.includes(input.reason as never)) {
+    throw new OciRunnerError("OCI quarantine schema or reason is invalid");
+  }
+  assertBoundIdentity(input, prepared, "OCI quarantine");
+  const launch = launchAttemptFromPath(prepared);
+  if (launch === null) throw new OciRunnerError("OCI quarantine has no durable launch attempt");
+  const containerId = validateContainerId(input.containerId);
+  const engineBindingDigest = artifactDigest(
+    input.engineBindingDigest,
+    "OCI quarantine engine binding digest",
+  );
+  const launchAttemptDigest = artifactDigest(
+    input.launchAttemptDigest,
+    "OCI quarantine launch attempt digest",
+  );
+  const quarantinedAt = artifactInstant(input.quarantinedAt, "OCI quarantine time");
+  const dispatch = startDispatchFromPath(prepared);
+  const lowerBound = dispatch?.dispatchedAt ?? launch.attemptedAt;
+  if (
+    containerId !== launch.containerId ||
+    engineBindingDigest !== launch.engineBindingDigest ||
+    engineBindingDigest !== engineBindingArtifactDigest(prepared) ||
+    launchAttemptDigest !==
+      persistedArtifactDigest(artifactPaths(prepared).launchAttempt, "OCI launch attempt") ||
+    Date.parse(quarantinedAt) < Date.parse(lowerBound)
+  ) {
+    throw new OciRunnerError("OCI quarantine conflicts with its launch binding");
+  }
+  return {
+    schemaVersion: 1,
+    ...boundIdentity(prepared),
+    containerId,
+    engineBindingDigest,
+    launchAttemptDigest,
+    reason: input.reason as OciQuarantineReason,
+    quarantinedAt,
+  };
+}
+
+function quarantineReapRequestFromPath(
+  prepared: PreparedOciRun,
+): OciQuarantineReapRequestV1 | null {
+  const artifact = parsedArtifact(
+    artifactPaths(prepared).quarantineReapRequest,
+    "OCI quarantine reap request",
+  );
+  if (artifact === null) return null;
+  const input = artifactRecord(artifact.value, "OCI quarantine reap request");
+  exactArtifactKeys(
+    input,
+    [
+      "attemptId",
+      "containerId",
+      "fence",
+      "intentDigest",
+      "quarantineDigest",
+      "requestedAt",
+      "runId",
+      "runKey",
+      "schemaVersion",
+    ],
+    "OCI quarantine reap request",
+  );
+  if (input.schemaVersion !== 1) {
+    throw new OciRunnerError("OCI quarantine reap request schema is invalid");
+  }
+  assertBoundIdentity(input, prepared, "OCI quarantine reap request");
+  const quarantine = quarantineFromPath(prepared);
+  if (quarantine === null) {
+    throw new OciRunnerError("OCI quarantine reap request has no quarantine evidence");
+  }
+  const containerId = validateContainerId(input.containerId);
+  const quarantineDigest = artifactDigest(
+    input.quarantineDigest,
+    "OCI quarantine reap request quarantine digest",
+  );
+  const requestedAt = artifactInstant(input.requestedAt, "OCI quarantine reap request time");
+  if (
+    containerId !== quarantine.containerId ||
+    quarantineDigest !==
+      persistedArtifactDigest(artifactPaths(prepared).quarantine, "OCI quarantine") ||
+    Date.parse(requestedAt) < Date.parse(quarantine.quarantinedAt)
+  ) {
+    throw new OciRunnerError("OCI quarantine reap request conflicts with its quarantine");
+  }
+  return {
+    schemaVersion: 1,
+    ...boundIdentity(prepared),
+    containerId,
+    quarantineDigest,
+    requestedAt,
+  };
+}
+
+function quarantineRemovalFromPath(
+  prepared: PreparedOciRun,
+): OciQuarantineRemovalEvidenceV1 | null {
+  const artifact = parsedArtifact(
+    artifactPaths(prepared).quarantineRemoval,
+    "OCI quarantine removal evidence",
+  );
+  if (artifact === null) return null;
+  const input = artifactRecord(artifact.value, "OCI quarantine removal evidence");
+  exactArtifactKeys(
+    input,
+    [
+      "attemptId",
+      "containerAbsent",
+      "containerId",
+      "fence",
+      "intentDigest",
+      "labelsAbsent",
+      "observedAt",
+      "quarantineDigest",
+      "reapRequestDigest",
+      "runId",
+      "runKey",
+      "schemaVersion",
+    ],
+    "OCI quarantine removal evidence",
+  );
+  if (input.schemaVersion !== 1 || input.containerAbsent !== true || input.labelsAbsent !== true) {
+    throw new OciRunnerError("OCI quarantine removal evidence is not a proven absence");
+  }
+  assertBoundIdentity(input, prepared, "OCI quarantine removal evidence");
+  const quarantine = quarantineFromPath(prepared);
+  const request = quarantineReapRequestFromPath(prepared);
+  if (quarantine === null || request === null) {
+    throw new OciRunnerError("OCI quarantine removal evidence is missing its request chain");
+  }
+  const containerId = validateContainerId(input.containerId);
+  const quarantineDigest = artifactDigest(
+    input.quarantineDigest,
+    "OCI quarantine removal quarantine digest",
+  );
+  const reapRequestDigest = artifactDigest(
+    input.reapRequestDigest,
+    "OCI quarantine removal request digest",
+  );
+  const observedAt = artifactInstant(input.observedAt, "OCI quarantine removal time");
+  if (
+    containerId !== quarantine.containerId ||
+    containerId !== request.containerId ||
+    quarantineDigest !== request.quarantineDigest ||
+    quarantineDigest !==
+      persistedArtifactDigest(artifactPaths(prepared).quarantine, "OCI quarantine") ||
+    reapRequestDigest !==
+      persistedArtifactDigest(
+        artifactPaths(prepared).quarantineReapRequest,
+        "OCI quarantine reap request",
+      ) ||
+    Date.parse(observedAt) < Date.parse(request.requestedAt)
+  ) {
+    throw new OciRunnerError("OCI quarantine removal evidence conflicts with its request chain");
+  }
+  return {
+    schemaVersion: 1,
+    ...boundIdentity(prepared),
+    containerId,
+    quarantineDigest,
+    reapRequestDigest,
+    containerAbsent: true,
+    labelsAbsent: true,
+    observedAt,
+  };
 }
 
 function terminationRequestFromPath(prepared: PreparedOciRun): TerminationRequestV1 | null {
@@ -1216,6 +1751,112 @@ function preStartCancellationFromPath(
   };
 }
 
+function assertQuarantineLifecycleConsistency(
+  prepared: PreparedOciRun,
+  quarantine: OciQuarantineEvidenceV1,
+): void {
+  const binding = engineBindingFromPath(prepared);
+  if (
+    binding === null ||
+    quarantine.engineBindingDigest !== engineBindingArtifactDigest(prepared)
+  ) {
+    throw new OciRunnerError("OCI quarantine is missing its exact engine binding");
+  }
+  createAttemptFromPath(prepared);
+  const dispatch = startDispatchFromPath(prepared);
+  const postStart = postStartAttestationFromPath(prepared);
+  if (
+    dispatch !== null &&
+    (dispatch.containerId !== quarantine.containerId ||
+      dispatch.engineBindingDigest !== quarantine.engineBindingDigest)
+  ) {
+    throw new OciRunnerError("OCI quarantine conflicts with its start dispatch");
+  }
+  if (
+    postStart !== null &&
+    (postStart.containerId !== quarantine.containerId ||
+      postStart.engineBindingDigest !== quarantine.engineBindingDigest)
+  ) {
+    throw new OciRunnerError("OCI quarantine conflicts with its post-start attestation");
+  }
+
+  const postStartInspection = parsedArtifact(
+    artifactPaths(prepared).postStartInspection,
+    "OCI post-start inspection",
+  );
+  if (postStartInspection !== null) {
+    const status = artifactRecord(postStartInspection.value, "OCI post-start inspection").status;
+    if (status !== "running" && status !== "terminal") {
+      throw new OciRunnerError("OCI post-start inspection has an invalid status");
+    }
+    const inspection = parseInspectionArtifact(
+      postStartInspection.value,
+      prepared,
+      status,
+      "OCI post-start inspection",
+    );
+    if (inspection.containerId !== quarantine.containerId) {
+      throw new OciRunnerError("OCI quarantine has a different post-start container");
+    }
+  }
+
+  const runningArtifact = parsedArtifact(
+    prepared.paths.runningInspectionPath,
+    "OCI running inspection",
+  );
+  if (runningArtifact !== null) {
+    const running = parseInspectionArtifact(
+      runningArtifact.value,
+      prepared,
+      "running",
+      "OCI running inspection",
+    );
+    if (running.containerId !== quarantine.containerId) {
+      throw new OciRunnerError("OCI quarantine has a different running container");
+    }
+  }
+
+  const termination = terminationRequestFromPath(prepared);
+  if (
+    termination !== null &&
+    (termination.phase !== "running" || termination.containerId !== quarantine.containerId)
+  ) {
+    throw new OciRunnerError("OCI quarantine conflicts with its termination request");
+  }
+
+  const terminalInspection = parsedArtifact(
+    prepared.paths.terminalInspectionPath,
+    "OCI terminal inspection",
+  );
+  if (terminalInspection !== null) {
+    parseInspectionArtifact(
+      terminalInspection.value,
+      prepared,
+      "terminal",
+      "OCI terminal inspection",
+    );
+    throw new OciRunnerError("OCI quarantine conflicts with terminal evidence");
+  }
+  if (terminalRecordFromPath(prepared) !== null) {
+    throw new OciRunnerError("OCI quarantine conflicts with a terminal record");
+  }
+  if (removalEvidenceFromPath(prepared, quarantine.containerId) !== null) {
+    throw new OciRunnerError("OCI quarantine conflicts with normal removal evidence");
+  }
+  if (
+    readPrivateFile(prepared.paths.stdoutPath) !== null ||
+    readPrivateFile(prepared.paths.stderrPath) !== null
+  ) {
+    throw new OciRunnerError("OCI quarantine conflicts with terminal output evidence");
+  }
+  if (
+    validatedReceiptFromPath(prepared) !== null ||
+    preStartCancellationFromPath(prepared) !== null
+  ) {
+    throw new OciRunnerError("OCI quarantine conflicts with final lifecycle evidence");
+  }
+}
+
 export class OciRunner {
   readonly #engine: OciEnginePort;
   readonly #now: () => Date;
@@ -1235,9 +1876,125 @@ export class OciRunner {
     return await this.#reconcile(prepared, "cancellation");
   }
 
+  public async reapQuarantined(preparedInput: PreparedOciRun): Promise<ReconcileOciRunResult> {
+    const prepared = this.#loadPrepared(preparedInput);
+    return await whileRunLocked(
+      prepared,
+      this.#now(),
+      async () => await this.#reapQuarantinedLocked(prepared),
+    );
+  }
+
   async #inspect(containerId: string): Promise<OciContainerInspection | null> {
     const inspection = await this.#engine.inspect(containerId);
     this.#afterBoundary("after-inspect");
+    return inspection;
+  }
+
+  #capturedEngineIdentityDigest(): string {
+    return artifactDigest(this.#engine.engineIdentityDigest, "OCI engine identity digest");
+  }
+
+  async #observeEngineIdentityDigest(): Promise<string> {
+    const captured = this.#capturedEngineIdentityDigest();
+    const observed = artifactDigest(
+      await this.#engine.observeEngineIdentityDigest(),
+      "observed OCI engine identity digest",
+    );
+    if (observed !== captured) {
+      throw new OciRunnerError("OCI engine identity changed after engine construction");
+    }
+    return observed;
+  }
+
+  async #loadOrBindEngine(prepared: PreparedOciRun): Promise<EngineBindingV1> {
+    const identityDigest = await this.#observeEngineIdentityDigest();
+    const existing = engineBindingFromPath(prepared);
+    if (existing !== null) {
+      if (existing.engineIdentityDigest !== identityDigest) {
+        throw new OciRunnerError("OCI engine identity differs from the durable run binding");
+      }
+      return existing;
+    }
+    const binding: EngineBindingV1 = {
+      schemaVersion: 1,
+      ...boundIdentity(prepared),
+      engineIdentityDigest: identityDigest,
+      boundAt: nondecreasingInstant(this.#now(), prepared.intent.createdAt),
+    };
+    jsonArtifact(artifactPaths(prepared).engineBinding, binding);
+    const persisted = engineBindingFromPath(prepared);
+    if (persisted === null || persisted.engineIdentityDigest !== identityDigest) {
+      throw new OciRunnerError("OCI engine binding was not persisted exactly");
+    }
+    return persisted;
+  }
+
+  async #assertBoundEngine(prepared: PreparedOciRun): Promise<void> {
+    const binding = engineBindingFromPath(prepared);
+    if (binding === null) throw new OciRunnerError("OCI run is missing its engine binding");
+    const observed = await this.#observeEngineIdentityDigest();
+    if (binding.engineIdentityDigest !== observed) {
+      throw new OciRunnerError("OCI engine identity differs from the durable run binding");
+    }
+  }
+
+  #quarantineAndThrow(
+    prepared: PreparedOciRun,
+    launch: LaunchAttemptV1,
+    reason: OciQuarantineReason,
+    cause: unknown,
+  ): never {
+    const existing = quarantineFromPath(prepared);
+    if (existing !== null) throw new OciQuarantineTransition(existing, { cause });
+    const dispatch = startDispatchFromPath(prepared);
+    const quarantinedAt = nondecreasingInstant(
+      this.#now(),
+      dispatch?.dispatchedAt ?? launch.attemptedAt,
+    );
+    const quarantine: OciQuarantineEvidenceV1 = {
+      schemaVersion: 1,
+      ...boundIdentity(prepared),
+      containerId: launch.containerId,
+      engineBindingDigest: launch.engineBindingDigest,
+      launchAttemptDigest: persistedArtifactDigest(
+        artifactPaths(prepared).launchAttempt,
+        "OCI launch attempt",
+      ),
+      reason,
+      quarantinedAt,
+    };
+    jsonArtifact(artifactPaths(prepared).quarantine, quarantine);
+    const persisted = quarantineFromPath(prepared);
+    if (persisted === null) throw new OciRunnerError("OCI quarantine was not persisted", { cause });
+    this.#afterBoundary("after-quarantine");
+    throw new OciQuarantineTransition(persisted, { cause });
+  }
+
+  async #inspectLaunched(
+    prepared: PreparedOciRun,
+    launch: LaunchAttemptV1,
+  ): Promise<OciContainerInspection> {
+    let inspection: OciContainerInspection | null;
+    try {
+      inspection = await this.#engine.inspect(launch.containerId);
+    } catch (error) {
+      this.#quarantineAndThrow(prepared, launch, "inspect-ambiguous", error);
+    }
+    this.#afterBoundary("after-inspect");
+    if (inspection === null) {
+      this.#quarantineAndThrow(
+        prepared,
+        launch,
+        "container-disappeared",
+        new OciRunnerError("Launched OCI container is absent"),
+      );
+    }
+    try {
+      assertOciInspectionMatchesIntent(inspection, prepared.intent);
+    } catch (error) {
+      this.#quarantineAndThrow(prepared, launch, "attestation-failed", error);
+    }
     return inspection;
   }
 
@@ -1274,7 +2031,8 @@ export class OciRunner {
       ...boundIdentity(prepared),
       containerId: inspection.containerId,
       createdInspectionDigest: sha256Digest(createdArtifact.bytes),
-      attemptedAt: this.#now().toISOString(),
+      engineBindingDigest: engineBindingArtifactDigest(prepared),
+      attemptedAt: nondecreasingInstant(this.#now(), prepared.intent.createdAt),
     };
     jsonArtifact(artifactPaths(prepared).launchAttempt, launch);
     this.#afterBoundary("after-launch-attempt");
@@ -1289,12 +2047,72 @@ export class OciRunner {
     const attempt: CreateAttemptV1 = {
       schemaVersion: 1,
       ...boundIdentity(prepared),
-      attemptedAt: this.#now().toISOString(),
+      engineBindingDigest: engineBindingArtifactDigest(prepared),
+      attemptedAt: nondecreasingInstant(this.#now(), prepared.intent.createdAt),
     };
     jsonArtifact(artifactPaths(prepared).createAttempt, attempt);
     this.#afterBoundary("after-create-attempt");
     const persisted = createAttemptFromPath(prepared);
     if (persisted === null) throw new OciRunnerError("OCI create attempt was not persisted");
+    return persisted;
+  }
+
+  #publishStartDispatch(prepared: PreparedOciRun, launch: LaunchAttemptV1): StartDispatchV1 {
+    const existing = startDispatchFromPath(prepared);
+    if (existing !== null) return existing;
+    const dispatch: StartDispatchV1 = {
+      schemaVersion: 1,
+      ...boundIdentity(prepared),
+      containerId: launch.containerId,
+      engineBindingDigest: launch.engineBindingDigest,
+      launchAttemptDigest: persistedArtifactDigest(
+        artifactPaths(prepared).launchAttempt,
+        "OCI launch attempt",
+      ),
+      dispatchedAt: nondecreasingInstant(this.#now(), launch.attemptedAt),
+    };
+    jsonArtifact(artifactPaths(prepared).startDispatch, dispatch);
+    const persisted = startDispatchFromPath(prepared);
+    if (persisted === null) throw new OciRunnerError("OCI start dispatch was not persisted");
+    this.#afterBoundary("after-start-dispatched");
+    return persisted;
+  }
+
+  #publishPostStartAttestation(
+    prepared: PreparedOciRun,
+    dispatch: StartDispatchV1,
+    inspection: OciContainerInspection,
+  ): PostStartAttestationV1 {
+    const existing = postStartAttestationFromPath(prepared);
+    if (existing !== null) return existing;
+    if (inspection.status !== "running" && inspection.status !== "terminal") {
+      throw new OciRunnerError("OCI post-start attestation requires running or terminal state");
+    }
+    const inspectionPath = artifactPaths(prepared).postStartInspection;
+    jsonArtifact(inspectionPath, inspection);
+    const inspectionArtifact = parsedArtifact(inspectionPath, "OCI post-start inspection");
+    if (inspectionArtifact === null) {
+      throw new OciRunnerError("OCI post-start inspection was not persisted");
+    }
+    const attestation: PostStartAttestationV1 = {
+      schemaVersion: 1,
+      ...boundIdentity(prepared),
+      containerId: inspection.containerId,
+      engineBindingDigest: dispatch.engineBindingDigest,
+      inspectionDigest: sha256Digest(inspectionArtifact.bytes),
+      inspectionStatus: inspection.status,
+      startDispatchDigest: persistedArtifactDigest(
+        artifactPaths(prepared).startDispatch,
+        "OCI start dispatch",
+      ),
+      attestedAt: nondecreasingInstant(this.#now(), dispatch.dispatchedAt),
+    };
+    jsonArtifact(artifactPaths(prepared).postStartAttestation, attestation);
+    const persisted = postStartAttestationFromPath(prepared);
+    if (persisted === null) {
+      throw new OciRunnerError("OCI post-start attestation was not persisted");
+    }
+    this.#afterBoundary("after-post-start-attestation");
     return persisted;
   }
 
@@ -1330,7 +2148,11 @@ export class OciRunner {
     return persisted;
   }
 
-  #loadOrCreateRemoval(prepared: PreparedOciRun, containerId: string): BoundRemovalEvidenceV1 {
+  #loadOrCreateRemoval(
+    prepared: PreparedOciRun,
+    containerId: string,
+    ...lowerBounds: readonly string[]
+  ): BoundRemovalEvidenceV1 {
     const existing = removalEvidenceFromPath(prepared, containerId);
     if (existing !== null) return existing;
     const removal: BoundRemovalEvidenceV1 = {
@@ -1338,7 +2160,7 @@ export class OciRunner {
       ...boundIdentity(prepared),
       containerId,
       absent: true,
-      observedAt: this.#now().toISOString(),
+      observedAt: nondecreasingInstant(this.#now(), ...lowerBounds),
     };
     jsonArtifact(prepared.paths.removalPath, removal);
     const persisted = removalEvidenceFromPath(prepared, containerId);
@@ -1383,6 +2205,7 @@ export class OciRunner {
       if (inspection.containerId !== request.containerId || inspection.status !== "created") {
         throw new OciRunnerError("OCI pre-start cancellation found a launched container");
       }
+      await this.#assertBoundEngine(prepared);
       await this.#engine.remove(request.containerId);
       this.#afterBoundary("after-remove");
       const afterRemoval = await this.#inspect(request.containerId);
@@ -1390,7 +2213,8 @@ export class OciRunner {
         throw new OciRunnerError("OCI pre-start container still exists after removal");
       }
     }
-    const removal = this.#loadOrCreateRemoval(prepared, request.containerId);
+    await this.#assertBoundEngine(prepared);
+    const removal = this.#loadOrCreateRemoval(prepared, request.containerId, request.requestedAt);
     const evidence: OciPreStartCancellationEvidenceV1 = {
       schemaVersion: 1,
       ...boundIdentity(prepared),
@@ -1409,23 +2233,158 @@ export class OciRunner {
     return { phase: "cancelled-before-start", cancellation: persisted };
   }
 
+  #publishQuarantineReapRequest(
+    prepared: PreparedOciRun,
+    quarantine: OciQuarantineEvidenceV1,
+  ): OciQuarantineReapRequestV1 {
+    assertQuarantineLifecycleConsistency(prepared, quarantine);
+    const existing = quarantineReapRequestFromPath(prepared);
+    if (existing !== null) return existing;
+    const requestedAt = nondecreasingInstant(this.#now(), quarantine.quarantinedAt);
+    const request: OciQuarantineReapRequestV1 = {
+      schemaVersion: 1,
+      ...boundIdentity(prepared),
+      containerId: quarantine.containerId,
+      quarantineDigest: persistedArtifactDigest(
+        artifactPaths(prepared).quarantine,
+        "OCI quarantine",
+      ),
+      requestedAt,
+    };
+    jsonArtifact(artifactPaths(prepared).quarantineReapRequest, request);
+    const persisted = quarantineReapRequestFromPath(prepared);
+    if (persisted === null) {
+      throw new OciRunnerError("OCI quarantine reap request was not persisted");
+    }
+    this.#afterBoundary("after-quarantine-reap-request");
+    return persisted;
+  }
+
+  async #reapQuarantinedLocked(prepared: PreparedOciRun): Promise<ReconcileOciRunResult> {
+    const quarantine = quarantineFromPath(prepared);
+    const removal = quarantineRemovalFromPath(prepared);
+    const receipt = validatedReceiptFromPath(prepared);
+    const cancellation = preStartCancellationFromPath(prepared);
+    if (quarantine === null) {
+      throw new OciRunnerError("OCI run has no durable quarantine to reap");
+    }
+    assertQuarantineLifecycleConsistency(prepared, quarantine);
+    if (receipt !== null || cancellation !== null)
+      throw new OciRunnerError("OCI quarantine conflicts with existing final evidence");
+    if (removal !== null) return { phase: "quarantine-removed", removal };
+    await this.#loadOrBindEngine(prepared);
+    const request = this.#publishQuarantineReapRequest(prepared, quarantine);
+
+    try {
+      await this.#assertBoundEngine(prepared);
+    } catch (error) {
+      throw new OciRunnerReapPendingError(prepared.intent.runKey, { cause: error });
+    }
+    let killSucceeded = false;
+    try {
+      await this.#engine.kill(request.containerId);
+      killSucceeded = true;
+    } catch {
+      // A created, terminal, or already absent container rejects kill. A lost
+      // response may also have killed it. Only later exact absence is evidence.
+    }
+    if (killSucceeded) this.#afterBoundary("after-quarantine-kill");
+
+    try {
+      await this.#assertBoundEngine(prepared);
+    } catch (error) {
+      throw new OciRunnerReapPendingError(prepared.intent.runKey, { cause: error });
+    }
+    let removeSucceeded = false;
+    try {
+      await this.#engine.remove(request.containerId);
+      removeSucceeded = true;
+    } catch {
+      // Removal responses are not evidence. Inspect and exact-label discovery
+      // below decide whether this attempt is complete or remains quarantined.
+    }
+    if (removeSucceeded) this.#afterBoundary("after-quarantine-remove");
+
+    let exactContainer: OciContainerInspection | null;
+    try {
+      exactContainer = await this.#engine.inspect(request.containerId);
+    } catch (error) {
+      throw new OciRunnerReapPendingError(prepared.intent.runKey, { cause: error });
+    }
+    if (exactContainer !== null) {
+      throw new OciRunnerReapPendingError(prepared.intent.runKey);
+    }
+
+    let labelMatch: OciContainerInspection | null;
+    try {
+      labelMatch = await this.#engine.findByLabels(labelsForOciRun(prepared.intent));
+    } catch (error) {
+      throw new OciRunnerReapPendingError(prepared.intent.runKey, { cause: error });
+    }
+    if (labelMatch !== null) throw new OciRunnerReapPendingError(prepared.intent.runKey);
+
+    try {
+      await this.#assertBoundEngine(prepared);
+    } catch (error) {
+      throw new OciRunnerReapPendingError(prepared.intent.runKey, { cause: error });
+    }
+
+    const observedAt = nondecreasingInstant(this.#now(), request.requestedAt);
+    const evidence: OciQuarantineRemovalEvidenceV1 = {
+      schemaVersion: 1,
+      ...boundIdentity(prepared),
+      containerId: request.containerId,
+      quarantineDigest: request.quarantineDigest,
+      reapRequestDigest: persistedArtifactDigest(
+        artifactPaths(prepared).quarantineReapRequest,
+        "OCI quarantine reap request",
+      ),
+      containerAbsent: true,
+      labelsAbsent: true,
+      observedAt,
+    };
+    jsonArtifact(artifactPaths(prepared).quarantineRemoval, evidence);
+    const persisted = quarantineRemovalFromPath(prepared);
+    if (persisted === null) {
+      throw new OciRunnerError("OCI quarantine removal evidence was not persisted");
+    }
+    this.#afterBoundary("after-quarantine-absence");
+    return { phase: "quarantine-removed", removal: persisted };
+  }
+
   async #reconcile(
     preparedInput: PreparedOciRun,
     requestedTermination: "natural" | "cancellation",
   ): Promise<ReconcileOciRunResult> {
     const prepared = this.#loadPrepared(preparedInput);
-    return await whileRunLocked(
-      prepared,
-      this.#now(),
-      async () => await this.#reconcileLocked(prepared, requestedTermination),
-    );
+    try {
+      return await whileRunLocked(
+        prepared,
+        this.#now(),
+        async () => await this.#reconcileLocked(prepared, requestedTermination),
+      );
+    } catch (error) {
+      if (error instanceof OciQuarantineTransition) {
+        assertQuarantineLifecycleConsistency(prepared, error.quarantine);
+        return { phase: "quarantined", quarantine: error.quarantine };
+      }
+      throw error;
+    }
   }
 
   #assertLaunchStillPermitted(prepared: PreparedOciRun): void {
     const cancellation = preStartCancellationFromPath(prepared);
     const receipt = validatedReceiptFromPath(prepared);
     const terminationRequest = terminationRequestFromPath(prepared);
-    if (cancellation !== null || receipt !== null || terminationRequest !== null) {
+    const quarantine = quarantineFromPath(prepared);
+    const quarantineRemoval = quarantineRemovalFromPath(prepared);
+    if (
+      cancellation !== null ||
+      receipt !== null ||
+      terminationRequest !== null ||
+      quarantine !== null ||
+      quarantineRemoval !== null
+    ) {
       throw new OciRunnerError(
         "OCI launch is blocked by durable cancellation, termination, or final evidence",
       );
@@ -1439,8 +2398,25 @@ export class OciRunner {
     const createAttempt = createAttemptFromPath(prepared);
     const preStartCancellation = preStartCancellationFromPath(prepared);
     const existingReceipt = validatedReceiptFromPath(prepared);
+    const quarantine = quarantineFromPath(prepared);
+    quarantineReapRequestFromPath(prepared);
+    const quarantineRemoval = quarantineRemovalFromPath(prepared);
     if (preStartCancellation !== null && existingReceipt !== null) {
       throw new OciRunnerError("OCI run has conflicting final artifacts");
+    }
+    if (quarantine !== null && (preStartCancellation !== null || existingReceipt !== null)) {
+      throw new OciRunnerError("OCI quarantine conflicts with existing final evidence");
+    }
+    if (quarantineRemoval !== null) {
+      if (quarantine === null) {
+        throw new OciRunnerError("OCI quarantine removal is missing quarantine evidence");
+      }
+      assertQuarantineLifecycleConsistency(prepared, quarantine);
+      return { phase: "quarantine-removed", removal: quarantineRemoval };
+    }
+    if (quarantine !== null) {
+      assertQuarantineLifecycleConsistency(prepared, quarantine);
+      return { phase: "quarantined", quarantine };
     }
     if (preStartCancellation !== null) {
       return { phase: "cancelled-before-start", cancellation: preStartCancellation };
@@ -1455,10 +2431,25 @@ export class OciRunner {
       return await this.#finishPreStartCancellation(prepared, terminationRequest, null);
     }
 
+    await this.#loadOrBindEngine(prepared);
+
     const intent = prepared.intent;
     let imageVerified = false;
     const terminalContainerId = persistedTerminalContainerId(prepared.paths.terminalInspectionPath);
     const launchAttempt = launchAttemptFromPath(prepared);
+    const startDispatch = startDispatchFromPath(prepared);
+    const postStartAttestation = postStartAttestationFromPath(prepared);
+    if (startDispatch !== null && postStartAttestation === null) {
+      if (launchAttempt === null) {
+        throw new OciRunnerError("OCI start dispatch is missing its launch attempt");
+      }
+      this.#quarantineAndThrow(
+        prepared,
+        launchAttempt,
+        "start-ambiguous",
+        new OciRunnerError("OCI start dispatch has no durable post-start attestation"),
+      );
+    }
     if (
       terminationRequest?.containerId !== null &&
       terminationRequest?.containerId !== undefined &&
@@ -1471,7 +2462,10 @@ export class OciRunner {
       terminalContainerId ?? terminationRequest?.containerId ?? launchAttempt?.containerId ?? null;
     let inspection: OciContainerInspection | null;
     if (boundContainerId !== null) {
-      inspection = await this.#inspect(boundContainerId);
+      inspection =
+        launchAttempt !== null && terminalContainerId === null
+          ? await this.#inspectLaunched(prepared, launchAttempt)
+          : await this.#inspect(boundContainerId);
     } else {
       inspection = await this.#engine.findByLabels(labelsForOciRun(intent));
       this.#afterBoundary("after-find");
@@ -1501,6 +2495,7 @@ export class OciRunner {
       this.#afterBoundary("after-image-verification");
       imageVerified = true;
       this.#assertLaunchStillPermitted(prepared);
+      await this.#assertBoundEngine(prepared);
       this.#publishCreateAttempt(prepared);
       const containerId = validateContainerId(await this.#engine.create(intent));
       this.#afterBoundary("after-create");
@@ -1541,17 +2536,26 @@ export class OciRunner {
         this.#afterBoundary("after-image-verification");
       }
       this.#assertLaunchStillPermitted(prepared);
-      this.#publishLaunchAttempt(prepared, inspection);
+      const launch = this.#publishLaunchAttempt(prepared, inspection);
       this.#assertLaunchStillPermitted(prepared);
-      await this.#engine.start(inspection.containerId);
+      const dispatch = this.#publishStartDispatch(prepared, launch);
+      try {
+        await this.#assertBoundEngine(prepared);
+        await this.#engine.start(inspection.containerId);
+      } catch (error) {
+        this.#quarantineAndThrow(prepared, launch, "start-ambiguous", error);
+      }
       this.#afterBoundary("after-start");
-      inspection = await this.#inspect(inspection.containerId);
-      if (inspection === null) {
-        throw new OciRunnerError(
-          "OCI container disappeared after its durable launch attempt; recreation is forbidden",
+      inspection = await this.#inspectLaunched(prepared, launch);
+      if (inspection.status === "created") {
+        this.#quarantineAndThrow(
+          prepared,
+          launch,
+          "post-start-state-unproven",
+          new OciRunnerError("OCI start returned without a running or terminal state"),
         );
       }
-      assertOciInspectionMatchesIntent(inspection, intent);
+      this.#publishPostStartAttestation(prepared, dispatch, inspection);
     }
 
     const persistedLaunch = launchAttemptFromPath(prepared);
@@ -1585,13 +2589,15 @@ export class OciRunner {
       ) {
         throw new OciRunnerError("OCI termination request conflicts with the running container");
       }
+      await this.#assertBoundEngine(prepared);
       await this.#engine.stop(inspection.containerId, intent.limits.stopGraceMs);
       this.#afterBoundary("after-stop");
-      inspection = await this.#inspect(inspection.containerId);
+      inspection = await this.#inspectLaunched(prepared, persistedLaunch);
       if (inspection?.status === "running") {
+        await this.#assertBoundEngine(prepared);
         await this.#engine.kill(inspection.containerId);
         this.#afterBoundary("after-kill");
-        inspection = await this.#inspect(inspection.containerId);
+        inspection = await this.#inspectLaunched(prepared, persistedLaunch);
       }
       if (inspection === null || inspection.status === "running") {
         throw new OciRunnerError("OCI container did not reach a provable terminal state");
@@ -1643,19 +2649,28 @@ export class OciRunner {
     jsonArtifact(artifactPaths(prepared).terminalRecord, terminalRecord);
     terminalRecordFromPath(prepared);
 
+    await this.#assertBoundEngine(prepared);
     await this.#engine.remove(inspection.containerId);
     this.#afterBoundary("after-remove");
     const afterRemoval = await this.#inspect(inspection.containerId);
     if (afterRemoval !== null) throw new OciRunnerError("OCI container still exists after removal");
-    return this.#finishRemoved(prepared, inspection.containerId);
+    return await this.#finishRemoved(prepared, inspection.containerId);
   }
 
-  #finishRemoved(prepared: PreparedOciRun, containerId: string): ReconcileOciRunResult {
+  async #finishRemoved(
+    prepared: PreparedOciRun,
+    containerId: string,
+  ): Promise<ReconcileOciRunResult> {
     const terminal = terminalRecordFromPath(prepared);
     if (terminal === null || terminal.inspection.containerId !== containerId) {
       throw new OciRunnerError("Removed OCI container is missing valid terminal evidence");
     }
-    const removal = this.#loadOrCreateRemoval(prepared, containerId);
+    await this.#assertBoundEngine(prepared);
+    const finishedAt = terminal.inspection.finishedAt;
+    if (finishedAt === null) {
+      throw new OciRunnerError("Removed OCI terminal evidence has no finish time");
+    }
+    const removal = this.#loadOrCreateRemoval(prepared, containerId, finishedAt);
     const receipt = receiptFor(prepared, terminal, removal);
     jsonArtifact(prepared.paths.receiptPath, receipt);
     const validated = validatedReceiptFromPath(prepared);
