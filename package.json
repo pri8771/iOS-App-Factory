@@ -27,7 +27,7 @@
     "schemas:check": "pnpm --filter @app-factory/contracts build && node packages/contracts/scripts/generate-json-schemas.mjs --check",
     "dashboard": "node apps/dashboard/dist/main.js",
     "service": "node packages/service-manager/dist/cli.js",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=4",
     "test:watch": "vitest",
     "check": "pnpm format:check && pnpm lint && pnpm boundaries && pnpm boundaries:test && pnpm typecheck && pnpm schemas:check",
     "verify": "pnpm toolchain:check && pnpm check && pnpm test"
