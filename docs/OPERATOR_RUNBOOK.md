@@ -16,6 +16,11 @@ Codex conformance components exist for no-network fake-executable development,
 but the operator entrypoint cannot select them. Do not point them at a real
 model or add a launch path until the containment contract in
 [`ADR 0002`](architecture/0002-untrusted-agent-containment.md) passes.
+The dormant OCI slice has a separate
+[no-network contract-validation procedure](operations/oci-no-network-validation.md);
+its explicitly invoked safe smoke may run and recover a complete deterministic
+`network=none` container lifecycle. It does not authorize credentials, a live
+model, or autonomous coding.
 
 ## 1. Build and verify the toolchain
 
@@ -27,9 +32,9 @@ pnpm build
 ```
 
 The pinned versions are Node `24.18.0` and pnpm `10.33.2`. Use
-`pnpm verify` for the final repository gate. The current enrollment-suite
-exception is recorded in
-[`docs/progress/IMPLEMENTATION_STATUS.md`](progress/IMPLEMENTATION_STATUS.md#current-verification-exception).
+`pnpm verify` for the final repository gate. The current root verification
+finalization state is recorded in
+[`docs/progress/IMPLEMENTATION_STATUS.md`](progress/IMPLEMENTATION_STATUS.md#repository-verification).
 
 ## 2. Create a private local runtime
 
@@ -367,17 +372,23 @@ pnpm test
 pnpm verify
 ```
 
-`pnpm verify` is authoritative. To diagnose one package without relying on a
-package-local script path, run `pnpm build` first so workspace package exports
-cannot resolve to stale `dist` output, then run its repository-relative test
-directory from the root, for example:
+`pnpm verify` is authoritative. For packages whose local scripts still use
+repository-relative paths, run `pnpm build` first so workspace exports cannot
+resolve to stale `dist` output, then run the test directory from the repository
+root. The corrected OCI runner script can be invoked through its workspace
+filter:
 
 ```sh
 pnpm build
 pnpm exec vitest run apps/daemon/test
 pnpm exec vitest run apps/cli/test apps/mcp/test apps/dashboard/test
 pnpm exec vitest run packages/effect-worker/test packages/execution-engine/test
+pnpm --filter @app-factory/oci-runner test
 ```
 
-Do not point the enrollment scanner or any write-capable workflow at Hindsight
-until its explicit preservation and enrollment gates are satisfied.
+The user-authorized local Hindsight checkpoint, read-only scan, and trusted
+Xcode observations are recorded in
+[`HINDSIGHT_ENROLLMENT_STATUS.md`](progress/HINDSIGHT_ENROLLMENT_STATUS.md).
+Do not apply its proposal-only enrollment plan or point another write-capable
+workflow at Hindsight until the remaining enrollment and protected gates are
+satisfied.

@@ -13,6 +13,19 @@ operator daemon entrypoint deliberately does not expose this profile, and no
 paid or real-model call was used to certify it. It is not a general autonomous
 development integration. See [ADR 0002](../architecture/0002-untrusted-agent-containment.md).
 
+A separate dormant [`@app-factory/oci-runner`](../../packages/oci-runner)
+implements part of ADR 0002's no-network container contract. It is not composed
+with this daemon path. Its deterministic suite uses fake/injected engines, and
+an explicitly invoked live Colima `OciRunner` smoke completed a natural
+create/start/terminal/remove lifecycle and recovered from a persisted launch
+marker after a strict-inspection process failure. The natural receipt succeeded
+with no residual container and no network, credential, Codex, home, or socket
+mount. This is live runner evidence, but not daemon/journal V3, autonomous PID 1
+watchdog, live-model egress/auth, autonomous stale-lock recovery,
+failure-quarantine, effective seccomp/AppArmor digest, disk-quota, or complete
+real-engine failure conformance. Use only the
+[local no-network OCI validation procedure](oci-no-network-validation.md).
+
 Set `APP_FACTORY_LOCAL_EXECUTION_CONFIG` to an absolute path naming a current-user-owned `0600` JSON file:
 
 ```json

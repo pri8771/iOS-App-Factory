@@ -1,6 +1,6 @@
 # ADR 0002: Separate the coding plane from the trusted macOS build plane
 
-- Status: accepted boundary; containment implementation pending
+- Status: accepted boundary; dormant partial implementation; production conformance pending
 - Date: 2026-08-11
 
 ## Context
@@ -36,10 +36,87 @@ The existing host process supervisor remains valid for trusted, non-detaching
 helpers and for protocol development. It is not sufficient by itself to enable
 the live Codex adapter.
 
+## Current partial implementation
+
+[`packages/oci-runner`](../../packages/oci-runner) implements a dormant,
+no-network slice of the coding-plane contract. It is a library and test surface;
+the daemon, scheduler, Codex adapter, CLI, and operator entrypoint do not compose
+it. Its deterministic suite uses fake engines and an injected Docker command
+transport. Separately, an explicitly invoked live Colima `OciRunner` smoke
+completed the natural `planned -> created -> running -> terminal -> removed`
+lifecycle and recovered from a persisted launch marker after a process failure
+during strict inspection. It pinned Docker CLI `29.6.1`, server `29.5.2`, and
+`node@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2`.
+The smoke started no agent and made no model call.
+
+The implemented runner controls are:
+
+- exact Docker executable, private Unix-socket, client/server version, server
+  platform, image repository digest, and local image-ID checks;
+- a locked create profile with `network=none`, a read-only root filesystem,
+  fixed non-root user, all capabilities dropped, no-new-privileges, bounded
+  CPU/memory/swap/PIDs/log retention/wall time, and a private
+  `nosuid,nodev,noexec` tmpfs;
+- one writable bind for the exact isolated worktree, with symlink, hard-link,
+  socket, FIFO, device, and other special-file rejection;
+- labels binding attempt, run, fence, TaskSpec, policy, base commit, base tree,
+  and immutable intent digest;
+- a private per-run cross-process operation lock plus a durable create-dispatch
+  marker, so reconcile and cancel cannot race into a false pre-start final state
+  while a Docker create may still become visible;
+- exact normalized inspection of process, filesystem, mount, network, image,
+  label, environment, privilege, resource, and logging state; and
+- private fsynced lifecycle artifacts with failure-injection tests across
+  `planned -> created -> running -> terminal -> removed`, cancellation, output
+  capture, removal proof, and lost-response reconciliation.
+
+The live natural receipt succeeded as UID/GID `10001`, proved the private tmpfs
+owner and mode, observed `ENETUNREACH` with no non-loopback interface, made the
+one expected isolated-worktree write, persisted terminal/removal/receipt
+artifacts, and left no container by ID, exact labels, or exact name. No Codex
+binary, credential, home directory, or Docker socket was mounted into the
+container.
+
+These controls are meaningful progress, not production conformance. In
+particular, the current implementation does not yet provide:
+
+1. A pinned in-container PID 1 wrapper that autonomously enforces wall time,
+   total output, and descendant shutdown while the Factory daemon is stopped or
+   unreachable. Host timestamp reconciliation and retained-log limits do not
+   prove that total generated output is bounded.
+2. A controlled live-model egress and authentication design. The implemented
+   profile is intentionally `network=none`; no Codex home, token, API key, host
+   credential, or unrestricted network path may be added to it.
+3. Autonomous stale-operation-lock recovery. Current lock contention and a
+   lock left by a killed owner fail closed for explicit operator intervention;
+   safe automatic recovery still needs process-generation ownership proof.
+4. A quarantine/reaper closure for post-launch start or attestation failures.
+   An ambiguous launched container must remain blocked and be independently
+   contained until exact removal is proved.
+5. Daemon/scheduler composition or an OCI-specific agent-result journal V3 that
+   binds the OCI intent, image and engine identities, inspections, raw output,
+   terminal state, removal evidence, and lease/fence closure. The host-process
+   V2 journal is not sufficient evidence for an OCI run.
+6. Digest attestation of the effective default seccomp and AppArmor profiles.
+   The configured privilege fields are strictly inspected, but the runtime's
+   implicit profiles are not yet bound to the policy digest.
+7. A quota for the writable host bind and bounded behavior under host-disk
+   exhaustion. Container memory and log limits do not quota worktree growth.
+8. Real-engine timeout, output-overflow, stop, and kill-path tests. The completed
+   smoke proves natural success and one strict-inspection process-failure
+   recovery, not the remaining failure matrix or engine/daemon restart cases.
+9. Trusted host-build integration. Xcode, Simulator, signing, archive, and
+   TestFlight remain fixed macOS adapters operating on an immutable candidate
+   tree; none runs inside this Linux OCI slice.
+
+For the only currently supported validation procedure, see
+[Local no-network OCI validation](../operations/oci-no-network-validation.md).
+
 ## Required coding-plane contract
 
-Before production enablement, a container implementation must prove all of the
-following:
+Before production enablement, the complete container implementation must prove
+all of the following. Presence of a corresponding library control or fake test
+does not close the production gate:
 
 - a pinned image digest and pinned agent CLI/version;
 - one container identity bound to attempt, run, fence, task, policy, and base
@@ -67,9 +144,9 @@ steps remain distinct trusted adapters with their own approvals and leases.
 
 ## Consequences
 
-- The live Codex adapter and its deterministic fake-executable conformance
-  tests may exist in the repository, but real-model autonomous execution stays
-  dormant until the containment contract passes.
+- The live Codex adapter, deterministic fake-executable conformance tests, and
+  dormant OCI runner may exist in the repository, but real-model autonomous
+  execution stays disabled until the complete containment contract passes.
 - Closing a terminal or chat does not define execution lifetime; the daemon and
   container runtime do.
 - A coding-plane outage blocks coding attempts without weakening host quality
