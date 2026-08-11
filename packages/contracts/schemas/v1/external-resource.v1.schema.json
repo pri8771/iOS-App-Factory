@@ -1,0 +1,99 @@
+{
+  "$id": "urn:app-factory:contracts:v1:external-resource",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "effectId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "observedAt": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "observedDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "providerResourceId": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "providerUrl": {
+      "anyOf": [
+        {
+          "format": "uri",
+          "maxLength": 4000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "providerVersion": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "target": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "enum": [
+            "jira",
+            "github",
+            "apple",
+            "website",
+            "email",
+            "social",
+            "analytics",
+            "crm"
+          ],
+          "type": "string"
+        },
+        "resourceKey": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "resourceType": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "resourceType",
+        "resourceKey"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "effectId",
+    "target",
+    "providerResourceId",
+    "providerUrl",
+    "providerVersion",
+    "observedDigest",
+    "observedAt"
+  ],
+  "type": "object"
+}

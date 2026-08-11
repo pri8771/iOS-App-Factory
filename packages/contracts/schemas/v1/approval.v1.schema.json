@@ -1,0 +1,245 @@
+{
+  "$defs": {
+    "__schema0": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema1": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema2": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema3": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:approval",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "actorId": {
+      "maxLength": 320,
+      "minLength": 1,
+      "type": "string"
+    },
+    "approvalId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "binding": {
+      "additionalProperties": false,
+      "properties": {
+        "buildIdentityDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commit": {
+          "anyOf": [
+            {
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diffDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "planDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "policyDigest": {
+          "$ref": "#/$defs/__schema2"
+        }
+      },
+      "required": [
+        "planDigest",
+        "diffDigest",
+        "commit",
+        "buildIdentityDigest",
+        "policyDigest"
+      ],
+      "type": "object"
+    },
+    "consumedAt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema3"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "consumedByEffectId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema0"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expiresAt": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "issuedAt": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "mode": {
+      "enum": [
+        "single-use",
+        "standing"
+      ],
+      "type": "string"
+    },
+    "resourceKey": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "resourceType": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "revokedAt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema3"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "standingScope": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "active",
+        "consumed",
+        "revoked",
+        "expired"
+      ],
+      "type": "string"
+    },
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "projectId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "releaseId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "taskId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "projectId",
+        "taskId",
+        "attemptId",
+        "releaseId"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "approvalId",
+    "action",
+    "resourceType",
+    "resourceKey",
+    "subject",
+    "binding",
+    "actorId",
+    "mode",
+    "standingScope",
+    "issuedAt",
+    "expiresAt",
+    "status",
+    "revokedAt",
+    "consumedAt",
+    "consumedByEffectId"
+  ],
+  "type": "object"
+}

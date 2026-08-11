@@ -50,6 +50,15 @@ export type EvidenceId = z.infer<typeof EvidenceIdSchema>;
 export const FindingIdSchema = LowercaseUuidSchema.brand<"FindingId">();
 export type FindingId = z.infer<typeof FindingIdSchema>;
 
+export const ApprovalIdSchema = LowercaseUuidSchema.brand<"ApprovalId">();
+export type ApprovalId = z.infer<typeof ApprovalIdSchema>;
+
+export const EffectIdSchema = LowercaseUuidSchema.brand<"EffectId">();
+export type EffectId = z.infer<typeof EffectIdSchema>;
+
+export const ReleaseIdSchema = LowercaseUuidSchema.brand<"ReleaseId">();
+export type ReleaseId = z.infer<typeof ReleaseIdSchema>;
+
 export const IsoInstantSchema = z.iso
   .datetime({ offset: false, precision: 3 })
   .brand<"IsoInstant">();

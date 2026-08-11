@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import { AgentEventV1Schema, AgentRunResultV1Schema, AgentRunSpecV1Schema } from "./agent-run.js";
+import { ApprovalV1Schema } from "./approval.js";
 import { CommandV1Schema } from "./command.js";
 import { CommandRequestFrameV1Schema, CommandResponseV1Schema } from "./command-protocol.js";
 import {
@@ -11,6 +12,7 @@ import {
 } from "./evidence.js";
 import { EventV1Schema } from "./event.js";
 import { ExecutionAttemptV1Schema, StepV1Schema } from "./execution.js";
+import { ExternalEffectV1Schema, ExternalResourceV1Schema } from "./external-effect.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
 export type ContractSchemaCatalogEntryV1 = Readonly<{
@@ -21,6 +23,24 @@ export type ContractSchemaCatalogEntryV1 = Readonly<{
 }>;
 
 export const contractSchemaCatalogV1 = [
+  {
+    name: "approval",
+    fileName: "approval.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:approval",
+    schema: ApprovalV1Schema,
+  },
+  {
+    name: "external-effect",
+    fileName: "external-effect.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:external-effect",
+    schema: ExternalEffectV1Schema,
+  },
+  {
+    name: "external-resource",
+    fileName: "external-resource.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:external-resource",
+    schema: ExternalResourceV1Schema,
+  },
   {
     name: "task-spec",
     fileName: "task-spec.v1.schema.json",
