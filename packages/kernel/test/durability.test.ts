@@ -98,6 +98,7 @@ function makeSubmission() {
     issuedAt: T0,
     origin: "cli",
     kind: "task.submit",
+    initialDesiredState: "running",
     taskSpec,
   } as const;
   const attempt = {
@@ -482,6 +483,21 @@ describe("canonical task binding", () => {
     ).toThrow(/initial attempt fence/);
     expect(database.prepare("SELECT COUNT(*) AS count FROM commands").get()).toEqual({ count: 0 });
     expect(database.prepare("SELECT COUNT(*) AS count FROM attempts").get()).toEqual({ count: 0 });
+    database.close();
+  });
+
+  it("atomically binds the requested initial desired state", () => {
+    const database = openMigratedFactoryDatabase(makeDatabasePath());
+    const repositories = createFactoryRepositories(database);
+    const submission = makeSubmission();
+    const paused = {
+      ...submission,
+      command: { ...submission.command, initialDesiredState: "paused" as const },
+      attempt: { ...submission.attempt, desiredState: "paused" as const },
+    };
+
+    expect(repositories.createTaskAttempt(paused).attempt.desiredState).toBe("paused");
+    expect(repositories.attempts.findById(ATTEMPT_ID)?.desiredState).toBe("paused");
     database.close();
   });
 });

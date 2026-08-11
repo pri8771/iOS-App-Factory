@@ -426,7 +426,7 @@ export class FactoryRepositories {
     assertSame("attempt taskId", attempt.taskId, taskSpec.taskId);
     assertSame("attempt taskSpecDigest", attempt.taskSpecDigest, taskSpecDigest);
     assertSame("initial attempt state", attempt.state, "queued");
-    assertSame("initial attempt desiredState", attempt.desiredState, "running");
+    assertSame("initial attempt desiredState", attempt.desiredState, command.initialDesiredState);
     assertSame("initial attempt number", attempt.attemptNumber, 1);
     assertSame("initial attempt revision", attempt.revision, 0);
     assertSame("initial attempt fence", attempt.fence, 0);

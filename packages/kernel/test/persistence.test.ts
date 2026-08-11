@@ -75,6 +75,7 @@ function makeBundle(ids: typeof IDS_A | typeof IDS_B) {
     issuedAt: NOW,
     origin: "cli",
     kind: "task.submit",
+    initialDesiredState: "running",
     taskSpec,
   };
   const taskSpecDigest = computeTaskSpecDigest(taskSpec);

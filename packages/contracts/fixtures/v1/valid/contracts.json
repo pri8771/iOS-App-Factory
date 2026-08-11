@@ -36,6 +36,7 @@
         "issuedAt": "2026-08-10T12:00:01.000Z",
         "origin": "cli",
         "kind": "task.submit",
+        "initialDesiredState": "running",
         "taskSpec": {
           "schemaVersion": 1,
           "taskId": "00000000-0000-4000-8000-000000000003",

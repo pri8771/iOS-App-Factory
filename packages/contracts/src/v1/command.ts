@@ -21,6 +21,7 @@ const CommandEnvelopeV1Shape = {
 export const SubmitTaskCommandV1Schema = z.strictObject({
   ...CommandEnvelopeV1Shape,
   kind: z.literal("task.submit"),
+  initialDesiredState: z.enum(["running", "paused"]),
   taskSpec: TaskSpecV1Schema,
 });
 
