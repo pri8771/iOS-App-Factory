@@ -1,0 +1,383 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema10": {
+      "additionalProperties": false,
+      "properties": {
+        "client": {
+          "enum": [
+            "codex",
+            "claude",
+            "cursor",
+            "antigravity"
+          ],
+          "type": "string"
+        },
+        "digest": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "path": {
+          "$ref": "#/$defs/__schema8"
+        }
+      },
+      "required": [
+        "client",
+        "path",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "__schema11": {
+      "items": {
+        "$ref": "#/$defs/__schema8"
+      },
+      "maxItems": 1000,
+      "minItems": 1,
+      "type": "array"
+    },
+    "__schema12": {
+      "items": {
+        "$ref": "#/$defs/__schema13"
+      },
+      "maxItems": 500,
+      "type": "array"
+    },
+    "__schema13": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema14": {
+      "items": {
+        "$ref": "#/$defs/__schema15"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "__schema15": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "$ref": "#/$defs/__schema16"
+          },
+          "maxItems": 256,
+          "type": "array"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "environmentNames": {
+          "items": {
+            "$ref": "#/$defs/__schema17"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "executable": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "purpose": {
+          "enum": [
+            "bootstrap",
+            "build",
+            "test",
+            "ui-test",
+            "lint",
+            "quality",
+            "archive",
+            "export"
+          ],
+          "type": "string"
+        },
+        "timeoutMs": {
+          "maximum": 86400000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workingDirectory": {
+          "anyOf": [
+            {
+              "const": ".",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/__schema8"
+            }
+          ]
+        }
+      },
+      "required": [
+        "commandId",
+        "purpose",
+        "workingDirectory",
+        "executable",
+        "args",
+        "environmentNames",
+        "timeoutMs"
+      ],
+      "type": "object"
+    },
+    "__schema16": {
+      "maxLength": 16384,
+      "type": "string"
+    },
+    "__schema17": {
+      "pattern": "^[A-Z_][A-Z0-9_]{0,127}$",
+      "type": "string"
+    },
+    "__schema18": {
+      "items": {
+        "$ref": "#/$defs/__schema19"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "__schema19": {
+      "additionalProperties": false,
+      "properties": {
+        "credentialReference": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider": {
+          "enum": [
+            "jira",
+            "github",
+            "apple",
+            "website",
+            "email",
+            "social",
+            "analytics",
+            "crm"
+          ],
+          "type": "string"
+        },
+        "resourceKey": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "resourceType": {
+          "$ref": "#/$defs/__schema13"
+        }
+      },
+      "required": [
+        "provider",
+        "resourceType",
+        "resourceKey",
+        "credentialReference"
+      ],
+      "type": "object"
+    },
+    "__schema2": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema20": {
+      "items": {
+        "$ref": "#/$defs/__schema13"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "type": "array"
+    },
+    "__schema21": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema3": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema4": {
+      "enum": [
+        "ios",
+        "web",
+        "service",
+        "library"
+      ],
+      "type": "string"
+    },
+    "__schema5": {
+      "enum": [
+        "exploring",
+        "planned",
+        "building",
+        "qa",
+        "internal-testflight",
+        "released",
+        "paused",
+        "archived"
+      ],
+      "type": "string"
+    },
+    "__schema6": {
+      "additionalProperties": false,
+      "properties": {
+        "branchPolicy": {
+          "const": "short-lived-issue-branches",
+          "type": "string"
+        },
+        "defaultBranch": {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+          "type": "string"
+        },
+        "remoteUrl": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 4096,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repositoryId": {
+          "$ref": "#/$defs/__schema1"
+        }
+      },
+      "required": [
+        "repositoryId",
+        "defaultBranch",
+        "remoteUrl",
+        "branchPolicy"
+      ],
+      "type": "object"
+    },
+    "__schema7": {
+      "additionalProperties": false,
+      "properties": {
+        "authorityDigest": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "authorityPath": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "clientEntrypoints": {
+          "items": {
+            "$ref": "#/$defs/__schema10"
+          },
+          "maxItems": 20,
+          "type": "array"
+        },
+        "policyDigest": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "policyLockPath": {
+          "$ref": "#/$defs/__schema8"
+        }
+      },
+      "required": [
+        "authorityPath",
+        "authorityDigest",
+        "policyLockPath",
+        "policyDigest",
+        "clientEntrypoints"
+      ],
+      "type": "object"
+    },
+    "__schema8": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
+      "type": "string"
+    },
+    "__schema9": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:project-manifest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capabilities": {
+      "$ref": "#/$defs/__schema12"
+    },
+    "commands": {
+      "$ref": "#/$defs/__schema14"
+    },
+    "createdAt": {
+      "$ref": "#/$defs/__schema21"
+    },
+    "displayName": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "integrations": {
+      "$ref": "#/$defs/__schema18"
+    },
+    "kind": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "lifecycleStage": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "protectedPaths": {
+      "$ref": "#/$defs/__schema11"
+    },
+    "qualityProfiles": {
+      "$ref": "#/$defs/__schema20"
+    },
+    "repository": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "rules": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "slug": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/__schema21"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "slug",
+    "displayName",
+    "kind",
+    "lifecycleStage",
+    "repository",
+    "rules",
+    "protectedPaths",
+    "capabilities",
+    "commands",
+    "integrations",
+    "qualityProfiles",
+    "createdAt",
+    "updatedAt"
+  ],
+  "type": "object"
+}

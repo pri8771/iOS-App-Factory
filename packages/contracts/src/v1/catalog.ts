@@ -13,6 +13,10 @@ import {
 import { EventV1Schema } from "./event.js";
 import { ExecutionAttemptV1Schema, StepV1Schema } from "./execution.js";
 import { ExternalEffectV1Schema, ExternalResourceV1Schema } from "./external-effect.js";
+import { LessonV1Schema, LifecycleEventV1Schema } from "./learning.js";
+import { ModuleManifestV1Schema } from "./module.js";
+import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
+import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
 export type ContractSchemaCatalogEntryV1 = Readonly<{
@@ -40,6 +44,48 @@ export const contractSchemaCatalogV1 = [
     fileName: "external-resource.v1.schema.json",
     id: "urn:app-factory:contracts:v1:external-resource",
     schema: ExternalResourceV1Schema,
+  },
+  {
+    name: "project-manifest",
+    fileName: "project-manifest.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:project-manifest",
+    schema: ProjectManifestV1Schema,
+  },
+  {
+    name: "policy-lock",
+    fileName: "policy-lock.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:policy-lock",
+    schema: PolicyLockV1Schema,
+  },
+  {
+    name: "module-manifest",
+    fileName: "module-manifest.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:module-manifest",
+    schema: ModuleManifestV1Schema,
+  },
+  {
+    name: "quality-report",
+    fileName: "quality-report.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:quality-report",
+    schema: QualityReportV1Schema,
+  },
+  {
+    name: "release-manifest",
+    fileName: "release-manifest.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:release-manifest",
+    schema: ReleaseManifestV1Schema,
+  },
+  {
+    name: "lifecycle-event",
+    fileName: "lifecycle-event.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:lifecycle-event",
+    schema: LifecycleEventV1Schema,
+  },
+  {
+    name: "lesson",
+    fileName: "lesson.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:lesson",
+    schema: LessonV1Schema,
   },
   {
     name: "task-spec",

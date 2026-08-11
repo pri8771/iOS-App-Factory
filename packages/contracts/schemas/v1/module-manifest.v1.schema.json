@@ -1,0 +1,160 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema10": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "provider": {
+          "enum": [
+            "jira",
+            "github",
+            "apple",
+            "website",
+            "email",
+            "social",
+            "analytics",
+            "crm"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "action"
+      ],
+      "type": "object"
+    },
+    "__schema11": {
+      "items": {
+        "$ref": "#/$defs/__schema1"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "__schema12": {
+      "items": {
+        "$ref": "#/$defs/__schema13"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "__schema13": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$",
+      "type": "string"
+    },
+    "__schema3": {
+      "const": true,
+      "type": "boolean"
+    },
+    "__schema4": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
+      "type": "string"
+    },
+    "__schema5": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema6": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema7": {
+      "items": {
+        "$ref": "#/$defs/__schema1"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "__schema8": {
+      "items": {
+        "$ref": "#/$defs/__schema1"
+      },
+      "maxItems": 200,
+      "type": "array"
+    },
+    "__schema9": {
+      "items": {
+        "$ref": "#/$defs/__schema10"
+      },
+      "maxItems": 200,
+      "type": "array"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:module-manifest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "commands": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "configSchemaDigest": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "consumesEvents": {
+      "$ref": "#/$defs/__schema8"
+    },
+    "dashboardPanels": {
+      "$ref": "#/$defs/__schema12"
+    },
+    "entrypoint": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "externalEffects": {
+      "$ref": "#/$defs/__schema9"
+    },
+    "minimumKernelVersion": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "moduleId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "moduleVersion": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "qualityGates": {
+      "$ref": "#/$defs/__schema11"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "trusted": {
+      "$ref": "#/$defs/__schema3"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "moduleId",
+    "moduleVersion",
+    "trusted",
+    "entrypoint",
+    "minimumKernelVersion",
+    "configSchemaDigest",
+    "commands",
+    "consumesEvents",
+    "externalEffects",
+    "qualityGates",
+    "dashboardPanels"
+  ],
+  "type": "object"
+}

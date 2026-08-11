@@ -1,0 +1,232 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema10": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema11": {
+      "items": {
+        "$ref": "#/$defs/__schema1"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "__schema12": {
+      "items": {
+        "$ref": "#/$defs/__schema13"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "__schema13": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema14": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema2": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema3": {
+      "const": "ios-internal-testflight",
+      "type": "string"
+    },
+    "__schema4": {
+      "enum": [
+        "candidate",
+        "certified",
+        "archived",
+        "upload-approved",
+        "uploaded",
+        "processing",
+        "internal-testflight-available",
+        "device-smoke-passed"
+      ],
+      "type": "string"
+    },
+    "__schema5": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanTree": {
+          "const": true,
+          "type": "boolean"
+        },
+        "commit": {
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "evidenceManifestDigest": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "experienceManifestDigest": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "policyDigest": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "qualityReportDigest": {
+          "$ref": "#/$defs/__schema6"
+        }
+      },
+      "required": [
+        "commit",
+        "cleanTree",
+        "policyDigest",
+        "experienceManifestDigest",
+        "qualityReportDigest",
+        "evidenceManifestDigest"
+      ],
+      "type": "object"
+    },
+    "__schema6": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema7": {
+      "additionalProperties": false,
+      "properties": {
+        "buildNumber": {
+          "pattern": "^[1-9][0-9]{0,17}$",
+          "type": "string"
+        },
+        "bundleId": {
+          "maxLength": 255,
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+$",
+          "type": "string"
+        },
+        "marketingVersion": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "testerGroup": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "bundleId",
+        "marketingVersion",
+        "buildNumber",
+        "testerGroup"
+      ],
+      "type": "object"
+    },
+    "__schema8": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema6"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema9": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema6"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:release-manifest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appStoreBuildId": {
+      "$ref": "#/$defs/__schema10"
+    },
+    "approvals": {
+      "$ref": "#/$defs/__schema11"
+    },
+    "archiveDigest": {
+      "$ref": "#/$defs/__schema8"
+    },
+    "candidate": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "createdAt": {
+      "$ref": "#/$defs/__schema14"
+    },
+    "exportedArtifactDigest": {
+      "$ref": "#/$defs/__schema9"
+    },
+    "ios": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "lifecycleEventKeys": {
+      "$ref": "#/$defs/__schema12"
+    },
+    "metadataDigest": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "profile": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "releaseId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "stage": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "target": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/__schema14"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "releaseId",
+    "projectId",
+    "profile",
+    "target",
+    "stage",
+    "candidate",
+    "ios",
+    "metadataDigest",
+    "archiveDigest",
+    "exportedArtifactDigest",
+    "appStoreBuildId",
+    "approvals",
+    "lifecycleEventKeys",
+    "createdAt",
+    "updatedAt"
+  ],
+  "type": "object"
+}

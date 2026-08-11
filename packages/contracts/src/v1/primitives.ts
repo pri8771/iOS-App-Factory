@@ -59,6 +59,9 @@ export type EffectId = z.infer<typeof EffectIdSchema>;
 export const ReleaseIdSchema = LowercaseUuidSchema.brand<"ReleaseId">();
 export type ReleaseId = z.infer<typeof ReleaseIdSchema>;
 
+export const LessonIdSchema = LowercaseUuidSchema.brand<"LessonId">();
+export type LessonId = z.infer<typeof LessonIdSchema>;
+
 export const IsoInstantSchema = z.iso
   .datetime({ offset: false, precision: 3 })
   .brand<"IsoInstant">();
