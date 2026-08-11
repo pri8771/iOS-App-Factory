@@ -6,6 +6,7 @@ import {
   GitObjectIdSchema,
   NamespacedCodeSchema,
   type ArtifactRefV1,
+  type AgentRunResultV1,
   type EvidenceManifestV1,
   type EvidenceSubjectV1,
   type EvidenceV1,
@@ -13,9 +14,23 @@ import {
 } from "@app-factory/contracts";
 import type { EvidenceStore } from "@app-factory/evidence-store";
 import {
+  canonicalJsonBytes,
   parseAgentEventLogBytes,
+  sha256Digest,
   type VerifiedExecutionEvidence,
 } from "@app-factory/execution-engine";
+
+export type VerifiedAgentRunEvidence = Readonly<{
+  adapterId: string;
+  runSpecDigest: Sha256Digest;
+  resultDigest: Sha256Digest;
+  stdoutDigest: Sha256Digest;
+  stderrDigest: Sha256Digest;
+  invocationDescriptorDigest: Sha256Digest;
+  supervisorIntentDigest: Sha256Digest;
+  supervisorReceiptDigest: Sha256Digest;
+  result: AgentRunResultV1;
+}>;
 
 function deterministicEvidenceId(namespace: string, ...parts: readonly string[]): string {
   const digest = createHash("sha256")
@@ -58,6 +73,7 @@ function uniqueArtifacts(artifacts: readonly ArtifactRefV1[]): ArtifactRefV1[] {
 export function commitVerifiedExecutionManifest(
   store: EvidenceStore,
   verified: VerifiedExecutionEvidence,
+  agentRun?: VerifiedAgentRunEvidence,
 ): EvidenceManifestV1 {
   const { index } = verified;
   const subject: EvidenceSubjectV1 = {
@@ -84,6 +100,29 @@ export function commitVerifiedExecutionManifest(
     throw new Error("Verified execution event evidence is unexpectedly empty");
   }
 
+  if (agentRun !== undefined) {
+    const resultBytes = store.readBlob(agentRun.resultDigest);
+    if (
+      agentRun.result.status !== "succeeded" ||
+      agentRun.result.attemptId !== index.attemptId ||
+      agentRun.result.runId !== index.implementingRunId ||
+      agentRun.result.fence > index.fence ||
+      agentRun.result.finalEventSequence !== lastEvent.sequence ||
+      agentRun.result.stdout.digest !== agentRun.stdoutDigest ||
+      agentRun.result.stderr.digest !== agentRun.stderrDigest ||
+      sha256Digest(canonicalJsonBytes(agentRun.result)) !== agentRun.resultDigest ||
+      !canonicalJsonBytes(agentRun.result).equals(resultBytes)
+    ) {
+      throw new Error("Verified agent-run evidence is not bound to the execution closure");
+    }
+    store.readBlob(agentRun.runSpecDigest);
+    store.readBlob(agentRun.stdoutDigest);
+    store.readBlob(agentRun.stderrDigest);
+    store.readBlob(agentRun.invocationDescriptorDigest);
+    store.readBlob(agentRun.supervisorIntentDigest);
+    store.readBlob(agentRun.supervisorReceiptDigest);
+  }
+
   const evidence: EvidenceV1[] = [
     {
       ...common,
@@ -107,6 +146,73 @@ export function commitVerifiedExecutionManifest(
         eventLogDigest: index.eventDigest,
       },
     },
+    ...(agentRun === undefined
+      ? []
+      : [
+          {
+            ...common,
+            evidenceId: EvidenceIdSchema.parse(
+              deterministicEvidenceId(
+                "agent-run-evidence",
+                index.attemptId,
+                verified.indexDigest,
+                agentRun.runSpecDigest,
+                agentRun.resultDigest,
+                agentRun.supervisorIntentDigest,
+              ),
+            ),
+            producer: NamespacedCodeSchema.parse(agentRun.adapterId),
+            artifacts: [
+              storedArtifact(
+                store,
+                agentRun.runSpecDigest,
+                "application/vnd.app-factory.agent-run-spec.v1+json",
+                "agent-run-spec.v1.json",
+              ),
+              storedArtifact(
+                store,
+                agentRun.resultDigest,
+                "application/vnd.app-factory.agent-run-result.v1+json",
+                "agent-run-result.v1.json",
+              ),
+              storedArtifact(
+                store,
+                agentRun.stdoutDigest,
+                "application/octet-stream",
+                "agent-stdout.bin",
+              ),
+              storedArtifact(
+                store,
+                agentRun.stderrDigest,
+                "application/octet-stream",
+                "agent-stderr.bin",
+              ),
+              storedArtifact(
+                store,
+                agentRun.invocationDescriptorDigest,
+                "application/vnd.app-factory.agent-invocation-descriptor.v1+json",
+                "agent-invocation-descriptor.v1.json",
+              ),
+              storedArtifact(
+                store,
+                agentRun.supervisorIntentDigest,
+                "application/vnd.app-factory.supervised-run-intent.v1+json",
+                "supervised-run-intent.v1.json",
+              ),
+              storedArtifact(
+                store,
+                agentRun.supervisorReceiptDigest,
+                "application/vnd.app-factory.supervised-run-receipt.v1+json",
+                "supervised-run-receipt.v1.json",
+              ),
+            ],
+            kind: "agent-run" as const,
+            claims: {
+              runSpecDigest: agentRun.runSpecDigest,
+              result: agentRun.result,
+            },
+          },
+        ]),
     ...verified.trustedTests.map((test, testIndex): EvidenceV1 => ({
       ...common,
       evidenceId: EvidenceIdSchema.parse(

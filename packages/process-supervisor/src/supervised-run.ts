@@ -999,17 +999,18 @@ export async function waitForSupervisedRunRegistration(
     if (inspection.state === "prepared") {
       return { outcome: "blocked", reason: "durable-launch-claim-disappeared" };
     }
-    if (registration.hasExited()) {
-      return {
-        outcome: "blocked",
-        reason: "controller-exited-before-target-registration-or-terminal-receipt",
-      };
-    }
+    // A local ChildProcess can report exit just before the controller's
+    // fsynced terminal receipt becomes visible to this process. Keep polling
+    // the durable state through the registration deadline; returning on the
+    // in-memory exit observation creates an infinite relaunch loop across
+    // successive scheduler fences for very short-lived targets.
     await clock.sleep(Math.min(pollMs, Math.max(0, deadline - clock.now())));
   } while (clock.now() < deadline);
   return {
     outcome: "blocked",
-    reason: "controller-registration-deadline-expired; restart reconciliation must not relaunch",
+    reason: registration.hasExited()
+      ? "controller-exited-before-target-registration-or-terminal-receipt"
+      : "controller-registration-deadline-expired; restart reconciliation must not relaunch",
   };
 }
 

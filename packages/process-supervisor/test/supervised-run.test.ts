@@ -267,14 +267,17 @@ describe("supervised run contracts", () => {
       throw sentinel;
     });
     const authorize = vi.fn();
+    const changeDirectory = vi.fn();
     expect(() =>
       runSupervisedTargetGate(prepared.paths.intentPath, {
         controlFileDescriptor: permitDescriptor,
         execve,
         authorize,
+        changeDirectory,
       }),
     ).toThrow(sentinel);
     expect(authorize).toHaveBeenCalledOnce();
+    expect(changeDirectory).toHaveBeenCalledWith(prepared.intent.cwd);
     expect(execve).toHaveBeenCalledWith(
       process.execPath,
       [process.execPath, "-e", "process.stdout.write('ok')"],

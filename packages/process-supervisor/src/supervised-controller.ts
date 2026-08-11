@@ -402,6 +402,7 @@ export type SupervisedGateDependencies = Readonly<{
   controlFileDescriptor?: number;
   execve?: (file: string, args: string[], env: Record<string, string>) => never;
   authorize?: (prepared: PreparedSupervisedRun) => void;
+  changeDirectory?: (cwd: string) => void;
 }>;
 
 /** Returns without exec when the controller closes the control channel or sends anything else. */
@@ -419,6 +420,8 @@ export function runSupervisedTargetGate(
   } else {
     dependencies.authorize(prepared);
   }
+  const changeDirectory = dependencies.changeDirectory ?? process.chdir;
+  changeDirectory(prepared.intent.cwd);
   const environment = Object.fromEntries(
     prepared.intent.environment.map(({ name, value }) => [name, value]),
   );

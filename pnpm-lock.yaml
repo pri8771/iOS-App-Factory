@@ -56,6 +56,9 @@ importers:
 
   apps/daemon:
     dependencies:
+      '@app-factory/agent-runner':
+        specifier: workspace:*
+        version: link:../../packages/agent-runner
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

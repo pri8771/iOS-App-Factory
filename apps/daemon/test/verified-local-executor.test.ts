@@ -16,9 +16,17 @@ import {
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { TaskSpecV1Schema, type RunId, type TaskSpecV1 } from "@app-factory/contracts";
+import {
+  AgentEventV1Schema,
+  AgentRunResultV1Schema,
+  TaskSpecV1Schema,
+  type AgentRunResultV1,
+  type RunId,
+  type TaskSpecV1,
+} from "@app-factory/contracts";
 import { EvidenceStore } from "@app-factory/evidence-store";
 import {
+  canonicalJsonBytes,
   FileExecutionCheckpointStore,
   VERIFICATION_SCRATCH_TOKEN,
   sha256Digest,
@@ -26,6 +34,11 @@ import {
 } from "@app-factory/execution-engine";
 import { GitWorkspaceManager } from "@app-factory/git-workspace";
 import type { IndependentReviewAdapter } from "@app-factory/independent-review";
+import {
+  createSupervisedRunIntent,
+  digestSupervisedRunIntent,
+  parseSupervisedRunIntent,
+} from "@app-factory/process-supervisor";
 import type { SchedulerClockPort } from "@app-factory/scheduler";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -44,7 +57,9 @@ import {
   taskMatchesEnrolledProjectBase,
   type FactoryDaemonService,
   type LocalAgentAdapter,
+  type LocalAgentProtocolEvidenceV1,
   type LocalAgentRunContext,
+  type LocalAgentRunOutcome,
   type VerifiedLocalExecutionProject,
   type VerifiedLocalExecutionConfiguration,
 } from "../src/index.js";
@@ -327,6 +342,415 @@ class DeterministicSwiftAgent implements LocalAgentAdapter {
   }
 }
 
+type ProtocolMutation =
+  | "none"
+  | "missing-protocol-envelope"
+  | "run-spec-binding"
+  | "result-binding"
+  | "event-terminal"
+  | "final-sequence"
+  | "stdout-metadata"
+  | "descriptor-binding"
+  | "descriptor-identity"
+  | "receipt-binding"
+  | "receipt-output-invariant"
+  | "intent-binding"
+  | "intent-canonical"
+  | "descriptor-environment"
+  | "stdout-limit"
+  | "stderr-limit"
+  | "failure-detail-artifact"
+  | "unknown-outcome-kind"
+  | "envelope-shape"
+  | "outcome-status"
+  | "reported-failure"
+  | "auth-blocker";
+
+function protocolResult(
+  context: LocalAgentRunContext,
+  status: "succeeded" | "failed" | "blocked" = "succeeded",
+  processExitCode = status === "succeeded" || status === "blocked" ? 0 : 1,
+  mutation: ProtocolMutation = "none",
+): Readonly<{
+  evidence: LocalAgentProtocolEvidenceV1;
+  failure: NonNullable<Extract<AgentRunResultV1, { status: "failed" }>["failure"]>;
+  blocker: NonNullable<Extract<AgentRunResultV1, { status: "blocked" }>["blocker"]>;
+}> {
+  const startedAt = "2026-08-11T12:00:00.000Z";
+  const finishedAt = "2026-08-11T12:00:00.001Z";
+  const stdout =
+    mutation === "stderr-limit"
+      ? Buffer.from("ok\n", "utf8")
+      : Buffer.from('{"type":"turn.completed"}\n', "utf8");
+  const stderr =
+    mutation === "stderr-limit"
+      ? Buffer.from("stderr exceeds twenty bytes\n", "utf8")
+      : Buffer.from("codex diagnostic\n", "utf8");
+  const failure = {
+    code: "agent.process-failed" as const,
+    summary: "The supervised agent process failed.",
+    retryable: false,
+    detailArtifactDigest:
+      mutation === "failure-detail-artifact"
+        ? sha256Digest(Buffer.from("unpublished failure detail", "utf8"))
+        : null,
+  };
+  const blocker = {
+    kind: "authentication" as const,
+    code: "agent.authentication-required" as const,
+    summary: "The supervised agent requires authentication.",
+    requiredAction: "Refresh the local Codex login, then submit a new attempt.",
+  };
+  const events = [
+    AgentEventV1Schema.parse({
+      schemaVersion: 1,
+      eventId: "63000000-0000-4000-8000-000000000001",
+      runId: context.spec.runId,
+      attemptId: context.spec.attemptId,
+      stepId: context.spec.stepId,
+      fence: context.spec.fence,
+      sequence: 1,
+      occurredAt: startedAt,
+      type: "agent.started",
+      data: { adapterId: context.spec.adapterId },
+    }),
+    ...(status === "blocked"
+      ? [
+          AgentEventV1Schema.parse({
+            schemaVersion: 1,
+            eventId: "63000000-0000-4000-8000-000000000003",
+            runId: context.spec.runId,
+            attemptId: context.spec.attemptId,
+            stepId: context.spec.stepId,
+            fence: context.spec.fence,
+            sequence: 2,
+            occurredAt: finishedAt,
+            type: "agent.blocked",
+            data: { blocker },
+          }),
+        ]
+      : []),
+    AgentEventV1Schema.parse({
+      schemaVersion: 1,
+      eventId: "63000000-0000-4000-8000-000000000002",
+      runId: context.spec.runId,
+      attemptId: context.spec.attemptId,
+      stepId: context.spec.stepId,
+      fence: context.spec.fence,
+      sequence: status === "blocked" ? 3 : 2,
+      occurredAt: finishedAt,
+      type: "agent.finished",
+      data: { status },
+    }),
+  ];
+  const result = AgentRunResultV1Schema.parse({
+    schemaVersion: 1,
+    runId: context.spec.runId,
+    attemptId: context.spec.attemptId,
+    stepId: context.spec.stepId,
+    fence: context.spec.fence,
+    startedAt,
+    finishedAt,
+    finalEventSequence: events.length,
+    stdout: { digest: sha256Digest(stdout), byteLength: stdout.byteLength, truncated: false },
+    stderr: { digest: sha256Digest(stderr), byteLength: stderr.byteLength, truncated: false },
+    usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 2 },
+    process: { exitCode: processExitCode, signal: null },
+    status,
+    failure: status === "failed" ? failure : null,
+    blocker: status === "blocked" ? blocker : null,
+  });
+  const supervisorRunKey = `run-${context.spec.runId}`;
+  const supervisorIntent = createSupervisedRunIntent({
+    runKey: supervisorRunKey,
+    attemptId: context.spec.attemptId,
+    fence: context.spec.fence,
+    createdAt: "2026-08-11T11:59:59.996Z",
+    executable: "/Users/pchordia/.local/bin/codex",
+    argv: ["exec", "--json"],
+    cwd: context.spec.workingDirectory,
+    environment: { CODEX_HOME: "/private/tmp/codex-home", LANG: "C", PATH: "/usr/bin:/bin" },
+    stdin: Buffer.from(context.spec.instruction, "utf8"),
+    limits: {
+      timeoutMs: context.spec.limits.timeoutMs,
+      graceMs: context.spec.limits.terminationGraceMs,
+      forceWaitMs: context.spec.limits.terminationGraceMs,
+      pollMs: 25,
+      maxOutputBytesPerStream: context.spec.limits.maxStdoutBytes,
+    },
+  });
+  const supervisorIntentDigest = sha256Digest(
+    Buffer.from(`${JSON.stringify(supervisorIntent)}\n`, "utf8"),
+  );
+  expect(supervisorIntentDigest).toBe(digestSupervisedRunIntent(supervisorIntent));
+  const supervisorInvocationDigest = supervisorIntent.invocationDigest;
+  const invocationDescriptor = canonicalJsonBytes({
+    schemaVersion: 1,
+    adapterId: context.spec.adapterId,
+    adapterVersion: "1.0.0",
+    cliVersion: "0.147.0-alpha.1.2",
+    model: "gpt-5.6-codex",
+    executable: "/Users/pchordia/.local/bin/codex",
+    executableDigest: sha256Digest(Buffer.from("codex executable fixture", "utf8")),
+    argv: ["exec", "--json"],
+    workingDirectory: context.spec.workingDirectory,
+    environmentNames: ["CODEX_HOME", "LANG", "PATH"],
+    environmentProjectionDigest: sha256Digest(
+      canonicalJsonBytes(supervisorIntent.environment.map(({ name, value }) => [name, value])),
+    ),
+    stdinDigest: sha256Digest(Buffer.from(context.spec.instruction, "utf8")),
+    supervisorRunKey,
+    supervisorIntentDigest,
+    supervisorInvocationDigest,
+  });
+  const supervisorReceipt = {
+    schemaVersion: 1,
+    runKey: supervisorRunKey,
+    attemptId: context.spec.attemptId,
+    fence: context.spec.fence,
+    intentDigest: supervisorIntentDigest,
+    invocationDigest: supervisorInvocationDigest,
+    controllerStartedAt: "2026-08-11T11:59:59.997Z",
+    targetRegisteredAt: "2026-08-11T11:59:59.998Z",
+    permittedAt: startedAt,
+    finishedAt,
+    identity: {
+      schemaVersion: 2,
+      attemptId: context.spec.attemptId,
+      fence: context.spec.fence,
+      pid: 41001,
+      processStartIdentity: "test-process-start-identity",
+      bootIdentity: "test-boot-identity",
+      processGroupId: 41001,
+      launchedAt: "2026-08-11T11:59:59.997Z",
+      primaryChild: null,
+    },
+    process: { exitCode: processExitCode, signal: null },
+    terminationOrigin: "natural",
+    outcome: processExitCode === 0 ? "succeeded" : "failed",
+    stdout: {
+      capturedByteLength: stdout.byteLength,
+      observedByteLength: stdout.byteLength,
+      sha256: sha256Digest(stdout),
+      truncated: false,
+    },
+    stderr: {
+      capturedByteLength: stderr.byteLength,
+      observedByteLength: stderr.byteLength,
+      sha256: sha256Digest(stderr),
+      truncated: false,
+    },
+  } as const;
+  return {
+    failure,
+    blocker,
+    evidence: {
+      schemaVersion: 1,
+      runSpec: context.spec,
+      result,
+      events,
+      stdout,
+      stderr,
+      invocationDescriptor,
+      supervisorIntent: Buffer.from(`${JSON.stringify(supervisorIntent)}\n`, "utf8"),
+      supervisorReceipt: Buffer.from(`${JSON.stringify(supervisorReceipt)}\n`, "utf8"),
+    },
+  };
+}
+
+class ProtocolSwiftAgent implements LocalAgentAdapter {
+  public readonly adapterId = "agent.supervised-protocol";
+  public readonly adapterVersion = "1.0.0";
+  public calls = 0;
+  readonly #mutation: ProtocolMutation;
+
+  public constructor(mutation: ProtocolMutation = "none") {
+    this.#mutation = mutation;
+  }
+
+  public async run(context: LocalAgentRunContext) {
+    this.calls += 1;
+    await context.assertActive();
+    writeFileSync(
+      join(context.spec.workingDirectory, "Sources/Greeter/GreetingFormatter.swift"),
+      EXPECTED_GREETER_SOURCE,
+    );
+    const status =
+      this.#mutation === "outcome-status" ||
+      this.#mutation === "reported-failure" ||
+      this.#mutation === "failure-detail-artifact"
+        ? "failed"
+        : this.#mutation === "auth-blocker"
+          ? "blocked"
+          : "succeeded";
+    const materialized = protocolResult(
+      context,
+      status,
+      this.#mutation === "reported-failure" ? 0 : this.#mutation === "auth-blocker" ? 1 : undefined,
+      this.#mutation,
+    );
+    let evidence: unknown = materialized.evidence;
+    if (this.#mutation === "run-spec-binding") {
+      evidence = {
+        ...materialized.evidence,
+        runSpec: { ...materialized.evidence.runSpec, fence: context.spec.fence + 1 },
+      };
+    } else if (this.#mutation === "result-binding") {
+      evidence = {
+        ...materialized.evidence,
+        result: {
+          ...materialized.evidence.result,
+          attemptId: "63000000-0000-4000-8000-000000000099",
+        },
+      };
+    } else if (this.#mutation === "event-terminal") {
+      evidence = {
+        ...materialized.evidence,
+        events: materialized.evidence.events.map((event, index) =>
+          index === materialized.evidence.events.length - 1 && event.type === "agent.finished"
+            ? { ...event, data: { status: "failed" } }
+            : event,
+        ),
+      };
+    } else if (this.#mutation === "final-sequence") {
+      evidence = {
+        ...materialized.evidence,
+        result: {
+          ...materialized.evidence.result,
+          finalEventSequence: materialized.evidence.result.finalEventSequence + 1,
+        },
+      };
+    } else if (this.#mutation === "stdout-metadata") {
+      evidence = {
+        ...materialized.evidence,
+        stdout: Buffer.from("different captured bytes\n", "utf8"),
+      };
+    } else if (this.#mutation === "descriptor-binding") {
+      const descriptor = JSON.parse(
+        Buffer.from(materialized.evidence.invocationDescriptor).toString("utf8"),
+      ) as Readonly<Record<string, unknown>>;
+      evidence = {
+        ...materialized.evidence,
+        invocationDescriptor: canonicalJsonBytes({
+          ...descriptor,
+          workingDirectory: "/private/tmp/different-worktree",
+        }),
+      };
+    } else if (this.#mutation === "descriptor-identity") {
+      const descriptor = JSON.parse(
+        Buffer.from(materialized.evidence.invocationDescriptor).toString("utf8"),
+      ) as Readonly<Record<string, unknown>>;
+      evidence = {
+        ...materialized.evidence,
+        invocationDescriptor: canonicalJsonBytes({
+          ...descriptor,
+          model: "untrusted-unenrolled-model",
+        }),
+      };
+    } else if (this.#mutation === "receipt-binding") {
+      const receipt = JSON.parse(
+        Buffer.from(materialized.evidence.supervisorReceipt).toString("utf8"),
+      ) as Readonly<Record<string, unknown>>;
+      evidence = {
+        ...materialized.evidence,
+        supervisorReceipt: Buffer.from(
+          `${JSON.stringify({
+            ...receipt,
+            invocationDigest: sha256Digest(Buffer.from("different invocation", "utf8")),
+          })}\n`,
+          "utf8",
+        ),
+      };
+    } else if (this.#mutation === "receipt-output-invariant") {
+      const receipt = JSON.parse(
+        Buffer.from(materialized.evidence.supervisorReceipt).toString("utf8"),
+      ) as Readonly<Record<string, unknown>>;
+      const receiptStdout = receipt.stdout as Readonly<Record<string, unknown>>;
+      evidence = {
+        ...materialized.evidence,
+        supervisorReceipt: Buffer.from(
+          `${JSON.stringify({
+            ...receipt,
+            stdout: {
+              ...receiptStdout,
+              observedByteLength: (receiptStdout.capturedByteLength as number) + 1,
+              truncated: false,
+            },
+          })}\n`,
+          "utf8",
+        ),
+      };
+    } else if (this.#mutation === "intent-binding") {
+      const intent = JSON.parse(
+        Buffer.from(materialized.evidence.supervisorIntent).toString("utf8"),
+      ) as Readonly<Record<string, unknown>>;
+      evidence = {
+        ...materialized.evidence,
+        supervisorIntent: Buffer.from(
+          `${JSON.stringify({ ...intent, cwd: "/private/tmp/different-worktree" })}\n`,
+          "utf8",
+        ),
+      };
+    } else if (this.#mutation === "intent-canonical") {
+      evidence = {
+        ...materialized.evidence,
+        supervisorIntent: Buffer.concat([
+          Buffer.from(materialized.evidence.supervisorIntent),
+          Buffer.from(" ", "utf8"),
+        ]),
+      };
+    } else if (this.#mutation === "descriptor-environment") {
+      const descriptor = JSON.parse(
+        Buffer.from(materialized.evidence.invocationDescriptor).toString("utf8"),
+      ) as Readonly<Record<string, unknown>>;
+      evidence = {
+        ...materialized.evidence,
+        invocationDescriptor: canonicalJsonBytes({
+          ...descriptor,
+          environmentNames: ["CODEX_HOME", "PATH"],
+        }),
+      };
+    } else if (this.#mutation === "envelope-shape") {
+      evidence = { ...materialized.evidence, unexpected: true };
+    }
+    await context.assertActive();
+    const succeeded = {
+      kind: "succeeded" as const,
+      summary: "Implemented the protocol-backed Swift Greeter change.",
+      changedPaths: ["Sources/Greeter/GreetingFormatter.swift"],
+      protocolEvidence: evidence as LocalAgentProtocolEvidenceV1,
+    };
+    if (this.#mutation === "missing-protocol-envelope") {
+      return {
+        kind: succeeded.kind,
+        summary: succeeded.summary,
+        changedPaths: succeeded.changedPaths,
+      };
+    }
+    if (this.#mutation === "reported-failure" || this.#mutation === "failure-detail-artifact") {
+      return {
+        kind: "failed" as const,
+        failure: materialized.failure,
+        protocolEvidence: evidence as LocalAgentProtocolEvidenceV1,
+      };
+    }
+    if (this.#mutation === "unknown-outcome-kind") {
+      return {
+        kind: "unsupported-at-runtime",
+        protocolEvidence: evidence as LocalAgentProtocolEvidenceV1,
+      } as unknown as LocalAgentRunOutcome;
+    }
+    if (this.#mutation === "auth-blocker") {
+      return {
+        kind: "needs-input" as const,
+        blocker: materialized.blocker,
+        protocolEvidence: evidence as LocalAgentProtocolEvidenceV1,
+      };
+    }
+    return succeeded;
+  }
+}
+
 function project(
   f: Fixture,
   agent: LocalAgentAdapter,
@@ -398,6 +822,18 @@ function project(
             },
           ]),
     ],
+    ...(agent.adapterId === "agent.supervised-protocol"
+      ? {
+          requireAgentProtocolEvidence: true,
+          agentInvocationEnvironmentNames: ["CODEX_HOME", "LANG", "PATH"],
+          agentInvocationIdentity: {
+            executable: "/Users/pchordia/.local/bin/codex",
+            executableDigest: sha256Digest(Buffer.from("codex executable fixture", "utf8")),
+            cliVersion: "0.147.0-alpha.1.2",
+            model: "gpt-5.6-codex",
+          },
+        }
+      : {}),
     agentLimits: {
       timeoutMs: 30_000,
       terminationGraceMs: 500,
@@ -479,6 +915,33 @@ afterEach(async () => {
 });
 
 describe("daemon verified local execution", () => {
+  it.each(["environment", "identity"] as const)(
+    "rejects a partial trusted invocation %s enrollment",
+    async (partialEnrollment) => {
+      const f = fixture(partialEnrollment === "environment" ? 42 : 43);
+      const agent = new DeterministicSwiftAgent("succeed");
+      const reviewCalls = { count: 0 };
+      const baseProject = project(f, agent, reviewCalls);
+      const partialProject: VerifiedLocalExecutionProject = {
+        ...baseProject,
+        ...(partialEnrollment === "environment"
+          ? { agentInvocationEnvironmentNames: ["CODEX_HOME", "LANG", "PATH"] }
+          : {
+              agentInvocationIdentity: {
+                executable: "/Users/pchordia/.local/bin/codex",
+                executableDigest: sha256Digest(Buffer.from("codex executable fixture", "utf8")),
+                cliVersion: "0.147.0-alpha.1.2",
+                model: "gpt-5.6-codex",
+              },
+            }),
+      };
+
+      await expect(
+        start(f, agent, reviewCalls, { projectOverride: partialProject }),
+      ).rejects.toThrow("must be declared together");
+    },
+  );
+
   it("repairs only a matching same-inode agent-result publication remnant", () => {
     const root = realpathSync(mkdtempSync("/private/tmp/af-vle-links-"));
     roots.push(root);
@@ -550,6 +1013,365 @@ describe("daemon verified local execution", () => {
           .split("\n")
           .filter((line) => line.length > 0),
       ).toHaveLength(1);
+    },
+  );
+
+  it(
+    "persists a complete V2 protocol closure and republishes it without relaunching the agent",
+    { timeout: 180_000 },
+    async () => {
+      const f = fixture(13);
+      const agent = new ProtocolSwiftAgent();
+      const reviewCalls = { count: 0 };
+      let publications = 0;
+      const service = await start(f, agent, reviewCalls, {
+        executionManifestPublisher: (store, evidence, agentRun) => {
+          publications += 1;
+          if (publications === 1) {
+            throw new RetryableExecutionManifestPublicationError(
+              "simulated interruption before V2 manifest publication",
+            );
+          }
+          return commitVerifiedExecutionManifest(store, evidence, agentRun);
+        },
+      });
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(
+        async () => (await client.status(intake.attemptId)).attempt.state === "succeeded",
+      );
+
+      expect(publications).toBe(2);
+      expect(agent.calls).toBe(1);
+      expect(reviewCalls.count).toBe(1);
+      const journal = JSON.parse(
+        readFileSync(
+          join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`),
+          "utf8",
+        ),
+      ) as Readonly<Record<string, unknown>>;
+      expect(journal).toMatchObject({
+        schemaVersion: 2,
+        attemptId: intake.attemptId,
+        adapterId: agent.adapterId,
+        adapterVersion: agent.adapterVersion,
+      });
+
+      const integrity = await client.verifyEvidence(intake.attemptId);
+      expect(integrity.manifest.requiredKinds).toEqual([
+        "event-log",
+        "verification",
+        "review",
+        "commit",
+      ]);
+      const storedIntegrity = new EvidenceStore(service.executionPaths.evidenceRoot).verify(
+        intake.attemptId,
+      );
+      const agentRun = storedIntegrity.evidence.find((item) => item.kind === "agent-run");
+      expect(agentRun).toMatchObject({
+        kind: "agent-run",
+        producer: agent.adapterId,
+        claims: {
+          runSpecDigest: journal.runSpecDigest,
+          result: { status: "succeeded", finalEventSequence: 2 },
+        },
+      });
+      expect(agentRun?.artifacts.map((artifact) => artifact.logicalName)).toEqual([
+        "agent-run-spec.v1.json",
+        "agent-run-result.v1.json",
+        "agent-stdout.bin",
+        "agent-stderr.bin",
+        "agent-invocation-descriptor.v1.json",
+        "supervised-run-intent.v1.json",
+        "supervised-run-receipt.v1.json",
+      ]);
+      const descriptorArtifact = agentRun?.artifacts.find(
+        (artifact) => artifact.logicalName === "agent-invocation-descriptor.v1.json",
+      );
+      if (descriptorArtifact === undefined) throw new Error("Missing invocation descriptor");
+      expect(
+        JSON.parse(
+          new EvidenceStore(service.executionPaths.evidenceRoot)
+            .readBlob(descriptorArtifact.digest)
+            .toString("utf8"),
+        ),
+      ).toMatchObject({
+        schemaVersion: 1,
+        executable: "/Users/pchordia/.local/bin/codex",
+        cliVersion: "0.147.0-alpha.1.2",
+        model: "gpt-5.6-codex",
+        executableDigest: expect.stringMatching(/^sha256:/u),
+        environmentProjectionDigest: expect.stringMatching(/^sha256:/u),
+      });
+      const intentArtifact = agentRun?.artifacts.find(
+        (artifact) => artifact.logicalName === "supervised-run-intent.v1.json",
+      );
+      const receiptArtifact = agentRun?.artifacts.find(
+        (artifact) => artifact.logicalName === "supervised-run-receipt.v1.json",
+      );
+      if (intentArtifact === undefined || receiptArtifact === undefined) {
+        throw new Error("Missing supervised intent or receipt");
+      }
+      const evidenceStore = new EvidenceStore(service.executionPaths.evidenceRoot);
+      const storedIntent = parseSupervisedRunIntent(
+        JSON.parse(evidenceStore.readBlob(intentArtifact.digest).toString("utf8")) as unknown,
+      );
+      const storedReceipt = JSON.parse(
+        evidenceStore.readBlob(receiptArtifact.digest).toString("utf8"),
+      ) as Readonly<Record<string, unknown>>;
+      expect(intentArtifact.digest).toBe(journal.supervisorIntentDigest);
+      expect(storedReceipt.intentDigest).toBe(digestSupervisedRunIntent(storedIntent));
+    },
+  );
+
+  it(
+    "rejects a durable V1 journal after the project is enrolled as protocol-required",
+    { timeout: 180_000 },
+    async () => {
+      const f = fixture(44);
+      const legacyImplementation = new DeterministicSwiftAgent("succeed");
+      const legacyAgent: LocalAgentAdapter = {
+        adapterId: "agent.supervised-protocol",
+        adapterVersion: "1.0.0",
+        run: async (context) => await legacyImplementation.run(context),
+      };
+      const legacyReviews = { count: 0 };
+      const legacyBaseProject = project(f, legacyImplementation, legacyReviews, {
+        reviewerOnlyAcceptance: true,
+      });
+      const existingPlan = legacyBaseProject.verificationPlans[0];
+      if (existingPlan === undefined) throw new Error("Missing fixture verification plan");
+      const legacyProject: VerifiedLocalExecutionProject = {
+        ...legacyBaseProject,
+        agent: legacyAgent,
+        verificationPlans: [
+          {
+            ...existingPlan,
+            checkId: "tests.replay-pause",
+            executable: "/bin/sleep",
+            args: ["30"],
+            timeoutMs: 60_000,
+            toolVersions: [{ name: "sleep", version: "system" }],
+          },
+        ],
+      };
+      const first = await start(f, legacyAgent, legacyReviews, {
+        projectOverride: legacyProject,
+      });
+      const firstClient = clientFor(first);
+      const intake = await firstClient.run(f.taskSpec);
+      const journalPath = join(first.executionPaths.agentResultRoot, `${intake.attemptId}.json`);
+      await eventually(async () => existsSync(journalPath), 20_000);
+      expect(JSON.parse(readFileSync(journalPath, "utf8"))).toMatchObject({
+        schemaVersion: 1,
+        adapterId: legacyAgent.adapterId,
+      });
+
+      firstClient.close();
+      await first.close();
+
+      const enrolledAgent = new ProtocolSwiftAgent();
+      const enrolledReviews = { count: 0 };
+      const restarted = await start(f, enrolledAgent, enrolledReviews);
+      const restartedClient = clientFor(restarted);
+      await eventually(
+        async () => (await restartedClient.status(intake.attemptId)).attempt.state === "failed",
+        20_000,
+      );
+
+      expect(await restartedClient.status(intake.attemptId)).toMatchObject({
+        attempt: {
+          state: "failed",
+          outcome: {
+            kind: "failed",
+            failure: { code: "local-execution.verification-failed", retryable: false },
+          },
+        },
+      });
+      expect(JSON.parse(readFileSync(journalPath, "utf8"))).toMatchObject({ schemaVersion: 1 });
+      expect(enrolledAgent.calls).toBe(0);
+      expect(enrolledReviews.count).toBe(0);
+    },
+  );
+
+  it(
+    "fails closed on a corrupted V2 journal during replay without relaunching the agent",
+    { timeout: 180_000 },
+    async () => {
+      const f = fixture(14);
+      const agent = new ProtocolSwiftAgent();
+      const reviewCalls = { count: 0 };
+      let publications = 0;
+      const service = await start(f, agent, reviewCalls, {
+        executionManifestPublisher: (_store, evidence) => {
+          publications += 1;
+          writeFileSync(
+            join(service.executionPaths.agentResultRoot, `${evidence.index.attemptId}.json`),
+            "{}",
+          );
+          throw new RetryableExecutionManifestPublicationError(
+            "simulated interruption after corrupting the V2 journal",
+          );
+        },
+      });
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(
+        async () => (await client.status(intake.attemptId)).attempt.state === "failed",
+      );
+
+      expect(agent.calls).toBe(1);
+      expect(publications).toBe(1);
+      expect(reviewCalls.count).toBe(1);
+      expect(await client.status(intake.attemptId)).toMatchObject({
+        attempt: {
+          state: "failed",
+          outcome: {
+            kind: "failed",
+            failure: { code: "local-execution.verification-failed", retryable: false },
+          },
+        },
+      });
+    },
+  );
+
+  it.each([
+    "missing-protocol-envelope",
+    "run-spec-binding",
+    "result-binding",
+    "event-terminal",
+    "final-sequence",
+    "stdout-metadata",
+    "descriptor-binding",
+    "descriptor-identity",
+    "receipt-binding",
+    "receipt-output-invariant",
+    "intent-binding",
+    "intent-canonical",
+    "descriptor-environment",
+    "failure-detail-artifact",
+    "unknown-outcome-kind",
+    "envelope-shape",
+    "outcome-status",
+  ] as const)("rejects %s protocol evidence before publishing a V2 journal", async (mutation) => {
+    const f = fixture(
+      20 +
+        [
+          "missing-protocol-envelope",
+          "run-spec-binding",
+          "result-binding",
+          "event-terminal",
+          "final-sequence",
+          "stdout-metadata",
+          "descriptor-binding",
+          "descriptor-identity",
+          "receipt-binding",
+          "receipt-output-invariant",
+          "intent-binding",
+          "intent-canonical",
+          "descriptor-environment",
+          "failure-detail-artifact",
+          "unknown-outcome-kind",
+          "envelope-shape",
+          "outcome-status",
+        ].indexOf(mutation),
+    );
+    const agent = new ProtocolSwiftAgent(mutation);
+    const reviewCalls = { count: 0 };
+    const service = await start(f, agent, reviewCalls);
+    const client = clientFor(service);
+    const intake = await client.run(f.taskSpec);
+    await eventually(
+      async () => (await client.status(intake.attemptId)).attempt.state === "failed",
+      20_000,
+    );
+
+    expect(agent.calls).toBe(1);
+    expect(reviewCalls.count).toBe(0);
+    expect(
+      existsSync(join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`)),
+    ).toBe(false);
+  });
+
+  it.each(["stdout-limit", "stderr-limit"] as const)(
+    "rejects protocol %s bytes beyond the daemon-issued limit",
+    async (mutation) => {
+      const f = fixture(mutation === "stdout-limit" ? 40 : 41);
+      const agent = new ProtocolSwiftAgent(mutation);
+      const reviewCalls = { count: 0 };
+      const enrolled = project(f, agent, reviewCalls);
+      const service = await start(f, agent, reviewCalls, {
+        projectOverride: {
+          ...enrolled,
+          agentLimits: {
+            ...(enrolled.agentLimits as NonNullable<typeof enrolled.agentLimits>),
+            maxStdoutBytes: 20,
+            maxStderrBytes: 20,
+          },
+        },
+      });
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(
+        async () => (await client.status(intake.attemptId)).attempt.state === "failed",
+        20_000,
+      );
+
+      expect(agent.calls).toBe(1);
+      expect(reviewCalls.count).toBe(0);
+      expect(
+        existsSync(join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`)),
+      ).toBe(false);
+    },
+  );
+
+  it.each([
+    ["reported-failure", "failed", "agent.process-failed"],
+    ["auth-blocker", "blocked", "agent.authentication-required"],
+  ] as const)(
+    "persists and replays a V2 %s result without silently relaunching",
+    { timeout: 30_000 },
+    async (mutation, expectedState, expectedCode) => {
+      const f = fixture(mutation === "reported-failure" ? 30 : 31);
+      const agent = new ProtocolSwiftAgent(mutation);
+      const service = await start(f, agent, { count: 0 });
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(
+        async () => (await client.status(intake.attemptId)).attempt.state === expectedState,
+        20_000,
+      );
+      expect(agent.calls).toBe(1);
+      expect(
+        JSON.parse(
+          readFileSync(
+            join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`),
+            "utf8",
+          ),
+        ),
+      ).toMatchObject({ schemaVersion: 2 });
+
+      const status = await client.status(intake.attemptId);
+      if (mutation === "auth-blocker") {
+        expect(status.attempt.blocker?.code).toBe(expectedCode);
+        await client.pause(intake.attemptId, "stage an explicit blocked-result replay");
+        await eventually(
+          async () => (await client.status(intake.attemptId)).attempt.state === "paused",
+          20_000,
+        );
+        const beforeResume = (await client.status(intake.attemptId)).attempt.updatedAt;
+        await client.resume(intake.attemptId, "retry the durable blocked result");
+        await eventually(async () => {
+          const replayed = await client.status(intake.attemptId);
+          return replayed.attempt.state === "blocked" && replayed.attempt.updatedAt > beforeResume;
+        }, 20_000);
+        expect(agent.calls).toBe(1);
+      } else {
+        expect(status.attempt.outcome).toMatchObject({
+          kind: "failed",
+          failure: { code: expectedCode },
+        });
+      }
     },
   );
 
@@ -1017,7 +1839,11 @@ describe("daemon verified local execution", () => {
       const f = fixture(4);
       const agent = new DeterministicSwiftAgent("interrupt");
       const reviewCalls = { count: 0 };
-      let schedulerNow = new Date("2026-08-11T12:00:00.000Z");
+      // Keep the injected scheduler wall clock unambiguously ahead of the
+      // command-runtime timestamps. A fixed time on today's date becomes
+      // order-dependent once the real wall clock passes it, and the scheduler
+      // correctly refuses to move its monotonic clock backwards.
+      let schedulerNow = new Date("2100-08-11T12:00:00.000Z");
       const service = await start(f, agent, reviewCalls, {
         leaseDurationMs: 1_000,
         schedulerClock: { now: () => schedulerNow },
@@ -1025,7 +1851,7 @@ describe("daemon verified local execution", () => {
       const client = clientFor(service);
       const intake = await client.run(f.taskSpec);
       await agent.started();
-      schedulerNow = new Date("2026-08-11T12:01:00.000Z");
+      schedulerNow = new Date("2100-08-11T12:01:00.000Z");
       await agent.aborted();
       await service.close();
 
