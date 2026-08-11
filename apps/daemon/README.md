@@ -10,9 +10,10 @@ mutating operations idempotent; this package does not access SQLite. A repeated
 `requestId` with identical logical content coalesces in flight and replays the
 exact response bytes while retained by the bounded in-memory ledger. After
 restart, ledger eviction, or an ambiguous handler timeout, the caller uses the
-same `commandId` with a new `requestId`; the durable handler then returns or
-reconciles the logical result. A completed transport replay entry is never
-rewritten by late completion.
+same `commandId` and original `issuedAt` with a new `requestId`; the durable
+handler then returns or reconciles the logical result. Reusing a `requestId`
+with any changed logical metadata, including `issuedAt`, is a protocol conflict.
+A completed transport replay entry is never rewritten by late completion.
 
 This slice does not yet provide background scheduling, process supervision, or
 LaunchAgent installation.

@@ -20,6 +20,7 @@ import {
   type CommandResponseV1,
   type CommandResultForOperationV1,
   type CommandId,
+  type IsoInstant,
   type RequestId,
   type TaskSpecV1,
 } from "@app-factory/contracts";
@@ -44,6 +45,7 @@ export type CommandClientOptions = Readonly<{
 export type CommandIdentity = Readonly<{
   requestId: RequestId;
   commandId: CommandId;
+  issuedAt: IsoInstant;
 }>;
 
 export class CommandClientError extends Error {
@@ -136,6 +138,17 @@ export class CommandClient {
     return {
       requestId: RequestIdSchema.parse(this.#createRequestId()),
       commandId: CommandIdSchema.parse(this.#createCommandId()),
+      issuedAt: IsoInstantSchema.parse(this.#now().toISOString()),
+    };
+  }
+
+  public createRetryIdentity(
+    original: Pick<CommandIdentity, "commandId" | "issuedAt">,
+  ): CommandIdentity {
+    return {
+      requestId: RequestIdSchema.parse(this.#createRequestId()),
+      commandId: CommandIdSchema.parse(original.commandId),
+      issuedAt: IsoInstantSchema.parse(original.issuedAt),
     };
   }
 
@@ -262,10 +275,11 @@ export class CommandClient {
     const identity = suppliedIdentity ?? this.createIdentity();
     const requestId = RequestIdSchema.parse(identity.requestId);
     const commandId = CommandIdSchema.parse(identity.commandId);
+    const issuedAt = IsoInstantSchema.parse(identity.issuedAt);
     const request = {
       schemaVersion: 1,
       commandId,
-      issuedAt: IsoInstantSchema.parse(this.#now().toISOString()),
+      issuedAt,
       origin: this.#origin,
       operation,
       payload,

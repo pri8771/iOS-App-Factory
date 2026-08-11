@@ -234,10 +234,7 @@ describe("Unix command protocol framing", () => {
 
     const firstPromise = exchange(socketPath, doctorFrame());
     while (handler.mock.calls.length === 0) await new Promise((resolve) => setImmediate(resolve));
-    const duplicatePromise = exchange(
-      socketPath,
-      doctorFrame({ issuedAt: "2026-08-10T12:00:01.000Z" }),
-    );
+    const duplicatePromise = exchange(socketPath, doctorFrame());
     release?.(doctorResult());
     const [first, duplicate] = await Promise.all([firstPromise, duplicatePromise]);
     const completedReplay = await exchange(socketPath, doctorFrame());
@@ -247,7 +244,7 @@ describe("Unix command protocol framing", () => {
     expect(completedReplay.equals(first)).toBe(true);
   });
 
-  it("rejects reuse of a request ID for different logical content", async () => {
+  it("rejects reuse of a request ID with a changed issuedAt", async () => {
     const socketPath = await createSocketPath();
     const handler = vi.fn(() => doctorResult());
     servers.push(
@@ -256,10 +253,7 @@ describe("Unix command protocol framing", () => {
 
     await exchange(socketPath, doctorFrame());
     const conflict = decode(
-      await exchange(
-        socketPath,
-        doctorFrame({ commandId: "00000000-0000-4000-8000-000000000099" }),
-      ),
+      await exchange(socketPath, doctorFrame({ issuedAt: "2026-08-10T12:00:01.000Z" })),
     );
     expect(conflict).toMatchObject({
       ok: false,

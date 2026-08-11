@@ -12,6 +12,14 @@ const REQUEST_ID = "00000000-0000-4000-8000-000000000010";
 const COMMAND_ID = "00000000-0000-4000-8000-000000000004";
 const NOW = new Date("2026-08-10T12:00:00.000Z");
 
+function identity(requestId = REQUEST_ID) {
+  return {
+    requestId,
+    commandId: COMMAND_ID,
+    issuedAt: NOW.toISOString(),
+  } as const;
+}
+
 const roots: string[] = [];
 const servers: Server[] = [];
 const sockets = new Set<Socket>();
@@ -91,10 +99,7 @@ describe("typed command client", () => {
       now: () => NOW,
     });
 
-    const result = await client.doctor({
-      requestId: REQUEST_ID,
-      commandId: COMMAND_ID,
-    });
+    const result = await client.doctor(identity());
     expect(result).toMatchObject({ operation: "doctor", readiness: "ready" });
     expect(received).toHaveLength(1);
     expect(received[0]).toMatchObject({
@@ -114,23 +119,60 @@ describe("typed command client", () => {
         socket.end(`${JSON.stringify(doctorResponse(frame.requestId))}\n`);
       }),
     );
-    let tick = 0;
     const client = createCommandClient({
       socketPath,
       authorization: AUTHORIZATION,
       origin: "cli",
-      now: () => new Date(NOW.getTime() + tick++ * 1_000),
+      now: () => NOW,
     });
-    const identity = { requestId: REQUEST_ID, commandId: COMMAND_ID } as const;
+    const delivery = identity();
 
-    await client.doctor(identity);
-    await client.doctor(identity);
+    await client.doctor(delivery);
+    await client.doctor(delivery);
 
     expect(received).toHaveLength(2);
     expect(received[0]?.requestId).toBe(REQUEST_ID);
     expect(received[1]?.requestId).toBe(REQUEST_ID);
     expect(received[0]?.request).toMatchObject({ commandId: COMMAND_ID });
     expect(received[1]?.request).toMatchObject({ commandId: COMMAND_ID });
+    client.close();
+  });
+
+  it("retains the original issuedAt when retrying a command with a new request ID", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(`${JSON.stringify(doctorResponse(frame.requestId))}\n`);
+      }),
+    );
+    let requestNumber = 10;
+    let clockTick = 0;
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      createRequestId: () => `00000000-0000-4000-8000-${String(requestNumber++).padStart(12, "0")}`,
+      createCommandId: () => COMMAND_ID,
+      now: () => new Date(NOW.getTime() + clockTick++ * 60_000),
+    });
+    const original = client.createIdentity();
+    const retry = client.createRetryIdentity(original);
+
+    await client.doctor(original);
+    await client.doctor(retry);
+
+    expect(retry.requestId).not.toBe(original.requestId);
+    expect(retry.commandId).toBe(original.commandId);
+    expect(retry.issuedAt).toBe(original.issuedAt);
+    expect(received[0]?.request).toMatchObject({
+      commandId: original.commandId,
+      issuedAt: original.issuedAt,
+    });
+    expect(received[1]?.request).toMatchObject({
+      commandId: original.commandId,
+      issuedAt: original.issuedAt,
+    });
     client.close();
   });
 
@@ -143,7 +185,7 @@ describe("typed command client", () => {
       now: () => NOW,
     });
 
-    const inFlight = client.doctor({ requestId: REQUEST_ID, commandId: COMMAND_ID });
+    const inFlight = client.doctor(identity());
     await new Promise((resolve) => setImmediate(resolve));
     client.close();
     await expect(inFlight).rejects.toMatchObject<Partial<CommandClientError>>({
@@ -162,9 +204,9 @@ describe("typed command client", () => {
       origin: "cli",
       now: () => NOW,
     });
-    await expect(
-      client.doctor({ requestId: REQUEST_ID, commandId: COMMAND_ID }),
-    ).rejects.toMatchObject<Partial<CommandClientError>>({ code: "transport.remote-closed" });
+    await expect(client.doctor(identity())).rejects.toMatchObject<Partial<CommandClientError>>({
+      code: "transport.remote-closed",
+    });
     client.close();
   });
 
@@ -176,9 +218,9 @@ describe("typed command client", () => {
       origin: "cli",
       now: () => NOW,
     });
-    await expect(
-      malformedClient.doctor({ requestId: REQUEST_ID, commandId: COMMAND_ID }),
-    ).rejects.toMatchObject<Partial<CommandClientError>>({ code: "protocol.malformed-response" });
+    await expect(malformedClient.doctor(identity())).rejects.toMatchObject<
+      Partial<CommandClientError>
+    >({ code: "protocol.malformed-response" });
     malformedClient.close();
 
     const oversizedPath = await createFakeServer(
@@ -191,9 +233,9 @@ describe("typed command client", () => {
       maxResponseBytes: 256,
       now: () => NOW,
     });
-    await expect(
-      oversizedClient.doctor({ requestId: REQUEST_ID, commandId: COMMAND_ID }),
-    ).rejects.toMatchObject<Partial<CommandClientError>>({ code: "protocol.response-too-large" });
+    await expect(oversizedClient.doctor(identity())).rejects.toMatchObject<
+      Partial<CommandClientError>
+    >({ code: "protocol.response-too-large" });
     oversizedClient.close();
 
     const mismatchPath = await createFakeServer(
@@ -207,9 +249,9 @@ describe("typed command client", () => {
       origin: "cli",
       now: () => NOW,
     });
-    await expect(
-      mismatchClient.doctor({ requestId: REQUEST_ID, commandId: COMMAND_ID }),
-    ).rejects.toMatchObject<Partial<CommandClientError>>({
+    await expect(mismatchClient.doctor(identity())).rejects.toMatchObject<
+      Partial<CommandClientError>
+    >({
       code: "protocol.response-id-mismatch",
     });
     mismatchClient.close();
@@ -223,9 +265,9 @@ describe("typed command client", () => {
       maxRequestBytes: 64,
       now: () => NOW,
     });
-    await expect(
-      client.doctor({ requestId: REQUEST_ID, commandId: COMMAND_ID }),
-    ).rejects.toMatchObject<Partial<CommandClientError>>({ code: "client.request-too-large" });
+    await expect(client.doctor(identity())).rejects.toMatchObject<Partial<CommandClientError>>({
+      code: "client.request-too-large",
+    });
     client.close();
   });
 });

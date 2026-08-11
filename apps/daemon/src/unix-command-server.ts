@@ -317,14 +317,14 @@ class RequestReplayLedger {
 }
 
 function logicalRequestFingerprint(request: CommandRequestV1): string {
-  // issuedAt is delivery metadata. Excluding it lets a caller reconstruct a
-  // retry with the same requestId while still binding replay to commandId,
-  // origin, operation, and payload.
+  // A requestId is an exact delivery identity. Durable retries use a new
+  // requestId while preserving commandId and the original issuedAt.
   return createHash("sha256")
     .update(
       JSON.stringify({
         schemaVersion: request.schemaVersion,
         commandId: request.commandId,
+        issuedAt: request.issuedAt,
         origin: request.origin,
         operation: request.operation,
         payload: request.payload,
