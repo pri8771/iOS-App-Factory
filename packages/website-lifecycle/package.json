@@ -1,0 +1,25 @@
+{
+  "name": "@app-factory/website-lifecycle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "clean": "tsc -b --clean",
+    "test": "vitest run test"
+  },
+  "dependencies": {
+    "@app-factory/contracts": "workspace:*",
+    "@app-factory/module-sdk": "workspace:*",
+    "zod": "4.4.3"
+  }
+}

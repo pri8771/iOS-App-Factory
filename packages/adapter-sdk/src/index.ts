@@ -212,6 +212,18 @@ function parseDetail(value: unknown, label: string): Uint8Array {
   return Uint8Array.from(value);
 }
 
+function zeroRawAdapterDetail(value: unknown): void {
+  try {
+    if (value !== null && typeof value === "object") {
+      const detail = (value as Readonly<{ detail?: unknown }>).detail;
+      if (detail instanceof Uint8Array) detail.fill(0);
+    }
+  } catch {
+    // The adapter result is untrusted and may even be a hostile Proxy. Detail
+    // cleanup is best-effort in that case; parsing still fails closed.
+  }
+}
+
 function parseCorrelationKey(value: unknown, nullable: boolean): string | null {
   if (value === null && nullable) return null;
   return parseBoundedString(value, "provider correlation key", 1_000);
@@ -466,7 +478,18 @@ export function validateExternalProviderAdapter(
         payload: Uint8Array.from(input.payload),
         effect,
       };
-      return parseSendResult(await adapter.send(safeInput), effect);
+      let rawResult: unknown;
+      try {
+        rawResult = await adapter.send(safeInput);
+        return parseSendResult(rawResult, effect);
+      } finally {
+        // parseDetail returns a worker-owned copy. Wipe the adapter-owned bytes
+        // even when result validation throws or the caller has already timed out.
+        zeroRawAdapterDetail(rawResult);
+        // The adapter receives an SDK-owned payload copy so it cannot retain the
+        // worker's buffer. Wipe that copy on success, rejection, or late settlement.
+        safeInput.payload.fill(0);
+      }
     },
     async reconcile(input) {
       const effect = assertEffectForAdapter(input, provider);
@@ -476,14 +499,16 @@ export function validateExternalProviderAdapter(
       await input.assertActive();
       if (input.signal.aborted)
         fail("effect reconciliation was aborted before provider invocation");
-      return parseReconciliationResult(
-        await adapter.reconcile({
-          ...input,
-          claim: parseDispatchClaim(input.claim, effect),
-          effect,
-        }),
+      const rawResult = await adapter.reconcile({
+        ...input,
+        claim: parseDispatchClaim(input.claim, effect),
         effect,
-      );
+      });
+      try {
+        return parseReconciliationResult(rawResult, effect);
+      } finally {
+        zeroRawAdapterDetail(rawResult);
+      }
     },
   };
 }

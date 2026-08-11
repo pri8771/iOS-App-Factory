@@ -6,6 +6,7 @@ import type Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  EffectClaimLostError,
   LEGAL_EXTERNAL_EFFECT_TRANSITIONS,
   assertApprovalSemantics,
   assertLegalExternalEffectTransition,
@@ -29,6 +30,8 @@ const T7 = "2026-08-10T12:00:07.000Z";
 const T8 = "2026-08-10T12:00:08.000Z";
 const T9 = "2026-08-10T12:00:09.000Z";
 const T10 = "2026-08-10T12:00:10.000Z";
+const T11 = "2026-08-10T12:00:11.000Z";
+const T20 = "2026-08-10T12:00:20.000Z";
 const EXPIRES = "2026-08-10T13:00:00.000Z";
 const SEED_LEASE_AT = "2026-08-10T12:00:00.100Z";
 const SEED_ATTEMPT_RUNNING_AT = "2026-08-10T12:00:00.200Z";
@@ -942,7 +945,7 @@ describe("approval-bound effect planning", () => {
         lockedUntil: T5,
       }),
     );
-    expect(() =>
+    const beginExpiredSend = () =>
       effects.beginSend({
         effectId: EFFECT_ID,
         ownerId: "dispatcher.expiry",
@@ -950,8 +953,9 @@ describe("approval-bound effect planning", () => {
         expectedOutboxRevision: claim.revision,
         expectedEffectRevision: 0,
         observedAt: T3,
-      }),
-    ).toThrow(/expired before dispatch/);
+      });
+    expect(beginExpiredSend).toThrow(EffectClaimLostError);
+    expect(beginExpiredSend).toThrow(/expired before dispatch/);
     expect(() => effects.expireApproval(SECOND_APPROVAL_ID, T3)).toThrow(/only an active approval/);
     expect(effects.getEffect(EFFECT_ID)?.effect.state).toBe("planned");
     database.close();
@@ -1075,7 +1079,7 @@ describe("fenced outbox delivery and reconciliation", () => {
         expectedEffectRevision: 0,
         observedAt: T6,
       }),
-    ).toThrow(/outbox owner|outbox fence|outbox revision/);
+    ).toThrow(EffectClaimLostError);
 
     competitorDatabase.close();
     database.close();
@@ -1131,6 +1135,18 @@ describe("fenced outbox delivery and reconciliation", () => {
       }),
     );
     expect(reconcileClaim).toMatchObject({ fence: 2, revision: 3 });
+    expect(
+      effects.assertReconciliationActive(
+        {
+          effectId: EFFECT_ID,
+          ownerId: "reconciler.one",
+          fence: reconcileClaim.fence,
+          outboxRevision: reconcileClaim.revision,
+          effectRevision: 2,
+        },
+        T6,
+      ).effect.state,
+    ).toBe("unknown");
     expect(() =>
       effects.recordReconciliationObserved({
         effectId: EFFECT_ID,
@@ -1230,11 +1246,80 @@ describe("fenced outbox delivery and reconciliation", () => {
         .run(RECONCILE_INVOCATION_ID),
     ).toThrow(/effect observations are immutable/);
 
+    const deferClaim = requireClaim(
+      effects.claimNextReconciliation({
+        ownerId: "reconciler.defer",
+        observedAt: T8,
+        lockedUntil: T10,
+      }),
+    );
+    const transitionsBeforeDefer = database
+      .prepare("SELECT COUNT(*) AS count FROM effect_transitions WHERE effect_id = ?")
+      .get(EFFECT_ID) as Readonly<{ count: number }>;
+    expect(() =>
+      effects.deferObservedReconciliation({
+        effectId: EFFECT_ID,
+        ownerId: "reconciler.defer",
+        fence: deferClaim.fence,
+        expectedOutboxRevision: deferClaim.revision,
+        expectedEffectRevision: 3,
+        observedAt: T7,
+        outcome: "ambiguous",
+        providerCorrelationKey: "github-pr-42",
+        nextReconcileAt: T9,
+        detailDigest: DETAIL_DIGEST,
+      }),
+    ).toThrow(/deferred reconciliation time/);
+    expect(() =>
+      effects.deferObservedReconciliation({
+        effectId: EFFECT_ID,
+        ownerId: "reconciler.defer",
+        fence: deferClaim.fence,
+        expectedOutboxRevision: deferClaim.revision,
+        expectedEffectRevision: 3,
+        observedAt: T9,
+        outcome: "ambiguous",
+        providerCorrelationKey: "different-resource",
+        nextReconcileAt: T10,
+        detailDigest: DETAIL_DIGEST,
+      }),
+    ).toThrow(/correlation must match/);
+    const deferred = effects.deferObservedReconciliation({
+      effectId: EFFECT_ID,
+      ownerId: "reconciler.defer",
+      fence: deferClaim.fence,
+      expectedOutboxRevision: deferClaim.revision,
+      expectedEffectRevision: 3,
+      observedAt: T9,
+      outcome: "ambiguous",
+      providerCorrelationKey: "github-pr-42",
+      nextReconcileAt: T10,
+      detailDigest: DETAIL_DIGEST,
+    });
+    expect(deferred.effect).toMatchObject({
+      state: "observed",
+      revision: 4,
+      nextReconcileAt: T10,
+      providerCorrelationKey: "github-pr-42",
+    });
+    expect(
+      database
+        .prepare("SELECT COUNT(*) AS count FROM effect_transitions WHERE effect_id = ?")
+        .get(EFFECT_ID),
+    ).toEqual(transitionsBeforeDefer);
+    expect(
+      database
+        .prepare(
+          "SELECT outcome, provider_correlation_key AS correlation FROM effect_reconciliation_attempts WHERE effect_id = ?",
+        )
+        .get(EFFECT_ID),
+    ).toEqual({ outcome: "ambiguous", correlation: "github-pr-42" });
+
     const confirmClaim = requireClaim(
       effects.claimNextReconciliation({
         ownerId: "reconciler.confirm",
-        observedAt: T8,
-        lockedUntil: T10,
+        observedAt: T10,
+        lockedUntil: T20,
       }),
     );
     expect(() =>
@@ -1243,11 +1328,11 @@ describe("fenced outbox delivery and reconciliation", () => {
         ownerId: "reconciler.confirm",
         fence: confirmClaim.fence,
         expectedOutboxRevision: confirmClaim.revision,
-        expectedEffectRevision: 3,
-        observedAt: T9,
+        expectedEffectRevision: 4,
+        observedAt: T11,
         providerCorrelationKey: "github-pr-42",
-        resource: resource(EFFECT_ID, T9),
-        observation: observation(RECONCILE_INVOCATION_ID, T9),
+        resource: resource(EFFECT_ID, T11),
+        observation: observation(RECONCILE_INVOCATION_ID, T11),
         confirmationEvidenceDigest: DETAIL_DIGEST,
       }),
     ).toThrow(/distinct provider invocation/);
@@ -1257,13 +1342,13 @@ describe("fenced outbox delivery and reconciliation", () => {
         ownerId: "reconciler.confirm",
         fence: confirmClaim.fence,
         expectedOutboxRevision: confirmClaim.revision,
-        expectedEffectRevision: 3,
-        observedAt: T9,
+        expectedEffectRevision: 4,
+        observedAt: T11,
         providerCorrelationKey: "github-pr-42",
         resource: resource(),
         observation: observation(
           CONFIRM_INVOCATION_ID,
-          T9,
+          T11,
           "provider-reconciliation",
           CONFIRMATION_DIGEST,
         ),
@@ -1275,20 +1360,20 @@ describe("fenced outbox delivery and reconciliation", () => {
       ownerId: "reconciler.confirm",
       fence: confirmClaim.fence,
       expectedOutboxRevision: confirmClaim.revision,
-      expectedEffectRevision: 3,
-      observedAt: T9,
+      expectedEffectRevision: 4,
+      observedAt: T11,
       providerCorrelationKey: "github-pr-42",
-      resource: resource(EFFECT_ID, T9),
+      resource: resource(EFFECT_ID, T11),
       observation: observation(
         CONFIRM_INVOCATION_ID,
-        T9,
+        T11,
         "provider-reconciliation",
         CONFIRMATION_DIGEST,
       ),
       confirmationEvidenceDigest: CONFIRMATION_DIGEST,
     });
-    expect(confirmed.effect).toMatchObject({ state: "confirmed", revision: 4 });
-    expect(effects.getExternalResource(EFFECT_ID)).toEqual(resource(EFFECT_ID, T9));
+    expect(confirmed.effect).toMatchObject({ state: "confirmed", revision: 5 });
+    expect(effects.getExternalResource(EFFECT_ID)).toEqual(resource(EFFECT_ID, T11));
     expect(database.prepare("SELECT COUNT(*) AS count FROM external_resources").get()).toEqual({
       count: 2,
     });
@@ -1643,7 +1728,7 @@ describe("fenced outbox delivery and reconciliation", () => {
            WHERE effect_id = ?`,
         )
         .run(T2, EFFECT_ID),
-    ).toThrow(/durable provider rejection evidence is required/);
+    ).toThrow(/illegal external effect state transition/);
 
     const sendClaim = requireClaim(
       effects.claimNextSend({
@@ -1660,6 +1745,15 @@ describe("fenced outbox delivery and reconciliation", () => {
       expectedEffectRevision: 0,
       observedAt: T3,
     });
+    expect(() =>
+      database
+        .prepare(
+          `UPDATE external_effects
+           SET state = 'rejected', revision = 2, updated_at = ?
+           WHERE effect_id = ?`,
+        )
+        .run(T4, EFFECT_ID),
+    ).toThrow(/durable provider rejection evidence is required/);
     effects.recordSendOutcome({
       effectId: EFFECT_ID,
       ownerId: "dispatcher.manual",

@@ -33,7 +33,7 @@ packages/
   kernel/          SQLite execution state, leases, approvals, and outbox
   command-client/  generated client used by CLI, MCP, and dashboard
   process-supervisor/ per-attempt process and recovery boundary
-  agent-runner/     credential-minimized Codex/Claude process adapters
+  agent-runner/     credential-minimized Codex process adapter
   adapter-sdk/      Jira, GitHub, Apple, and provider integration ports
   module-sdk/       lifecycle/event modules and optional UI contributions
   quality/          deterministic verification and evidence contracts
@@ -53,4 +53,8 @@ docs/
 - Every mutation and certificate is bound to explicit input digests and Git SHAs.
 - Existing apps are enrolled through adapters and manifests, not rewritten into a template.
 
-See [docs/roadmap/BUILD_STAGES.md](docs/roadmap/BUILD_STAGES.md) for the build order.
+See [docs/roadmap/BUILD_STAGES.md](docs/roadmap/BUILD_STAGES.md) for the build
+order, [docs/progress/IMPLEMENTATION_STATUS.md](docs/progress/IMPLEMENTATION_STATUS.md)
+for the honest Weeks 1–16 implementation ledger, and
+[docs/OPERATOR_RUNBOOK.md](docs/OPERATOR_RUNBOOK.md) for the supported local
+operator flow.

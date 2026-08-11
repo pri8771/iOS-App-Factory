@@ -22,17 +22,30 @@
       "@app-factory/agent-runner": ["./packages/agent-runner/src/index.ts"],
       "@app-factory/command-client": ["./packages/command-client/src/index.ts"],
       "@app-factory/contracts": ["./packages/contracts/src/index.ts"],
+      "@app-factory/credential-broker": ["./packages/credential-broker/src/index.ts"],
       "@app-factory/evidence-store": ["./packages/evidence-store/src/index.ts"],
+      "@app-factory/effect-worker": ["./packages/effect-worker/src/index.ts"],
+      "@app-factory/execution-engine": ["./packages/execution-engine/src/index.ts"],
       "@app-factory/git-workspace": ["./packages/git-workspace/src/index.ts"],
       "@app-factory/independent-review": ["./packages/independent-review/src/index.ts"],
       "@app-factory/kernel": ["./packages/kernel/src/index.ts"],
+      "@app-factory/learning-engine": ["./packages/learning-engine/src/index.ts"],
       "@app-factory/module-sdk": ["./packages/module-sdk/src/index.ts"],
       "@app-factory/policy-engine": ["./packages/policy-engine/src/index.ts"],
+      "@app-factory/portfolio": ["./packages/portfolio/src/index.ts"],
       "@app-factory/process-supervisor": ["./packages/process-supervisor/src/index.ts"],
+      "@app-factory/project-sdk": ["./packages/project-sdk/src/index.ts"],
       "@app-factory/quality": ["./packages/quality/src/index.ts"],
+      "@app-factory/recovery-manager": ["./packages/recovery-manager/src/index.ts"],
       "@app-factory/scheduler": ["./packages/scheduler/src/index.ts"],
+      "@app-factory/service-manager": ["./packages/service-manager/src/index.ts"],
+      "@app-factory/simulator-runner": ["./packages/simulator-runner/src/index.ts"],
       "@app-factory/testkit": ["./packages/testkit/src/index.ts"],
-      "@app-factory/trusted-verifier": ["./packages/trusted-verifier/src/index.ts"]
+      "@app-factory/trusted-verifier": ["./packages/trusted-verifier/src/index.ts"],
+      "@app-factory/website-lifecycle": ["./packages/website-lifecycle/src/index.ts"],
+      "@app-factory/work-tracking-integrations": [
+        "./packages/work-tracking-integrations/src/index.ts"
+      ]
     }
   }
 }

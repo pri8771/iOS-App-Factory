@@ -89,6 +89,7 @@ export type KernelSchedulerController = Readonly<{
   scheduler: RestartSafeScheduler;
   tick(): Promise<SchedulerTickResult>;
   reconcile: ReconcilePort;
+  interruptActiveCancellation(attemptId: AttemptId): boolean;
   stop(): Promise<void>;
 }>;
 
@@ -323,6 +324,7 @@ function scopedPersistence(
     claimLease: async (input) => await persistence.claimLease(input),
     renewLease: async (input) => await persistence.renewLease(input),
     assertLease: async (input) => await persistence.assertLease(input),
+    assertExecutionActive: async (input) => await persistence.assertExecutionActive(input),
     releaseLease: async (input) => await persistence.releaseLease(input),
     loadWork: async (input) => await persistence.loadWork(input),
     ensurePlan: async (input) => await persistence.ensurePlan(input),
@@ -354,6 +356,11 @@ export class KernelSchedulerPersistenceAdapter implements SchedulerPersistencePo
         leaseKey: `attempt:${attempt.attemptId}`,
         updatedAt: attempt.updatedAt,
       }));
+  }
+
+  public isCancellationRequested(attemptIdValue: unknown): boolean {
+    const attemptId = AttemptIdSchema.parse(attemptIdValue);
+    return this.#repositories.attempts.findById(attemptId)?.desiredState === "cancelled";
   }
 
   /** Exact lookup used by command-scoped reconciliation; it never falls back to another attempt. */
@@ -507,6 +514,25 @@ export class KernelSchedulerPersistenceAdapter implements SchedulerPersistencePo
         const attempt = this.#requireAttempt(stored.attemptId);
         const observedAt = observedInstant(input.observedAt, stored.heartbeatAt, attempt.updatedAt);
         this.#assertActive(stored, observedAt);
+      })
+      .immediate();
+  }
+
+  public async assertExecutionActive(input: {
+    readonly lease: SchedulerLease;
+    readonly observedAt: string;
+  }): Promise<void> {
+    this.#database
+      .transaction(() => {
+        const stored = this.#assertLeaseIdentity(input.lease);
+        const attempt = this.#requireAttempt(stored.attemptId);
+        const observedAt = observedInstant(input.observedAt, stored.heartbeatAt, attempt.updatedAt);
+        this.#assertActive(stored, observedAt);
+        if (attempt.desiredState === "cancelled" || attempt.state !== "running") {
+          throw new SchedulerFenceError(
+            `Execution is no longer authorized while attempt state is ${attempt.state} and desired state is ${attempt.desiredState}`,
+          );
+        }
       })
       .immediate();
   }
@@ -1075,6 +1101,12 @@ export function createKernelSchedulerController(
     scheduler,
     tick,
     reconcile,
+    interruptActiveCancellation: (attemptIdValue) => {
+      const attemptId = AttemptIdSchema.parse(attemptIdValue);
+      if (!persistence.isCancellationRequested(attemptId)) return false;
+      activeScheduler?.interruptActiveAttempt(attemptId);
+      return true;
+    },
     stop: async () => {
       stopping = true;
       activeScheduler?.requestStop();

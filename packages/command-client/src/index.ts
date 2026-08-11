@@ -152,40 +152,49 @@ export class CommandClient {
     };
   }
 
-  public async doctor(identity?: CommandIdentity): Promise<CommandResultForOperationV1<"doctor">> {
-    return await this.#request("doctor", {}, identity);
+  public async doctor(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"doctor">> {
+    return await this.#request("doctor", {}, identity, signal);
   }
 
   public async submit(
     taskSpec: TaskSpecV1,
     identity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"task.submit">> {
     return await this.#request(
       "task.submit",
       { taskSpec: TaskSpecV1Schema.parse(taskSpec) },
       identity,
+      signal,
     );
   }
 
   public async run(
     taskSpec: TaskSpecV1,
     identity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"task.run">> {
     return await this.#request(
       "task.run",
       { taskSpec: TaskSpecV1Schema.parse(taskSpec) },
       identity,
+      signal,
     );
   }
 
   public async status(
     attemptId: AttemptId,
     identity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"attempt.status">> {
     return await this.#request(
       "attempt.status",
       { attemptId: AttemptIdSchema.parse(attemptId) },
       identity,
+      signal,
     );
   }
 
@@ -193,6 +202,7 @@ export class CommandClient {
     attemptId: AttemptId,
     options: Readonly<{ afterSequence?: number; limit?: number }> = {},
     identity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"attempt.events">> {
     return await this.#request(
       "attempt.events",
@@ -202,6 +212,7 @@ export class CommandClient {
         limit: options.limit ?? 100,
       },
       identity,
+      signal,
     );
   }
 
@@ -209,6 +220,7 @@ export class CommandClient {
     attemptId: AttemptId,
     reason: string | null = null,
     identity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"attempt.pause">> {
     return await this.#request(
       "attempt.pause",
@@ -217,6 +229,7 @@ export class CommandClient {
         reason,
       },
       identity,
+      signal,
     );
   }
 
@@ -224,6 +237,7 @@ export class CommandClient {
     attemptId: AttemptId,
     reason: string | null = null,
     identity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"attempt.resume">> {
     return await this.#request(
       "attempt.resume",
@@ -232,6 +246,7 @@ export class CommandClient {
         reason,
       },
       identity,
+      signal,
     );
   }
 
@@ -239,6 +254,7 @@ export class CommandClient {
     attemptId: AttemptId,
     reason: string | null = null,
     identity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"attempt.cancel">> {
     return await this.#request(
       "attempt.cancel",
@@ -247,12 +263,14 @@ export class CommandClient {
         reason,
       },
       identity,
+      signal,
     );
   }
 
   public async reconcile(
     attemptId: AttemptId | null = null,
     identity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"daemon.reconcile">> {
     return await this.#request(
       "daemon.reconcile",
@@ -260,6 +278,7 @@ export class CommandClient {
         attemptId: attemptId === null ? null : AttemptIdSchema.parse(attemptId),
       },
       identity,
+      signal,
     );
   }
 
@@ -267,9 +286,16 @@ export class CommandClient {
     operation: Operation,
     payload: CommandRequestForOperationV1<Operation>["payload"],
     suppliedIdentity?: CommandIdentity,
+    signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<Operation>> {
     if (this.#closed) {
       throw new CommandClientError("client.closed", "The command client is closed.", false);
+    }
+    if (signal !== undefined && !(signal instanceof AbortSignal)) {
+      throw new TypeError("signal must be an AbortSignal");
+    }
+    if (signal?.aborted === true) {
+      throw new CommandClientError("client.cancelled", "The command request was cancelled.", false);
     }
 
     const identity = suppliedIdentity ?? this.createIdentity();
@@ -299,7 +325,7 @@ export class CommandClient {
       );
     }
 
-    const response = await this.#exchange(encoded, requestId);
+    const response = await this.#exchange(encoded, requestId, signal);
     if (!response.ok) {
       throw new CommandRemoteError(
         response.error.code,
@@ -325,7 +351,11 @@ export class CommandClient {
     return response.result as CommandResultForOperationV1<Operation>;
   }
 
-  async #exchange(encoded: Buffer, requestId: RequestId): Promise<CommandResponseV1> {
+  async #exchange(
+    encoded: Buffer,
+    requestId: RequestId,
+    signal?: AbortSignal,
+  ): Promise<CommandResponseV1> {
     return await new Promise<CommandResponseV1>((resolve, reject) => {
       const socket = createConnection({ path: this.#socketPath });
       this.#sockets.add(socket);
@@ -340,11 +370,19 @@ export class CommandClient {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        signal?.removeEventListener("abort", onAbort);
         this.#sockets.delete(socket);
         socket.destroy();
         if (error !== undefined) reject(error);
         else if (response !== undefined) resolve(response);
       };
+
+      const onAbort = (): void => {
+        finish(
+          new CommandClientError("client.cancelled", "The command request was cancelled.", false),
+        );
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
 
       socket.once("connect", () => socket.write(encoded));
       socket.on("data", (chunk: Buffer) => {

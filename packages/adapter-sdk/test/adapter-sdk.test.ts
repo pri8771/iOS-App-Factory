@@ -157,6 +157,83 @@ describe("adapter SDK", () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
+  it("zeroizes the SDK-owned payload copy on success, failure, and late settlement", async () => {
+    const originalBytes = [...payload];
+
+    let successfulCopy: Uint8Array | undefined;
+    const successful = validateExternalProviderAdapter(
+      adapter({
+        async send(input) {
+          successfulCopy = input.payload;
+          return {
+            kind: "observed",
+            correlationKey: "owner/repo:marker",
+            resource: resource(),
+            detail: Buffer.from("created"),
+          };
+        },
+      }),
+    );
+    const successfulCallerPayload = Uint8Array.from(payload);
+    await successful.send({
+      effect: effect("sent"),
+      payload: successfulCallerPayload,
+      ...dispatchContext(),
+    });
+    expect(successfulCopy).not.toBe(successfulCallerPayload);
+    expect([...(successfulCopy ?? [])]).toEqual(new Array(payload.length).fill(0));
+    expect([...successfulCallerPayload]).toEqual(originalBytes);
+
+    let rejectedCopy: Uint8Array | undefined;
+    const rejected = validateExternalProviderAdapter(
+      adapter({
+        async send(input) {
+          rejectedCopy = input.payload;
+          throw new Error("provider send rejected");
+        },
+      }),
+    );
+    const rejectedCallerPayload = Uint8Array.from(payload);
+    await expect(
+      rejected.send({
+        effect: effect("sent"),
+        payload: rejectedCallerPayload,
+        ...dispatchContext(),
+      }),
+    ).rejects.toThrow("provider send rejected");
+    expect([...(rejectedCopy ?? [])]).toEqual(new Array(payload.length).fill(0));
+    expect([...rejectedCallerPayload]).toEqual(originalBytes);
+
+    let lateCopy: Uint8Array | undefined;
+    let resolveLate: ((value: unknown) => void) | undefined;
+    const late = validateExternalProviderAdapter(
+      adapter({
+        send: (input) =>
+          new Promise((resolve) => {
+            lateCopy = input.payload;
+            resolveLate = resolve;
+          }),
+      }),
+    );
+    const lateCallerPayload = Uint8Array.from(payload);
+    const pendingLateSend = late.send({
+      effect: effect("sent"),
+      payload: lateCallerPayload,
+      ...dispatchContext(),
+    });
+    await vi.waitFor(() => expect(resolveLate).toBeTypeOf("function"));
+    expect([...(lateCopy ?? [])]).toEqual(originalBytes);
+    resolveLate?.({
+      kind: "observed",
+      correlationKey: "owner/repo:marker",
+      resource: resource(),
+      detail: Buffer.from("created-late"),
+    });
+    await expect(pendingLateSend).resolves.toMatchObject({ kind: "observed" });
+    expect([...(lateCopy ?? [])]).toEqual(new Array(payload.length).fill(0));
+    expect([...lateCallerPayload]).toEqual(originalBytes);
+  });
+
   it("rejects provider-resource substitution and premature reconciliation", async () => {
     const wrong = resource();
     const validated = validateExternalProviderAdapter(
@@ -221,6 +298,72 @@ describe("adapter SDK", () => {
         ...dispatchContext(),
       }),
     ).rejects.toBeInstanceOf(AdapterContractError);
+  });
+
+  it("copies validated detail and zeroizes adapter-owned buffers on success and failure", async () => {
+    const successfulDetail = Buffer.from("created");
+    const successful = validateExternalProviderAdapter(
+      adapter({
+        async send() {
+          return {
+            kind: "observed",
+            correlationKey: "owner/repo:marker",
+            resource: resource(),
+            detail: successfulDetail,
+          };
+        },
+      }),
+    );
+    const result = await successful.send({
+      effect: effect("sent"),
+      payload,
+      ...dispatchContext(),
+    });
+    expect(new TextDecoder().decode(result.detail)).toBe("created");
+    expect([...successfulDetail]).toEqual(new Array(successfulDetail.length).fill(0));
+
+    const invalidDetail = Buffer.from("invalid-resource");
+    const invalid = validateExternalProviderAdapter(
+      adapter({
+        async send() {
+          return {
+            kind: "observed",
+            correlationKey: "owner/repo:marker",
+            resource: { ...resource(), effectId: ATTEMPT_ID },
+            detail: invalidDetail,
+          };
+        },
+      }),
+    );
+    await expect(
+      invalid.send({
+        effect: effect("sent"),
+        payload,
+        ...dispatchContext(),
+      }),
+    ).rejects.toThrow(/wrong effect ID/);
+    expect([...invalidDetail]).toEqual(new Array(invalidDetail.length).fill(0));
+
+    const reconciliationDetail = Buffer.from("found");
+    const reconciliation = validateExternalProviderAdapter(
+      adapter({
+        async reconcile() {
+          return {
+            kind: "ambiguous",
+            correlationKey: "owner/repo:marker",
+            reconcileAfter: T1,
+            detail: reconciliationDetail,
+          };
+        },
+      }),
+    );
+    await expect(
+      reconciliation.reconcile({
+        effect: effect("unknown"),
+        ...dispatchContext(),
+      }),
+    ).resolves.toMatchObject({ kind: "ambiguous" });
+    expect([...reconciliationDetail]).toEqual(new Array(reconciliationDetail.length).fill(0));
   });
 
   it("rechecks the fenced claim immediately before provider I/O", async () => {

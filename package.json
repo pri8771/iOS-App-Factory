@@ -25,6 +25,7 @@
     "boundaries:test": "node scripts/check-boundary-fixtures.mjs",
     "schemas:generate": "pnpm --filter @app-factory/contracts build && node packages/contracts/scripts/generate-json-schemas.mjs",
     "schemas:check": "pnpm --filter @app-factory/contracts build && node packages/contracts/scripts/generate-json-schemas.mjs --check",
+    "service": "node packages/service-manager/dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "pnpm format:check && pnpm lint && pnpm boundaries && pnpm boundaries:test && pnpm typecheck && pnpm schemas:check",

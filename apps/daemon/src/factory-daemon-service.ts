@@ -19,6 +19,7 @@ import {
   openDaemonCommandRuntime,
   resolveDaemonRuntimePaths,
   type DaemonCommandRuntime,
+  type OpenDaemonCommandRuntimeOptions,
 } from "./command-runtime.js";
 import {
   createKernelSchedulerController,
@@ -54,6 +55,7 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   wait?: DaemonLoopWait;
   /** Disable event-driven wakeups for polling-only diagnostics and deterministic harnesses. */
   wakeOnCommand?: boolean;
+  commandResultLedgerBoundary?: OpenDaemonCommandRuntimeOptions["commandResultLedgerBoundary"];
   onSchedulerError?: (error: unknown) => void;
 }>;
 
@@ -300,9 +302,30 @@ export async function startFactoryDaemonService(
     if (closing) throw closingError();
     const activeRuntime = runtime;
     if (activeRuntime === null) throw startingError();
-    const result = await activeRuntime.handler(request, context);
-    if (options.wakeOnCommand !== false && shouldWakeScheduler(request.operation)) loop?.wake();
-    return result;
+    try {
+      const result = await activeRuntime.handler(request, context);
+      if (
+        request.operation !== "attempt.cancel" &&
+        options.wakeOnCommand !== false &&
+        shouldWakeScheduler(request.operation)
+      ) {
+        loop?.wake();
+      }
+      return result;
+    } finally {
+      if (request.operation === "attempt.cancel") {
+        let cancellationPersisted = false;
+        try {
+          cancellationPersisted =
+            schedulerState.controller?.interruptActiveCancellation(request.payload.attemptId) ??
+            false;
+        } catch {
+          // Preserve the command result/error. The polling loop remains a
+          // fail-safe if authoritative cancellation state cannot be read here.
+        }
+        if (cancellationPersisted && options.wakeOnCommand !== false) loop?.wake();
+      }
+    }
   };
 
   const server = await startUnixCommandServer({
@@ -317,6 +340,9 @@ export async function startFactoryDaemonService(
       daemonVersion: options.daemonVersion,
       ...(options.startedAt === undefined ? {} : { startedAt: options.startedAt }),
       ...(options.now === undefined ? {} : { now: options.now }),
+      ...(options.commandResultLedgerBoundary === undefined
+        ? {}
+        : { commandResultLedgerBoundary: options.commandResultLedgerBoundary }),
       createReconcile: (database) => {
         schedulerState.controller = createKernelSchedulerController({
           database,

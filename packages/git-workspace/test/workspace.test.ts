@@ -3,6 +3,7 @@ import {
   chmodSync,
   existsSync,
   lstatSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -140,7 +141,7 @@ describe("Factory-owned Git workspace", () => {
 
   it("accepts tracked and untracked dirty edits without moving attempt HEAD", () => {
     const f = fixture();
-    const { workspace } = prepare(f);
+    const { mirror, workspace } = prepare(f);
     updateSource(workspace, "export const value = 2;\n");
     writeFileSync(
       join(workspace.worktreePath, "src", "new-feature.ts"),
@@ -164,17 +165,26 @@ describe("Factory-owned Git workspace", () => {
     expect(first.diffDigest).toMatch(/^sha256:[0-9a-f]{64}$/u);
     expect(first.treeDigest).toMatch(/^sha256:[0-9a-f]{64}$/u);
     expect(first.diffBytes).toBeGreaterThan(0);
+    expect(
+      f.manager
+        .readVerifiedCandidatePatch(mirror, first, { authorizedScopes: ["src"] })
+        .toString("utf8"),
+    ).toContain("export const newFeature = true;");
   });
 
-  it("creates a separate read-only trusted verification checkout and safely cleans both", () => {
+  it("creates ownership-isolated read-only verification checkouts and safely cleans each", () => {
     const f = fixture();
     const { mirror, workspace } = prepare(f);
     updateSource(workspace, "export const value = 3;\n");
     const candidate = f.manager.verifyCandidate(workspace, { authorizedScopes: ["src"] });
 
     const verification = f.manager.createTrustedVerificationCheckout(mirror, workspace, candidate);
+    const concurrent = f.manager.createTrustedVerificationCheckout(mirror, workspace, candidate);
 
     expect(verification.kind).toBe("verification");
+    expect(concurrent.kind).toBe("verification");
+    expect(concurrent.worktreePath).not.toBe(verification.worktreePath);
+    expect(concurrent.ownershipNonce).not.toBe(verification.ownershipNonce);
     expect(verification.readOnly).toBe(true);
     expect(verification.candidateTreeId).toBe(candidate.candidateTreeId);
     expect(verification.worktreePath).not.toBe(workspace.worktreePath);
@@ -187,8 +197,14 @@ describe("Factory-owned Git workspace", () => {
     expect(lstatSync(join(verification.worktreePath, "src", "app.ts")).mode & 0o222).toBe(0);
 
     f.manager.cleanupWorkspace(verification);
+    expect(existsSync(concurrent.worktreePath)).toBe(true);
+    expect(git(concurrent.worktreePath, ["rev-parse", "HEAD^{tree}"])).toBe(
+      candidate.candidateTreeId,
+    );
+    f.manager.cleanupWorkspace(concurrent);
     f.manager.cleanupWorkspace(workspace);
     expect(existsSync(verification.worktreePath)).toBe(false);
+    expect(existsSync(concurrent.worktreePath)).toBe(false);
     expect(existsSync(workspace.worktreePath)).toBe(false);
     expect(existsSync(f.source)).toBe(true);
   });
@@ -230,6 +246,38 @@ describe("Factory-owned Git workspace", () => {
 
     expect(() => f.manager.verifyCandidate(workspace, { authorizedScopes: ["src"] })).toThrow(
       /(?:symbolic link|unsafe git path)/iu,
+    );
+  });
+
+  it("rejects a changed symbolic link into worktree Git administration data", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    symlinkSync("../.git", join(workspace.worktreePath, "src", "git-admin"));
+
+    expect(() => f.manager.verifyCandidate(workspace, { authorizedScopes: ["src"] })).toThrow(
+      /Git administration data/iu,
+    );
+  });
+
+  it("rejects a mixed-case Git-admin symlink target on case-insensitive filesystems", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    symlinkSync("../.GIT", join(workspace.worktreePath, "src", "git-admin-mixed-case"));
+
+    expect(() => f.manager.verifyCandidate(workspace, { authorizedScopes: ["src"] })).toThrow(
+      /Git administration data/iu,
+    );
+  });
+
+  it("rejects a changed file hard-linked to an inode outside the worktree", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    const outside = join(f.root, "outside-private.txt");
+    writeFileSync(outside, "outside private bytes\n");
+    linkSync(outside, join(workspace.worktreePath, "src", "linked.ts"));
+
+    expect(() => f.manager.verifyCandidate(workspace, { authorizedScopes: ["src"] })).toThrow(
+      /multiple hard links/iu,
     );
   });
 
@@ -410,6 +458,26 @@ describe("protected path classification", () => {
     ["Certificates/app.p12", "credential"],
     [".gitmodules", "submodule"],
     [".gitattributes", "classification"],
+    ["TestSupport/FixtureLoader.swift", "tests"],
+    ["HindsightTests/Support/FixtureLoader.swift", "tests"],
+    ["HindsightUITests/Support/AppHarness.swift", "tests"],
+    ["packages/testkit/src/index.ts", "tests"],
+    ["conftest.py", "tests"],
+    ["scripts/test.sh", "tests"],
+    ["vitest.config.ts", "tests"],
+    ["App.xctestplan", "tests"],
+    ["App.xcodeproj/project.pbxproj", "build"],
+    ["App.xcodeproj/xcshareddata/xcschemes/App.xcscheme", "build"],
+    ["package.json", "build"],
+    ["tsconfig.json", "build"],
+    ["App.xcworkspace/contents.xcworkspacedata", "build"],
+    ["packages/trusted-verifier/src/index.ts", "trust-boundary"],
+    ["packages/policy-engine/src/index.ts", "trust-boundary"],
+    ["packages/kernel/src/repositories.ts", "trust-boundary"],
+    ["packages/contracts/src/v1/task-spec.ts", "trust-boundary"],
+    ["packages/quality/src/index.ts", "trust-boundary"],
+    ["apps/daemon/src/index.ts", "trust-boundary"],
+    [".factory/policy-lock.json", "policy"],
   ])("protects %s", (path, expected) => {
     expect(classifyProtectedPath(path)).toMatch(new RegExp(expected, "iu"));
   });

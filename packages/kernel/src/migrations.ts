@@ -4,6 +4,7 @@ import type Database from "better-sqlite3";
 
 import { initialControlPlaneMigration } from "./migrations/0001-initial-control-plane.js";
 import { approvalsOutboxMigration } from "./migrations/0002-approvals-outbox.js";
+import { observedManualInterventionMigration } from "./migrations/0003-observed-manual-intervention.js";
 import type { SqlMigration } from "./migration-types.js";
 
 export type { SqlMigration } from "./migration-types.js";
@@ -28,6 +29,7 @@ export type MigrationResult = Readonly<{
 export const FACTORY_MIGRATIONS: readonly SqlMigration[] = [
   initialControlPlaneMigration,
   approvalsOutboxMigration,
+  observedManualInterventionMigration,
 ];
 
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;

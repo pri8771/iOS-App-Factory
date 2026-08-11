@@ -75,6 +75,12 @@ export type CandidatePolicy = Readonly<{
   maxDiffBytes?: number;
 }>;
 
+export type NormalizedCandidatePolicy = Readonly<{
+  authorizedScopes: readonly string[];
+  maxChangedFileBytes: number;
+  maxDiffBytes: number;
+}>;
+
 export type ChangedPath = Readonly<{
   status: "A" | "C" | "D" | "M" | "R" | "T" | "U" | "X" | "B";
   path: string;
@@ -96,6 +102,27 @@ export type CandidateVerification = Readonly<{
   diffDigest: `sha256:${string}`;
   treeDigest: `sha256:${string}`;
 }>;
+
+export type BrokerCommitRecord = Readonly<{
+  schemaVersion: 1;
+  attemptId: string;
+  attemptMarker: string;
+  refName: string;
+  baseSha: string;
+  candidateTreeId: string;
+  diffDigest: `sha256:${string}`;
+  commitSha: string;
+  commitDigest: `sha256:${string}`;
+}>;
+
+export type BrokerCommitExpectation = Readonly<{
+  attemptId: string;
+  baseSha: string;
+  candidateTreeId: string;
+  diffDigest: `sha256:${string}`;
+}>;
+
+export type BrokerCommitMutationGuard = () => void;
 
 export type GitWorkspaceManagerOptions = Readonly<{
   gitExecutable?: string;
@@ -456,6 +483,22 @@ export function normalizeAuthorizedScopes(scopes: readonly string[]): readonly s
   );
 }
 
+export function normalizeCandidatePolicy(policy: CandidatePolicy): NormalizedCandidatePolicy {
+  return {
+    authorizedScopes: normalizeAuthorizedScopes(policy.authorizedScopes),
+    maxChangedFileBytes: parsePositiveLimit(
+      policy.maxChangedFileBytes,
+      DEFAULT_MAX_CHANGED_FILE_BYTES,
+      "Maximum changed-file size",
+    ),
+    maxDiffBytes: parsePositiveLimit(
+      policy.maxDiffBytes,
+      DEFAULT_MAX_DIFF_BYTES,
+      "Maximum diff size",
+    ),
+  };
+}
+
 export function classifyProtectedPath(path: string): string | null {
   assertSafeGitPath(path);
   const lower = path.toLowerCase();
@@ -464,21 +507,54 @@ export function classifyProtectedPath(path: string): string | null {
   const extension = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")) : "";
 
   if (
-    segments.some((segment) =>
-      [
-        "test",
-        "tests",
-        "__tests__",
-        "uitests",
-        "unittests",
-        "integrationtests",
-        "snapshots",
-        "__snapshots__",
-      ].includes(segment),
+    segments.some(
+      (segment) =>
+        [
+          "test",
+          "tests",
+          "__tests__",
+          "uitests",
+          "unittests",
+          "integrationtests",
+          "snapshots",
+          "__snapshots__",
+          "testsupport",
+          "uitestsupport",
+          "testing",
+          "e2e",
+          "spec",
+          "specs",
+          "fixtures",
+          "__fixtures__",
+          "test-fixtures",
+          "test_fixtures",
+          "testfixtures",
+          "testkit",
+          "test-kit",
+          "testutils",
+          "test-utils",
+          "testhelpers",
+          "test-helpers",
+          "mocks",
+          "__mocks__",
+        ].includes(segment) ||
+        // Xcode conventionally prefixes test-target directories with the app
+        // name (for example HindsightTests and HindsightUITests). Protect the
+        // whole target, including helpers whose filenames do not contain Test.
+        segment.endsWith("tests") ||
+        segment.endsWith("testsupport"),
     ) ||
     /(?:^|\.)test\.[^.]+$/u.test(basename) ||
     /(?:^|\.)spec\.[^.]+$/u.test(basename) ||
-    /tests?\.swift$/u.test(basename)
+    /tests?\.swift$/u.test(basename) ||
+    basename === "conftest.py" ||
+    (segments.includes("scripts") &&
+      /(?:^|[-_.])(?:check|coverage|lint|quality|snapshot|test|tests|verify|verification)(?:[-_.]|$)/u.test(
+        basename,
+      )) ||
+    /^(?:vitest|jest|playwright|cypress|karma|wdio)\.config(?:\.[^.]+)+$/u.test(basename) ||
+    ["pytest.ini", "tox.ini", ".coveragerc"].includes(basename) ||
+    extension === ".xctestplan"
   ) {
     return "tests and test baselines are protected";
   }
@@ -504,9 +580,16 @@ export function classifyProtectedPath(path: string): string | null {
       basename,
     ) ||
     segments.some((segment) =>
-      [".codex", ".cursor", ".claude", "policy", "policies", "rules", "guardrails"].includes(
-        segment,
-      ),
+      [
+        ".codex",
+        ".cursor",
+        ".claude",
+        ".factory",
+        "policy",
+        "policies",
+        "rules",
+        "guardrails",
+      ].includes(segment),
     ) ||
     lower.includes("ios_app_factory_rules")
   ) {
@@ -524,10 +607,97 @@ export function classifyProtectedPath(path: string): string | null {
   }
 
   if (
+    [
+      "apps/daemon",
+      "apps/mcp",
+      "packages/contracts",
+      "packages/kernel",
+      "packages/policy-engine",
+      "packages/quality",
+    ].includes(segments.slice(0, 2).join("/")) ||
+    segments.some((segment) =>
+      [
+        "agent-runner",
+        "credential-broker",
+        "evidence-store",
+        "execution-engine",
+        "git-workspace",
+        "independent-review",
+        "process-supervisor",
+        "trusted-verifier",
+      ].includes(segment),
+    )
+  ) {
+    return "Factory trust-boundary code is protected";
+  }
+
+  if (
+    [
+      "eslint.config.js",
+      "eslint.config.mjs",
+      "eslint.config.cjs",
+      ".eslintrc",
+      ".eslintrc.js",
+      ".eslintrc.json",
+      ".swiftlint.yml",
+      ".swiftlint.yaml",
+      ".swiftformat",
+      "package.json",
+      "pnpm-workspace.yaml",
+      "pnpm-lock.yaml",
+      "package.swift",
+      "package.resolved",
+      "podfile",
+      "podfile.lock",
+      "cartfile",
+      "cartfile.resolved",
+      "gemfile",
+      "gemfile.lock",
+      "package-lock.json",
+      "yarn.lock",
+      "bun.lock",
+      "bun.lockb",
+      ".npmrc",
+      "pyproject.toml",
+      "poetry.lock",
+      "pipfile",
+      "pipfile.lock",
+      "uv.lock",
+      "cargo.toml",
+      "cargo.lock",
+      "gradle.properties",
+      "settings.gradle",
+      "settings.gradle.kts",
+      "makefile",
+      "justfile",
+      "project.yml",
+      "project.yaml",
+      "xcodegen.yml",
+      "xcodegen.yaml",
+      ".pre-commit-config.yaml",
+    ].includes(basename) ||
+    /^tsconfig(?:\.[^.]+)*\.json$/u.test(basename) ||
+    /^(?:babel|metro|next|nuxt|rollup|vite|webpack)\.config(?:\.[^.]+)+$/u.test(basename) ||
+    /^requirements(?:[-_.][^.]+)?\.txt$/u.test(basename) ||
+    /^build\.gradle(?:\.kts)?$/u.test(basename) ||
+    /^taskfile(?:\.[^.]+)+$/u.test(basename) ||
+    extension === ".pbxproj" ||
+    segments.some(
+      (segment) =>
+        segment === "tuist" || segment.endsWith(".xcodeproj") || segment.endsWith(".xcworkspace"),
+    )
+  ) {
+    return "build, dependency, and verification configuration is protected";
+  }
+
+  if (
     segments.includes("fastlane") ||
     segments.includes("release") ||
     segments.includes("signing") ||
     basename === "exportoptions.plist" ||
+    basename === "info.plist" ||
+    basename === "privacyinfo.xcprivacy" ||
+    extension === ".xcscheme" ||
     extension === ".entitlements" ||
     extension === ".xcconfig" ||
     (segments.includes("scripts") &&
@@ -767,17 +937,10 @@ export class GitWorkspaceManager {
 
   verifyCandidate(record: FactoryWorkspaceRecord, policy: CandidatePolicy): CandidateVerification {
     const verifiedRecord = this.#validateWorkspaceRecord(record, "attempt");
-    const scopes = normalizeAuthorizedScopes(policy.authorizedScopes);
-    const maxChangedFileBytes = parsePositiveLimit(
-      policy.maxChangedFileBytes,
-      DEFAULT_MAX_CHANGED_FILE_BYTES,
-      "Maximum changed-file size",
-    );
-    const maxDiffBytes = parsePositiveLimit(
-      policy.maxDiffBytes,
-      DEFAULT_MAX_DIFF_BYTES,
-      "Maximum diff size",
-    );
+    const normalizedPolicy = normalizeCandidatePolicy(policy);
+    const scopes = normalizedPolicy.authorizedScopes;
+    const maxChangedFileBytes = normalizedPolicy.maxChangedFileBytes;
+    const maxDiffBytes = normalizedPolicy.maxDiffBytes;
 
     const attemptHeadSha = this.#resolveCommit(
       verifiedRecord.runtimeRoot,
@@ -830,76 +993,15 @@ export class GitWorkspaceManager {
       initialChanges,
       snapshots,
     );
-    const treeBytes = this.#gitBare(verifiedRecord.runtimeRoot, verifiedRecord.mirrorPath, [
-      "ls-tree",
-      "-r",
-      "-z",
-      "--full-tree",
-      candidateTreeId,
-    ]).stdout;
-    const treeByPath = validateTree(parseTree(treeBytes));
-    if (treeByPath.has(".gitmodules")) {
-      throw new GitWorkspaceError("Repositories containing .gitmodules are not allowed");
-    }
-
-    const rawDiff = this.#gitBare(verifiedRecord.runtimeRoot, verifiedRecord.mirrorPath, [
-      "diff",
-      "--raw",
-      "--no-abbrev",
-      "--no-renames",
-      "-z",
+    const analyzed = this.#analyzeCandidateTree(
+      verifiedRecord,
+      verifiedRecord.attemptId,
       verifiedRecord.baseSha,
       candidateTreeId,
-      "--",
-    ]).stdout;
-    const rawChanged = parseRawChanges(rawDiff);
-    const changedPaths: ChangedPath[] = [];
-    let totalChangedFileBytes = 0;
-
-    for (const changed of rawChanged) {
-      const protectedReason = classifyProtectedPath(changed.path);
-      if (protectedReason !== null) {
-        throw new GitWorkspaceError(`${protectedReason}: ${changed.path}`);
-      }
-      if (!scopes.some((scope) => isWithinScope(changed.path, scope))) {
-        throw new GitWorkspaceError(`Changed path is outside authorized scopes: ${changed.path}`);
-      }
-      const finalEntry = treeByPath.get(changed.path);
-      let sizeBytes: number | null = null;
-      if (finalEntry !== undefined) {
-        if (finalEntry.mode === "120000") {
-          this.#validateSymlinkBlob(verifiedRecord, candidateTreeId, finalEntry.path);
-        } else if (finalEntry.type !== "blob") {
-          throw new GitWorkspaceError(`Unsupported changed tree entry: ${finalEntry.path}`);
-        }
-        sizeBytes = this.#objectSize(verifiedRecord, finalEntry.objectId);
-        if (sizeBytes > maxChangedFileBytes) {
-          throw new GitWorkspaceError(
-            `Changed file exceeds ${maxChangedFileBytes} bytes: ${changed.path} (${sizeBytes} bytes)`,
-          );
-        }
-        totalChangedFileBytes += sizeBytes;
-      }
-      changedPaths.push({ ...changed, sizeBytes });
-    }
-
-    this.#assertNoBinaryDiffs(verifiedRecord, verifiedRecord.baseSha, candidateTreeId, rawChanged);
-    const patch = this.#gitBare(verifiedRecord.runtimeRoot, verifiedRecord.mirrorPath, [
-      "diff",
-      "--no-ext-diff",
-      "--no-textconv",
-      "--full-index",
-      "--binary",
-      "--no-renames",
-      verifiedRecord.baseSha,
-      candidateTreeId,
-      "--",
-    ]).stdout;
-    if (patch.length > maxDiffBytes) {
-      throw new GitWorkspaceError(
-        `Candidate diff exceeds ${maxDiffBytes} bytes (${patch.length} bytes)`,
-      );
-    }
+      scopes,
+      maxChangedFileBytes,
+      maxDiffBytes,
+    );
 
     this.#verificationCheckpoint?.(verifiedRecord.worktreePath);
     const finalHead = this.#resolveCommit(
@@ -945,22 +1047,111 @@ export class GitWorkspaceManager {
       }
     }
 
-    const digestInput = canonicalJson({
-      baseSha: verifiedRecord.baseSha,
-      candidateTreeId,
-      changedPaths,
-    });
     return {
-      attemptId: verifiedRecord.attemptId,
-      baseSha: verifiedRecord.baseSha,
+      ...analyzed,
       attemptHeadSha,
-      candidateTreeId,
-      changedPaths,
-      diffBytes: patch.length,
-      totalChangedFileBytes,
-      diffDigest: sha256(Buffer.concat([digestInput, patch])),
-      treeDigest: sha256(canonicalJson([...treeByPath.values()])),
     };
+  }
+
+  verifyCandidateObject(
+    mirrorInput: FactoryMirror,
+    verification: CandidateVerification,
+    policy: CandidatePolicy,
+  ): CandidateVerification {
+    const mirror = this.#validateMirror(mirrorInput);
+    assertIdentifier(verification.attemptId, "Attempt ID");
+    assertExplicitSha(verification.baseSha, "Base SHA");
+    assertExplicitSha(verification.attemptHeadSha, "Attempt HEAD SHA");
+    assertExplicitSha(verification.candidateTreeId, "Candidate tree ID");
+    if (verification.attemptHeadSha !== verification.baseSha) {
+      throw new GitWorkspaceError("Candidate record was not produced from a pinned attempt HEAD");
+    }
+    const normalizedPolicy = normalizeCandidatePolicy(policy);
+    const analyzed = this.#analyzeCandidateTree(
+      mirror,
+      verification.attemptId,
+      verification.baseSha,
+      verification.candidateTreeId,
+      normalizedPolicy.authorizedScopes,
+      normalizedPolicy.maxChangedFileBytes,
+      normalizedPolicy.maxDiffBytes,
+    );
+    const recomputed: CandidateVerification = {
+      ...analyzed,
+      attemptHeadSha: verification.baseSha,
+    };
+    if (!canonicalJson(recomputed).equals(canonicalJson(verification))) {
+      throw new GitWorkspaceError("Candidate evidence does not match the stored Git objects");
+    }
+    return recomputed;
+  }
+
+  readVerifiedCandidatePatch(
+    mirrorInput: FactoryMirror,
+    verification: CandidateVerification,
+    policy: CandidatePolicy,
+  ): Buffer {
+    const mirror = this.#validateMirror(mirrorInput);
+    this.verifyCandidateObject(mirror, verification, policy);
+    return this.#candidatePatch(mirror, verification.baseSha, verification.candidateTreeId);
+  }
+
+  createOrReconcileBrokerCommit(
+    mirrorInput: FactoryMirror,
+    expectation: BrokerCommitExpectation,
+    assertActive: BrokerCommitMutationGuard,
+  ): BrokerCommitRecord {
+    const mirror = this.#validateMirror(mirrorInput);
+    this.#validateBrokerExpectation(expectation);
+    const existing = this.#readBrokerCommitOrNull(mirror, expectation);
+    if (existing !== null) {
+      return existing;
+    }
+
+    assertActive();
+    const message = this.#brokerCommitMessage(expectation);
+    const commitSha = this.#gitBare(
+      mirror.runtimeRoot,
+      mirror.mirrorPath,
+      ["commit-tree", expectation.candidateTreeId, "-p", expectation.baseSha],
+      [0],
+      { env: this.#brokerIdentity(), input: message },
+    )
+      .stdout.toString("ascii")
+      .trim();
+    assertExplicitSha(commitSha, "Broker commit SHA");
+
+    assertActive();
+    const refName = this.#brokerRefName(expectation.attemptId);
+    const publication = this.#gitBare(
+      mirror.runtimeRoot,
+      mirror.mirrorPath,
+      ["update-ref", refName, commitSha, ""],
+      [0, 128],
+    );
+    if (publication.status !== 0) {
+      const raced = this.#readBrokerCommitOrNull(mirror, expectation);
+      if (raced === null) {
+        throw new GitWorkspaceError("Broker commit marker could not be published atomically");
+      }
+      return raced;
+    }
+    return this.inspectBrokerCommit(mirror, expectation);
+  }
+
+  inspectBrokerCommit(
+    mirrorInput: FactoryMirror,
+    expectation: BrokerCommitExpectation,
+  ): BrokerCommitRecord {
+    const mirror = this.#validateMirror(mirrorInput);
+    this.#validateBrokerExpectation(expectation);
+    const record = this.#readBrokerCommitOrNull(mirror, expectation);
+    if (record === null) {
+      throw new GitWorkspaceError(
+        `No broker commit exists for attempt marker ${expectation.attemptId}`,
+      );
+    }
+    return record;
   }
 
   createTrustedVerificationCheckout(
@@ -1017,6 +1208,245 @@ export class GitWorkspaceManager {
     this.#gitBare(verified.runtimeRoot, verified.mirrorPath, ["worktree", "prune", "--expire=now"]);
   }
 
+  #analyzeCandidateTree(
+    repository: Pick<FactoryMirror, "runtimeRoot" | "mirrorPath">,
+    attemptId: string,
+    baseSha: string,
+    candidateTreeId: string,
+    scopes: readonly string[],
+    maxChangedFileBytes: number,
+    maxDiffBytes: number,
+  ): Omit<CandidateVerification, "attemptHeadSha"> {
+    const resolvedBase = this.#resolveCommit(
+      repository.runtimeRoot,
+      repository.mirrorPath,
+      baseSha,
+      "Candidate base",
+    );
+    if (resolvedBase !== baseSha) {
+      throw new GitWorkspaceError("Candidate base no longer resolves to its exact commit");
+    }
+    const treeType = this.#gitBare(repository.runtimeRoot, repository.mirrorPath, [
+      "cat-file",
+      "-t",
+      candidateTreeId,
+    ])
+      .stdout.toString("ascii")
+      .trim();
+    if (treeType !== "tree") {
+      throw new GitWorkspaceError("Candidate tree ID does not identify a Git tree");
+    }
+    const treeBytes = this.#gitBare(repository.runtimeRoot, repository.mirrorPath, [
+      "ls-tree",
+      "-r",
+      "-z",
+      "--full-tree",
+      candidateTreeId,
+    ]).stdout;
+    const treeByPath = validateTree(parseTree(treeBytes));
+    if (treeByPath.has(".gitmodules")) {
+      throw new GitWorkspaceError("Repositories containing .gitmodules are not allowed");
+    }
+
+    const rawDiff = this.#gitBare(repository.runtimeRoot, repository.mirrorPath, [
+      "diff",
+      "--raw",
+      "--no-abbrev",
+      "--no-renames",
+      "-z",
+      baseSha,
+      candidateTreeId,
+      "--",
+    ]).stdout;
+    const rawChanged = parseRawChanges(rawDiff);
+    const changedPaths: ChangedPath[] = [];
+    let totalChangedFileBytes = 0;
+    for (const changed of rawChanged) {
+      const protectedReason = classifyProtectedPath(changed.path);
+      if (protectedReason !== null) {
+        throw new GitWorkspaceError(`${protectedReason}: ${changed.path}`);
+      }
+      if (!scopes.some((scope) => isWithinScope(changed.path, scope))) {
+        throw new GitWorkspaceError(`Changed path is outside authorized scopes: ${changed.path}`);
+      }
+      const finalEntry = treeByPath.get(changed.path);
+      let sizeBytes: number | null = null;
+      if (finalEntry !== undefined) {
+        if (finalEntry.mode === "120000") {
+          this.#validateSymlinkBlob(repository, candidateTreeId, finalEntry.path);
+        } else if (finalEntry.type !== "blob") {
+          throw new GitWorkspaceError(`Unsupported changed tree entry: ${finalEntry.path}`);
+        }
+        sizeBytes = this.#objectSize(repository, finalEntry.objectId);
+        if (sizeBytes > maxChangedFileBytes) {
+          throw new GitWorkspaceError(
+            `Changed file exceeds ${maxChangedFileBytes} bytes: ${changed.path} (${sizeBytes} bytes)`,
+          );
+        }
+        totalChangedFileBytes += sizeBytes;
+      }
+      changedPaths.push({ ...changed, sizeBytes });
+    }
+
+    this.#assertNoBinaryDiffs(repository, baseSha, candidateTreeId, rawChanged);
+    const patch = this.#candidatePatch(repository, baseSha, candidateTreeId);
+    if (patch.length > maxDiffBytes) {
+      throw new GitWorkspaceError(
+        `Candidate diff exceeds ${maxDiffBytes} bytes (${patch.length} bytes)`,
+      );
+    }
+    const digestInput = canonicalJson({ baseSha, candidateTreeId, changedPaths });
+    return {
+      attemptId,
+      baseSha,
+      candidateTreeId,
+      changedPaths,
+      diffBytes: patch.length,
+      totalChangedFileBytes,
+      diffDigest: sha256(Buffer.concat([digestInput, patch])),
+      treeDigest: sha256(canonicalJson([...treeByPath.values()])),
+    };
+  }
+
+  #candidatePatch(
+    repository: Pick<FactoryMirror, "runtimeRoot" | "mirrorPath">,
+    baseSha: string,
+    candidateTreeId: string,
+  ): Buffer {
+    return this.#gitBare(repository.runtimeRoot, repository.mirrorPath, [
+      "diff",
+      "--no-ext-diff",
+      "--no-textconv",
+      "--full-index",
+      "--binary",
+      "--no-renames",
+      baseSha,
+      candidateTreeId,
+      "--",
+    ]).stdout;
+  }
+
+  #validateBrokerExpectation(expectation: BrokerCommitExpectation): void {
+    assertIdentifier(expectation.attemptId, "Attempt ID");
+    assertExplicitSha(expectation.baseSha, "Broker base SHA");
+    assertExplicitSha(expectation.candidateTreeId, "Broker candidate tree ID");
+    if (!/^sha256:[0-9a-f]{64}$/u.test(expectation.diffDigest)) {
+      throw new GitWorkspaceError("Broker candidate diff digest is invalid");
+    }
+  }
+
+  #brokerRefName(attemptId: string): string {
+    assertIdentifier(attemptId, "Attempt ID");
+    return `refs/app-factory/attempts/${attemptId}`;
+  }
+
+  #brokerIdentity(): Readonly<Record<string, string>> {
+    return {
+      GIT_AUTHOR_DATE: "2000-01-01T00:00:00Z",
+      GIT_AUTHOR_EMAIL: "broker@app-factory.invalid",
+      GIT_AUTHOR_NAME: "App Factory Broker",
+      GIT_COMMITTER_DATE: "2000-01-01T00:00:00Z",
+      GIT_COMMITTER_EMAIL: "broker@app-factory.invalid",
+      GIT_COMMITTER_NAME: "App Factory Broker",
+    };
+  }
+
+  #brokerCommitMessage(expectation: BrokerCommitExpectation): Buffer {
+    return Buffer.from(
+      [
+        "App Factory verified change",
+        "",
+        `Base: ${expectation.baseSha}`,
+        `Candidate-Tree: ${expectation.candidateTreeId}`,
+        `Candidate-Digest: ${expectation.diffDigest}`,
+        `App-Factory-Attempt: ${expectation.attemptId}`,
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+  }
+
+  #readBrokerCommitOrNull(
+    mirror: FactoryMirror,
+    expectation: BrokerCommitExpectation,
+  ): BrokerCommitRecord | null {
+    const refName = this.#brokerRefName(expectation.attemptId);
+    const lookup = this.#gitBare(
+      mirror.runtimeRoot,
+      mirror.mirrorPath,
+      ["rev-parse", "--verify", "--quiet", `${refName}^{commit}`],
+      [0, 1],
+    );
+    if (lookup.status === 1) return null;
+    const commitSha = lookup.stdout.toString("ascii").trim();
+    assertExplicitSha(commitSha, "Broker commit SHA");
+
+    const ancestry = this.#gitBare(mirror.runtimeRoot, mirror.mirrorPath, [
+      "rev-list",
+      "--parents",
+      "-n",
+      "1",
+      commitSha,
+    ])
+      .stdout.toString("ascii")
+      .trim()
+      .split(" ");
+    if (ancestry.length !== 2 || ancestry[0] !== commitSha || ancestry[1] !== expectation.baseSha) {
+      throw new GitWorkspaceError(
+        `Broker attempt marker conflicts with the expected base: ${expectation.attemptId}`,
+      );
+    }
+    const tree = this.#gitBare(mirror.runtimeRoot, mirror.mirrorPath, [
+      "rev-parse",
+      "--verify",
+      `${commitSha}^{tree}`,
+    ])
+      .stdout.toString("ascii")
+      .trim();
+    if (tree !== expectation.candidateTreeId) {
+      throw new GitWorkspaceError(
+        `Broker attempt marker conflicts with the expected tree: ${expectation.attemptId}`,
+      );
+    }
+
+    const rawCommit = this.#gitBare(mirror.runtimeRoot, mirror.mirrorPath, [
+      "cat-file",
+      "commit",
+      commitSha,
+    ]).stdout;
+    const separator = rawCommit.indexOf(Buffer.from("\n\n"));
+    if (separator < 0) {
+      throw new GitWorkspaceError("Broker commit object has no message separator");
+    }
+    const headers = rawCommit.subarray(0, separator).toString("utf8");
+    const expectedHeaders = [
+      `tree ${expectation.candidateTreeId}`,
+      `parent ${expectation.baseSha}`,
+      "author App Factory Broker <broker@app-factory.invalid> 946684800 +0000",
+      "committer App Factory Broker <broker@app-factory.invalid> 946684800 +0000",
+    ];
+    if (headers !== expectedHeaders.join("\n")) {
+      throw new GitWorkspaceError("Broker attempt marker points to a commit with foreign identity");
+    }
+    const message = rawCommit.subarray(separator + 2);
+    if (!message.equals(this.#brokerCommitMessage(expectation))) {
+      throw new GitWorkspaceError(
+        `Broker attempt marker conflicts with the expected commit message: ${expectation.attemptId}`,
+      );
+    }
+    return {
+      schemaVersion: 1,
+      attemptId: expectation.attemptId,
+      attemptMarker: expectation.attemptId,
+      refName,
+      baseSha: expectation.baseSha,
+      candidateTreeId: expectation.candidateTreeId,
+      diffDigest: expectation.diffDigest,
+      commitSha,
+      commitDigest: sha256(rawCommit),
+    };
+  }
+
   #createWorkspace(
     mirrorInput: FactoryMirror,
     kind: WorkspaceKind,
@@ -1059,8 +1489,11 @@ export class GitWorkspaceManager {
     ensurePrivateDirectory(categoryRoot);
     const repositoryRoot = safeChild(categoryRoot, mirror.repositoryId);
     ensurePrivateDirectory(repositoryRoot);
+    const ownershipNonce = randomUUID();
     const directoryName =
-      kind === "attempt" ? attemptId : `${attemptId}-${(candidateTreeId as string).slice(0, 16)}`;
+      kind === "attempt"
+        ? attemptId
+        : `${attemptId}-${(candidateTreeId as string).slice(0, 16)}-${ownershipNonce}`;
     const worktreePath = safeChild(repositoryRoot, directoryName);
     if (existsSync(worktreePath)) {
       throw new GitWorkspaceError(`Deterministic worktree path already exists: ${worktreePath}`);
@@ -1088,7 +1521,7 @@ export class GitWorkspaceManager {
       baseSha,
       initialHeadSha,
       candidateTreeId,
-      ownershipNonce: randomUUID(),
+      ownershipNonce,
       readOnly: kind === "verification",
     };
     writePrivateJson(safeChild(gitDirectoryPath, MARKER_FILE), record, true);
@@ -1121,7 +1554,7 @@ export class GitWorkspaceManager {
     const expectedName =
       record.kind === "attempt"
         ? record.attemptId
-        : `${record.attemptId}-${(record.candidateTreeId as string).slice(0, 16)}`;
+        : `${record.attemptId}-${(record.candidateTreeId as string).slice(0, 16)}-${record.ownershipNonce}`;
     if (record.worktreePath !== safeChild(expectedRoot, expectedName)) {
       throw new GitWorkspaceError("Worktree path is not the deterministic Factory path");
     }
@@ -1239,7 +1672,10 @@ export class GitWorkspaceManager {
     return value;
   }
 
-  #objectSize(record: FactoryWorkspaceRecord, objectId: string): number {
+  #objectSize(
+    record: Pick<FactoryWorkspaceRecord, "runtimeRoot" | "mirrorPath">,
+    objectId: string,
+  ): number {
     const raw = this.#gitBare(record.runtimeRoot, record.mirrorPath, ["cat-file", "-s", objectId])
       .stdout.toString("ascii")
       .trim();
@@ -1338,6 +1774,9 @@ export class GitWorkspaceManager {
     if (initial === null) {
       throw new GitWorkspaceError(`Candidate path disappeared during verification: ${path}`);
     }
+    if (initial.nlink !== 1) {
+      throw new GitWorkspaceError(`Candidate path has multiple hard links: ${path}`);
+    }
     if (initial.isSymbolicLink()) {
       const bytes = readlinkSync(absolutePath, { encoding: "buffer" });
       this.#validateSymlinkTargetBytes(path, bytes);
@@ -1379,7 +1818,12 @@ export class GitWorkspaceManager {
     let afterRead: Stats;
     try {
       opened = fstatSync(descriptor);
-      if (!opened.isFile() || opened.dev !== initial.dev || opened.ino !== initial.ino) {
+      if (
+        !opened.isFile() ||
+        opened.nlink !== 1 ||
+        opened.dev !== initial.dev ||
+        opened.ino !== initial.ino
+      ) {
         throw new GitWorkspaceError(`Candidate path changed before it could be read: ${path}`);
       }
       bytes = readFileSync(descriptor);
@@ -1391,10 +1835,12 @@ export class GitWorkspaceManager {
     if (
       final.dev !== initial.dev ||
       final.ino !== initial.ino ||
+      final.nlink !== 1 ||
       final.size !== initial.size ||
       final.mtimeMs !== initial.mtimeMs ||
       final.ctimeMs !== initial.ctimeMs ||
       afterRead.size !== opened.size ||
+      afterRead.nlink !== 1 ||
       afterRead.mtimeMs !== opened.mtimeMs ||
       afterRead.ctimeMs !== opened.ctimeMs ||
       bytes.length !== initial.size
@@ -1596,6 +2042,10 @@ export class GitWorkspaceManager {
     if (resolved === ".." || resolved.startsWith("../") || posix.isAbsolute(resolved)) {
       throw new GitWorkspaceError(`Changed symbolic link escapes the repository: ${path}`);
     }
+    const caseFoldedResolved = resolved.toLowerCase();
+    if (caseFoldedResolved === ".git" || caseFoldedResolved.startsWith(".git/")) {
+      throw new GitWorkspaceError(`Changed symbolic link targets Git administration data: ${path}`);
+    }
   }
 
   #assertFilesystemPathHasNoSymlinkAncestor(worktreeRoot: string, path: string): void {
@@ -1617,7 +2067,7 @@ export class GitWorkspaceManager {
   }
 
   #assertNoBinaryDiffs(
-    record: FactoryWorkspaceRecord,
+    record: Pick<FactoryWorkspaceRecord, "runtimeRoot" | "mirrorPath">,
     baseSha: string,
     headSha: string,
     changed: readonly RawChangedPath[],

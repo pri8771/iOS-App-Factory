@@ -109,6 +109,16 @@ export interface SchedulerPersistencePort {
     readonly observedAt: string;
   }): Promise<void>;
 
+  /**
+   * Side-effect authorization guard. In addition to the active lease/fence it
+   * must reject cancelled intent and non-running execution state. Paused intent
+   * remains valid for the already-running step, which stops at its next boundary.
+   */
+  assertExecutionActive(input: {
+    readonly lease: SchedulerLease;
+    readonly observedAt: string;
+  }): Promise<void>;
+
   /** Release is owner- and fence-guarded and must not remove a successor's lease. */
   releaseLease(input: {
     readonly lease: SchedulerLease;
@@ -419,6 +429,18 @@ export class RestartSafeScheduler {
     this.#activeRun?.abortController.abort();
   }
 
+  /**
+   * Interrupts only the named in-flight attempt so persisted cancellation can
+   * be reconciled promptly. Unlike requestStop, this leaves the scheduler able
+   * to claim more work after the interrupted tick releases its lease.
+   */
+  public interruptActiveAttempt(attemptId: string): boolean {
+    const active = this.#activeRun;
+    if (active === null || active.currentLease.attemptId !== attemptId) return false;
+    active.abortController.abort();
+    return true;
+  }
+
   /** Waits for the current tick to observe the abort and release its lease. */
   public async stop(): Promise<void> {
     this.requestStop();
@@ -625,7 +647,7 @@ export class RestartSafeScheduler {
     step: SchedulerStepSnapshot,
   ): Promise<SchedulerStepOutcome> {
     await this.#renew(active);
-    await this.#assertActive(active);
+    await this.#assertExecutionActive(active);
     this.#throwIfStopped(active);
     try {
       const outcome = await this.#executor.execute({
@@ -634,7 +656,7 @@ export class RestartSafeScheduler {
         effectKey: effectKey(active.currentLease.attemptId, step),
         fence: active.currentLease.fence,
         signal: active.abortController.signal,
-        assertActive: async () => await this.#assertActive(active),
+        assertActive: async () => await this.#assertExecutionActive(active),
         heartbeat: async () => await this.#renew(active),
       });
       this.#throwIfStopped(active);
@@ -859,6 +881,14 @@ export class RestartSafeScheduler {
   async #assertActive(active: ActiveRun): Promise<void> {
     this.#throwIfStopped(active);
     await this.#persistence.assertLease({
+      lease: active.currentLease,
+      observedAt: this.#clock.next().toISOString(),
+    });
+  }
+
+  async #assertExecutionActive(active: ActiveRun): Promise<void> {
+    this.#throwIfStopped(active);
+    await this.#persistence.assertExecutionActive({
       lease: active.currentLease,
       observedAt: this.#clock.next().toISOString(),
     });

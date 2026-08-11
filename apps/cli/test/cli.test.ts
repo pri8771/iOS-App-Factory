@@ -87,6 +87,9 @@ describe("CLI argument parser", () => {
     [["events", ATTEMPT_ID, "--limit", "1001"]],
     [["pause", ATTEMPT_ID, "--reason"]],
     [["doctor", "--json", "--json"]],
+    [["service"]],
+    [["service", "install", "--config", "service.json"]],
+    [["service", "plan", "--config", "service.json"]],
   ])("rejects invalid arguments %j", (arguments_) => {
     expect(() => parseCliArguments(arguments_)).toThrow(CliUsageError);
   });

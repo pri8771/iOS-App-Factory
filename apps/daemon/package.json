@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "factory-daemon": "./dist/index.js"
+    "factory-daemon": "./dist/main.js"
   },
   "files": [
     "dist"

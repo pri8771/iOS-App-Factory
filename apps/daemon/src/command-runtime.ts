@@ -25,6 +25,7 @@ import {
   type IsoInstant,
 } from "@app-factory/contracts";
 import {
+  FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME,
   canonicalJson,
   computeTaskSpecDigest,
   createFactoryRepositories,
@@ -35,7 +36,6 @@ import {
 
 import { CommandHandlerError, type CommandHandler } from "./unix-command-server.js";
 
-const DATABASE_FILE_NAME = "control-plane.sqlite";
 const COMMAND_RESULTS_DIRECTORY_NAME = "command-results";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
@@ -77,6 +77,10 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * protocol or opening a second connection.
    */
   createReconcile?: (database: FactoryDatabase) => ReconcilePort;
+  /** Deterministic failpoint after the authoritative mutation and before result journaling. */
+  commandResultLedgerBoundary?: (
+    entry: Readonly<{ request: CommandRequestV1; result: CommandResultV1 }>,
+  ) => Promise<void> | void;
 }>;
 
 export type DaemonRuntimePaths = Readonly<{
@@ -128,7 +132,7 @@ export function resolveDaemonRuntimePaths(runtimeDirectory: string): DaemonRunti
   }
   return {
     root: runtimeDirectory,
-    database: join(runtimeDirectory, DATABASE_FILE_NAME),
+    database: join(runtimeDirectory, FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME),
     commandResults: join(runtimeDirectory, COMMAND_RESULTS_DIRECTORY_NAME),
   };
 }
@@ -667,6 +671,7 @@ export async function openDaemonCommandRuntime(
           reconcile,
         }),
       );
+      await options.commandResultLedgerBoundary?.({ request, result });
       const persisted = await persistLedgerEntry(paths, {
         ledgerVersion: RESULT_LEDGER_VERSION,
         request,

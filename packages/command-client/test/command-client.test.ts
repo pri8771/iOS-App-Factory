@@ -196,6 +196,27 @@ describe("typed command client", () => {
     });
   });
 
+  it("terminates an in-flight request when its caller cancels", async () => {
+    const socketPath = await createFakeServer(onRequest(() => undefined));
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "mcp",
+      now: () => NOW,
+    });
+    const controller = new AbortController();
+
+    const inFlight = client.doctor(identity(), controller.signal);
+    await new Promise((resolve) => setImmediate(resolve));
+    controller.abort();
+
+    await expect(inFlight).rejects.toMatchObject<Partial<CommandClientError>>({
+      code: "client.cancelled",
+      retryable: false,
+    });
+    client.close();
+  });
+
   it("rejects a terminal connection without a response", async () => {
     const socketPath = await createFakeServer((socket) => socket.end());
     const client = createCommandClient({

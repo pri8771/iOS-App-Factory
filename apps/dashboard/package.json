@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@app-factory/command-client": "workspace:*",
-    "@app-factory/contracts": "workspace:*"
+    "@app-factory/contracts": "workspace:*",
+    "zod": "4.4.3"
   }
 }

@@ -1,6 +1,11 @@
-# MCP
+# App Factory MCP server
 
-Thin stdio protocol bridge for supported local Codex and Claude clients. It
-connects to the daemon through a mode-0600 Unix socket, writes protocol frames
-only to stdout, and routes logs to stderr. It contains no workflow logic and
-cannot bypass typed approvals.
+This local stdio server is a thin client of the authenticated Factory daemon.
+It gives ChatGPT, Claude, Cursor, Codex, and other MCP hosts the same typed
+commands as the CLI without direct access to SQLite, project repositories, or
+provider credentials.
+
+The MCP process receives only the daemon socket path and authorization value.
+It writes protocol frames exclusively to stdout and diagnostics exclusively to
+stderr. Read tools are available immediately; mutations still pass through the
+daemon's durable command, policy, approval, lease, and reconciliation layers.

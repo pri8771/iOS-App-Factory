@@ -83,6 +83,7 @@ class GatedExecutor implements SchedulerStepExecutorPort {
   #markStarted: (() => void) | undefined;
   readonly #releasedPromise: Promise<void>;
   #releaseExecution: (() => void) | undefined;
+  public completionCount = 0;
 
   public constructor() {
     this.#startedPromise = new Promise((resolve) => {
@@ -106,6 +107,7 @@ class GatedExecutor implements SchedulerStepExecutorPort {
     this.#markStarted?.();
     await this.#releasedPromise;
     await context.assertActive();
+    this.completionCount += 1;
     return {
       kind: "succeeded" as const,
       outputDigest: succeededDigest(context.effectKey),
@@ -134,6 +136,91 @@ class AbortOnShutdownExecutor implements SchedulerStepExecutorPort {
       if (context.signal.aborted) abort();
       else context.signal.addEventListener("abort", abort, { once: true });
     });
+  }
+}
+
+class CancelAwareHangingExecutor implements SchedulerStepExecutorPort {
+  readonly #startedPromise: Promise<void>;
+  #markStarted: (() => void) | undefined;
+  readonly #abortedPromise: Promise<void>;
+  #markAborted: (() => void) | undefined;
+  public abortCount = 0;
+
+  public constructor() {
+    this.#startedPromise = new Promise((resolve) => {
+      this.#markStarted = resolve;
+    });
+    this.#abortedPromise = new Promise((resolve) => {
+      this.#markAborted = resolve;
+    });
+  }
+
+  public async started(): Promise<void> {
+    await this.#startedPromise;
+  }
+
+  public async aborted(): Promise<void> {
+    await this.#abortedPromise;
+  }
+
+  public async execute(context: SchedulerExecutionContext) {
+    await context.assertActive();
+    this.#markStarted?.();
+    return await new Promise<never>((_resolve, reject) => {
+      const abort = () => {
+        this.abortCount += 1;
+        this.#markAborted?.();
+        reject(new Error("executor interrupted for persisted cancellation"));
+      };
+      if (context.signal.aborted) abort();
+      else context.signal.addEventListener("abort", abort, { once: true });
+    });
+  }
+}
+
+class DeferredExecutionGuardExecutor implements SchedulerStepExecutorPort {
+  readonly #startedPromise: Promise<void>;
+  #markStarted: (() => void) | undefined;
+  readonly #probePromise: Promise<void>;
+  #requestProbe: (() => void) | undefined;
+  readonly #rejectedPromise: Promise<void>;
+  #markRejected: (() => void) | undefined;
+
+  public constructor() {
+    this.#startedPromise = new Promise((resolve) => {
+      this.#markStarted = resolve;
+    });
+    this.#probePromise = new Promise((resolve) => {
+      this.#requestProbe = resolve;
+    });
+    this.#rejectedPromise = new Promise((resolve) => {
+      this.#markRejected = resolve;
+    });
+  }
+
+  public async started(): Promise<void> {
+    await this.#startedPromise;
+  }
+
+  public probeAuthoritativeGuard(): void {
+    this.#requestProbe?.();
+  }
+
+  public async rejected(): Promise<void> {
+    await this.#rejectedPromise;
+  }
+
+  public async execute(context: SchedulerExecutionContext) {
+    await context.assertActive();
+    this.#markStarted?.();
+    await this.#probePromise;
+    try {
+      await context.assertActive();
+    } catch (error) {
+      this.#markRejected?.();
+      throw error;
+    }
+    throw new Error("execution guard accepted work after durable cancellation");
   }
 }
 
@@ -236,6 +323,134 @@ describe("single-writer daemon composition", () => {
     });
     expect(service.getLastSchedulerError()).toBeNull();
   });
+
+  it("interrupts only the targeted active attempt and reconciles its persisted cancellation", async () => {
+    const executor = new CancelAwareHangingExecutor();
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: await makeRoot(),
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.2.0-targeted-cancel",
+      executor,
+      pollIntervalMs: 5,
+    });
+    services.push(service);
+    const client = clientFor(service);
+
+    const active = await client.run(taskSpec(40));
+    await executor.started();
+    const other = await client.submit(taskSpec(41));
+    await client.cancel(other.attemptId, "Cancel the non-active attempt first.");
+
+    expect(executor.abortCount).toBe(0);
+    await expect(client.status(active.attemptId)).resolves.toMatchObject({
+      attempt: { state: "running", desiredState: "running" },
+    });
+
+    await client.cancel(active.attemptId, "Cancel the active hung execution.");
+    await executor.aborted();
+    await eventually(async () => {
+      const result = await client.status(active.attemptId);
+      return result.attempt.state === "cancelled";
+    });
+
+    await expect(client.status(active.attemptId)).resolves.toMatchObject({
+      attempt: { state: "cancelled", desiredState: "cancelled", fence: 2 },
+    });
+    const events = await client.events(active.attemptId, { limit: 100 });
+    expect(events.events.filter((event) => event.type === "attempt.fence-claimed")).toHaveLength(2);
+    expect(
+      events.events.some(
+        (event) => event.type === "step.state-changed" && event.data.to === "cancelled",
+      ),
+    ).toBe(true);
+    expect(service.getLastSchedulerError()).toBeNull();
+  });
+
+  it("lets an active step finish under paused intent and stops at the durable boundary", async () => {
+    const executor = new GatedExecutor();
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: await makeRoot(),
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.2.0-pause-boundary",
+      executor,
+      pollIntervalMs: 5,
+    });
+    services.push(service);
+    const client = clientFor(service);
+    const active = await client.run(taskSpec(44));
+    await executor.started();
+
+    await client.pause(active.attemptId, "Pause after the active step.");
+    executor.release();
+    await eventually(async () => {
+      const result = await client.status(active.attemptId);
+      return result.attempt.state === "paused";
+    });
+
+    expect(executor.completionCount).toBe(1);
+    await expect(client.status(active.attemptId)).resolves.toMatchObject({
+      attempt: { state: "paused", desiredState: "paused" },
+    });
+    expect(service.getLastSchedulerError()).toBeNull();
+  });
+
+  it.each(["delayed", "failed"] as const)(
+    "revokes execution during a %s cancellation-result ledger boundary",
+    async (ledgerOutcome) => {
+      const executor = new DeferredExecutionGuardExecutor();
+      let markBoundaryEntered: (() => void) | undefined;
+      const boundaryEntered = new Promise<void>((resolve) => {
+        markBoundaryEntered = resolve;
+      });
+      let releaseBoundary: (() => void) | undefined;
+      let failBoundary: ((error: Error) => void) | undefined;
+      const boundaryDecision = new Promise<void>((resolve, reject) => {
+        releaseBoundary = resolve;
+        failBoundary = reject;
+      });
+      const service = await startFactoryDaemonService({
+        runtimeDirectory: await makeRoot(),
+        authorization: AUTHORIZATION,
+        daemonVersion: `0.2.0-${ledgerOutcome}-cancel-ledger`,
+        executor,
+        pollIntervalMs: 5,
+        commandResultLedgerBoundary: async ({ request }) => {
+          if (request.operation !== "attempt.cancel") return;
+          markBoundaryEntered?.();
+          await boundaryDecision;
+        },
+      });
+      services.push(service);
+      const client = clientFor(service);
+      const active = await client.run(taskSpec(ledgerOutcome === "delayed" ? 42 : 43));
+      await executor.started();
+
+      const cancelResult = client
+        .cancel(active.attemptId, `${ledgerOutcome} result-ledger boundary`)
+        .then(
+          () => "completed" as const,
+          () => "failed" as const,
+        );
+      await boundaryEntered;
+      executor.probeAuthoritativeGuard();
+      await executor.rejected();
+
+      if (ledgerOutcome === "delayed") releaseBoundary?.();
+      else failBoundary?.(new Error("injected command-result journal failure"));
+      await expect(cancelResult).resolves.toBe(
+        ledgerOutcome === "delayed" ? "completed" : "failed",
+      );
+
+      await eventually(async () => {
+        const result = await client.status(active.attemptId);
+        return result.attempt.state === "cancelled";
+      });
+      await expect(client.status(active.attemptId)).resolves.toMatchObject({
+        attempt: { state: "cancelled", desiredState: "cancelled", fence: 2 },
+      });
+      expect(service.getLastSchedulerError()).toBeNull();
+    },
+  );
 
   it("reconciles only the requested attempt even when another attempt is runnable", async () => {
     const suspendedWait = new CooperativeSuspendedWait();

@@ -166,6 +166,18 @@ class InMemorySchedulerPersistence implements SchedulerPersistencePort {
     this.assertStoredLease(input.lease, input.observedAt);
   }
 
+  public async assertExecutionActive(input: {
+    readonly lease: SchedulerLease;
+    readonly observedAt: string;
+  }): Promise<void> {
+    await this.assertLease(input);
+    if (this.attempt.desiredState === "cancelled" || this.attempt.state !== "running") {
+      throw new SchedulerFenceError(
+        `Execution is no longer authorized while attempt state is ${this.attempt.state} and desired state is ${this.attempt.desiredState}`,
+      );
+    }
+  }
+
   public async releaseLease(input: {
     readonly lease: SchedulerLease;
     readonly observedAt: string;

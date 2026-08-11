@@ -35,6 +35,18 @@ export const MAX_EFFECT_OUTBOX_LEASE_MS = 5 * 60 * 1_000;
 export const MAX_EFFECT_RECONCILE_BACKOFF_MS = 24 * 60 * 60 * 1_000;
 export const MAX_UNRESOLVED_RECONCILIATIONS = 8;
 
+/**
+ * Nominal error emitted only by the trusted repository when a fenced effect
+ * claim or its dispatch authorization is no longer usable. Consumers must use
+ * `instanceof`; provider-controlled text is never a claim-loss signal.
+ */
+export class EffectClaimLostError extends Error {
+  public constructor(message: string) {
+    super(`Factory external-effect invariant failed: ${message}`);
+    this.name = "EffectClaimLostError";
+  }
+}
+
 const EFFECT_STATES = new Set<ExternalEffectStateV1>([
   "planned",
   "sent",
@@ -48,7 +60,7 @@ const EFFECT_STATES = new Set<ExternalEffectStateV1>([
 export const LEGAL_EXTERNAL_EFFECT_TRANSITIONS = {
   planned: ["sent"],
   sent: ["observed", "unknown", "rejected"],
-  observed: ["confirmed"],
+  observed: ["confirmed", "manual-intervention"],
   confirmed: [],
   unknown: ["unknown", "observed", "manual-intervention"],
   "manual-intervention": [],
@@ -430,6 +442,19 @@ export type RecordReconciliationUnresolvedInput = ClaimedEffectMutationInput &
     detailDigest: unknown;
   }>;
 
+/**
+ * A failed follow-up cannot erase a previously attested observation. This
+ * operation records the reconciliation attempt and releases its claim while
+ * deliberately preserving the `observed` state for a later confirmation.
+ */
+export type DeferObservedReconciliationInput = ClaimedEffectMutationInput &
+  Readonly<{
+    outcome: "not-found" | "ambiguous";
+    providerCorrelationKey: unknown;
+    nextReconcileAt: unknown;
+    detailDigest: unknown;
+  }>;
+
 export type ConfirmObservedInput = ClaimedEffectMutationInput &
   Readonly<{
     providerCorrelationKey: unknown;
@@ -450,10 +475,12 @@ export type EffectRepository = Readonly<{
   claimNextReconciliation(input: ClaimEffectInput): EffectOutboxClaim | null;
   beginSend(input: ClaimedEffectMutationInput): BeginSendResult;
   assertDispatchActive(token: EffectDispatchToken, observedAt: unknown): PersistedEffect;
+  assertReconciliationActive(token: EffectDispatchToken, observedAt: unknown): PersistedEffect;
   recordSendOutcome(input: RecordSendOutcomeInput): PersistedEffect;
   recordReconciliationObserved(input: RecordReconciliationObservedInput): PersistedEffect;
   recordReconciliationUnknown(input: RecordReconciliationUnknownInput): PersistedEffect;
   recordReconciliationUnresolved(input: RecordReconciliationUnresolvedInput): PersistedEffect;
+  deferObservedReconciliation(input: DeferObservedReconciliationInput): PersistedEffect;
   confirmObserved(input: ConfirmObservedInput): PersistedEffect;
   requireManualIntervention(
     input: ClaimedEffectMutationInput & Readonly<{ detailDigest: unknown }>,
@@ -474,6 +501,10 @@ type ParsedPlanningOrigin = Readonly<{
 
 function fail(message: string): never {
   throw new Error(`Factory external-effect invariant failed: ${message}`);
+}
+
+function claimLost(message: string): never {
+  throw new EffectClaimLostError(message);
 }
 
 function assertSame(label: string, actual: unknown, expected: unknown): void {
@@ -1302,6 +1333,34 @@ function updateEffect(
   if (result.changes !== 1) fail(`effect revision conflict: ${effect.effectId}`);
 }
 
+function updateEffectWithoutStateTransition(
+  database: Database.Database,
+  effect: ExternalEffectV1,
+  expectedRevision: number,
+): void {
+  const result = database
+    .prepare(
+      `UPDATE external_effects SET
+         revision = ?, provider_correlation_key = ?, updated_at = ?,
+         last_observed_at = ?, next_reconcile_at = ?, detail_digest = ?, payload_json = ?
+       WHERE effect_id = ? AND revision = ? AND state = ? AND send_count = ?`,
+    )
+    .run(
+      effect.revision,
+      effect.providerCorrelationKey,
+      effect.updatedAt,
+      effect.lastObservedAt,
+      effect.nextReconcileAt,
+      effect.detailDigest,
+      JSON.stringify(effect),
+      effect.effectId,
+      expectedRevision,
+      effect.state,
+      effect.sendCount,
+    );
+  if (result.changes !== 1) fail(`effect metadata revision conflict: ${effect.effectId}`);
+}
+
 function insertTransition(
   database: Database.Database,
   effectId: string,
@@ -1339,7 +1398,7 @@ function releaseClaim(
        WHERE effect_id = ? AND locked_by = ? AND fence = ? AND revision = ?`,
     )
     .run(effectId, ownerId, fence, expectedRevision);
-  if (result.changes !== 1) fail(`outbox claim changed while completing effect ${effectId}`);
+  if (result.changes !== 1) claimLost(`outbox claim changed while completing effect ${effectId}`);
 }
 
 function assertActiveClaim(
@@ -1368,15 +1427,31 @@ function assertActiveClaim(
   );
   const observedAt = IsoInstantSchema.parse(input.observedAt);
   const outbox = readOutbox(database, effectId);
-  assertSame("outbox owner", outbox.locked_by, ownerId);
-  assertSame("outbox fence", outbox.fence, fence);
-  assertSame("outbox revision", outbox.revision, expectedOutboxRevision);
+  if (outbox.locked_by !== ownerId) {
+    claimLost(
+      `outbox owner must be ${JSON.stringify(ownerId)}; received ${JSON.stringify(outbox.locked_by)}`,
+    );
+  }
+  if (outbox.fence !== fence) {
+    claimLost(
+      `outbox fence must be ${JSON.stringify(fence)}; received ${JSON.stringify(outbox.fence)}`,
+    );
+  }
+  if (outbox.revision !== expectedOutboxRevision) {
+    claimLost(
+      `outbox revision must be ${JSON.stringify(expectedOutboxRevision)}; received ${JSON.stringify(outbox.revision)}`,
+    );
+  }
   if (outbox.locked_until === null || outbox.locked_until <= observedAt) {
-    fail(`outbox claim is expired for effect ${effectId}`);
+    claimLost(`outbox claim is expired for effect ${effectId}`);
   }
   const persisted = readEffect(database, effectId);
   if (persisted === null) fail(`effect does not exist: ${effectId}`);
-  assertSame("effect revision", persisted.effect.revision, expectedEffectRevision);
+  if (persisted.effect.revision !== expectedEffectRevision) {
+    claimLost(
+      `effect revision must be ${JSON.stringify(expectedEffectRevision)}; received ${JSON.stringify(persisted.effect.revision)}`,
+    );
+  }
   return {
     effectId,
     ownerId,
@@ -1502,14 +1577,14 @@ function assertApprovalMatchesDispatch(
 ): void {
   const { approval } = persisted;
   if (observedAt < approval.issuedAt || observedAt >= approval.expiresAt) {
-    fail(`approval expired before dispatch: ${approval.approvalId}`);
+    claimLost(`approval expired before dispatch: ${approval.approvalId}`);
   }
   if (approval.mode === "single-use") {
     if (approval.status !== "consumed" || approval.consumedByEffectId !== planned.effect.effectId) {
-      fail(`single-use approval is not consumed by this effect: ${approval.approvalId}`);
+      claimLost(`single-use approval is not consumed by this effect: ${approval.approvalId}`);
     }
   } else if (approval.status !== "active") {
-    fail(`standing approval is not active at dispatch: ${approval.approvalId}`);
+    claimLost(`standing approval is not active at dispatch: ${approval.approvalId}`);
   }
   assertApprovalIntentMatches(persisted, planned.effect, planned.binding, planned.standingScope);
 }
@@ -2196,6 +2271,28 @@ export function createEffectRepository(
       return context.persisted;
     },
 
+    assertReconciliationActive(token, observedAtValue) {
+      const observedAt = IsoInstantSchema.parse(observedAtValue);
+      const context = assertActiveClaim(database, {
+        effectId: token.effectId,
+        ownerId: token.ownerId,
+        fence: token.fence,
+        expectedOutboxRevision: token.outboxRevision,
+        expectedEffectRevision: token.effectRevision,
+        observedAt,
+      });
+      if (
+        context.persisted.effect.state !== "sent" &&
+        context.persisted.effect.state !== "unknown" &&
+        context.persisted.effect.state !== "observed"
+      ) {
+        fail(
+          `reconciliation token requires sent, unknown, or observed state: ${context.persisted.effect.state}`,
+        );
+      }
+      return context.persisted;
+    },
+
     recordSendOutcome(input) {
       const transaction = database.transaction(() => {
         const context = assertActiveClaim(database, input);
@@ -2547,6 +2644,95 @@ export function createEffectRepository(
       return transaction.immediate();
     },
 
+    deferObservedReconciliation(input) {
+      const transaction = database.transaction(() => {
+        const context = assertActiveClaim(database, input);
+        const current = context.persisted.effect;
+        if (current.state !== "observed") {
+          fail(`only an observed effect can defer confirmation: ${current.state}`);
+        }
+        assertIncreasingTime(current.updatedAt, context.observedAt, "deferred reconciliation time");
+        if (input.outcome !== "not-found" && input.outcome !== "ambiguous") {
+          fail(`unsupported deferred reconciliation outcome: ${String(input.outcome)}`);
+        }
+        const nextReconcileAt = IsoInstantSchema.parse(input.nextReconcileAt);
+        assertBoundedReconcileAt(context.observedAt, nextReconcileAt);
+        const detailDigest = Sha256DigestSchema.parse(input.detailDigest);
+        const providedCorrelation = parseNullableString(
+          input.providerCorrelationKey,
+          "providerCorrelationKey",
+        );
+        if (
+          providedCorrelation !== null &&
+          providedCorrelation !== current.providerCorrelationKey
+        ) {
+          fail("deferred confirmation correlation must match the observed effect");
+        }
+        const row = database
+          .prepare(
+            "SELECT MAX(sequence) AS sequence FROM effect_reconciliation_attempts WHERE effect_id = ?",
+          )
+          .get(current.effectId) as Readonly<{ sequence: number | null }>;
+        const reconciliationSequence = (row.sequence ?? 0) + 1;
+        const requiresManualIntervention = reconciliationSequence >= MAX_UNRESOLVED_RECONCILIATIONS;
+        const next = mutableEffect(current, {
+          state: requiresManualIntervention ? "manual-intervention" : "observed",
+          revision: current.revision + 1,
+          updatedAt: context.observedAt,
+          nextReconcileAt: requiresManualIntervention ? null : nextReconcileAt,
+          detailDigest,
+        });
+        if (requiresManualIntervention) {
+          updateEffect(database, next, context.expectedEffectRevision);
+        } else {
+          updateEffectWithoutStateTransition(database, next, context.expectedEffectRevision);
+        }
+        database
+          .prepare(
+            `INSERT INTO effect_reconciliation_attempts(
+               effect_id, sequence, outcome, owner_id, fence, observed_at,
+               next_reconcile_at, provider_correlation_key, detail_digest
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            next.effectId,
+            reconciliationSequence,
+            input.outcome,
+            context.ownerId,
+            context.fence,
+            context.observedAt,
+            nextReconcileAt,
+            next.providerCorrelationKey,
+            detailDigest,
+          );
+        if (requiresManualIntervention) {
+          insertTransition(
+            database,
+            next.effectId,
+            current.state,
+            next.state,
+            context.observedAt,
+            context.ownerId,
+            context.fence,
+            detailDigest,
+          );
+        }
+        // Before the policy threshold this is intentionally not a state
+        // transition: ambiguity cannot negate an attested resource. At the
+        // threshold, observed -> manual-intervention preserves that resource
+        // evidence while ending an otherwise infinite reconciliation loop.
+        releaseClaim(
+          database,
+          next.effectId,
+          context.ownerId,
+          context.fence,
+          context.expectedOutboxRevision,
+        );
+        return replacePersistedEffect(context.persisted, next);
+      });
+      return transaction.immediate();
+    },
+
     confirmObserved(input) {
       const transaction = database.transaction(() => {
         const context = assertActiveClaim(database, input);
@@ -2642,7 +2828,9 @@ export function createEffectRepository(
       const transaction = database.transaction(() => {
         const context = assertActiveClaim(database, input);
         const current = context.persisted.effect;
-        if (current.state !== "unknown") fail("only an unknown effect can require intervention");
+        if (current.state !== "unknown" && current.state !== "observed") {
+          fail("only an unknown or observed effect can require intervention");
+        }
         const detailDigest = Sha256DigestSchema.parse(input.detailDigest);
         const next = mutableEffect(current, {
           state: "manual-intervention",

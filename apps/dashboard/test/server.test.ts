@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   startDashboardServer,
   type DashboardCommandPort,
+  type DashboardPortfolioPort,
   type DashboardServer,
 } from "../src/index.js";
 
@@ -12,6 +13,8 @@ const TOKEN = "browser-token-00000000000000000000000000000001";
 const CSRF = "csrf-token-0000000000000000000000000000000001";
 const SESSION = "session-token-0000000000000000000000000000001";
 const ATTEMPT = "75000000-0000-4000-8000-000000000001";
+const PROJECT = "75000000-0000-4000-8000-000000000002";
+const NOW = "2026-08-10T12:00:00.000Z";
 const servers: DashboardServer[] = [];
 
 function port(): DashboardCommandPort {
@@ -25,6 +28,42 @@ function port(): DashboardCommandPort {
     reconcile: vi.fn(async () => ({ reconciledAttemptIds: [] })),
     close: vi.fn(),
   };
+}
+
+function portfolioSnapshot() {
+  return {
+    schemaVersion: 1,
+    generatedAt: NOW,
+    projects: [
+      {
+        projectId: PROJECT,
+        slug: "first-app",
+        displayName: "First app",
+        lifecycleStage: "building",
+        activeAttemptCount: 0,
+        blockerCount: 0,
+        openPullRequestCount: 0,
+        jiraTodoCount: 1,
+        jiraInProgressCount: 0,
+        unresolvedP0: 0,
+        unresolvedP1: 0,
+        releaseStage: null,
+        lastDeliveryAt: null,
+        health: "unknown",
+        healthReasons: ["analytics-unavailable"],
+        analyticsFreshness: "unavailable",
+      },
+    ],
+    totals: {
+      projects: 1,
+      activeAttempts: 0,
+      blockers: 0,
+      openPullRequests: 0,
+      unresolvedP0: 0,
+      unresolvedP1: 0,
+    },
+    sourceSnapshotDigest: `sha256:${"a".repeat(64)}`,
+  } as const;
 }
 
 async function exchange(
@@ -147,5 +186,119 @@ describe("local dashboard server", () => {
     });
     expect(response.status).toBe(200);
     expect(commandPort.pause).toHaveBeenCalledWith(ATTEMPT, "Review");
+  });
+
+  it("serves a provider-neutral multi-project snapshot through its read-only port", async () => {
+    const snapshot = portfolioSnapshot();
+    const portfolioPort: DashboardPortfolioPort = {
+      snapshot: vi.fn(async () => snapshot),
+    };
+    const server = await startDashboardServer({
+      commandPort: port(),
+      portfolioPort,
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+    });
+    servers.push(server);
+    const response = await exchange(server.origin, {
+      path: "/api/portfolio",
+      headers: { cookie: `factory_dashboard=${SESSION}` },
+    });
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      snapshot: { projects: [{ displayName: "First app" }] },
+    });
+    expect(portfolioPort.snapshot).toHaveBeenCalledOnce();
+    expect(portfolioPort.snapshot).toHaveBeenCalledWith(expect.any(AbortSignal));
+  });
+
+  it("rejects unbounded or unexpected portfolio DTOs without leaking provider errors", async () => {
+    const canary = "provider-secret-canary";
+    const portfolioPort: DashboardPortfolioPort = {
+      snapshot: vi.fn(async () => {
+        throw new Error(canary);
+      }),
+    };
+    const server = await startDashboardServer({
+      commandPort: port(),
+      portfolioPort,
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+    });
+    servers.push(server);
+    const response = await exchange(server.origin, {
+      path: "/api/portfolio",
+      headers: { cookie: `factory_dashboard=${SESSION}` },
+    });
+    expect(response.status).toBe(503);
+    expect(response.body).toContain("Portfolio is unavailable.");
+    expect(response.body).not.toContain(canary);
+  });
+
+  it("rejects unexpected portfolio fields instead of reflecting them", async () => {
+    const canary = "credential-that-must-not-be-reflected";
+    const portfolioPort: DashboardPortfolioPort = {
+      snapshot: vi.fn(async () => ({ ...portfolioSnapshot(), credential: canary })),
+    };
+    const server = await startDashboardServer({
+      commandPort: port(),
+      portfolioPort,
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+    });
+    servers.push(server);
+    const response = await exchange(server.origin, {
+      path: "/api/portfolio",
+      headers: { cookie: `factory_dashboard=${SESSION}` },
+    });
+    expect(response.status).toBe(503);
+    expect(response.body).not.toContain(canary);
+  });
+
+  it("cancels a portfolio source that exceeds its bounded response time", async () => {
+    let observedSignal: AbortSignal | undefined;
+    const portfolioPort: DashboardPortfolioPort = {
+      snapshot: vi.fn(
+        async (signal) =>
+          await new Promise<never>((_resolve, reject) => {
+            observedSignal = signal;
+            signal.addEventListener("abort", () => reject(new Error("cancelled")), { once: true });
+          }),
+      ),
+    };
+    const server = await startDashboardServer({
+      commandPort: port(),
+      portfolioPort,
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+      portfolioTimeoutMs: 10,
+    });
+    servers.push(server);
+    const response = await exchange(server.origin, {
+      path: "/api/portfolio",
+      headers: { cookie: `factory_dashboard=${SESSION}` },
+    });
+    expect(response.status).toBe(503);
+    expect(observedSignal?.aborted).toBe(true);
+  });
+
+  it("fails honestly when no portfolio projection has been composed", async () => {
+    const server = await startDashboardServer({
+      commandPort: port(),
+      browserToken: TOKEN,
+      csrfToken: CSRF,
+      sessionToken: SESSION,
+    });
+    servers.push(server);
+    const response = await exchange(server.origin, {
+      path: "/api/portfolio",
+      headers: { cookie: `factory_dashboard=${SESSION}` },
+    });
+    expect(response.status).toBe(503);
+    expect(response.body).toContain("dashboard.portfolio-unavailable");
   });
 });

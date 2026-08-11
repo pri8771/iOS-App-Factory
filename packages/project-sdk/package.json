@@ -1,0 +1,23 @@
+{
+  "name": "@app-factory/project-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "clean": "tsc -b --clean",
+    "test": "vitest run packages/project-sdk/test"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  }
+}

@@ -14,18 +14,27 @@ files as the proposal. It inventories paths using Git's NUL-safe output,
 prevalidates each filesystem entry without following symlinks, hashes file bytes
 without Git filters, and builds a candidate tree in a private temporary index.
 It then rechecks `HEAD`, status, modes, sizes, and byte digests to fail closed on
-mutation. Protected or out-of-scope paths, submodules, escaping symlinks,
-binary/oversized diffs, and case collisions are rejected. The result binds the
-base SHA, candidate tree ID, canonical patch, and stable SHA-256 digests without
-moving agent `HEAD`.
+mutation. Protected or out-of-scope paths, test harnesses and fixtures, build or
+dependency policy files, `.factory` metadata, submodules, escaping symlinks,
+symlinks that resolve into `.git`, multi-linked files, binary/oversized diffs,
+and case collisions are rejected. The result binds the base SHA, candidate tree
+ID, canonical patch, and stable SHA-256 digests without moving agent `HEAD`.
 
-`createTrustedVerificationCheckout` creates a second detached checkout from the
-verified candidate tree and removes write bits recursively. It uses a
-deterministic verifier-only commit with fixed identity and metadata; this is not
-the broker's eventual reviewed commit. The candidate tree ID remains a separate
-field in its ownership record. Only the trusted daemon/verifier should receive
-that path; agent permission profiles must expose the attempt worktree and must
-omit the verification tree.
+Broker commit creation is idempotent under an attempt-owned marker ref. The
+caller must supply an active-lease guard; it is checked before commit-object
+creation and again immediately before the marker ref is published. A fence
+loss at either boundary leaves the marker ref unpublished, while a retry
+reconciles an existing marker only when all expected commit bindings match.
+
+`createTrustedVerificationCheckout` creates a detached, ownership-isolated
+checkout from the verified candidate tree and removes write bits recursively.
+Concurrent or reclaimed workers never adopt the same verifier checkout, so a
+stale worker can clean only the workspace named by its own nonce-bearing
+ownership record. It uses a deterministic verifier-only commit with fixed
+identity and metadata; this is not the broker's eventual reviewed commit. The
+candidate tree ID remains a separate field in its ownership record. Only the
+trusted daemon/verifier should receive that path; agent permission profiles must
+expose the attempt worktree and must omit the verification tree.
 
 Cleanup is deliberately fail-closed. It validates the private ownership marker,
 deterministic path, Git administrative directory, common mirror, and nonce

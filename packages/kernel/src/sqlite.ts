@@ -6,6 +6,8 @@ import { runMigrations, type RunMigrationsOptions } from "./migrations.js";
 
 export const MINIMUM_SAFE_SQLITE_VERSION = "3.51.3";
 export const DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5_000;
+/** Canonical filename shared by the daemon and disaster-recovery boundary. */
+export const FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME = "control-plane.sqlite";
 
 export type FactoryDatabaseHealth = Readonly<{
   sqliteVersion: string;

@@ -174,9 +174,9 @@ describe("migration runner", () => {
     const first = runMigrations(database, { now: () => new Date(NOW) });
     const second = runMigrations(database, { now: () => new Date(LATER) });
 
-    expect(first).toEqual({ currentVersion: 2, newlyAppliedVersions: [1, 2] });
-    expect(second).toEqual({ currentVersion: 2, newlyAppliedVersions: [] });
-    expect(database.pragma("user_version", { simple: true })).toBe(2);
+    expect(first).toEqual({ currentVersion: 3, newlyAppliedVersions: [1, 2, 3] });
+    expect(second).toEqual({ currentVersion: 3, newlyAppliedVersions: [] });
+    expect(database.pragma("user_version", { simple: true })).toBe(3);
     expect(listAppliedMigrations(database)).toEqual([
       {
         version: 1,
@@ -187,6 +187,12 @@ describe("migration runner", () => {
       {
         version: 2,
         name: "approvals-outbox",
+        checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+        appliedAt: NOW,
+      },
+      {
+        version: 3,
+        name: "observed-manual-intervention",
         checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
         appliedAt: NOW,
       },
@@ -227,7 +233,7 @@ describe("migration runner", () => {
     const database = openFactoryDatabase(makeDatabasePath());
     runMigrations(database, { now: () => new Date(NOW) });
     const brokenMigration: SqlMigration = {
-      version: 3,
+      version: 4,
       name: "broken-probe",
       sql: `
         CREATE TABLE must_rollback (id INTEGER PRIMARY KEY) STRICT;
@@ -240,9 +246,11 @@ describe("migration runner", () => {
         migrations: [...FACTORY_MIGRATIONS, brokenMigration],
         now: () => new Date(LATER),
       }),
-    ).toThrow(/Migration 3 \(broken-probe\) failed/);
-    expect(database.pragma("user_version", { simple: true })).toBe(2);
-    expect(listAppliedMigrations(database).map((migration) => migration.version)).toEqual([1, 2]);
+    ).toThrow(/Migration 4 \(broken-probe\) failed/);
+    expect(database.pragma("user_version", { simple: true })).toBe(3);
+    expect(listAppliedMigrations(database).map((migration) => migration.version)).toEqual([
+      1, 2, 3,
+    ]);
     expect(
       database
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'must_rollback'")
@@ -262,15 +270,39 @@ describe("migration runner", () => {
     expect(database.pragma("user_version", { simple: true })).toBe(1);
 
     expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
-      currentVersion: 2,
-      newlyAppliedVersions: [2],
+      currentVersion: 3,
+      newlyAppliedVersions: [2, 3],
     });
-    expect(database.pragma("user_version", { simple: true })).toBe(2);
+    expect(database.pragma("user_version", { simple: true })).toBe(3);
     const stepColumns = database.pragma("table_info(steps)") as readonly Readonly<{
       name: string;
     }>[];
     expect(stepColumns.map(({ name }) => name)).toContain("effect_checkpoint_revision");
     expect(database.pragma("foreign_key_check")).toEqual([]);
+    database.close();
+  });
+
+  it("upgrades an existing v2 database with the observed manual-intervention transition", () => {
+    const database = openFactoryDatabase(makeDatabasePath());
+    const v1 = FACTORY_MIGRATIONS[0];
+    const v2 = FACTORY_MIGRATIONS[1];
+    if (v1 === undefined || v2 === undefined) throw new Error("Expected v1/v2 migrations");
+    expect(runMigrations(database, { migrations: [v1, v2], now: () => new Date(NOW) })).toEqual({
+      currentVersion: 2,
+      newlyAppliedVersions: [1, 2],
+    });
+
+    expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
+      currentVersion: 3,
+      newlyAppliedVersions: [3],
+    });
+    const trigger = database
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'external_effects_legal_state_transition'",
+      )
+      .get() as Readonly<{ sql: string }>;
+    expect(trigger.sql).toContain("NEW.state IN ('confirmed', 'manual-intervention')");
+    expect(database.pragma("user_version", { simple: true })).toBe(3);
     database.close();
   });
 

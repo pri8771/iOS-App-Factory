@@ -1,0 +1,30 @@
+{
+  "name": "@app-factory/execution-engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "clean": "tsc -b --clean",
+    "test": "vitest run packages/execution-engine/test"
+  },
+  "dependencies": {
+    "@app-factory/contracts": "workspace:*",
+    "@app-factory/evidence-store": "workspace:*",
+    "@app-factory/git-workspace": "workspace:*",
+    "@app-factory/independent-review": "workspace:*",
+    "@app-factory/trusted-verifier": "workspace:*"
+  },
+  "devDependencies": {
+    "@app-factory/kernel": "workspace:*"
+  }
+}
