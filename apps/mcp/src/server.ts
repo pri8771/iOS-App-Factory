@@ -6,10 +6,14 @@ import {
 } from "@app-factory/command-client";
 import {
   AttemptIdSchema,
+  AttemptListCursorV1Schema,
+  AttemptListScopeV1Schema,
   CommandIdSchema,
   IsoInstantSchema,
+  ProjectIdSchema,
   TaskSpecV1Schema,
   type AttemptId,
+  type AttemptListQueryV1,
   type TaskSpecV1,
 } from "@app-factory/contracts";
 import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
@@ -33,6 +37,7 @@ export type McpCommandPort = Readonly<{
     options: Readonly<{ afterSequence: number; limit: number }>,
     signal?: AbortSignal,
   ): Promise<unknown>;
+  listAttempts(options: AttemptListQueryV1, signal?: AbortSignal): Promise<unknown>;
   pause(
     attemptId: AttemptId,
     reason: string | null,
@@ -239,6 +244,24 @@ export function createFactoryMcpServer(port: McpCommandPort): McpServer {
       ),
   );
 
+  server.registerTool(
+    "factory_attempt_list",
+    {
+      title: "List Factory attempts",
+      description:
+        "Read a bounded, newest-first work queue. Each row is for navigation; re-read one attempt before acting on it.",
+      inputSchema: z.strictObject({
+        scope: AttemptListScopeV1Schema.default("active"),
+        projectId: ProjectIdSchema.nullable().default(null),
+        after: AttemptListCursorV1Schema.nullable().default(null),
+        limit: z.number().int().positive().max(100).default(50),
+      }),
+      annotations: READ_ONLY,
+    },
+    async (options, context) =>
+      await invoke(async () => await port.listAttempts(options, context.mcpReq.signal)),
+  );
+
   const reasonSchema = z.string().min(1).max(1_000).nullable().default(null);
   server.registerTool(
     "factory_attempt_pause",
@@ -405,6 +428,7 @@ export function commandClientMcpPort(client: CommandClient): McpCommandPort {
     status: async (attemptId, signal) => await client.status(attemptId, undefined, signal),
     events: async (attemptId, options, signal) =>
       await client.events(attemptId, options, undefined, signal),
+    listAttempts: async (options, signal) => await client.listAttempts(options, undefined, signal),
     pause: async (attemptId, reason, retryIdentity, signal) =>
       await client.pause(attemptId, reason, deliveryIdentity(client, retryIdentity), signal),
     resume: async (attemptId, reason, retryIdentity, signal) =>

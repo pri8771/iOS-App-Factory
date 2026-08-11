@@ -105,6 +105,18 @@ function evidenceListResponse(requestId: unknown): Record<string, unknown> {
   };
 }
 
+function attemptListResponse(requestId: unknown): Record<string, unknown> {
+  return {
+    protocolVersion: 1,
+    requestId,
+    ok: true,
+    result: {
+      operation: "attempt.list",
+      page: { attempts: [], nextAfter: null, hasMore: false },
+    },
+  };
+}
+
 function portfolioResponse(requestId: unknown): Record<string, unknown> {
   const snapshot = {
     schemaVersion: 1 as const,
@@ -199,6 +211,55 @@ describe("typed command client", () => {
       request: {
         operation: "evidence.list",
         payload: { afterAttemptId: ATTEMPT_ID, limit: 25 },
+      },
+    });
+    client.close();
+  });
+
+  it("sends a strict bounded attempt-list query with safe defaults and cursors", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(`${JSON.stringify(attemptListResponse(frame.requestId))}\n`);
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(client.listAttempts({}, identity())).resolves.toMatchObject({
+      operation: "attempt.list",
+      page: { attempts: [], hasMore: false },
+    });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "attempt.list",
+        payload: { scope: "active", projectId: null, after: null, limit: 50 },
+      },
+    });
+
+    await client.listAttempts(
+      {
+        scope: "all",
+        projectId: "20000000-0000-4000-8000-000000000001",
+        after: { updatedAt: NOW.toISOString(), attemptId: ATTEMPT_ID },
+        limit: 25,
+      },
+      identity("00000000-0000-4000-8000-000000000011"),
+    );
+    expect(received[1]).toMatchObject({
+      request: {
+        operation: "attempt.list",
+        payload: {
+          scope: "all",
+          projectId: "20000000-0000-4000-8000-000000000001",
+          after: { updatedAt: NOW.toISOString(), attemptId: ATTEMPT_ID },
+          limit: 25,
+        },
       },
     });
     client.close();

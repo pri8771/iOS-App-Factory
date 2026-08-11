@@ -27,6 +27,7 @@ const SUBMIT_COMMAND_ID = "20000000-0000-4000-8000-000000000004";
 const RUN_COMMAND_ID = "20000000-0000-4000-8000-000000000005";
 const STATUS_COMMAND_ID = "20000000-0000-4000-8000-000000000006";
 const EVENTS_COMMAND_ID = "20000000-0000-4000-8000-000000000007";
+const ATTEMPT_LIST_COMMAND_ID = "20000000-0000-4000-8000-000000000032";
 const PAUSE_COMMAND_ID = "20000000-0000-4000-8000-000000000008";
 const RESUME_COMMAND_ID = "20000000-0000-4000-8000-000000000009";
 const CANCEL_COMMAND_ID = "20000000-0000-4000-8000-000000000010";
@@ -393,6 +394,37 @@ describe("task intake and authoritative queries", () => {
     });
   });
 
+  it("lists a bounded authoritative work queue with task navigation context", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const submitted = await invoke(runtime, submitRequest());
+    if (submitted.operation !== "task.submit") throw new Error("Unexpected submit result");
+
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "attempt.list",
+          ATTEMPT_LIST_COMMAND_ID,
+          { scope: "active", projectId: PROJECT_ID, after: null, limit: 50 },
+          T1,
+        ),
+      ),
+    ).resolves.toMatchObject({
+      operation: "attempt.list",
+      page: {
+        attempts: [
+          {
+            projectId: PROJECT_ID,
+            title: taskSpec.title,
+            attempt: { attemptId: submitted.attemptId, taskId: TASK_ID, state: "queued" },
+          },
+        ],
+        nextAfter: null,
+        hasMore: false,
+      },
+    });
+  });
+
   it("reports missing attempts instead of treating them as empty event streams", async () => {
     const runtime = await openRuntime(await makeRoot());
     const missing = "20000000-0000-4000-8000-000000000099";
@@ -423,6 +455,15 @@ describe("durable logical command idempotency", () => {
     await invoke(runtime, request("doctor", DOCTOR_COMMAND_ID, {}, T2));
     await status(runtime, submitted.attemptId);
     await status(runtime, submitted.attemptId, "20000000-0000-4000-8000-000000000023");
+    await invoke(
+      runtime,
+      request(
+        "attempt.list",
+        ATTEMPT_LIST_COMMAND_ID,
+        { scope: "active", projectId: null, after: null, limit: 50 },
+        T2,
+      ),
+    );
     await invoke(
       runtime,
       request(

@@ -1,5 +1,6 @@
 export * from "./agent-run.js";
 export * from "./approval.js";
+export * from "./attempt-read-model.js";
 export * from "./catalog.js";
 export * from "./command.js";
 export * from "./command-protocol.js";

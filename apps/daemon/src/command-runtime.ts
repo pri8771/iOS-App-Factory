@@ -400,6 +400,7 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "doctor":
     case "attempt.status":
     case "attempt.events":
+    case "attempt.list":
     case "daemon.reconcile":
     case "evidence.list":
     case "evidence.inspect":
@@ -683,6 +684,11 @@ async function executeRequest(
         nextAfterSequence: events.at(-1)?.sequence ?? request.payload.afterSequence,
       };
     }
+    case "attempt.list":
+      return {
+        operation: "attempt.list",
+        page: repositories.attempts.list(request.payload),
+      };
     case "attempt.pause":
     case "attempt.resume":
     case "attempt.cancel":

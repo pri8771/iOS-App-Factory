@@ -81,6 +81,8 @@ doctor
 submit --task /absolute/path/to/task.json
 run --task /absolute/path/to/task.json
 status ATTEMPT_UUID
+attempts [--all] [--project PROJECT_UUID] [--limit N]
+         [--after-updated-at ISO_INSTANT --after-attempt ATTEMPT_UUID]
 events ATTEMPT_UUID [--after N] [--limit N]
 pause ATTEMPT_UUID [--reason TEXT]
 resume ATTEMPT_UUID [--reason TEXT]
@@ -225,6 +227,7 @@ factory_doctor
 factory_task_submit
 factory_task_run
 factory_attempt_status
+factory_attempt_list
 factory_attempt_events
 factory_attempt_pause
 factory_attempt_resume
@@ -277,9 +280,12 @@ browser JavaScript never receives the daemon authorization. The server binds
 only `127.0.0.1`. Ctrl-C or `SIGTERM` gracefully closes both the HTTP server and
 command client.
 
-The current UI supports daemon health, attempt status/events,
-pause/resume/cancel/reconcile, and the daemon's authoritative local portfolio
-projection. The portfolio is maintained transactionally and deliberately shows
+The current UI opens on a bounded, newest-first work queue. It supports active
+or all attempts, exact project filtering, cursor pagination, and click-through
+to an authoritative status/event re-read; manual attempt-ID lookup remains
+available. It also supports daemon health, pause/resume/cancel/reconcile, and
+the daemon's authoritative local portfolio projection. The portfolio is
+maintained transactionally and deliberately shows
 Jira, GitHub, quality, release, and analytics values as unavailable until live
 sources are composed. Quality and release panels are not implemented.
 

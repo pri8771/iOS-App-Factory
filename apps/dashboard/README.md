@@ -9,10 +9,16 @@ cookie, and all mutations also require a per-process CSRF token. The service
 binds only `127.0.0.1`, validates Host and Origin, caps request bodies, and ships
 a restrictive content-security policy.
 
-The first functional surface provides daemon health, exact attempt status and
-timeline, pause/resume/cancel, and attempt reconciliation. Additional panels
-must consume an authoritative typed port; they do not create another workflow
-database.
+The Run monitor opens with an authoritative, refreshable work queue. It defaults
+to active attempts, can switch to all attempts, can filter by an exact project
+UUID, and uses a paired `(updatedAt, attemptId)` cursor for deterministic bounded
+pagination. Selecting a queue row performs a fresh status and event read; the
+navigation row is never treated as authoritative attempt detail. Manual attempt
+UUID lookup remains available.
+
+The same surface provides daemon health, exact attempt status and timeline,
+pause/resume/cancel, and attempt reconciliation. Additional panels must consume
+an authoritative typed port; they do not create another workflow database.
 
 If an action's response is lost after dispatch, the browser retains the
 returned durable identity and tells the operator to click that same action

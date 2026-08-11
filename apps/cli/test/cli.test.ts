@@ -10,6 +10,7 @@ import {
 } from "../src/index.js";
 
 const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
+const PROJECT_ID = "00000000-0000-4000-8000-000000000006";
 const NOW = "2026-08-10T12:00:00.000Z";
 
 describe("CLI argument parser", () => {
@@ -27,6 +28,43 @@ describe("CLI argument parser", () => {
     [
       ["status", ATTEMPT_ID],
       { outputMode: "human", command: { kind: "attempt.status", attemptId: ATTEMPT_ID } },
+    ],
+    [
+      ["attempts"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "attempt.list",
+          scope: "active",
+          projectId: null,
+          after: null,
+          limit: 50,
+        },
+      },
+    ],
+    [
+      [
+        "attempts",
+        "--all",
+        "--project",
+        PROJECT_ID,
+        "--after-updated-at",
+        NOW,
+        "--after-attempt",
+        ATTEMPT_ID,
+        "--limit",
+        "25",
+      ],
+      {
+        outputMode: "human",
+        command: {
+          kind: "attempt.list",
+          scope: "all",
+          projectId: PROJECT_ID,
+          after: { updatedAt: NOW, attemptId: ATTEMPT_ID },
+          limit: 25,
+        },
+      },
     ],
     [
       ["events", ATTEMPT_ID, "--after", "7", "--limit", "25"],
@@ -126,6 +164,12 @@ describe("CLI argument parser", () => {
     [["doctor", "extra"]],
     [["submit"]],
     [["status", "not-an-id"]],
+    [["attempts", "--project", "not-an-id"]],
+    [["attempts", "--after-updated-at", NOW]],
+    [["attempts", "--after-attempt", ATTEMPT_ID]],
+    [["attempts", "--after-updated-at", "not-an-instant", "--after-attempt", ATTEMPT_ID]],
+    [["attempts", "--limit", "101"]],
+    [["attempts", "--all", "--all"]],
     [["events", ATTEMPT_ID, "--limit", "0"]],
     [["events", ATTEMPT_ID, "--limit", "1001"]],
     [["pause", ATTEMPT_ID, "--reason"]],
@@ -179,6 +223,45 @@ describe("CLI output renderer", () => {
         "human",
       ),
     ).toBe("no events\n");
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "attempt.list",
+          page: {
+            attempts: [
+              {
+                schemaVersion: 1,
+                projectId: PROJECT_ID,
+                title: "Fix\nunsafe title",
+                attempt: {
+                  schemaVersion: 1,
+                  attemptId: ATTEMPT_ID,
+                  taskId: "00000000-0000-4000-8000-000000000007",
+                  taskSpecDigest: `sha256:${"a".repeat(64)}`,
+                  attemptNumber: 1,
+                  state: "queued",
+                  desiredState: "running",
+                  revision: 0,
+                  fence: 0,
+                  currentStepId: null,
+                  blocker: null,
+                  outcome: null,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                  terminalAt: null,
+                },
+              },
+            ],
+            nextAfter: { updatedAt: NOW, attemptId: ATTEMPT_ID },
+            hasMore: true,
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      `${ATTEMPT_ID}\tqueued\t${PROJECT_ID}\t"Fix\\nunsafe title"\nmore after ${NOW} ${ATTEMPT_ID}\n`,
+    );
 
     expect(
       renderCommandResult(

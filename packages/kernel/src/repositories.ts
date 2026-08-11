@@ -1,6 +1,9 @@
 import {
   AbsolutePathSchema,
   ArtifactRefV1Schema,
+  AttemptListItemV1Schema,
+  AttemptListPageV1Schema,
+  AttemptListQueryV1Schema,
   AttemptIdSchema,
   CommandIdSchema,
   CommandV1Schema,
@@ -14,6 +17,8 @@ import {
   TaskIdSchema,
   TaskSpecV1Schema,
   type ArtifactRefV1,
+  type AttemptListItemV1,
+  type AttemptListPageV1,
   type CommandV1,
   type EventV1,
   type ExecutionAttemptV1,
@@ -101,6 +106,13 @@ type AttemptRow = Readonly<{
   terminal_at: string | null;
   payload_json: string;
 }>;
+
+type AttemptListRow = AttemptRow &
+  Readonly<{
+    task_project_id: string;
+    task_snapshot_digest: string;
+    task_payload_json: string;
+  }>;
 
 type EventRow = Readonly<{
   event_id: string;
@@ -203,6 +215,27 @@ function decodeAttempt(row: AttemptRow): ExecutionAttemptV1 {
   assertSame("updated_at projection", row.updated_at, attempt.updatedAt);
   assertSame("terminal_at projection", row.terminal_at, attempt.terminalAt);
   return assertAttemptSnapshotCoherence(attempt);
+}
+
+function decodeAttemptListItem(row: AttemptListRow): AttemptListItemV1 {
+  const attempt = decodeAttempt(row);
+  const taskSpec = parseStoredJson("task_snapshots", row.task_id, row.task_payload_json, (value) =>
+    TaskSpecV1Schema.parse(value),
+  );
+  assertSame("attempt-list task ID", taskSpec.taskId, attempt.taskId);
+  assertSame("attempt-list task project projection", row.task_project_id, taskSpec.projectId);
+  assertSame(
+    "attempt-list task snapshot digest",
+    row.task_snapshot_digest,
+    computeTaskSpecDigest(taskSpec),
+  );
+  assertSame("attempt-list attempt task digest", attempt.taskSpecDigest, row.task_snapshot_digest);
+  return AttemptListItemV1Schema.parse({
+    schemaVersion: 1,
+    projectId: taskSpec.projectId,
+    title: taskSpec.title,
+    attempt,
+  });
 }
 
 function decodeEvent(row: EventRow): EventV1 {
@@ -359,6 +392,59 @@ export class AttemptRepository {
       .prepare("SELECT * FROM attempts WHERE attempt_id = ?")
       .get(attemptId) as AttemptRow | undefined;
     return row === undefined ? null : decodeAttempt(row);
+  }
+
+  /**
+   * Returns a bounded navigation page ordered by the authoritative attempt
+   * update tuple. This is a read model; callers must re-read one exact attempt
+   * before acting on it.
+   */
+  public list(inputValue: unknown): AttemptListPageV1 {
+    const input = AttemptListQueryV1Schema.parse(inputValue);
+    const conditions: string[] = [];
+    const parameters: Array<number | string> = [];
+
+    if (input.scope === "active") {
+      conditions.push("attempt.state NOT IN ('succeeded', 'failed', 'cancelled')");
+    }
+    if (input.projectId !== null) {
+      conditions.push("task.project_id = ?");
+      parameters.push(input.projectId);
+    }
+    if (input.after !== null) {
+      conditions.push(
+        "(attempt.updated_at < ? OR (attempt.updated_at = ? AND attempt.attempt_id < ?))",
+      );
+      parameters.push(input.after.updatedAt, input.after.updatedAt, input.after.attemptId);
+    }
+
+    const where = conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
+    const rows = this.database
+      .prepare(
+        `SELECT
+           attempt.*,
+           task.project_id AS task_project_id,
+           task.task_spec_digest AS task_snapshot_digest,
+           task.payload_json AS task_payload_json
+         FROM attempts AS attempt
+         JOIN task_snapshots AS task ON task.task_id = attempt.task_id
+         ${where}
+         ORDER BY attempt.updated_at DESC, attempt.attempt_id DESC
+         LIMIT ?`,
+      )
+      .all(...parameters, input.limit + 1) as readonly AttemptListRow[];
+    const decoded = rows.map(decodeAttemptListItem);
+    const hasMore = decoded.length > input.limit;
+    const attempts = decoded.slice(0, input.limit);
+    const cursorSource = hasMore ? attempts.at(-1)?.attempt : undefined;
+    return AttemptListPageV1Schema.parse({
+      attempts,
+      nextAfter:
+        cursorSource === undefined
+          ? null
+          : { updatedAt: cursorSource.updatedAt, attemptId: cursorSource.attemptId },
+      hasMore,
+    });
   }
 
   /**

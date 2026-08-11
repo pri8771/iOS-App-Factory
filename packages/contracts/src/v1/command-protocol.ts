@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { AttemptListPageV1Schema, AttemptListQueryV1Schema } from "./attempt-read-model.js";
 import { CommandOriginV1Schema } from "./command.js";
 import {
   EvidenceKindV1Schema,
@@ -81,6 +82,12 @@ export const EventsCommandRequestV1Schema = z.strictObject({
   }),
 });
 
+export const AttemptListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("attempt.list"),
+  payload: AttemptListQueryV1Schema,
+});
+
 export const PauseCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("attempt.pause"),
@@ -138,6 +145,7 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   RunCommandRequestV1Schema,
   StatusCommandRequestV1Schema,
   EventsCommandRequestV1Schema,
+  AttemptListCommandRequestV1Schema,
   PauseCommandRequestV1Schema,
   ResumeCommandRequestV1Schema,
   CancelCommandRequestV1Schema,
@@ -196,6 +204,11 @@ export const EventsCommandResultV1Schema = z.strictObject({
   operation: z.literal("attempt.events"),
   events: z.array(EventV1Schema).max(1_000),
   nextAfterSequence: NonNegativeSafeIntegerSchema,
+});
+
+export const AttemptListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("attempt.list"),
+  page: AttemptListPageV1Schema,
 });
 
 function desiredStateResultSchema<Operation extends string>(
@@ -275,6 +288,7 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   RunCommandResultV1Schema,
   StatusCommandResultV1Schema,
   EventsCommandResultV1Schema,
+  AttemptListCommandResultV1Schema,
   PauseCommandResultV1Schema,
   ResumeCommandResultV1Schema,
   CancelCommandResultV1Schema,

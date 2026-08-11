@@ -20,3 +20,7 @@ the returned identity.
 
 Closing a client terminates all active sockets and makes future calls fail
 closed.
+
+`listAttempts()` provides the bounded newest-first read model used by command
+surfaces. It defaults to active attempts with a 50-row limit and sends complete
+keyset cursors; it remains a read-only request rather than a durable mutation.

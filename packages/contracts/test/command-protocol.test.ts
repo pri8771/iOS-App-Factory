@@ -30,6 +30,7 @@ describe("command protocol V1", () => {
     ["doctor", {}],
     ["attempt.status", { attemptId: ATTEMPT_ID }],
     ["attempt.events", { attemptId: ATTEMPT_ID, afterSequence: 0, limit: 100 }],
+    ["attempt.list", { scope: "active", projectId: null, after: null, limit: 50 }],
     ["attempt.pause", { attemptId: ATTEMPT_ID, reason: null }],
     ["attempt.resume", { attemptId: ATTEMPT_ID, reason: "Continue." }],
     ["attempt.cancel", { attemptId: ATTEMPT_ID, reason: "Stop." }],
@@ -71,6 +72,16 @@ describe("command protocol V1", () => {
         request("evidence.list", { afterAttemptId: null, limit: 101 }),
       ).success,
     ).toBe(false);
+    expect(
+      CommandRequestV1Schema.safeParse(
+        request("attempt.list", {
+          scope: "all",
+          projectId: null,
+          after: { updatedAt: NOW },
+          limit: 50,
+        }),
+      ).success,
+    ).toBe(false);
   });
 
   it("supports a nullable correlation ID only for protocol failures", () => {
@@ -103,6 +114,20 @@ describe("command protocol V1", () => {
     ).toBe(false);
   });
 
+  it("accepts a bounded attempt-list page through the success envelope", () => {
+    expect(
+      CommandResponseV1Schema.parse({
+        protocolVersion: 1,
+        requestId: REQUEST_ID,
+        ok: true,
+        result: {
+          operation: "attempt.list",
+          page: { attempts: [], nextAfter: null, hasMore: false },
+        },
+      }),
+    ).toMatchObject({ result: { operation: "attempt.list", page: { hasMore: false } } });
+  });
+
   it("keeps operation-specific request and result types correlated", () => {
     expectTypeOf<CommandRequestForOperationV1<"attempt.pause">["payload"]>().toEqualTypeOf<{
       attemptId: string & { readonly __brand: "AttemptId" };
@@ -114,6 +139,12 @@ describe("command protocol V1", () => {
     expectTypeOf<CommandRequestForOperationV1<"portfolio.snapshot">["payload"]>().toEqualTypeOf<
       Record<string, never>
     >();
+    expectTypeOf<CommandRequestForOperationV1<"attempt.list">["payload"]["scope"]>().toEqualTypeOf<
+      "active" | "all"
+    >();
+    expectTypeOf<
+      CommandResultForOperationV1<"attempt.list">["page"]["hasMore"]
+    >().toEqualTypeOf<boolean>();
     expectTypeOf<
       CommandResultForOperationV1<"evidence.verify">["integrityVerified"]
     >().toEqualTypeOf<true>();

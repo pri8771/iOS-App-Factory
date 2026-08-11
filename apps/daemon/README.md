@@ -36,3 +36,8 @@ a crash at the result-ledger boundary cannot advance an attempt and then replay
 the command as new work. A daemon restart independently begins with a scheduler
 tick. The v1 `reconciledAttemptIds` response field reports synchronous work and
 is therefore always empty for this wake-only operation.
+
+`attempt.list` is an authoritative, bounded navigation read. It is ordered by
+`updatedAt` and `attemptId` descending, can be scoped to active work or one
+project, and bypasses the durable mutation result journal just like status and
+events. Consumers must re-read one exact attempt before taking action.

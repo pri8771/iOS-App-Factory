@@ -12,9 +12,12 @@ import {
   AttemptIdSchema,
   CommandIdSchema,
   IsoInstantSchema,
+  ProjectIdSchema,
   TaskSpecV1Schema,
   type AttemptId,
+  type AttemptListCursorV1,
   type CommandResultV1,
+  type ProjectId,
   type TaskSpecV1,
 } from "@app-factory/contracts";
 
@@ -29,6 +32,13 @@ export type ParsedCliCommand =
       kind: "attempt.events";
       attemptId: AttemptId;
       afterSequence: number;
+      limit: number;
+    }>
+  | Readonly<{
+      kind: "attempt.list";
+      scope: "active" | "all";
+      projectId: ProjectId | null;
+      after: AttemptListCursorV1 | null;
       limit: number;
     }>
   | Readonly<{
@@ -68,6 +78,13 @@ function parseAttemptId(value: string | undefined): AttemptId {
   return parsed.data;
 }
 
+function parseProjectId(value: string | undefined): ProjectId {
+  if (value === undefined) usageError("A project ID is required.");
+  const parsed = ProjectIdSchema.safeParse(value);
+  if (!parsed.success) usageError("The project ID must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
 function parsePositiveInteger(name: string, value: string | undefined, maximum: number): number {
   if (value === undefined || !/^[1-9][0-9]*$/.test(value)) {
     usageError(`${name} must be a positive integer.`);
@@ -99,6 +116,17 @@ function consumeOption(arguments_: string[], option: string): string | undefined
   if (value === undefined || value.startsWith("--")) usageError(`${option} requires a value.`);
   arguments_.splice(index, 2);
   return value;
+}
+
+function consumeFlag(arguments_: string[], flag: string): boolean {
+  const indexes = arguments_
+    .map((argument, index) => (argument === flag ? index : -1))
+    .filter((index) => index >= 0);
+  if (indexes.length > 1) usageError(`${flag} may only be provided once.`);
+  const index = indexes[0];
+  if (index === undefined) return false;
+  arguments_.splice(index, 1);
+  return true;
 }
 
 function rejectUnexpected(arguments_: readonly string[]): void {
@@ -161,6 +189,42 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     const attemptId = parseAttemptId(arguments_.shift());
     rejectUnexpected(arguments_);
     return { outputMode, retryIdentity, command: { kind: "attempt.status", attemptId } };
+  }
+
+  if (command === "attempts") {
+    const all = consumeFlag(arguments_, "--all");
+    const projectValue = consumeOption(arguments_, "--project");
+    const afterUpdatedAtValue = consumeOption(arguments_, "--after-updated-at");
+    const afterAttemptValue = consumeOption(arguments_, "--after-attempt");
+    const limitValue = consumeOption(arguments_, "--limit");
+    if ((afterUpdatedAtValue === undefined) !== (afterAttemptValue === undefined)) {
+      usageError("--after-updated-at and --after-attempt must be provided together.");
+    }
+    const after: AttemptListCursorV1 | null =
+      afterUpdatedAtValue === undefined || afterAttemptValue === undefined
+        ? null
+        : {
+            updatedAt: (() => {
+              const parsed = IsoInstantSchema.safeParse(afterUpdatedAtValue);
+              if (!parsed.success) {
+                usageError("--after-updated-at must be a canonical ISO-8601 instant.");
+              }
+              return parsed.data;
+            })(),
+            attemptId: parseAttemptId(afterAttemptValue),
+          };
+    rejectUnexpected(arguments_);
+    return {
+      outputMode,
+      retryIdentity,
+      command: {
+        kind: "attempt.list",
+        scope: all ? "all" : "active",
+        projectId: projectValue === undefined ? null : parseProjectId(projectValue),
+        after,
+        limit: limitValue === undefined ? 50 : parsePositiveInteger("--limit", limitValue, 100),
+      },
+    };
   }
 
   if (command === "events") {
@@ -252,6 +316,19 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
         : `${result.events
             .map((event) => `${event.sequence}\t${event.occurredAt}\t${event.type}`)
             .join("\n")}\n`;
+    case "attempt.list":
+      return result.page.attempts.length === 0
+        ? "no attempts\n"
+        : `${result.page.attempts
+            .map(
+              ({ attempt, projectId, title }) =>
+                `${attempt.attemptId}\t${attempt.state}\t${projectId}\t${JSON.stringify(title)}`,
+            )
+            .join("\n")}\n${
+            result.page.hasMore && result.page.nextAfter !== null
+              ? `more after ${result.page.nextAfter.updatedAt} ${result.page.nextAfter.attemptId}\n`
+              : ""
+          }`;
     case "attempt.pause":
     case "attempt.resume":
     case "attempt.cancel":
@@ -382,6 +459,17 @@ export async function runCli(
           invocation.command.attemptId,
           {
             afterSequence: invocation.command.afterSequence,
+            limit: invocation.command.limit,
+          },
+          identity,
+        );
+        break;
+      case "attempt.list":
+        result = await client.listAttempts(
+          {
+            scope: invocation.command.scope,
+            projectId: invocation.command.projectId,
+            after: invocation.command.after,
             limit: invocation.command.limit,
           },
           identity,

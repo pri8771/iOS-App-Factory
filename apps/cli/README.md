@@ -4,7 +4,7 @@ Thin client for the typed App Factory command service. Business logic does not
 belong in this package.
 
 Set `APP_FACTORY_SOCKET` and `APP_FACTORY_AUTH_TOKEN`, then use `doctor`,
-`submit --task`, `run --task`, `status`, `events`, `pause`, `resume`, `cancel`,
+`submit --task`, `run --task`, `attempts`, `status`, `events`, `pause`, `resume`, `cancel`,
 `reconcile`, or the read-only `portfolio` snapshot. Portfolio output preserves
 unknown Jira, GitHub, quality, release, and analytics values as `unavailable`;
 it never substitutes numeric zero. Immutable run proof is daemon-owned and
@@ -12,6 +12,12 @@ available through `evidence list`, `evidence inspect <attempt-id>`, and
 `evidence verify <attempt-id>`. The list command accepts bounded `--after` and
 `--limit` pagination. Add `--json` for a stable machine-readable envelope.
 Task files are parsed as strict TaskSpec V1 documents before transmission.
+
+`attempts` is the read-only work queue. It defaults to active attempts and 50
+rows. Add `--all`, `--project UUID`, or `--limit 1..100` to filter it. Continue
+a page by passing both values printed by the prior response as
+`--after-updated-at ISO_INSTANT --after-attempt UUID`; a partial cursor is
+rejected.
 
 Every invocation creates an explicit durable command identity. If delivery is
 ambiguous after dispatch, human output prints a recovery command and JSON

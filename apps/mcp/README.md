@@ -19,6 +19,12 @@ the MCP process never opens the evidence directory itself.
 portfolio read model and preserves unavailable Jira, GitHub, quality, release,
 and analytics fields as null rather than fabricating zero values.
 
+`factory_attempt_list` exposes the newest-first work queue without requiring a
+known attempt ID. It defaults to active attempts, accepts an optional project
+filter, and uses the complete `{updatedAt, attemptId}` cursor returned by the
+previous page. Rows are navigation context; callers re-read the exact attempt
+with `factory_attempt_status` before acting.
+
 Mutation tools accept optional `commandId` and `issuedAt` fields as a pair. A
 post-dispatch timeout, cancellation, connection loss, or invalid response
 returns `error.retryIdentity` when the outcome is unknown. The host must retry

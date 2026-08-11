@@ -174,9 +174,9 @@ describe("migration runner", () => {
     const first = runMigrations(database, { now: () => new Date(NOW) });
     const second = runMigrations(database, { now: () => new Date(LATER) });
 
-    expect(first).toEqual({ currentVersion: 4, newlyAppliedVersions: [1, 2, 3, 4] });
-    expect(second).toEqual({ currentVersion: 4, newlyAppliedVersions: [] });
-    expect(database.pragma("user_version", { simple: true })).toBe(4);
+    expect(first).toEqual({ currentVersion: 5, newlyAppliedVersions: [1, 2, 3, 4, 5] });
+    expect(second).toEqual({ currentVersion: 5, newlyAppliedVersions: [] });
+    expect(database.pragma("user_version", { simple: true })).toBe(5);
     expect(listAppliedMigrations(database)).toEqual([
       {
         version: 1,
@@ -202,6 +202,29 @@ describe("migration runner", () => {
         checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
         appliedAt: NOW,
       },
+      {
+        version: 5,
+        name: "attempt-list-indexes",
+        checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+        appliedAt: NOW,
+      },
+    ]);
+    expect(
+      database
+        .prepare(
+          `SELECT name FROM sqlite_master
+           WHERE type = 'index' AND name IN (
+             'attempts_active_updated_at_attempt_id_idx',
+             'attempts_updated_at_attempt_id_idx',
+             'task_snapshots_project_task_idx'
+           )
+           ORDER BY name`,
+        )
+        .all(),
+    ).toEqual([
+      { name: "attempts_active_updated_at_attempt_id_idx" },
+      { name: "attempts_updated_at_attempt_id_idx" },
+      { name: "task_snapshots_project_task_idx" },
     ]);
 
     const rows = database
@@ -240,7 +263,7 @@ describe("migration runner", () => {
     const database = openFactoryDatabase(makeDatabasePath());
     runMigrations(database, { now: () => new Date(NOW) });
     const brokenMigration: SqlMigration = {
-      version: 5,
+      version: 6,
       name: "broken-probe",
       sql: `
         CREATE TABLE must_rollback (id INTEGER PRIMARY KEY) STRICT;
@@ -253,10 +276,10 @@ describe("migration runner", () => {
         migrations: [...FACTORY_MIGRATIONS, brokenMigration],
         now: () => new Date(LATER),
       }),
-    ).toThrow(/Migration 5 \(broken-probe\) failed/);
-    expect(database.pragma("user_version", { simple: true })).toBe(4);
+    ).toThrow(/Migration 6 \(broken-probe\) failed/);
+    expect(database.pragma("user_version", { simple: true })).toBe(5);
     expect(listAppliedMigrations(database).map((migration) => migration.version)).toEqual([
-      1, 2, 3, 4,
+      1, 2, 3, 4, 5,
     ]);
     expect(
       database
@@ -277,10 +300,10 @@ describe("migration runner", () => {
     expect(database.pragma("user_version", { simple: true })).toBe(1);
 
     expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
-      currentVersion: 4,
-      newlyAppliedVersions: [2, 3, 4],
+      currentVersion: 5,
+      newlyAppliedVersions: [2, 3, 4, 5],
     });
-    expect(database.pragma("user_version", { simple: true })).toBe(4);
+    expect(database.pragma("user_version", { simple: true })).toBe(5);
     const stepColumns = database.pragma("table_info(steps)") as readonly Readonly<{
       name: string;
     }>[];
@@ -300,8 +323,8 @@ describe("migration runner", () => {
     });
 
     expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
-      currentVersion: 4,
-      newlyAppliedVersions: [3, 4],
+      currentVersion: 5,
+      newlyAppliedVersions: [3, 4, 5],
     });
     const trigger = database
       .prepare(
@@ -309,7 +332,7 @@ describe("migration runner", () => {
       )
       .get() as Readonly<{ sql: string }>;
     expect(trigger.sql).toContain("NEW.state IN ('confirmed', 'manual-intervention')");
-    expect(database.pragma("user_version", { simple: true })).toBe(4);
+    expect(database.pragma("user_version", { simple: true })).toBe(5);
     database.close();
   });
 

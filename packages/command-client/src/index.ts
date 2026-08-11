@@ -6,6 +6,7 @@ import { TextDecoder } from "node:util";
 import {
   COMMAND_PROTOCOL_VERSION_V1,
   AttemptIdSchema,
+  AttemptListQueryV1Schema,
   CommandIdSchema,
   CommandAuthorizationV1Schema,
   CommandRequestFrameV1Schema,
@@ -15,6 +16,8 @@ import {
   TaskSpecV1Schema,
   canonicalPortfolioReadModelDigestInputV1,
   type AttemptId,
+  type AttemptListCursorV1,
+  type AttemptListScopeV1,
   type CommandOperationV1,
   type CommandOriginV1,
   type CommandRequestForOperationV1,
@@ -22,6 +25,7 @@ import {
   type CommandResultForOperationV1,
   type CommandId,
   type IsoInstant,
+  type ProjectId,
   type RequestId,
   type TaskSpecV1,
 } from "@app-factory/contracts";
@@ -219,6 +223,25 @@ export class CommandClient {
       identity,
       signal,
     );
+  }
+
+  public async listAttempts(
+    options: Readonly<{
+      scope?: AttemptListScopeV1;
+      projectId?: ProjectId | null;
+      after?: AttemptListCursorV1 | null;
+      limit?: number;
+    }> = {},
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"attempt.list">> {
+    const payload = AttemptListQueryV1Schema.parse({
+      scope: options.scope ?? "active",
+      projectId: options.projectId ?? null,
+      after: options.after ?? null,
+      limit: options.limit ?? 50,
+    });
+    return await this.#request("attempt.list", payload, identity, signal);
   }
 
   public async pause(

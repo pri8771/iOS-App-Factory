@@ -7,6 +7,7 @@ import { CommandClientError } from "@app-factory/command-client";
 import { createFactoryMcpServer, type McpCommandPort } from "../src/server.js";
 
 const ATTEMPT_ID = "76000000-0000-4000-8000-000000000001";
+const PROJECT_ID = "76000000-0000-4000-8000-000000000003";
 const COMMAND_ID = "76000000-0000-4000-8000-000000000002";
 const ISSUED_AT = "2026-08-11T12:00:00.000Z";
 const clients: Client[] = [];
@@ -32,6 +33,10 @@ function commandPort(): McpCommandPort {
       operation: "attempt.events",
       events: [],
       nextAfterSequence: 0,
+    })),
+    listAttempts: vi.fn(async () => ({
+      operation: "attempt.list",
+      page: { attempts: [], nextAfter: null, hasMore: false },
     })),
     pause: vi.fn(async (attemptId) => ({
       operation: "attempt.pause",
@@ -114,6 +119,7 @@ describe("Factory MCP command surface", () => {
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual([
       "factory_attempt_cancel",
       "factory_attempt_events",
+      "factory_attempt_list",
       "factory_attempt_pause",
       "factory_attempt_resume",
       "factory_attempt_status",
@@ -162,6 +168,35 @@ describe("Factory MCP command surface", () => {
     expect(evidence.isError).not.toBe(true);
     expect(port.verifyEvidence).toHaveBeenCalledWith(ATTEMPT_ID, expect.any(AbortSignal));
 
+    const attempts = await client.callTool({
+      name: "factory_attempt_list",
+      arguments: {},
+    });
+    expect(attempts.isError).not.toBe(true);
+    expect(port.listAttempts).toHaveBeenCalledWith(
+      { scope: "active", projectId: null, after: null, limit: 50 },
+      expect.any(AbortSignal),
+    );
+
+    await client.callTool({
+      name: "factory_attempt_list",
+      arguments: {
+        scope: "all",
+        projectId: PROJECT_ID,
+        after: { updatedAt: ISSUED_AT, attemptId: ATTEMPT_ID },
+        limit: 25,
+      },
+    });
+    expect(port.listAttempts).toHaveBeenLastCalledWith(
+      {
+        scope: "all",
+        projectId: PROJECT_ID,
+        after: { updatedAt: ISSUED_AT, attemptId: ATTEMPT_ID },
+        limit: 25,
+      },
+      expect.any(AbortSignal),
+    );
+
     const portfolio = await client.callTool({
       name: "factory_portfolio_snapshot",
       arguments: {},
@@ -179,6 +214,13 @@ describe("Factory MCP command surface", () => {
     });
     expect(response.isError).toBe(true);
     expect(port.status).not.toHaveBeenCalled();
+
+    const listResponse = await client.callTool({
+      name: "factory_attempt_list",
+      arguments: { unexpected: true },
+    });
+    expect(listResponse.isError).toBe(true);
+    expect(port.listAttempts).not.toHaveBeenCalled();
   });
 
   it("accepts and returns the durable identity for an ambiguity-safe mutation retry", async () => {
