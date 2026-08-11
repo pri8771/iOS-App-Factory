@@ -67,11 +67,13 @@ artifacts, findings, releases, external resources, and module offsets.
 
 Coding agents receive a credential-minimized environment, an isolated worktree,
 explicit command/filesystem allowances, bounded time/turn/cost limits, and no
-external service credentials. This is operational isolation within one macOS
-user, not a hostile-process security boundary; hard isolation would require a
-separate user or VM. Only the daemon's command broker can push, comment,
-transition, sign, upload, or consume approvals. Trusted verification executes
-outside the agent-writable worktree.
+external service credentials. Those controls are not a hostile-process
+security boundary. The required coding-plane containment and the separate
+trusted macOS build plane are defined by
+[`ADR 0002`](0002-untrusted-agent-containment.md), which supersedes any inference
+that same-user process or process-group supervision is sufficient. Only the
+daemon's command broker can push, comment, transition, sign, upload, or consume
+approvals. Trusted verification executes outside the agent-writable worktree.
 
 The Codex runner must not use the CLI's legacy `--sandbox` presets: local
 conformance testing showed that a model-invoked command could still read the
@@ -88,10 +90,11 @@ zero after explaining that a requested mutation was blocked. Only a complete
 versioned protocol result followed by trusted diff, protected-path, test,
 independent-review, and evidence gates can advance a coding attempt to verified.
 
-Each attempt runs through a separate supervisor entrypoint. The daemon persists
-its PID, process start time, boot ID, process group, and fencing token. The
-supervisor writes a replayable JSONL spool. Recovery adopts or terminates the old
-supervisor before a newer lease can mutate anything.
+Trusted, non-detaching helper attempts may run through the host supervisor. It
+persists process identity, boot identity, process group, fencing token, bounded
+spools, and a terminal receipt. Recovery blocks on unprovable or still-live
+state before a newer launch. This protocol is not the coding-plane containment
+boundary described by ADR 0002.
 
 Package dependencies are directional and mechanically checked: clients import
 contracts/generated clients only; the daemon is the composition root; the

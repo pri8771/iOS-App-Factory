@@ -1,6 +1,17 @@
 # Verified local execution status
 
-The daemon remains fake-by-default. The only packaged opt-in execution profile is a deterministic Swift Greeter conformance walking slice. It proves the scheduler-to-worktree-to-verifier-to-reviewer-to-broker-commit-to-evidence path; it is not a live Codex or general autonomous-development integration.
+The daemon remains fake-by-default. Its supported opt-in operator profile is a
+deterministic Swift Greeter walking slice. It proves the
+scheduler-to-worktree-to-verifier-to-reviewer-to-broker-commit-to-evidence
+path.
+
+The repository also contains a Codex conformance adapter and profile loader.
+They pin executable digest, CLI version, model, exact environment, structured
+output schema, and supervised invocation identity. A no-network fake
+executable passes the actual detached-supervisor and V2 evidence path. The
+operator daemon entrypoint deliberately does not expose this profile, and no
+paid or real-model call was used to certify it. It is not a general autonomous
+development integration. See [ADR 0002](../architecture/0002-untrusted-agent-containment.md).
 
 Set `APP_FACTORY_LOCAL_EXECUTION_CONFIG` to an absolute path naming a current-user-owned `0600` JSON file:
 
@@ -47,4 +58,27 @@ coordinator checkpoint. A collision, corrupt manifest, permission failure, or
 other unclassified publication error fails the attempt terminally for operator
 intervention instead of retrying forever.
 
-General live-agent execution is intentionally dormant. This slice does not durably record verifier PID/process-group/start-time/host-boot identity. An uncatchable daemon `SIGKILL` can therefore leave a verifier process group and its scratch directory behind; unique fence/checkout identities prevent their reuse, but startup supervision must later prove and terminate the orphan before cleaning it. Live execution must not be enabled until that recovery boundary exists and a separately identified read-only live reviewer has a strict output schema and conformance tests.
+A supervised adapter first publishes a V2 agent-result journal containing
+content-addressed run spec, result, ordered events, raw stdout/stderr,
+invocation descriptor, supervisor intent, and supervisor receipt. The daemon
+checks the descriptor against the enrolled executable path/digest, CLI version,
+model, and exact environment names, and recomputes every intent/receipt/output
+binding before publication. Trusted identity enrollment requires the complete
+V2 envelope on live execution and replay; an enrolled project rejects a V1
+journal rather than silently downgrading. A successful verified execution may add an
+`agent-run` evidence item; the required manifest kinds remain `event-log`,
+`verification`, `review`, and `commit` for backward compatibility. `evidence
+verify` checks immutable storage and reference integrity; it does not rerun or
+semantically recertify the execution. A durable blocked or failed V2 result is
+terminal for that attempt. Changed inputs require a new attempt.
+
+Host supervised-run startup reconciliation now occurs before daemon readiness;
+a live adopted run or ambiguous identity denies startup rather than allowing a
+new launch. That does not make a process group a containment boundary. A target
+can detach a descendant, and Darwin process-start identity is not
+kernel-generation-exact. General live-agent execution therefore remains
+blocked by [ADR 0002](../architecture/0002-untrusted-agent-containment.md). The
+trusted verifier has a separate limitation: its process identity is not yet
+restart-adoptable after an uncatchable daemon `SIGKILL`, so scratch is retained
+for investigation rather than declared safe. See the
+[process supervisor boundary](../../packages/process-supervisor/README.md).

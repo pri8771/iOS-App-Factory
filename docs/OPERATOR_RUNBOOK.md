@@ -5,12 +5,17 @@ currently wired. It starts the daemon in the foreground, exercises the typed
 CLI, shows the MCP entrypoint, opens the dashboard library surface, and inspects
 the LaunchAgent plan without installing it.
 
-The daemon remains deterministic-fake by default. It also has one explicit
-opt-in conformance profile that makes an exact reviewed edit to a Factory-owned
+The daemon remains deterministic-fake by default. It also has one supported
+opt-in walking-slice profile that makes an exact reviewed edit to a Factory-owned
 Swift Greeter worktree, runs the real Swift toolchain in a separate read-only
 checkout, performs independent review, creates one local broker commit, and
 publishes immutable evidence. That profile is deliberately not a general Codex
 runner. Neither mode edits an enrolled app, opens a PR, or uploads to TestFlight.
+
+Codex conformance components exist for no-network fake-executable development,
+but the operator entrypoint cannot select them. Do not point them at a real
+model or add a launch path until the containment contract in
+[`ADR 0002`](architecture/0002-untrusted-agent-containment.md) passes.
 
 ## 1. Build and verify the toolchain
 
@@ -58,6 +63,14 @@ The daemon owns
 `/Users/pchordia/Library/Application Support/AppFactory/runtime/daemon.sock`
 and the local SQLite control plane. Stop it with `Control-C`; shutdown stops
 intake, joins the scheduler, and closes SQLite.
+
+The socket can exist while executor/agent startup reconciliation is still in
+progress. During that interval `doctor` returns retryable `daemon.starting`.
+An ambiguous supervised process identity or an adopted live coding run prevents
+readiness; a failed startup releases socket and runtime ownership. Never delete
+an intent, receipt, process-state file, cancellation record, or stale mutation
+lock by hand. Preserve the runtime and resolve identity through a reviewed
+recovery procedure.
 
 If startup rejects the runtime, verify that the directories are owned by the
 current user, are not symbolic links, and have mode `0700`; the authorization
@@ -205,6 +218,14 @@ and these ordered criteria:
 
 The daemon hashes those fields and rejects any altered objective or acceptance
 criterion before the deterministic agent runs.
+
+A durable V2 blocked or failed result is terminal for its exact attempt.
+Resolving the blocker requires a new TaskSpec/attempt with new immutable input
+bindings; pause/resume does not silently relaunch it.
+Projects enrolled with trusted agent identity require V2 evidence for every
+live result and replay. A missing envelope or legacy V1 journal fails closed;
+do not edit or delete the journal to force a retry—submit a new attempt after
+correcting enrollment or runtime state.
 
 ## 5. Connect an MCP host
 

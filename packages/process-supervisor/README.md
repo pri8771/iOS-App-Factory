@@ -31,6 +31,12 @@ bound stdin is accepted. The gate independently revalidates the controller,
 target, and authorization before exec. It exits on control-channel EOF and uses
 the pinned Node 24 `process.execve` only after the exact permission frame, so
 the target retains the registered PID, start identity, and process-group ID.
+Immediately before `execve`, the gate changes to the immutable intent's exact
+working directory; a real-boundary regression test prevents the target from
+silently inheriting the private supervisor run directory. Registration also
+continues polling durable state through its bounded deadline after an in-memory
+controller-exit observation, because a fsynced short-lived terminal receipt can
+become visible in that race window.
 
 The target receives only the intent's explicitly allowed nonsecret environment
 and a complete argv vector whose first element is the executable. Credential-
