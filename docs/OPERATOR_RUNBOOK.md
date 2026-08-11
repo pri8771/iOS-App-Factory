@@ -159,19 +159,43 @@ the MCP process has no direct SQLite or provider access.
 
 ## 6. Open the local dashboard
 
-There is not yet a packaged dashboard executable. After `pnpm build`, this
-development command starts the tested loopback server on port `4317` and prints
-its one-use launch URL:
+Create `/private/tmp/app-factory-dashboard.json` with this machine's paths:
 
-```sh
-node --input-type=module -e 'import { randomBytes } from "node:crypto"; import { createCommandClient } from "./packages/command-client/dist/index.js"; import { createDashboardCommandPort, startDashboardServer } from "./apps/dashboard/dist/index.js"; const client=createCommandClient({socketPath:process.env.APP_FACTORY_SOCKET,authorization:process.env.APP_FACTORY_AUTH_TOKEN,origin:"dashboard"}); const server=await startDashboardServer({commandPort:createDashboardCommandPort(client),browserToken:randomBytes(32).toString("hex"),port:4317}); console.log(server.launchUrl); const stop=()=>void server.close().finally(()=>process.exit()); process.once("SIGINT",stop); process.once("SIGTERM",stop);'
+```json
+{
+  "schemaVersion": 1,
+  "socketPath": "/Users/pchordia/Library/Application Support/AppFactory/runtime/daemon.sock",
+  "authorizationFile": "/Users/pchordia/Library/Application Support/AppFactory/auth/authorization",
+  "port": 4317
+}
 ```
 
-Open the printed URL once. The server exchanges it for an HttpOnly local
-session cookie; browser JavaScript never receives the daemon authorization.
+Protect the file, build, and run the packaged launcher:
+
+```sh
+chmod 600 /private/tmp/app-factory-dashboard.json
+pnpm build
+node apps/dashboard/dist/main.js --config /private/tmp/app-factory-dashboard.json
+```
+
+The configuration file and referenced authorization file must be regular,
+single-link, current-user-owned files with no group/other permissions; symlinks
+are rejected. As a configuration-file-free alternative, set `APP_FACTORY_SOCKET`,
+`APP_FACTORY_AUTH_FILE`, and optional `APP_FACTORY_DASHBOARD_PORT`, then run
+`pnpm dashboard`. The launcher deliberately does not accept the daemon token
+inline or from an environment variable.
+
+Open the printed URL once and do not share or persist it. Its random browser
+token is exchanged for a separate random HttpOnly local session cookie;
+browser JavaScript never receives the daemon authorization. The server binds
+only `127.0.0.1`. Ctrl-C or `SIGTERM` gracefully closes both the HTTP server and
+command client.
+
 The current UI supports daemon health, attempt status/events,
-pause/resume/cancel/reconcile, and a portfolio panel only when a portfolio port
-is injected. Quality and release panels are not implemented.
+pause/resume/cancel/reconcile. The packaged launcher leaves Portfolio visibly
+unavailable because the daemon command protocol does not yet expose an
+authoritative portfolio operation; `/api/portfolio` therefore returns 503.
+Quality and release panels are not implemented.
 
 ## 7. Inspect the LaunchAgent plan
 

@@ -360,7 +360,7 @@ const DASHBOARD_HTML = `<!doctype html>
           <article class="panel summary"><p class="label">CURRENT STATE</p><h2 id="attempt-title">Attempt</h2><div id="attempt-detail" class="detail"></div><div class="actions"><button data-action="pause">Pause</button><button data-action="resume">Resume</button><button data-action="reconcile">Reconcile</button><button data-action="cancel" class="danger">Cancel</button></div></article>
           <article class="panel timeline"><p class="label">DURABLE TIMELINE</p><ol id="events"></ol></article>
         </section>
-        <section id="portfolio" class="panel hidden"><div class="section-head"><div><p class="label">ALL PRODUCTS</p><h2>Portfolio health</h2></div><button id="refresh-portfolio">Refresh</button></div><div id="portfolio-totals" class="portfolio-totals"></div><div id="portfolio-projects" class="project-grid"></div></section>
+        <section id="portfolio" class="panel hidden"><div class="section-head"><div><p class="label">ALL PRODUCTS</p><h2>Portfolio health</h2></div><button id="refresh-portfolio">Check source</button></div><div id="portfolio-totals" class="portfolio-totals">Authoritative portfolio source not loaded.</div><div id="portfolio-projects" class="project-grid" aria-live="polite"></div></section>
       </div>
     </section>
   </main>
@@ -448,7 +448,10 @@ export function createDashboardRequestHandler(
     if (url.pathname === "/api/portfolio" && request.method === "GET") {
       if (options.portfolioPort === undefined) {
         return json(response, 503, {
-          error: { code: "dashboard.portfolio-unavailable", message: "Portfolio is unavailable." },
+          error: {
+            code: "dashboard.portfolio-unavailable",
+            message: "Authoritative portfolio source is not configured.",
+          },
         });
       }
       try {
@@ -557,9 +560,9 @@ export async function startDashboardServer(
     launchUrl: `${origin}/?token=${encodeURIComponent(browserToken)}`,
     close: async () => {
       if (closePromise === null) {
+        options.commandPort.close();
         closePromise = new Promise<void>((resolvePromise, rejectPromise) => {
           server.close((error) => {
-            options.commandPort.close();
             if (error === undefined) resolvePromise();
             else rejectPromise(error);
           });

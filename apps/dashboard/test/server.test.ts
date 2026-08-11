@@ -136,6 +136,7 @@ describe("local dashboard server", () => {
     expect(page.status).toBe(200);
     expect(page.body).toContain("App Factory");
     expect(page.body).not.toContain(TOKEN);
+    expect(page.body).not.toContain(SESSION);
     expect(page.headers["content-security-policy"]).toContain("default-src 'none'");
     const replay = await exchange(server.origin, { path: `/?token=${TOKEN}` });
     expect(replay.status).toBe(403);
