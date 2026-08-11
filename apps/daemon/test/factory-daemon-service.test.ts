@@ -194,6 +194,45 @@ class BlockingExecutor implements SchedulerStepExecutorPort {
   }
 }
 
+class StartupRecoveryExecutor implements SchedulerStepExecutorPort {
+  readonly #enteredPromise: Promise<void>;
+  #markEntered: (() => void) | undefined;
+  readonly #releasedPromise: Promise<void>;
+  #releaseRecovery: (() => void) | undefined;
+  public reconcileCalls = 0;
+
+  public constructor() {
+    this.#enteredPromise = new Promise((resolve) => {
+      this.#markEntered = resolve;
+    });
+    this.#releasedPromise = new Promise((resolve) => {
+      this.#releaseRecovery = resolve;
+    });
+  }
+
+  public async reconcileStartup(): Promise<void> {
+    this.reconcileCalls += 1;
+    this.#markEntered?.();
+    await this.#releasedPromise;
+  }
+
+  public async entered(): Promise<void> {
+    await this.#enteredPromise;
+  }
+
+  public release(): void {
+    this.#releaseRecovery?.();
+  }
+
+  public async execute(context: SchedulerExecutionContext) {
+    await context.assertActive();
+    return {
+      kind: "succeeded" as const,
+      outputDigest: succeededDigest(context.effectKey),
+    };
+  }
+}
+
 class DeferredExecutionGuardExecutor implements SchedulerStepExecutorPort {
   readonly #startedPromise: Promise<void>;
   #markStarted: (() => void) | undefined;
@@ -270,6 +309,62 @@ afterEach(async () => {
 });
 
 describe("single-writer daemon composition", () => {
+  it("keeps command handling in starting state until durable executor recovery completes", async () => {
+    const root = await makeRoot();
+    const executor = new StartupRecoveryExecutor();
+    const starting = startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.2.0-startup-recovery",
+      executor,
+    });
+    await executor.entered();
+
+    const client = createCommandClient({
+      socketPath: join(root, "daemon.sock"),
+      authorization: AUTHORIZATION,
+      origin: "cli",
+    });
+    clients.push(client);
+    await expect(client.doctor()).rejects.toMatchObject({
+      code: "daemon.starting",
+      retryable: true,
+    });
+
+    executor.release();
+    const service = await starting;
+    services.push(service);
+    expect(executor.reconcileCalls).toBe(1);
+    await expect(client.doctor()).resolves.toMatchObject({ readiness: "ready" });
+  });
+
+  it("releases daemon ownership when startup recovery fails closed", async () => {
+    const root = await makeRoot();
+    const failure = new Error("ambiguous durable child identity");
+    const executor = Object.assign(new DeterministicFakeExecutor(), {
+      reconcileStartup: async () => {
+        throw failure;
+      },
+    });
+
+    await expect(
+      startFactoryDaemonService({
+        runtimeDirectory: root,
+        authorization: AUTHORIZATION,
+        daemonVersion: "0.2.0-startup-recovery-failure",
+        executor,
+      }),
+    ).rejects.toBe(failure);
+
+    const recovered = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.2.0-after-recovery-failure",
+    });
+    services.push(recovered);
+    await expect(clientFor(recovered).doctor()).resolves.toMatchObject({ readiness: "ready" });
+  });
+
   it("owns a private socket and rejects a second daemon before it can take ownership", async () => {
     const root = await makeRoot();
     const service = await startFactoryDaemonService({
@@ -453,7 +548,9 @@ describe("single-writer daemon composition", () => {
     const client = clientFor(service);
     const intake = await client.run(taskSpec(45));
 
-    await eventually(async () => (await client.status(intake.attemptId)).attempt.state === "blocked");
+    await eventually(
+      async () => (await client.status(intake.attemptId)).attempt.state === "blocked",
+    );
     expect(executor.callCount).toBe(1);
     await new Promise((resolve) => setTimeout(resolve, 75));
     expect(executor.callCount).toBe(1);

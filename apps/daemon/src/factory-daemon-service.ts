@@ -79,6 +79,9 @@ export type FactoryDaemonService = Readonly<{
   close(): Promise<void>;
 }>;
 
+type StartupRecoverableExecutor = SchedulerStepExecutorPort &
+  Readonly<{ reconcileStartup?: () => Promise<void> }>;
+
 function validateDelay(label: string, value: number, maximum = MAX_POLL_INTERVAL_MS): number {
   if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
     throw new TypeError(`${label} must be a safe integer between 0 and ${String(maximum)}`);
@@ -314,11 +317,13 @@ export async function startFactoryDaemonService(
   };
   let loop: BackgroundSchedulerLoop | null = null;
   let closing = false;
+  let ready = false;
+  const startupState: { recovery: (() => Promise<void>) | null } = { recovery: null };
 
   const handler: CommandHandler = async (request, context: CommandHandlerContext) => {
     if (closing) throw closingError();
     const activeRuntime = runtime;
-    if (activeRuntime === null) throw startingError();
+    if (activeRuntime === null || !ready) throw startingError();
     try {
       const result = await activeRuntime.handler(request, context);
       if (
@@ -365,7 +370,7 @@ export async function startFactoryDaemonService(
         ? {}
         : { commandResultLedgerBoundary: options.commandResultLedgerBoundary }),
       initializeDatabase: (database) => {
-        const executor =
+        const executor: StartupRecoverableExecutor =
           options.executor ??
           (options.localExecution === undefined
             ? new DeterministicFakeExecutor()
@@ -375,6 +380,29 @@ export async function startFactoryDaemonService(
                 ownerId,
                 runtimeDirectory: paths.root,
               }));
+        const recoveries: Array<() => Promise<void>> = [];
+        if (executor.reconcileStartup !== undefined) {
+          recoveries.push(async () => await executor.reconcileStartup?.());
+        }
+        const recoveredAgents = new Set<object>();
+        for (const project of options.localExecution?.projects ?? []) {
+          if (recoveredAgents.has(project.agent)) continue;
+          recoveredAgents.add(project.agent);
+          const reconcile = Reflect.get(project.agent, "reconcileStartup") as unknown;
+          if (typeof reconcile === "function") {
+            recoveries.push(
+              async () =>
+                await (reconcile as (this: typeof project.agent) => Promise<void>).call(
+                  project.agent,
+                ),
+            );
+          }
+        }
+        if (recoveries.length > 0) {
+          startupState.recovery = async () => {
+            for (const recover of recoveries) await recover();
+          };
+        }
         schedulerState.controller = createKernelSchedulerController({
           database,
           ownerId,
@@ -390,12 +418,14 @@ export async function startFactoryDaemonService(
     if (activeController === null) {
       throw new Error("The daemon runtime did not initialize its scheduler controller");
     }
+    if (startupState.recovery !== null) await startupState.recovery();
     loop = new BackgroundSchedulerLoop(activeController, {
       pollIntervalMs,
       wait,
       ...(options.onSchedulerError === undefined ? {} : { onError: options.onSchedulerError }),
     });
     loop.start();
+    ready = true;
   } catch (error) {
     await schedulerState.controller?.stop().catch(() => undefined);
     runtime?.close();
