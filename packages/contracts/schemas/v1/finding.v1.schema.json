@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "__schema0": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema1": {
+      "additionalProperties": false,
+      "properties": {
+        "lineEnd": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lineStart": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "lineStart",
+        "lineEnd"
+      ],
+      "type": "object"
+    },
+    "__schema2": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema3": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:finding",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "category": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "description": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "findingId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "locations": {
+      "items": {
+        "$ref": "#/$defs/__schema1"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "ruleId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "severity": {
+      "enum": [
+        "p0",
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "type": "string"
+    },
+    "supportingArtifactDigests": {
+      "items": {
+        "$ref": "#/$defs/__schema3"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "findingId",
+    "ruleId",
+    "category",
+    "severity",
+    "title",
+    "description",
+    "locations",
+    "supportingArtifactDigests"
+  ],
+  "type": "object"
+}

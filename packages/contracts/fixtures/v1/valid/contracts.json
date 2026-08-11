@@ -1,0 +1,305 @@
+{
+  "cases": [
+    {
+      "name": "task-spec-minimal",
+      "schema": "task-spec",
+      "value": {
+        "schemaVersion": 1,
+        "taskId": "00000000-0000-4000-8000-000000000003",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "createdAt": "2026-08-10T12:00:00.000Z",
+        "title": "Implement the greeting",
+        "objective": "Return the requested greeting from the fixture package.",
+        "acceptanceCriteria": [
+          {
+            "id": "returns-greeting",
+            "statement": "The package returns Hello, Factory.",
+            "verification": "automated"
+          }
+        ],
+        "base": {
+          "repositoryId": "00000000-0000-4000-8000-000000000002",
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "requestedScope": {
+          "paths": ["Sources/FactoryFixture/Greeting.swift"]
+        },
+        "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "submit-task-command",
+      "schema": "command",
+      "value": {
+        "schemaVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000004",
+        "issuedAt": "2026-08-10T12:00:01.000Z",
+        "origin": "cli",
+        "kind": "task.submit",
+        "taskSpec": {
+          "schemaVersion": 1,
+          "taskId": "00000000-0000-4000-8000-000000000003",
+          "projectId": "00000000-0000-4000-8000-000000000001",
+          "createdAt": "2026-08-10T12:00:00.000Z",
+          "title": "Implement the greeting",
+          "objective": "Return the requested greeting from the fixture package.",
+          "acceptanceCriteria": [
+            {
+              "id": "returns-greeting",
+              "statement": "The package returns Hello, Factory.",
+              "verification": "automated"
+            }
+          ],
+          "base": {
+            "repositoryId": "00000000-0000-4000-8000-000000000002",
+            "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "requestedScope": {
+            "paths": ["Sources/FactoryFixture/Greeting.swift"]
+          },
+          "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "name": "queued-attempt",
+      "schema": "execution-attempt",
+      "value": {
+        "schemaVersion": 1,
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "taskId": "00000000-0000-4000-8000-000000000003",
+        "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "attemptNumber": 1,
+        "state": "queued",
+        "desiredState": "running",
+        "revision": 0,
+        "fence": 0,
+        "currentStepId": null,
+        "blocker": null,
+        "outcome": null,
+        "createdAt": "2026-08-10T12:00:02.000Z",
+        "updatedAt": "2026-08-10T12:00:02.000Z",
+        "terminalAt": null
+      }
+    },
+    {
+      "name": "pending-step",
+      "schema": "step",
+      "value": {
+        "schemaVersion": 1,
+        "stepId": "00000000-0000-4000-8000-000000000006",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "ordinal": 0,
+        "operation": "agent.edit",
+        "state": "pending",
+        "revision": 0,
+        "lastFence": 0,
+        "runCount": 0,
+        "inputDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "outputDigest": null,
+        "blocker": null,
+        "failure": null,
+        "startedAt": null,
+        "finishedAt": null
+      }
+    },
+    {
+      "name": "attempt-created-event",
+      "schema": "event",
+      "value": {
+        "schemaVersion": 1,
+        "eventId": "00000000-0000-4000-8000-000000000008",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "sequence": 1,
+        "occurredAt": "2026-08-10T12:00:02.000Z",
+        "commandId": "00000000-0000-4000-8000-000000000004",
+        "causationEventId": null,
+        "fence": 0,
+        "type": "attempt.created",
+        "data": {
+          "taskId": "00000000-0000-4000-8000-000000000003",
+          "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    {
+      "name": "codex-run-spec",
+      "schema": "agent-run-spec",
+      "value": {
+        "schemaVersion": 1,
+        "runId": "00000000-0000-4000-8000-000000000007",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "stepId": "00000000-0000-4000-8000-000000000006",
+        "fence": 1,
+        "adapterId": "openai.codex",
+        "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "workingDirectory": "/tmp/app-factory/worktrees/attempt-5",
+        "instruction": "Implement only the requested greeting.",
+        "authorizedWritePaths": ["Sources/FactoryFixture/Greeting.swift"],
+        "environmentAllowlist": ["HOME", "PATH", "TMPDIR"],
+        "limits": {
+          "timeoutMs": 1200000,
+          "terminationGraceMs": 5000,
+          "maxTurns": 20,
+          "maxEventCount": 10000,
+          "maxStdoutBytes": 1000000,
+          "maxStderrBytes": 1000000
+        }
+      }
+    },
+    {
+      "name": "agent-started-event",
+      "schema": "agent-event",
+      "value": {
+        "schemaVersion": 1,
+        "eventId": "00000000-0000-4000-8000-00000000000b",
+        "runId": "00000000-0000-4000-8000-000000000007",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "stepId": "00000000-0000-4000-8000-000000000006",
+        "fence": 1,
+        "sequence": 1,
+        "occurredAt": "2026-08-10T12:00:03.000Z",
+        "type": "agent.started",
+        "data": {
+          "adapterId": "openai.codex"
+        }
+      }
+    },
+    {
+      "name": "successful-agent-result",
+      "schema": "agent-run-result",
+      "value": {
+        "schemaVersion": 1,
+        "runId": "00000000-0000-4000-8000-000000000007",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "stepId": "00000000-0000-4000-8000-000000000006",
+        "fence": 1,
+        "startedAt": "2026-08-10T12:00:03.000Z",
+        "finishedAt": "2026-08-10T12:01:00.000Z",
+        "finalEventSequence": 4,
+        "stdout": {
+          "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "byteLength": 128,
+          "truncated": false
+        },
+        "stderr": {
+          "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "byteLength": 0,
+          "truncated": false
+        },
+        "usage": {
+          "inputTokens": 100,
+          "outputTokens": 50,
+          "cachedInputTokens": 25
+        },
+        "status": "succeeded",
+        "process": {
+          "exitCode": 0,
+          "signal": null
+        },
+        "failure": null,
+        "blocker": null
+      }
+    },
+    {
+      "name": "review-finding",
+      "schema": "finding",
+      "value": {
+        "schemaVersion": 1,
+        "findingId": "00000000-0000-4000-8000-00000000000a",
+        "ruleId": "quality.protected-path",
+        "category": "quality.scope",
+        "severity": "p1",
+        "title": "Protected test changed",
+        "description": "The candidate changed a protected test file.",
+        "locations": [
+          {
+            "path": "Tests/FactoryFixtureTests/GreetingTests.swift",
+            "lineStart": 10,
+            "lineEnd": 10
+          }
+        ],
+        "supportingArtifactDigests": [
+          "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        ]
+      }
+    },
+    {
+      "name": "passing-review-report",
+      "schema": "review-report",
+      "value": {
+        "schemaVersion": 1,
+        "reviewerId": "factory.read-only-reviewer",
+        "reviewerVersion": "1.0.0",
+        "reviewInputDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "verdict": "pass",
+        "findings": []
+      }
+    },
+    {
+      "name": "verification-evidence",
+      "schema": "evidence",
+      "value": {
+        "schemaVersion": 1,
+        "evidenceId": "00000000-0000-4000-8000-000000000009",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "createdAt": "2026-08-10T12:02:00.000Z",
+        "producer": "factory.verifier",
+        "subject": {
+          "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "baseCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "candidateTree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "fence": 1
+        },
+        "artifacts": [
+          {
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "byteLength": 128,
+            "mediaType": "text/plain",
+            "logicalName": "swift-test-stdout"
+          }
+        ],
+        "kind": "verification",
+        "claims": {
+          "checkId": "swift.test",
+          "argv": ["swift", "test"],
+          "checkoutTree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "startedAt": "2026-08-10T12:01:01.000Z",
+          "finishedAt": "2026-08-10T12:01:59.000Z",
+          "exitCode": 0,
+          "passed": true,
+          "toolVersions": [
+            {
+              "name": "swift",
+              "version": "6.2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "evidence-manifest",
+      "schema": "evidence-manifest",
+      "value": {
+        "schemaVersion": 1,
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "createdAt": "2026-08-10T12:03:00.000Z",
+        "subject": {
+          "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "baseCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "candidateTree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "fence": 1
+        },
+        "entries": [
+          {
+            "evidenceId": "00000000-0000-4000-8000-000000000009",
+            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ],
+        "requiredKinds": ["verification"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "cases": [
+    {
+      "name": "task-spec-rejects-parent-path",
+      "schema": "task-spec",
+      "value": {
+        "schemaVersion": 1,
+        "taskId": "00000000-0000-4000-8000-000000000003",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "createdAt": "2026-08-10T12:00:00.000Z",
+        "title": "Escape the worktree",
+        "objective": "This invalid fixture must not pass.",
+        "acceptanceCriteria": [
+          {
+            "id": "must-fail",
+            "statement": "The parent path is rejected.",
+            "verification": "automated"
+          }
+        ],
+        "base": {
+          "repositoryId": "00000000-0000-4000-8000-000000000002",
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "requestedScope": {
+          "paths": ["../Secrets.txt"]
+        },
+        "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "event-rejects-unknown-nested-field",
+      "schema": "event",
+      "value": {
+        "schemaVersion": 1,
+        "eventId": "00000000-0000-4000-8000-000000000008",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "sequence": 1,
+        "occurredAt": "2026-08-10T12:00:02.000Z",
+        "commandId": "00000000-0000-4000-8000-000000000004",
+        "causationEventId": null,
+        "fence": 0,
+        "type": "attempt.created",
+        "data": {
+          "taskId": "00000000-0000-4000-8000-000000000003",
+          "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "pretendSucceeded": true
+        }
+      }
+    },
+    {
+      "name": "agent-run-spec-rejects-relative-working-directory",
+      "schema": "agent-run-spec",
+      "value": {
+        "schemaVersion": 1,
+        "runId": "00000000-0000-4000-8000-000000000007",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "stepId": "00000000-0000-4000-8000-000000000006",
+        "fence": 1,
+        "adapterId": "openai.codex",
+        "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "workingDirectory": "tmp/shared-checkout",
+        "instruction": "Implement the task.",
+        "authorizedWritePaths": ["Sources/FactoryFixture/Greeting.swift"],
+        "environmentAllowlist": ["HOME", "PATH"],
+        "limits": {
+          "timeoutMs": 1200000,
+          "terminationGraceMs": 5000,
+          "maxTurns": 20,
+          "maxEventCount": 10000,
+          "maxStdoutBytes": 1000000,
+          "maxStderrBytes": 1000000
+        }
+      }
+    },
+    {
+      "name": "successful-agent-result-rejects-nonzero-exit",
+      "schema": "agent-run-result",
+      "value": {
+        "schemaVersion": 1,
+        "runId": "00000000-0000-4000-8000-000000000007",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "stepId": "00000000-0000-4000-8000-000000000006",
+        "fence": 1,
+        "startedAt": "2026-08-10T12:00:03.000Z",
+        "finishedAt": "2026-08-10T12:01:00.000Z",
+        "finalEventSequence": 4,
+        "stdout": {
+          "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "byteLength": 128,
+          "truncated": false
+        },
+        "stderr": {
+          "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "byteLength": 1,
+          "truncated": false
+        },
+        "usage": null,
+        "status": "succeeded",
+        "process": {
+          "exitCode": 1,
+          "signal": null
+        },
+        "failure": null,
+        "blocker": null
+      }
+    },
+    {
+      "name": "evidence-rejects-mutable-storage-path",
+      "schema": "evidence",
+      "value": {
+        "schemaVersion": 1,
+        "evidenceId": "00000000-0000-4000-8000-000000000009",
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "createdAt": "2026-08-10T12:02:00.000Z",
+        "producer": "factory.verifier",
+        "subject": {
+          "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "baseCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "candidateTree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "fence": 1
+        },
+        "artifacts": [
+          {
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "byteLength": 128,
+            "mediaType": "text/plain",
+            "logicalName": "swift-test-stdout",
+            "storagePath": "/tmp/mutable-output.log"
+          }
+        ],
+        "kind": "verification",
+        "claims": {
+          "checkId": "swift.test",
+          "argv": ["swift", "test"],
+          "checkoutTree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "startedAt": "2026-08-10T12:01:01.000Z",
+          "finishedAt": "2026-08-10T12:01:59.000Z",
+          "exitCode": 0,
+          "passed": true,
+          "toolVersions": []
+        }
+      }
+    },
+    {
+      "name": "manifest-rejects-empty-evidence-set",
+      "schema": "evidence-manifest",
+      "value": {
+        "schemaVersion": 1,
+        "attemptId": "00000000-0000-4000-8000-000000000005",
+        "createdAt": "2026-08-10T12:03:00.000Z",
+        "subject": {
+          "taskSpecDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "baseCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "candidateTree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "fence": 1
+        },
+        "entries": [],
+        "requiredKinds": ["verification"]
+      }
+    }
+  ]
+}

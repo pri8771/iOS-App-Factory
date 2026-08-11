@@ -5,17 +5,43 @@
   "type": "module",
   "packageManager": "pnpm@10.33.2",
   "engines": {
-    "node": ">=24.18 <25",
-    "pnpm": ">=10 <11"
+    "node": "24.18.0",
+    "pnpm": "10.33.2"
+  },
+  "volta": {
+    "node": "24.18.0",
+    "pnpm": "10.33.2"
   },
   "scripts": {
-    "build": "pnpm -r --if-present build",
-    "check": "pnpm -r --if-present check",
-    "test": "pnpm -r --if-present test"
+    "preinstall": "node scripts/check-toolchain.mjs",
+    "toolchain:check": "node scripts/check-toolchain.mjs",
+    "build": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false",
+    "clean": "tsc -b --clean",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "boundaries": "depcruise --config dependency-cruiser.config.cjs apps packages",
+    "boundaries:test": "node scripts/check-boundary-fixtures.mjs",
+    "schemas:generate": "pnpm --filter @app-factory/contracts build && node packages/contracts/scripts/generate-json-schemas.mjs",
+    "schemas:check": "pnpm --filter @app-factory/contracts build && node packages/contracts/scripts/generate-json-schemas.mjs --check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "pnpm format:check && pnpm lint && pnpm boundaries && pnpm boundaries:test && pnpm typecheck && pnpm schemas:check",
+    "verify": "pnpm toolchain:check && pnpm check && pnpm test"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "typescript": "^6.0.0"
+    "@eslint/js": "10.0.1",
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "24.13.3",
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "dependency-cruiser": "18.2.0",
+    "eslint": "10.8.1",
+    "globals": "17.9.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0",
+    "vitest": "4.1.10"
   }
 }
-

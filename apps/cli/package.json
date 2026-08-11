@@ -1,0 +1,20 @@
+{
+  "name": "@app-factory/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "factory": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@app-factory/command-client": "workspace:*",
+    "@app-factory/contracts": "workspace:*"
+  }
+}

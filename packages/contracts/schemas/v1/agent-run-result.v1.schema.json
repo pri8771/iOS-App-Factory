@@ -1,0 +1,568 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema3": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema4": {
+      "additionalProperties": false,
+      "properties": {
+        "byteLength": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "digest": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "digest",
+        "byteLength",
+        "truncated"
+      ],
+      "type": "object"
+    },
+    "__schema5": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema6": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "cachedInputTokens": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "inputTokens": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "outputTokens": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "inputTokens",
+            "outputTokens",
+            "cachedInputTokens"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema7": {
+      "additionalProperties": false,
+      "properties": {
+        "exitCode": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signal": {
+          "anyOf": [
+            {
+              "pattern": "^SIG[A-Z0-9]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "exitCode",
+        "signal"
+      ],
+      "type": "object"
+    },
+    "__schema8": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "detailArtifactDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema5"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "summary": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "summary",
+        "retryable",
+        "detailArtifactDigest"
+      ],
+      "type": "object"
+    },
+    "__schema9": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:agent-run-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "blocker": {
+          "type": "null"
+        },
+        "failure": {
+          "type": "null"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finalEventSequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "process": {
+          "additionalProperties": false,
+          "properties": {
+            "exitCode": {
+              "const": 0,
+              "type": "number"
+            },
+            "signal": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "exitCode",
+            "signal"
+          ],
+          "type": "object"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "status": {
+          "const": "succeeded",
+          "type": "string"
+        },
+        "stderr": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stdout": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "usage": {
+          "$ref": "#/$defs/__schema6"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "startedAt",
+        "finishedAt",
+        "finalEventSequence",
+        "stdout",
+        "stderr",
+        "usage",
+        "status",
+        "process",
+        "failure",
+        "blocker"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "blocker": {
+          "type": "null"
+        },
+        "failure": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finalEventSequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "process": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "status": {
+          "const": "failed",
+          "type": "string"
+        },
+        "stderr": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stdout": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "usage": {
+          "$ref": "#/$defs/__schema6"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "startedAt",
+        "finishedAt",
+        "finalEventSequence",
+        "stdout",
+        "stderr",
+        "usage",
+        "status",
+        "process",
+        "failure",
+        "blocker"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "blocker": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/__schema9"
+            },
+            "kind": {
+              "enum": [
+                "authentication",
+                "clarification",
+                "approval",
+                "environment",
+                "policy"
+              ],
+              "type": "string"
+            },
+            "requiredAction": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "summary": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "code",
+            "summary",
+            "requiredAction"
+          ],
+          "type": "object"
+        },
+        "failure": {
+          "type": "null"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finalEventSequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "process": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "status": {
+          "const": "blocked",
+          "type": "string"
+        },
+        "stderr": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stdout": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "usage": {
+          "$ref": "#/$defs/__schema6"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "startedAt",
+        "finishedAt",
+        "finalEventSequence",
+        "stdout",
+        "stderr",
+        "usage",
+        "status",
+        "process",
+        "failure",
+        "blocker"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "blocker": {
+          "type": "null"
+        },
+        "failure": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finalEventSequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "process": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "status": {
+          "const": "cancelled",
+          "type": "string"
+        },
+        "stderr": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stdout": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "usage": {
+          "$ref": "#/$defs/__schema6"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "startedAt",
+        "finishedAt",
+        "finalEventSequence",
+        "stdout",
+        "stderr",
+        "usage",
+        "status",
+        "process",
+        "failure",
+        "blocker"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "blocker": {
+          "type": "null"
+        },
+        "failure": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finalEventSequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "process": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "status": {
+          "const": "timed-out",
+          "type": "string"
+        },
+        "stderr": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stdout": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "usage": {
+          "$ref": "#/$defs/__schema6"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "startedAt",
+        "finishedAt",
+        "finalEventSequence",
+        "stdout",
+        "stderr",
+        "usage",
+        "status",
+        "process",
+        "failure",
+        "blocker"
+      ],
+      "type": "object"
+    }
+  ]
+}

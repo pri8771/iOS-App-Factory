@@ -1,0 +1,23 @@
+{
+  "name": "@app-factory/kernel",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@app-factory/contracts": "workspace:*",
+    "better-sqlite3": "12.11.1"
+  }
+}

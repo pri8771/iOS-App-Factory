@@ -1,0 +1,210 @@
+{
+  "$defs": {
+    "__schema0": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema1": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema2": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema3": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema4": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:step",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "blocker": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "kind": {
+              "enum": [
+                "authentication",
+                "clarification",
+                "approval",
+                "environment",
+                "policy"
+              ],
+              "type": "string"
+            },
+            "requiredAction": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "summary": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "code",
+            "summary",
+            "requiredAction"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "detailArtifactDigest": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema3"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "summary": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "summary",
+            "retryable",
+            "detailArtifactDigest"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "finishedAt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema4"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "inputDigest": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "lastFence": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "operation": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "ordinal": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "outputDigest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema3"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "revision": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "runCount": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "startedAt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema4"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "state": {
+      "enum": [
+        "pending",
+        "running",
+        "blocked",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "skipped"
+      ],
+      "type": "string"
+    },
+    "stepId": {
+      "$ref": "#/$defs/__schema0"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "stepId",
+    "attemptId",
+    "ordinal",
+    "operation",
+    "state",
+    "revision",
+    "lastFence",
+    "runCount",
+    "inputDigest",
+    "outputDigest",
+    "blocker",
+    "failure",
+    "startedAt",
+    "finishedAt"
+  ],
+  "type": "object"
+}

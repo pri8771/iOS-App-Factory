@@ -1,0 +1,1200 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema10": {
+      "additionalProperties": false,
+      "properties": {
+        "byteLength": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "digest": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "digest",
+        "byteLength",
+        "truncated"
+      ],
+      "type": "object"
+    },
+    "__schema11": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "cachedInputTokens": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema7"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "inputTokens": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema7"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "outputTokens": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema7"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "inputTokens",
+            "outputTokens",
+            "cachedInputTokens"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema12": {
+      "additionalProperties": false,
+      "properties": {
+        "exitCode": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signal": {
+          "anyOf": [
+            {
+              "pattern": "^SIG[A-Z0-9]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "exitCode",
+        "signal"
+      ],
+      "type": "object"
+    },
+    "__schema13": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "detailArtifactDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema5"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "summary": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "summary",
+        "retryable",
+        "detailArtifactDigest"
+      ],
+      "type": "object"
+    },
+    "__schema14": {
+      "items": {
+        "$ref": "#/$defs/__schema15"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "type": "array"
+    },
+    "__schema15": {
+      "maxLength": 8192,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema16": {
+      "items": {
+        "$ref": "#/$defs/__schema17"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "__schema17": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "__schema18": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "description": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "findingId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "locations": {
+          "items": {
+            "$ref": "#/$defs/__schema19"
+          },
+          "maxItems": 50,
+          "type": "array"
+        },
+        "ruleId": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "severity": {
+          "enum": [
+            "p0",
+            "p1",
+            "p2",
+            "p3"
+          ],
+          "type": "string"
+        },
+        "supportingArtifactDigests": {
+          "items": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "maxItems": 50,
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "findingId",
+        "ruleId",
+        "category",
+        "severity",
+        "title",
+        "description",
+        "locations",
+        "supportingArtifactDigests"
+      ],
+      "type": "object"
+    },
+    "__schema19": {
+      "additionalProperties": false,
+      "properties": {
+        "lineEnd": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema20"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lineStart": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema20"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "lineStart",
+        "lineEnd"
+      ],
+      "type": "object"
+    },
+    "__schema2": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema20": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema3": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema4": {
+      "additionalProperties": false,
+      "properties": {
+        "baseCommit": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "candidateTree": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema6"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "policyDigest": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "taskSpecDigest": {
+          "$ref": "#/$defs/__schema5"
+        }
+      },
+      "required": [
+        "taskSpecDigest",
+        "policyDigest",
+        "baseCommit",
+        "candidateTree",
+        "fence"
+      ],
+      "type": "object"
+    },
+    "__schema5": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema6": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "__schema7": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema8": {
+      "items": {
+        "$ref": "#/$defs/__schema9"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "__schema9": {
+      "additionalProperties": false,
+      "properties": {
+        "byteLength": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "digest": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "logicalName": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "mediaType": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "digest",
+        "byteLength",
+        "mediaType",
+        "logicalName"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:evidence",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "claims": {
+          "additionalProperties": false,
+          "properties": {
+            "result": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "attemptId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "blocker": {
+                      "type": "null"
+                    },
+                    "failure": {
+                      "type": "null"
+                    },
+                    "fence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finalEventSequence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finishedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "process": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "exitCode": {
+                          "const": 0,
+                          "type": "number"
+                        },
+                        "signal": {
+                          "type": "null"
+                        }
+                      },
+                      "required": [
+                        "exitCode",
+                        "signal"
+                      ],
+                      "type": "object"
+                    },
+                    "runId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "startedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "status": {
+                      "const": "succeeded",
+                      "type": "string"
+                    },
+                    "stderr": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stdout": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stepId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "usage": {
+                      "$ref": "#/$defs/__schema11"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "runId",
+                    "attemptId",
+                    "stepId",
+                    "fence",
+                    "startedAt",
+                    "finishedAt",
+                    "finalEventSequence",
+                    "stdout",
+                    "stderr",
+                    "usage",
+                    "status",
+                    "process",
+                    "failure",
+                    "blocker"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "attemptId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "blocker": {
+                      "type": "null"
+                    },
+                    "failure": {
+                      "$ref": "#/$defs/__schema13"
+                    },
+                    "fence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finalEventSequence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finishedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "process": {
+                      "$ref": "#/$defs/__schema12"
+                    },
+                    "runId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "startedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "status": {
+                      "const": "failed",
+                      "type": "string"
+                    },
+                    "stderr": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stdout": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stepId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "usage": {
+                      "$ref": "#/$defs/__schema11"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "runId",
+                    "attemptId",
+                    "stepId",
+                    "fence",
+                    "startedAt",
+                    "finishedAt",
+                    "finalEventSequence",
+                    "stdout",
+                    "stderr",
+                    "usage",
+                    "status",
+                    "process",
+                    "failure",
+                    "blocker"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "attemptId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "blocker": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "$ref": "#/$defs/__schema3"
+                        },
+                        "kind": {
+                          "enum": [
+                            "authentication",
+                            "clarification",
+                            "approval",
+                            "environment",
+                            "policy"
+                          ],
+                          "type": "string"
+                        },
+                        "requiredAction": {
+                          "anyOf": [
+                            {
+                              "maxLength": 2000,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "maxLength": 1000,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "code",
+                        "summary",
+                        "requiredAction"
+                      ],
+                      "type": "object"
+                    },
+                    "failure": {
+                      "type": "null"
+                    },
+                    "fence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finalEventSequence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finishedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "process": {
+                      "$ref": "#/$defs/__schema12"
+                    },
+                    "runId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "startedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "status": {
+                      "const": "blocked",
+                      "type": "string"
+                    },
+                    "stderr": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stdout": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stepId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "usage": {
+                      "$ref": "#/$defs/__schema11"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "runId",
+                    "attemptId",
+                    "stepId",
+                    "fence",
+                    "startedAt",
+                    "finishedAt",
+                    "finalEventSequence",
+                    "stdout",
+                    "stderr",
+                    "usage",
+                    "status",
+                    "process",
+                    "failure",
+                    "blocker"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "attemptId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "blocker": {
+                      "type": "null"
+                    },
+                    "failure": {
+                      "$ref": "#/$defs/__schema13"
+                    },
+                    "fence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finalEventSequence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finishedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "process": {
+                      "$ref": "#/$defs/__schema12"
+                    },
+                    "runId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "startedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "status": {
+                      "const": "cancelled",
+                      "type": "string"
+                    },
+                    "stderr": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stdout": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stepId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "usage": {
+                      "$ref": "#/$defs/__schema11"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "runId",
+                    "attemptId",
+                    "stepId",
+                    "fence",
+                    "startedAt",
+                    "finishedAt",
+                    "finalEventSequence",
+                    "stdout",
+                    "stderr",
+                    "usage",
+                    "status",
+                    "process",
+                    "failure",
+                    "blocker"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "attemptId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "blocker": {
+                      "type": "null"
+                    },
+                    "failure": {
+                      "$ref": "#/$defs/__schema13"
+                    },
+                    "fence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finalEventSequence": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "finishedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "process": {
+                      "$ref": "#/$defs/__schema12"
+                    },
+                    "runId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "startedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "status": {
+                      "const": "timed-out",
+                      "type": "string"
+                    },
+                    "stderr": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stdout": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "stepId": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "usage": {
+                      "$ref": "#/$defs/__schema11"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "runId",
+                    "attemptId",
+                    "stepId",
+                    "fence",
+                    "startedAt",
+                    "finishedAt",
+                    "finalEventSequence",
+                    "stdout",
+                    "stderr",
+                    "usage",
+                    "status",
+                    "process",
+                    "failure",
+                    "blocker"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "runSpecDigest": {
+              "$ref": "#/$defs/__schema5"
+            }
+          },
+          "required": [
+            "runSpecDigest",
+            "result"
+          ],
+          "type": "object"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "evidenceId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "kind": {
+          "const": "agent-run",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "subject": {
+          "$ref": "#/$defs/__schema4"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "evidenceId",
+        "attemptId",
+        "createdAt",
+        "producer",
+        "subject",
+        "artifacts",
+        "kind",
+        "claims"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "claims": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "argv": {
+                  "$ref": "#/$defs/__schema14"
+                },
+                "checkId": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "checkoutTree": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "exitCode": {
+                  "const": 0,
+                  "type": "number"
+                },
+                "finishedAt": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "passed": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "startedAt": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "toolVersions": {
+                  "$ref": "#/$defs/__schema16"
+                }
+              },
+              "required": [
+                "checkId",
+                "argv",
+                "checkoutTree",
+                "startedAt",
+                "finishedAt",
+                "toolVersions",
+                "passed",
+                "exitCode"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "argv": {
+                  "$ref": "#/$defs/__schema14"
+                },
+                "checkId": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "checkoutTree": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "exitCode": {
+                  "maximum": 255,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "finishedAt": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "passed": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "startedAt": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "toolVersions": {
+                  "$ref": "#/$defs/__schema16"
+                }
+              },
+              "required": [
+                "checkId",
+                "argv",
+                "checkoutTree",
+                "startedAt",
+                "finishedAt",
+                "toolVersions",
+                "passed",
+                "exitCode"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "evidenceId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "kind": {
+          "const": "verification",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "subject": {
+          "$ref": "#/$defs/__schema4"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "evidenceId",
+        "attemptId",
+        "createdAt",
+        "producer",
+        "subject",
+        "artifacts",
+        "kind",
+        "claims"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "claims": {
+          "additionalProperties": false,
+          "properties": {
+            "report": {
+              "additionalProperties": false,
+              "properties": {
+                "findings": {
+                  "items": {
+                    "$ref": "#/$defs/__schema18"
+                  },
+                  "maxItems": 500,
+                  "type": "array"
+                },
+                "reviewInputDigest": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "reviewerId": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "reviewerVersion": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "schemaVersion": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "verdict": {
+                  "enum": [
+                    "pass",
+                    "changes-required",
+                    "blocked"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "reviewerId",
+                "reviewerVersion",
+                "reviewInputDigest",
+                "verdict",
+                "findings"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "report"
+          ],
+          "type": "object"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "evidenceId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "kind": {
+          "const": "review",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "subject": {
+          "$ref": "#/$defs/__schema4"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "evidenceId",
+        "attemptId",
+        "createdAt",
+        "producer",
+        "subject",
+        "artifacts",
+        "kind",
+        "claims"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "claims": {
+          "additionalProperties": false,
+          "properties": {
+            "attemptMarker": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            "commit": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "tree": {
+              "$ref": "#/$defs/__schema6"
+            }
+          },
+          "required": [
+            "commit",
+            "tree",
+            "attemptMarker"
+          ],
+          "type": "object"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "evidenceId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "kind": {
+          "const": "commit",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "subject": {
+          "$ref": "#/$defs/__schema4"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "evidenceId",
+        "attemptId",
+        "createdAt",
+        "producer",
+        "subject",
+        "artifacts",
+        "kind",
+        "claims"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "claims": {
+          "additionalProperties": false,
+          "properties": {
+            "eventCount": {
+              "$ref": "#/$defs/__schema20"
+            },
+            "eventLogDigest": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "firstSequence": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "lastSequence": {
+              "$ref": "#/$defs/__schema7"
+            }
+          },
+          "required": [
+            "firstSequence",
+            "lastSequence",
+            "eventCount",
+            "eventLogDigest"
+          ],
+          "type": "object"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "evidenceId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "kind": {
+          "const": "event-log",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "subject": {
+          "$ref": "#/$defs/__schema4"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "evidenceId",
+        "attemptId",
+        "createdAt",
+        "producer",
+        "subject",
+        "artifacts",
+        "kind",
+        "claims"
+      ],
+      "type": "object"
+    }
+  ]
+}

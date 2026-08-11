@@ -394,7 +394,7 @@ Committed tasks:
 - Consume the week as release/recovery buffer if any earlier gate slipped.
 - Convert the mixed-generation UI escape into:
   `Finding → root cause → historical regression → proposed policy/template change
-  → independent review → approved policy version → replay → pinned adoption`.
+→ independent review → approved policy version → replay → pinned adoption`.
 - Run control-plane backup/restore and lost-machine/disaster-recovery drills.
 - Produce the operator runbook, 16-week evidence index, reliability metrics, known
   limitations, and next-quarter backlog.
@@ -422,17 +422,17 @@ runs, approve status wording and deployment separately.
 
 ## Stage gates and schedule policy
 
-| Gate | Must be true before continuing |
-|---|---|
-| `G5` | Core Week-4 reliability remains green after daemon/client operationalization |
-| `G6` | Hindsight clean base, preservation decision, product/design authority, and baseline are approved |
-| `G8` | Sandbox Jira/GitHub mutations pass duplicate, timeout, restart, and stale-fence tests |
-| `G9` | At least one real Hindsight issue completes without manual Factory-state repair |
-| `G11` | Known mixed-generation UI fails and candidate findings are complete |
-| `G12` | One clean candidate SHA has no unresolved P0/P1 release finding |
-| `G13` | Signed archive and metadata are bound to a release-specific approval |
-| `G14` | The exact new build is available in Internal TestFlight |
-| `G15` | The exact distributed build passes a physical-device smoke journey |
+| Gate  | Must be true before continuing                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------ |
+| `G5`  | Core Week-4 reliability remains green after daemon/client operationalization                     |
+| `G6`  | Hindsight clean base, preservation decision, product/design authority, and baseline are approved |
+| `G8`  | Sandbox Jira/GitHub mutations pass duplicate, timeout, restart, and stale-fence tests            |
+| `G9`  | At least one real Hindsight issue completes without manual Factory-state repair                  |
+| `G11` | Known mixed-generation UI fails and candidate findings are complete                              |
+| `G12` | One clean candidate SHA has no unresolved P0/P1 release finding                                  |
+| `G13` | Signed archive and metadata are bound to a release-specific approval                             |
+| `G14` | The exact new build is available in Internal TestFlight                                          |
+| `G15` | The exact distributed build passes a physical-device smoke journey                               |
 
 If a gate slips, downstream dates slide or Week 16 becomes buffer. Never recover
 schedule by deleting reconciliation, protected-path checks, whole-product
@@ -468,13 +468,13 @@ exact SHA.
 
 ## Account and infrastructure activation schedule
 
-| When | Needed | Not needed yet |
-|---|---|---|
-| Weeks 5–6 | Local Mac, Codex, Git, Swift/Xcode; approval for new LaunchAgent | GCP, Supabase/Firebase, CRM, marketing accounts |
-| Weeks 7–9 | Jira and GitHub credentials/capabilities | Apple upload credentials until release preflight |
-| Weeks 10–12 | Simulator runtimes and human visual baseline approval | Product analytics or feedback backend |
-| Weeks 13–15 | Apple Developer/App Store Connect, signing identity, tester, physical device | Public App Store campaign, ads, CRM |
-| Week 16 conditional | Website repository and hosting/deployment integration | Cross-app analytics and auto-publishing |
+| When                | Needed                                                                       | Not needed yet                                   |
+| ------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------ |
+| Weeks 5–6           | Local Mac, Codex, Git, Swift/Xcode; approval for new LaunchAgent             | GCP, Supabase/Firebase, CRM, marketing accounts  |
+| Weeks 7–9           | Jira and GitHub credentials/capabilities                                     | Apple upload credentials until release preflight |
+| Weeks 10–12         | Simulator runtimes and human visual baseline approval                        | Product analytics or feedback backend            |
+| Weeks 13–15         | Apple Developer/App Store Connect, signing identity, tester, physical device | Public App Store campaign, ads, CRM              |
+| Week 16 conditional | Website repository and hosting/deployment integration                        | Cross-app analytics and auto-publishing          |
 
 No GCP, Supabase, or Firebase project is required for this roadmap. Product
 backends are enrolled per app only when a product feature needs one; the Factory

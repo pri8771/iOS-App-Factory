@@ -1,0 +1,136 @@
+{
+  "$defs": {
+    "__schema0": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema1": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
+      "type": "string"
+    },
+    "__schema2": {
+      "pattern": "^[A-Z_][A-Z0-9_]{0,127}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:agent-run-spec",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adapterId": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "attemptId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "authorizedWritePaths": {
+      "items": {
+        "$ref": "#/$defs/__schema1"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "type": "array"
+    },
+    "environmentAllowlist": {
+      "items": {
+        "$ref": "#/$defs/__schema2"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "fence": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "instruction": {
+      "maxLength": 100000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "limits": {
+      "additionalProperties": false,
+      "properties": {
+        "maxEventCount": {
+          "maximum": 1000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxStderrBytes": {
+          "maximum": 100000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxStdoutBytes": {
+          "maximum": 100000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxTurns": {
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "terminationGraceMs": {
+          "maximum": 60000,
+          "minimum": 100,
+          "type": "integer"
+        },
+        "timeoutMs": {
+          "maximum": 86400000,
+          "minimum": 1000,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "timeoutMs",
+        "terminationGraceMs",
+        "maxTurns",
+        "maxEventCount",
+        "maxStdoutBytes",
+        "maxStderrBytes"
+      ],
+      "type": "object"
+    },
+    "runId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "stepId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "taskSpecDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "workingDirectory": {
+      "maxLength": 4096,
+      "minLength": 2,
+      "pattern": "^\\/(?!.*\\/\\/)(?!.*\\\\)(?!.*\\0).+$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "runId",
+    "attemptId",
+    "stepId",
+    "fence",
+    "adapterId",
+    "taskSpecDigest",
+    "workingDirectory",
+    "instruction",
+    "authorizedWritePaths",
+    "environmentAllowlist",
+    "limits"
+  ],
+  "type": "object"
+}

@@ -31,4 +31,3 @@ logic. Those changes require a separately classified task and approval.
 A task is not complete because an agent says so. It requires validated scope,
 passing deterministic checks, immutable evidence, independent read-only review
 where configured, and a legal state transition in the execution kernel.
-

@@ -53,15 +53,15 @@ artifacts, findings, releases, external resources, and module offsets.
 
 ## State authorities
 
-| Concern | Authority |
-|---|---|
-| Source and product contracts | Git |
-| Human backlog status | Jira once connected |
-| Execution attempts and pending effects | local SQLite kernel |
-| PR/check/merge state | GitHub |
-| build processing and tester availability | App Store Connect |
-| credentials | macOS Keychain or approved secret store |
-| rules | separately versioned policy repository pinned by digest |
+| Concern                                  | Authority                                               |
+| ---------------------------------------- | ------------------------------------------------------- |
+| Source and product contracts             | Git                                                     |
+| Human backlog status                     | Jira once connected                                     |
+| Execution attempts and pending effects   | local SQLite kernel                                     |
+| PR/check/merge state                     | GitHub                                                  |
+| build processing and tester availability | App Store Connect                                       |
+| credentials                              | macOS Keychain or approved secret store                 |
+| rules                                    | separately versioned policy repository pinned by digest |
 
 ## Process and security boundary
 
@@ -72,6 +72,21 @@ user, not a hostile-process security boundary; hard isolation would require a
 separate user or VM. Only the daemon's command broker can push, comment,
 transition, sign, upload, or consume approvals. Trusted verification executes
 outside the agent-writable worktree.
+
+The Codex runner must not use the CLI's legacy `--sandbox` presets: local
+conformance testing showed that a model-invoked command could still read the
+interactive user's Codex authentication file. The runner instead supplies a
+Factory-owned permission profile that denies the filesystem root, permits only
+the minimal runtime surface plus the attempt worktree and temporary paths, and
+disables network access. A dedicated Factory `CODEX_HOME` separates runner state
+from interactive history; its authentication material remains denied to
+model-invoked commands. This profile is a mandatory conformance test, not an
+assumed property of the provider CLI.
+
+Provider-process exit status is not task success. In particular, Codex may exit
+zero after explaining that a requested mutation was blocked. Only a complete
+versioned protocol result followed by trusted diff, protected-path, test,
+independent-review, and evidence gates can advance a coding attempt to verified.
 
 Each attempt runs through a separate supervisor entrypoint. The daemon persists
 its PID, process start time, boot ID, process group, and fencing token. The

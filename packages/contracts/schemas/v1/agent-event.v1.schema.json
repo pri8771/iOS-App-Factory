@@ -1,0 +1,330 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema3": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema4": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema5": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:agent-event",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "adapterId": {
+              "$ref": "#/$defs/__schema5"
+            }
+          },
+          "required": [
+            "adapterId"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "type": {
+          "const": "agent.started",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "sequence",
+        "occurredAt",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "level": {
+              "enum": [
+                "debug",
+                "info",
+                "warning"
+              ],
+              "type": "string"
+            },
+            "message": {
+              "maxLength": 8000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "phase": {
+              "$ref": "#/$defs/__schema5"
+            }
+          },
+          "required": [
+            "phase",
+            "level",
+            "message"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "type": {
+          "const": "agent.progress",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "sequence",
+        "occurredAt",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "blocker": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "kind": {
+                  "enum": [
+                    "authentication",
+                    "clarification",
+                    "approval",
+                    "environment",
+                    "policy"
+                  ],
+                  "type": "string"
+                },
+                "requiredAction": {
+                  "anyOf": [
+                    {
+                      "maxLength": 2000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "summary": {
+                  "maxLength": 1000,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "code",
+                "summary",
+                "requiredAction"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "blocker"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "type": {
+          "const": "agent.blocked",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "sequence",
+        "occurredAt",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "succeeded",
+                "failed",
+                "blocked",
+                "cancelled",
+                "timed-out"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "runId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "stepId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "type": {
+          "const": "agent.finished",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "runId",
+        "attemptId",
+        "stepId",
+        "fence",
+        "sequence",
+        "occurredAt",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    }
+  ]
+}

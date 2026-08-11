@@ -1,0 +1,794 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema10": {
+      "enum": [
+        "running",
+        "paused",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "__schema11": {
+      "enum": [
+        "pending",
+        "running",
+        "blocked",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "skipped"
+      ],
+      "type": "string"
+    },
+    "__schema12": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "__schema2": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema3": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema4": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema5": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema6": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema7": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema8": {
+      "enum": [
+        "queued",
+        "running",
+        "paused",
+        "blocked",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "__schema9": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:event",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "taskId": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "taskSpecDigest": {
+              "$ref": "#/$defs/__schema7"
+            }
+          },
+          "required": [
+            "taskId",
+            "taskSpecDigest"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "attempt.created",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "blocker": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "$ref": "#/$defs/__schema9"
+                    },
+                    "kind": {
+                      "enum": [
+                        "authentication",
+                        "clarification",
+                        "approval",
+                        "environment",
+                        "policy"
+                      ],
+                      "type": "string"
+                    },
+                    "requiredAction": {
+                      "anyOf": [
+                        {
+                          "maxLength": 2000,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "summary": {
+                      "maxLength": 1000,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "code",
+                    "summary",
+                    "requiredAction"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "from": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "outcome": {
+              "anyOf": [
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "const": "succeeded",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "failure": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "$ref": "#/$defs/__schema9"
+                            },
+                            "detailArtifactDigest": {
+                              "anyOf": [
+                                {
+                                  "$ref": "#/$defs/__schema7"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "retryable": {
+                              "type": "boolean"
+                            },
+                            "summary": {
+                              "maxLength": 1000,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "summary",
+                            "retryable",
+                            "detailArtifactDigest"
+                          ],
+                          "type": "object"
+                        },
+                        "kind": {
+                          "const": "failed",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "failure"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "const": "cancelled",
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 1000,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "reason"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "to": {
+              "$ref": "#/$defs/__schema8"
+            }
+          },
+          "required": [
+            "from",
+            "to",
+            "blocker",
+            "outcome"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "attempt.state-changed",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/__schema10"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 1000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "to": {
+              "$ref": "#/$defs/__schema10"
+            }
+          },
+          "required": [
+            "from",
+            "to",
+            "reason"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "attempt.desired-state-changed",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "newFence": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "ownerId": {
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._:-]+$",
+              "type": "string"
+            },
+            "previousFence": {
+              "$ref": "#/$defs/__schema6"
+            }
+          },
+          "required": [
+            "previousFence",
+            "newFence",
+            "ownerId"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "attempt.fence-claimed",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "inputDigest": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "operation": {
+              "$ref": "#/$defs/__schema9"
+            },
+            "ordinal": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "stepId": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "stepId",
+            "ordinal",
+            "operation",
+            "inputDigest"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "step.created",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "failureCode": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema9"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "from": {
+              "$ref": "#/$defs/__schema11"
+            },
+            "outputDigest": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema7"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stepId": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "to": {
+              "$ref": "#/$defs/__schema11"
+            }
+          },
+          "required": [
+            "stepId",
+            "from",
+            "to",
+            "outputDigest",
+            "failureCode"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "step.state-changed",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "evidenceDigest": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "evidenceId": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "evidenceId",
+            "evidenceDigest"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "evidence.recorded",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "attemptMarker": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            "commit": {
+              "$ref": "#/$defs/__schema12"
+            },
+            "tree": {
+              "$ref": "#/$defs/__schema12"
+            }
+          },
+          "required": [
+            "commit",
+            "tree",
+            "attemptMarker"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "commit.recorded",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    }
+  ]
+}
