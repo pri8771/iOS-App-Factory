@@ -108,6 +108,7 @@ describe("Codex invocation policy", () => {
     const workingDirectory = makeWorkspace();
     const invocation = buildCodexInvocation(makeRunSpec({ workingDirectory }), {
       executable: "/Applications/ChatGPT.app/Contents/Resources/codex",
+      model: "gpt-5.6-codex",
       codexHome: "/private/tmp/app-factory-codex-home",
       outputSchemaPath: "/private/tmp/app-factory-schema.json",
       readOnlyPaths: ["Sources/App/Protected.swift", "Tests"],
@@ -130,6 +131,8 @@ describe("Codex invocation policy", () => {
     expect(invocation.args).toContain("--output-schema");
     expect(invocation.args).toContain("--ignore-user-config");
     expect(invocation.args).toContain("--ignore-rules");
+    expect(invocation.args).toContain("--model");
+    expect(invocation.args[invocation.args.indexOf("--model") + 1]).toBe("gpt-5.6-codex");
 
     const configOverrides = invocation.args.filter((argument) => argument.includes("="));
     expect(configOverrides.join("\n")).toContain('":root"="deny"');
@@ -156,6 +159,7 @@ describe("Codex invocation policy", () => {
     expect(() =>
       buildCodexInvocation(makeRunSpec({ workingDirectory, authorizedWritePaths: [".env"] }), {
         executable: "/usr/local/bin/codex",
+        model: "gpt-5.6-codex",
         codexHome: "/private/tmp/codex-home",
         outputSchemaPath: "/private/tmp/schema.json",
       }),
@@ -166,6 +170,7 @@ describe("Codex invocation policy", () => {
         makeRunSpec({ workingDirectory, authorizedWritePaths: ["Tests/Fixtures"] }),
         {
           executable: "/usr/local/bin/codex",
+          model: "gpt-5.6-codex",
           codexHome: "/private/tmp/codex-home",
           outputSchemaPath: "/private/tmp/schema.json",
           readOnlyPaths: ["Tests"],
@@ -178,6 +183,7 @@ describe("Codex invocation policy", () => {
         makeRunSpec({ workingDirectory, authorizedWritePaths: ["Sources/App"] }),
         {
           executable: "/usr/local/bin/codex",
+          model: "gpt-5.6-codex",
           codexHome: "/private/tmp/codex-home",
           outputSchemaPath: "/private/tmp/schema.json",
           readOnlyPaths: ["Sources/App/Protected.swift"],
@@ -193,6 +199,7 @@ describe("Codex invocation policy", () => {
         makeRunSpec({ workingDirectory, environmentAllowlist: ["PATH", "NODE_OPTIONS"] }),
         {
           executable: "/usr/local/bin/codex",
+          model: "gpt-5.6-codex",
           codexHome: "/private/tmp/codex-home",
           outputSchemaPath: "/private/tmp/schema.json",
           sourceEnvironment: {
@@ -202,6 +209,27 @@ describe("Codex invocation policy", () => {
         },
       ),
     ).toThrow(/adapter-owned safe allowlist/);
+  });
+
+  it("rejects an omitted or unsafe model identifier before launching Codex", () => {
+    const workingDirectory = makeWorkspace();
+    const common = {
+      executable: "/usr/local/bin/codex",
+      codexHome: "/private/tmp/codex-home",
+      outputSchemaPath: "/private/tmp/schema.json",
+    };
+    expect(() =>
+      buildCodexInvocation(makeRunSpec({ workingDirectory }), {
+        ...common,
+        model: "",
+      }),
+    ).toThrow(/explicit bounded portable identifier/);
+    expect(() =>
+      buildCodexInvocation(makeRunSpec({ workingDirectory }), {
+        ...common,
+        model: "gpt-5.6-codex\n--dangerously-bypass-approvals-and-sandbox",
+      }),
+    ).toThrow(/explicit bounded portable identifier/);
   });
 
   it("rejects authorized paths with symbolic-link components", () => {
@@ -219,6 +247,7 @@ describe("Codex invocation policy", () => {
         }),
         {
           executable: "/usr/local/bin/codex",
+          model: "gpt-5.6-codex",
           codexHome: "/private/tmp/codex-home",
           outputSchemaPath: "/private/tmp/schema.json",
         },

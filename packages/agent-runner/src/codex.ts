@@ -372,6 +372,7 @@ export type CodexInvocation = Readonly<{
 
 export type BuildCodexInvocationOptions = Readonly<{
   executable: string;
+  model: string;
   codexHome: string;
   outputSchemaPath: string;
   sourceEnvironment?: Readonly<Record<string, string | undefined>>;
@@ -468,6 +469,14 @@ export function buildCodexInvocation(
   assertAbsolutePath(options.executable, "Codex executable");
   assertAbsolutePath(options.codexHome, "Codex home");
   assertAbsolutePath(options.outputSchemaPath, "Codex output schema path");
+  if (
+    options.model.length < 1 ||
+    options.model.length > 200 ||
+    options.model.trim() !== options.model ||
+    !/^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(options.model)
+  ) {
+    throw new TypeError("Codex model must be an explicit bounded portable identifier");
+  }
 
   const permissionProfileName = options.permissionProfileName ?? "factory_agent";
   if (!SAFE_PERMISSION_PROFILE_NAME_PATTERN.test(permissionProfileName)) {
@@ -512,6 +521,8 @@ export function buildCodexInvocation(
     "never",
     "--cd",
     workingDirectory,
+    "--model",
+    options.model,
   ];
   for (const feature of disabledFeatures) {
     args.push("--disable", feature);
