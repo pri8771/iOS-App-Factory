@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   FACTORY_MIGRATIONS,
+  computeTaskSpecDigest,
   createFactoryRepositories,
   listAppliedMigrations,
   openFactoryDatabase,
@@ -19,8 +20,6 @@ const LATER = "2026-08-10T12:00:01.000Z";
 const PROJECT_ID = "00000000-0000-4000-8000-000000000001";
 const REPOSITORY_ID = "00000000-0000-4000-8000-000000000002";
 const POLICY_DIGEST = `sha256:${"a".repeat(64)}`;
-const TASK_DIGEST_A = `sha256:${"b".repeat(64)}`;
-const TASK_DIGEST_B = `sha256:${"c".repeat(64)}`;
 const BASE_COMMIT = "d".repeat(40);
 
 const IDS_A = {
@@ -47,7 +46,7 @@ function makeDatabasePath(): string {
   return join(directory, "factory.db");
 }
 
-function makeBundle(ids: typeof IDS_A | typeof IDS_B, taskSpecDigest: string) {
+function makeBundle(ids: typeof IDS_A | typeof IDS_B) {
   const taskSpec = {
     schemaVersion: 1,
     taskId: ids.task,
@@ -74,6 +73,7 @@ function makeBundle(ids: typeof IDS_A | typeof IDS_B, taskSpecDigest: string) {
     kind: "task.submit",
     taskSpec,
   };
+  const taskSpecDigest = computeTaskSpecDigest(taskSpec);
   const attempt = {
     schemaVersion: 1,
     attemptId: ids.attempt,
@@ -106,11 +106,11 @@ function makeBundle(ids: typeof IDS_A | typeof IDS_B, taskSpecDigest: string) {
   return { command, taskSpecDigest, attempt, event };
 }
 
-function makeRunningTransition(ids: typeof IDS_A | typeof IDS_B, taskSpecDigest: string) {
+function makeRunningTransition(ids: typeof IDS_A | typeof IDS_B) {
   return {
     expectedRevision: 0,
     attempt: {
-      ...makeBundle(ids, taskSpecDigest).attempt,
+      ...makeBundle(ids).attempt,
       state: "running",
       revision: 1,
       updatedAt: LATER,
@@ -205,11 +205,64 @@ describe("migration runner", () => {
 });
 
 describe("Factory repositories", () => {
+  it("replays the original task submission after a lost response and rejects command collisions", () => {
+    const databasePath = makeDatabasePath();
+    let database = openMigratedFactoryDatabase(databasePath);
+    let repositories = createFactoryRepositories(database);
+    const original = makeBundle(IDS_A);
+    expect(repositories.createTaskAttempt(original)).toMatchObject({ duplicate: false });
+    database.close();
+
+    database = openMigratedFactoryDatabase(databasePath, { fileMustExist: true });
+    repositories = createFactoryRepositories(database);
+    const retriedWithFreshGeneratedIds = {
+      ...original,
+      attempt: { ...original.attempt, attemptId: IDS_B.attempt },
+      event: {
+        ...original.event,
+        eventId: IDS_B.event,
+        attemptId: IDS_B.attempt,
+      },
+    };
+    expect(repositories.createTaskAttempt(retriedWithFreshGeneratedIds)).toMatchObject({
+      command: original.command,
+      attempt: original.attempt,
+      event: original.event,
+      duplicate: true,
+    });
+
+    const changedTaskSpec = {
+      ...original.command.taskSpec,
+      objective: "A conflicting objective under the same command ID.",
+    };
+    const changedDigest = computeTaskSpecDigest(changedTaskSpec);
+    expect(() =>
+      repositories.createTaskAttempt({
+        command: { ...original.command, taskSpec: changedTaskSpec },
+        taskSpecDigest: changedDigest,
+        attempt: {
+          ...original.attempt,
+          taskSpecDigest: changedDigest,
+          attemptId: IDS_B.attempt,
+        },
+        event: {
+          ...original.event,
+          eventId: IDS_B.event,
+          attemptId: IDS_B.attempt,
+          data: { taskId: IDS_A.task, taskSpecDigest: changedDigest },
+        },
+      }),
+    ).toThrow(/duplicate task-submit command/);
+    expect(database.prepare("SELECT COUNT(*) AS count FROM attempts").get()).toEqual({ count: 1 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM events").get()).toEqual({ count: 1 });
+    database.close();
+  });
+
   it("persists an atomic submission and state transition across close/reopen", () => {
     const databasePath = makeDatabasePath();
     let database = openMigratedFactoryDatabase(databasePath, { now: () => new Date(NOW) });
     let repositories = createFactoryRepositories(database);
-    const bundle = makeBundle(IDS_A, TASK_DIGEST_A);
+    const bundle = makeBundle(IDS_A);
 
     expect(repositories.createTaskAttempt(bundle)).toMatchObject({
       command: bundle.command,
@@ -217,7 +270,7 @@ describe("Factory repositories", () => {
       attempt: bundle.attempt,
       event: bundle.event,
     });
-    repositories.transitionAttemptState(makeRunningTransition(IDS_A, TASK_DIGEST_A));
+    repositories.transitionAttemptState(makeRunningTransition(IDS_A));
     database.close();
 
     database = openMigratedFactoryDatabase(databasePath, {
@@ -242,8 +295,8 @@ describe("Factory repositories", () => {
   it("rolls command, task, and attempt creation back when the event insert fails", () => {
     const database = openMigratedFactoryDatabase(makeDatabasePath());
     const repositories = createFactoryRepositories(database);
-    repositories.createTaskAttempt(makeBundle(IDS_A, TASK_DIGEST_A));
-    const second = makeBundle(IDS_B, TASK_DIGEST_B);
+    repositories.createTaskAttempt(makeBundle(IDS_A));
+    const second = makeBundle(IDS_B);
 
     expect(() =>
       repositories.createTaskAttempt({
@@ -260,8 +313,8 @@ describe("Factory repositories", () => {
   it("rolls the attempt update back when its event insert fails", () => {
     const database = openMigratedFactoryDatabase(makeDatabasePath());
     const repositories = createFactoryRepositories(database);
-    repositories.createTaskAttempt(makeBundle(IDS_A, TASK_DIGEST_A));
-    const transition = makeRunningTransition(IDS_A, TASK_DIGEST_A);
+    repositories.createTaskAttempt(makeBundle(IDS_A));
+    const transition = makeRunningTransition(IDS_A);
 
     expect(() =>
       repositories.transitionAttemptState({
@@ -281,7 +334,7 @@ describe("Factory repositories", () => {
   it("validates complete contracts before the first write", () => {
     const database = openMigratedFactoryDatabase(makeDatabasePath());
     const repositories = createFactoryRepositories(database);
-    const invalid = makeBundle(IDS_A, TASK_DIGEST_A);
+    const invalid = makeBundle(IDS_A);
 
     expect(() =>
       repositories.createTaskAttempt({
@@ -301,7 +354,7 @@ describe("Factory repositories", () => {
   it("enforces append-only records and artifact validation", () => {
     const database = openMigratedFactoryDatabase(makeDatabasePath());
     const repositories = createFactoryRepositories(database);
-    repositories.createTaskAttempt(makeBundle(IDS_A, TASK_DIGEST_A));
+    repositories.createTaskAttempt(makeBundle(IDS_A));
 
     expect(() =>
       database.prepare("UPDATE events SET sequence = 2 WHERE event_id = ?").run(IDS_A.event),

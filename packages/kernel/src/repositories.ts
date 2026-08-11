@@ -19,6 +19,17 @@ import {
 } from "@app-factory/contracts";
 import type Database from "better-sqlite3";
 
+import { computeTaskSpecDigest } from "./canonical-json.js";
+import {
+  assertAttemptSnapshotCoherence,
+  assertLegalAttemptStateTransition,
+} from "./state-machine.js";
+import {
+  AttemptDesiredStateRepository,
+  LeaseRepository,
+  StepRepository,
+} from "./durability-repositories.js";
+
 type SubmitTaskCommandV1 = Extract<CommandV1, { kind: "task.submit" }>;
 type AttemptCreatedEventV1 = Extract<EventV1, { type: "attempt.created" }>;
 type AttemptStateChangedEventV1 = Extract<EventV1, { type: "attempt.state-changed" }>;
@@ -35,6 +46,7 @@ export type CreatedTaskAttempt = Readonly<{
   taskSpec: TaskSpecV1;
   attempt: ExecutionAttemptV1;
   event: AttemptCreatedEventV1;
+  duplicate: boolean;
 }>;
 
 export type TransitionAttemptStateInput = Readonly<{
@@ -167,7 +179,7 @@ function decodeAttempt(row: AttemptRow): ExecutionAttemptV1 {
   assertSame("created_at projection", row.created_at, attempt.createdAt);
   assertSame("updated_at projection", row.updated_at, attempt.updatedAt);
   assertSame("terminal_at projection", row.terminal_at, attempt.terminalAt);
-  return attempt;
+  return assertAttemptSnapshotCoherence(attempt);
 }
 
 function decodeEvent(row: EventRow): EventV1 {
@@ -299,13 +311,19 @@ export class TaskSnapshotRepository {
   public findById(taskIdInput: unknown): TaskSpecV1 | null {
     const taskId = TaskIdSchema.parse(taskIdInput);
     const row = this.database
-      .prepare("SELECT payload_json FROM task_snapshots WHERE task_id = ?")
-      .get(taskId) as Readonly<{ payload_json: string }> | undefined;
-    return row === undefined
-      ? null
-      : parseStoredJson("task_snapshots", taskId, row.payload_json, (value) =>
-          TaskSpecV1Schema.parse(value),
-        );
+      .prepare("SELECT task_spec_digest, payload_json FROM task_snapshots WHERE task_id = ?")
+      .get(taskId) as Readonly<{ task_spec_digest: string; payload_json: string }> | undefined;
+    if (row === undefined) return null;
+    const taskSpec = parseStoredJson("task_snapshots", taskId, row.payload_json, (value) =>
+      TaskSpecV1Schema.parse(value),
+    );
+    assertSame("task snapshot taskId", taskSpec.taskId, taskId);
+    assertSame(
+      "task snapshot canonical digest",
+      row.task_spec_digest,
+      computeTaskSpecDigest(taskSpec),
+    );
+    return taskSpec;
   }
 }
 
@@ -376,6 +394,9 @@ export class FactoryRepositories {
   public readonly attempts: AttemptRepository;
   public readonly events: EventRepository;
   public readonly artifacts: ArtifactRepository;
+  public readonly desiredStates: AttemptDesiredStateRepository;
+  public readonly steps: StepRepository;
+  public readonly leases: LeaseRepository;
 
   public constructor(private readonly database: Database.Database) {
     this.commands = new CommandRepository(database);
@@ -383,6 +404,9 @@ export class FactoryRepositories {
     this.attempts = new AttemptRepository(database);
     this.events = new EventRepository(database);
     this.artifacts = new ArtifactRepository(database);
+    this.desiredStates = new AttemptDesiredStateRepository(database);
+    this.steps = new StepRepository(database);
+    this.leases = new LeaseRepository(database);
   }
 
   public createTaskAttempt(input: CreateTaskAttemptInput): CreatedTaskAttempt {
@@ -391,6 +415,9 @@ export class FactoryRepositories {
     const attempt = ExecutionAttemptV1Schema.parse(input.attempt);
     const event = parseAttemptCreatedEvent(input.event);
     const taskSpec = command.taskSpec;
+
+    assertSame("canonical taskSpecDigest", taskSpecDigest, computeTaskSpecDigest(taskSpec));
+    assertAttemptSnapshotCoherence(attempt);
 
     assertSame("attempt taskId", attempt.taskId, taskSpec.taskId);
     assertSame("attempt taskSpecDigest", attempt.taskSpecDigest, taskSpecDigest);
@@ -411,15 +438,77 @@ export class FactoryRepositories {
     assertSame("created event taskId", event.data.taskId, taskSpec.taskId);
     assertSame("created event taskSpecDigest", event.data.taskSpecDigest, taskSpecDigest);
 
-    const persist = this.database.transaction(() => {
+    const persist = this.database.transaction((): CreatedTaskAttempt => {
+      const storedCommandRow = this.database
+        .prepare("SELECT payload_json FROM commands WHERE command_id = ?")
+        .get(command.commandId) as Readonly<{ payload_json: string }> | undefined;
+      if (storedCommandRow !== undefined) {
+        const storedCommand = parseSubmitTaskCommand(
+          parseStoredJson("commands", command.commandId, storedCommandRow.payload_json, (value) =>
+            CommandV1Schema.parse(value),
+          ),
+        );
+        assertJsonSame("duplicate task-submit command", command, storedCommand);
+
+        const taskRow = this.database
+          .prepare(
+            `SELECT task_spec_digest, payload_json
+             FROM task_snapshots WHERE submitted_by_command_id = ?`,
+          )
+          .get(command.commandId) as
+          Readonly<{ task_spec_digest: string; payload_json: string }> | undefined;
+        if (taskRow === undefined) {
+          failInvariant(`task-submit command ${command.commandId} has no task snapshot`);
+        }
+        const storedTaskSpec = parseStoredJson(
+          "task_snapshots",
+          storedCommand.taskSpec.taskId,
+          taskRow.payload_json,
+          (value) => TaskSpecV1Schema.parse(value),
+        );
+        assertSame("duplicate canonical taskSpecDigest", taskRow.task_spec_digest, taskSpecDigest);
+        assertSame(
+          "stored task snapshot canonical digest",
+          taskRow.task_spec_digest,
+          computeTaskSpecDigest(storedTaskSpec),
+        );
+
+        const attemptRow = this.database
+          .prepare(
+            `SELECT * FROM attempts
+             WHERE task_id = ? AND task_spec_digest = ? AND attempt_number = 1`,
+          )
+          .get(storedTaskSpec.taskId, taskSpecDigest) as AttemptRow | undefined;
+        if (attemptRow === undefined) {
+          failInvariant(`task-submit command ${command.commandId} has no initial attempt`);
+        }
+        const storedAttempt = decodeAttempt(attemptRow);
+        const eventRows = this.database
+          .prepare("SELECT * FROM events WHERE command_id = ? ORDER BY sequence")
+          .all(command.commandId) as readonly EventRow[];
+        if (eventRows.length !== 1 || eventRows[0] === undefined) {
+          failInvariant(`task-submit command ${command.commandId} must have one result event`);
+        }
+        const storedEvent = decodeEvent(eventRows[0]);
+        if (storedEvent.type !== "attempt.created") {
+          failInvariant(`task-submit command ${command.commandId} has the wrong result event`);
+        }
+        return {
+          command: storedCommand,
+          taskSpec: storedTaskSpec,
+          attempt: storedAttempt,
+          event: storedEvent,
+          duplicate: true,
+        };
+      }
+
       insertCommand(this.database, command);
       insertTaskSnapshot(this.database, command, taskSpecDigest);
       insertAttempt(this.database, attempt);
       insertEvent(this.database, event);
+      return { command, taskSpec, attempt, event, duplicate: false };
     });
-    persist.immediate();
-
-    return { command, taskSpec, attempt, event };
+    return persist.immediate();
   }
 
   public transitionAttemptState(input: TransitionAttemptStateInput): ExecutionAttemptV1 {
@@ -435,6 +524,10 @@ export class FactoryRepositories {
         throw new Error(`Attempt does not exist: ${nextAttempt.attemptId}`);
       }
       const current = decodeAttempt(row);
+
+      assertAttemptSnapshotCoherence(current);
+      assertAttemptSnapshotCoherence(nextAttempt);
+      assertLegalAttemptStateTransition(current.state, nextAttempt.state);
 
       assertSame("expected revision", current.revision, expectedRevision);
       assertSame("next revision", nextAttempt.revision, current.revision + 1);
