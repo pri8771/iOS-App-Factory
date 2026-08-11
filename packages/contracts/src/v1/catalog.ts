@@ -2,6 +2,7 @@ import type { z } from "zod";
 
 import { AgentEventV1Schema, AgentRunResultV1Schema, AgentRunSpecV1Schema } from "./agent-run.js";
 import { CommandV1Schema } from "./command.js";
+import { CommandRequestFrameV1Schema, CommandResponseV1Schema } from "./command-protocol.js";
 import {
   EvidenceManifestV1Schema,
   EvidenceV1Schema,
@@ -31,6 +32,18 @@ export const contractSchemaCatalogV1 = [
     fileName: "command.v1.schema.json",
     id: "urn:app-factory:contracts:v1:command",
     schema: CommandV1Schema,
+  },
+  {
+    name: "command-request-frame",
+    fileName: "command-request-frame.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:command-request-frame",
+    schema: CommandRequestFrameV1Schema,
+  },
+  {
+    name: "command-response",
+    fileName: "command-response.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:command-response",
+    schema: CommandResponseV1Schema,
   },
   {
     name: "execution-attempt",

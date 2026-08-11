@@ -29,6 +29,9 @@ export type TaskId = z.infer<typeof TaskIdSchema>;
 export const CommandIdSchema = LowercaseUuidSchema.brand<"CommandId">();
 export type CommandId = z.infer<typeof CommandIdSchema>;
 
+export const RequestIdSchema = LowercaseUuidSchema.brand<"RequestId">();
+export type RequestId = z.infer<typeof RequestIdSchema>;
+
 export const AttemptIdSchema = LowercaseUuidSchema.brand<"AttemptId">();
 export type AttemptId = z.infer<typeof AttemptIdSchema>;
 
