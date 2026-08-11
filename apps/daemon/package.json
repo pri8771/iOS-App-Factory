@@ -17,6 +17,7 @@
     "@app-factory/agent-runner": "workspace:*",
     "@app-factory/contracts": "workspace:*",
     "@app-factory/kernel": "workspace:*",
-    "@app-factory/process-supervisor": "workspace:*"
+    "@app-factory/process-supervisor": "workspace:*",
+    "@app-factory/scheduler": "workspace:*"
   }
 }

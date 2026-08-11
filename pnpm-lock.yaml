@@ -68,6 +68,9 @@ importers:
       '@app-factory/process-supervisor':
         specifier: workspace:*
         version: link:../../packages/process-supervisor
+      '@app-factory/scheduler':
+        specifier: workspace:*
+        version: link:../../packages/scheduler
 
   packages/agent-runner:
     dependencies:
@@ -87,6 +90,20 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  packages/evidence-store:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/git-workspace: {}
+
+  packages/independent-review:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
   packages/kernel:
     dependencies:
       '@app-factory/contracts':
@@ -102,7 +119,24 @@ importers:
         specifier: workspace:*
         version: link:../contracts
 
+  packages/quality:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/scheduler: {}
+
   packages/testkit:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/trusted-verifier:
     dependencies:
       '@app-factory/contracts':
         specifier: workspace:*

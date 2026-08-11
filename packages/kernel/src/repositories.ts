@@ -8,6 +8,7 @@ import {
   ExecutionAttemptV1Schema,
   IsoInstantSchema,
   NonNegativeSafeIntegerSchema,
+  PositiveSafeIntegerSchema,
   Sha256DigestSchema,
   TaskIdSchema,
   TaskSpecV1Schema,
@@ -63,6 +64,10 @@ export type RecordArtifactInput = Readonly<{
   artifact: unknown;
   storagePath: unknown;
   recordedAt: unknown;
+}>;
+
+export type ListAttemptReconciliationCandidatesInput = Readonly<{
+  limit: unknown;
 }>;
 
 type AttemptRow = Readonly<{
@@ -340,6 +345,41 @@ export class AttemptRepository {
       .prepare("SELECT * FROM attempts WHERE attempt_id = ?")
       .get(attemptId) as AttemptRow | undefined;
     return row === undefined ? null : decodeAttempt(row);
+  }
+
+  /**
+   * Returns the non-terminal attempts for which the scheduler can either run
+   * work or reconcile persisted operator intent. Intent changes are ordered
+   * ahead of ordinary work so pause/cancel commands are observed promptly.
+   */
+  public listReconciliationCandidates(
+    input: ListAttemptReconciliationCandidatesInput,
+  ): readonly ExecutionAttemptV1[] {
+    const limit = PositiveSafeIntegerSchema.parse(input.limit);
+    if (limit > 10_000) {
+      throw new RangeError("attempt reconciliation candidate limit cannot exceed 10000");
+    }
+    const rows = this.database
+      .prepare(
+        `SELECT * FROM attempts
+         WHERE state NOT IN ('succeeded', 'failed', 'cancelled')
+           AND (
+             desired_state = 'running'
+             OR (desired_state = 'paused' AND state <> 'paused')
+             OR desired_state = 'cancelled'
+           )
+         ORDER BY
+           CASE desired_state
+             WHEN 'cancelled' THEN 0
+             WHEN 'paused' THEN 1
+             ELSE 2
+           END,
+           updated_at,
+           attempt_id
+         LIMIT ?`,
+      )
+      .all(limit) as readonly AttemptRow[];
+    return rows.map(decodeAttempt);
   }
 }
 

@@ -383,4 +383,32 @@ describe("desired state and reconciliation commands", () => {
     });
     expect(secondPort).not.toHaveBeenCalled();
   });
+
+  it("reports an explicit no-op when no scheduler reconcile port is configured", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const noPortSpec = {
+      ...taskSpec,
+      taskId: "20000000-0000-4000-8000-000000000021",
+    };
+    const run = await invoke(
+      runtime,
+      request("task.run", "20000000-0000-4000-8000-000000000022", { taskSpec: noPortSpec }, T1),
+    );
+    if (run.operation !== "task.run") throw new Error("Unexpected run result");
+
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "daemon.reconcile",
+          "20000000-0000-4000-8000-000000000023",
+          { attemptId: run.attemptId },
+          T2,
+        ),
+      ),
+    ).resolves.toMatchObject({ reconciledAttemptIds: [] });
+    expect(
+      await status(runtime, run.attemptId, "20000000-0000-4000-8000-000000000024"),
+    ).toMatchObject({ state: "queued", desiredState: "running" });
+  });
 });

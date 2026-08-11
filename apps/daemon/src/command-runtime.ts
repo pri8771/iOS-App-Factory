@@ -628,8 +628,7 @@ export async function openDaemonCommandRuntime(
     throw error;
   }
   const repositories = createFactoryRepositories(database);
-  const reconcile: ReconcilePort =
-    options.reconcile ?? ((request) => (request.attemptId === null ? [] : [request.attemptId]));
+  const reconcile: ReconcilePort = options.reconcile ?? (() => []);
   const serial = new SerialExecutor();
   let closed = false;
 
