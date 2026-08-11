@@ -1,0 +1,20 @@
+{
+  "name": "@app-factory/oci-runner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "clean": "tsc -b --clean",
+    "test": "vitest run test"
+  }
+}

@@ -31,6 +31,7 @@
       "@app-factory/kernel": ["./packages/kernel/src/index.ts"],
       "@app-factory/learning-engine": ["./packages/learning-engine/src/index.ts"],
       "@app-factory/module-sdk": ["./packages/module-sdk/src/index.ts"],
+      "@app-factory/oci-runner": ["./packages/oci-runner/src/index.ts"],
       "@app-factory/policy-engine": ["./packages/policy-engine/src/index.ts"],
       "@app-factory/portfolio": ["./packages/portfolio/src/index.ts"],
       "@app-factory/provider-http-adapters": ["./packages/provider-http-adapters/src/index.ts"],

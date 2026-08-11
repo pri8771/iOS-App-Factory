@@ -1,0 +1,76 @@
+# OCI runner
+
+This package is the Factory-owned coding-plane containment primitive. It is
+deliberately separate from `process-supervisor`: a host process group is useful
+for trusted helpers, but it is not the lifecycle or cancellation boundary for
+untrusted coding work.
+
+The current slice is dormant and no-network. It proves the engine contract and
+crash-reconciliation protocol without enabling a live model:
+
+- the Docker executable, client, server, platform, image repository digest, and
+  local image ID are exact pins;
+- the image is launched with a read-only root filesystem, `network=none`, a
+  fixed non-root user, all capabilities dropped, no-new-privileges, explicit
+  CPU/memory/swap/PID/log/wall-time limits, and a private `nosuid,nodev,noexec`
+  tmpfs;
+- the only writable host bind is the exact isolated worktree at `/workspace`;
+  the launch inventory rejects symlink ancestors, contained symlinks, sockets,
+  FIFOs, devices, and other special files;
+- container labels bind the attempt, implementing run, fence, TaskSpec, policy,
+  base commit, base tree, and immutable intent digest;
+- normalized inspection attests the exact user, command, entrypoint, working
+  directory, environment, labels, image, resource limits, log driver, tmpfs,
+  mounts, privilege, capabilities, security options, and network mode; and
+- private fsynced artifacts reconcile
+  `planned -> created -> running -> terminal -> removed`. A lost create, start,
+  log, inspect, stop, kill, or remove response fails closed and is replayed from
+  labels plus exact container identity rather than launching a duplicate.
+
+The Docker log driver bounds retained output and the adapter records captured
+and observed byte counts. Wall time is reconciled from the engine's immutable
+start time; a production Codex image must additionally contain a pinned PID 1
+deadline/output wrapper so limits continue to fire while the Factory daemon is
+offline.
+
+## Live no-network smoke evidence
+
+The package-local suite passes 93/93. An explicitly invoked live Colima
+`OciRunner` smoke also completed on 2026-08-11 with Docker CLI `29.6.1`, server
+`29.5.2` on `linux/arm64`, and pinned image
+`node@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2`.
+
+The natural run succeeded as UID/GID `10001`, proved the private tmpfs owner and
+mode, observed `ENETUNREACH`, made one expected isolated-worktree write,
+persisted terminal/removal/receipt artifacts, and left no container by ID,
+exact labels, or exact name. The campaign also recovered from a persisted
+launch marker after a process failure during strict inspection without creating
+a duplicate. It mounted no Codex binary, credential, home directory, or Docker
+socket.
+
+The current hardened-tree summary is
+`/Users/pchordia/Documents/oci-runner-smoke-hardening-Vhj2LP/smoke-summary.json`,
+whose digest is
+`sha256:3ba392b0012dd11e89d0647b434a33ce94eae414733bec5b1ceb942058b8cc96`.
+This is live no-network runner evidence, not production conformance or an OCI
+journal V3.
+
+## Not enabled yet
+
+`network=none` means this package can run deterministic/fake images only. Do not
+mount a host Codex home, `auth.json`, API key, Docker socket, Factory runtime,
+source checkout, Git credentials, or host home into the coding container.
+Live Codex requires a separately reviewed, quota-bound egress/auth broker and
+an OCI-specific daemon evidence-journal version. Production containment also
+still requires:
+
+- an autonomous in-container PID 1 wall/output watchdog and proof that retained
+  logs bound total generated output;
+- quarantine and reaping after post-launch start or attestation failures;
+- autonomous stale-operation-lock recovery with process-generation proof;
+- digest attestation of the effective default seccomp/AppArmor profile;
+- a quota on the writable host bind and bounded disk-exhaustion behavior; and
+- real-engine timeout, output-overflow, stop, and kill-path tests.
+
+Trusted Xcode, Simulator, signing, archive, and TestFlight work remains on the
+macOS build plane against an immutable candidate tree.

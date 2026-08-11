@@ -49,6 +49,14 @@ module.exports = {
       to: { path: "(^|/)(apps/|packages/(?!command-client(?:/|$)|contracts(?:/|$)))" },
     },
     {
+      name: "oci-runner-imports-contracts-only",
+      severity: "error",
+      from: { path: "(^|/)packages/oci-runner/" },
+      to: {
+        path: "(^|/)(apps/|packages/(?!contracts(?:/|$)|oci-runner(?:/|$)))",
+      },
+    },
+    {
       name: "supervisor-imports-runner-or-contracts-only",
       severity: "error",
       from: { path: "(^|/)packages/process-supervisor/" },
