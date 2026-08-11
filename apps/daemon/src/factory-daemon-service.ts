@@ -164,7 +164,6 @@ function shouldDrain(result: SchedulerTickResult): boolean {
     result.kind === "paused" ||
     result.kind === "cancelled" ||
     result.kind === "succeeded" ||
-    result.kind === "blocked" ||
     result.kind === "failed"
   );
 }

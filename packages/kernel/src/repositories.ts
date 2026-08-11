@@ -464,7 +464,7 @@ export class AttemptRepository {
         `SELECT * FROM attempts
          WHERE state NOT IN ('succeeded', 'failed', 'cancelled')
            AND (
-             desired_state = 'running'
+             (desired_state = 'running' AND state <> 'blocked')
              OR (desired_state = 'paused' AND state <> 'paused')
              OR desired_state = 'cancelled'
            )

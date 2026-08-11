@@ -178,6 +178,22 @@ class CancelAwareHangingExecutor implements SchedulerStepExecutorPort {
   }
 }
 
+class BlockingExecutor implements SchedulerStepExecutorPort {
+  public callCount = 0;
+
+  public async execute(context: SchedulerExecutionContext) {
+    await context.assertActive();
+    this.callCount += 1;
+    return {
+      kind: "needs-input" as const,
+      blocker: {
+        code: "agent.authentication-required",
+        message: "Authenticate the dedicated local agent profile.",
+      },
+    };
+  }
+}
+
 class DeferredExecutionGuardExecutor implements SchedulerStepExecutorPort {
   readonly #startedPromise: Promise<void>;
   #markStarted: (() => void) | undefined;
@@ -420,6 +436,29 @@ describe("single-writer daemon composition", () => {
     expect(executor.completionCount).toBe(1);
     await expect(client.status(active.attemptId)).resolves.toMatchObject({
       attempt: { state: "paused", desiredState: "paused" },
+    });
+    expect(service.getLastSchedulerError()).toBeNull();
+  });
+
+  it("leaves a blocked attempt quiescent instead of reclaiming it on every poll", async () => {
+    const executor = new BlockingExecutor();
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: await makeRoot(),
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.2.0-quiescent-blocker",
+      executor,
+      pollIntervalMs: 5,
+    });
+    services.push(service);
+    const client = clientFor(service);
+    const intake = await client.run(taskSpec(45));
+
+    await eventually(async () => (await client.status(intake.attemptId)).attempt.state === "blocked");
+    expect(executor.callCount).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 75));
+    expect(executor.callCount).toBe(1);
+    await expect(client.status(intake.attemptId)).resolves.toMatchObject({
+      attempt: { state: "blocked", desiredState: "running" },
     });
     expect(service.getLastSchedulerError()).toBeNull();
   });
