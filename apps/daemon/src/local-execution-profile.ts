@@ -26,10 +26,22 @@ import {
   type CodexLocalAgentDependencies,
 } from "./codex-local-agent.js";
 import {
+  CODEX_PROFILE_ENVIRONMENT_NAMES,
+  CODEX_PROFILE_INVOCATION_ENVIRONMENT_NAMES,
+} from "./codex-profile-environment.js";
+import {
+  EnrolledProjectExecutionConfigurationError,
+  loadEnrolledProjectExecutionConfiguration,
+  type EnrolledProjectBindingV1,
+} from "./enrolled-project-execution.js";
+import {
   SwiftGreeterFixtureConfigurationError,
   loadSwiftGreeterFixtureExecutionConfiguration,
 } from "./swift-greeter-fixture-execution.js";
-import type { VerifiedLocalExecutionConfiguration } from "./verified-local-executor.js";
+import type {
+  TrustedAgentInvocationIdentityV1,
+  VerifiedLocalExecutionConfiguration,
+} from "./verified-local-executor.js";
 
 const MAX_CONFIGURATION_BYTES = 64 * 1024;
 const MAX_SCHEMA_BYTES = 128 * 1024;
@@ -45,35 +57,40 @@ const PRIVATE_MODE_MASK = 0o077;
  * attestation; any future real-identity mode must be registered here so it
  * inherits the same structural gate.
  */
-const REAL_IDENTITY_PROFILE_MODES: ReadonlySet<string> = new Set(["swift-greeter-codex-v1"]);
+const REAL_IDENTITY_PROFILE_MODES: ReadonlySet<string> = new Set([
+  "swift-greeter-codex-v1",
+  "enrolled-codex-v1",
+]);
 const CONTAINMENT_ATTESTATION_LABEL = "The owner containment attestation";
 
-const CODEX_PROFILE_ENVIRONMENT_NAMES = [
-  "LANG",
-  "LC_ALL",
-  "PATH",
-  "SWIFT_DETERMINISTIC_HASHING",
-  "TMPDIR",
-  "TZ",
-] as const;
-const CODEX_PROFILE_INVOCATION_ENVIRONMENT_NAMES = [
-  "CODEX_HOME",
-  ...CODEX_PROFILE_ENVIRONMENT_NAMES,
-  "NO_COLOR",
-  "RUST_LOG",
-  "TERM",
-].sort();
-
-type SwiftGreeterCodexProfileV1 = Readonly<{
-  schemaVersion: 1;
-  mode: "swift-greeter-codex-v1";
-  fixtureConfigurationFile: string;
+/**
+ * The Codex CLI identity fields shared by every Codex-backed profile mode:
+ * the factory-owned executable path/digest, the pinned CLI version, model,
+ * and Codex home. Each mode pairs these with its own source of project data
+ * (a byte-pinned fixture file for `swift-greeter-codex-v1`, an enrolled
+ * project configuration file for `enrolled-codex-v1`).
+ */
+type CodexAgentIdentityFieldsV1 = Readonly<{
   executable: string;
   executableDigest: Sha256Digest;
   expectedCliVersion: string;
   model: string;
   codexHome: string;
 }>;
+
+type SwiftGreeterCodexProfileV1 = CodexAgentIdentityFieldsV1 &
+  Readonly<{
+    schemaVersion: 1;
+    mode: "swift-greeter-codex-v1";
+    fixtureConfigurationFile: string;
+  }>;
+
+type EnrolledCodexProfileV1 = CodexAgentIdentityFieldsV1 &
+  Readonly<{
+    schemaVersion: 1;
+    mode: "enrolled-codex-v1";
+    projectConfigurationFile: string;
+  }>;
 
 export type LocalExecutionProfileDependencies = Readonly<{
   createCodexAgent?: (
@@ -341,6 +358,26 @@ function requireOwnerContainmentAttestation(
   return readOwnerContainmentAttestation(path);
 }
 
+function parseCodexAgentIdentityFields(
+  record: Readonly<Record<string, unknown>>,
+): CodexAgentIdentityFieldsV1 {
+  const executableDigest = Sha256DigestSchema.safeParse(record.executableDigest);
+  if (!executableDigest.success) {
+    configurationError("executableDigest must be a SHA-256 digest.");
+  }
+  return {
+    executable: normalizedAbsolutePath(record.executable, "executable"),
+    executableDigest: executableDigest.data,
+    expectedCliVersion: boundedPortableIdentifier(
+      record.expectedCliVersion,
+      "expectedCliVersion",
+      100,
+    ),
+    model: boundedPortableIdentifier(record.model, "model"),
+    codexHome: normalizedAbsolutePath(record.codexHome, "codexHome"),
+  };
+}
+
 function parseCodexProfile(record: Readonly<Record<string, unknown>>): SwiftGreeterCodexProfileV1 {
   exactKeys(record, [
     "codexHome",
@@ -355,10 +392,6 @@ function parseCodexProfile(record: Readonly<Record<string, unknown>>): SwiftGree
   if (record.schemaVersion !== 1 || record.mode !== "swift-greeter-codex-v1") {
     configurationError("The local execution profile has an unsupported schema or mode.");
   }
-  const executableDigest = Sha256DigestSchema.safeParse(record.executableDigest);
-  if (!executableDigest.success) {
-    configurationError("executableDigest must be a SHA-256 digest.");
-  }
   return {
     schemaVersion: 1,
     mode: "swift-greeter-codex-v1",
@@ -366,15 +399,34 @@ function parseCodexProfile(record: Readonly<Record<string, unknown>>): SwiftGree
       record.fixtureConfigurationFile,
       "fixtureConfigurationFile",
     ),
-    executable: normalizedAbsolutePath(record.executable, "executable"),
-    executableDigest: executableDigest.data,
-    expectedCliVersion: boundedPortableIdentifier(
-      record.expectedCliVersion,
-      "expectedCliVersion",
-      100,
+    ...parseCodexAgentIdentityFields(record),
+  };
+}
+
+function parseEnrolledCodexProfile(
+  record: Readonly<Record<string, unknown>>,
+): EnrolledCodexProfileV1 {
+  exactKeys(record, [
+    "codexHome",
+    "executable",
+    "executableDigest",
+    "expectedCliVersion",
+    "mode",
+    "model",
+    "projectConfigurationFile",
+    "schemaVersion",
+  ]);
+  if (record.schemaVersion !== 1 || record.mode !== "enrolled-codex-v1") {
+    configurationError("The local execution profile has an unsupported schema or mode.");
+  }
+  return {
+    schemaVersion: 1,
+    mode: "enrolled-codex-v1",
+    projectConfigurationFile: normalizedAbsolutePath(
+      record.projectConfigurationFile,
+      "projectConfigurationFile",
     ),
-    model: boundedPortableIdentifier(record.model, "model"),
-    codexHome: normalizedAbsolutePath(record.codexHome, "codexHome"),
+    ...parseCodexAgentIdentityFields(record),
   };
 }
 
@@ -433,44 +485,43 @@ function ensureExactOutputSchema(path: string): void {
   }
 }
 
-async function loadCodexProfile(
-  profile: SwiftGreeterCodexProfileV1,
-  runtimeDirectory: string,
-  dependencies: LocalExecutionProfileDependencies,
-): Promise<VerifiedLocalExecutionConfiguration> {
-  let fixture: VerifiedLocalExecutionConfiguration;
-  try {
-    fixture = loadSwiftGreeterFixtureExecutionConfiguration(
-      profile.fixtureConfigurationFile,
-      runtimeDirectory,
-    );
-  } catch (error) {
-    if (error instanceof SwiftGreeterFixtureConfigurationError) {
-      configurationError(`The referenced fixture profile is invalid: ${error.message}`, error);
-    }
-    throw error;
-  }
-  if (fixture.projects.length !== 1 || fixture.projects[0] === undefined) {
-    configurationError("The Codex conformance profile requires exactly one fixture project.");
-  }
+type BuiltCodexAgentFieldsV1 = Readonly<{
+  agent: CodexLocalAgent;
+  environmentAllowlist: typeof CODEX_PROFILE_ENVIRONMENT_NAMES;
+  requireAgentProtocolEvidence: true;
+  agentInvocationEnvironmentNames: typeof CODEX_PROFILE_INVOCATION_ENVIRONMENT_NAMES;
+  agentInvocationIdentity: TrustedAgentInvocationIdentityV1;
+  agentLimits: Readonly<{
+    timeoutMs: number;
+    terminationGraceMs: number;
+    maxTurns: number;
+    maxEventCount: number;
+    maxStdoutBytes: number;
+    maxStderrBytes: number;
+  }>;
+}>;
 
-  const fixtureProject = fixture.projects[0];
-  const normalizedRuntime = normalizedAbsolutePath(runtimeDirectory, "runtimeDirectory");
+/**
+ * Builds the real Codex agent and its trusted invocation fields for one
+ * source repository. Every Codex-backed profile mode (the byte-pinned Swift
+ * Greeter fixture and the config-driven enrolled-project profile) calls this
+ * with the exact same factory-owned executable path/digest discipline, so
+ * the agent construction itself never varies by mode -- only where the
+ * surrounding project data comes from does.
+ */
+async function buildCodexAgentForProject(
+  profile: CodexAgentIdentityFieldsV1,
+  sourceRepositoryPath: string,
+  normalizedRuntime: string,
+  dependencies: LocalExecutionProfileDependencies,
+): Promise<BuiltCodexAgentFieldsV1> {
   const isolationPaths = [
     [profile.codexHome, normalizedRuntime, "Codex home and Factory runtime"],
-    [profile.codexHome, fixtureProject.sourceRepositoryPath, "Codex home and source repository"],
-    [
-      normalizedRuntime,
-      fixtureProject.sourceRepositoryPath,
-      "Factory runtime and source repository",
-    ],
+    [profile.codexHome, sourceRepositoryPath, "Codex home and source repository"],
+    [normalizedRuntime, sourceRepositoryPath, "Factory runtime and source repository"],
     [profile.executable, normalizedRuntime, "Codex executable and Factory runtime"],
     [profile.executable, profile.codexHome, "Codex executable and Codex home"],
-    [
-      profile.executable,
-      fixtureProject.sourceRepositoryPath,
-      "Codex executable and source repository",
-    ],
+    [profile.executable, sourceRepositoryPath, "Codex executable and source repository"],
   ] as const;
   for (const [left, right, label] of isolationPaths) {
     if (pathsOverlap(left, right)) {
@@ -532,30 +583,69 @@ async function loadCodexProfile(
     throw error;
   }
 
-  const project = fixtureProject;
+  return {
+    agent,
+    environmentAllowlist: CODEX_PROFILE_ENVIRONMENT_NAMES,
+    requireAgentProtocolEvidence: true,
+    agentInvocationEnvironmentNames: CODEX_PROFILE_INVOCATION_ENVIRONMENT_NAMES,
+    agentInvocationIdentity: {
+      executable: profile.executable,
+      executableDigest: profile.executableDigest,
+      cliVersion: profile.expectedCliVersion,
+      model: profile.model,
+    },
+    agentLimits: {
+      timeoutMs: 10 * 60_000,
+      terminationGraceMs: 5_000,
+      maxTurns: 1,
+      maxEventCount: 50_000,
+      maxStdoutBytes: 16_777_216,
+      maxStderrBytes: 16_777_216,
+    },
+  };
+}
+
+async function loadCodexProfile(
+  profile: SwiftGreeterCodexProfileV1,
+  runtimeDirectory: string,
+  dependencies: LocalExecutionProfileDependencies,
+): Promise<VerifiedLocalExecutionConfiguration> {
+  let fixture: VerifiedLocalExecutionConfiguration;
+  try {
+    fixture = loadSwiftGreeterFixtureExecutionConfiguration(
+      profile.fixtureConfigurationFile,
+      runtimeDirectory,
+    );
+  } catch (error) {
+    if (error instanceof SwiftGreeterFixtureConfigurationError) {
+      configurationError(`The referenced fixture profile is invalid: ${error.message}`, error);
+    }
+    throw error;
+  }
+  if (fixture.projects.length !== 1 || fixture.projects[0] === undefined) {
+    configurationError("The Codex conformance profile requires exactly one fixture project.");
+  }
+
+  const fixtureProject = fixture.projects[0];
+  const normalizedRuntime = normalizedAbsolutePath(runtimeDirectory, "runtimeDirectory");
+  const built = await buildCodexAgentForProject(
+    profile,
+    fixtureProject.sourceRepositoryPath,
+    normalizedRuntime,
+    dependencies,
+  );
+
   return {
     ...fixture,
     projects: [
       {
-        ...project,
-        agent,
-        environmentAllowlist: CODEX_PROFILE_ENVIRONMENT_NAMES,
-        requireAgentProtocolEvidence: true,
-        agentInvocationEnvironmentNames: CODEX_PROFILE_INVOCATION_ENVIRONMENT_NAMES,
-        agentInvocationIdentity: {
-          executable: profile.executable,
-          executableDigest: profile.executableDigest,
-          cliVersion: profile.expectedCliVersion,
-          model: profile.model,
-        },
-        agentLimits: {
-          timeoutMs: 10 * 60_000,
-          terminationGraceMs: 5_000,
-          maxTurns: 1,
-          maxEventCount: 50_000,
-          maxStdoutBytes: 16_777_216,
-          maxStderrBytes: 16_777_216,
-        },
+        ...fixtureProject,
+        agent: built.agent,
+        environmentAllowlist: built.environmentAllowlist,
+        requireAgentProtocolEvidence: built.requireAgentProtocolEvidence,
+        agentInvocationEnvironmentNames: built.agentInvocationEnvironmentNames,
+        agentInvocationIdentity: built.agentInvocationIdentity,
+        agentLimits: built.agentLimits,
       },
     ],
     heartbeatIntervalMs: 1_000,
@@ -563,12 +653,66 @@ async function loadCodexProfile(
 }
 
 /**
+ * Loads the config-driven enrolled-project profile: a generic mechanism that
+ * pairs the same real Codex agent construction above with per-project data
+ * (mirror, policy, verification plans, reviewer) supplied entirely by
+ * config and pinned to the exact base commit/tree captured at enrollment,
+ * instead of the byte-pinned Swift Greeter fixture.
+ */
+async function loadEnrolledCodexProfile(
+  profile: EnrolledCodexProfileV1,
+  runtimeDirectory: string,
+  dependencies: LocalExecutionProfileDependencies,
+): Promise<VerifiedLocalExecutionConfiguration> {
+  let binding: EnrolledProjectBindingV1;
+  try {
+    binding = loadEnrolledProjectExecutionConfiguration(
+      profile.projectConfigurationFile,
+      runtimeDirectory,
+    );
+  } catch (error) {
+    if (error instanceof EnrolledProjectExecutionConfigurationError) {
+      configurationError(
+        `The referenced enrolled project profile is invalid: ${error.message}`,
+        error,
+      );
+    }
+    throw error;
+  }
+
+  const normalizedRuntime = normalizedAbsolutePath(runtimeDirectory, "runtimeDirectory");
+  const built = await buildCodexAgentForProject(
+    profile,
+    binding.project.sourceRepositoryPath,
+    normalizedRuntime,
+    dependencies,
+  );
+
+  return {
+    projects: [
+      {
+        ...binding.project,
+        agent: built.agent,
+        environmentAllowlist: built.environmentAllowlist,
+        requireAgentProtocolEvidence: built.requireAgentProtocolEvidence,
+        agentInvocationEnvironmentNames: built.agentInvocationEnvironmentNames,
+        agentInvocationIdentity: built.agentInvocationIdentity,
+        agentLimits: built.agentLimits,
+      },
+    ],
+    gitExecutable: binding.gitExecutable,
+    heartbeatIntervalMs: 1_000,
+  };
+}
+
+/**
  * Loads one exact local execution profile. The deterministic fixture remains
  * the safe default profile and never consults the containment attestation.
- * Every real-identity mode (currently `swift-greeter-codex-v1`) is registered
- * in {@link REAL_IDENTITY_PROFILE_MODES} and structurally refuses to load
- * unless a valid owner containment attestation is configured, recording the
- * owner's ADR 0002 gate decision and the accepted containment gaps.
+ * Every real-identity mode (`swift-greeter-codex-v1` and the config-driven
+ * `enrolled-codex-v1`) is registered in {@link REAL_IDENTITY_PROFILE_MODES}
+ * and structurally refuses to load unless a valid owner containment
+ * attestation is configured, recording the owner's ADR 0002 gate decision and
+ * the accepted containment gaps.
  */
 export async function loadLocalExecutionProfile(
   configurationPath: string,
@@ -593,6 +737,13 @@ export async function loadLocalExecutionProfile(
     if (record.mode === "swift-greeter-codex-v1") {
       return await loadCodexProfile(
         parseCodexProfile(record),
+        normalizedAbsolutePath(runtimeDirectory, "runtimeDirectory"),
+        options,
+      );
+    }
+    if (record.mode === "enrolled-codex-v1") {
+      return await loadEnrolledCodexProfile(
+        parseEnrolledCodexProfile(record),
         normalizedAbsolutePath(runtimeDirectory, "runtimeDirectory"),
         options,
       );
