@@ -40,3 +40,19 @@ Cleanup is deliberately fail-closed. It validates the private ownership marker,
 deterministic path, Git administrative directory, common mirror, and nonce
 before asking Git to remove the exact worktree. It never recursively deletes an
 unresolved caller-provided path.
+
+`prepareImmutableMirror` seals a mirror's enrollment onto one immutable
+`allowedBaseCommit`/`allowedBaseTree`; by itself an enrolled project can
+therefore deliver exactly one verified change. `advanceImmutableMirrorBase`
+re-enrolls that mirror onto a NEW base taken from a broker commit produced by
+a completed, fully verified attempt, without ever rewriting the original
+sealed binding: it proves the supplied broker commit is the exact commit
+recorded at its attempt ref (re-deriving it from the mirror's own Git objects
+rather than trusting the caller's copy), proves that commit's parent equals
+the caller's supplied current base so the enrolled history stays linear, and
+appends the result as the next link in an on-disk, gap-checked, digest-chained
+ledger rather than merging it into or overwriting any earlier link. Retrying
+an already-completed advance with the exact same (binding, broker commit)
+pair is always safe and idempotent; attempting a different advance from a
+binding that a different link has already superseded is rejected as a
+conflict.

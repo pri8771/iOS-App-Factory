@@ -34,6 +34,8 @@ const GIT_OUTPUT_LIMIT = 64 * 1024 * 1024;
 const MARKER_FILE = "app-factory-owner.json";
 const MIRROR_MARKER_FILE = "app-factory-mirror.json";
 const IMMUTABLE_MIRROR_BINDING_FILE = "app-factory-immutable-binding.json";
+const IMMUTABLE_MIRROR_ADVANCE_DIRECTORY = "app-factory-immutable-binding-advances";
+const IMMUTABLE_MIRROR_ADVANCE_CHAIN_INDEX_WIDTH = 10;
 const PUBLICATION_ROOT = "publication-intents";
 
 type WorkspaceKind = "attempt" | "verification";
@@ -57,6 +59,35 @@ export type ImmutableMirrorBinding = Readonly<{
   baseCommit: string;
   baseTree: string;
 }>;
+
+/**
+ * A single link in the append-only chain of re-enrollment advances beyond a
+ * sealed prepared-immutable mirror's original enrollment binding. Each link
+ * pins a NEW allowedBaseCommit/Tree taken from a broker commit produced by a
+ * fully verified attempt, and records the exact predecessor binding it
+ * extends (the original ImmutableMirrorBinding for chainIndex 1, or the
+ * prior advance link otherwise), so the chain can be walked and validated
+ * end to end. Advance links are never rewritten; advancing again only ever
+ * appends the next link.
+ */
+export type AdvancedImmutableMirrorBinding = Readonly<{
+  schemaVersion: 1;
+  kind: "prepared-immutable-mirror-advance";
+  repositoryId: string;
+  sourceRepositoryPath: string;
+  sourceIdentityDigest: string;
+  mirrorPath: string;
+  chainIndex: number;
+  previousBindingDigest: `sha256:${string}`;
+  brokerAttemptId: string;
+  brokerRefName: string;
+  brokerCommitDigest: `sha256:${string}`;
+  baseCommit: string;
+  baseTree: string;
+}>;
+
+/** The mirror's current allowed base: the original sealed binding, or its latest advance. */
+export type ImmutableMirrorBindingTip = ImmutableMirrorBinding | AdvancedImmutableMirrorBinding;
 
 type WorkspacePublicationIntent = Readonly<{
   schemaVersion: 1;
@@ -173,7 +204,9 @@ export type GitWorkspaceManagerOptions = Readonly<{
       | "mirror-after-marker"
       | "workspace-after-intent"
       | "workspace-after-git"
-      | "workspace-after-marker",
+      | "workspace-after-marker"
+      | "binding-advance-after-verification"
+      | "binding-advance-after-write",
     targetPath: string,
   ) => void;
 }>;
@@ -1107,6 +1140,112 @@ function parseImmutableMirrorBinding(value: unknown): ImmutableMirrorBinding {
   };
 }
 
+function formatBrokerAttemptRefName(attemptId: string): string {
+  assertIdentifier(attemptId, "Attempt ID");
+  return `refs/app-factory/attempts/${attemptId}`;
+}
+
+function parseAdvancedImmutableMirrorBinding(value: unknown): AdvancedImmutableMirrorBinding {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new GitWorkspaceError("Immutable mirror binding-advance link must be an object");
+  }
+  const candidate = value as Record<string, unknown>;
+  exactObjectKeys(
+    candidate,
+    [
+      "schemaVersion",
+      "kind",
+      "repositoryId",
+      "sourceRepositoryPath",
+      "sourceIdentityDigest",
+      "mirrorPath",
+      "chainIndex",
+      "previousBindingDigest",
+      "brokerAttemptId",
+      "brokerRefName",
+      "brokerCommitDigest",
+      "baseCommit",
+      "baseTree",
+    ],
+    "Immutable mirror binding-advance link",
+  );
+  if (
+    candidate.schemaVersion !== 1 ||
+    candidate.kind !== "prepared-immutable-mirror-advance" ||
+    typeof candidate.repositoryId !== "string" ||
+    typeof candidate.sourceRepositoryPath !== "string" ||
+    typeof candidate.sourceIdentityDigest !== "string" ||
+    !/^sha256:[0-9a-f]{64}$/u.test(candidate.sourceIdentityDigest) ||
+    typeof candidate.mirrorPath !== "string" ||
+    typeof candidate.chainIndex !== "number" ||
+    !Number.isSafeInteger(candidate.chainIndex) ||
+    candidate.chainIndex < 1 ||
+    typeof candidate.previousBindingDigest !== "string" ||
+    !/^sha256:[0-9a-f]{64}$/u.test(candidate.previousBindingDigest) ||
+    typeof candidate.brokerAttemptId !== "string" ||
+    typeof candidate.brokerRefName !== "string" ||
+    typeof candidate.brokerCommitDigest !== "string" ||
+    !/^sha256:[0-9a-f]{64}$/u.test(candidate.brokerCommitDigest) ||
+    typeof candidate.baseCommit !== "string" ||
+    typeof candidate.baseTree !== "string"
+  ) {
+    throw new GitWorkspaceError("Immutable mirror binding-advance link has an invalid shape");
+  }
+  assertIdentifier(candidate.repositoryId, "Repository ID");
+  assertNormalizedAbsolute(candidate.sourceRepositoryPath, "Source repository path");
+  assertNormalizedAbsolute(candidate.mirrorPath, "Mirror path");
+  if (candidate.brokerRefName !== formatBrokerAttemptRefName(candidate.brokerAttemptId)) {
+    throw new GitWorkspaceError(
+      "Immutable mirror binding-advance link ref name does not match its broker attempt ID",
+    );
+  }
+  assertExplicitSha(candidate.baseCommit, "Immutable mirror binding-advance base commit");
+  assertExplicitSha(candidate.baseTree, "Immutable mirror binding-advance base tree");
+  if (candidate.baseCommit.length !== candidate.baseTree.length) {
+    throw new GitWorkspaceError(
+      "Immutable mirror binding-advance commit and tree use different object formats",
+    );
+  }
+  return {
+    schemaVersion: 1,
+    kind: "prepared-immutable-mirror-advance",
+    repositoryId: candidate.repositoryId,
+    sourceRepositoryPath: candidate.sourceRepositoryPath,
+    sourceIdentityDigest: candidate.sourceIdentityDigest,
+    mirrorPath: candidate.mirrorPath,
+    chainIndex: candidate.chainIndex,
+    previousBindingDigest: candidate.previousBindingDigest as `sha256:${string}`,
+    brokerAttemptId: candidate.brokerAttemptId,
+    brokerRefName: candidate.brokerRefName,
+    brokerCommitDigest: candidate.brokerCommitDigest as `sha256:${string}`,
+    baseCommit: candidate.baseCommit,
+    baseTree: candidate.baseTree,
+  };
+}
+
+function parseImmutableMirrorBindingTip(value: unknown): ImmutableMirrorBindingTip {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new GitWorkspaceError("Immutable mirror binding must be an object");
+  }
+  const kind = (value as Record<string, unknown>).kind;
+  if (kind === "prepared-immutable-mirror") {
+    return parseImmutableMirrorBinding(value);
+  }
+  if (kind === "prepared-immutable-mirror-advance") {
+    return parseAdvancedImmutableMirrorBinding(value);
+  }
+  throw new GitWorkspaceError("Immutable mirror binding has an unrecognized kind");
+}
+
+function formatAdvanceChainLinkFileName(chainIndex: number): string {
+  if (!Number.isSafeInteger(chainIndex) || chainIndex < 1) {
+    throw new GitWorkspaceError(
+      "Immutable mirror binding-advance chain index must be a positive integer",
+    );
+  }
+  return `${String(chainIndex).padStart(IMMUTABLE_MIRROR_ADVANCE_CHAIN_INDEX_WIDTH, "0")}.json`;
+}
+
 function parseMirrorPublicationIntent(value: unknown): MirrorPublicationIntent {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new GitWorkspaceError("Mirror publication intent must be an object");
@@ -1461,6 +1600,192 @@ export class GitWorkspaceManager {
     });
     this.assertMirrorCommitTree(mirror, input.baseCommit, input.baseTree);
     return mirror;
+  }
+
+  /**
+   * Re-enrolls a sealed prepared-immutable mirror onto a NEW allowed base
+   * taken from a broker commit produced by a fully verified attempt, without
+   * ever rewriting the original sealed binding or any earlier advance. The
+   * caller must supply the exact binding it currently holds as the mirror's
+   * base (the original ImmutableMirrorBinding, or an AdvancedImmutableMirrorBinding
+   * returned by a previous successful advance). That binding is checked
+   * against this mirror's real, gap-free on-disk chain at its own claimed
+   * position (not merely against whatever the latest link happens to be),
+   * so that retrying an already-completed advance with the exact same
+   * (binding, broker commit) pair -- the ordinary crash-recovery path -- is
+   * always safe and idempotent, while attempting a genuinely NEW, different
+   * advance from a binding that has already been superseded by a different
+   * link is rejected as a conflict. This method also proves the supplied
+   * broker commit is the exact commit recorded at its attempt ref
+   * (re-deriving it from the mirror's own Git objects rather than trusting
+   * the caller's copy), and proves that commit's parent is exactly the
+   * supplied binding's base so the chain of enrolled baselines stays linear.
+   * The new link is appended to an on-disk chain directory; it is never
+   * merged into or overwritten onto the original binding file or any earlier
+   * link.
+   */
+  advanceImmutableMirrorBase(
+    mirrorInput: FactoryMirror,
+    currentBinding: ImmutableMirrorBindingTip,
+    brokerCommit: BrokerCommitRecord,
+  ): AdvancedImmutableMirrorBinding {
+    const mirror = this.#validateMirror(mirrorInput);
+    const rootBinding = this.#readSealedRootBinding(mirror);
+    const chain = this.#readImmutableMirrorAdvanceChain(mirror, rootBinding);
+    const suppliedBinding = parseImmutableMirrorBindingTip(currentBinding);
+    const suppliedPosition = "chainIndex" in suppliedBinding ? suppliedBinding.chainIndex : 0;
+    const actualAtPosition = chain[suppliedPosition];
+    if (
+      actualAtPosition === undefined ||
+      !canonicalJson(actualAtPosition).equals(canonicalJson(suppliedBinding))
+    ) {
+      throw new GitWorkspaceError(
+        "Supplied immutable mirror binding does not match this mirror's actual binding chain",
+      );
+    }
+
+    this.#validateBrokerExpectation({
+      attemptId: brokerCommit.attemptId,
+      baseSha: brokerCommit.baseSha,
+      candidateTreeId: brokerCommit.candidateTreeId,
+      diffDigest: brokerCommit.diffDigest,
+    });
+    const verifiedBrokerCommit = this.#readBrokerCommitOrNull(mirror, {
+      attemptId: brokerCommit.attemptId,
+      baseSha: brokerCommit.baseSha,
+      candidateTreeId: brokerCommit.candidateTreeId,
+      diffDigest: brokerCommit.diffDigest,
+    });
+    if (verifiedBrokerCommit === null) {
+      throw new GitWorkspaceError(
+        `No broker commit exists for attempt marker ${brokerCommit.attemptId}`,
+      );
+    }
+    if (!canonicalJson(verifiedBrokerCommit).equals(canonicalJson(brokerCommit))) {
+      throw new GitWorkspaceError(
+        "Supplied broker commit record does not match the mirror's own Git objects",
+      );
+    }
+    if (verifiedBrokerCommit.baseSha !== suppliedBinding.baseCommit) {
+      throw new GitWorkspaceError(
+        "Broker commit parent does not equal the supplied immutable base; advance would not be linear",
+      );
+    }
+    this.assertMirrorCommitTree(
+      mirror,
+      verifiedBrokerCommit.commitSha,
+      verifiedBrokerCommit.candidateTreeId,
+    );
+
+    const chainIndex = suppliedPosition + 1;
+    const newBinding: AdvancedImmutableMirrorBinding = {
+      schemaVersion: 1,
+      kind: "prepared-immutable-mirror-advance",
+      repositoryId: rootBinding.repositoryId,
+      sourceRepositoryPath: rootBinding.sourceRepositoryPath,
+      sourceIdentityDigest: rootBinding.sourceIdentityDigest,
+      mirrorPath: rootBinding.mirrorPath,
+      chainIndex,
+      previousBindingDigest: sha256(canonicalJson(suppliedBinding)),
+      brokerAttemptId: verifiedBrokerCommit.attemptId,
+      brokerRefName: verifiedBrokerCommit.refName,
+      brokerCommitDigest: verifiedBrokerCommit.commitDigest,
+      baseCommit: verifiedBrokerCommit.commitSha,
+      baseTree: verifiedBrokerCommit.candidateTreeId,
+    };
+
+    const advanceDirectory = safeChild(mirror.mirrorPath, IMMUTABLE_MIRROR_ADVANCE_DIRECTORY);
+    ensurePrivateDirectory(advanceDirectory);
+    const chainPath = safeChild(advanceDirectory, formatAdvanceChainLinkFileName(chainIndex));
+
+    // This is the final point at which a crash leaves nothing durable: no
+    // chain link has been written yet, so a retry simply redoes the
+    // deterministic verification above and reaches the same `newBinding`.
+    this.#publicationCheckpoint?.("binding-advance-after-verification", chainPath);
+
+    if (!existsSync(chainPath)) {
+      try {
+        writePrivateJson(chainPath, newBinding, true);
+      } catch (error) {
+        if (!existsSync(chainPath)) throw error;
+      }
+      // The link is now durable; a crash here (or any retry racing this
+      // call) must observe and reconcile with exactly what was published,
+      // never accept a second, different link at the same chain index.
+      this.#publicationCheckpoint?.("binding-advance-after-write", chainPath);
+    }
+    const published = parseAdvancedImmutableMirrorBinding(readPrivateJson(chainPath));
+    if (!canonicalJson(published).equals(canonicalJson(newBinding))) {
+      throw new GitWorkspaceError(
+        "Immutable mirror binding-advance chain link already exists with different content",
+      );
+    }
+    return published;
+  }
+
+  #readSealedRootBinding(mirror: FactoryMirror): ImmutableMirrorBinding {
+    const bindingPath = safeChild(mirror.mirrorPath, IMMUTABLE_MIRROR_BINDING_FILE);
+    if (!existsSync(bindingPath)) {
+      throw new GitWorkspaceError(
+        "Mirror has no sealed immutable binding; prepareImmutableMirror must run before advancing its base",
+      );
+    }
+    return parseImmutableMirrorBinding(readPrivateJson(bindingPath));
+  }
+
+  /**
+   * Walks the on-disk advance chain from the sealed root binding, verifying
+   * each link chains from the exact digest of its predecessor, carries the
+   * root's immutable identity, and occupies a contiguous chain index with no
+   * gaps. Returns every position in order, `chain[0]` always the sealed root
+   * binding and `chain[k]` the link with chainIndex `k`.
+   */
+  #readImmutableMirrorAdvanceChain(
+    mirror: FactoryMirror,
+    rootBinding: ImmutableMirrorBinding,
+  ): readonly ImmutableMirrorBindingTip[] {
+    const chain: ImmutableMirrorBindingTip[] = [rootBinding];
+    const advanceDirectory = safeChild(mirror.mirrorPath, IMMUTABLE_MIRROR_ADVANCE_DIRECTORY);
+    if (!existsSync(advanceDirectory)) {
+      return chain;
+    }
+    assertRealDirectory(advanceDirectory, "Immutable mirror binding-advance directory");
+    const chainLinkNamePattern = new RegExp(
+      `^[0-9]{${IMMUTABLE_MIRROR_ADVANCE_CHAIN_INDEX_WIDTH}}\\.json$`,
+      "u",
+    );
+    const entries = readdirSync(advanceDirectory)
+      .filter((name) => chainLinkNamePattern.test(name))
+      .sort();
+
+    let previousDigest = sha256(canonicalJson(rootBinding));
+    for (let position = 0; position < entries.length; position += 1) {
+      const expectedName = formatAdvanceChainLinkFileName(position + 1);
+      const entryName = entries[position];
+      if (entryName !== expectedName) {
+        throw new GitWorkspaceError(
+          `Immutable mirror binding-advance chain has a gap before position ${position + 1}`,
+        );
+      }
+      const link = parseAdvancedImmutableMirrorBinding(
+        readPrivateJson(safeChild(advanceDirectory, entryName)),
+      );
+      if (
+        link.chainIndex !== position + 1 ||
+        link.previousBindingDigest !== previousDigest ||
+        link.repositoryId !== rootBinding.repositoryId ||
+        link.sourceRepositoryPath !== rootBinding.sourceRepositoryPath ||
+        link.sourceIdentityDigest !== rootBinding.sourceIdentityDigest ||
+        link.mirrorPath !== rootBinding.mirrorPath
+      ) {
+        throw new GitWorkspaceError(
+          `Immutable mirror binding-advance chain link ${position + 1} does not chain from its predecessor`,
+        );
+      }
+      chain.push(link);
+      previousDigest = sha256(canonicalJson(link));
+    }
+    return chain;
   }
 
   #publicationDirectory(runtimeRoot: string, category: "mirrors" | "workspaces"): string {
@@ -1982,8 +2307,7 @@ export class GitWorkspaceManager {
   }
 
   #brokerRefName(attemptId: string): string {
-    assertIdentifier(attemptId, "Attempt ID");
-    return `refs/app-factory/attempts/${attemptId}`;
+    return formatBrokerAttemptRefName(attemptId);
   }
 
   #brokerIdentity(): Readonly<Record<string, string>> {

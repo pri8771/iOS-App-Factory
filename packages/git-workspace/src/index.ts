@@ -20,6 +20,8 @@ export {
   type FactoryMirror,
   type FactoryWorkspaceRecord,
   type GitWorkspaceManagerOptions,
+  type AdvancedImmutableMirrorBinding,
   type ImmutableMirrorBinding,
+  type ImmutableMirrorBindingTip,
   type PrepareImmutableMirrorInput,
 } from "./workspace.js";
