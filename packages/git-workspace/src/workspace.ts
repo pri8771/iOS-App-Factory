@@ -143,12 +143,27 @@ export type CandidatePolicy = Readonly<{
   authorizedScopes: readonly string[];
   maxChangedFileBytes?: number;
   maxDiffBytes?: number;
+  /**
+   * Optional, reviewed extension to classifyProtectedPath's built-in
+   * defaults (see ProtectedPathPolicyExtensionV1 below). Absent by default;
+   * when absent, candidate verification behaves exactly as it did before
+   * this field existed.
+   */
+  protectedPathPolicyExtension?: ProtectedPathPolicyExtensionV1;
 }>;
 
 export type NormalizedCandidatePolicy = Readonly<{
   authorizedScopes: readonly string[];
   maxChangedFileBytes: number;
   maxDiffBytes: number;
+  /**
+   * Present only when the input CandidatePolicy carried an extension. Kept
+   * strictly optional (rather than nullable) so that canonical JSON encoding
+   * -- which drops keys whose value is `undefined` -- omits this field
+   * entirely when absent, keeping the candidate-policy digest byte-identical
+   * to its value before this field was introduced.
+   */
+  protectedPathPolicyExtension?: ProtectedPathPolicyExtensionV1;
 }>;
 
 export type ChangedPath = Readonly<{
@@ -654,6 +669,19 @@ export function normalizeCandidatePolicy(policy: CandidatePolicy): NormalizedCan
       DEFAULT_MAX_DIFF_BYTES,
       "Maximum diff size",
     ),
+    // Re-validate strictly rather than trusting the input's static type: this
+    // mirrors every other field above, and it means a policy extension can
+    // only ever reach candidate verification after passing the same checks
+    // decodeProtectedPathPolicyExtension applies to reviewed bytes. Omitted
+    // entirely (not set to undefined) when absent so canonical JSON encoding
+    // drops the key and the candidate-policy digest is unaffected.
+    ...(policy.protectedPathPolicyExtension !== undefined
+      ? {
+          protectedPathPolicyExtension: parseProtectedPathPolicyExtension(
+            policy.protectedPathPolicyExtension,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -1937,7 +1965,10 @@ export class GitWorkspaceManager {
     const initialChanges = this.#listWorkingChanges(verifiedRecord);
     const snapshots = new Map<string, WorkingEntrySnapshot>();
     for (const change of initialChanges) {
-      const protectedReason = classifyProtectedPath(change.path);
+      const protectedReason = classifyProtectedPath(
+        change.path,
+        normalizedPolicy.protectedPathPolicyExtension,
+      );
       if (protectedReason !== null) {
         throw new GitWorkspaceError(`${protectedReason}: ${change.path}`);
       }
@@ -1972,6 +2003,7 @@ export class GitWorkspaceManager {
       scopes,
       maxChangedFileBytes,
       maxDiffBytes,
+      normalizedPolicy.protectedPathPolicyExtension,
     );
 
     this.#verificationCheckpoint?.(verifiedRecord.worktreePath);
@@ -2046,6 +2078,7 @@ export class GitWorkspaceManager {
       normalizedPolicy.authorizedScopes,
       normalizedPolicy.maxChangedFileBytes,
       normalizedPolicy.maxDiffBytes,
+      normalizedPolicy.protectedPathPolicyExtension,
     );
     const recomputed: CandidateVerification = {
       ...analyzed,
@@ -2187,6 +2220,7 @@ export class GitWorkspaceManager {
     scopes: readonly string[],
     maxChangedFileBytes: number,
     maxDiffBytes: number,
+    policyExtension: ProtectedPathPolicyExtensionV1 | undefined,
   ): Omit<CandidateVerification, "attemptHeadSha"> {
     const resolvedBase = this.#resolveCommit(
       repository.runtimeRoot,
@@ -2233,7 +2267,7 @@ export class GitWorkspaceManager {
     const changedPaths: ChangedPath[] = [];
     let totalChangedFileBytes = 0;
     for (const changed of rawChanged) {
-      const protectedReason = classifyProtectedPath(changed.path);
+      const protectedReason = classifyProtectedPath(changed.path, policyExtension);
       if (protectedReason !== null) {
         throw new GitWorkspaceError(`${protectedReason}: ${changed.path}`);
       }
