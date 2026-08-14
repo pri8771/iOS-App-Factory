@@ -4,6 +4,7 @@ const LOWERCASE_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const GIT_OBJECT_ID_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+const GIT_BRANCH_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 const RELATIVE_PATH_PATTERN =
   /^(?!\/)(?!\.{1,2}(?:\/|$))(?!.*\/\.{1,2}(?:\/|$))(?!.*\/\/)(?!.*\/$)(?!.*\\)(?!.*\0).+$/;
 const ABSOLUTE_PATH_PATTERN = /^\/(?!.*\/\/)(?!.*\\)(?!.*\0).+$/;
@@ -78,6 +79,17 @@ export const GitObjectIdSchema = z
   .regex(GIT_OBJECT_ID_PATTERN, "Expected a 40- or 64-character Git object ID")
   .brand<"GitObjectId">();
 export type GitObjectId = z.infer<typeof GitObjectIdSchema>;
+
+export const GitBranchNameSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(GIT_BRANCH_NAME_PATTERN, "Expected a valid Git branch name")
+  .refine((value) => !value.includes(".."), "Git branch name may not contain '..'")
+  .refine((value) => !value.endsWith(".lock"), "Git branch name may not end with '.lock'")
+  .refine((value) => !value.endsWith("/"), "Git branch name may not end with '/'")
+  .brand<"GitBranchName">();
+export type GitBranchName = z.infer<typeof GitBranchNameSchema>;
 
 export const RelativePathSchema = z
   .string()

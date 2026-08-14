@@ -10,12 +10,16 @@ import {
 import { EventV1Schema } from "./event.js";
 import { ExecutionAttemptV1Schema, type AttemptDesiredStateV1 } from "./execution.js";
 import {
+  AbsolutePathSchema,
   AttemptIdSchema,
   CommandIdSchema,
   EvidenceIdSchema,
+  GitBranchNameSchema,
+  GitObjectIdSchema,
   IsoInstantSchema,
   NamespacedCodeSchema,
   NonNegativeSafeIntegerSchema,
+  RelativePathSchema,
   RequestIdSchema,
   SchemaVersionV1Schema,
   Sha256DigestSchema,
@@ -158,6 +162,93 @@ export const PortfolioSnapshotCommandRequestV1Schema = z.strictObject({
   payload: EmptyPayloadV1Schema,
 });
 
+// Project enrollment (`project.*`) wire types. `@app-factory/project-sdk` owns the canonical
+// EnrollmentScanV1/EnrollmentPlanV1/EnrollmentApplyResultV1 models and their much larger, deeply
+// nested inventory schemas; contracts cannot import that package (the `contracts-are-foundational`
+// dependency-cruiser rule forbids contracts from depending on any non-contracts workspace package),
+// so the shapes below are a deliberately narrow, hand-kept mirror of just the plan/action/issue
+// fields that cross the wire. Keep them in sync with `packages/project-sdk/src/model.ts` by hand.
+const ISSUE_ID_PATTERN = /^esi-[0-9a-f]{24}$/;
+const ACTION_ID_PATTERN = /^epa-[0-9a-f]{24}$/;
+
+export const EnrollmentActionKindV1Schema = z.enum([
+  "resolve-path-safety",
+  "resolve-secret-material",
+  "establish-rule-authority",
+  "repair-rule-adapter",
+  "resolve-rule-conflict",
+  "adopt-or-migrate-legacy-layout",
+  "declare-project",
+  "repair-project-manifest",
+  "declare-experience",
+  "repair-experience-manifest",
+  "create-xcode-container",
+  "share-xcode-scheme",
+  "add-swift-source",
+  "add-test-target",
+  "add-ui-test-target",
+  "add-ci-verification",
+]);
+export type EnrollmentActionKindV1 = z.infer<typeof EnrollmentActionKindV1Schema>;
+
+export const EnrollmentPlanActionV1Schema = z.strictObject({
+  actionId: z.string().regex(ACTION_ID_PATTERN),
+  phase: z.enum(["safety", "compatibility", "authority", "project", "quality", "automation"]),
+  kind: EnrollmentActionKindV1Schema,
+  targetPath: RelativePathSchema.nullable(),
+  reason: z.string().min(1).max(2_000),
+  resolvesIssueIds: z.array(z.string().regex(ISSUE_ID_PATTERN)).min(1),
+});
+export type EnrollmentPlanActionV1 = z.infer<typeof EnrollmentPlanActionV1Schema>;
+
+export const EnrollmentPlanV1Schema = z.strictObject({
+  schemaVersion: z.literal(1),
+  mode: z.literal("proposal-only"),
+  requiresSourceRevalidation: z.literal(true),
+  sourceFingerprint: Sha256DigestSchema,
+  inventoryDigest: Sha256DigestSchema,
+  blocked: z.boolean(),
+  blockerIssueIds: z.array(z.string().regex(ISSUE_ID_PATTERN)),
+  actions: z.array(EnrollmentPlanActionV1Schema).max(1_000),
+});
+export type EnrollmentPlanV1 = z.infer<typeof EnrollmentPlanV1Schema>;
+
+export const EnrollmentBlockerV1Schema = z.strictObject({
+  issueId: z.string().regex(ISSUE_ID_PATTERN),
+  code: NamespacedCodeSchema,
+  summary: z.string().min(1).max(2_000),
+});
+export type EnrollmentBlockerV1 = z.infer<typeof EnrollmentBlockerV1Schema>;
+
+export const EnrollmentSkippedActionV1Schema = z.strictObject({
+  actionId: z.string().regex(ACTION_ID_PATTERN),
+  kind: EnrollmentActionKindV1Schema,
+  targetPath: RelativePathSchema.nullable(),
+  reason: z.string().min(1).max(2_000),
+});
+export type EnrollmentSkippedActionV1 = z.infer<typeof EnrollmentSkippedActionV1Schema>;
+
+export const ProjectScanCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.scan"),
+  payload: z.strictObject({ repositoryRoot: AbsolutePathSchema }),
+});
+
+export const ProjectEnrollPlanCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.enroll-plan"),
+  payload: z.strictObject({ planDigest: Sha256DigestSchema }),
+});
+
+export const ProjectApplyCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.apply"),
+  payload: z.strictObject({
+    planDigest: Sha256DigestSchema,
+    branchName: GitBranchNameSchema.nullable(),
+  }),
+});
+
 export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandRequestV1Schema,
   SubmitCommandRequestV1Schema,
@@ -175,6 +266,9 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   EvidenceInspectCommandRequestV1Schema,
   EvidenceVerifyCommandRequestV1Schema,
   PortfolioSnapshotCommandRequestV1Schema,
+  ProjectScanCommandRequestV1Schema,
+  ProjectEnrollPlanCommandRequestV1Schema,
+  ProjectApplyCommandRequestV1Schema,
 ]);
 export type CommandRequestV1 = z.infer<typeof CommandRequestV1Schema>;
 export type CommandOperationV1 = CommandRequestV1["operation"];
@@ -316,6 +410,52 @@ export const PortfolioSnapshotCommandResultV1Schema = z.strictObject({
   snapshot: PortfolioReadModelV1Schema,
 });
 
+/**
+ * `planDigest` identifies the daemon's persisted evidence-store record for this scan (the digest
+ * `EvidenceStore.putBlob` returns for its canonical-JSON `EnrollmentScanV1`). It is not the same
+ * value as `@app-factory/project-sdk`'s own internal plan-only digest: that narrower digest omits
+ * `repositoryRoot`, which `project.enroll-plan` and `project.apply` both need to resolve from a
+ * single caller-supplied identifier, and the CLI verbs (`project plan/apply <digest>`) only accept
+ * one. `sourceFingerprint` and `inventoryDigest` below remain direct pass-throughs of project-sdk's
+ * own intrinsic fields.
+ */
+export const ProjectScanCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.scan"),
+  repositoryRoot: AbsolutePathSchema,
+  planDigest: Sha256DigestSchema,
+  sourceFingerprint: Sha256DigestSchema,
+  inventoryDigest: Sha256DigestSchema,
+  blocked: z.boolean(),
+  blockers: z.array(EnrollmentBlockerV1Schema).max(1_000),
+});
+
+export const ProjectEnrollPlanCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.enroll-plan"),
+  planDigest: Sha256DigestSchema,
+  repositoryRoot: AbsolutePathSchema,
+  plan: EnrollmentPlanV1Schema,
+});
+
+export const ProjectApplyConvergenceV1Schema = z.strictObject({
+  blocked: z.boolean(),
+  blockerIssueIds: z.array(z.string().regex(ISSUE_ID_PATTERN)),
+  openIssueCount: NonNegativeSafeIntegerSchema,
+  sourceFingerprint: Sha256DigestSchema,
+});
+export type ProjectApplyConvergenceV1 = z.infer<typeof ProjectApplyConvergenceV1Schema>;
+
+export const ProjectApplyCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.apply"),
+  repositoryRoot: AbsolutePathSchema,
+  baseHeadSha: GitObjectIdSchema,
+  branchName: GitBranchNameSchema.nullable(),
+  commitSha: GitObjectIdSchema.nullable(),
+  appliedActionKinds: z.array(EnrollmentActionKindV1Schema).max(1_000),
+  resolvedIssueIds: z.array(z.string().regex(ISSUE_ID_PATTERN)),
+  skippedActions: z.array(EnrollmentSkippedActionV1Schema).max(1_000),
+  convergence: ProjectApplyConvergenceV1Schema,
+});
+
 export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandResultV1Schema,
   SubmitCommandResultV1Schema,
@@ -333,6 +473,9 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   EvidenceInspectCommandResultV1Schema,
   EvidenceVerifyCommandResultV1Schema,
   PortfolioSnapshotCommandResultV1Schema,
+  ProjectScanCommandResultV1Schema,
+  ProjectEnrollPlanCommandResultV1Schema,
+  ProjectApplyCommandResultV1Schema,
 ]);
 export type CommandResultV1 = z.infer<typeof CommandResultV1Schema>;
 export type CommandResultForOperationV1<Operation extends CommandOperationV1> = Extract<

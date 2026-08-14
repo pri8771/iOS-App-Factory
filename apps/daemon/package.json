@@ -23,6 +23,7 @@
     "@app-factory/kernel": "workspace:*",
     "@app-factory/oci-runner": "workspace:*",
     "@app-factory/process-supervisor": "workspace:*",
+    "@app-factory/project-sdk": "workspace:*",
     "@app-factory/scheduler": "workspace:*"
   }
 }

@@ -9,6 +9,7 @@ export * from "./factory-daemon-service.js";
 export * from "./kernel-scheduler-adapter.js";
 export * from "./local-execution-profile.js";
 export * from "./oci-local-agent.js";
+export * from "./project-command-runtime.js";
 export * from "./swift-greeter-fixture-execution.js";
 export * from "./unix-command-server.js";
 export * from "./verified-local-executor.js";

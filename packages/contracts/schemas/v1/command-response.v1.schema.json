@@ -1333,6 +1333,116 @@
       ],
       "type": "object"
     },
+    "__schema45": {
+      "maxLength": 4096,
+      "minLength": 2,
+      "pattern": "^\\/(?!.*\\/\\/)(?!.*\\\\)(?!.*\\0).+$",
+      "type": "string"
+    },
+    "__schema46": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/__schema12"
+        },
+        "issueId": {
+          "pattern": "^esi-[0-9a-f]{24}$",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "issueId",
+        "code",
+        "summary"
+      ],
+      "type": "object"
+    },
+    "__schema47": {
+      "additionalProperties": false,
+      "properties": {
+        "actionId": {
+          "pattern": "^epa-[0-9a-f]{24}$",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/__schema48"
+        },
+        "phase": {
+          "enum": [
+            "safety",
+            "compatibility",
+            "authority",
+            "project",
+            "quality",
+            "automation"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "resolvesIssueIds": {
+          "items": {
+            "$ref": "#/$defs/__schema50"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "targetPath": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema49"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "actionId",
+        "phase",
+        "kind",
+        "targetPath",
+        "reason",
+        "resolvesIssueIds"
+      ],
+      "type": "object"
+    },
+    "__schema48": {
+      "enum": [
+        "resolve-path-safety",
+        "resolve-secret-material",
+        "establish-rule-authority",
+        "repair-rule-adapter",
+        "resolve-rule-conflict",
+        "adopt-or-migrate-legacy-layout",
+        "declare-project",
+        "repair-project-manifest",
+        "declare-experience",
+        "repair-experience-manifest",
+        "create-xcode-container",
+        "share-xcode-scheme",
+        "add-swift-source",
+        "add-test-target",
+        "add-ui-test-target",
+        "add-ci-verification"
+      ],
+      "type": "string"
+    },
+    "__schema49": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
+      "type": "string"
+    },
     "__schema5": {
       "additionalProperties": false,
       "properties": {
@@ -1426,6 +1536,44 @@
         "createdAt",
         "updatedAt",
         "terminalAt"
+      ],
+      "type": "object"
+    },
+    "__schema50": {
+      "pattern": "^esi-[0-9a-f]{24}$",
+      "type": "string"
+    },
+    "__schema51": {
+      "additionalProperties": false,
+      "properties": {
+        "actionId": {
+          "pattern": "^epa-[0-9a-f]{24}$",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/__schema48"
+        },
+        "reason": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "targetPath": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema49"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "actionId",
+        "kind",
+        "targetPath",
+        "reason"
       ],
       "type": "object"
     },
@@ -1965,6 +2113,219 @@
               "required": [
                 "operation",
                 "snapshot"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "blocked": {
+                  "type": "boolean"
+                },
+                "blockers": {
+                  "items": {
+                    "$ref": "#/$defs/__schema46"
+                  },
+                  "maxItems": 1000,
+                  "type": "array"
+                },
+                "inventoryDigest": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "operation": {
+                  "const": "project.scan",
+                  "type": "string"
+                },
+                "planDigest": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "repositoryRoot": {
+                  "$ref": "#/$defs/__schema45"
+                },
+                "sourceFingerprint": {
+                  "$ref": "#/$defs/__schema7"
+                }
+              },
+              "required": [
+                "operation",
+                "repositoryRoot",
+                "planDigest",
+                "sourceFingerprint",
+                "inventoryDigest",
+                "blocked",
+                "blockers"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "operation": {
+                  "const": "project.enroll-plan",
+                  "type": "string"
+                },
+                "plan": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actions": {
+                      "items": {
+                        "$ref": "#/$defs/__schema47"
+                      },
+                      "maxItems": 1000,
+                      "type": "array"
+                    },
+                    "blocked": {
+                      "type": "boolean"
+                    },
+                    "blockerIssueIds": {
+                      "items": {
+                        "pattern": "^esi-[0-9a-f]{24}$",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "inventoryDigest": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "mode": {
+                      "const": "proposal-only",
+                      "type": "string"
+                    },
+                    "requiresSourceRevalidation": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "schemaVersion": {
+                      "const": 1,
+                      "type": "number"
+                    },
+                    "sourceFingerprint": {
+                      "$ref": "#/$defs/__schema7"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "mode",
+                    "requiresSourceRevalidation",
+                    "sourceFingerprint",
+                    "inventoryDigest",
+                    "blocked",
+                    "blockerIssueIds",
+                    "actions"
+                  ],
+                  "type": "object"
+                },
+                "planDigest": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "repositoryRoot": {
+                  "$ref": "#/$defs/__schema45"
+                }
+              },
+              "required": [
+                "operation",
+                "planDigest",
+                "repositoryRoot",
+                "plan"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "appliedActionKinds": {
+                  "items": {
+                    "$ref": "#/$defs/__schema48"
+                  },
+                  "maxItems": 1000,
+                  "type": "array"
+                },
+                "baseHeadSha": {
+                  "$ref": "#/$defs/__schema18"
+                },
+                "branchName": {
+                  "anyOf": [
+                    {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "commitSha": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema18"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "convergence": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "blocked": {
+                      "type": "boolean"
+                    },
+                    "blockerIssueIds": {
+                      "items": {
+                        "pattern": "^esi-[0-9a-f]{24}$",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "openIssueCount": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "sourceFingerprint": {
+                      "$ref": "#/$defs/__schema7"
+                    }
+                  },
+                  "required": [
+                    "blocked",
+                    "blockerIssueIds",
+                    "openIssueCount",
+                    "sourceFingerprint"
+                  ],
+                  "type": "object"
+                },
+                "operation": {
+                  "const": "project.apply",
+                  "type": "string"
+                },
+                "repositoryRoot": {
+                  "$ref": "#/$defs/__schema45"
+                },
+                "resolvedIssueIds": {
+                  "items": {
+                    "pattern": "^esi-[0-9a-f]{24}$",
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "skippedActions": {
+                  "items": {
+                    "$ref": "#/$defs/__schema51"
+                  },
+                  "maxItems": 1000,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "operation",
+                "repositoryRoot",
+                "baseHeadSha",
+                "branchName",
+                "commitSha",
+                "appliedActionKinds",
+                "resolvedIssueIds",
+                "skippedActions",
+                "convergence"
               ],
               "type": "object"
             }

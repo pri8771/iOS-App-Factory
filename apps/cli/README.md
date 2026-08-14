@@ -19,6 +19,15 @@ a page by passing both values printed by the prior response as
 `--after-updated-at ISO_INSTANT --after-attempt UUID`; a partial cursor is
 rejected.
 
+Existing-repository enrollment is `project scan <absolute-path>`, which
+scans the repository, persists the scan as evidence, and prints a summary
+(fingerprint, inventory digest, plan digest, and any blockers) without
+mutating anything. `project plan <digest>` prints the full stored plan as
+JSON. `project apply <digest> [--branch <name>]` is durable: it re-reads
+the persisted plan, applies its automatable actions on a new branch, and
+fails closed if the digest is unknown or the repository has drifted since
+the scan.
+
 Every invocation creates an explicit durable command identity. If delivery is
 ambiguous after dispatch, human output prints a recovery command and JSON
 output includes `error.retryIdentity`. Retry the same operation and payload
