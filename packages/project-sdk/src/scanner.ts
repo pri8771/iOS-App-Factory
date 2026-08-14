@@ -59,6 +59,38 @@ const EXCLUDED_DIRECTORY_NAMES = new Set([
   "node_modules",
 ]);
 
+// Secret-shaped-file detection is bounded and content-blind in its reporting: findings carry a
+// path and a detector label only. Matched key names, values, digests, or excerpts are never
+// captured, stored, or surfaced.
+const MAX_SECRET_SNIFF_BYTES = 32 * 1024;
+const MIN_SECRET_VALUE_LENGTH = 20;
+const MIN_SECRET_ENTROPY_BITS_PER_CHAR = 3.5;
+const SECRET_FILE_EXTENSIONS = new Set([
+  ".pem",
+  ".p12",
+  ".pfx",
+  ".key",
+  ".mobileprovision",
+  ".jks",
+  ".keystore",
+]);
+const SECRET_FILENAME_PATTERNS: readonly RegExp[] = [
+  /^\.env(?:\..+)?$/u,
+  /^id_(?:rsa|dsa|ecdsa|ed25519)$/u,
+  /^\.npmrc$/u,
+  /^\.netrc$/u,
+  /^\.pgpass$/u,
+  /(?:^|[.\-_])credentials\.(?:json|ya?ml)$/iu,
+  /(?:^|[.\-_])secrets?\.(?:json|ya?ml|env)$/iu,
+  /service[-_]?account.*\.json$/iu,
+];
+const SENSITIVE_ASSIGNMENT_KEY_HINT =
+  /(?:secret|token|apikey|password|passwd|privatekey|accesskey|clientsecret|credential)/iu;
+const PLACEHOLDER_SECRET_VALUE =
+  /^(?:changeme|x{5,}|placeholder|example|sample|todo|dummy|fake|redacted|<[^>]*>|your.*(?:key|token|secret).*here|test(?:ing)?)$/iu;
+const SECRET_ASSIGNMENT_LINE_PATTERN =
+  /^\s*"?([A-Za-z_][A-Za-z0-9_.-]{1,80})"?\s*[:=]\s*"?([A-Za-z0-9+/_=-]{8,200})"?[,;]?\s*$/u;
+
 type FileEntry = Readonly<{
   kind: "file";
   path: RelativeProjectPath;
@@ -2046,6 +2078,88 @@ function discoverLegacyAuthority(
   return { graph, contextValidation: graph.validation };
 }
 
+function filenameLooksLikeSecret(path: string): boolean {
+  const name = basename(path);
+  const lastDot = name.lastIndexOf(".");
+  const extension = lastDot > 0 ? name.slice(lastDot).toLowerCase() : "";
+  if (SECRET_FILE_EXTENSIONS.has(extension)) return true;
+  return SECRET_FILENAME_PATTERNS.some((pattern) => pattern.test(name));
+}
+
+function shannonEntropyBitsPerChar(value: string): number {
+  const counts = new Map<string, number>();
+  for (const character of value) counts.set(character, (counts.get(character) ?? 0) + 1);
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const probability = count / value.length;
+    entropy -= probability * Math.log2(probability);
+  }
+  return entropy;
+}
+
+/**
+ * Natural-language identifiers (class names, CamelCase constants) can already reach 3.5+ bits of
+ * entropy per character from letter frequency and case-mixing alone, without ever being secret.
+ * Real credential material is overwhelmingly generated from an encoding (base64/hex/token
+ * alphabets) that mixes character classes. Requiring at least three of
+ * {digit, uppercase, lowercase, base64-symbol} keeps pure-alphabetic identifiers and pure-hex
+ * object/commit IDs (both extremely common in Xcode/Git-adjacent source) out of the pure-entropy
+ * trigger without weakening the independent sensitive-key-name trigger below.
+ */
+function hasSecretShapedCharacterDiversity(value: string): boolean {
+  const classes = [/[0-9]/u, /[A-Z]/u, /[a-z]/u, /[+/_=]/u].filter((pattern) =>
+    pattern.test(value),
+  ).length;
+  return classes >= 3;
+}
+
+function lineLooksLikeSecretAssignment(line: string): boolean {
+  const match = SECRET_ASSIGNMENT_LINE_PATTERN.exec(line);
+  const key = match?.[1];
+  const value = match?.[2];
+  if (key === undefined || value === undefined || PLACEHOLDER_SECRET_VALUE.test(value)) {
+    return false;
+  }
+  const normalizedKey = key.toLowerCase().replace(/[_-]/gu, "");
+  if (SENSITIVE_ASSIGNMENT_KEY_HINT.test(normalizedKey) && value.length >= 8) return true;
+  return (
+    value.length >= MIN_SECRET_VALUE_LENGTH &&
+    shannonEntropyBitsPerChar(value) >= MIN_SECRET_ENTROPY_BITS_PER_CHAR &&
+    hasSecretShapedCharacterDiversity(value)
+  );
+}
+
+/**
+ * Bounded, fail-closed content sniff: only files at or under the sniff limit are read, and a
+ * verified-read failure (mutation, truncation) propagates as a scan error rather than being
+ * silently treated as clean. Binary content (any NUL byte in the sampled bytes) is never
+ * interpreted as text. No matched key, value, or line is ever retained.
+ */
+function contentLooksLikeSecret(entry: FileEntry): boolean {
+  if (entry.sizeBytes === 0 || entry.sizeBytes > MAX_SECRET_SNIFF_BYTES) return false;
+  const bytes = secureRead(entry, MAX_SECRET_SNIFF_BYTES);
+  if (bytes.includes(0)) return false;
+  return bytes
+    .toString("utf8")
+    .split(/\r?\n/u)
+    .some((line) => lineLooksLikeSecretAssignment(line));
+}
+
+function detectSecretShapedFiles(
+  files: readonly FileEntry[],
+): ProjectInventoryV1["secretShapedFiles"] {
+  const findings: ProjectInventoryV1["secretShapedFiles"][number][] = [];
+  for (const entry of files) {
+    const detectors: Array<"filename-pattern" | "content-entropy"> = [];
+    if (filenameLooksLikeSecret(entry.path)) detectors.push("filename-pattern");
+    if (contentLooksLikeSecret(entry)) detectors.push("content-entropy");
+    if (detectors.length > 0) {
+      findings.push({ path: entry.path, detectors: detectors.sort(compareText) });
+    }
+  }
+  return findings.sort((left, right) => compareText(left.path, right.path));
+}
+
 function discoverInventory(
   entries: readonly ScanEntry[],
   maximumRuleFileBytes: number,
@@ -2249,6 +2363,7 @@ function discoverInventory(
         .filter((entry): entry is SymbolicLinkEntry => entry.kind === "symbolic-link")
         .map((entry) => entry.path)
         .sort(compareText),
+      secretShapedFiles: detectSecretShapedFiles(files),
     }),
     oversizedRulePaths: oversizedRulePaths.sort(compareText),
   };
@@ -2314,6 +2429,16 @@ function evaluateIssues(
         ),
       );
     }
+  }
+  for (const finding of inventory.secretShapedFiles) {
+    issues.push(
+      makeIssue(
+        "safety.secret-material-detected",
+        "blocker",
+        [finding.path],
+        `A file matches secret-shaped-file detection heuristics (${finding.detectors.join(", ")}) and must be reviewed and excluded before enrollment. File contents are never inspected beyond bounded structural checks and are never reproduced.`,
+      ),
+    );
   }
   for (const path of oversizedRulePaths) {
     issues.push(
@@ -2498,6 +2623,12 @@ function actionForIssue(issue: EnrollmentIssueV1): ActionDefinition {
     case "safety.symlink-chain-unsafe":
     case "safety.symlink-through-exclusion":
       return { phase: "safety", kind: "resolve-path-safety", targetPath: issue.paths[0] ?? null };
+    case "safety.secret-material-detected":
+      return {
+        phase: "safety",
+        kind: "resolve-secret-material",
+        targetPath: issue.paths[0] ?? null,
+      };
     case "compatibility.legacy-factory-layout":
       return {
         phase: "compatibility",

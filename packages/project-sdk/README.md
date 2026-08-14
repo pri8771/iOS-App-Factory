@@ -27,8 +27,17 @@ before and after inspection.
   before expensive work. Sparse and oversized source files fail closed.
 - Xcode containers and shared schemes are discovered by inspecting files. The
   scanner does not invoke `xcodebuild`, a package manager, scripts, or hooks.
-- Every plan is proposal-only. Applying a plan is intentionally outside this
-  package.
+- Every plan is proposal-only. The scanner itself never writes; see
+  [Applying a plan](#applying-a-plan) for the separate module that does.
+- A bounded, fail-closed secret-shaped-file detector flags `.env*` files,
+  private-key/keystore/provisioning-profile extensions (`.pem`, `.p12`, `.pfx`,
+  `.key`, `.mobileprovision`, `.jks`, `.keystore`), common credential
+  filenames, and small text files containing high-entropy or
+  sensitive-key-named assignments. Content sniffing is capped at 32 KiB per
+  file, skips binary content, and never reads a file large enough to risk an
+  unbounded scan; a verified-read failure on an in-bounds candidate fails the
+  whole scan rather than being silently skipped. Findings never carry matched
+  keys, values, or excerpts — only a path and which detector(s) matched.
 
 ## Explicit rule declarations
 
@@ -76,3 +85,34 @@ so repeated scans of the same repository state produce the same plan digest.
 The plan is bound to the final quiescent source fingerprint, including Git
 administrative state. Any future apply operation must re-scan and require the
 exact `sourceFingerprint`; a stale plan must never be applied.
+
+## Applying a plan
+
+`applyEnrollmentPlan({ plan, repositoryRoot })` (in `apply.ts`, exported
+alongside the scanner but implemented independently of it) is the only part of
+this package that writes to a target repository. The scanner's own scan path
+stays untouched and read-only.
+
+- It re-scans the target repository first and aborts with
+  `EnrollmentApplyFingerprintDriftError` if the fresh `sourceFingerprint` (or
+  the plan a fresh scan would produce) no longer matches — a stale plan is
+  never applied — and refuses a dirty working tree.
+- It applies only the small, deterministic subset of actions this executor
+  can generate safely: `declare-project`, `repair-project-manifest`,
+  `declare-experience`, `repair-experience-manifest`,
+  `establish-rule-authority`, and `repair-rule-adapter` (project manifest,
+  experience-manifest skeleton, canonical rule declarations, and adapter
+  digest bindings). Adapter bindings are resolved against the scanner's own
+  scope-aware authority resolution, re-run after any canonical-authority
+  write so bindings reference the digest actually committed.
+- Every other action kind — Xcode/Swift/CI scaffolding, symlink safety,
+  secret material, legacy-layout migration, rule conflicts — requires human
+  judgment and is always skipped and reported with a reason, never guessed at.
+- All writes land in a single commit on a brand-new branch (named from the
+  plan's `sourceFingerprint` unless a name is supplied). Hooks are bypassed.
+  It never force-pushes, never pushes at all, and never moves, deletes, or
+  commits onto any branch other than the one it creates.
+- It re-runs `scanExistingProject` after committing and asserts every issue an
+  applied action targeted is actually gone; if any resolved issue somehow
+  reappears the whole apply fails closed with
+  `EnrollmentApplyConvergenceError` rather than reporting false success.
