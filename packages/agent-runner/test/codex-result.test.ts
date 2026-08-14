@@ -471,6 +471,32 @@ describe("Codex run result materialization", () => {
     expect(twoEvents.events.map((event) => event.sequence)).toEqual([1, 2]);
   });
 
+  it("materializes the Codex CLI 0.147.0-alpha.6.6 live-captured stream with its expanded usage payload", () => {
+    // Verbatim stream captured live from `codex exec` 0.147.0-alpha.6.6 (paths
+    // and thread ids normalized). The terminal usage object carries the new
+    // `cache_write_input_tokens` and `reasoning_output_tokens` fields, which
+    // must be ignored without discarding the recognized token counts.
+    const recorded = [
+      '{"type":"thread.started","thread_id":"01a00112-1c71-75b2-afd4-aee8459e07c7"}',
+      '{"type":"turn.started"}',
+      '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Creating the requested file."}}',
+      '{"type":"item.started","item":{"id":"item_1","type":"file_change","changes":[{"path":"/private/tmp/app-factory-attempt/Sources/App/Feature.swift","kind":"add"}],"status":"in_progress"}}',
+      '{"type":"item.completed","item":{"id":"item_1","type":"file_change","changes":[{"path":"/private/tmp/app-factory-attempt/Sources/App/Feature.swift","kind":"add"}],"status":"completed"}}',
+      '{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"{\\"schemaVersion\\":1,\\"reportedDisposition\\":\\"finished\\",\\"summary\\":\\"Created the requested file.\\",\\"changedPaths\\":[\\"Sources/App/Feature.swift\\"],\\"blocker\\":null}"}}',
+      '{"type":"turn.completed","usage":{"input_tokens":18613,"cached_input_tokens":18176,"cache_write_input_tokens":0,"output_tokens":153,"reasoning_output_tokens":34}}',
+      "",
+    ].join("\n");
+
+    const artifacts = materialize({
+      identity: identity({ codexCliVersion: "0.147.0-alpha.6.6" }),
+      capture: capture({ stdout: recorded }),
+    });
+    expect(artifacts.result).toMatchObject({
+      status: "succeeded",
+      usage: { inputTokens: 18613, outputTokens: 153, cachedInputTokens: 18176 },
+    });
+  });
+
   it("rejects malformed process captures before emitting schema-invalid evidence", () => {
     expect(() => materialize({ capture: capture({ exitCode: 256 }) })).toThrow(/exit code/);
     expect(() => materialize({ capture: capture({ signal: "TERM" as NodeJS.Signals }) })).toThrow(

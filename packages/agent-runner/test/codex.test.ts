@@ -361,6 +361,77 @@ describe("Codex strict reported result", () => {
   });
 });
 
+// Verbatim JSONL streams captured live from `codex exec` 0.147.0-alpha.6.6 on
+// 2026-08-14 using the exact invocation produced by buildCodexInvocation. Only
+// the workspace path inside file_change items and thread ids were normalized.
+// They encode protocol behavior the synthetic fixtures do not: transient
+// `error` events interleaved mid-stream, an intermediate agent_message before
+// the final structured one, absolute-path file_change items, and the expanded
+// usage payload (`cache_write_input_tokens`, `reasoning_output_tokens`).
+const RECORDED_ALPHA_6_6_COMPLETED_JSONL = [
+  '{"type":"thread.started","thread_id":"01a00112-1c71-75b2-afd4-aee8459e07c7"}',
+  '{"type":"turn.started"}',
+  '{"type":"error","message":"Reconnecting... 2/5 (stream disconnected before completion: An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID 4580aed8-654a-463b-abf8-84667a1715f6 in your message.)"}',
+  '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Creating `Sources/App/Feature.swift` with the exact single-line content requested, and touching nothing else."}}',
+  '{"type":"item.started","item":{"id":"item_1","type":"file_change","changes":[{"path":"/private/tmp/app-factory-attempt/Sources/App/Feature.swift","kind":"add"}],"status":"in_progress"}}',
+  '{"type":"item.completed","item":{"id":"item_1","type":"file_change","changes":[{"path":"/private/tmp/app-factory-attempt/Sources/App/Feature.swift","kind":"add"}],"status":"completed"}}',
+  '{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"{\\"schemaVersion\\":1,\\"reportedDisposition\\":\\"finished\\",\\"summary\\":\\"Created `Sources/App/Feature.swift` with the exact requested single line and did not modify any other file.\\",\\"changedPaths\\":[\\"Sources/App/Feature.swift\\"],\\"blocker\\":null}"}}',
+  '{"type":"turn.completed","usage":{"input_tokens":18613,"cached_input_tokens":18176,"cache_write_input_tokens":0,"output_tokens":153,"reasoning_output_tokens":34}}',
+  "",
+].join("\n");
+
+const RECORDED_ALPHA_6_6_FAILED_JSONL = [
+  '{"type":"thread.started","thread_id":"01a00111-66bf-7e61-b4de-4e1e788cfb34"}',
+  '{"type":"turn.started"}',
+  '{"type":"error","message":"{\\n  \\"type\\": \\"error\\",\\n  \\"error\\": {\\n    \\"type\\": \\"invalid_request_error\\",\\n    \\"code\\": \\"invalid_json_schema\\",\\n    \\"message\\": \\"Invalid schema for response_format \'codex_output_schema\': In context=(\'properties\', \'changedPaths\'), \'uniqueItems\' is not permitted.\\",\\n    \\"param\\": \\"text.format.schema\\"\\n  },\\n  \\"status\\": 400\\n}"}',
+  '{"type":"turn.failed","error":{"message":"{\\n  \\"type\\": \\"error\\",\\n  \\"error\\": {\\n    \\"type\\": \\"invalid_request_error\\",\\n    \\"code\\": \\"invalid_json_schema\\",\\n    \\"message\\": \\"Invalid schema for response_format \'codex_output_schema\': In context=(\'properties\', \'changedPaths\'), \'uniqueItems\' is not permitted.\\",\\n    \\"param\\": \\"text.format.schema\\"\\n  },\\n  \\"status\\": 400\\n}"}}',
+  "",
+].join("\n");
+
+describe("Codex CLI 0.147.0-alpha.6.6 recorded protocol conformance", () => {
+  it("classifies the live-captured completed stream as process completion", () => {
+    const result = classifyCodexProcess({
+      exitCode: 0,
+      signal: null,
+      terminationOrigin: "none",
+      stdout: RECORDED_ALPHA_6_6_COMPLETED_JSONL,
+      stderr: "",
+      stdoutTruncated: false,
+      stderrTruncated: false,
+    });
+    expect(result).toMatchObject({
+      kind: "process-completed",
+      reported: {
+        schemaVersion: 1,
+        reportedDisposition: "finished",
+        changedPaths: ["Sources/App/Feature.swift"],
+        blocker: null,
+      },
+    });
+  });
+
+  it("fails closed on the live-captured turn.failed stream without blocking on auth", () => {
+    const result = classifyCodexProcess({
+      exitCode: 1,
+      signal: null,
+      terminationOrigin: "none",
+      stdout: RECORDED_ALPHA_6_6_FAILED_JSONL,
+      stderr: "",
+      stdoutTruncated: false,
+      stderrTruncated: false,
+    });
+    expect(result).toMatchObject({ kind: "process-failed" });
+    expect(JSON.stringify(result)).toContain("invalid_json_schema");
+  });
+
+  it("keeps the reported-result wire schema inside the structured-output subset", () => {
+    // The structured-output API behind Codex CLI 0.147.0-alpha.6.6 rejects
+    // `uniqueItems` ("'uniqueItems' is not permitted"); duplicates are still
+    // rejected authoritatively by parseCodexReportedResultV1.
+    expect(serializeCodexReportedResultJsonSchemaV1()).not.toContain("uniqueItems");
+  });
+});
+
 describe("Codex JSONL process classification", () => {
   it("classifies schema-valid exit zero as process completion, not verified success", () => {
     const result = classifyCodexProcess({

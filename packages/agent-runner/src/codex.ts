@@ -4,7 +4,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { AgentRunSpecV1Schema, type AgentRunSpecV1 } from "@app-factory/contracts";
 
-export const VERIFIED_CODEX_CLI_VERSIONS = ["0.147.0-alpha.1.2"] as const;
+export const VERIFIED_CODEX_CLI_VERSIONS = ["0.147.0-alpha.1.2", "0.147.0-alpha.6.6"] as const;
 export const CODEX_PREFLIGHT_TIMEOUT_MS = 5_000;
 export const CODEX_PREFLIGHT_OUTPUT_LIMIT_BYTES = 64 * 1_024;
 
@@ -219,7 +219,10 @@ export const CODEX_REPORTED_RESULT_JSON_SCHEMA_V1 = {
     changedPaths: {
       type: "array",
       maxItems: 100,
-      uniqueItems: true,
+      // `uniqueItems` is intentionally absent: the structured-output API used
+      // by Codex CLI 0.147.0-alpha.6.6 rejects it ("'uniqueItems' is not
+      // permitted"). Duplicate-path rejection remains authoritatively enforced
+      // by parseCodexReportedResultV1.
       items: {
         type: "string",
         minLength: 1,
