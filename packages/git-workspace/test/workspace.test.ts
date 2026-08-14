@@ -21,6 +21,8 @@ import {
   GitWorkspaceError,
   GitWorkspaceManager,
   classifyProtectedPath,
+  decodeProtectedPathPolicyExtension,
+  parseProtectedPathPolicyExtension,
   type FactoryMirror,
   type FactoryWorkspaceRecord,
 } from "../src/index.js";
@@ -710,39 +712,288 @@ describe("Factory-owned Git workspace", () => {
   });
 });
 
-describe("protected path classification", () => {
+// Locks the built-in, repo-agnostic classifier behavior. Every row here must
+// classify identically with and without a policy extension argument, and
+// identically before and after the T5.4 externalization refactor: this table
+// was captured against the pre-refactor implementation first, then re-run
+// unchanged after the refactor to prove byte-for-byte equivalence for the
+// generic classes (tests, CI, policy files, baselines, build/dependency
+// config, signing, credentials, submodule, and Git-attribute configuration).
+const BUILT_IN_CLASSIFICATION_TABLE: ReadonlyArray<readonly [string, string | null]> = [
+  // tests and test baselines
+  ["TestSupport/FixtureLoader.swift", "tests"],
+  ["HindsightTests/Support/FixtureLoader.swift", "tests"],
+  ["HindsightUITests/Support/AppHarness.swift", "tests"],
+  ["packages/testkit/src/index.ts", "tests"],
+  ["conftest.py", "tests"],
+  ["scripts/test.sh", "tests"],
+  ["vitest.config.ts", "tests"],
+  ["App.xctestplan", "tests"],
+  ["src/App.test.tsx", "tests"],
+  ["src/App.spec.ts", "tests"],
+  ["ViewModelTests.swift", "tests"],
+  ["__mocks__/network.ts", "tests"],
+  ["__snapshots__/App.snap", "tests"],
+  // CI configuration
+  [".github/workflows/ci.yml", "CI"],
+  [".circleci/config.yml", "CI"],
+  [".gitlab-ci.yml", "CI"],
+  ["Jenkinsfile", "CI"],
+  ["bitrise.yml", "CI"],
+  ["azure-pipelines.yml", "CI"],
+  ["scripts/ci/deploy.sh", "CI"],
+  // policy and agent rules (generic markers only)
+  ["AGENTS.md", "policy"],
+  ["CLAUDE.md", "policy"],
+  [".cursorrules", "policy"],
+  ["policy.md", "policy"],
+  [".factory/policy-lock.json", "policy"],
+  ["rules/repository.md", "policy"],
+  ["guardrails/limits.md", "policy"],
+  // quality thresholds and baselines
+  ["quality/baselines/home.png", "baseline"],
+  ["visual-baselines/screen.png", "baseline"],
+  ["config/thresholds.json", "baseline"],
+  ["codecov.yml", "baseline"],
+  ["sonar-project.properties", "baseline"],
+  // build, dependency, and verification configuration
+  ["App.xcodeproj/project.pbxproj", "build"],
+  ["App.xcodeproj/xcshareddata/xcschemes/App.xcscheme", "build"],
+  ["package.json", "build"],
+  ["tsconfig.json", "build"],
+  ["App.xcworkspace/contents.xcworkspacedata", "build"],
+  ["pnpm-lock.yaml", "build"],
+  ["Podfile", "build"],
+  ["eslint.config.js", "build"],
+  ["requirements.txt", "build"],
+  ["build.gradle", "build"],
+  ["Taskfile.yml", "build"],
+  ["xcodegen.yml", "build"],
+  ["project.yaml", "build"],
+  ["Tuist/ProjectDescriptionHelpers/Foo.swift", "build"],
+  ["project.yml", "build"],
+  // signing and release automation
+  ["fastlane/Fastfile", "release"],
+  ["scripts/release-app.sh", "release"],
+  ["Config/Prod.xcconfig", "signing"],
+  ["ExportOptions.plist", "signing"],
+  ["Info.plist", "signing"],
+  ["PrivacyInfo.xcprivacy", "signing"],
+  ["App.entitlements", "signing"],
+  // environment and credential material
+  [".env.production", "credential"],
+  [".envrc", "credential"],
+  ["config/secrets.yml", "credential"],
+  ["Certificates/app.p12", "credential"],
+  ["profile.mobileprovision", "credential"],
+  // submodule and Git-attribute configuration
+  [".gitmodules", "submodule"],
+  [".gitattributes", "classification"],
+  // unprotected
+  ["src/App.swift", null],
+  ["README.md", null],
+];
+
+describe("protected path classification (built-in defaults)", () => {
+  it.each(BUILT_IN_CLASSIFICATION_TABLE)(
+    "classifies %s with no policy extension",
+    (path, expected) => {
+      if (expected === null) {
+        expect(classifyProtectedPath(path)).toBeNull();
+      } else {
+        expect(classifyProtectedPath(path)).toMatch(new RegExp(expected, "iu"));
+      }
+    },
+  );
+
+  it.each(BUILT_IN_CLASSIFICATION_TABLE)(
+    "classifies %s identically when an empty policy extension is supplied",
+    (path, expected) => {
+      const extension = parseProtectedPathPolicyExtension({
+        schemaVersion: 1,
+        additionalTrustBoundaryPathPrefixes: [],
+        additionalTrustBoundarySegments: [],
+        additionalPolicyMarkers: [],
+        allowances: [],
+      });
+      const withExtension = classifyProtectedPath(path, extension);
+      const withoutExtension = classifyProtectedPath(path);
+      expect(withExtension).toBe(withoutExtension);
+      if (expected === null) {
+        expect(withExtension).toBeNull();
+      } else {
+        expect(withExtension).toMatch(new RegExp(expected, "iu"));
+      }
+    },
+  );
+
+  // Repo-specific knowledge (this monorepo's own package names, and its
+  // app-specific "ios_app_factory_rules" marker) is no longer hardcoded into
+  // the classifier. Without a reviewed policy extension, these paths are not
+  // protected by classifyProtectedPath itself; a project that wants this
+  // protection must grant it explicitly (see "reviewed policy extension"
+  // below), the same way any other enrolled project would.
   it.each([
-    [".github/workflows/ci.yml", "CI"],
-    ["AGENTS.md", "policy"],
-    ["quality/baselines/home.png", "baseline"],
-    ["fastlane/Fastfile", "release"],
-    ["scripts/release-app.sh", "release"],
-    ["Config/Prod.xcconfig", "signing"],
-    [".env.production", "credential"],
-    ["Certificates/app.p12", "credential"],
-    [".gitmodules", "submodule"],
-    [".gitattributes", "classification"],
-    ["TestSupport/FixtureLoader.swift", "tests"],
-    ["HindsightTests/Support/FixtureLoader.swift", "tests"],
-    ["HindsightUITests/Support/AppHarness.swift", "tests"],
-    ["packages/testkit/src/index.ts", "tests"],
-    ["conftest.py", "tests"],
-    ["scripts/test.sh", "tests"],
-    ["vitest.config.ts", "tests"],
-    ["App.xctestplan", "tests"],
-    ["App.xcodeproj/project.pbxproj", "build"],
-    ["App.xcodeproj/xcshareddata/xcschemes/App.xcscheme", "build"],
-    ["package.json", "build"],
-    ["tsconfig.json", "build"],
-    ["App.xcworkspace/contents.xcworkspacedata", "build"],
-    ["packages/trusted-verifier/src/index.ts", "trust-boundary"],
-    ["packages/policy-engine/src/index.ts", "trust-boundary"],
-    ["packages/kernel/src/repositories.ts", "trust-boundary"],
-    ["packages/contracts/src/v1/task-spec.ts", "trust-boundary"],
-    ["packages/quality/src/index.ts", "trust-boundary"],
-    ["apps/daemon/src/index.ts", "trust-boundary"],
-    [".factory/policy-lock.json", "policy"],
-  ])("protects %s", (path, expected) => {
-    expect(classifyProtectedPath(path)).toMatch(new RegExp(expected, "iu"));
+    "packages/trusted-verifier/src/index.ts",
+    "packages/policy-engine/src/index.ts",
+    "packages/kernel/src/repositories.ts",
+    "packages/contracts/src/v1/task-spec.ts",
+    "packages/quality/src/index.ts",
+    "apps/daemon/src/index.ts",
+    "docs/ios_app_factory_rules.md",
+  ])("does not protect %s without a reviewed policy extension", (path) => {
+    expect(classifyProtectedPath(path)).toBeNull();
+  });
+});
+
+describe("reviewed protected-path policy extension", () => {
+  const appFactoryOwnExtension = parseProtectedPathPolicyExtension({
+    schemaVersion: 1,
+    additionalTrustBoundaryPathPrefixes: [
+      "apps/daemon",
+      "apps/mcp",
+      "packages/contracts",
+      "packages/kernel",
+      "packages/policy-engine",
+      "packages/quality",
+    ],
+    additionalTrustBoundarySegments: [
+      "agent-runner",
+      "credential-broker",
+      "evidence-store",
+      "execution-engine",
+      "git-workspace",
+      "independent-review",
+      "process-supervisor",
+      "trusted-verifier",
+    ],
+    additionalPolicyMarkers: ["ios_app_factory_rules"],
+    allowances: [],
+  });
+
+  it.each([
+    "packages/trusted-verifier/src/index.ts",
+    "packages/policy-engine/src/index.ts",
+    "packages/kernel/src/repositories.ts",
+    "packages/contracts/src/v1/task-spec.ts",
+    "packages/quality/src/index.ts",
+    "apps/daemon/src/index.ts",
+  ])("extension reproduces trust-boundary protection for %s", (path) => {
+    expect(classifyProtectedPath(path, appFactoryOwnExtension)).toMatch(/trust-boundary/iu);
+  });
+
+  it("extension adds policy protection via an additional marker", () => {
+    expect(classifyProtectedPath("docs/ios_app_factory_rules.md")).toBeNull();
+    expect(classifyProtectedPath("docs/ios_app_factory_rules.md", appFactoryOwnExtension)).toMatch(
+      /policy/iu,
+    );
+  });
+
+  it("extension additions never relax an unrelated generic protection", () => {
+    // The trust-boundary and policy-marker additions above must not weaken
+    // any built-in class: a test file inside a trust-boundary package is
+    // still classified as a protected test, not merely trust-boundary code.
+    expect(
+      classifyProtectedPath("packages/kernel/tests/repositories.test.ts", appFactoryOwnExtension),
+    ).toMatch(/tests/iu);
+  });
+
+  it("keeps Xcode project-membership files protected by default, even with an extension present", () => {
+    expect(classifyProtectedPath("App.xcodeproj/project.pbxproj", appFactoryOwnExtension)).toMatch(
+      /build/iu,
+    );
+    expect(classifyProtectedPath("project.yml", appFactoryOwnExtension)).toMatch(/build/iu);
+  });
+
+  it("grants the xcode-project-membership allowance only when the policy extension includes it", () => {
+    const withAllowance = parseProtectedPathPolicyExtension({
+      schemaVersion: 1,
+      additionalTrustBoundaryPathPrefixes: [],
+      additionalTrustBoundarySegments: [],
+      additionalPolicyMarkers: [],
+      allowances: ["xcode-project-membership"],
+    });
+
+    expect(classifyProtectedPath("App.xcodeproj/project.pbxproj", withAllowance)).toBeNull();
+    expect(classifyProtectedPath("project.yml", withAllowance)).toBeNull();
+
+    // The allowance is scoped to project-membership files only; it does not
+    // relax any other build/dependency/verification configuration.
+    expect(classifyProtectedPath("package.json", withAllowance)).toMatch(/build/iu);
+    expect(classifyProtectedPath("project.yaml", withAllowance)).toMatch(/build/iu);
+    expect(
+      classifyProtectedPath("App.xcodeproj/xcshareddata/xcschemes/App.xcscheme", withAllowance),
+    ).toMatch(/build/iu);
+  });
+
+  it("does not let the allowance override an unrelated protected class (ordering)", () => {
+    const withAllowance = parseProtectedPathPolicyExtension({
+      schemaVersion: 1,
+      additionalTrustBoundaryPathPrefixes: [],
+      additionalTrustBoundarySegments: [],
+      additionalPolicyMarkers: [],
+      allowances: ["xcode-project-membership"],
+    });
+    // Even inside a protected tests directory, a pbxproj file stays
+    // protected: the allowance only relaxes the build-config class, not
+    // classes evaluated earlier in priority order.
+    expect(classifyProtectedPath("tests/Fixtures/project.pbxproj", withAllowance)).toMatch(
+      /tests/iu,
+    );
+  });
+
+  it("fails closed on an unknown relaxation key", () => {
+    expect(() =>
+      parseProtectedPathPolicyExtension({
+        schemaVersion: 1,
+        additionalTrustBoundaryPathPrefixes: [],
+        additionalTrustBoundarySegments: [],
+        additionalPolicyMarkers: [],
+        allowances: ["made-up-relaxation"],
+      }),
+    ).toThrow(GitWorkspaceError);
+  });
+
+  it("fails closed on an extension payload with unexpected fields", () => {
+    expect(() =>
+      parseProtectedPathPolicyExtension({
+        schemaVersion: 1,
+        additionalTrustBoundaryPathPrefixes: [],
+        additionalTrustBoundarySegments: [],
+        additionalPolicyMarkers: [],
+        allowances: [],
+        extraField: true,
+      }),
+    ).toThrow(GitWorkspaceError);
+  });
+
+  it("decodes a reviewed policy extension payload and binds it to a digest", () => {
+    const bytes = Buffer.from(
+      JSON.stringify({
+        schemaVersion: 1,
+        additionalTrustBoundaryPathPrefixes: [],
+        additionalTrustBoundarySegments: [],
+        additionalPolicyMarkers: [],
+        allowances: ["xcode-project-membership"],
+      }),
+      "utf8",
+    );
+    const decoded = decodeProtectedPathPolicyExtension(bytes);
+    expect(decoded.digest).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(classifyProtectedPath("project.yml", decoded.extension)).toBeNull();
+  });
+
+  it("fails closed when decoding an unknown relaxation key from raw bytes", () => {
+    const bytes = Buffer.from(
+      JSON.stringify({
+        schemaVersion: 1,
+        additionalTrustBoundaryPathPrefixes: [],
+        additionalTrustBoundarySegments: [],
+        additionalPolicyMarkers: [],
+        allowances: ["made-up-relaxation"],
+      }),
+      "utf8",
+    );
+    expect(() => decodeProtectedPathPolicyExtension(bytes)).toThrow(GitWorkspaceError);
   });
 });

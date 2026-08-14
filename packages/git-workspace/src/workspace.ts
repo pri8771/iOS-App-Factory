@@ -624,7 +624,180 @@ export function normalizeCandidatePolicy(policy: CandidatePolicy): NormalizedCan
   };
 }
 
-export function classifyProtectedPath(path: string): string | null {
+/**
+ * Explicit allowlist of protected-path classes that a project's reviewed
+ * policy extension may relax. This is the only mechanism by which
+ * classifyProtectedPath ever treats an otherwise-protected path as
+ * unprotected; every other extension field may only add protection.
+ */
+const RELAXABLE_PROTECTED_PATH_CLASSES = ["xcode-project-membership"] as const;
+export type RelaxableProtectedPathClass = (typeof RELAXABLE_PROTECTED_PATH_CLASSES)[number];
+const RELAXABLE_PROTECTED_PATH_CLASS_SET: ReadonlySet<string> = new Set(
+  RELAXABLE_PROTECTED_PATH_CLASSES,
+);
+
+const MAX_POLICY_EXTENSION_BYTES = 16 * 1024;
+const MAX_POLICY_EXTENSION_LIST_LENGTH = 200;
+const MAX_POLICY_EXTENSION_TOKEN_LENGTH = 200;
+
+/**
+ * A reviewed, project-specific extension to classifyProtectedPath's built-in,
+ * repo-agnostic defaults. This is the externalized home for a project's own
+ * repo-specific protected-path knowledge (its own trust-boundary package
+ * names, its own policy-file naming conventions) that previously had to be
+ * hardcoded inline. Every field may only ADD protection, except
+ * `allowances`, which may only grant a scoped relaxation from the fixed
+ * RELAXABLE_PROTECTED_PATH_CLASSES allowlist above -- there is no field that
+ * can narrow or remove a built-in default protection.
+ *
+ * This struct is meant to travel the same way as other reviewed, digest-bound
+ * policy payloads already used in this system (see decodeReviewedPolicyPayload
+ * in apps/daemon/src/verified-local-executor.ts): decodeProtectedPathPolicyExtension
+ * below canonicalizes and hashes the exact reviewed bytes so a caller can
+ * bind this extension to an expected digest recorded in the project's own
+ * reviewed policy lock, then pass the validated, trusted struct into
+ * classifyProtectedPath.
+ */
+export type ProtectedPathPolicyExtensionV1 = Readonly<{
+  schemaVersion: 1;
+  /** Matched against the first two lowercased path segments, e.g. "apps/daemon". */
+  additionalTrustBoundaryPathPrefixes: readonly string[];
+  /** Matched against any single lowercased path segment, e.g. "git-workspace". */
+  additionalTrustBoundarySegments: readonly string[];
+  /** Matched as a substring of the full lowercased path. */
+  additionalPolicyMarkers: readonly string[];
+  /** Scoped relaxations; every entry must be in RELAXABLE_PROTECTED_PATH_CLASSES. */
+  allowances: readonly RelaxableProtectedPathClass[];
+}>;
+
+function parseBoundedLowercaseTokenList(value: unknown, label: string): readonly string[] {
+  if (!Array.isArray(value) || value.length > MAX_POLICY_EXTENSION_LIST_LENGTH) {
+    throw new GitWorkspaceError(`Protected-path policy extension ${label} must be a bounded array`);
+  }
+  const tokens = value.map((entry) => {
+    if (
+      typeof entry !== "string" ||
+      entry.length < 1 ||
+      entry.length > MAX_POLICY_EXTENSION_TOKEN_LENGTH ||
+      entry !== entry.toLowerCase() ||
+      entry.includes("\0") ||
+      containsControlCharacter(entry)
+    ) {
+      throw new GitWorkspaceError(
+        `Protected-path policy extension ${label} must contain bounded, lowercase, control-character-free strings`,
+      );
+    }
+    return entry;
+  });
+  if (new Set(tokens).size !== tokens.length) {
+    throw new GitWorkspaceError(`Protected-path policy extension ${label} must be unique`);
+  }
+  return tokens;
+}
+
+function parseProtectedPathPolicyAllowances(
+  value: unknown,
+): readonly RelaxableProtectedPathClass[] {
+  if (!Array.isArray(value) || value.length > RELAXABLE_PROTECTED_PATH_CLASSES.length) {
+    throw new GitWorkspaceError(
+      "Protected-path policy extension allowances must be a bounded array",
+    );
+  }
+  const allowances = value.map((entry) => {
+    if (typeof entry !== "string" || !RELAXABLE_PROTECTED_PATH_CLASS_SET.has(entry)) {
+      // Fail closed: an unrecognized relaxation key is rejected outright,
+      // never silently ignored or treated as a no-op grant.
+      throw new GitWorkspaceError(
+        `Protected-path policy extension allowances contains an unrecognized class: ${JSON.stringify(entry)}`,
+      );
+    }
+    return entry as RelaxableProtectedPathClass;
+  });
+  if (new Set(allowances).size !== allowances.length) {
+    throw new GitWorkspaceError("Protected-path policy extension allowances must be unique");
+  }
+  return allowances;
+}
+
+/** Strictly validates an already-parsed reviewed policy extension object. */
+export function parseProtectedPathPolicyExtension(value: unknown): ProtectedPathPolicyExtensionV1 {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new GitWorkspaceError("Protected-path policy extension must be an object");
+  }
+  const record = value as Record<string, unknown>;
+  exactObjectKeys(
+    record,
+    [
+      "schemaVersion",
+      "additionalTrustBoundaryPathPrefixes",
+      "additionalTrustBoundarySegments",
+      "additionalPolicyMarkers",
+      "allowances",
+    ],
+    "Protected-path policy extension",
+  );
+  if (record.schemaVersion !== 1) {
+    throw new GitWorkspaceError("Protected-path policy extension must declare schemaVersion 1");
+  }
+  return {
+    schemaVersion: 1,
+    additionalTrustBoundaryPathPrefixes: parseBoundedLowercaseTokenList(
+      record.additionalTrustBoundaryPathPrefixes,
+      "additionalTrustBoundaryPathPrefixes",
+    ),
+    additionalTrustBoundarySegments: parseBoundedLowercaseTokenList(
+      record.additionalTrustBoundarySegments,
+      "additionalTrustBoundarySegments",
+    ),
+    additionalPolicyMarkers: parseBoundedLowercaseTokenList(
+      record.additionalPolicyMarkers,
+      "additionalPolicyMarkers",
+    ),
+    allowances: parseProtectedPathPolicyAllowances(record.allowances),
+  };
+}
+
+/**
+ * Decodes and validates a reviewed protected-path policy extension from its
+ * exact canonical UTF-8 JSON bytes, mirroring decodeReviewedPolicyPayload's
+ * byte-exactness checks. The returned digest lets a caller bind this
+ * extension to an expected digest recorded in the project's own reviewed
+ * policy, the same pattern already used for TaskSpec policy payloads.
+ */
+export function decodeProtectedPathPolicyExtension(payloadBytesInput: Uint8Array): Readonly<{
+  extension: ProtectedPathPolicyExtensionV1;
+  digest: `sha256:${string}`;
+}> {
+  const bytes = Buffer.from(payloadBytesInput);
+  if (bytes.byteLength < 1 || bytes.byteLength > MAX_POLICY_EXTENSION_BYTES) {
+    throw new GitWorkspaceError(
+      `Protected-path policy extension must contain 1-${MAX_POLICY_EXTENSION_BYTES} bytes`,
+    );
+  }
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new GitWorkspaceError("Protected-path policy extension must be valid UTF-8");
+  }
+  if (text.includes("\0") || !Buffer.from(text, "utf8").equals(bytes)) {
+    throw new GitWorkspaceError(
+      "Protected-path policy extension must be canonical UTF-8 without NUL bytes",
+    );
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new GitWorkspaceError("Protected-path policy extension must contain valid JSON");
+  }
+  return { extension: parseProtectedPathPolicyExtension(parsed), digest: sha256(bytes) };
+}
+
+export function classifyProtectedPath(
+  path: string,
+  policyExtension?: ProtectedPathPolicyExtensionV1,
+): string | null {
   assertSafeGitPath(path);
   const lower = path.toLowerCase();
   const segments = lower.split("/");
@@ -716,7 +889,7 @@ export function classifyProtectedPath(path: string): string | null {
         "guardrails",
       ].includes(segment),
     ) ||
-    lower.includes("ios_app_factory_rules")
+    (policyExtension?.additionalPolicyMarkers.some((marker) => lower.includes(marker)) ?? false)
   ) {
     return "policy and agent rules are protected";
   }
@@ -731,33 +904,32 @@ export function classifyProtectedPath(path: string): string | null {
     return "quality thresholds and baselines are protected";
   }
 
+  // Trust-boundary code is repo-specific by nature (it names a project's own
+  // packages and directories); there is no generic default. A project's
+  // reviewed policy extension supplies its own trust-boundary segments and
+  // path prefixes here (this repository's own list, for example, lives in
+  // its enrolled project's reviewed policy, not in this classifier).
   if (
-    [
-      "apps/daemon",
-      "apps/mcp",
-      "packages/contracts",
-      "packages/kernel",
-      "packages/policy-engine",
-      "packages/quality",
-    ].includes(segments.slice(0, 2).join("/")) ||
-    segments.some((segment) =>
-      [
-        "agent-runner",
-        "credential-broker",
-        "evidence-store",
-        "execution-engine",
-        "git-workspace",
-        "independent-review",
-        "process-supervisor",
-        "trusted-verifier",
-      ].includes(segment),
-    )
+    policyExtension !== undefined &&
+    (policyExtension.additionalTrustBoundaryPathPrefixes.includes(segments.slice(0, 2).join("/")) ||
+      segments.some((segment) => policyExtension.additionalTrustBoundarySegments.includes(segment)))
   ) {
     return "Factory trust-boundary code is protected";
   }
 
+  // Xcode project-membership files (project.pbxproj, and XcodeGen's
+  // project.yml) are the one relaxable class: a project's reviewed policy
+  // may opt in to editing them (needed for ordinary iOS work, e.g. adding a
+  // file to a target). The default -- no policy extension, or an extension
+  // that does not grant this allowance -- keeps them protected exactly like
+  // every other build/dependency/verification file below.
+  const isXcodeProjectMembershipFile = extension === ".pbxproj" || basename === "project.yml";
+  const xcodeProjectMembershipAllowed =
+    isXcodeProjectMembershipFile &&
+    (policyExtension?.allowances.includes("xcode-project-membership") ?? false);
   if (
-    [
+    !xcodeProjectMembershipAllowed &&
+    ([
       "eslint.config.js",
       "eslint.config.mjs",
       "eslint.config.cjs",
@@ -795,22 +967,21 @@ export function classifyProtectedPath(path: string): string | null {
       "settings.gradle.kts",
       "makefile",
       "justfile",
-      "project.yml",
       "project.yaml",
       "xcodegen.yml",
       "xcodegen.yaml",
       ".pre-commit-config.yaml",
     ].includes(basename) ||
-    /^tsconfig(?:\.[^.]+)*\.json$/u.test(basename) ||
-    /^(?:babel|metro|next|nuxt|rollup|vite|webpack)\.config(?:\.[^.]+)+$/u.test(basename) ||
-    /^requirements(?:[-_.][^.]+)?\.txt$/u.test(basename) ||
-    /^build\.gradle(?:\.kts)?$/u.test(basename) ||
-    /^taskfile(?:\.[^.]+)+$/u.test(basename) ||
-    extension === ".pbxproj" ||
-    segments.some(
-      (segment) =>
-        segment === "tuist" || segment.endsWith(".xcodeproj") || segment.endsWith(".xcworkspace"),
-    )
+      /^tsconfig(?:\.[^.]+)*\.json$/u.test(basename) ||
+      /^(?:babel|metro|next|nuxt|rollup|vite|webpack)\.config(?:\.[^.]+)+$/u.test(basename) ||
+      /^requirements(?:[-_.][^.]+)?\.txt$/u.test(basename) ||
+      /^build\.gradle(?:\.kts)?$/u.test(basename) ||
+      /^taskfile(?:\.[^.]+)+$/u.test(basename) ||
+      isXcodeProjectMembershipFile ||
+      segments.some(
+        (segment) =>
+          segment === "tuist" || segment.endsWith(".xcodeproj") || segment.endsWith(".xcworkspace"),
+      ))
   ) {
     return "build, dependency, and verification configuration is protected";
   }
