@@ -335,6 +335,28 @@ describe("Codex run result materialization", () => {
     });
   });
 
+  it("succeeds on a well-formed multi-turn run within a raised turn budget", () => {
+    const twoTurns = completedJsonl(reportedResult(), {}, [{ type: "turn.started" }]);
+    const withinBudget = materialize({
+      spec: makeSpec({ limits: { ...makeSpec().limits, maxTurns: 2 } }),
+      capture: capture({ stdout: twoTurns }),
+    });
+    expect(withinBudget.result).toMatchObject({ status: "succeeded" });
+
+    const threeTurns = completedJsonl(reportedResult(), {}, [
+      { type: "turn.started" },
+      { type: "turn.started" },
+    ]);
+    const stillExceeded = materialize({
+      spec: makeSpec({ limits: { ...makeSpec().limits, maxTurns: 2 } }),
+      capture: capture({ stdout: threeTurns }),
+    });
+    expect(stillExceeded.result).toMatchObject({
+      status: "failed",
+      failure: { code: "agent.turn-limit-exceeded", retryable: false },
+    });
+  });
+
   it("parses only valid recognized usage values from a completed terminal turn", () => {
     expect(
       materialize({

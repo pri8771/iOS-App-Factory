@@ -18,6 +18,7 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 import {
   AgentEventV1Schema,
+  AgentRunLimitsV1Schema,
   AgentRunResultV1Schema,
   AgentRunSpecV1Schema,
   AttemptIdSchema,
@@ -2135,10 +2136,12 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
         throw new TypeError("Legacy projects cannot declare protocol-specific trusted identities");
       }
       const reviewedPolicy = decodeReviewedPolicyPayload(input.policyBytes);
-      if (input.agentLimits !== undefined && input.agentLimits.maxTurns !== 1) {
-        throw new TypeError(
-          "The current headless runner supports exactly one turn; maxTurns must equal 1",
-        );
+      // The headless runner supports multi-turn agent sessions; agentLimits is
+      // owner-supplied composition-time configuration, but its shape (including
+      // the schema's own maxTurns bound of 1-1000) is still validated fail-closed
+      // here rather than deferred to the first attempt.
+      if (input.agentLimits !== undefined) {
+        AgentRunLimitsV1Schema.parse(input.agentLimits);
       }
       projects.set(repositoryId, {
         ...input,

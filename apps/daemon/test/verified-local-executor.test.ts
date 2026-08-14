@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import {
   AgentEventV1Schema,
   AgentRunResultV1Schema,
+  NamespacedCodeSchema,
   TaskSpecV1Schema,
   type AgentRunResultV1,
   type RunId,
@@ -377,6 +378,7 @@ type ProtocolMutation =
   | "envelope-shape"
   | "outcome-status"
   | "reported-failure"
+  | "turn-limit-exceeded"
   | "auth-blocker";
 
 function protocolResult(
@@ -384,6 +386,7 @@ function protocolResult(
   status: "succeeded" | "failed" | "blocked" = "succeeded",
   processExitCode = status === "succeeded" || status === "blocked" ? 0 : 1,
   mutation: ProtocolMutation = "none",
+  additionalProgressEvents = 0,
 ): Readonly<{
   evidence: LocalAgentProtocolEvidenceV1;
   failure: NonNullable<Extract<AgentRunResultV1, { status: "failed" }>["failure"]>;
@@ -400,8 +403,14 @@ function protocolResult(
       ? Buffer.from("stderr exceeds twenty bytes\n", "utf8")
       : Buffer.from("codex diagnostic\n", "utf8");
   const failure = {
-    code: "agent.process-failed" as const,
-    summary: "The supervised agent process failed.",
+    code:
+      mutation === "turn-limit-exceeded"
+        ? ("agent.turn-limit-exceeded" as const)
+        : ("agent.process-failed" as const),
+    summary:
+      mutation === "turn-limit-exceeded"
+        ? "Codex exceeded its configured turn limit."
+        : "The supervised agent process failed.",
     retryable: false,
     detailArtifactDigest:
       mutation === "failure-detail-artifact"
@@ -414,48 +423,70 @@ function protocolResult(
     summary: "The supervised agent requires authentication.",
     requiredAction: "Refresh the local Codex login, then submit a new attempt.",
   };
-  const events = [
-    AgentEventV1Schema.parse({
-      schemaVersion: 1,
+  // A well-formed multi-turn event log stays a single contiguous run: exactly
+  // one agent.started, exactly one agent.finished, and one agent.progress
+  // event per completed turn in between.
+  const progressEventDrafts = Array.from(
+    { length: additionalProgressEvents },
+    (_unused, index) => ({
+      schemaVersion: 1 as const,
+      eventId: `63000000-0000-4000-8000-0000000001${String(index).padStart(2, "0")}`,
+      runId: context.spec.runId,
+      attemptId: context.spec.attemptId,
+      stepId: context.spec.stepId,
+      fence: context.spec.fence,
+      occurredAt: startedAt,
+      type: "agent.progress" as const,
+      data: {
+        phase: NamespacedCodeSchema.parse("codex.turn-completed"),
+        level: "info" as const,
+        message: `Completed turn ${String(index + 1)}.`,
+      },
+    }),
+  );
+  const eventDrafts = [
+    {
+      schemaVersion: 1 as const,
       eventId: "63000000-0000-4000-8000-000000000001",
       runId: context.spec.runId,
       attemptId: context.spec.attemptId,
       stepId: context.spec.stepId,
       fence: context.spec.fence,
-      sequence: 1,
       occurredAt: startedAt,
-      type: "agent.started",
+      type: "agent.started" as const,
       data: { adapterId: context.spec.adapterId },
-    }),
+    },
+    ...progressEventDrafts,
     ...(status === "blocked"
       ? [
-          AgentEventV1Schema.parse({
-            schemaVersion: 1,
+          {
+            schemaVersion: 1 as const,
             eventId: "63000000-0000-4000-8000-000000000003",
             runId: context.spec.runId,
             attemptId: context.spec.attemptId,
             stepId: context.spec.stepId,
             fence: context.spec.fence,
-            sequence: 2,
             occurredAt: finishedAt,
-            type: "agent.blocked",
+            type: "agent.blocked" as const,
             data: { blocker },
-          }),
+          },
         ]
       : []),
-    AgentEventV1Schema.parse({
-      schemaVersion: 1,
+    {
+      schemaVersion: 1 as const,
       eventId: "63000000-0000-4000-8000-000000000002",
       runId: context.spec.runId,
       attemptId: context.spec.attemptId,
       stepId: context.spec.stepId,
       fence: context.spec.fence,
-      sequence: status === "blocked" ? 3 : 2,
       occurredAt: finishedAt,
-      type: "agent.finished",
+      type: "agent.finished" as const,
       data: { status },
-    }),
+    },
   ];
+  const events = eventDrafts.map((draft, index) =>
+    AgentEventV1Schema.parse({ ...draft, sequence: index + 1 }),
+  );
   const result = AgentRunResultV1Schema.parse({
     schemaVersion: 1,
     runId: context.spec.runId,
@@ -576,9 +607,11 @@ class ProtocolSwiftAgent implements LocalAgentAdapter {
   public readonly adapterVersion = "1.0.0";
   public calls = 0;
   readonly #mutation: ProtocolMutation;
+  readonly #additionalProgressEvents: number;
 
-  public constructor(mutation: ProtocolMutation = "none") {
+  public constructor(mutation: ProtocolMutation = "none", additionalProgressEvents = 0) {
     this.#mutation = mutation;
+    this.#additionalProgressEvents = additionalProgressEvents;
   }
 
   public async run(context: LocalAgentRunContext) {
@@ -591,6 +624,7 @@ class ProtocolSwiftAgent implements LocalAgentAdapter {
     const status =
       this.#mutation === "outcome-status" ||
       this.#mutation === "reported-failure" ||
+      this.#mutation === "turn-limit-exceeded" ||
       this.#mutation === "failure-detail-artifact"
         ? "failed"
         : this.#mutation === "auth-blocker"
@@ -601,6 +635,7 @@ class ProtocolSwiftAgent implements LocalAgentAdapter {
       status,
       this.#mutation === "reported-failure" ? 0 : this.#mutation === "auth-blocker" ? 1 : undefined,
       this.#mutation,
+      this.#additionalProgressEvents,
     );
     let evidence: unknown = materialized.evidence;
     if (this.#mutation === "run-spec-binding") {
@@ -740,7 +775,11 @@ class ProtocolSwiftAgent implements LocalAgentAdapter {
         changedPaths: succeeded.changedPaths,
       };
     }
-    if (this.#mutation === "reported-failure" || this.#mutation === "failure-detail-artifact") {
+    if (
+      this.#mutation === "reported-failure" ||
+      this.#mutation === "turn-limit-exceeded" ||
+      this.#mutation === "failure-detail-artifact"
+    ) {
       return {
         kind: "failed" as const,
         failure: materialized.failure,
@@ -1520,6 +1559,56 @@ describe("daemon verified local execution", () => {
   );
 
   it(
+    "accepts a well-formed multi-turn protocol event log within a raised turn budget",
+    { timeout: 180_000 },
+    async () => {
+      const f = fixture(90);
+      // Two extra agent.progress events represent two completed Codex turns.
+      // The log stays a single contiguous run: one agent.started, one
+      // agent.finished, and the turn events between them.
+      const agent = new ProtocolSwiftAgent("none", 2);
+      const reviewCalls = { count: 0 };
+      const enrolled = project(f, agent, reviewCalls);
+      const multiTurnProject: VerifiedLocalExecutionProject = {
+        ...enrolled,
+        agentLimits: {
+          timeoutMs: 30_000,
+          terminationGraceMs: 500,
+          maxTurns: 2,
+          maxEventCount: 1_000,
+          maxStdoutBytes: 1024 * 1024,
+          maxStderrBytes: 1024 * 1024,
+        },
+      };
+      const service = await start(f, agent, reviewCalls, { projectOverride: multiTurnProject });
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(
+        async () => (await client.status(intake.attemptId)).attempt.state === "succeeded",
+      );
+
+      expect(agent.calls).toBe(1);
+      expect(reviewCalls.count).toBe(1);
+      const journal = JSON.parse(
+        readFileSync(
+          join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`),
+          "utf8",
+        ),
+      ) as Readonly<Record<string, unknown>>;
+      expect(journal).toMatchObject({ schemaVersion: 2, attemptId: intake.attemptId });
+
+      const storedIntegrity = new EvidenceStore(service.executionPaths.evidenceRoot).verify(
+        intake.attemptId,
+      );
+      const agentRun = storedIntegrity.evidence.find((item) => item.kind === "agent-run");
+      expect(agentRun).toMatchObject({
+        kind: "agent-run",
+        claims: { result: { status: "succeeded", finalEventSequence: 4 } },
+      });
+    },
+  );
+
+  it(
     "rejects a durable V1 journal after the project is enrolled as protocol-required",
     { timeout: 180_000 },
     async () => {
@@ -1891,12 +1980,15 @@ describe("daemon verified local execution", () => {
 
   it.each([
     ["reported-failure", "failed", "agent.process-failed"],
+    ["turn-limit-exceeded", "failed", "agent.turn-limit-exceeded"],
     ["auth-blocker", "blocked", "agent.authentication-required"],
   ] as const)(
     "persists and replays a V2 %s result without silently relaunching",
     { timeout: 30_000 },
     async (mutation, expectedState, expectedCode) => {
-      const f = fixture(mutation === "reported-failure" ? 30 : 31);
+      const f = fixture(
+        mutation === "reported-failure" ? 30 : mutation === "turn-limit-exceeded" ? 32 : 31,
+      );
       const agent = new ProtocolSwiftAgent(mutation);
       const service = await start(f, agent, { count: 0 });
       const client = clientFor(service);
@@ -2344,7 +2436,7 @@ describe("daemon verified local execution", () => {
     },
   );
 
-  it("rejects invalid, oversized, and unsupported-turn policy configuration", async () => {
+  it("rejects invalid and oversized policy configuration", async () => {
     expect(() => decodeReviewedPolicyPayload(Buffer.from([0xff]))).toThrow(/valid UTF-8/u);
     expect(() => decodeReviewedPolicyPayload(Buffer.alloc(MAX_REVIEWED_POLICY_BYTES + 1))).toThrow(
       /1-/u,
@@ -2375,7 +2467,13 @@ describe("daemon verified local execution", () => {
         }),
       ),
     ).toBe(false);
-    const invalidProject = {
+  });
+
+  it("accepts a multi-turn agent limit configuration", async () => {
+    const f = fixture(91);
+    const reviewCalls = { count: 0 };
+    const enrolledProject = project(f, new DeterministicSwiftAgent("succeed"), reviewCalls);
+    const multiTurnProject: VerifiedLocalExecutionProject = {
       ...enrolledProject,
       agentLimits: {
         timeoutMs: 30_000,
@@ -2386,14 +2484,14 @@ describe("daemon verified local execution", () => {
         maxStderrBytes: 1024,
       },
     };
-    await expect(
-      startFactoryDaemonService({
-        runtimeDirectory: f.runtime,
-        authorization: AUTHORIZATION,
-        daemonVersion: "0.4.0-invalid-turn-limit",
-        localExecution: { projects: [invalidProject] },
-      }),
-    ).rejects.toThrow(/exactly one turn/u);
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: f.runtime,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.4.0-multi-turn-limit",
+      localExecution: { projects: [multiTurnProject] },
+    });
+    services.push(service);
+    expect(service.socketPath.length).toBeGreaterThan(0);
   });
 
   it(
