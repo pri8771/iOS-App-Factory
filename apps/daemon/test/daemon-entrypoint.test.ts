@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { cp } from "node:fs/promises";
 import { join } from "node:path";
@@ -51,6 +52,93 @@ async function root(): Promise<string> {
   const path = await mkdtemp(join("/private/tmp", "factory-daemon-entrypoint-"));
   roots.push(path);
   return path;
+}
+
+const VALID_ATTESTATION = {
+  schemaVersion: 1,
+  decision:
+    "Owner-approved ADR 0002 gate closure for the pinned Codex CLI with the accepted gaps below and standing compensating controls.",
+  acceptedGaps: [
+    "Codex CLI fine-grained per-path deny rules are not OS-enforced.",
+    "The Factory-owned Seatbelt sandbox layer is deferred.",
+  ],
+  date: "2026-08-14",
+  owner: "Priyansh Chordia",
+} as const;
+
+async function createCodexProfileSetup(directory: string): Promise<
+  Readonly<{
+    environment: Readonly<{
+      APP_FACTORY_RUNTIME_DIR: string;
+      APP_FACTORY_AUTH_FILE: string;
+      APP_FACTORY_DAEMON_VERSION: string;
+      APP_FACTORY_LOCAL_EXECUTION_CONFIG: string;
+    }>;
+    attestationFile: string;
+  }>
+> {
+  const authFile = join(directory, "authorization");
+  const policyFile = join(directory, "reviewed-policy");
+  const fixtureConfig = join(directory, "fixture-profile.json");
+  const codexConfig = join(directory, "codex-profile.json");
+  const attestationFile = join(directory, "containment-attestation.json");
+  const executable = join(directory, "fake-codex");
+  const codexHome = join(directory, "codex-home");
+  const sourceRepositoryPath = join(directory, "swift-greeter");
+  await cp(SWIFT_GREETER_TEMPLATE, sourceRepositoryPath, { recursive: true });
+  git(sourceRepositoryPath, ["init", "--quiet", "--initial-branch=main", "--object-format=sha1"]);
+  git(sourceRepositoryPath, ["add", "--all"]);
+  git(sourceRepositoryPath, [
+    "-c",
+    "commit.gpgSign=false",
+    "-c",
+    "core.hooksPath=/dev/null",
+    "commit",
+    "--quiet",
+    "--no-gpg-sign",
+    "--no-verify",
+    "--message=Create deterministic Swift Greeter baseline",
+  ]);
+  await writeFile(authFile, TOKEN, { mode: 0o600 });
+  await writeFile(policyFile, "Reviewed Swift Greeter fixture policy v1\n", { mode: 0o600 });
+  await writeFile(
+    fixtureConfig,
+    JSON.stringify({
+      schemaVersion: 1,
+      mode: "swift-greeter-fixture-v1",
+      repositoryId: "62000000-0000-4000-8000-000000000002",
+      sourceRepositoryPath: await realpath(sourceRepositoryPath),
+      policyFile,
+    }),
+    { mode: 0o600 },
+  );
+  const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
+  await writeFile(executable, executableBytes, { mode: 0o700 });
+  await mkdir(codexHome, { mode: 0o700 });
+  await writeFile(
+    codexConfig,
+    JSON.stringify({
+      schemaVersion: 1,
+      mode: "swift-greeter-codex-v1",
+      fixtureConfigurationFile: fixtureConfig,
+      executable,
+      executableDigest: `sha256:${createHash("sha256").update(executableBytes).digest("hex")}`,
+      expectedCliVersion: "0.147.0-alpha.6.6",
+      model: "gpt-test-pinned",
+      codexHome,
+    }),
+    { mode: 0o600 },
+  );
+  await writeFile(attestationFile, JSON.stringify(VALID_ATTESTATION), { mode: 0o600 });
+  return {
+    environment: {
+      APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+      APP_FACTORY_AUTH_FILE: authFile,
+      APP_FACTORY_DAEMON_VERSION: "0.6.0-codex-gate",
+      APP_FACTORY_LOCAL_EXECUTION_CONFIG: codexConfig,
+    },
+    attestationFile,
+  };
 }
 
 afterEach(async () => {
@@ -217,7 +305,7 @@ describe("daemon process configuration", () => {
         APP_FACTORY_DAEMON_VERSION: "0.4.0-fixture",
         APP_FACTORY_LOCAL_EXECUTION_CONFIG: executionConfig,
       }),
-    ).rejects.toThrow("must be private to the current user");
+    ).rejects.toThrow("current-user-owned mode-0600 file");
 
     await chmod(executionConfig, 0o600);
     await writeFile(
@@ -273,6 +361,102 @@ describe("daemon process configuration", () => {
         APP_FACTORY_LOCAL_EXECUTION_CONFIG: executionConfig,
       }),
     ).rejects.toThrow("not the exact reviewed Swift Greeter tree");
+  });
+
+  it("refuses the real-identity Codex profile without an owner containment attestation", async () => {
+    const directory = await root();
+    const setup = await createCodexProfileSetup(directory);
+    let preflightCalls = 0;
+    await expect(
+      loadDaemonProcessConfiguration(setup.environment, {
+        codexAgentDependencies: {
+          preflight: async (options) => {
+            preflightCalls += 1;
+            return {
+              ready: true,
+              executable: options.executable,
+              version: "0.147.0-alpha.6.6",
+              authConfigured: true,
+            } as const;
+          },
+        },
+      }),
+    ).rejects.toThrow("refuses to load without an owner containment attestation");
+    expect(preflightCalls).toBe(0);
+  });
+
+  it("loads the Codex profile once a valid owner containment attestation is configured", async () => {
+    const directory = await root();
+    const setup = await createCodexProfileSetup(directory);
+    const loaded = await loadDaemonProcessConfiguration(
+      {
+        ...setup.environment,
+        APP_FACTORY_CONTAINMENT_ATTESTATION: setup.attestationFile,
+      },
+      {
+        codexAgentDependencies: {
+          preflight: async (options) =>
+            ({
+              ready: true,
+              executable: options.executable,
+              version: "0.147.0-alpha.6.6",
+              authConfigured: true,
+            }) as const,
+        },
+      },
+    );
+    expect(loaded.localExecution?.projects).toHaveLength(1);
+    expect(loaded.localExecution?.projects[0]?.agent).toMatchObject({
+      adapterId: "openai.codex",
+      adapterVersion: "1.0.0",
+    });
+  });
+
+  it("fails closed on malformed owner containment attestations", async () => {
+    const directory = await root();
+    const setup = await createCodexProfileSetup(directory);
+    const environment = {
+      ...setup.environment,
+      APP_FACTORY_CONTAINMENT_ATTESTATION: setup.attestationFile,
+    };
+
+    await writeFile(setup.attestationFile, JSON.stringify({ ...VALID_ATTESTATION, extra: true }), {
+      mode: 0o600,
+    });
+    await expect(loadDaemonProcessConfiguration(environment)).rejects.toThrow(
+      "must contain exactly schemaVersion, decision, acceptedGaps, date, and owner",
+    );
+
+    await writeFile(
+      setup.attestationFile,
+      JSON.stringify({ ...VALID_ATTESTATION, acceptedGaps: [] }),
+      { mode: 0o600 },
+    );
+    await expect(loadDaemonProcessConfiguration(environment)).rejects.toThrow(
+      "acceptedGaps must be a non-empty bounded list",
+    );
+
+    await writeFile(setup.attestationFile, JSON.stringify({ ...VALID_ATTESTATION, owner: " " }), {
+      mode: 0o600,
+    });
+    await expect(loadDaemonProcessConfiguration(environment)).rejects.toThrow(
+      "owner must be non-empty bounded text",
+    );
+
+    await writeFile(
+      setup.attestationFile,
+      JSON.stringify({ ...VALID_ATTESTATION, date: "2026-8-14" }),
+      { mode: 0o600 },
+    );
+    await expect(loadDaemonProcessConfiguration(environment)).rejects.toThrow(
+      "date must be an exact YYYY-MM-DD calendar date",
+    );
+
+    await writeFile(setup.attestationFile, JSON.stringify(VALID_ATTESTATION), { mode: 0o600 });
+    await chmod(setup.attestationFile, 0o640);
+    await expect(loadDaemonProcessConfiguration(environment)).rejects.toThrow(
+      "current-user-owned mode-0600 file",
+    );
   });
 
   it("zeroes the raw authorization read buffer after decoding", async () => {

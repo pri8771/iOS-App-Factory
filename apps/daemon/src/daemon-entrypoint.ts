@@ -6,9 +6,10 @@ import { CommandAuthorizationV1Schema } from "@app-factory/contracts";
 
 import { startFactoryDaemonService, type FactoryDaemonService } from "./factory-daemon-service.js";
 import {
-  SwiftGreeterFixtureConfigurationError,
-  loadSwiftGreeterFixtureExecutionConfiguration,
-} from "./swift-greeter-fixture-execution.js";
+  LocalExecutionProfileConfigurationError,
+  loadLocalExecutionProfile,
+  type LocalExecutionProfileDependencies,
+} from "./local-execution-profile.js";
 import type { VerifiedLocalExecutionConfiguration } from "./verified-local-executor.js";
 
 const MAX_SECRET_BYTES = 512;
@@ -20,6 +21,7 @@ export type DaemonProcessEnvironment = Readonly<{
   APP_FACTORY_DAEMON_VERSION?: string;
   APP_FACTORY_POLL_INTERVAL_MS?: string;
   APP_FACTORY_LOCAL_EXECUTION_CONFIG?: string;
+  APP_FACTORY_CONTAINMENT_ATTESTATION?: string;
 }>;
 
 export type DaemonProcessConfiguration = Readonly<{
@@ -153,6 +155,7 @@ export async function readPrivateAuthorizationFile(
 
 export async function loadDaemonProcessConfiguration(
   environment: DaemonProcessEnvironment,
+  localExecutionDependencies: LocalExecutionProfileDependencies = {},
 ): Promise<DaemonProcessConfiguration> {
   const authorizationFile = absolutePath(
     environment.APP_FACTORY_AUTH_FILE,
@@ -169,10 +172,20 @@ export async function loadDaemonProcessConfiguration(
       environment.APP_FACTORY_LOCAL_EXECUTION_CONFIG,
       "APP_FACTORY_LOCAL_EXECUTION_CONFIG",
     );
+    const attestationPath =
+      environment.APP_FACTORY_CONTAINMENT_ATTESTATION === undefined
+        ? undefined
+        : absolutePath(
+            environment.APP_FACTORY_CONTAINMENT_ATTESTATION,
+            "APP_FACTORY_CONTAINMENT_ATTESTATION",
+          );
     try {
-      localExecution = loadSwiftGreeterFixtureExecutionConfiguration(configPath, runtimeDirectory);
+      localExecution = await loadLocalExecutionProfile(configPath, runtimeDirectory, {
+        ...localExecutionDependencies,
+        ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
+      });
     } catch (error) {
-      if (error instanceof SwiftGreeterFixtureConfigurationError) {
+      if (error instanceof LocalExecutionProfileConfigurationError) {
         configurationError(error.message);
       }
       throw error;

@@ -90,6 +90,26 @@ function sha256(bytes: Uint8Array): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+async function writeAttestation(root: string): Promise<string> {
+  const path = join(root, "containment-attestation.json");
+  await writeFile(
+    path,
+    JSON.stringify({
+      schemaVersion: 1,
+      decision:
+        "Owner-approved ADR 0002 gate closure for the pinned Codex CLI with the accepted gaps below and standing compensating controls.",
+      acceptedGaps: [
+        "Codex CLI fine-grained per-path deny rules are not OS-enforced.",
+        "The Factory-owned Seatbelt sandbox layer is deferred.",
+      ],
+      date: "2026-08-14",
+      owner: "Priyansh Chordia",
+    }),
+    { mode: 0o600 },
+  );
+  return path;
+}
+
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
@@ -138,6 +158,7 @@ describe("local execution profiles", () => {
 
     let preflightCalls = 0;
     const loaded = await loadLocalExecutionProfile(profilePath, fixture.runtime, {
+      containmentAttestationPath: await writeAttestation(fixture.root),
       codexAgentDependencies: {
         preflight: async (options) => {
           preflightCalls += 1;
@@ -280,6 +301,7 @@ describe("local execution profiles", () => {
         { mode: 0o600 },
       );
       const loaded = await loadLocalExecutionProfile(profilePath, fixture.runtime, {
+        containmentAttestationPath: await writeAttestation(fixture.root),
         codexAgentDependencies: {
           preflight: async (options) => ({
             ready: true,
@@ -388,9 +410,53 @@ describe("local execution profiles", () => {
       { mode: 0o600 },
     );
 
-    await expect(loadLocalExecutionProfile(profilePath, fixture.runtime)).rejects.toBeInstanceOf(
-      LocalExecutionProfileConfigurationError,
+    await expect(
+      loadLocalExecutionProfile(profilePath, fixture.runtime, {
+        containmentAttestationPath: await writeAttestation(fixture.root),
+      }),
+    ).rejects.toBeInstanceOf(LocalExecutionProfileConfigurationError);
+  });
+
+  it("refuses the Codex mode without an owner containment attestation and never preflights", async () => {
+    const fixture = await createFixture();
+    const executable = join(fixture.root, "fake-codex");
+    const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
+    const codexHome = join(fixture.root, "codex-home");
+    const profilePath = join(fixture.root, "codex-profile.json");
+    await writeFile(executable, executableBytes, { mode: 0o700 });
+    await mkdir(codexHome, { mode: 0o700 });
+    await writeFile(
+      profilePath,
+      JSON.stringify({
+        schemaVersion: 1,
+        mode: "swift-greeter-codex-v1",
+        fixtureConfigurationFile: fixture.fixtureConfigurationFile,
+        executable,
+        executableDigest: sha256(executableBytes),
+        expectedCliVersion: "0.147.0-alpha.6.6",
+        model: "gpt-test-pinned",
+        codexHome,
+      }),
+      { mode: 0o600 },
     );
+
+    let preflightCalls = 0;
+    await expect(
+      loadLocalExecutionProfile(profilePath, fixture.runtime, {
+        codexAgentDependencies: {
+          preflight: async (options) => {
+            preflightCalls += 1;
+            return {
+              ready: true,
+              executable: options.executable,
+              version: "0.147.0-alpha.6.6",
+              authConfigured: true,
+            } as const;
+          },
+        },
+      }),
+    ).rejects.toThrow("refuses to load without an owner containment attestation");
+    expect(preflightCalls).toBe(0);
   });
 
   it("rejects Codex authentication storage nested inside trusted Factory runtime", async () => {
@@ -414,8 +480,10 @@ describe("local execution profiles", () => {
       { mode: 0o600 },
     );
 
-    await expect(loadLocalExecutionProfile(profilePath, fixture.runtime)).rejects.toThrow(
-      /Codex home and Factory runtime must be separate/,
-    );
+    await expect(
+      loadLocalExecutionProfile(profilePath, fixture.runtime, {
+        containmentAttestationPath: await writeAttestation(fixture.root),
+      }),
+    ).rejects.toThrow(/Codex home and Factory runtime must be separate/);
   });
 });

@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated: 2026-08-11
+Updated: 2026-08-14
 
 This ledger maps the promised Weeks 1–16 capabilities to what is actually in
 the repository. A package with unit tests is not treated as an operational
@@ -32,9 +32,18 @@ and immutable evidence. A durable host process supervisor records exact intent,
 process identity, bounded output, cancellation, and terminal receipts. A Codex
 conformance adapter can drive that supervisor and must publish a V2 protocol
 closure when enrolled, including trusted executable/model/CLI identity. It has
-passed a no-network fake-executable path, not a paid or real-model run, and is
-intentionally unreachable from the operator daemon entrypoint until ADR 0002
-production containment closes.
+passed a no-network fake-executable path, not a paid or real-model run. As of
+2026-08-14 the operator daemon entrypoint can select the Codex profile: the
+owner closed the ADR 0002 operator-enablement gate by recorded decision, and
+every real-identity profile mode structurally refuses to load unless
+`APP_FACTORY_CONTAINMENT_ATTESTATION` names a valid owner containment
+attestation
+([`containment-attestation-2026-08-14.json`](../operations/containment-attestation-2026-08-14.json)).
+The accepted gaps — Codex CLI per-path deny rules are not OS-enforced, and the
+Factory-owned Seatbelt sandbox layer is deferred — are recorded there, with the
+compensating controls (materializer write-scope-violation failure,
+trusted-verifier authoritative diffs, secret-free enrollment) standing. No
+paid or real-model run has occurred.
 
 The no-network [`oci-runner`](../../packages/oci-runner) implements exact
 container intents, isolation attestation, durable lifecycle reconciliation,
@@ -91,7 +100,7 @@ website repository has been mutated. See the
 | --- | --- | --- | --- |
 | 1 — executable foundation | **Implemented** | Versioned contracts and schemas in [`packages/contracts`](../../packages/contracts), durable SQLite kernel in [`packages/kernel`](../../packages/kernel), Codex boundary in [`packages/agent-runner`](../../packages/agent-runner), and Swift fixture/test utilities in [`packages/testkit`](../../packages/testkit/test). Tests: [`contracts`](../../packages/contracts/test), [`kernel`](../../packages/kernel/test), [`agent-runner`](../../packages/agent-runner/test), [`testkit`](../../packages/testkit/test). | The authoritative post-OCI/scanner root gate is green; operational gaps are recorded in the later rows. |
 | 2 — restart-safe fake execution | **Implemented for fake execution and trusted, non-detaching process supervision** | The daemon, authenticated Unix socket, command journal, scheduler, CLI, cancellation, leases, fencing, bounded response replay, and restart tests live in [`apps/daemon`](../../apps/daemon), [`apps/cli`](../../apps/cli), [`packages/command-client`](../../packages/command-client), [`packages/scheduler`](../../packages/scheduler), and [`packages/process-supervisor`](../../packages/process-supervisor). Durable supervision binds immutable intent, launch claim, execution permission, V2 process identity, exact cwd/environment/argv/stdin, bounded output spools, cancellation, receipts, and reconciliation. | Process groups are not containment: a detached descendant can escape. Darwin `ps lstart` identity is only second-resolution, and stale locks or unprovable identity deliberately require operator intervention. |
-| 3 — real coding path | **Deterministic Swift slice implemented; OCI/V3 fake path composed but not operator-enabled** | The supported Swift Greeter profile connects [`git-workspace`](../../packages/git-workspace), [`execution-engine`](../../packages/execution-engine), [`trusted-verifier`](../../packages/trusted-verifier), [`independent-review`](../../packages/independent-review), and [`evidence-store`](../../packages/evidence-store). The Codex adapter pins executable digest, CLI version, model, strict invocation/output schema/environment, and supervisor-bound V2 evidence. A no-network fake executable has passed the supervisor → adapter → trusted Swift verification → review → broker commit path. [`oci-runner`](../../packages/oci-runner) adds pinned no-network controls, exact engine binding, quarantine/reaping, zero-engine lifecycle inventory, guarded effects, strict evidence export, and a 184/184 fake/injected-engine suite. `OciLocalAgent` and the verified executor consume complete removed closures into a V3 journal and manifest. | Neither Codex nor OCI is exposed by `daemon-entrypoint`; no paid/real-model or autonomous application-development run has passed. OCI still lacks the pinned in-container input/PID 1 protocol, controlled model egress/auth, autonomous stale-lock recovery, daemon-owned reaper scheduling, effective seccomp/AppArmor digest, host-bind quota/disk bound, and remaining current-tree real-engine campaigns. Trusted-verifier hard-kill recovery also remains open. |
+| 3 — real coding path | **Deterministic Swift slice implemented; OCI/V3 fake path composed but not operator-enabled** | The supported Swift Greeter profile connects [`git-workspace`](../../packages/git-workspace), [`execution-engine`](../../packages/execution-engine), [`trusted-verifier`](../../packages/trusted-verifier), [`independent-review`](../../packages/independent-review), and [`evidence-store`](../../packages/evidence-store). The Codex adapter pins executable digest, CLI version, model, strict invocation/output schema/environment, and supervisor-bound V2 evidence. A no-network fake executable has passed the supervisor → adapter → trusted Swift verification → review → broker commit path. [`oci-runner`](../../packages/oci-runner) adds pinned no-network controls, exact engine binding, quarantine/reaping, zero-engine lifecycle inventory, guarded effects, strict evidence export, and a 184/184 fake/injected-engine suite. `OciLocalAgent` and the verified executor consume complete removed closures into a V3 journal and manifest. Since 2026-08-14, `daemon-entrypoint` routes `APP_FACTORY_LOCAL_EXECUTION_CONFIG` through the profile loader, so an operator can select the Codex profile; real-identity modes load only with a valid owner containment attestation (`APP_FACTORY_CONTAINMENT_ATTESTATION`). | A real Codex run is still pending: the wiring is enabled, but no paid/real-model or autonomous application-development run has passed. OCI remains unexposed by `daemon-entrypoint`. OCI still lacks the pinned in-container input/PID 1 protocol, controlled model egress/auth, autonomous stale-lock recovery, daemon-owned reaper scheduling, effective seccomp/AppArmor digest, host-bind quota/disk bound, and remaining current-tree real-engine campaigns. Trusted-verifier hard-kill recovery also remains open. |
 | 4 — reconciliation, review, and proof | **Walking-slice plus injected OCI restart adoption implemented; production containment/restore gates remain** | Mirror/worktree publication intents reconcile creation crashes; marker refs reconcile commit publication; V2 and V3 agent-result journals replay without relaunch; CLI and MCP expose bounded evidence list/inspect/verify; manifests and every referenced blob are digest-checked. OCI V3 independently reopens and byte-compares a complete canonical closure, rejects protocol downgrade, and replays with no engine call. Read-only startup inventory binds each OCI run to its exact durable owner; scheduler discovery is scoped to matching unfinished attempts so a fresh lease adopts prior-fence work without duplicate create/start. Execution and cleanup effects are separately lease-guarded, and validated pre-start cancellation is terminal inventory. Backup/restore primitives are tested in [`recovery-manager/test`](../../packages/recovery-manager/test). | Restored-runtime quarantine consumption remains **blocked by protected approval**. Quarantined OCI runs still require operator review and independently scheduled reaping; real-engine quarantine/timeout/overflow/stop/kill paths remain unproved. Autonomous stale-lock recovery, trusted-verifier hard-kill adoption, and the complete hard-kill/sleep/provider-failure soak matrix have not passed. |
 | 5 — operational clients and enrollment primitives | **Partly implemented; partly dormant/blocked** | CLI, MCP, and the packaged loopback dashboard share the typed daemon client. Evidence and portfolio reads are available through CLI/MCP, and the launcher renders a digest-verified, migration-backed local portfolio projection. The launcher validates private path configuration, uses a one-use browser token plus separate HttpOnly session, and shuts down gracefully. Read-only LaunchAgent plan/status is in [`packages/service-manager`](../../packages/service-manager); enrollment discovery and realistic Xcode/PBX regression fixtures are in [`packages/project-sdk`](../../packages/project-sdk). The corrected fixture received real `xcodebuild -list` and `xcodebuild build-for-testing` validation, and the preservation-bound post-fix Hindsight scan completed without changing its checkout after the authorized checkpoint. | Project/enrollment commands and LaunchAgent install/uninstall/logs remain unavailable pending their gates. The post-fix production scan verified one Xcode container and one shared scheme with no Xcode gaps; its only blockers are the legacy Factory layout, canonical rule declarations, and Cursor authority binding. |
 | 6 — safe Hindsight enrollment | **Preservation and read-only discovery completed; enrollment blocked** | The user-authorized local branch `checkpoint/factory-enrollment-2026-08-11` and commit `c66c690c21c0d662fa623ea104bd8d5dc0a700c0` preserved the pre-enrollment tree without a remote push. The post-fix scan bound source `e96dff…`, inventory `21c1b7…`, and plan `b70311…`; all four preservation checks remained true, and no Xcode gap was reported. Trusted Xcode verification built the existing shared scheme and reported 126/127 tests; the isolated failing UI test reproduced a `TodayView.upcomingForecastsSection` array-subscript crash. A separate serial unit run passed 121/121. | No enrollment plan has been applied. The scan has exactly three rule/legacy blockers: legacy `.factory` migration, canonical rule declarations, and Cursor authority binding. Product/design authority, manifest, pilot scope, the deterministic production crash, and separate SwiftData concurrency/lifetime diagnostics also remain unresolved delivery inputs. The temporary `.xcresult` paths are observations, not a Factory evidence manifest or release certification. See [`HINDSIGHT_ENROLLMENT_STATUS.md`](HINDSIGHT_ENROLLMENT_STATUS.md). |
@@ -108,12 +117,12 @@ website repository has been mutated. See the
 
 ## Repository verification
 
-The authoritative `pnpm verify` passed on 2026-08-11 against the final
-pre-commit OCI V3/startup-recovery candidate based on `cceb25d`. Local commit
-identifiers are reported separately at handoff rather than used as a
-self-referential verification identity. Any later executable, test, policy, or
-configuration change invalidates these results and requires the gate to run
-again; a documentation-only result record still requires formatting and diff
+The authoritative `pnpm verify` passed on 2026-08-14 against the pre-commit
+A2 entrypoint-gate candidate based on `26b57ee`. Local commit identifiers are
+reported separately at handoff rather than used as a self-referential
+verification identity. Any later executable, test, policy, or configuration
+change invalidates these results and requires the gate to run again; a
+documentation-only result record still requires formatting and diff
 validation.
 
 - Toolchain: Node `24.18.0`, pnpm `10.33.2`.
@@ -121,27 +130,25 @@ validation.
 - Dependency boundaries: 198 modules and 470 dependencies cruised with no
   violation; five invalid fixture graphs were rejected.
 - TypeScript project build and generated-schema check: passed.
-- Vitest: 70/70 files and 916/916 tests passed with `--maxWorkers=4`.
-- Vitest duration: 84.85 seconds.
-- Full `pnpm verify`: 94.19 seconds real, 89.34 seconds user, 56.47 seconds
+- Vitest: 70/70 files and 924/924 tests passed with `--maxWorkers=4`.
+- Vitest duration: 83.21 seconds.
+- Full `pnpm verify`: 92.43 seconds real, 89.00 seconds user, 59.72 seconds
   system.
-- Focused checks: scheduler 16/16; OCI runner 184/184; daemon OCI/V3/startup
-  selection 89/89; Xcode scanner remains 20/20 from the preceding read-only
-  Hindsight gate.
+- Focused checks: the two changed daemon suites (`daemon-entrypoint` and
+  `local-execution-profile`) passed 16/16 in isolation before the full gate.
 - Recorded pre-current-tree live no-network smoke:
   `/Users/pchordia/Documents/oci-runner-smoke-hardening-Vhj2LP/smoke-summary.json`,
   digest
   `sha256:3ba392b0012dd11e89d0647b434a33ce94eae414733bec5b1ceb942058b8cc96`.
 
-The first full current-tree attempt found a lint-only invalid `void` union; the
-equivalent return type was expressed with `undefined`. The second found and
-removed a type-only daemon module cycle without changing runtime behavior. The
-next full test run passed 915/916 and timed out only the unchanged
-`isolates materialized verification scratch across lease fences and checkouts`
-test at its existing five-second limit. That exact test then passed in isolation
-in 3.02 seconds, and the clean full rerun passed 916/916. No assertion, timeout,
-quality threshold, fixture, or worker-cap change was made; the approved worker
-cap remains four.
+This slice changed only the daemon entrypoint profile routing, the
+attestation gate in the profile loader, their tests, the recorded attestation
+file, and this ledger. One pre-existing entrypoint test assertion was updated
+because the profile loader now reads the configuration file first and reports a
+non-private file as `current-user-owned mode-0600` instead of the fixture
+loader's wording; the fail-closed behavior is unchanged. No assertion was
+weakened and no timeout, quality threshold, fixture, sandbox rule, or
+worker-cap change was made; the approved worker cap remains four.
 
 Eight package-local `test` scripts currently use repository-relative paths even
 though pnpm launches them from the package directory: credential broker,
@@ -158,6 +165,14 @@ The following work cannot be silently inferred from the broad roadmap request:
 
 - protected enrollment/test-harness changes and any further Hindsight mutation
   or apply operation beyond the recorded local checkpoint;
+- **CLOSED by owner decision 2026-08-14** — operator enablement of the Codex
+  path through `daemon-entrypoint`. The decision, accepted gaps, and standing
+  compensating controls are recorded in
+  [`containment-attestation-2026-08-14.json`](../operations/containment-attestation-2026-08-14.json),
+  and the loader enforces that record structurally: real-identity profile modes
+  refuse to load without a valid attestation file. This closure does not
+  authorize any of the still-open gates below, and no live/paid run has
+  occurred yet;
 - further live-container execution beyond the recorded no-network runner smoke,
   live-model execution, operator/production enablement of the injected OCI V3
   path, credential/egress enablement, or treating deterministic composition as

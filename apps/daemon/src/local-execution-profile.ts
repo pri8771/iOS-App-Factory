@@ -33,9 +33,20 @@ import type { VerifiedLocalExecutionConfiguration } from "./verified-local-execu
 
 const MAX_CONFIGURATION_BYTES = 64 * 1024;
 const MAX_SCHEMA_BYTES = 128 * 1024;
+const MAX_ATTESTATION_BYTES = 16 * 1024;
 const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
 const PRIVATE_MODE_MASK = 0o077;
+
+/**
+ * Profile modes that bind a real agent identity (a pinned executable digest,
+ * CLI version, and model) rather than the deterministic in-process fixture.
+ * Every mode listed here refuses to load without a valid owner containment
+ * attestation; any future real-identity mode must be registered here so it
+ * inherits the same structural gate.
+ */
+const REAL_IDENTITY_PROFILE_MODES: ReadonlySet<string> = new Set(["swift-greeter-codex-v1"]);
+const CONTAINMENT_ATTESTATION_LABEL = "The owner containment attestation";
 
 const CODEX_PROFILE_ENVIRONMENT_NAMES = [
   "LANG",
@@ -70,6 +81,24 @@ export type LocalExecutionProfileDependencies = Readonly<{
     dependencies?: CodexLocalAgentDependencies,
   ) => Promise<CodexLocalAgent>;
   codexAgentDependencies?: CodexLocalAgentDependencies;
+}>;
+
+export type LocalExecutionProfileOptions = LocalExecutionProfileDependencies &
+  Readonly<{
+    /**
+     * Absolute path to the owner containment attestation file. Real-identity
+     * profile modes refuse to load when this is absent or invalid; the
+     * deterministic fixture mode never consults it.
+     */
+    containmentAttestationPath?: string;
+  }>;
+
+export type OwnerContainmentAttestationV1 = Readonly<{
+  schemaVersion: 1;
+  decision: string;
+  acceptedGaps: readonly string[];
+  date: string;
+  owner: string;
 }>;
 
 export class LocalExecutionProfileConfigurationError extends Error {
@@ -209,14 +238,18 @@ function parseConfigurationObject(bytes: Buffer): Readonly<Record<string, unknow
   return parsed as Readonly<Record<string, unknown>>;
 }
 
-function exactKeys(record: Readonly<Record<string, unknown>>, expected: readonly string[]): void {
+function exactKeys(
+  record: Readonly<Record<string, unknown>>,
+  expected: readonly string[],
+  message = "The local execution profile has an unsupported or non-exact shape.",
+): void {
   const actual = Object.keys(record).sort();
   const sortedExpected = [...expected].sort();
   if (
     actual.length !== sortedExpected.length ||
     actual.some((key, index) => key !== sortedExpected[index])
   ) {
-    configurationError("The local execution profile has an unsupported or non-exact shape.");
+    configurationError(message);
   }
 }
 
@@ -231,6 +264,81 @@ function boundedPortableIdentifier(value: unknown, label: string, maximum = 200)
     configurationError(`${label} must be a bounded portable identifier.`);
   }
   return value;
+}
+
+function boundedAttestationText(value: unknown, label: string, maximum: number): string {
+  if (
+    typeof value !== "string" ||
+    value.length < 1 ||
+    value.length > maximum ||
+    value.trim() !== value ||
+    value.trim().length === 0
+  ) {
+    configurationError(`${label} must be non-empty bounded text without surrounding whitespace.`);
+  }
+  return value;
+}
+
+function readOwnerContainmentAttestation(path: string): OwnerContainmentAttestationV1 {
+  const normalized = normalizedAbsolutePath(path, "APP_FACTORY_CONTAINMENT_ATTESTATION");
+  const bytes = readPrivateFile(normalized, MAX_ATTESTATION_BYTES, CONTAINMENT_ATTESTATION_LABEL);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(canonicalUtf8(bytes, CONTAINMENT_ATTESTATION_LABEL)) as unknown;
+  } catch (error) {
+    if (error instanceof LocalExecutionProfileConfigurationError) throw error;
+    configurationError(`${CONTAINMENT_ATTESTATION_LABEL} must contain valid JSON.`, error);
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    configurationError(`${CONTAINMENT_ATTESTATION_LABEL} must be a JSON object.`);
+  }
+  const record = parsed as Readonly<Record<string, unknown>>;
+  exactKeys(
+    record,
+    ["acceptedGaps", "date", "decision", "owner", "schemaVersion"],
+    `${CONTAINMENT_ATTESTATION_LABEL} must contain exactly schemaVersion, decision, acceptedGaps, date, and owner.`,
+  );
+  if (record.schemaVersion !== 1) {
+    configurationError(`${CONTAINMENT_ATTESTATION_LABEL} must declare schemaVersion 1.`);
+  }
+  const decision = boundedAttestationText(
+    record.decision,
+    `${CONTAINMENT_ATTESTATION_LABEL} decision`,
+    4_000,
+  );
+  if (
+    !Array.isArray(record.acceptedGaps) ||
+    record.acceptedGaps.length < 1 ||
+    record.acceptedGaps.length > 32
+  ) {
+    configurationError(
+      `${CONTAINMENT_ATTESTATION_LABEL} acceptedGaps must be a non-empty bounded list.`,
+    );
+  }
+  const acceptedGaps = record.acceptedGaps.map((gap, index) =>
+    boundedAttestationText(gap, `${CONTAINMENT_ATTESTATION_LABEL} acceptedGaps[${index}]`, 1_000),
+  );
+  const date = boundedAttestationText(record.date, `${CONTAINMENT_ATTESTATION_LABEL} date`, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+    configurationError(
+      `${CONTAINMENT_ATTESTATION_LABEL} date must be an exact YYYY-MM-DD calendar date.`,
+    );
+  }
+  const owner = boundedAttestationText(record.owner, `${CONTAINMENT_ATTESTATION_LABEL} owner`, 200);
+  return { schemaVersion: 1, decision, acceptedGaps, date, owner };
+}
+
+function requireOwnerContainmentAttestation(
+  path: string | undefined,
+  mode: string,
+): OwnerContainmentAttestationV1 {
+  if (path === undefined) {
+    configurationError(
+      `The ${mode} profile binds a real agent identity and refuses to load without an owner ` +
+        "containment attestation file (APP_FACTORY_CONTAINMENT_ATTESTATION).",
+    );
+  }
+  return readOwnerContainmentAttestation(path);
 }
 
 function parseCodexProfile(record: Readonly<Record<string, unknown>>): SwiftGreeterCodexProfileV1 {
@@ -456,14 +564,16 @@ async function loadCodexProfile(
 
 /**
  * Loads one exact local execution profile. The deterministic fixture remains
- * the safe default profile. The Codex variant exists for fake-executable
- * conformance and future container composition; daemon-entrypoint must not
- * enable a real model until ADR 0002's containment gate is satisfied.
+ * the safe default profile and never consults the containment attestation.
+ * Every real-identity mode (currently `swift-greeter-codex-v1`) is registered
+ * in {@link REAL_IDENTITY_PROFILE_MODES} and structurally refuses to load
+ * unless a valid owner containment attestation is configured, recording the
+ * owner's ADR 0002 gate decision and the accepted containment gaps.
  */
 export async function loadLocalExecutionProfile(
   configurationPath: string,
   runtimeDirectory: string,
-  dependencies: LocalExecutionProfileDependencies = {},
+  options: LocalExecutionProfileOptions = {},
 ): Promise<VerifiedLocalExecutionConfiguration> {
   const path = normalizedAbsolutePath(configurationPath, "APP_FACTORY_LOCAL_EXECUTION_CONFIG");
   const bytes = readPrivateFile(path, MAX_CONFIGURATION_BYTES, "Local execution profile");
@@ -478,12 +588,15 @@ export async function loadLocalExecutionProfile(
       throw error;
     }
   }
-  if (record.mode === "swift-greeter-codex-v1") {
-    return await loadCodexProfile(
-      parseCodexProfile(record),
-      normalizedAbsolutePath(runtimeDirectory, "runtimeDirectory"),
-      dependencies,
-    );
+  if (typeof record.mode === "string" && REAL_IDENTITY_PROFILE_MODES.has(record.mode)) {
+    requireOwnerContainmentAttestation(options.containmentAttestationPath, record.mode);
+    if (record.mode === "swift-greeter-codex-v1") {
+      return await loadCodexProfile(
+        parseCodexProfile(record),
+        normalizedAbsolutePath(runtimeDirectory, "runtimeDirectory"),
+        options,
+      );
+    }
   }
   configurationError("The local execution profile mode is unsupported.");
 }

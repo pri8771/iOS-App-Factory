@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "decision": "Owner approval of the ADR 0002 containment gate for the local Codex agent profile, recorded 2026-08-14: proceed with the currently pinned Codex CLI 0.147.0-alpha.6.6 as re-pinned on branch a1/codex-cli-conformance. The accepted gaps listed below are acknowledged as-is. The compensating controls stand and remain mandatory: the materializer fails the attempt on any write-scope violation, the trusted verifier produces the authoritative diffs in a separate read-only checkout, and enrollment remains secret-free. No existing sandbox or profile rule is loosened or removed by this decision.",
+  "acceptedGaps": [
+    "Codex CLI per-path enforcement gap: fine-grained per-path deny rules are not OS-enforced and are accepted as-is.",
+    "The Factory-owned Seatbelt sandbox layer is deferred to a later stage."
+  ],
+  "date": "2026-08-14",
+  "owner": "Priyansh Chordia"
+}
