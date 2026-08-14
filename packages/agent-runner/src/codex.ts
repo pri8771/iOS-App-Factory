@@ -4,7 +4,11 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { AgentRunSpecV1Schema, type AgentRunSpecV1 } from "@app-factory/contracts";
 
-export const VERIFIED_CODEX_CLI_VERSIONS = ["0.147.0-alpha.1.2", "0.147.0-alpha.6.6"] as const;
+export const VERIFIED_CODEX_CLI_VERSIONS = [
+  "0.147.0-alpha.1.2",
+  "0.147.0-alpha.6.6",
+  "0.148.0-alpha.9",
+] as const;
 export const CODEX_PREFLIGHT_TIMEOUT_MS = 5_000;
 export const CODEX_PREFLIGHT_OUTPUT_LIMIT_BYTES = 64 * 1_024;
 
