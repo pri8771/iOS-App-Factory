@@ -13,6 +13,7 @@ import {
   CommandResponseV1Schema,
   IsoInstantSchema,
   RequestIdSchema,
+  TaskIdSchema,
   TaskSpecV1Schema,
   canonicalPortfolioReadModelDigestInputV1,
   type AttemptId,
@@ -27,6 +28,7 @@ import {
   type IsoInstant,
   type ProjectId,
   type RequestId,
+  type TaskId,
   type TaskSpecV1,
 } from "@app-factory/contracts";
 
@@ -289,6 +291,42 @@ export class CommandClient {
       {
         attemptId: AttemptIdSchema.parse(attemptId),
         reason,
+      },
+      identity,
+      signal,
+    );
+  }
+
+  /** Retries a failed or cancelled terminal attempt as attempt N+1 of the same task. */
+  public async retry(
+    taskId: TaskId,
+    attemptId: AttemptId,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"task.retry">> {
+    return await this.#request(
+      "task.retry",
+      {
+        taskId: TaskIdSchema.parse(taskId),
+        attemptId: AttemptIdSchema.parse(attemptId),
+      },
+      identity,
+      signal,
+    );
+  }
+
+  /** Answers a blocker and resumes a blocked attempt's blocked step. */
+  public async unblock(
+    attemptId: AttemptId,
+    answer: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"attempt.unblock">> {
+    return await this.#request(
+      "attempt.unblock",
+      {
+        attemptId: AttemptIdSchema.parse(attemptId),
+        answer,
       },
       identity,
       signal,

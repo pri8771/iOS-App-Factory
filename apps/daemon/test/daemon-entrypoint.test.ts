@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   DaemonConfigurationError,
+  formatSchedulerErrorLogLine,
   loadDaemonProcessConfiguration,
   readPrivateAuthorizationFile,
   runDaemonProcess,
@@ -486,8 +487,64 @@ function signalPort(emitter: EventEmitter): DaemonSignalPort {
   };
 }
 
+describe("scheduler error log line", () => {
+  const NOW = () => "2026-08-13T12:00:00.000Z";
+
+  it("renders one structured JSON line with ts, code, attemptId, and message", () => {
+    const attemptId = "00000000-0000-4000-8000-000000000005";
+    const line = formatSchedulerErrorLogLine(
+      new Error(`The scheduler attempt no longer exists: ${attemptId}`, {
+        cause: Object.assign(new Error("nested"), { name: "SchedulerFenceError" }),
+      }),
+      NOW,
+    );
+    expect(line.includes("\n")).toBe(false);
+    expect(JSON.parse(line)).toEqual({
+      ts: "2026-08-13T12:00:00.000Z",
+      code: "Error",
+      attemptId,
+      message: `The scheduler attempt no longer exists: ${attemptId}`,
+    });
+  });
+
+  it("falls back to a safe code and recovers the attemptId from a wrapped cause", () => {
+    const attemptId = "00000000-0000-4000-8000-000000000006";
+    const cause = new Error(`Attempt does not exist: ${attemptId}`);
+    const wrapped = new Error("The scheduler lease is absent, expired, or stale", { cause });
+    wrapped.name = "SchedulerFenceError";
+    const line = formatSchedulerErrorLogLine(wrapped, NOW);
+    expect(JSON.parse(line)).toEqual({
+      ts: "2026-08-13T12:00:00.000Z",
+      code: "SchedulerFenceError",
+      attemptId,
+      message: "The scheduler lease is absent, expired, or stale",
+    });
+  });
+
+  it("never reproduces an untrusted error name and bounds an oversized message", () => {
+    const injected = Object.assign(new Error(`x${"y".repeat(600)}`), { name: "Injected\nLog" });
+    const line = formatSchedulerErrorLogLine(injected, NOW);
+    expect(line).not.toContain("Injected");
+    const parsed = JSON.parse(line) as Readonly<{ code: string; message: string }>;
+    expect(parsed.code).toBe("UnknownError");
+    expect(parsed.message.length).toBeLessThanOrEqual(503);
+    expect(parsed.message.endsWith("...")).toBe(true);
+  });
+
+  it("handles a non-Error throw without leaking its shape", () => {
+    const line = formatSchedulerErrorLogLine({ password: "hunter2" }, NOW);
+    expect(line).not.toContain("hunter2");
+    expect(JSON.parse(line)).toEqual({
+      ts: "2026-08-13T12:00:00.000Z",
+      code: "UnknownError",
+      attemptId: null,
+      message: "A non-Error value was thrown by the scheduler loop.",
+    });
+  });
+});
+
 describe("daemon process lifecycle", () => {
-  it("catches a signal during startup and logs scheduler failures without attacker text", async () => {
+  it("catches a signal during startup and logs scheduler failures as one structured line without attacker text", async () => {
     const emitter = new EventEmitter();
     const close = vi.fn(async () => undefined);
     let resolveStart: ((service: FactoryDaemonService) => void) | undefined;
@@ -495,13 +552,19 @@ describe("daemon process lifecycle", () => {
       resolveStart = resolve;
     });
     const stderr = vi.fn();
+    const attemptId = "00000000-0000-4000-8000-000000000007";
     const running = runDaemonProcess(
       {},
       { stderr },
       {
         signals: signalPort(emitter),
+        now: () => "2026-08-13T12:00:00.000Z",
         start: async (_environment, onSchedulerError) => {
-          onSchedulerError(Object.assign(new Error("secret"), { name: "Injected\nLog" }));
+          onSchedulerError(
+            Object.assign(new Error(`attempt ${attemptId} lost its lease`), {
+              name: "Injected\nLog",
+            }),
+          );
           return await starting;
         },
         shutdownTimeoutMs: 50,
@@ -512,7 +575,16 @@ describe("daemon process lifecycle", () => {
 
     await expect(running).resolves.toBe(0);
     expect(close).toHaveBeenCalledOnce();
-    expect(stderr).toHaveBeenCalledWith("factory-daemon scheduler error\n");
+    expect(stderr).toHaveBeenCalledTimes(1);
+    const [line] = stderr.mock.calls[0] as [string];
+    expect(line.endsWith("\n")).toBe(true);
+    expect(line.indexOf("\n")).toBe(line.length - 1);
+    expect(JSON.parse(line.trimEnd())).toEqual({
+      ts: "2026-08-13T12:00:00.000Z",
+      code: "UnknownError",
+      attemptId,
+      message: `attempt ${attemptId} lost its lease`,
+    });
     expect(stderr.mock.calls.flat().join("")).not.toContain("Injected");
   });
 

@@ -4,8 +4,11 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import {
+  type CommandClient,
   CommandClientError,
+  CommandRemoteError,
   createCommandClient,
+  type CommandIdentity,
   type RetryableCommandIdentity,
 } from "@app-factory/command-client";
 import {
@@ -13,11 +16,14 @@ import {
   CommandIdSchema,
   IsoInstantSchema,
   ProjectIdSchema,
+  TaskIdSchema,
   TaskSpecV1Schema,
   type AttemptId,
   type AttemptListCursorV1,
   type CommandResultV1,
+  type EventV1,
   type ProjectId,
+  type TaskId,
   type TaskSpecV1,
 } from "@app-factory/contracts";
 
@@ -46,6 +52,9 @@ export type ParsedCliCommand =
       attemptId: AttemptId;
       reason: string | null;
     }>
+  | Readonly<{ kind: "task.retry"; taskId: TaskId; attemptId: AttemptId }>
+  | Readonly<{ kind: "attempt.unblock"; attemptId: AttemptId; answer: string }>
+  | Readonly<{ kind: "attempt.blocker"; attemptId: AttemptId }>
   | Readonly<{ kind: "daemon.reconcile"; attemptId: AttemptId | null }>
   | Readonly<{
       kind: "evidence.list";
@@ -75,6 +84,13 @@ function parseAttemptId(value: string | undefined): AttemptId {
   if (value === undefined) usageError("An attempt ID is required.");
   const parsed = AttemptIdSchema.safeParse(value);
   if (!parsed.success) usageError("The attempt ID must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
+function parseTaskId(value: string | undefined): TaskId {
+  if (value === undefined) usageError("A task ID is required.");
+  const parsed = TaskIdSchema.safeParse(value);
+  if (!parsed.success) usageError("The task ID must be a canonical lowercase UUID.");
   return parsed.data;
 }
 
@@ -260,6 +276,27 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     };
   }
 
+  if (command === "retry") {
+    const taskId = parseTaskId(arguments_.shift());
+    const attemptId = parseAttemptId(arguments_.shift());
+    rejectUnexpected(arguments_);
+    return { outputMode, retryIdentity, command: { kind: "task.retry", taskId, attemptId } };
+  }
+
+  if (command === "unblock") {
+    const attemptId = parseAttemptId(arguments_.shift());
+    const answer = consumeOption(arguments_, "--answer");
+    if (answer === undefined || answer.length === 0) usageError("--answer is required.");
+    rejectUnexpected(arguments_);
+    return { outputMode, retryIdentity, command: { kind: "attempt.unblock", attemptId, answer } };
+  }
+
+  if (command === "blocker") {
+    const attemptId = parseAttemptId(arguments_.shift());
+    rejectUnexpected(arguments_);
+    return { outputMode, retryIdentity, command: { kind: "attempt.blocker", attemptId } };
+  }
+
   if (command === "reconcile") {
     const attemptId = arguments_.length === 0 ? null : parseAttemptId(arguments_.shift());
     rejectUnexpected(arguments_);
@@ -333,6 +370,10 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
     case "attempt.resume":
     case "attempt.cancel":
       return `${result.operation}: ${result.accepted ? "accepted" : "not accepted"} for ${result.attemptId}\n`;
+    case "task.retry":
+      return `task.retry: attempt ${result.attemptId} is ${result.state} (retried from ${result.priorAttemptId})\n`;
+    case "attempt.unblock":
+      return `attempt.unblock: ${result.accepted ? "accepted" : "not accepted"} for ${result.attemptId} (now ${result.state})\n`;
     case "daemon.reconcile":
       return `daemon.reconcile: scheduler wake ${result.accepted ? "accepted" : "not accepted"}; ${result.reconciledAttemptIds.length} synchronous attempt(s)\n`;
     case "evidence.list":
@@ -394,6 +435,121 @@ async function loadTaskSpec(path: string): Promise<TaskSpecV1> {
   const parsed = TaskSpecV1Schema.safeParse(decoded);
   if (!parsed.success) throw new CliUsageError("The task file does not match TaskSpec V1.");
   return parsed.data;
+}
+
+/**
+ * Diagnoses why an attempt is blocked or failed without requiring the
+ * operator to read raw events or evidence blobs by hand. This composes three
+ * existing read-only operations (status, events, evidence) client-side; the
+ * daemon gains no new operation for it.
+ */
+async function diagnoseBlocker(
+  client: CommandClient,
+  attemptId: AttemptId,
+  mode: CliOutputMode,
+  identity: CommandIdentity,
+): Promise<string> {
+  const { attempt } = await client.status(attemptId, identity);
+  if (attempt.state !== "blocked" && attempt.state !== "failed") {
+    const summary = `attempt ${attemptId} is not blocked or failed (state: ${attempt.state})`;
+    return mode === "json"
+      ? `${JSON.stringify({
+          ok: true,
+          result: {
+            operation: "attempt.blocker",
+            diagnosed: false,
+            attemptId,
+            state: attempt.state,
+          },
+        })}\n`
+      : `${summary}\n`;
+  }
+
+  const code =
+    attempt.state === "blocked"
+      ? attempt.blocker?.code
+      : attempt.outcome?.kind === "failed"
+        ? attempt.outcome.failure.code
+        : undefined;
+  const summary =
+    attempt.state === "blocked"
+      ? attempt.blocker?.summary
+      : attempt.outcome?.kind === "failed"
+        ? attempt.outcome.failure.summary
+        : undefined;
+  if (code === undefined || summary === undefined) {
+    throw new CliUsageError(`Attempt ${attemptId} is ${attempt.state} but has no recorded cause.`);
+  }
+
+  const { events } = await client.events(attemptId, { afterSequence: 0, limit: 1_000 }, identity);
+  const operationByStepId = new Map<string, string>();
+  for (const event of events) {
+    if (event.type === "step.created")
+      operationByStepId.set(event.data.stepId, event.data.operation);
+  }
+  const stepId = attempt.currentStepId ?? findLastStepIdInState(events, attempt.state);
+  const operation = stepId === null ? null : (operationByStepId.get(stepId) ?? null);
+
+  let evidence: Array<{
+    kind: string;
+    evidenceId: string;
+    producer: string;
+    createdAt: string;
+    artifactCount: number;
+  }> = [];
+  try {
+    const verified = await client.verifyEvidence(attemptId, identity);
+    evidence = verified.evidence;
+  } catch (error) {
+    if (!(error instanceof CommandRemoteError) || error.code !== "evidence.not-found") throw error;
+  }
+
+  if (mode === "json") {
+    return `${JSON.stringify({
+      ok: true,
+      result: {
+        operation: "attempt.blocker",
+        diagnosed: true,
+        attemptId,
+        state: attempt.state,
+        code,
+        summary,
+        stepId,
+        stepOperation: operation,
+        evidence,
+      },
+    })}\n`;
+  }
+
+  const lines = [
+    `attempt ${attemptId}: ${attempt.state}`,
+    `code: ${code}`,
+    `summary: ${summary}`,
+    `step: ${stepId ?? "unknown"}${operation === null ? "" : ` (${operation})`}`,
+    evidence.length === 0
+      ? "evidence: none recorded"
+      : `evidence:\n${evidence
+          .map(
+            (item) =>
+              `  ${item.kind}\t${item.evidenceId}\t${String(item.artifactCount)} artifact(s)\t${item.producer}\t${item.createdAt}`,
+          )
+          .join("\n")}`,
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+/** Finds the step named by the last step.state-changed event that reached the attempt's own terminal step state. */
+function findLastStepIdInState(
+  events: readonly EventV1[],
+  attemptState: "blocked" | "failed",
+): string | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event?.type === "step.state-changed" && event.data.to === attemptState) {
+      return event.data.stepId;
+    }
+  }
+  return null;
 }
 
 export type CliEnvironment = Readonly<{
@@ -496,6 +652,30 @@ export async function runCli(
           identity,
         );
         break;
+      case "task.retry":
+        result = await client.retry(
+          invocation.command.taskId,
+          invocation.command.attemptId,
+          identity,
+        );
+        break;
+      case "attempt.unblock":
+        result = await client.unblock(
+          invocation.command.attemptId,
+          invocation.command.answer,
+          identity,
+        );
+        break;
+      case "attempt.blocker": {
+        const output = await diagnoseBlocker(
+          client,
+          invocation.command.attemptId,
+          invocation.outputMode,
+          identity,
+        );
+        io.stdout(output);
+        return 0;
+      }
       case "daemon.reconcile":
         result = await client.reconcile(invocation.command.attemptId, identity);
         break;

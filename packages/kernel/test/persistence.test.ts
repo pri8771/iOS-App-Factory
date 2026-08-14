@@ -42,12 +42,32 @@ const IDS_B = {
   fenceEvent: "00000000-0000-4000-8000-000000000018",
 } as const;
 
+const FAILED_AT = "2026-08-10T12:00:03.000Z";
+const RETRY_AT = "2026-08-10T12:00:04.000Z";
+const STEP_RUNNING_AT = "2026-08-10T12:00:02.500Z";
+const STEP_BLOCKED_AT = "2026-08-10T12:00:02.600Z";
+const UNBLOCK_ANSWERED_AT = "2026-08-10T12:00:02.700Z";
+const UNBLOCK_RESUMED_AT = "2026-08-10T12:00:02.800Z";
+const UNBLOCK_ATTEMPT_RESUMED_AT = "2026-08-10T12:00:02.900Z";
+
+const IDS_RETRY = {
+  failedEvent: "00000000-0000-4000-8000-000000000021",
+  retryCommand: "00000000-0000-4000-8000-000000000022",
+  retryAttempt: "00000000-0000-4000-8000-000000000023",
+  retryEvent: "00000000-0000-4000-8000-000000000024",
+} as const;
+
 const temporaryDirectories: string[] = [];
 
 function makeDatabasePath(): string {
   const directory = mkdtempSync(join(tmpdir(), "app-factory-persistence-test-"));
   temporaryDirectories.push(directory);
   return join(directory, "factory.db");
+}
+
+function requireNonNull<T>(value: T | null, label: string): T {
+  if (value === null) throw new Error(`Expected ${label} to exist`);
+  return value;
 }
 
 function makeBundle(ids: typeof IDS_A | typeof IDS_B) {
@@ -139,6 +159,58 @@ function makeRunningTransition(ids: typeof IDS_A | typeof IDS_B) {
   };
 }
 
+function makeFailedTransition(ids: typeof IDS_A | typeof IDS_B, failedEventId: string) {
+  const running = makeRunningTransition(ids).attempt;
+  return {
+    leaseKey: `attempt:${ids.attempt}`,
+    ownerId: "worker.persistence",
+    observedAt: FAILED_AT,
+    expectedRevision: running.revision,
+    attempt: {
+      ...running,
+      state: "failed",
+      revision: running.revision + 1,
+      currentStepId: null,
+      outcome: {
+        kind: "failed",
+        failure: {
+          code: "task.execution-failed",
+          summary: "The attempt failed deterministically for this test.",
+          retryable: true,
+          detailArtifactDigest: null,
+        },
+      },
+      updatedAt: FAILED_AT,
+      terminalAt: FAILED_AT,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: failedEventId,
+      attemptId: ids.attempt,
+      sequence: 4,
+      occurredAt: FAILED_AT,
+      commandId: null,
+      causationEventId: ids.transitionEvent,
+      fence: 1,
+      type: "attempt.state-changed",
+      data: {
+        from: "running",
+        to: "failed",
+        blocker: null,
+        outcome: {
+          kind: "failed",
+          failure: {
+            code: "task.execution-failed",
+            summary: "The attempt failed deterministically for this test.",
+            retryable: true,
+            detailArtifactDigest: null,
+          },
+        },
+      },
+    },
+  } as const;
+}
+
 function makeLeaseClaim(ids: typeof IDS_A | typeof IDS_B) {
   return {
     leaseKey: `attempt:${ids.attempt}`,
@@ -174,9 +246,9 @@ describe("migration runner", () => {
     const first = runMigrations(database, { now: () => new Date(NOW) });
     const second = runMigrations(database, { now: () => new Date(LATER) });
 
-    expect(first).toEqual({ currentVersion: 5, newlyAppliedVersions: [1, 2, 3, 4, 5] });
-    expect(second).toEqual({ currentVersion: 5, newlyAppliedVersions: [] });
-    expect(database.pragma("user_version", { simple: true })).toBe(5);
+    expect(first).toEqual({ currentVersion: 6, newlyAppliedVersions: [1, 2, 3, 4, 5, 6] });
+    expect(second).toEqual({ currentVersion: 6, newlyAppliedVersions: [] });
+    expect(database.pragma("user_version", { simple: true })).toBe(6);
     expect(listAppliedMigrations(database)).toEqual([
       {
         version: 1,
@@ -205,6 +277,12 @@ describe("migration runner", () => {
       {
         version: 5,
         name: "attempt-list-indexes",
+        checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+        appliedAt: NOW,
+      },
+      {
+        version: 6,
+        name: "retry-and-unblock-commands",
         checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
         appliedAt: NOW,
       },
@@ -263,7 +341,7 @@ describe("migration runner", () => {
     const database = openFactoryDatabase(makeDatabasePath());
     runMigrations(database, { now: () => new Date(NOW) });
     const brokenMigration: SqlMigration = {
-      version: 6,
+      version: 7,
       name: "broken-probe",
       sql: `
         CREATE TABLE must_rollback (id INTEGER PRIMARY KEY) STRICT;
@@ -276,10 +354,10 @@ describe("migration runner", () => {
         migrations: [...FACTORY_MIGRATIONS, brokenMigration],
         now: () => new Date(LATER),
       }),
-    ).toThrow(/Migration 6 \(broken-probe\) failed/);
-    expect(database.pragma("user_version", { simple: true })).toBe(5);
+    ).toThrow(/Migration 7 \(broken-probe\) failed/);
+    expect(database.pragma("user_version", { simple: true })).toBe(6);
     expect(listAppliedMigrations(database).map((migration) => migration.version)).toEqual([
-      1, 2, 3, 4, 5,
+      1, 2, 3, 4, 5, 6,
     ]);
     expect(
       database
@@ -300,10 +378,10 @@ describe("migration runner", () => {
     expect(database.pragma("user_version", { simple: true })).toBe(1);
 
     expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
-      currentVersion: 5,
-      newlyAppliedVersions: [2, 3, 4, 5],
+      currentVersion: 6,
+      newlyAppliedVersions: [2, 3, 4, 5, 6],
     });
-    expect(database.pragma("user_version", { simple: true })).toBe(5);
+    expect(database.pragma("user_version", { simple: true })).toBe(6);
     const stepColumns = database.pragma("table_info(steps)") as readonly Readonly<{
       name: string;
     }>[];
@@ -323,8 +401,8 @@ describe("migration runner", () => {
     });
 
     expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
-      currentVersion: 5,
-      newlyAppliedVersions: [3, 4, 5],
+      currentVersion: 6,
+      newlyAppliedVersions: [3, 4, 5, 6],
     });
     const trigger = database
       .prepare(
@@ -332,7 +410,8 @@ describe("migration runner", () => {
       )
       .get() as Readonly<{ sql: string }>;
     expect(trigger.sql).toContain("NEW.state IN ('confirmed', 'manual-intervention')");
-    expect(database.pragma("user_version", { simple: true })).toBe(5);
+    expect(database.pragma("user_version", { simple: true })).toBe(6);
+    expect(database.pragma("foreign_key_check")).toEqual([]);
     database.close();
   });
 
@@ -370,6 +449,167 @@ describe("migration runner", () => {
         )
         .get(),
     ).toBeUndefined();
+    expect(database.pragma("foreign_key_check")).toEqual([]);
+    database.close();
+  });
+
+  it("widens the commands and events CHECK constraints for retry and unblock while preserving every prior invariant", () => {
+    const database = openFactoryDatabase(makeDatabasePath());
+    runMigrations(database, { now: () => new Date(NOW) });
+
+    const commandId0 = "00000000-0000-4000-8000-000000000200";
+    const commandId1 = "00000000-0000-4000-8000-000000000201";
+    const commandId2 = "00000000-0000-4000-8000-000000000202";
+    const commandId3 = "00000000-0000-4000-8000-000000000203";
+    const commandId4 = "00000000-0000-4000-8000-000000000204";
+    const commandId5 = "00000000-0000-4000-8000-000000000205";
+    const commandId6 = "00000000-0000-4000-8000-000000000206";
+    const commandId7 = "00000000-0000-4000-8000-000000000207";
+    const taskId = "00000000-0000-4000-8000-000000000102";
+    const attemptId = "00000000-0000-4000-8000-000000000103";
+    const insertCommand = (
+      commandIdValue: string,
+      kind: string,
+      taskIdValue: string | null,
+      attemptIdValue: string | null,
+    ) =>
+      database
+        .prepare(
+          `INSERT INTO commands(command_id, schema_version, kind, origin, issued_at, task_id, attempt_id, payload_json)
+           VALUES (?, 1, ?, 'cli', ?, ?, ?, '{}')`,
+        )
+        .run(commandIdValue, kind, NOW, taskIdValue, attemptIdValue);
+
+    // The new kinds are accepted only with the lineage shape the compound CHECK requires.
+    expect(() => insertCommand(commandId0, "task.retry", taskId, attemptId)).not.toThrow();
+    expect(() => insertCommand(commandId1, "task.retry", taskId, null)).toThrow(
+      /CHECK constraint failed/,
+    );
+    expect(() => insertCommand(commandId2, "task.retry", null, attemptId)).toThrow(
+      /CHECK constraint failed/,
+    );
+    expect(() => insertCommand(commandId3, "attempt.unblock", null, attemptId)).not.toThrow();
+    expect(() => insertCommand(commandId4, "attempt.unblock", taskId, attemptId)).toThrow(
+      /CHECK constraint failed/,
+    );
+    expect(() => insertCommand(commandId5, "attempt.unblock", null, null)).toThrow(
+      /CHECK constraint failed/,
+    );
+    expect(() => insertCommand(commandId6, "bogus.kind", null, attemptId)).toThrow(
+      /CHECK constraint failed/,
+    );
+
+    // The rebuilt table keeps its immutability triggers.
+    const commandId = commandId7;
+    insertCommand(commandId, "attempt.unblock", null, attemptId);
+    expect(() =>
+      database.prepare("UPDATE commands SET origin = 'system' WHERE command_id = ?").run(commandId),
+    ).toThrow(/commands are immutable/);
+    expect(() =>
+      database.prepare("DELETE FROM commands WHERE command_id = ?").run(commandId),
+    ).toThrow(/commands are immutable/);
+
+    // The rebuilt events table accepts the new domain event type and keeps its own invariants.
+    const insertAttempt = (id: string) =>
+      database
+        .prepare(
+          `INSERT INTO attempts(
+             attempt_id, schema_version, task_id, task_spec_digest, attempt_number, state,
+             desired_state, revision, fence, current_step_id, blocker_json, outcome_json,
+             created_at, updated_at, terminal_at, payload_json
+           ) VALUES (?, 1, ?, ?, 1, 'blocked', 'running', 0, 0, NULL, ?, NULL, ?, ?, NULL, '{}')`,
+        )
+        .run(
+          id,
+          taskId,
+          `sha256:${"a".repeat(64)}`,
+          JSON.stringify({
+            kind: "clarification",
+            code: "x.y",
+            summary: "s",
+            requiredAction: null,
+          }),
+          NOW,
+          NOW,
+        );
+    // Fails closed either on the attempts->task_snapshots foreign key or the
+    // project-projection trigger added by migration 4, depending on statement
+    // ordering; either is an acceptable fail-closed outcome here.
+    expect(() => insertAttempt(attemptId)).toThrow();
+    database
+      .prepare(
+        `INSERT INTO task_snapshots(
+           task_id, schema_version, project_id, repository_id, base_commit, task_spec_digest,
+           submitted_by_command_id, created_at, payload_json
+         ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, '{}')`,
+      )
+      .run(
+        taskId,
+        PROJECT_ID,
+        REPOSITORY_ID,
+        BASE_COMMIT,
+        `sha256:${"b".repeat(64)}`,
+        commandId,
+        NOW,
+      );
+    expect(() => insertAttempt(attemptId)).not.toThrow();
+
+    const eventId = "00000000-0000-4000-8000-000000000104";
+    expect(() =>
+      database
+        .prepare(
+          `INSERT INTO events(
+             event_id, schema_version, attempt_id, sequence, type, occurred_at, command_id,
+             causation_event_id, fence, payload_json
+           ) VALUES (?, 1, ?, 1, 'attempt.unblock-answered', ?, ?, NULL, 0, '{}')`,
+        )
+        .run(eventId, attemptId, NOW, commandId),
+    ).not.toThrow();
+    expect(() =>
+      database.prepare("UPDATE events SET occurred_at = ? WHERE event_id = ?").run(NOW, eventId),
+    ).toThrow(/events are append-only/);
+    expect(() => database.prepare("DELETE FROM events WHERE event_id = ?").run(eventId)).toThrow(
+      /events are append-only/,
+    );
+    expect(() =>
+      database
+        .prepare(
+          `INSERT INTO events(
+             event_id, schema_version, attempt_id, sequence, type, occurred_at, command_id,
+             causation_event_id, fence, payload_json
+           ) VALUES (?, 1, ?, 2, 'bogus.type', ?, NULL, NULL, 0, '{}')`,
+        )
+        .run("00000000-0000-4000-8000-000000000106", attemptId, NOW),
+    ).toThrow(/CHECK constraint failed/);
+
+    // Every index and index-backed query plan from the original migrations survives the rebuild.
+    const indexNames = database
+      .prepare(
+        `SELECT name FROM sqlite_master
+         WHERE type = 'index' AND tbl_name IN ('commands', 'events') AND name NOT LIKE 'sqlite_%'
+         ORDER BY name`,
+      )
+      .all() as readonly Readonly<{ name: string }>[];
+    expect(indexNames.map((row) => row.name)).toEqual([
+      "commands_attempt_id_idx",
+      "commands_kind_issued_at_idx",
+      "events_attempt_occurred_at_idx",
+      "events_command_id_idx",
+      "events_type_occurred_at_idx",
+    ]);
+
+    expect(database.pragma("foreign_key_check")).toEqual([]);
+    expect(database.pragma("foreign_keys", { simple: true })).toBe(1);
+    database.close();
+  });
+
+  it("is idempotent across a rebuild-carrying replay of the full migration plan", () => {
+    const database = openFactoryDatabase(makeDatabasePath());
+    const first = runMigrations(database, { now: () => new Date(NOW) });
+    const second = runMigrations(database, { now: () => new Date(LATER) });
+    expect(first.newlyAppliedVersions).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(second.newlyAppliedVersions).toEqual([]);
+    expect(database.pragma("foreign_keys", { simple: true })).toBe(1);
     expect(database.pragma("foreign_key_check")).toEqual([]);
     database.close();
   });
@@ -551,6 +791,474 @@ describe("Factory repositories", () => {
       }),
     ).toThrow();
     expect(database.prepare("SELECT COUNT(*) AS count FROM artifacts").get()).toEqual({ count: 0 });
+    database.close();
+  });
+});
+
+function makeFailedAttemptFixture() {
+  const database = openMigratedFactoryDatabase(makeDatabasePath());
+  const repositories = createFactoryRepositories(database);
+  const bundle = makeBundle(IDS_A);
+  repositories.createTaskAttempt(bundle);
+  repositories.leases.claim(makeLeaseClaim(IDS_A));
+  repositories.transitionAttemptState(makeRunningTransition(IDS_A));
+  const failed = repositories.transitionAttemptState(
+    makeFailedTransition(IDS_A, IDS_RETRY.failedEvent),
+  );
+  return { database, repositories, bundle, failed };
+}
+
+function makeRetryInput(priorAttemptId: string, taskSpecDigest: string) {
+  return {
+    command: {
+      schemaVersion: 1,
+      commandId: IDS_RETRY.retryCommand,
+      issuedAt: RETRY_AT,
+      origin: "cli",
+      kind: "task.retry",
+      taskId: IDS_A.task,
+      priorAttemptId,
+      initialDesiredState: "running",
+    },
+    attempt: {
+      schemaVersion: 1,
+      attemptId: IDS_RETRY.retryAttempt,
+      taskId: IDS_A.task,
+      taskSpecDigest,
+      attemptNumber: 2,
+      state: "queued",
+      desiredState: "running",
+      revision: 0,
+      fence: 0,
+      currentStepId: null,
+      blocker: null,
+      outcome: null,
+      createdAt: RETRY_AT,
+      updatedAt: RETRY_AT,
+      terminalAt: null,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: IDS_RETRY.retryEvent,
+      attemptId: IDS_RETRY.retryAttempt,
+      sequence: 1,
+      occurredAt: RETRY_AT,
+      commandId: IDS_RETRY.retryCommand,
+      causationEventId: null,
+      fence: 0,
+      type: "attempt.created",
+      data: { taskId: IDS_A.task, taskSpecDigest },
+    },
+  } as const;
+}
+
+describe("task.retry", () => {
+  it("creates attempt N+1 from a failed prior attempt and is idempotent by commandId", () => {
+    const { database, repositories, bundle, failed } = makeFailedAttemptFixture();
+    expect(failed.state).toBe("failed");
+
+    const input = makeRetryInput(IDS_A.attempt, bundle.taskSpecDigest);
+    const created = repositories.retryTaskAttempt(input);
+    expect(created.duplicate).toBe(false);
+    expect(created.priorAttempt.attemptId).toBe(IDS_A.attempt);
+    expect(created.attempt).toMatchObject({
+      attemptId: IDS_RETRY.retryAttempt,
+      taskId: IDS_A.task,
+      attemptNumber: 2,
+      state: "queued",
+      desiredState: "running",
+    });
+    expect(repositories.attempts.findById(IDS_RETRY.retryAttempt)).toMatchObject({
+      attemptNumber: 2,
+      state: "queued",
+    });
+
+    const replayed = repositories.retryTaskAttempt(input);
+    expect(replayed).toMatchObject({
+      command: created.command,
+      priorAttempt: created.priorAttempt,
+      attempt: created.attempt,
+      event: created.event,
+      duplicate: true,
+    });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM attempts").get()).toEqual({ count: 2 });
+    database.close();
+  });
+
+  it("refuses to retry a non-terminal prior attempt", () => {
+    const database = openMigratedFactoryDatabase(makeDatabasePath());
+    const repositories = createFactoryRepositories(database);
+    const bundle = makeBundle(IDS_A);
+    repositories.createTaskAttempt(bundle);
+
+    expect(() =>
+      repositories.retryTaskAttempt(makeRetryInput(IDS_A.attempt, bundle.taskSpecDigest)),
+    ).toThrow(/requires a failed or cancelled prior attempt/);
+    database.close();
+  });
+
+  it("refuses to retry an attempt that has already been retried", () => {
+    const { database, repositories, bundle } = makeFailedAttemptFixture();
+    const input = makeRetryInput(IDS_A.attempt, bundle.taskSpecDigest);
+    repositories.retryTaskAttempt(input);
+
+    const secondRetryCommandId = "00000000-0000-4000-8000-000000000025";
+    const secondRetryAttemptId = "00000000-0000-4000-8000-000000000026";
+    expect(() =>
+      repositories.retryTaskAttempt({
+        command: {
+          ...input.command,
+          commandId: secondRetryCommandId,
+        },
+        attempt: {
+          ...input.attempt,
+          attemptId: secondRetryAttemptId,
+        },
+        event: {
+          ...input.event,
+          eventId: "00000000-0000-4000-8000-000000000027",
+          commandId: secondRetryCommandId,
+          attemptId: secondRetryAttemptId,
+        },
+      }),
+    ).toThrow(/has already been retried/);
+    database.close();
+  });
+});
+
+function makeBlockedAttemptFixture() {
+  const database = openMigratedFactoryDatabase(makeDatabasePath());
+  const repositories = createFactoryRepositories(database);
+  const bundle = makeBundle(IDS_A);
+  repositories.createTaskAttempt(bundle);
+  const claimed = repositories.leases.claim(makeLeaseClaim(IDS_A));
+  repositories.transitionAttemptState(makeRunningTransition(IDS_A));
+
+  const stepId = "00000000-0000-4000-8000-000000000031";
+  const stepCreatedEventId = "00000000-0000-4000-8000-000000000032";
+  const stepInputDigest = `sha256:${"c".repeat(64)}`;
+  const step = repositories.steps.create({
+    leaseKey: claimed.lease.leaseKey,
+    ownerId: claimed.lease.ownerId,
+    observedAt: RUNNING_AT,
+    step: {
+      schemaVersion: 1,
+      stepId,
+      attemptId: IDS_A.attempt,
+      ordinal: 0,
+      operation: "factory.execute",
+      state: "pending",
+      revision: 0,
+      lastFence: 1,
+      runCount: 0,
+      inputDigest: stepInputDigest,
+      outputDigest: null,
+      blocker: null,
+      failure: null,
+      startedAt: null,
+      finishedAt: null,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: stepCreatedEventId,
+      attemptId: IDS_A.attempt,
+      sequence: 4,
+      occurredAt: RUNNING_AT,
+      commandId: null,
+      causationEventId: IDS_A.transitionEvent,
+      fence: 1,
+      type: "step.created",
+      data: { stepId, ordinal: 0, operation: "factory.execute", inputDigest: stepInputDigest },
+    },
+  });
+
+  const stepRunningEventId = "00000000-0000-4000-8000-000000000033";
+  const runningStep = repositories.steps.transition({
+    leaseKey: claimed.lease.leaseKey,
+    ownerId: claimed.lease.ownerId,
+    observedAt: STEP_RUNNING_AT,
+    expectedRevision: step.revision,
+    fence: 1,
+    step: {
+      ...step,
+      state: "running",
+      revision: step.revision + 1,
+      runCount: 1,
+      startedAt: STEP_RUNNING_AT,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: stepRunningEventId,
+      attemptId: IDS_A.attempt,
+      sequence: 5,
+      occurredAt: STEP_RUNNING_AT,
+      commandId: null,
+      causationEventId: stepCreatedEventId,
+      fence: 1,
+      type: "step.state-changed",
+      data: { stepId, from: "pending", to: "running", outputDigest: null, failureCode: null },
+    },
+  });
+
+  // The pending->running transition above projected the step onto the
+  // attempt's currentStepId, which advances the attempt's own revision.
+  const runningAttempt = requireNonNull(
+    repositories.attempts.findById(IDS_A.attempt),
+    "running attempt",
+  );
+  expect(runningAttempt.currentStepId).toBe(stepId);
+
+  const blockedEventId = "00000000-0000-4000-8000-000000000034";
+  const blockedStep = repositories.steps.transition({
+    leaseKey: claimed.lease.leaseKey,
+    ownerId: claimed.lease.ownerId,
+    observedAt: STEP_BLOCKED_AT,
+    expectedRevision: runningStep.revision,
+    fence: 1,
+    step: {
+      ...runningStep,
+      state: "blocked",
+      revision: runningStep.revision + 1,
+      blocker: {
+        kind: "clarification",
+        code: "task.needs-input",
+        summary: "Which environment should this target?",
+        requiredAction: "Answer the question and unblock the attempt.",
+      },
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: blockedEventId,
+      attemptId: IDS_A.attempt,
+      sequence: 6,
+      occurredAt: STEP_BLOCKED_AT,
+      commandId: null,
+      causationEventId: stepRunningEventId,
+      fence: 1,
+      type: "step.state-changed",
+      data: { stepId, from: "running", to: "blocked", outputDigest: null, failureCode: null },
+    },
+  });
+
+  const attemptBlockedEventId = "00000000-0000-4000-8000-000000000035";
+  const blockedAttempt = repositories.transitionAttemptState({
+    leaseKey: claimed.lease.leaseKey,
+    ownerId: claimed.lease.ownerId,
+    observedAt: UNBLOCK_ANSWERED_AT,
+    expectedRevision: runningAttempt.revision,
+    attempt: {
+      ...runningAttempt,
+      state: "blocked",
+      revision: runningAttempt.revision + 1,
+      updatedAt: UNBLOCK_ANSWERED_AT,
+      blocker: blockedStep.blocker,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: attemptBlockedEventId,
+      attemptId: IDS_A.attempt,
+      sequence: 7,
+      occurredAt: UNBLOCK_ANSWERED_AT,
+      commandId: null,
+      causationEventId: blockedEventId,
+      fence: 1,
+      type: "attempt.state-changed",
+      data: { from: "running", to: "blocked", blocker: blockedStep.blocker, outcome: null },
+    },
+  });
+  repositories.leases.release({
+    leaseKey: claimed.lease.leaseKey,
+    ownerId: claimed.lease.ownerId,
+    fence: 1,
+  });
+
+  return { database, repositories, stepId, blockedAttempt, blockedStep };
+}
+
+describe("attempt.unblock", () => {
+  it("moves a blocked attempt and its step back to running with the operator answer recorded", () => {
+    const { database, repositories, stepId, blockedAttempt } = makeBlockedAttemptFixture();
+    expect(blockedAttempt.state).toBe("blocked");
+
+    const commandId = "00000000-0000-4000-8000-000000000041";
+    const answer = "Target the staging environment.";
+    const command = {
+      schemaVersion: 1,
+      commandId,
+      issuedAt: UNBLOCK_RESUMED_AT,
+      origin: "cli",
+      kind: "attempt.unblock",
+      attemptId: IDS_A.attempt,
+      answer,
+    } as const;
+
+    const claim = repositories.leases.claim({
+      leaseKey: `attempt:${IDS_A.attempt}`,
+      attemptId: IDS_A.attempt,
+      ownerId: "operator.unblock",
+      expectedAttemptRevision: blockedAttempt.revision,
+      acquiredAt: UNBLOCK_RESUMED_AT,
+      expiresAt: LEASE_EXPIRES_AT,
+      event: {
+        schemaVersion: 1,
+        eventId: "00000000-0000-4000-8000-000000000042",
+        attemptId: IDS_A.attempt,
+        sequence: 8,
+        occurredAt: UNBLOCK_RESUMED_AT,
+        commandId: null,
+        causationEventId: null,
+        fence: 2,
+        type: "attempt.fence-claimed",
+        data: { previousFence: 1, newFence: 2, ownerId: "operator.unblock" },
+      },
+    });
+
+    const answered = repositories.unblocks.apply({
+      command,
+      leaseKey: claim.lease.leaseKey,
+      ownerId: claim.lease.ownerId,
+      observedAt: UNBLOCK_RESUMED_AT,
+      event: {
+        schemaVersion: 1,
+        eventId: "00000000-0000-4000-8000-000000000043",
+        attemptId: IDS_A.attempt,
+        sequence: 9,
+        occurredAt: UNBLOCK_RESUMED_AT,
+        commandId,
+        causationEventId: claim.event.eventId,
+        fence: 2,
+        type: "attempt.unblock-answered",
+        data: { stepId, answer },
+      },
+    });
+    expect(answered.duplicate).toBe(false);
+    expect(answered.event.data).toEqual({ stepId, answer });
+
+    const replayedAnswer = repositories.unblocks.apply({
+      command,
+      leaseKey: claim.lease.leaseKey,
+      ownerId: claim.lease.ownerId,
+      observedAt: UNBLOCK_RESUMED_AT,
+      event: {
+        schemaVersion: 1,
+        eventId: "00000000-0000-4000-8000-000000000043",
+        attemptId: IDS_A.attempt,
+        sequence: 9,
+        occurredAt: UNBLOCK_RESUMED_AT,
+        commandId,
+        causationEventId: claim.event.eventId,
+        fence: 2,
+        type: "attempt.unblock-answered",
+        data: { stepId, answer },
+      },
+    });
+    expect(replayedAnswer).toMatchObject({
+      command: answered.command,
+      event: answered.event,
+      duplicate: true,
+    });
+
+    const currentStep = requireNonNull(repositories.steps.findById(stepId), "blocked step");
+    const resumedStep = repositories.steps.transition({
+      leaseKey: claim.lease.leaseKey,
+      ownerId: claim.lease.ownerId,
+      observedAt: UNBLOCK_RESUMED_AT,
+      expectedRevision: currentStep.revision,
+      fence: 2,
+      step: {
+        ...currentStep,
+        state: "running",
+        revision: currentStep.revision + 1,
+        lastFence: 2,
+        runCount: currentStep.runCount + 1,
+        blocker: null,
+      },
+      event: {
+        schemaVersion: 1,
+        eventId: "00000000-0000-4000-8000-000000000044",
+        attemptId: IDS_A.attempt,
+        sequence: 10,
+        occurredAt: UNBLOCK_RESUMED_AT,
+        commandId: null,
+        causationEventId: answered.event.eventId,
+        fence: 2,
+        type: "step.state-changed",
+        data: { stepId, from: "blocked", to: "running", outputDigest: null, failureCode: null },
+      },
+    });
+    expect(resumedStep.state).toBe("running");
+    expect(resumedStep.runCount).toBe(2);
+
+    const resumedAttempt = repositories.transitionAttemptState({
+      leaseKey: claim.lease.leaseKey,
+      ownerId: claim.lease.ownerId,
+      observedAt: UNBLOCK_ATTEMPT_RESUMED_AT,
+      expectedRevision: blockedAttempt.revision + 1,
+      attempt: {
+        ...requireNonNull(repositories.attempts.findById(IDS_A.attempt), "claimed attempt"),
+        state: "running",
+        revision: blockedAttempt.revision + 2,
+        updatedAt: UNBLOCK_ATTEMPT_RESUMED_AT,
+        blocker: null,
+      },
+      event: {
+        schemaVersion: 1,
+        eventId: "00000000-0000-4000-8000-000000000045",
+        attemptId: IDS_A.attempt,
+        sequence: 11,
+        occurredAt: UNBLOCK_ATTEMPT_RESUMED_AT,
+        commandId: null,
+        causationEventId: "00000000-0000-4000-8000-000000000044",
+        fence: 2,
+        type: "attempt.state-changed",
+        data: { from: "blocked", to: "running", blocker: null, outcome: null },
+      },
+    });
+    expect(resumedAttempt.state).toBe("running");
+    expect(resumedAttempt.blocker).toBeNull();
+
+    repositories.leases.release({
+      leaseKey: claim.lease.leaseKey,
+      ownerId: claim.lease.ownerId,
+      fence: 2,
+    });
+    database.close();
+  });
+
+  it("refuses to record an unblock answer for an attempt that is not blocked", () => {
+    const database = openMigratedFactoryDatabase(makeDatabasePath());
+    const repositories = createFactoryRepositories(database);
+    repositories.createTaskAttempt(makeBundle(IDS_A));
+    const claim = repositories.leases.claim(makeLeaseClaim(IDS_A));
+
+    expect(() =>
+      repositories.unblocks.apply({
+        command: {
+          schemaVersion: 1,
+          commandId: "00000000-0000-4000-8000-000000000051",
+          issuedAt: LATER,
+          origin: "cli",
+          kind: "attempt.unblock",
+          attemptId: IDS_A.attempt,
+          answer: "Not applicable.",
+        },
+        leaseKey: claim.lease.leaseKey,
+        ownerId: claim.lease.ownerId,
+        observedAt: LATER,
+        event: {
+          schemaVersion: 1,
+          eventId: "00000000-0000-4000-8000-000000000052",
+          attemptId: IDS_A.attempt,
+          sequence: 3,
+          occurredAt: LATER,
+          commandId: "00000000-0000-4000-8000-000000000051",
+          causationEventId: null,
+          fence: 1,
+          type: "attempt.unblock-answered",
+          data: { stepId: "00000000-0000-4000-8000-000000000053", answer: "Not applicable." },
+        },
+      }),
+    ).toThrow(/is not blocked/);
     database.close();
   });
 });

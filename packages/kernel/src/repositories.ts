@@ -35,12 +35,14 @@ import {
 } from "./state-machine.js";
 import {
   AttemptDesiredStateRepository,
+  AttemptUnblockRepository,
   LeaseRepository,
   StepRepository,
   assertActiveAttemptLease,
 } from "./durability-repositories.js";
 
 type SubmitTaskCommandV1 = Extract<CommandV1, { kind: "task.submit" }>;
+type RetryTaskCommandV1 = Extract<CommandV1, { kind: "task.retry" }>;
 type AttemptCreatedEventV1 = Extract<EventV1, { type: "attempt.created" }>;
 type AttemptStateChangedEventV1 = Extract<EventV1, { type: "attempt.state-changed" }>;
 
@@ -54,6 +56,20 @@ export type CreateTaskAttemptInput = Readonly<{
 export type CreatedTaskAttempt = Readonly<{
   command: SubmitTaskCommandV1;
   taskSpec: TaskSpecV1;
+  attempt: ExecutionAttemptV1;
+  event: AttemptCreatedEventV1;
+  duplicate: boolean;
+}>;
+
+export type RetryTaskAttemptInput = Readonly<{
+  command: unknown;
+  attempt: unknown;
+  event: unknown;
+}>;
+
+export type RetriedTaskAttempt = Readonly<{
+  command: RetryTaskCommandV1;
+  priorAttempt: ExecutionAttemptV1;
   attempt: ExecutionAttemptV1;
   event: AttemptCreatedEventV1;
   duplicate: boolean;
@@ -172,6 +188,14 @@ function parseSubmitTaskCommand(value: unknown): SubmitTaskCommandV1 {
   return command;
 }
 
+function parseRetryTaskCommand(value: unknown): RetryTaskCommandV1 {
+  const command = CommandV1Schema.parse(value);
+  if (command.kind !== "task.retry") {
+    failInvariant(`retryTaskAttempt requires task.retry, received ${command.kind}`);
+  }
+  return command;
+}
+
 function parseAttemptCreatedEvent(value: unknown): AttemptCreatedEventV1 {
   const event = EventV1Schema.parse(value);
   if (event.type !== "attempt.created") {
@@ -264,6 +288,25 @@ function insertCommand(database: Database.Database, command: SubmitTaskCommandV1
       command.origin,
       command.issuedAt,
       command.taskSpec.taskId,
+      JSON.stringify(command),
+    );
+}
+
+function insertRetryCommand(database: Database.Database, command: RetryTaskCommandV1): void {
+  database
+    .prepare(
+      `INSERT INTO commands(
+         command_id, schema_version, kind, origin, issued_at, task_id, attempt_id, payload_json
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      command.commandId,
+      command.schemaVersion,
+      command.kind,
+      command.origin,
+      command.issuedAt,
+      command.taskId,
+      command.priorAttemptId,
       JSON.stringify(command),
     );
 }
@@ -595,6 +638,7 @@ export class FactoryRepositories {
   public readonly desiredStates: AttemptDesiredStateRepository;
   public readonly steps: StepRepository;
   public readonly leases: LeaseRepository;
+  public readonly unblocks: AttemptUnblockRepository;
 
   public constructor(private readonly database: Database.Database) {
     this.commands = new CommandRepository(database);
@@ -606,6 +650,7 @@ export class FactoryRepositories {
     this.desiredStates = new AttemptDesiredStateRepository(database);
     this.steps = new StepRepository(database);
     this.leases = new LeaseRepository(database);
+    this.unblocks = new AttemptUnblockRepository(database);
   }
 
   public createTaskAttempt(input: CreateTaskAttemptInput): CreatedTaskAttempt {
@@ -708,6 +753,134 @@ export class FactoryRepositories {
       insertAttempt(this.database, attempt);
       insertEvent(this.database, event);
       return { command, taskSpec, attempt, event, duplicate: false };
+    });
+    return persist.immediate();
+  }
+
+  /**
+   * Creates attempt N+1 for a task from a failed or cancelled terminal attempt
+   * N, reusing task N's exact snapshot digest. Idempotent by commandId, like
+   * createTaskAttempt: a replayed command with identical content returns the
+   * attempt it already created instead of creating a second one. Refuses a
+   * prior attempt that is not terminal-failed/cancelled, belongs to a
+   * different task, or has already been retried (task_id, attempt_number) is
+   * UNIQUE, so at most one attempt N+1 can ever exist per task).
+   */
+  public retryTaskAttempt(input: RetryTaskAttemptInput): RetriedTaskAttempt {
+    const command = parseRetryTaskCommand(input.command);
+    const attempt = ExecutionAttemptV1Schema.parse(input.attempt);
+    const event = parseAttemptCreatedEvent(input.event);
+
+    assertAttemptSnapshotCoherence(attempt);
+    assertSame("retry attempt taskId", attempt.taskId, command.taskId);
+    assertSame("initial retry attempt state", attempt.state, "queued");
+    assertSame(
+      "initial retry attempt desiredState",
+      attempt.desiredState,
+      command.initialDesiredState,
+    );
+    assertSame("initial retry attempt revision", attempt.revision, 0);
+    assertSame("initial retry attempt fence", attempt.fence, 0);
+    assertSame("initial retry attempt currentStepId", attempt.currentStepId, null);
+    assertSame("initial retry attempt blocker", attempt.blocker, null);
+    assertSame("initial retry attempt outcome", attempt.outcome, null);
+    assertSame("initial retry attempt terminalAt", attempt.terminalAt, null);
+    assertSame("initial retry attempt timestamps", attempt.updatedAt, attempt.createdAt);
+    assertSame("retry created event attemptId", event.attemptId, attempt.attemptId);
+    assertSame("retry created event sequence", event.sequence, 1);
+    assertSame("retry created event commandId", event.commandId, command.commandId);
+    assertSame("retry created event causationEventId", event.causationEventId, null);
+    assertSame("retry created event fence", event.fence, attempt.fence);
+    assertSame("retry created event occurredAt", event.occurredAt, attempt.createdAt);
+    assertSame("retry created event taskId", event.data.taskId, command.taskId);
+    assertSame(
+      "retry created event taskSpecDigest",
+      event.data.taskSpecDigest,
+      attempt.taskSpecDigest,
+    );
+
+    const persist = this.database.transaction((): RetriedTaskAttempt => {
+      const storedCommandRow = this.database
+        .prepare("SELECT payload_json FROM commands WHERE command_id = ?")
+        .get(command.commandId) as Readonly<{ payload_json: string }> | undefined;
+      if (storedCommandRow !== undefined) {
+        const storedCommand = parseRetryTaskCommand(
+          parseStoredJson("commands", command.commandId, storedCommandRow.payload_json, (value) =>
+            CommandV1Schema.parse(value),
+          ),
+        );
+        assertJsonSame("duplicate task-retry command", command, storedCommand);
+
+        const eventRows = this.database
+          .prepare("SELECT * FROM events WHERE command_id = ? ORDER BY sequence")
+          .all(command.commandId) as readonly EventRow[];
+        if (eventRows.length !== 1 || eventRows[0] === undefined) {
+          failInvariant(`task-retry command ${command.commandId} must have one result event`);
+        }
+        const storedEvent = decodeEvent(eventRows[0]);
+        if (storedEvent.type !== "attempt.created") {
+          failInvariant(`task-retry command ${command.commandId} has the wrong result event`);
+        }
+        const priorAttemptRow = this.database
+          .prepare("SELECT * FROM attempts WHERE attempt_id = ?")
+          .get(storedCommand.priorAttemptId) as AttemptRow | undefined;
+        if (priorAttemptRow === undefined) {
+          failInvariant(`task-retry command ${command.commandId} has no prior attempt`);
+        }
+        const attemptRow = this.database
+          .prepare("SELECT * FROM attempts WHERE attempt_id = ?")
+          .get(storedEvent.attemptId) as AttemptRow | undefined;
+        if (attemptRow === undefined) {
+          failInvariant(`task-retry command ${command.commandId} has no retried attempt`);
+        }
+        return {
+          command: storedCommand,
+          priorAttempt: decodeAttempt(priorAttemptRow),
+          attempt: decodeAttempt(attemptRow),
+          event: storedEvent,
+          duplicate: true,
+        };
+      }
+
+      const priorAttemptRow = this.database
+        .prepare("SELECT * FROM attempts WHERE attempt_id = ?")
+        .get(command.priorAttemptId) as AttemptRow | undefined;
+      if (priorAttemptRow === undefined) {
+        failInvariant(
+          `retry references a prior attempt that does not exist: ${command.priorAttemptId}`,
+        );
+      }
+      const priorAttempt = decodeAttempt(priorAttemptRow);
+      if (priorAttempt.taskId !== command.taskId) {
+        failInvariant(
+          `retry prior attempt ${priorAttempt.attemptId} does not belong to task ${command.taskId}`,
+        );
+      }
+      if (priorAttempt.state !== "failed" && priorAttempt.state !== "cancelled") {
+        failInvariant(
+          `retry requires a failed or cancelled prior attempt; ${priorAttempt.attemptId} is ${priorAttempt.state}`,
+        );
+      }
+      if (priorAttempt.taskSpecDigest !== attempt.taskSpecDigest) {
+        failInvariant("retry attempt must reuse the prior attempt's task snapshot digest");
+      }
+      if (attempt.attemptNumber !== priorAttempt.attemptNumber + 1) {
+        failInvariant("retry attempt number must immediately follow the prior attempt");
+      }
+      const nextAttemptRow = this.database
+        .prepare(`SELECT attempt_id FROM attempts WHERE task_id = ? AND attempt_number = ?`)
+        .get(command.taskId, priorAttempt.attemptNumber + 1) as
+        Readonly<{ attempt_id: string }> | undefined;
+      if (nextAttemptRow !== undefined) {
+        failInvariant(
+          `attempt ${priorAttempt.attemptId} has already been retried as ${nextAttemptRow.attempt_id}`,
+        );
+      }
+
+      insertRetryCommand(this.database, command);
+      insertAttempt(this.database, attempt);
+      insertEvent(this.database, event);
+      return { command, priorAttempt, attempt, event, duplicate: false };
     });
     return persist.immediate();
   }

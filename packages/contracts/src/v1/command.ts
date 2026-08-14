@@ -5,6 +5,7 @@ import {
   CommandIdSchema,
   IsoInstantSchema,
   SchemaVersionV1Schema,
+  TaskIdSchema,
 } from "./primitives.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
@@ -39,9 +40,26 @@ export const ReconcileDaemonCommandV1Schema = z.strictObject({
   attemptId: AttemptIdSchema.nullable(),
 });
 
+export const RetryTaskCommandV1Schema = z.strictObject({
+  ...CommandEnvelopeV1Shape,
+  kind: z.literal("task.retry"),
+  taskId: TaskIdSchema,
+  priorAttemptId: AttemptIdSchema,
+  initialDesiredState: z.enum(["running", "paused"]),
+});
+
+export const UnblockAttemptCommandV1Schema = z.strictObject({
+  ...CommandEnvelopeV1Shape,
+  kind: z.literal("attempt.unblock"),
+  attemptId: AttemptIdSchema,
+  answer: z.string().min(1).max(2_000),
+});
+
 export const CommandV1Schema = z.discriminatedUnion("kind", [
   SubmitTaskCommandV1Schema,
   SetAttemptDesiredStateCommandV1Schema,
   ReconcileDaemonCommandV1Schema,
+  RetryTaskCommandV1Schema,
+  UnblockAttemptCommandV1Schema,
 ]);
 export type CommandV1 = z.infer<typeof CommandV1Schema>;

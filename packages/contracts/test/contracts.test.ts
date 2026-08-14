@@ -16,6 +16,7 @@ import {
 import { loadContractFixtures } from "./fixture-loader.js";
 
 const IDs = {
+  task: "00000000-0000-4000-8000-000000000003",
   command: "00000000-0000-4000-8000-000000000004",
   attempt: "00000000-0000-4000-8000-000000000005",
   step: "00000000-0000-4000-8000-000000000006",
@@ -145,6 +146,17 @@ describe("discriminated contract variants", () => {
       kind: "daemon.reconcile",
       attemptId: null,
     },
+    {
+      kind: "task.retry",
+      taskId: IDs.task,
+      priorAttemptId: IDs.attempt,
+      initialDesiredState: "running",
+    },
+    {
+      kind: "attempt.unblock",
+      attemptId: IDs.attempt,
+      answer: "Use the staging environment.",
+    },
   ])("accepts command $kind", (variant) => {
     expect(
       CommandV1Schema.safeParse({
@@ -169,6 +181,10 @@ describe("discriminated contract variants", () => {
     {
       type: "attempt.fence-claimed",
       data: { previousFence: 0, newFence: 1, ownerId: "supervisor:123" },
+    },
+    {
+      type: "attempt.unblock-answered",
+      data: { stepId: IDs.step, answer: "Use the staging environment." },
     },
     {
       type: "step.created",

@@ -14,6 +14,8 @@ const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 const REQUEST_ID = "00000000-0000-4000-8000-000000000010";
 const COMMAND_ID = "00000000-0000-4000-8000-000000000004";
 const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
+const TASK_ID = "00000000-0000-4000-8000-000000000013";
+const RETRIED_ATTEMPT_ID = "00000000-0000-4000-8000-000000000014";
 const NOW = new Date("2026-08-10T12:00:00.000Z");
 
 function identity(requestId = REQUEST_ID) {
@@ -101,6 +103,35 @@ function evidenceListResponse(requestId: unknown): Record<string, unknown> {
       ],
       nextAfterAttemptId: ATTEMPT_ID,
       hasMore: false,
+    },
+  };
+}
+
+function retryResponse(requestId: unknown): Record<string, unknown> {
+  return {
+    protocolVersion: 1,
+    requestId,
+    ok: true,
+    result: {
+      operation: "task.retry",
+      taskId: TASK_ID,
+      attemptId: RETRIED_ATTEMPT_ID,
+      state: "queued",
+      priorAttemptId: ATTEMPT_ID,
+    },
+  };
+}
+
+function unblockResponse(requestId: unknown): Record<string, unknown> {
+  return {
+    protocolVersion: 1,
+    requestId,
+    ok: true,
+    result: {
+      operation: "attempt.unblock",
+      attemptId: ATTEMPT_ID,
+      state: "running",
+      accepted: true,
     },
   };
 }
@@ -211,6 +242,46 @@ describe("typed command client", () => {
       request: {
         operation: "evidence.list",
         payload: { afterAttemptId: ATTEMPT_ID, limit: 25 },
+      },
+    });
+    client.close();
+  });
+
+  it("sends the strict task.retry and attempt.unblock request payloads", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const response =
+          (frame.request as Record<string, unknown>).operation === "task.retry"
+            ? retryResponse(frame.requestId)
+            : unblockResponse(frame.requestId);
+        socket.end(`${JSON.stringify(response)}\n`);
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(client.retry(TASK_ID, ATTEMPT_ID, identity())).resolves.toMatchObject({
+      operation: "task.retry",
+      attemptId: RETRIED_ATTEMPT_ID,
+      priorAttemptId: ATTEMPT_ID,
+    });
+    expect(received[0]).toMatchObject({
+      request: { operation: "task.retry", payload: { taskId: TASK_ID, attemptId: ATTEMPT_ID } },
+    });
+
+    await expect(
+      client.unblock(ATTEMPT_ID, "Use the staging environment.", identity()),
+    ).resolves.toMatchObject({ operation: "attempt.unblock", state: "running", accepted: true });
+    expect(received[1]).toMatchObject({
+      request: {
+        operation: "attempt.unblock",
+        payload: { attemptId: ATTEMPT_ID, answer: "Use the staging environment." },
       },
     });
     client.close();

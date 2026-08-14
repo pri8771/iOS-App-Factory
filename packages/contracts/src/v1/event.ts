@@ -78,6 +78,15 @@ export const AttemptFenceClaimedEventV1Schema = z.strictObject({
   }),
 });
 
+export const AttemptUnblockAnsweredEventV1Schema = z.strictObject({
+  ...EventEnvelopeV1Shape,
+  type: z.literal("attempt.unblock-answered"),
+  data: z.strictObject({
+    stepId: StepIdSchema,
+    answer: z.string().min(1).max(2_000),
+  }),
+});
+
 export const StepCreatedEventV1Schema = z.strictObject({
   ...EventEnvelopeV1Shape,
   type: z.literal("step.created"),
@@ -125,6 +134,7 @@ export const EventV1Schema = z.discriminatedUnion("type", [
   AttemptStateChangedEventV1Schema,
   AttemptDesiredStateChangedEventV1Schema,
   AttemptFenceClaimedEventV1Schema,
+  AttemptUnblockAnsweredEventV1Schema,
   StepCreatedEventV1Schema,
   StepStateChangedEventV1Schema,
   EvidenceRecordedEventV1Schema,

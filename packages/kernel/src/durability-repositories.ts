@@ -23,8 +23,10 @@ import {
 } from "./state-machine.js";
 
 type SetDesiredStateCommandV1 = Extract<CommandV1, { kind: "attempt.set-desired-state" }>;
+type UnblockAttemptCommandV1 = Extract<CommandV1, { kind: "attempt.unblock" }>;
 type DesiredStateChangedEventV1 = Extract<EventV1, { type: "attempt.desired-state-changed" }>;
 type FenceClaimedEventV1 = Extract<EventV1, { type: "attempt.fence-claimed" }>;
+type AttemptUnblockAnsweredEventV1 = Extract<EventV1, { type: "attempt.unblock-answered" }>;
 type StepCreatedEventV1 = Extract<EventV1, { type: "step.created" }>;
 type StepStateChangedEventV1 = Extract<EventV1, { type: "step.state-changed" }>;
 
@@ -113,6 +115,20 @@ export type ApplyDesiredStateCommandInput = Readonly<{
 export type DesiredStateCommandResult = Readonly<{
   command: SetDesiredStateCommandV1;
   event: DesiredStateChangedEventV1;
+  duplicate: boolean;
+}>;
+
+export type ApplyUnblockCommandInput = Readonly<{
+  command: unknown;
+  leaseKey: unknown;
+  ownerId: unknown;
+  observedAt: unknown;
+  event: unknown;
+}>;
+
+export type UnblockCommandResult = Readonly<{
+  command: UnblockAttemptCommandV1;
+  event: AttemptUnblockAnsweredEventV1;
   duplicate: boolean;
 }>;
 
@@ -290,6 +306,22 @@ function parseDesiredStateEvent(value: unknown): DesiredStateChangedEventV1 {
   return event;
 }
 
+function parseUnblockAttemptCommand(value: unknown): UnblockAttemptCommandV1 {
+  const command = CommandV1Schema.parse(value);
+  if (command.kind !== "attempt.unblock") {
+    failInvariant(`expected attempt.unblock command, received ${command.kind}`);
+  }
+  return command;
+}
+
+function parseUnblockAnsweredEvent(value: unknown): AttemptUnblockAnsweredEventV1 {
+  const event = EventV1Schema.parse(value);
+  if (event.type !== "attempt.unblock-answered") {
+    failInvariant(`expected attempt.unblock-answered event, received ${event.type}`);
+  }
+  return event;
+}
+
 function parseFenceEvent(value: unknown): FenceClaimedEventV1 {
   const event = EventV1Schema.parse(value);
   if (event.type !== "attempt.fence-claimed") {
@@ -441,6 +473,24 @@ function insertDesiredStateCommand(
     );
 }
 
+function insertUnblockCommand(database: Database.Database, command: UnblockAttemptCommandV1): void {
+  database
+    .prepare(
+      `INSERT INTO commands(
+         command_id, schema_version, kind, origin, issued_at, task_id, attempt_id, payload_json
+       ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
+    )
+    .run(
+      command.commandId,
+      command.schemaVersion,
+      command.kind,
+      command.origin,
+      command.issuedAt,
+      command.attemptId,
+      JSON.stringify(command),
+    );
+}
+
 function decodeLease(row: LeaseRow): LeaseRecord {
   return {
     leaseKey: row.lease_key,
@@ -560,6 +610,91 @@ export class AttemptDesiredStateRepository {
       });
       insertDesiredStateCommand(this.database, command);
       updateAttempt(this.database, next, current.revision, current.fence);
+      insertEvent(this.database, event);
+      return { command, event, duplicate: false };
+    });
+
+    return apply.immediate();
+  }
+}
+
+/**
+ * Records the operator answer that resolves a blocked attempt as a durable
+ * command plus its own domain event, under the same lease-fencing discipline
+ * as every other attempt/step mutation. It does not itself move the step or
+ * the attempt out of `blocked`; the caller performs those transitions with
+ * `StepRepository.transition` and `FactoryRepositories.transitionAttemptState`
+ * under the same claimed lease, exactly as `KernelSchedulerPersistenceAdapter`
+ * composes lease, step, and attempt mutations.
+ */
+export class AttemptUnblockRepository {
+  public constructor(private readonly database: Database.Database) {}
+
+  public findOriginalResult(commandIdInput: unknown): UnblockCommandResult | null {
+    const commandId = CommandIdSchema.parse(commandIdInput);
+    const row = this.database
+      .prepare("SELECT payload_json FROM commands WHERE command_id = ?")
+      .get(commandId) as Readonly<{ payload_json: string }> | undefined;
+    if (row === undefined) return null;
+
+    const command = parseStoredJson("commands", commandId, row.payload_json, (value) =>
+      parseUnblockAttemptCommand(value),
+    );
+    const eventRows = this.database
+      .prepare("SELECT * FROM events WHERE command_id = ? ORDER BY sequence")
+      .all(commandId) as readonly EventRow[];
+    if (eventRows.length !== 1 || eventRows[0] === undefined) {
+      failInvariant(`unblock command ${commandId} must have exactly one result event`);
+    }
+    const event = decodeEvent(eventRows[0]);
+    if (event.type !== "attempt.unblock-answered") {
+      failInvariant(`unblock command ${commandId} has the wrong result event type`);
+    }
+    return { command, event, duplicate: true };
+  }
+
+  public apply(input: ApplyUnblockCommandInput): UnblockCommandResult {
+    const command = parseUnblockAttemptCommand(input.command);
+    const event = parseUnblockAnsweredEvent(input.event);
+
+    const apply = this.database.transaction((): UnblockCommandResult => {
+      const original = this.findOriginalResult(command.commandId);
+      if (original !== null) {
+        assertJsonSame("duplicate command payload", command, original.command);
+        return original;
+      }
+
+      const attempt = readAttempt(this.database, command.attemptId);
+      assertAttemptCanMutate(attempt);
+      if (attempt.state !== "blocked") {
+        failInvariant(`attempt ${attempt.attemptId} is not blocked (state: ${attempt.state})`);
+      }
+      if (attempt.currentStepId === null) {
+        failInvariant(`blocked attempt ${attempt.attemptId} has no current step to unblock`);
+      }
+      assertActiveAttemptLease(this.database, {
+        leaseKey: input.leaseKey,
+        attemptId: attempt.attemptId,
+        ownerId: input.ownerId,
+        fence: attempt.fence,
+        observedAt: IsoInstantSchema.parse(input.observedAt),
+      });
+      assertSame("unblock event attemptId", event.attemptId, attempt.attemptId);
+      assertSame("unblock event commandId", event.commandId, command.commandId);
+      assertSame("unblock event fence", event.fence, attempt.fence);
+      assertSame(
+        "unblock event sequence",
+        event.sequence,
+        nextEventSequence(this.database, attempt.attemptId),
+      );
+      assertSame("unblock event stepId", event.data.stepId, attempt.currentStepId);
+      assertSame("unblock event answer", event.data.answer, command.answer);
+      if (event.occurredAt < attempt.updatedAt) {
+        failInvariant("unblock event time must not precede the attempt");
+      }
+      validateEventCause(this.database, event);
+
+      insertUnblockCommand(this.database, command);
       insertEvent(this.database, event);
       return { command, event, duplicate: false };
     });

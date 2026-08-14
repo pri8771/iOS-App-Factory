@@ -79,6 +79,73 @@ function pollInterval(value: string | undefined): number {
   return parsed;
 }
 
+const MAX_SCHEDULER_ERROR_LOG_MESSAGE_LENGTH = 500;
+// Deliberately loose (no version/variant nibble check): kernel and scheduler
+// invariant messages embed already-validated attempt IDs verbatim, so a
+// best-effort scan is enough and keeps this independent of the branded schema.
+const UUID_LIKE_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+// Every error class this codebase actually throws through the scheduler loop
+// (SchedulerFenceError, SchedulerInvariantError, TypeError, the native Error,
+// ...) has a plain identifier name. Anything else is treated as untrusted and
+// replaced, so a crafted `.name` can never ride into the log verbatim.
+const SAFE_ERROR_CODE_PATTERN = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
+
+export type SchedulerErrorLogEntry = Readonly<{
+  ts: string;
+  code: string;
+  attemptId: string | null;
+  message: string;
+}>;
+
+function boundedLogMessage(value: string): string {
+  const normalized = value.replaceAll(/\s+/g, " ").trim();
+  return normalized.length > MAX_SCHEDULER_ERROR_LOG_MESSAGE_LENGTH
+    ? `${normalized.slice(0, MAX_SCHEDULER_ERROR_LOG_MESSAGE_LENGTH)}...`
+    : normalized;
+}
+
+/**
+ * Best-effort attemptId recovery for operator diagnosis. The scheduler's own
+ * errors (SchedulerFenceError, SchedulerInvariantError, and the kernel errors
+ * they sometimes wrap as `cause`) usually embed the attempt's UUID directly in
+ * their message text; this never reads error properties beyond name/message
+ * one cause level deep, so it cannot surface command payloads or secrets.
+ */
+function extractAttemptId(error: unknown): string | null {
+  if (!(error instanceof Error)) return null;
+  const direct = UUID_LIKE_PATTERN.exec(error.message);
+  if (direct !== null) return direct[0];
+  if (error.cause instanceof Error) {
+    const fromCause = UUID_LIKE_PATTERN.exec(error.cause.message);
+    if (fromCause !== null) return fromCause[0];
+  }
+  return null;
+}
+
+/**
+ * Renders one structured, single-line JSON log entry for a scheduler-loop
+ * error: a timestamp, an error-name code, a best-effort attemptId, and a
+ * bounded message. `JSON.stringify` without indentation always escapes
+ * embedded newlines/control characters within string values, so the result
+ * is guaranteed single-line regardless of what the error message contains.
+ */
+export function formatSchedulerErrorLogLine(
+  error: unknown,
+  now: () => string = () => new Date().toISOString(),
+): string {
+  const name = error instanceof Error ? error.name : "";
+  const entry: SchedulerErrorLogEntry = {
+    ts: now(),
+    code: SAFE_ERROR_CODE_PATTERN.test(name) ? name : "UnknownError",
+    attemptId: extractAttemptId(error),
+    message:
+      error instanceof Error
+        ? boundedLogMessage(error.message)
+        : "A non-Error value was thrown by the scheduler loop.",
+  };
+  return JSON.stringify(entry);
+}
+
 function withoutOneLineEnding(value: string): string {
   if (value.endsWith("\r\n")) return value.slice(0, -2);
   if (value.endsWith("\n")) return value.slice(0, -1);
@@ -238,10 +305,11 @@ export async function runDaemonProcess(
   signals.once("SIGINT", stop);
   signals.once("SIGTERM", stop);
 
+  const now = dependencies.now ?? (() => new Date().toISOString());
   let service: FactoryDaemonService;
   try {
-    service = await start(environment, () => {
-      io.stderr("factory-daemon scheduler error\n");
+    service = await start(environment, (error) => {
+      io.stderr(`${formatSchedulerErrorLogLine(error, now)}\n`);
     });
   } catch (error) {
     signals.removeListener("SIGINT", stop);
@@ -290,4 +358,6 @@ export type DaemonProcessDependencies = Readonly<{
   ) => Promise<FactoryDaemonService>;
   signals?: DaemonSignalPort;
   shutdownTimeoutMs?: number;
+  /** Clock for the scheduler-error log line's `ts` field; defaults to the wall clock. */
+  now?: () => string;
 }>;

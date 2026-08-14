@@ -34,6 +34,8 @@ describe("command protocol V1", () => {
     ["attempt.pause", { attemptId: ATTEMPT_ID, reason: null }],
     ["attempt.resume", { attemptId: ATTEMPT_ID, reason: "Continue." }],
     ["attempt.cancel", { attemptId: ATTEMPT_ID, reason: "Stop." }],
+    ["task.retry", { taskId: "00000000-0000-4000-8000-000000000102", attemptId: ATTEMPT_ID }],
+    ["attempt.unblock", { attemptId: ATTEMPT_ID, answer: "Use the staging environment." }],
     ["daemon.reconcile", { attemptId: null }],
     ["evidence.list", { afterAttemptId: null, limit: 50 }],
     ["evidence.inspect", { attemptId: ATTEMPT_ID }],

@@ -298,6 +298,8 @@ function shouldWakeScheduler(operation: string): boolean {
     operation === "attempt.pause" ||
     operation === "attempt.resume" ||
     operation === "attempt.cancel" ||
+    operation === "task.retry" ||
+    operation === "attempt.unblock" ||
     operation === "daemon.reconcile"
   );
 }

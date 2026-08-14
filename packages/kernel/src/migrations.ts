@@ -7,6 +7,7 @@ import { approvalsOutboxMigration } from "./migrations/0002-approvals-outbox.js"
 import { observedManualInterventionMigration } from "./migrations/0003-observed-manual-intervention.js";
 import { projectExecutionProjectionsMigration } from "./migrations/0004-project-execution-projections.js";
 import { attemptListIndexesMigration } from "./migrations/0005-attempt-list-indexes.js";
+import { retryAndUnblockCommandsMigration } from "./migrations/0006-retry-and-unblock-commands.js";
 import type { SqlMigration } from "./migration-types.js";
 
 export type { SqlMigration } from "./migration-types.js";
@@ -34,13 +35,19 @@ export const FACTORY_MIGRATIONS: readonly SqlMigration[] = [
   observedManualInterventionMigration,
   projectExecutionProjectionsMigration,
   attemptListIndexesMigration,
+  retryAndUnblockCommandsMigration,
 ];
 
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
 function checksumMigration(migration: SqlMigration): string {
   return `sha256:${createHash("sha256")
-    .update(`${migration.version}\0${migration.name}\0${migration.sql}`, "utf8")
+    .update(
+      `${migration.version}\0${migration.name}\0${migration.sql}\0${String(
+        migration.disableForeignKeysDuringApply ?? false,
+      )}`,
+      "utf8",
+    )
     .digest("hex")}`;
 }
 
@@ -144,6 +151,7 @@ export function runMigrations(
 
   const newlyAppliedVersions: number[] = [];
   for (const migration of migrations.slice(applied.length)) {
+    const disableForeignKeys = migration.disableForeignKeysDuringApply ?? false;
     const apply = database.transaction(() => {
       database.exec(migration.sql);
       const appliedAt = now().toISOString();
@@ -154,16 +162,39 @@ export function runMigrations(
         )
         .run(migration.version, migration.name, checksumMigration(migration), appliedAt);
       database.pragma(`user_version = ${migration.version}`);
+      if (disableForeignKeys) {
+        const violations = database.pragma("foreign_key_check") as readonly unknown[];
+        if (violations.length > 0) {
+          throw new Error(
+            `Migration ${migration.version} (${migration.name}) left ${String(violations.length)} foreign key violation(s)`,
+          );
+        }
+      }
     });
 
+    // PRAGMA foreign_keys is a no-op inside a transaction, so a table rebuild
+    // that a foreign key elsewhere still references (SQLite has no ALTER
+    // TABLE for CHECK constraints) must have enforcement disabled before the
+    // migration's BEGIN. It is restored immediately after, success or not.
+    if (disableForeignKeys) {
+      database.pragma("foreign_keys = OFF");
+    }
     try {
       apply.immediate();
     } catch (error) {
       throw new Error(`Migration ${migration.version} (${migration.name}) failed`, {
         cause: error,
       });
+    } finally {
+      if (disableForeignKeys) {
+        database.pragma("foreign_keys = ON");
+      }
     }
     newlyAppliedVersions.push(migration.version);
+  }
+
+  if (database.pragma("foreign_keys", { simple: true }) !== 1) {
+    throw new Error("SQLite foreign key enforcement was not restored after migrations");
   }
 
   return {

@@ -7,8 +7,10 @@ import {
   canonicalPortfolioReadModelDigestInputV1,
   CommandRequestV1Schema,
   type CommandRequestV1,
+  type ExecutionAttemptV1,
   type TaskSpecV1,
 } from "@app-factory/contracts";
+import { createFactoryRepositories, type FactoryRepositories } from "@app-factory/kernel";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -35,6 +37,8 @@ const RECONCILE_COMMAND_ID = "20000000-0000-4000-8000-000000000011";
 const REQUEST_ID = "20000000-0000-4000-8000-000000000012";
 const DOCTOR_COMMAND_ID = "20000000-0000-4000-8000-000000000020";
 const PORTFOLIO_COMMAND_ID = "20000000-0000-4000-8000-000000000025";
+const RETRY_COMMAND_ID = "20000000-0000-4000-8000-000000000033";
+const UNBLOCK_COMMAND_ID = "20000000-0000-4000-8000-000000000034";
 const FUTURE = "2026-08-11T12:06:03.000Z";
 
 const roots: string[] = [];
@@ -112,6 +116,302 @@ async function status(
   const result = await invoke(runtime, request("attempt.status", commandId, { attemptId }, T1));
   if (result.operation !== "attempt.status") throw new Error("Unexpected status result");
   return result.attempt;
+}
+
+/**
+ * Drives a running attempt straight to `failed` through the raw kernel
+ * repositories so `task.retry` has an eligible prior attempt to work with.
+ * The command runtime does not itself expose a way to fail an attempt; only
+ * the scheduler does that, so tests manufacture it directly against the same
+ * database the runtime opened (captured through `initializeDatabase`).
+ */
+function failAttempt(
+  repositories: FactoryRepositories,
+  attempt: ExecutionAttemptV1,
+  seed: string,
+): ExecutionAttemptV1 {
+  const leaseKey = `attempt:${attempt.attemptId}`;
+  const ownerId = "test.worker";
+  const acquiredAt = "2026-08-11T12:00:02.100Z";
+  const runningAt = "2026-08-11T12:00:02.150Z";
+  const failedAt = "2026-08-11T12:00:02.200Z";
+  const claimed = repositories.leases.claim({
+    leaseKey,
+    attemptId: attempt.attemptId,
+    ownerId,
+    expectedAttemptRevision: attempt.revision,
+    acquiredAt,
+    expiresAt: "2026-08-11T12:00:10.000Z",
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000001`,
+      attemptId: attempt.attemptId,
+      sequence: 2,
+      occurredAt: acquiredAt,
+      commandId: null,
+      causationEventId: null,
+      fence: 1,
+      type: "attempt.fence-claimed",
+      data: { previousFence: 0, newFence: 1, ownerId },
+    },
+  });
+  const running = repositories.transitionAttemptState({
+    leaseKey,
+    ownerId,
+    observedAt: runningAt,
+    expectedRevision: claimed.attempt.revision,
+    attempt: {
+      ...claimed.attempt,
+      state: "running",
+      revision: claimed.attempt.revision + 1,
+      updatedAt: runningAt,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000002`,
+      attemptId: attempt.attemptId,
+      sequence: 3,
+      occurredAt: runningAt,
+      commandId: null,
+      causationEventId: `${seed}-0000-4000-8000-000000000001`,
+      fence: 1,
+      type: "attempt.state-changed",
+      data: { from: attempt.state, to: "running", blocker: null, outcome: null },
+    },
+  });
+  return repositories.transitionAttemptState({
+    leaseKey,
+    ownerId,
+    observedAt: failedAt,
+    expectedRevision: running.revision,
+    attempt: {
+      ...running,
+      state: "failed",
+      revision: running.revision + 1,
+      currentStepId: null,
+      updatedAt: failedAt,
+      terminalAt: failedAt,
+      outcome: {
+        kind: "failed",
+        failure: {
+          code: "task.execution-failed",
+          summary: "Deterministic test failure.",
+          retryable: true,
+          detailArtifactDigest: null,
+        },
+      },
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000003`,
+      attemptId: attempt.attemptId,
+      sequence: 4,
+      occurredAt: failedAt,
+      commandId: null,
+      causationEventId: `${seed}-0000-4000-8000-000000000002`,
+      fence: 1,
+      type: "attempt.state-changed",
+      data: {
+        from: "running",
+        to: "failed",
+        blocker: null,
+        outcome: {
+          kind: "failed",
+          failure: {
+            code: "task.execution-failed",
+            summary: "Deterministic test failure.",
+            retryable: true,
+            detailArtifactDigest: null,
+          },
+        },
+      },
+    },
+  });
+}
+
+/**
+ * Drives a running attempt to `blocked` with a blocked step through the raw
+ * kernel repositories, mirroring what the scheduler would persist, so
+ * `attempt.unblock` has a blocked attempt to resume.
+ */
+function blockAttempt(
+  repositories: FactoryRepositories,
+  attempt: ExecutionAttemptV1,
+  seed: string,
+): Readonly<{ attempt: ExecutionAttemptV1; stepId: string }> {
+  const leaseKey = `attempt:${attempt.attemptId}`;
+  const ownerId = "test.worker";
+  const acquiredAt = "2026-08-11T12:00:02.100Z";
+  const runningAt = "2026-08-11T12:00:02.150Z";
+  const stepId = `${seed}-0000-4000-8000-000000000010`;
+  const claimed = repositories.leases.claim({
+    leaseKey,
+    attemptId: attempt.attemptId,
+    ownerId,
+    expectedAttemptRevision: attempt.revision,
+    acquiredAt,
+    expiresAt: "2026-08-11T12:00:10.000Z",
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000001`,
+      attemptId: attempt.attemptId,
+      sequence: 2,
+      occurredAt: acquiredAt,
+      commandId: null,
+      causationEventId: null,
+      fence: 1,
+      type: "attempt.fence-claimed",
+      data: { previousFence: 0, newFence: 1, ownerId },
+    },
+  });
+  repositories.transitionAttemptState({
+    leaseKey,
+    ownerId,
+    observedAt: runningAt,
+    expectedRevision: claimed.attempt.revision,
+    attempt: {
+      ...claimed.attempt,
+      state: "running",
+      revision: claimed.attempt.revision + 1,
+      updatedAt: runningAt,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000002`,
+      attemptId: attempt.attemptId,
+      sequence: 3,
+      occurredAt: runningAt,
+      commandId: null,
+      causationEventId: `${seed}-0000-4000-8000-000000000001`,
+      fence: 1,
+      type: "attempt.state-changed",
+      data: { from: attempt.state, to: "running", blocker: null, outcome: null },
+    },
+  });
+
+  const stepInputDigest = `sha256:${"c".repeat(64)}`;
+  const step = repositories.steps.create({
+    leaseKey,
+    ownerId,
+    observedAt: runningAt,
+    step: {
+      schemaVersion: 1,
+      stepId,
+      attemptId: attempt.attemptId,
+      ordinal: 0,
+      operation: "factory.execute",
+      state: "pending",
+      revision: 0,
+      lastFence: 1,
+      runCount: 0,
+      inputDigest: stepInputDigest,
+      outputDigest: null,
+      blocker: null,
+      failure: null,
+      startedAt: null,
+      finishedAt: null,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000004`,
+      attemptId: attempt.attemptId,
+      sequence: 4,
+      occurredAt: runningAt,
+      commandId: null,
+      causationEventId: `${seed}-0000-4000-8000-000000000002`,
+      fence: 1,
+      type: "step.created",
+      data: { stepId, ordinal: 0, operation: "factory.execute", inputDigest: stepInputDigest },
+    },
+  });
+
+  const stepRunningAt = "2026-08-11T12:00:02.200Z";
+  const runningStep = repositories.steps.transition({
+    leaseKey,
+    ownerId,
+    observedAt: stepRunningAt,
+    expectedRevision: step.revision,
+    fence: 1,
+    step: {
+      ...step,
+      state: "running",
+      revision: step.revision + 1,
+      runCount: 1,
+      startedAt: stepRunningAt,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000005`,
+      attemptId: attempt.attemptId,
+      sequence: 5,
+      occurredAt: stepRunningAt,
+      commandId: null,
+      causationEventId: `${seed}-0000-4000-8000-000000000004`,
+      fence: 1,
+      type: "step.state-changed",
+      data: { stepId, from: "pending", to: "running", outputDigest: null, failureCode: null },
+    },
+  });
+
+  const runningAttempt = repositories.attempts.findById(attempt.attemptId);
+  if (runningAttempt === null) throw new Error("Expected the projected attempt to exist");
+
+  const blockedAt = "2026-08-11T12:00:02.300Z";
+  const blocker = {
+    kind: "clarification" as const,
+    code: "task.needs-input",
+    summary: "Which environment should this target?",
+    requiredAction: "Answer the question and unblock the attempt.",
+  };
+  repositories.steps.transition({
+    leaseKey,
+    ownerId,
+    observedAt: blockedAt,
+    expectedRevision: runningStep.revision,
+    fence: 1,
+    step: { ...runningStep, state: "blocked", revision: runningStep.revision + 1, blocker },
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000006`,
+      attemptId: attempt.attemptId,
+      sequence: 6,
+      occurredAt: blockedAt,
+      commandId: null,
+      causationEventId: `${seed}-0000-4000-8000-000000000005`,
+      fence: 1,
+      type: "step.state-changed",
+      data: { stepId, from: "running", to: "blocked", outputDigest: null, failureCode: null },
+    },
+  });
+
+  const blockedAttempt = repositories.transitionAttemptState({
+    leaseKey,
+    ownerId,
+    observedAt: blockedAt,
+    expectedRevision: runningAttempt.revision,
+    attempt: {
+      ...runningAttempt,
+      state: "blocked",
+      revision: runningAttempt.revision + 1,
+      updatedAt: blockedAt,
+      blocker,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: `${seed}-0000-4000-8000-000000000007`,
+      attemptId: attempt.attemptId,
+      sequence: 7,
+      occurredAt: blockedAt,
+      commandId: null,
+      causationEventId: `${seed}-0000-4000-8000-000000000006`,
+      fence: 1,
+      type: "attempt.state-changed",
+      data: { from: "running", to: "blocked", blocker, outcome: null },
+    },
+  });
+  repositories.leases.release({ leaseKey, ownerId, fence: 1 });
+
+  return { attempt: blockedAttempt, stepId };
 }
 
 afterEach(async () => {
@@ -679,5 +979,153 @@ describe("desired state and reconciliation commands", () => {
     await expect(
       status(restarted, run.attemptId, "20000000-0000-4000-8000-000000000026"),
     ).resolves.toMatchObject({ state: "queued", desiredState: "running", revision: 0, fence: 0 });
+  });
+});
+
+describe("task.retry", () => {
+  it("creates attempt N+1 from a failed attempt, replays idempotently, and refuses ineligible retries", async () => {
+    let repositories!: FactoryRepositories;
+    const runtime = await openRuntime(await makeRoot(), {
+      initializeDatabase: (database) => {
+        repositories = createFactoryRepositories(database);
+      },
+    });
+    const retrySpec = { ...taskSpec, taskId: "20000000-0000-4000-8000-000000000040" };
+    const run = await invoke(runtime, request("task.run", RUN_COMMAND_ID, { taskSpec: retrySpec }));
+    if (run.operation !== "task.run") throw new Error("Unexpected run result");
+
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "task.retry",
+          "20000000-0000-4000-8000-000000000041",
+          { taskId: retrySpec.taskId, attemptId: run.attemptId },
+          T1,
+        ),
+      ),
+    ).rejects.toMatchObject({ code: "task.retry-not-eligible" });
+
+    const priorAttempt = await status(runtime, run.attemptId);
+    failAttempt(repositories, priorAttempt, "a1a10000");
+
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "task.retry",
+          "20000000-0000-4000-8000-000000000042",
+          { taskId: "20000000-0000-4000-8000-000000000099", attemptId: run.attemptId },
+          T2,
+        ),
+      ),
+    ).rejects.toMatchObject({ code: "task.retry-task-mismatch" });
+
+    const retryRequest = request(
+      "task.retry",
+      RETRY_COMMAND_ID,
+      { taskId: retrySpec.taskId, attemptId: run.attemptId },
+      T2,
+    );
+    const retried = await invoke(runtime, retryRequest);
+    expect(retried).toMatchObject({
+      operation: "task.retry",
+      taskId: retrySpec.taskId,
+      state: "queued",
+      priorAttemptId: run.attemptId,
+    });
+    if (retried.operation !== "task.retry") throw new Error("Unexpected retry result");
+    expect(retried.attemptId).not.toBe(run.attemptId);
+    await expect(status(runtime, retried.attemptId)).resolves.toMatchObject({
+      attemptNumber: 2,
+      state: "queued",
+      desiredState: "running",
+    });
+
+    const replay = await invoke(runtime, retryRequest);
+    expect(replay).toEqual(retried);
+
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "task.retry",
+          "20000000-0000-4000-8000-000000000043",
+          { taskId: retrySpec.taskId, attemptId: run.attemptId },
+          "2026-08-11T12:00:03.000Z",
+        ),
+      ),
+    ).rejects.toBeTruthy();
+  });
+});
+
+describe("attempt.unblock", () => {
+  it("resumes a blocked attempt with the operator's answer recorded as an event", async () => {
+    let repositories!: FactoryRepositories;
+    const runtime = await openRuntime(await makeRoot(), {
+      initializeDatabase: (database) => {
+        repositories = createFactoryRepositories(database);
+      },
+    });
+    const unblockSpec = { ...taskSpec, taskId: "20000000-0000-4000-8000-000000000050" };
+    const run = await invoke(
+      runtime,
+      request("task.run", RUN_COMMAND_ID, { taskSpec: unblockSpec }),
+    );
+    if (run.operation !== "task.run") throw new Error("Unexpected run result");
+
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "attempt.unblock",
+          "20000000-0000-4000-8000-000000000051",
+          { attemptId: run.attemptId, answer: "n/a" },
+          T1,
+        ),
+      ),
+    ).rejects.toMatchObject({ code: "attempt.not-blocked" });
+
+    const runningAttempt = await status(runtime, run.attemptId);
+    const { stepId } = blockAttempt(repositories, runningAttempt, "b1b10000");
+    await expect(status(runtime, run.attemptId)).resolves.toMatchObject({
+      state: "blocked",
+      blocker: { code: "task.needs-input" },
+    });
+
+    const answer = "Target the staging environment.";
+    const unblocked = await invoke(
+      runtime,
+      request(
+        "attempt.unblock",
+        UNBLOCK_COMMAND_ID,
+        { attemptId: run.attemptId, answer },
+        "2026-08-11T12:00:03.000Z",
+      ),
+    );
+    expect(unblocked).toMatchObject({
+      operation: "attempt.unblock",
+      attemptId: run.attemptId,
+      state: "running",
+      accepted: true,
+    });
+    await expect(status(runtime, run.attemptId)).resolves.toMatchObject({
+      state: "running",
+      blocker: null,
+      currentStepId: stepId,
+    });
+
+    const events = await invoke(
+      runtime,
+      request(
+        "attempt.events",
+        "20000000-0000-4000-8000-000000000052",
+        { attemptId: run.attemptId, afterSequence: 0, limit: 100 },
+        "2026-08-11T12:00:03.000Z",
+      ),
+    );
+    if (events.operation !== "attempt.events") throw new Error("Unexpected events result");
+    const answered = events.events.find((event) => event.type === "attempt.unblock-answered");
+    expect(answered).toMatchObject({ data: { stepId, answer } });
   });
 });

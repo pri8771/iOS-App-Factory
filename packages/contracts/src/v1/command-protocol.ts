@@ -100,6 +100,25 @@ export const ResumeCommandRequestV1Schema = z.strictObject({
   payload: AttemptReasonPayloadV1Schema,
 });
 
+export const RetryCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("task.retry"),
+  payload: z.strictObject({
+    taskId: TaskIdSchema,
+    // The failed or cancelled terminal attempt this command retries.
+    attemptId: AttemptIdSchema,
+  }),
+});
+
+export const UnblockCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("attempt.unblock"),
+  payload: z.strictObject({
+    attemptId: AttemptIdSchema,
+    answer: z.string().min(1).max(2_000),
+  }),
+});
+
 export const CancelCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("attempt.cancel"),
@@ -149,6 +168,8 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   PauseCommandRequestV1Schema,
   ResumeCommandRequestV1Schema,
   CancelCommandRequestV1Schema,
+  RetryCommandRequestV1Schema,
+  UnblockCommandRequestV1Schema,
   ReconcileCommandRequestV1Schema,
   EvidenceListCommandRequestV1Schema,
   EvidenceInspectCommandRequestV1Schema,
@@ -227,6 +248,19 @@ export const PauseCommandResultV1Schema = desiredStateResultSchema("attempt.paus
 export const ResumeCommandResultV1Schema = desiredStateResultSchema("attempt.resume", "running");
 export const CancelCommandResultV1Schema = desiredStateResultSchema("attempt.cancel", "cancelled");
 
+export const RetryCommandResultV1Schema = z.strictObject({
+  operation: z.literal("task.retry"),
+  ...AcceptedAttemptResultV1Shape,
+  priorAttemptId: AttemptIdSchema,
+});
+
+export const UnblockCommandResultV1Schema = z.strictObject({
+  operation: z.literal("attempt.unblock"),
+  attemptId: AttemptIdSchema,
+  state: ExecutionAttemptV1Schema.shape.state,
+  accepted: z.boolean(),
+});
+
 export const ReconcileCommandResultV1Schema = z.strictObject({
   operation: z.literal("daemon.reconcile"),
   accepted: z.boolean(),
@@ -292,6 +326,8 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   PauseCommandResultV1Schema,
   ResumeCommandResultV1Schema,
   CancelCommandResultV1Schema,
+  RetryCommandResultV1Schema,
+  UnblockCommandResultV1Schema,
   ReconcileCommandResultV1Schema,
   EvidenceListCommandResultV1Schema,
   EvidenceInspectCommandResultV1Schema,

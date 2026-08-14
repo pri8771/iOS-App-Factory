@@ -517,6 +517,70 @@
         "data": {
           "additionalProperties": false,
           "properties": {
+            "answer": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "stepId": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "stepId",
+            "answer"
+          ],
+          "type": "object"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "fence": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "type": {
+          "const": "attempt.unblock-answered",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "eventId",
+        "attemptId",
+        "sequence",
+        "occurredAt",
+        "commandId",
+        "causationEventId",
+        "fence",
+        "type",
+        "data"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "causationEventId": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "data": {
+          "additionalProperties": false,
+          "properties": {
             "inputDigest": {
               "$ref": "#/$defs/__schema7"
             },

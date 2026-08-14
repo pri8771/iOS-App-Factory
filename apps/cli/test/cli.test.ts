@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { createServer, type Server, type Socket } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import { CommandClientError } from "@app-factory/command-client";
 
@@ -7,11 +12,14 @@ import {
   parseCliArguments,
   renderCliError,
   renderCommandResult,
+  runCli,
+  type CliIo,
 } from "../src/index.js";
 
 const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
 const PROJECT_ID = "00000000-0000-4000-8000-000000000006";
 const NOW = "2026-08-10T12:00:00.000Z";
+const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 
 describe("CLI argument parser", () => {
   it.each([
@@ -104,6 +112,28 @@ describe("CLI argument parser", () => {
       },
     ],
     [
+      ["retry", "00000000-0000-4000-8000-000000000008", ATTEMPT_ID],
+      {
+        outputMode: "human",
+        command: {
+          kind: "task.retry",
+          taskId: "00000000-0000-4000-8000-000000000008",
+          attemptId: ATTEMPT_ID,
+        },
+      },
+    ],
+    [
+      ["unblock", ATTEMPT_ID, "--answer", "Use staging."],
+      {
+        outputMode: "human",
+        command: { kind: "attempt.unblock", attemptId: ATTEMPT_ID, answer: "Use staging." },
+      },
+    ],
+    [
+      ["blocker", ATTEMPT_ID],
+      { outputMode: "human", command: { kind: "attempt.blocker", attemptId: ATTEMPT_ID } },
+    ],
+    [
       ["reconcile"],
       { outputMode: "human", command: { kind: "daemon.reconcile", attemptId: null } },
     ],
@@ -173,6 +203,12 @@ describe("CLI argument parser", () => {
     [["events", ATTEMPT_ID, "--limit", "0"]],
     [["events", ATTEMPT_ID, "--limit", "1001"]],
     [["pause", ATTEMPT_ID, "--reason"]],
+    [["retry", ATTEMPT_ID]],
+    [["retry", "not-an-id", ATTEMPT_ID]],
+    [["unblock", ATTEMPT_ID]],
+    [["unblock", ATTEMPT_ID, "--answer"]],
+    [["blocker"]],
+    [["blocker", "not-an-id"]],
     [["evidence"]],
     [["evidence", "list", "--limit", "101"]],
     [["evidence", "inspect", "not-an-id"]],
@@ -266,6 +302,28 @@ describe("CLI output renderer", () => {
     expect(
       renderCommandResult(
         {
+          operation: "task.retry",
+          taskId: "00000000-0000-4000-8000-000000000007",
+          attemptId: "00000000-0000-4000-8000-000000000008",
+          state: "queued",
+          priorAttemptId: ATTEMPT_ID,
+        },
+        "human",
+      ),
+    ).toBe(
+      `task.retry: attempt 00000000-0000-4000-8000-000000000008 is queued (retried from ${ATTEMPT_ID})\n`,
+    );
+
+    expect(
+      renderCommandResult(
+        { operation: "attempt.unblock", attemptId: ATTEMPT_ID, state: "running", accepted: true },
+        "human",
+      ),
+    ).toBe(`attempt.unblock: accepted for ${ATTEMPT_ID} (now running)\n`);
+
+    expect(
+      renderCommandResult(
+        {
           operation: "portfolio.snapshot",
           snapshot: {
             schemaVersion: 1,
@@ -337,5 +395,308 @@ describe("CLI output renderer", () => {
     expect(renderCliError(error, "human")).toContain(
       `--command-id ${retryIdentity.commandId} --issued-at ${retryIdentity.issuedAt}`,
     );
+  });
+});
+
+const roots: string[] = [];
+const servers: Server[] = [];
+
+afterEach(async () => {
+  for (const server of servers.splice(0)) server.close();
+  await Promise.all(roots.splice(0).map(async (root) => await rm(root, { recursive: true })));
+});
+
+/** A minimal fake daemon that answers by request operation, for `runCli` end-to-end tests. */
+async function startFakeDaemon(
+  respond: (
+    operation: string,
+  ) => Readonly<{ result: unknown } | { error: Readonly<Record<string, unknown>> }>,
+): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "app-factory-cli-"));
+  roots.push(root);
+  const socketPath = join(root, "daemon.sock");
+  const server = createServer((socket: Socket) => {
+    let buffer = "";
+    socket.on("data", (chunk: Buffer) => {
+      buffer += chunk.toString("utf8");
+      const newline = buffer.indexOf("\n");
+      if (newline < 0) return;
+      const frame = JSON.parse(buffer.slice(0, newline)) as Readonly<{
+        requestId: unknown;
+        request: Readonly<{ operation: string }>;
+      }>;
+      const outcome = respond(frame.request.operation);
+      const response =
+        "result" in outcome
+          ? { protocolVersion: 1, requestId: frame.requestId, ok: true, result: outcome.result }
+          : {
+              protocolVersion: 1,
+              requestId: frame.requestId,
+              ok: false,
+              error: outcome.error,
+            };
+      socket.end(`${JSON.stringify(response)}\n`);
+    });
+  });
+  servers.push(server);
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(socketPath, resolve);
+  });
+  return socketPath;
+}
+
+function fakeIo(): Readonly<{
+  io: CliIo;
+  captured: () => Readonly<{ stdout: string; stderr: string }>;
+}> {
+  let stdout = "";
+  let stderr = "";
+  return {
+    io: {
+      stdout: (value: string) => {
+        stdout += value;
+      },
+      stderr: (value: string) => {
+        stderr += value;
+      },
+    },
+    captured: () => ({ stdout, stderr }),
+  };
+}
+
+describe("runCli attempt blocker diagnosis", () => {
+  const blockedAttempt = {
+    schemaVersion: 1,
+    attemptId: ATTEMPT_ID,
+    taskId: "00000000-0000-4000-8000-000000000007",
+    taskSpecDigest: `sha256:${"a".repeat(64)}`,
+    attemptNumber: 1,
+    state: "blocked",
+    desiredState: "running",
+    revision: 4,
+    fence: 1,
+    currentStepId: "00000000-0000-4000-8000-000000000009",
+    blocker: {
+      kind: "clarification",
+      code: "task.needs-input",
+      summary: "Which environment should this target?",
+      requiredAction: "Answer the question and unblock the attempt.",
+    },
+    outcome: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+    terminalAt: null,
+  } as const;
+
+  it("prints the blocker code, step, and evidence summaries", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation === "attempt.status") {
+        return { result: { operation: "attempt.status", attempt: blockedAttempt } };
+      }
+      if (operation === "attempt.events") {
+        return {
+          result: {
+            operation: "attempt.events",
+            events: [
+              {
+                schemaVersion: 1,
+                eventId: "00000000-0000-4000-8000-000000000010",
+                attemptId: ATTEMPT_ID,
+                sequence: 4,
+                occurredAt: NOW,
+                commandId: null,
+                causationEventId: null,
+                fence: 1,
+                type: "step.created",
+                data: {
+                  stepId: "00000000-0000-4000-8000-000000000009",
+                  ordinal: 0,
+                  operation: "factory.execute",
+                  inputDigest: `sha256:${"b".repeat(64)}`,
+                },
+              },
+            ],
+            nextAfterSequence: 4,
+          },
+        };
+      }
+      if (operation === "evidence.verify") {
+        return {
+          result: {
+            operation: "evidence.verify",
+            integrityVerified: true,
+            manifest: {
+              attemptId: ATTEMPT_ID,
+              createdAt: NOW,
+              manifestDigest: `sha256:${"c".repeat(64)}`,
+              subject: {
+                taskSpecDigest: `sha256:${"a".repeat(64)}`,
+                policyDigest: `sha256:${"d".repeat(64)}`,
+                baseCommit: "e".repeat(40),
+                candidateTree: null,
+                fence: 1,
+              },
+              entryCount: 1,
+              requiredKinds: ["agent-run"],
+            },
+            evidence: [
+              {
+                evidenceId: "00000000-0000-4000-8000-000000000011",
+                digest: `sha256:${"f".repeat(64)}`,
+                kind: "agent-run",
+                createdAt: NOW,
+                producer: "app-factory.agent",
+                artifactCount: 2,
+              },
+            ],
+            artifactCount: 2,
+          },
+        };
+      }
+      throw new Error(`Unexpected operation in test: ${operation}`);
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["blocker", ATTEMPT_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    const { stdout, stderr } = captured();
+    expect(stderr).toBe("");
+    expect(stdout).toContain(`attempt ${ATTEMPT_ID}: blocked`);
+    expect(stdout).toContain("code: task.needs-input");
+    expect(stdout).toContain("summary: Which environment should this target?");
+    expect(stdout).toContain("step: 00000000-0000-4000-8000-000000000009 (factory.execute)");
+    expect(stdout).toContain("agent-run");
+    expect(stdout).toContain("00000000-0000-4000-8000-000000000011");
+  });
+
+  it("reports when the attempt is neither blocked nor failed, without querying events or evidence", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation === "attempt.status") {
+        return {
+          result: {
+            operation: "attempt.status",
+            attempt: { ...blockedAttempt, state: "running", blocker: null },
+          },
+        };
+      }
+      throw new Error(`Unexpected operation in test: ${operation}`);
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["--json", "blocker", ATTEMPT_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(captured().stdout)).toEqual({
+      ok: true,
+      result: {
+        operation: "attempt.blocker",
+        diagnosed: false,
+        attemptId: ATTEMPT_ID,
+        state: "running",
+      },
+    });
+  });
+
+  it("surfaces the failure code and last-known step for a failed attempt without a current step", async () => {
+    const failedAttempt = {
+      ...blockedAttempt,
+      state: "failed",
+      currentStepId: null,
+      blocker: null,
+      outcome: {
+        kind: "failed",
+        failure: {
+          code: "task.execution-failed",
+          summary: "The verify step exited non-zero.",
+          retryable: true,
+          detailArtifactDigest: null,
+        },
+      },
+      terminalAt: NOW,
+    } as const;
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation === "attempt.status") {
+        return { result: { operation: "attempt.status", attempt: failedAttempt } };
+      }
+      if (operation === "attempt.events") {
+        return {
+          result: {
+            operation: "attempt.events",
+            events: [
+              {
+                schemaVersion: 1,
+                eventId: "00000000-0000-4000-8000-000000000010",
+                attemptId: ATTEMPT_ID,
+                sequence: 4,
+                occurredAt: NOW,
+                commandId: null,
+                causationEventId: null,
+                fence: 1,
+                type: "step.created",
+                data: {
+                  stepId: "00000000-0000-4000-8000-000000000009",
+                  ordinal: 1,
+                  operation: "factory.verify",
+                  inputDigest: `sha256:${"b".repeat(64)}`,
+                },
+              },
+              {
+                schemaVersion: 1,
+                eventId: "00000000-0000-4000-8000-000000000012",
+                attemptId: ATTEMPT_ID,
+                sequence: 5,
+                occurredAt: NOW,
+                commandId: null,
+                causationEventId: "00000000-0000-4000-8000-000000000010",
+                fence: 1,
+                type: "step.state-changed",
+                data: {
+                  stepId: "00000000-0000-4000-8000-000000000009",
+                  from: "running",
+                  to: "failed",
+                  outputDigest: null,
+                  failureCode: "task.execution-failed",
+                },
+              },
+            ],
+            nextAfterSequence: 5,
+          },
+        };
+      }
+      if (operation === "evidence.verify") {
+        return {
+          error: {
+            code: "evidence.not-found",
+            message: "No evidence manifest exists for this attempt.",
+            retryable: false,
+          },
+        };
+      }
+      throw new Error(`Unexpected operation in test: ${operation}`);
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["blocker", ATTEMPT_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    const { stdout } = captured();
+    expect(stdout).toContain(`attempt ${ATTEMPT_ID}: failed`);
+    expect(stdout).toContain("code: task.execution-failed");
+    expect(stdout).toContain("step: 00000000-0000-4000-8000-000000000009 (factory.verify)");
+    expect(stdout).toContain("evidence: none recorded");
   });
 });

@@ -278,6 +278,90 @@
         "attemptId"
       ],
       "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "commandId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "initialDesiredState": {
+          "enum": [
+            "running",
+            "paused"
+          ],
+          "type": "string"
+        },
+        "issuedAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "kind": {
+          "const": "task.retry",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "priorAttemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "taskId": {
+          "$ref": "#/$defs/__schema1"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "issuedAt",
+        "origin",
+        "kind",
+        "taskId",
+        "priorAttemptId",
+        "initialDesiredState"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "answer": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "commandId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "issuedAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "kind": {
+          "const": "attempt.unblock",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "issuedAt",
+        "origin",
+        "kind",
+        "attemptId",
+        "answer"
+      ],
+      "type": "object"
     }
   ]
 }

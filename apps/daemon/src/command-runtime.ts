@@ -48,18 +48,31 @@ const COMMAND_RESULTS_DIRECTORY_NAME = "command-results";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
 const MAX_CLIENT_FUTURE_SKEW_MS = 5 * 60 * 1_000;
+/** How long the daemon holds the attempt lease while it applies an unblock. */
+const UNBLOCK_LEASE_DURATION_MS = 30_000;
 const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation"]> = new Set([
   "task.submit",
   "task.run",
   "attempt.pause",
   "attempt.resume",
   "attempt.cancel",
+  "task.retry",
+  "attempt.unblock",
   "daemon.reconcile",
 ]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
 
-export type DaemonRuntimeIdPurpose = "attempt" | "attempt-created-event" | "desired-state-event";
+export type DaemonRuntimeIdPurpose =
+  | "attempt"
+  | "attempt-created-event"
+  | "desired-state-event"
+  | "retry-attempt"
+  | "retry-created-event"
+  | "unblock-fence-event"
+  | "unblock-answered-event"
+  | "unblock-step-event"
+  | "unblock-attempt-event";
 
 export type DaemonRuntimeIdFactory = (
   purpose: DaemonRuntimeIdPurpose,
@@ -199,8 +212,12 @@ function defaultIdFactory(purpose: DaemonRuntimeIdPurpose, commandId: CommandId)
   return deterministicUuid(purpose, commandId);
 }
 
-function parseGeneratedAttemptId(factory: DaemonRuntimeIdFactory, commandId: CommandId): AttemptId {
-  return AttemptIdSchema.parse(factory("attempt", commandId));
+function parseGeneratedAttemptId(
+  factory: DaemonRuntimeIdFactory,
+  purpose: Extract<DaemonRuntimeIdPurpose, "attempt" | "retry-attempt">,
+  commandId: CommandId,
+): AttemptId {
+  return AttemptIdSchema.parse(factory(purpose, commandId));
 }
 
 function parseGeneratedEventId(
@@ -397,6 +414,27 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
               : "cancelled",
         reason: request.payload.reason,
       };
+    case "task.retry":
+      return {
+        schemaVersion: 1,
+        commandId: request.commandId,
+        issuedAt: request.issuedAt,
+        origin: request.origin,
+        kind: "task.retry",
+        taskId: request.payload.taskId,
+        priorAttemptId: request.payload.attemptId,
+        initialDesiredState: "running",
+      };
+    case "attempt.unblock":
+      return {
+        schemaVersion: 1,
+        commandId: request.commandId,
+        issuedAt: request.issuedAt,
+        origin: request.origin,
+        kind: "attempt.unblock",
+        attemptId: request.payload.attemptId,
+        answer: request.payload.answer,
+      };
     case "doctor":
     case "attempt.status":
     case "attempt.events":
@@ -527,7 +565,7 @@ function intakeTask(
   idFactory: DaemonRuntimeIdFactory,
 ): CommandResultV1 {
   const taskSpecDigest = computeTaskSpecDigest(request.payload.taskSpec);
-  const attemptId = parseGeneratedAttemptId(idFactory, request.commandId);
+  const attemptId = parseGeneratedAttemptId(idFactory, "attempt", request.commandId);
   const createdAt = observedAt;
   const initialDesiredState = request.operation === "task.submit" ? "paused" : "running";
   const created = repositories.createTaskAttempt({
@@ -635,6 +673,268 @@ function setDesiredState(
   };
 }
 
+function retryTask(
+  repositories: FactoryRepositories,
+  request: Extract<CommandRequestV1, { operation: "task.retry" }>,
+  observedAt: IsoInstant,
+  idFactory: DaemonRuntimeIdFactory,
+): CommandResultV1 {
+  const priorAttempt = requireAttempt(repositories, request.payload.attemptId);
+  if (priorAttempt.taskId !== request.payload.taskId) {
+    throw new CommandHandlerError(
+      "task.retry-task-mismatch",
+      `Attempt ${priorAttempt.attemptId} does not belong to task ${request.payload.taskId}.`,
+      false,
+    );
+  }
+  if (priorAttempt.state !== "failed" && priorAttempt.state !== "cancelled") {
+    throw new CommandHandlerError(
+      "task.retry-not-eligible",
+      `Attempt ${priorAttempt.attemptId} is ${priorAttempt.state}; only a failed or cancelled attempt can be retried.`,
+      false,
+    );
+  }
+  const attemptId = parseGeneratedAttemptId(idFactory, "retry-attempt", request.commandId);
+  const createdAt = observedAt;
+  const created = repositories.retryTaskAttempt({
+    command: {
+      schemaVersion: 1,
+      commandId: request.commandId,
+      issuedAt: request.issuedAt,
+      origin: request.origin,
+      kind: "task.retry",
+      taskId: request.payload.taskId,
+      priorAttemptId: priorAttempt.attemptId,
+      initialDesiredState: "running",
+    },
+    attempt: {
+      schemaVersion: 1,
+      attemptId,
+      taskId: priorAttempt.taskId,
+      taskSpecDigest: priorAttempt.taskSpecDigest,
+      attemptNumber: priorAttempt.attemptNumber + 1,
+      state: "queued",
+      desiredState: "running",
+      revision: 0,
+      fence: 0,
+      currentStepId: null,
+      blocker: null,
+      outcome: null,
+      createdAt,
+      updatedAt: createdAt,
+      terminalAt: null,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: parseGeneratedEventId(idFactory, "retry-created-event", request.commandId),
+      attemptId,
+      sequence: 1,
+      occurredAt: createdAt,
+      commandId: request.commandId,
+      causationEventId: null,
+      fence: 0,
+      type: "attempt.created",
+      data: { taskId: priorAttempt.taskId, taskSpecDigest: priorAttempt.taskSpecDigest },
+    },
+  });
+  const authoritative = requireAttempt(repositories, created.attempt.attemptId);
+  return {
+    operation: "task.retry",
+    taskId: authoritative.taskId,
+    attemptId: authoritative.attemptId,
+    state: authoritative.state,
+    priorAttemptId: created.priorAttempt.attemptId,
+  };
+}
+
+/**
+ * Answering a blocker requires the same lease-fenced discipline as any other
+ * step or attempt mutation, so this claims a lease exactly as the scheduler
+ * would, records the operator's answer as its own durable event, replays the
+ * step and attempt out of `blocked`, and releases the lease. See
+ * `KernelSchedulerPersistenceAdapter` for the pattern this mirrors.
+ */
+function unblockAttempt(
+  repositories: FactoryRepositories,
+  request: Extract<CommandRequestV1, { operation: "attempt.unblock" }>,
+  observedAt: IsoInstant,
+  idFactory: DaemonRuntimeIdFactory,
+): CommandResultV1 {
+  const attempt = requireAttempt(repositories, request.payload.attemptId);
+  if (attempt.state !== "blocked") {
+    throw new CommandHandlerError(
+      "attempt.not-blocked",
+      `Attempt ${attempt.attemptId} is ${attempt.state}; only a blocked attempt can be unblocked.`,
+      false,
+    );
+  }
+  if (attempt.currentStepId === null) {
+    throw new CommandHandlerError(
+      "attempt.no-current-step",
+      `Blocked attempt ${attempt.attemptId} has no current step to resume.`,
+      false,
+    );
+  }
+  const blockedStep = repositories.steps.findById(attempt.currentStepId);
+  if (blockedStep === null || blockedStep.state !== "blocked") {
+    throw new CommandHandlerError(
+      "attempt.step-not-blocked",
+      `Attempt ${attempt.attemptId}'s current step is not blocked.`,
+      false,
+    );
+  }
+
+  const leaseKey = `attempt:${attempt.attemptId}`;
+  const ownerId = `daemon.unblock.${request.commandId}`;
+  const acquiredAt = nextInstant(observedAt, attempt.updatedAt);
+  const expiresAt = IsoInstantSchema.parse(
+    new Date(Date.parse(acquiredAt) + UNBLOCK_LEASE_DURATION_MS).toISOString(),
+  );
+  const fence = attempt.fence + 1;
+  const claimContext = nextEventContext(repositories, attempt.attemptId);
+  const fenceEventId = parseGeneratedEventId(idFactory, "unblock-fence-event", request.commandId);
+  const answerEventId = parseGeneratedEventId(
+    idFactory,
+    "unblock-answered-event",
+    request.commandId,
+  );
+  const stepEventId = parseGeneratedEventId(idFactory, "unblock-step-event", request.commandId);
+  const attemptEventId = parseGeneratedEventId(
+    idFactory,
+    "unblock-attempt-event",
+    request.commandId,
+  );
+
+  try {
+    repositories.leases.claim({
+      leaseKey,
+      attemptId: attempt.attemptId,
+      ownerId,
+      expectedAttemptRevision: attempt.revision,
+      acquiredAt,
+      expiresAt,
+      event: {
+        schemaVersion: 1,
+        eventId: fenceEventId,
+        attemptId: attempt.attemptId,
+        sequence: claimContext.sequence,
+        occurredAt: acquiredAt,
+        commandId: null,
+        causationEventId: claimContext.causationEventId,
+        fence,
+        type: "attempt.fence-claimed",
+        data: { previousFence: attempt.fence, newFence: fence, ownerId },
+      },
+    });
+  } catch (error) {
+    const busy = new CommandHandlerError(
+      "attempt.busy",
+      "The attempt is currently claimed by the scheduler; retry the unblock shortly.",
+      true,
+    );
+    busy.cause = error;
+    throw busy;
+  }
+
+  const answered = repositories.unblocks.apply({
+    command: {
+      schemaVersion: 1,
+      commandId: request.commandId,
+      issuedAt: request.issuedAt,
+      origin: request.origin,
+      kind: "attempt.unblock",
+      attemptId: attempt.attemptId,
+      answer: request.payload.answer,
+    },
+    leaseKey,
+    ownerId,
+    observedAt: acquiredAt,
+    event: {
+      schemaVersion: 1,
+      eventId: answerEventId,
+      attemptId: attempt.attemptId,
+      sequence: claimContext.sequence + 1,
+      occurredAt: acquiredAt,
+      commandId: request.commandId,
+      causationEventId: fenceEventId,
+      fence,
+      type: "attempt.unblock-answered",
+      data: { stepId: blockedStep.stepId, answer: request.payload.answer },
+    },
+  });
+
+  repositories.steps.transition({
+    leaseKey,
+    ownerId,
+    observedAt: acquiredAt,
+    expectedRevision: blockedStep.revision,
+    fence,
+    step: {
+      ...blockedStep,
+      state: "running",
+      revision: blockedStep.revision + 1,
+      lastFence: fence,
+      runCount: blockedStep.runCount + 1,
+      blocker: null,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: stepEventId,
+      attemptId: attempt.attemptId,
+      sequence: claimContext.sequence + 2,
+      occurredAt: acquiredAt,
+      commandId: null,
+      causationEventId: answered.event.eventId,
+      fence,
+      type: "step.state-changed",
+      data: {
+        stepId: blockedStep.stepId,
+        from: "blocked",
+        to: "running",
+        outputDigest: null,
+        failureCode: null,
+      },
+    },
+  });
+
+  const attemptAfterAnswer = requireAttempt(repositories, attempt.attemptId);
+  const resumedAt = nextInstant(acquiredAt, attemptAfterAnswer.updatedAt);
+  const resumedAttempt = repositories.transitionAttemptState({
+    leaseKey,
+    ownerId,
+    observedAt: resumedAt,
+    expectedRevision: attemptAfterAnswer.revision,
+    attempt: {
+      ...attemptAfterAnswer,
+      state: "running",
+      revision: attemptAfterAnswer.revision + 1,
+      updatedAt: resumedAt,
+      blocker: null,
+    },
+    event: {
+      schemaVersion: 1,
+      eventId: attemptEventId,
+      attemptId: attempt.attemptId,
+      sequence: claimContext.sequence + 3,
+      occurredAt: resumedAt,
+      commandId: null,
+      causationEventId: stepEventId,
+      fence,
+      type: "attempt.state-changed",
+      data: { from: "blocked", to: "running", blocker: null, outcome: null },
+    },
+  });
+
+  repositories.leases.release({ leaseKey, ownerId, fence });
+
+  return {
+    operation: "attempt.unblock",
+    attemptId: resumedAttempt.attemptId,
+    state: resumedAttempt.state,
+    accepted: true,
+  };
+}
+
 async function executeRequest(
   repositories: FactoryRepositories,
   database: ReturnType<typeof openMigratedFactoryDatabase>,
@@ -698,6 +998,10 @@ async function executeRequest(
         dependencies.observedAt,
         dependencies.idFactory,
       );
+    case "task.retry":
+      return retryTask(repositories, request, dependencies.observedAt, dependencies.idFactory);
+    case "attempt.unblock":
+      return unblockAttempt(repositories, request, dependencies.observedAt, dependencies.idFactory);
     case "daemon.reconcile": {
       if (request.payload.attemptId !== null) {
         requireAttempt(repositories, request.payload.attemptId);
