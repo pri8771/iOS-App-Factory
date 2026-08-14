@@ -20,6 +20,7 @@ import {
   parseOciRunIntent,
   prepareOciRun,
   readOciEvidenceClosure,
+  readOciLifecycleDisposition,
   sha256Digest,
   type OciContainerInspection,
   type OciEnginePort,
@@ -297,6 +298,14 @@ function engineObservations(engine: HardeningEngine): Readonly<Record<string, nu
     remove: engine.removeCount,
     inspect: engine.inspectCount,
     find: engine.findCount,
+  };
+}
+
+function allEngineObservations(engine: HardeningEngine): Readonly<Record<string, number>> {
+  return {
+    ...engineObservations(engine),
+    identity: engine.identityObservationCount,
+    verify: engine.verifyCount,
   };
 }
 
@@ -1455,6 +1464,129 @@ describe("runner P1 durable state hardening", () => {
     });
     expect(readFileSync(prepared.paths.removalPath)).toEqual(originalRemoval);
     expect(engine.removeCount).toBe(1);
+  });
+});
+
+describe("read-only OCI lifecycle disposition", () => {
+  it("reports a genuine incomplete prefix without engine calls or durable mutation", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const beforeFiles = runDirectorySnapshot(prepared.paths.runDirectory);
+    const beforeEngine = allEngineObservations(engine);
+
+    await expect(readOciLifecycleDisposition(prepared)).resolves.toEqual({
+      phase: "incomplete",
+    });
+    await expect(readOciLifecycleDisposition(prepared)).resolves.toEqual({
+      phase: "incomplete",
+    });
+
+    expect(allEngineObservations(engine)).toEqual(beforeEngine);
+    expect(runDirectorySnapshot(prepared.paths.runDirectory)).toEqual(beforeFiles);
+  });
+
+  it("shares the reconciliation lock and preserves an active owner's lock bytes", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const lockPath = join(prepared.paths.runDirectory, "operation.lock");
+    writeFileSync(lockPath, "owned elsewhere\n", { flag: "wx", mode: 0o600 });
+    const lockBytes = readFileSync(lockPath);
+    const beforeEngine = allEngineObservations(engine);
+
+    await expect(readOciLifecycleDisposition(prepared)).rejects.toMatchObject({
+      name: "OciRunnerBusyError",
+      code: "OCI_RUN_BUSY",
+      retryable: true,
+    });
+
+    expect(readFileSync(lockPath)).toEqual(lockBytes);
+    expect(allEngineObservations(engine)).toEqual(beforeEngine);
+  });
+
+  it("replays one validated planned cancellation without exposing a success closure", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    const cancelled = await runner.cancel(prepared);
+    if (cancelled.phase !== "cancelled-before-start") {
+      throw new Error("Expected a pre-start cancellation fixture");
+    }
+    const beforeFiles = runDirectorySnapshot(prepared.paths.runDirectory);
+    const beforeEngine = allEngineObservations(engine);
+
+    const first = await readOciLifecycleDisposition(prepared);
+    const replay = await readOciLifecycleDisposition(prepared);
+
+    expect(first).toEqual({
+      phase: "cancelled-before-start",
+      cancellation: cancelled.cancellation,
+      engineIdentityDigest: ENGINE_ID,
+    });
+    expect(replay).toEqual(first);
+    expect(await readOciEvidenceClosure(prepared)).toBeNull();
+    expect(allEngineObservations(engine)).toEqual(beforeEngine);
+    expect(runDirectorySnapshot(prepared.paths.runDirectory)).toEqual(beforeFiles);
+  });
+
+  it("validates a removed created container as cancelled-before-start", async () => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    engine.inspection = inspectionFor(intent, "created");
+    const runner = new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    });
+    await expect(runner.cancel(prepared)).resolves.toMatchObject({
+      phase: "cancelled-before-start",
+      cancellation: { state: "created", containerId: CONTAINER_ID },
+    });
+    const beforeEngine = allEngineObservations(engine);
+
+    await expect(readOciLifecycleDisposition(prepared)).resolves.toMatchObject({
+      phase: "cancelled-before-start",
+      cancellation: { state: "created", containerId: CONTAINER_ID },
+      engineIdentityDigest: ENGINE_ID,
+    });
+    expect(allEngineObservations(engine)).toEqual(beforeEngine);
+  });
+
+  it.each([
+    {
+      name: "unknown cancellation field",
+      mutate: (prepared: ReturnType<typeof prepare>) =>
+        rewriteJson(join(prepared.paths.runDirectory, "pre-start-cancellation.json"), (value) => {
+          value.unexpected = true;
+        }),
+    },
+    {
+      name: "conflicting creation evidence",
+      mutate: (prepared: ReturnType<typeof prepare>, intent: OciRunIntentV1) =>
+        writeFileSync(
+          prepared.paths.createdInspectionPath,
+          canonicalJsonLine(inspectionFor(intent, "created")),
+          { flag: "wx", mode: 0o600 },
+        ),
+    },
+  ])("rejects cancellation tamper without engine calls: $name", async ({ mutate }) => {
+    const intent = fixtureIntent();
+    const prepared = prepare(intent);
+    const engine = new HardeningEngine(intent);
+    await new OciRunner(engine, {
+      now: () => new Date("2026-08-11T16:00:10.000Z"),
+    }).cancel(prepared);
+    mutate(prepared, intent);
+    const beforeFiles = runDirectorySnapshot(prepared.paths.runDirectory);
+    const beforeEngine = allEngineObservations(engine);
+
+    await expect(readOciLifecycleDisposition(prepared)).rejects.toThrow();
+
+    expect(allEngineObservations(engine)).toEqual(beforeEngine);
+    expect(runDirectorySnapshot(prepared.paths.runDirectory)).toEqual(beforeFiles);
   });
 });
 

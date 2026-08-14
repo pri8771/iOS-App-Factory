@@ -746,6 +746,60 @@ describe("RestartSafeScheduler", () => {
     expect(persistence.steps.get("prepare")?.runCount).toBe(1);
   });
 
+  it("keeps cleanup authority available after daemon stop while execution authority is withdrawn", async () => {
+    const clock = new ManualClock();
+    const persistence = new InMemorySchedulerPersistence(clock);
+    let started: (() => void) | undefined;
+    const didStart = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let cleanupAuthorized = false;
+    const executor: SchedulerStepExecutorPort = {
+      execute: async (context) => {
+        started?.();
+        if (!context.signal.aborted) {
+          await new Promise<void>((resolve) => {
+            context.signal.addEventListener("abort", () => resolve(), { once: true });
+          });
+        }
+        await expect(context.assertActive()).rejects.toThrow();
+        await expect(context.assertCleanupActive()).resolves.toBeUndefined();
+        cleanupAuthorized = true;
+        return { kind: "succeeded", outputDigest: "sha256:cleanup-after-stop" };
+      },
+    };
+    const scheduler = createScheduler(persistence, executor, clock);
+    const tick = scheduler.tick();
+    await didStart;
+
+    await scheduler.stop();
+    await expect(tick).resolves.toEqual({ kind: "stopped", attemptId: ATTEMPT_ID });
+    expect(cleanupAuthorized).toBe(true);
+  });
+
+  it("allows cancellation cleanup only until the current lease is stolen", async () => {
+    const clock = new ManualClock();
+    const persistence = new InMemorySchedulerPersistence(clock);
+    let checked = false;
+    const executor: SchedulerStepExecutorPort = {
+      execute: async (context) => {
+        persistence.setDesiredState("cancelled");
+        await expect(context.assertActive()).rejects.toThrow(SchedulerFenceError);
+        await expect(context.assertCleanupActive()).resolves.toBeUndefined();
+        persistence.stealLease("worker-rival");
+        await expect(context.assertCleanupActive()).rejects.toThrow(SchedulerFenceError);
+        checked = true;
+        return { kind: "succeeded", outputDigest: "sha256:cleanup-fence-check" };
+      },
+    };
+
+    await expect(createScheduler(persistence, executor, clock).tick()).resolves.toEqual({
+      kind: "fenced",
+      attemptId: ATTEMPT_ID,
+    });
+    expect(checked).toBe(true);
+  });
+
   it("exposes heartbeats to long-running executors", async () => {
     const clock = new ManualClock();
     const persistence = new InMemorySchedulerPersistence(clock);

@@ -233,6 +233,65 @@ class StartupRecoveryExecutor implements SchedulerStepExecutorPort {
   }
 }
 
+type DurableIsolatedRunState = {
+  pendingAttemptId: string | null;
+  launchCount: number;
+  adoptionCount: number;
+};
+
+class CrashAdoptingExecutor implements SchedulerStepExecutorPort {
+  readonly #state: DurableIsolatedRunState;
+  readonly #hangAfterLaunch: boolean;
+  readonly #startedPromise: Promise<void>;
+  #markStarted: (() => void) | undefined;
+
+  public constructor(state: DurableIsolatedRunState, hangAfterLaunch: boolean) {
+    this.#state = state;
+    this.#hangAfterLaunch = hangAfterLaunch;
+    this.#startedPromise = new Promise((resolve) => {
+      this.#markStarted = resolve;
+    });
+  }
+
+  public async started(): Promise<void> {
+    await this.#startedPromise;
+  }
+
+  public async reconcileStartup() {
+    return {
+      schemaVersion: 1 as const,
+      pendingAttemptIds:
+        this.#state.pendingAttemptId === null ? [] : [this.#state.pendingAttemptId],
+    };
+  }
+
+  public async execute(context: SchedulerExecutionContext) {
+    await context.assertActive();
+    if (context.step.key === "execute") {
+      if (this.#state.pendingAttemptId === null) {
+        this.#state.pendingAttemptId = context.attemptId;
+        this.#state.launchCount += 1;
+      } else {
+        expect(this.#state.pendingAttemptId).toBe(context.attemptId);
+        this.#state.adoptionCount += 1;
+      }
+      this.#markStarted?.();
+      if (this.#hangAfterLaunch) {
+        return await new Promise<never>((_resolve, reject) => {
+          const abort = () => reject(new Error("simulated daemon crash after isolated launch"));
+          if (context.signal.aborted) abort();
+          else context.signal.addEventListener("abort", abort, { once: true });
+        });
+      }
+      this.#state.pendingAttemptId = null;
+    }
+    return {
+      kind: "succeeded" as const,
+      outputDigest: succeededDigest(context.effectKey),
+    };
+  }
+}
+
 class DeferredExecutionGuardExecutor implements SchedulerStepExecutorPort {
   readonly #startedPromise: Promise<void>;
   #markStarted: (() => void) | undefined;
@@ -336,6 +395,51 @@ describe("single-writer daemon composition", () => {
     services.push(service);
     expect(executor.reconcileCalls).toBe(1);
     await expect(client.doctor()).resolves.toMatchObject({ readiness: "ready" });
+  });
+
+  it("adopts one durable in-flight run after restart without launching a duplicate", async () => {
+    const root = await makeRoot();
+    const durableRun: DurableIsolatedRunState = {
+      pendingAttemptId: null,
+      launchCount: 0,
+      adoptionCount: 0,
+    };
+    const crashingExecutor = new CrashAdoptingExecutor(durableRun, true);
+    const first = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.2.0-before-isolated-restart",
+      executor: crashingExecutor,
+      pollIntervalMs: 5,
+    });
+    services.push(first);
+    const intake = await clientFor(first).run(taskSpec(92));
+    await crashingExecutor.started();
+    expect(durableRun).toMatchObject({
+      pendingAttemptId: intake.attemptId,
+      launchCount: 1,
+      adoptionCount: 0,
+    });
+
+    await first.close();
+
+    const recovered = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.2.0-after-isolated-restart",
+      executor: new CrashAdoptingExecutor(durableRun, false),
+      pollIntervalMs: 5,
+    });
+    services.push(recovered);
+
+    await expect(clientFor(recovered).status(intake.attemptId)).resolves.toMatchObject({
+      attempt: { state: "succeeded" },
+    });
+    expect(durableRun).toEqual({
+      pendingAttemptId: null,
+      launchCount: 1,
+      adoptionCount: 1,
+    });
   });
 
   it("releases daemon ownership when startup recovery fails closed", async () => {

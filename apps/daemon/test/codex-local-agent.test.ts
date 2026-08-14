@@ -159,12 +159,17 @@ function makeContext(
   options: Readonly<{
     signal?: AbortSignal;
     assertActive?: () => Promise<void>;
+    assertCleanupActive?: () => Promise<void>;
   }> = {},
 ): LocalAgentRunContext {
   return {
     spec,
+    policyDigest: `sha256:${"a".repeat(64)}`,
+    baseCommit: "b".repeat(40),
+    baseTree: "c".repeat(40),
     signal: options.signal ?? new AbortController().signal,
     assertActive: options.assertActive ?? (async () => undefined),
+    assertCleanupActive: options.assertCleanupActive ?? (async () => undefined),
     heartbeat: async () => undefined,
   };
 }

@@ -85,6 +85,11 @@ export type CreateKernelSchedulerControllerOptions = Readonly<{
 export type KernelSchedulerController = Readonly<{
   persistence: KernelSchedulerPersistenceAdapter;
   scheduler: RestartSafeScheduler;
+  /**
+   * Narrows discovery during daemon-start recovery. The scope changes only
+   * between ticks; null restores ordinary portfolio discovery.
+   */
+  setStartupRecoveryScope(attemptIds: readonly AttemptId[] | null): void;
   tick(): Promise<SchedulerTickResult>;
   interruptActiveCancellation(attemptId: AttemptId): boolean;
   stop(): Promise<void>;
@@ -273,6 +278,19 @@ function isEligible(attempt: ExecutionAttemptV1): boolean {
   return attempt.state !== "paused";
 }
 
+function isDiscoverable(attempt: ExecutionAttemptV1): boolean {
+  if (!isEligible(attempt)) return false;
+  if (attempt.desiredState === "running") return attempt.state !== "blocked";
+  if (attempt.desiredState === "paused") return attempt.state !== "paused";
+  return attempt.desiredState === "cancelled";
+}
+
+function discoveryPriority(attempt: ExecutionAttemptV1): number {
+  if (attempt.desiredState === "cancelled") return 0;
+  if (attempt.desiredState === "paused") return 1;
+  return 2;
+}
+
 function planDigest(attempt: ExecutionAttemptV1, key: SchedulerStepKey): string {
   return Sha256DigestSchema.parse(
     `sha256:${createHash("sha256")
@@ -292,6 +310,7 @@ export class KernelSchedulerPersistenceAdapter implements SchedulerPersistencePo
   readonly #database: Database.Database;
   readonly #repositories: FactoryRepositories;
   readonly #idFactory: KernelSchedulerIdFactory;
+  #startupRecoveryScope: readonly AttemptId[] | null = null;
 
   public constructor(options: KernelSchedulerPersistenceOptions) {
     this.#database = options.database;
@@ -299,11 +318,41 @@ export class KernelSchedulerPersistenceAdapter implements SchedulerPersistencePo
     this.#idFactory = options.idFactory ?? deterministicUuid;
   }
 
+  public setStartupRecoveryScope(attemptIds: readonly AttemptId[] | null): void {
+    if (attemptIds === null) {
+      this.#startupRecoveryScope = null;
+      return;
+    }
+    const parsed = attemptIds.map((attemptId) => AttemptIdSchema.parse(attemptId));
+    if (new Set(parsed).size !== parsed.length) {
+      throw new SchedulerInvariantError("startup recovery scope contains duplicate attempts");
+    }
+    this.#startupRecoveryScope = [...parsed].sort();
+  }
+
   public async discoverEligible(input: {
     readonly limit: number;
     readonly observedAt: string;
   }): Promise<readonly SchedulerCandidate[]> {
     IsoInstantSchema.parse(input.observedAt);
+    if (this.#startupRecoveryScope !== null) {
+      return this.#startupRecoveryScope
+        .map((attemptId) => this.#repositories.attempts.findById(attemptId))
+        .filter((attempt): attempt is ExecutionAttemptV1 => attempt !== null)
+        .filter(isDiscoverable)
+        .sort((left, right) => {
+          const priority = discoveryPriority(left) - discoveryPriority(right);
+          if (priority !== 0) return priority;
+          const updatedAt = left.updatedAt.localeCompare(right.updatedAt);
+          return updatedAt !== 0 ? updatedAt : left.attemptId.localeCompare(right.attemptId);
+        })
+        .slice(0, input.limit)
+        .map((attempt) => ({
+          attemptId: attempt.attemptId,
+          leaseKey: `attempt:${attempt.attemptId}`,
+          updatedAt: attempt.updatedAt,
+        }));
+    }
     return this.#repositories.attempts
       .listReconciliationCandidates({ limit: input.limit })
       .map((attempt) => ({
@@ -1005,6 +1054,19 @@ export function createKernelSchedulerController(
   return {
     persistence,
     scheduler,
+    setStartupRecoveryScope: (attemptIds) => {
+      if (activeScheduler !== null) {
+        throw new SchedulerInvariantError(
+          "startup recovery scope cannot change during an active scheduler tick",
+        );
+      }
+      if (stopping) {
+        throw new SchedulerInvariantError(
+          "startup recovery scope cannot change after scheduler shutdown begins",
+        );
+      }
+      persistence.setStartupRecoveryScope(attemptIds);
+    },
     tick,
     interruptActiveCancellation: (attemptIdValue) => {
       const attemptId = AttemptIdSchema.parse(attemptIdValue);

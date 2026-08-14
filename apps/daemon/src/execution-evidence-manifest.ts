@@ -20,17 +20,35 @@ import {
   type VerifiedExecutionEvidence,
 } from "@app-factory/execution-engine";
 
-export type VerifiedAgentRunEvidence = Readonly<{
+type VerifiedAgentRunEvidenceCommon = Readonly<{
   adapterId: string;
   runSpecDigest: Sha256Digest;
   resultDigest: Sha256Digest;
   stdoutDigest: Sha256Digest;
   stderrDigest: Sha256Digest;
-  invocationDescriptorDigest: Sha256Digest;
-  supervisorIntentDigest: Sha256Digest;
-  supervisorReceiptDigest: Sha256Digest;
   result: AgentRunResultV1;
 }>;
+
+type VerifiedSupervisorAgentRunEvidence = VerifiedAgentRunEvidenceCommon &
+  Readonly<{
+    invocationDescriptorDigest: Sha256Digest;
+    supervisorIntentDigest: Sha256Digest;
+    supervisorReceiptDigest: Sha256Digest;
+  }>;
+
+export type VerifiedOciAgentRunEvidence = VerifiedAgentRunEvidenceCommon &
+  Readonly<{
+    ociEnvelopeDigest: Sha256Digest;
+    ociArtifacts: readonly Readonly<{
+      logicalName: string;
+      mediaType: "application/json" | "application/octet-stream";
+      digest: Sha256Digest;
+      byteLength: number;
+    }>[];
+  }>;
+
+export type VerifiedAgentRunEvidence =
+  VerifiedSupervisorAgentRunEvidence | VerifiedOciAgentRunEvidence;
 
 function deterministicEvidenceId(namespace: string, ...parts: readonly string[]): string {
   const digest = createHash("sha256")
@@ -52,6 +70,22 @@ function storedArtifact(
     mediaType,
     logicalName,
   };
+}
+
+function storedBoundArtifact(
+  store: EvidenceStore,
+  artifact: Readonly<{
+    logicalName: string;
+    mediaType: string;
+    digest: Sha256Digest;
+    byteLength: number;
+  }>,
+): ArtifactRefV1 {
+  const stored = storedArtifact(store, artifact.digest, artifact.mediaType, artifact.logicalName);
+  if (stored.byteLength !== artifact.byteLength) {
+    throw new Error("Verified agent-run artifact length changed after validation");
+  }
+  return stored;
 }
 
 function uniqueArtifacts(artifacts: readonly ArtifactRefV1[]): ArtifactRefV1[] {
@@ -118,9 +152,14 @@ export function commitVerifiedExecutionManifest(
     store.readBlob(agentRun.runSpecDigest);
     store.readBlob(agentRun.stdoutDigest);
     store.readBlob(agentRun.stderrDigest);
-    store.readBlob(agentRun.invocationDescriptorDigest);
-    store.readBlob(agentRun.supervisorIntentDigest);
-    store.readBlob(agentRun.supervisorReceiptDigest);
+    if ("ociEnvelopeDigest" in agentRun) {
+      store.readBlob(agentRun.ociEnvelopeDigest);
+      for (const artifact of agentRun.ociArtifacts) storedBoundArtifact(store, artifact);
+    } else {
+      store.readBlob(agentRun.invocationDescriptorDigest);
+      store.readBlob(agentRun.supervisorIntentDigest);
+      store.readBlob(agentRun.supervisorReceiptDigest);
+    }
   }
 
   const evidence: EvidenceV1[] = [
@@ -158,7 +197,9 @@ export function commitVerifiedExecutionManifest(
                 verified.indexDigest,
                 agentRun.runSpecDigest,
                 agentRun.resultDigest,
-                agentRun.supervisorIntentDigest,
+                "ociEnvelopeDigest" in agentRun
+                  ? agentRun.ociEnvelopeDigest
+                  : agentRun.supervisorIntentDigest,
               ),
             ),
             producer: NamespacedCodeSchema.parse(agentRun.adapterId),
@@ -187,24 +228,41 @@ export function commitVerifiedExecutionManifest(
                 "application/octet-stream",
                 "agent-stderr.bin",
               ),
-              storedArtifact(
-                store,
-                agentRun.invocationDescriptorDigest,
-                "application/vnd.app-factory.agent-invocation-descriptor.v1+json",
-                "agent-invocation-descriptor.v1.json",
-              ),
-              storedArtifact(
-                store,
-                agentRun.supervisorIntentDigest,
-                "application/vnd.app-factory.supervised-run-intent.v1+json",
-                "supervised-run-intent.v1.json",
-              ),
-              storedArtifact(
-                store,
-                agentRun.supervisorReceiptDigest,
-                "application/vnd.app-factory.supervised-run-receipt.v1+json",
-                "supervised-run-receipt.v1.json",
-              ),
+              ...("ociEnvelopeDigest" in agentRun
+                ? [
+                    storedArtifact(
+                      store,
+                      agentRun.ociEnvelopeDigest,
+                      "application/vnd.app-factory.oci-evidence-envelope.v1+json",
+                      "oci-evidence-envelope.v1.json",
+                    ),
+                    ...agentRun.ociArtifacts.map((artifact) =>
+                      storedBoundArtifact(store, {
+                        ...artifact,
+                        logicalName: `oci-${artifact.logicalName}`,
+                      }),
+                    ),
+                  ]
+                : [
+                    storedArtifact(
+                      store,
+                      agentRun.invocationDescriptorDigest,
+                      "application/vnd.app-factory.agent-invocation-descriptor.v1+json",
+                      "agent-invocation-descriptor.v1.json",
+                    ),
+                    storedArtifact(
+                      store,
+                      agentRun.supervisorIntentDigest,
+                      "application/vnd.app-factory.supervised-run-intent.v1+json",
+                      "supervised-run-intent.v1.json",
+                    ),
+                    storedArtifact(
+                      store,
+                      agentRun.supervisorReceiptDigest,
+                      "application/vnd.app-factory.supervised-run-receipt.v1+json",
+                      "supervised-run-receipt.v1.json",
+                    ),
+                  ]),
             ],
             kind: "agent-run" as const,
             claims: {

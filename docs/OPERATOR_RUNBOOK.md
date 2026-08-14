@@ -36,6 +36,16 @@ The pinned versions are Node `24.18.0` and pnpm `10.33.2`. Use
 finalization state is recorded in
 [`docs/progress/IMPLEMENTATION_STATUS.md`](progress/IMPLEMENTATION_STATUS.md#repository-verification).
 
+### Repository branches
+
+The owner-directed coordination branches are `dev`, `qa`, and protected
+`main`. Push implementation checkpoints to `dev`. Promote an exact reviewed SHA
+to `qa` only for candidate validation, and promote to `main` only after the
+applicable evidence and explicit merge/release gates pass. Do not treat a moving
+branch name as build, QA, TestFlight, or release identity; those records bind
+the exact commit SHA. Prefer short-lived issue branches when work needs isolated
+review before integration.
+
 ## 2. Create a private local runtime
 
 Run once:

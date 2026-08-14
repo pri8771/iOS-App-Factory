@@ -454,17 +454,22 @@ Use:
 
 ```text
 protected main
-  + short-lived issue branches
+  <- qa (candidate coordination)
+  <- dev (shared integration)
+       <- short-lived issue branches
   + immutable candidate/release tags
   + SHA-bound QA, TestFlight, and release records
 ```
 
-Do not use permanent `dev`, `qa`, `main`, `testflight`, and `release` branches as
-the Factory default. Those names describe promotion states, not five versions of
-the truth. Long-lived promotion branches introduce merge drift and can detach
-test evidence from the SHA that Apple receives. An enrolled legacy project may
-temporarily adapt its existing branch model, but certification always binds one
-exact SHA.
+Per the repository owner's 2026-08-11 direction, this Factory repository keeps
+long-lived `dev`, `qa`, and `main` coordination branches. Ordinary checkpoints
+land on `dev`; a reviewed candidate may advance to `qa`; only separately
+approved, verified work advances to protected `main`. Do not add parallel
+`testflight` or `release` truth branches. Branch names are navigation and
+promotion conveniences, never certification evidence: every QA, TestFlight,
+release, and rollback decision must still bind one exact commit SHA and its
+immutable evidence. Short-lived issue branches remain preferred for isolated
+delivery work, and promotion must not silently re-resolve a moving branch.
 
 ## Account and infrastructure activation schedule
 

@@ -76,9 +76,9 @@ with digest
 `sha256:3ba392b0012dd11e89d0647b434a33ce94eae414733bec5b1ceb942058b8cc96`.
 It predates the current engine-binding and quarantine/reaper changes, so it is
 not current-tree validation. It is local observational evidence for the earlier
-tree, not an OCI journal V3 or production certification. The local Unix socket
-is trusted; the identity observations do not attest a malicious proxy that
-controls that endpoint.
+tree, not current-tree daemon/V3 or production certification. The local Unix
+socket is trusted; the identity observations do not attest a malicious proxy
+that controls that endpoint.
 
 ## Prohibited interpretation and actions
 
@@ -98,7 +98,8 @@ been rerun against the current tree. Neither proves an autonomous PID 1 wall/out
 watchdog or a retained-log total-output bound; controlled live-model
 egress/auth; autonomous stale-operation-lock recovery; a post-launch
 quarantine reaper scheduled independently by the daemon and a corresponding
-real-engine failure campaign; daemon composition and OCI journal V3;
+real-engine failure campaign; an operator-enabled OCI/Codex profile and pinned
+in-container request/result transport;
 digest-attested default seccomp/AppArmor profiles; quota-bound host writes and
 disk-exhaustion behavior; or real-engine timeout, overflow, stop, and kill
 paths. Trusted macOS Xcode integration also remains separate. Those gates are

@@ -106,6 +106,18 @@ export type OciEvidenceClosureV1 = Readonly<{
   artifacts: readonly OciEvidenceArtifactV1[];
 }>;
 
+export type OciLifecycleDispositionV1 =
+  | Readonly<{ phase: "incomplete" }>
+  | Readonly<{
+      phase: "cancelled-before-start";
+      cancellation: OciPreStartCancellationEvidenceV1;
+      engineIdentityDigest: string;
+    }>
+  | Readonly<{
+      phase: "removed" | "quarantined" | "quarantine-removed";
+      evidenceClosure: OciEvidenceClosureV1;
+    }>;
+
 export type OciPreStartCancellationEvidenceV1 = Readonly<{
   schemaVersion: 1;
   runKey: string;
@@ -195,6 +207,22 @@ export type OciRunnerDependencies = Readonly<{
   now?: () => Date;
   afterBoundary?: (boundary: OciFailureBoundary) => void;
 }>;
+
+/**
+ * Per-call authority for externally visible OCI effects. Execution authority
+ * rejects cancellation as well as stale ownership. Cleanup authority permits
+ * cancellation cleanup, but only while the same unexpired owner/fence remains
+ * current. Omitted guards preserve direct-library behavior.
+ */
+export type OciRunnerEffectGuards = Readonly<{
+  assertExecutionActive(): Promise<void>;
+  assertCleanupActive(): Promise<void>;
+}>;
+
+const UNGUARDED_OCI_EFFECTS: OciRunnerEffectGuards = Object.freeze({
+  assertExecutionActive: async () => undefined,
+  assertCleanupActive: async () => undefined,
+});
 
 export class OciRunnerError extends Error {
   public constructor(message: string, options?: ErrorOptions) {
@@ -2024,6 +2052,187 @@ function reopenExactPreparedOciRun(preparedInput: PreparedOciRun): PreparedOciRu
   return prepared;
 }
 
+function validateNonClosureLifecyclePrefix(
+  prepared: PreparedOciRun,
+  cancellation: OciPreStartCancellationEvidenceV1 | null,
+): EngineBindingV1 | null {
+  const paths = artifactPaths(prepared);
+  const binding = engineBindingFromPath(prepared);
+  const createAttempt = createAttemptFromPath(prepared);
+  const createdArtifact = parsedArtifact(
+    prepared.paths.createdInspectionPath,
+    "OCI created inspection",
+  );
+  const created =
+    createdArtifact === null
+      ? null
+      : parseInspectionArtifact(
+          createdArtifact.value,
+          prepared,
+          "created",
+          "OCI created inspection",
+        );
+  const launch = launchAttemptFromPath(prepared);
+  const dispatch = startDispatchFromPath(prepared);
+  const postStartArtifact = parsedArtifact(paths.postStartInspection, "OCI post-start inspection");
+  let postStartInspection: OciContainerInspection | null = null;
+  if (postStartArtifact !== null) {
+    const status = artifactRecord(postStartArtifact.value, "OCI post-start inspection").status;
+    if (status !== "running" && status !== "terminal") {
+      throw new OciRunnerError("OCI post-start evidence has an invalid status");
+    }
+    postStartInspection = parseInspectionArtifact(
+      postStartArtifact.value,
+      prepared,
+      status,
+      "OCI post-start inspection",
+    );
+  }
+  const postStart = postStartAttestationFromPath(prepared);
+  const runningArtifact = parsedArtifact(
+    prepared.paths.runningInspectionPath,
+    "OCI running inspection",
+  );
+  const running =
+    runningArtifact === null
+      ? null
+      : parseInspectionArtifact(
+          runningArtifact.value,
+          prepared,
+          "running",
+          "OCI running inspection",
+        );
+  const termination = terminationRequestFromPath(prepared);
+
+  if (
+    binding === null &&
+    (createAttempt !== null ||
+      created !== null ||
+      launch !== null ||
+      dispatch !== null ||
+      postStartInspection !== null ||
+      postStart !== null ||
+      running !== null ||
+      termination !== null ||
+      cancellation !== null)
+  ) {
+    throw new OciRunnerError("OCI lifecycle prefix is missing its engine binding");
+  }
+  if (launch !== null && (created === null || launch.containerId !== created.containerId)) {
+    throw new OciRunnerError("OCI lifecycle prefix changed its created container identity");
+  }
+  if (
+    postStartInspection !== null &&
+    (dispatch === null || postStartInspection.containerId !== dispatch.containerId)
+  ) {
+    throw new OciRunnerError("OCI post-start evidence is missing its dispatch binding");
+  }
+  if (
+    running !== null &&
+    (dispatch === null ||
+      postStart === null ||
+      postStart.inspectionStatus !== "running" ||
+      running.containerId !== dispatch.containerId)
+  ) {
+    throw new OciRunnerError("OCI running evidence is missing its running start attestation");
+  }
+  if (created !== null && postStartInspection !== null) {
+    assertSameEvidenceExecution(created, postStartInspection, null, "OCI post-start inspection");
+  }
+  if (created !== null && running !== null) {
+    assertSameEvidenceExecution(
+      created,
+      running,
+      postStartInspection?.startedAt ?? null,
+      "OCI running inspection",
+    );
+  }
+
+  if (cancellation !== null) {
+    if (
+      dispatch !== null ||
+      postStartInspection !== null ||
+      postStart !== null ||
+      running !== null
+    ) {
+      throw new OciRunnerError("OCI pre-start cancellation conflicts with start evidence");
+    }
+    if (cancellation.state === "planned") {
+      if (
+        createAttempt !== null ||
+        created !== null ||
+        launch !== null ||
+        readPrivateFile(prepared.paths.removalPath) !== null
+      ) {
+        throw new OciRunnerError("OCI planned cancellation conflicts with creation evidence");
+      }
+    } else if (created === null || created.containerId !== cancellation.containerId) {
+      throw new OciRunnerError("OCI created cancellation is missing its created inspection");
+    }
+    return binding;
+  }
+
+  if (termination?.phase === "pre-start") {
+    if (
+      dispatch !== null ||
+      postStartInspection !== null ||
+      postStart !== null ||
+      running !== null
+    ) {
+      throw new OciRunnerError("OCI pre-start termination conflicts with start evidence");
+    }
+    if (termination.containerId === null) {
+      if (createAttempt !== null || created !== null || launch !== null) {
+        throw new OciRunnerError("OCI planned termination conflicts with creation evidence");
+      }
+    } else if (created === null || created.containerId !== termination.containerId) {
+      throw new OciRunnerError("OCI created termination is missing its created inspection");
+    }
+  }
+  if (
+    termination?.phase === "running" &&
+    (running === null ||
+      termination.containerId !== running.containerId ||
+      termination.startedAt !== running.startedAt)
+  ) {
+    throw new OciRunnerError("OCI running termination does not describe the same execution");
+  }
+  return binding;
+}
+
+/**
+ * Reads one coherent lifecycle disposition without invoking the OCI engine or
+ * changing durable lifecycle evidence. The transient operation lock is shared
+ * with reconciliation and evidence export. Only a complete, identity-bound
+ * pre-start cancellation is terminal here; every valid non-terminal prefix is
+ * reported as incomplete, while conflicts and tampering throw.
+ */
+export async function readOciLifecycleDisposition(
+  preparedInput: PreparedOciRun,
+): Promise<OciLifecycleDispositionV1> {
+  const prepared = reopenExactPreparedOciRun(preparedInput);
+  return await whileRunLocked(prepared, new Date(), async () => {
+    const evidenceClosure = readOciEvidenceClosureLocked(prepared);
+    if (evidenceClosure !== null) {
+      return {
+        phase: evidenceClosure.envelope.phase,
+        evidenceClosure,
+      };
+    }
+    const cancellation = preStartCancellationFromPath(prepared);
+    const binding = validateNonClosureLifecyclePrefix(prepared, cancellation);
+    if (cancellation === null) return { phase: "incomplete" };
+    if (binding === null) {
+      throw new OciRunnerError("OCI pre-start cancellation is missing its engine binding");
+    }
+    return {
+      phase: "cancelled-before-start",
+      cancellation,
+      engineIdentityDigest: binding.engineIdentityDigest,
+    };
+  });
+}
+
 /**
  * Exports one read-only, fully validated OCI lifecycle closure. This function
  * never invokes the engine or mutates lifecycle evidence. It uses the same
@@ -2312,20 +2521,29 @@ export class OciRunner {
     this.#afterBoundary = dependencies.afterBoundary ?? (() => undefined);
   }
 
-  public async reconcile(prepared: PreparedOciRun): Promise<ReconcileOciRunResult> {
-    return await this.#reconcile(prepared, "natural");
+  public async reconcile(
+    prepared: PreparedOciRun,
+    guards: OciRunnerEffectGuards = UNGUARDED_OCI_EFFECTS,
+  ): Promise<ReconcileOciRunResult> {
+    return await this.#reconcile(prepared, "natural", guards);
   }
 
-  public async cancel(prepared: PreparedOciRun): Promise<ReconcileOciRunResult> {
-    return await this.#reconcile(prepared, "cancellation");
+  public async cancel(
+    prepared: PreparedOciRun,
+    guards: OciRunnerEffectGuards = UNGUARDED_OCI_EFFECTS,
+  ): Promise<ReconcileOciRunResult> {
+    return await this.#reconcile(prepared, "cancellation", guards);
   }
 
-  public async reapQuarantined(preparedInput: PreparedOciRun): Promise<ReconcileOciRunResult> {
+  public async reapQuarantined(
+    preparedInput: PreparedOciRun,
+    guards: OciRunnerEffectGuards = UNGUARDED_OCI_EFFECTS,
+  ): Promise<ReconcileOciRunResult> {
     const prepared = this.#loadPrepared(preparedInput);
     return await whileRunLocked(
       prepared,
       this.#now(),
-      async () => await this.#reapQuarantinedLocked(prepared),
+      async () => await this.#reapQuarantinedLocked(prepared, guards),
     );
   }
 
@@ -2560,12 +2778,13 @@ export class OciRunner {
     return persisted;
   }
 
-  #requestTermination(
+  async #requestTermination(
     prepared: PreparedOciRun,
     phase: "pre-start" | "running",
     origin: "wall-time" | "cancellation",
     inspection: OciContainerInspection | null,
-  ): TerminationRequestV1 {
+    guards: OciRunnerEffectGuards,
+  ): Promise<TerminationRequestV1> {
     const existing = terminationRequestFromPath(prepared);
     if (existing !== null) return existing;
     const startedAt = phase === "running" ? (inspection?.startedAt ?? null) : null;
@@ -2585,6 +2804,7 @@ export class OciRunner {
           : new Date(Date.parse(startedAt) + prepared.intent.limits.wallTimeMs).toISOString(),
       requestedAt: this.#now().toISOString(),
     };
+    await guards.assertCleanupActive();
     jsonArtifact(artifactPaths(prepared).terminationRequest, request);
     this.#afterBoundary("after-termination-request");
     const persisted = terminationRequestFromPath(prepared);
@@ -2617,6 +2837,7 @@ export class OciRunner {
     prepared: PreparedOciRun,
     request: TerminationRequestV1,
     inspection: OciContainerInspection | null,
+    guards: OciRunnerEffectGuards,
   ): Promise<ReconcileOciRunResult> {
     if (request.phase !== "pre-start" || request.origin !== "cancellation") {
       throw new OciRunnerError("OCI pre-start cancellation request is invalid");
@@ -2650,7 +2871,9 @@ export class OciRunner {
         throw new OciRunnerError("OCI pre-start cancellation found a launched container");
       }
       await this.#assertBoundEngine(prepared);
-      await this.#engine.remove(request.containerId);
+      await guards.assertCleanupActive();
+      const removal = this.#engine.remove(request.containerId);
+      await removal;
       this.#afterBoundary("after-remove");
       const afterRemoval = await this.#inspect(request.containerId);
       if (afterRemoval !== null) {
@@ -2677,10 +2900,11 @@ export class OciRunner {
     return { phase: "cancelled-before-start", cancellation: persisted };
   }
 
-  #publishQuarantineReapRequest(
+  async #publishQuarantineReapRequest(
     prepared: PreparedOciRun,
     quarantine: OciQuarantineEvidenceV1,
-  ): OciQuarantineReapRequestV1 {
+    guards: OciRunnerEffectGuards,
+  ): Promise<OciQuarantineReapRequestV1> {
     assertQuarantineLifecycleConsistency(prepared, quarantine);
     const existing = quarantineReapRequestFromPath(prepared);
     if (existing !== null) return existing;
@@ -2695,6 +2919,7 @@ export class OciRunner {
       ),
       requestedAt,
     };
+    await guards.assertCleanupActive();
     jsonArtifact(artifactPaths(prepared).quarantineReapRequest, request);
     const persisted = quarantineReapRequestFromPath(prepared);
     if (persisted === null) {
@@ -2704,7 +2929,10 @@ export class OciRunner {
     return persisted;
   }
 
-  async #reapQuarantinedLocked(prepared: PreparedOciRun): Promise<ReconcileOciRunResult> {
+  async #reapQuarantinedLocked(
+    prepared: PreparedOciRun,
+    guards: OciRunnerEffectGuards,
+  ): Promise<ReconcileOciRunResult> {
     const quarantine = quarantineFromPath(prepared);
     const removal = quarantineRemovalFromPath(prepared);
     const receipt = validatedReceiptFromPath(prepared);
@@ -2717,16 +2945,17 @@ export class OciRunner {
       throw new OciRunnerError("OCI quarantine conflicts with existing final evidence");
     if (removal !== null) return { phase: "quarantine-removed", removal };
     await this.#loadOrBindEngine(prepared);
-    const request = this.#publishQuarantineReapRequest(prepared, quarantine);
-
     try {
       await this.#assertBoundEngine(prepared);
     } catch (error) {
       throw new OciRunnerReapPendingError(prepared.intent.runKey, { cause: error });
     }
+    const request = await this.#publishQuarantineReapRequest(prepared, quarantine, guards);
     let killSucceeded = false;
+    await guards.assertCleanupActive();
     try {
-      await this.#engine.kill(request.containerId);
+      const killing = this.#engine.kill(request.containerId);
+      await killing;
       killSucceeded = true;
     } catch {
       // A created, terminal, or already absent container rejects kill. A lost
@@ -2740,8 +2969,10 @@ export class OciRunner {
       throw new OciRunnerReapPendingError(prepared.intent.runKey, { cause: error });
     }
     let removeSucceeded = false;
+    await guards.assertCleanupActive();
     try {
-      await this.#engine.remove(request.containerId);
+      const removing = this.#engine.remove(request.containerId);
+      await removing;
       removeSucceeded = true;
     } catch {
       // Removal responses are not evidence. Inspect and exact-label discovery
@@ -2799,13 +3030,14 @@ export class OciRunner {
   async #reconcile(
     preparedInput: PreparedOciRun,
     requestedTermination: "natural" | "cancellation",
+    guards: OciRunnerEffectGuards,
   ): Promise<ReconcileOciRunResult> {
     const prepared = this.#loadPrepared(preparedInput);
     try {
       return await whileRunLocked(
         prepared,
         this.#now(),
-        async () => await this.#reconcileLocked(prepared, requestedTermination),
+        async () => await this.#reconcileLocked(prepared, requestedTermination, guards),
       );
     } catch (error) {
       if (error instanceof OciQuarantineTransition) {
@@ -2838,6 +3070,7 @@ export class OciRunner {
   async #reconcileLocked(
     prepared: PreparedOciRun,
     requestedTermination: "natural" | "cancellation",
+    guards: OciRunnerEffectGuards,
   ): Promise<ReconcileOciRunResult> {
     const createAttempt = createAttemptFromPath(prepared);
     const preStartCancellation = preStartCancellationFromPath(prepared);
@@ -2872,7 +3105,7 @@ export class OciRunner {
       if (createAttempt !== null) {
         throw new OciRunnerCreatePendingError(prepared.intent.runKey);
       }
-      return await this.#finishPreStartCancellation(prepared, terminationRequest, null);
+      return await this.#finishPreStartCancellation(prepared, terminationRequest, null, guards);
     }
 
     await this.#loadOrBindEngine(prepared);
@@ -2923,25 +3156,33 @@ export class OciRunner {
         );
       }
       if (terminationRequest?.phase === "pre-start" && terminationRequest.containerId !== null) {
-        return await this.#finishPreStartCancellation(prepared, terminationRequest, null);
+        return await this.#finishPreStartCancellation(prepared, terminationRequest, null, guards);
       }
       if (createAttempt !== null) {
         throw new OciRunnerCreatePendingError(prepared.intent.runKey);
       }
       if (terminationRequest?.phase === "pre-start") {
-        return await this.#finishPreStartCancellation(prepared, terminationRequest, null);
+        return await this.#finishPreStartCancellation(prepared, terminationRequest, null, guards);
       }
       if (requestedTermination === "cancellation") {
-        terminationRequest = this.#requestTermination(prepared, "pre-start", "cancellation", null);
-        return await this.#finishPreStartCancellation(prepared, terminationRequest, null);
+        terminationRequest = await this.#requestTermination(
+          prepared,
+          "pre-start",
+          "cancellation",
+          null,
+          guards,
+        );
+        return await this.#finishPreStartCancellation(prepared, terminationRequest, null, guards);
       }
       await this.#engine.verifyImage(intent.image);
       this.#afterBoundary("after-image-verification");
       imageVerified = true;
       this.#assertLaunchStillPermitted(prepared);
       await this.#assertBoundEngine(prepared);
+      await guards.assertExecutionActive();
       this.#publishCreateAttempt(prepared);
-      const containerId = validateContainerId(await this.#engine.create(intent));
+      const creation = this.#engine.create(intent);
+      const containerId = validateContainerId(await creation);
       this.#afterBoundary("after-create");
       inspection = await this.#inspect(containerId);
       if (inspection === null) throw new OciRunnerError("Created OCI container disappeared");
@@ -2961,16 +3202,27 @@ export class OciRunner {
 
     if (inspection.status === "created" && requestedTermination === "cancellation") {
       jsonArtifact(prepared.paths.createdInspectionPath, inspection);
-      terminationRequest = this.#requestTermination(
+      terminationRequest = await this.#requestTermination(
         prepared,
         "pre-start",
         "cancellation",
         inspection,
+        guards,
       );
-      return await this.#finishPreStartCancellation(prepared, terminationRequest, inspection);
+      return await this.#finishPreStartCancellation(
+        prepared,
+        terminationRequest,
+        inspection,
+        guards,
+      );
     }
     if (terminationRequest?.phase === "pre-start") {
-      return await this.#finishPreStartCancellation(prepared, terminationRequest, inspection);
+      return await this.#finishPreStartCancellation(
+        prepared,
+        terminationRequest,
+        inspection,
+        guards,
+      );
     }
 
     if (inspection.status === "created") {
@@ -2982,10 +3234,16 @@ export class OciRunner {
       this.#assertLaunchStillPermitted(prepared);
       const launch = this.#publishLaunchAttempt(prepared, inspection);
       this.#assertLaunchStillPermitted(prepared);
-      const dispatch = this.#publishStartDispatch(prepared, launch);
       try {
         await this.#assertBoundEngine(prepared);
-        await this.#engine.start(inspection.containerId);
+      } catch (error) {
+        this.#quarantineAndThrow(prepared, launch, "start-ambiguous", error);
+      }
+      await guards.assertExecutionActive();
+      const dispatch = this.#publishStartDispatch(prepared, launch);
+      try {
+        const starting = this.#engine.start(inspection.containerId);
+        await starting;
       } catch (error) {
         this.#quarantineAndThrow(prepared, launch, "start-ambiguous", error);
       }
@@ -3020,11 +3278,12 @@ export class OciRunner {
         terminationRequest !== null || requestedTermination === "cancellation" || deadlineExpired;
       if (!shouldTerminate) return { phase: "running", containerId: inspection.containerId };
       if (terminationRequest === null) {
-        terminationRequest = this.#requestTermination(
+        terminationRequest = await this.#requestTermination(
           prepared,
           "running",
           requestedTermination === "cancellation" ? "cancellation" : "wall-time",
           inspection,
+          guards,
         );
       }
       if (
@@ -3034,12 +3293,16 @@ export class OciRunner {
         throw new OciRunnerError("OCI termination request conflicts with the running container");
       }
       await this.#assertBoundEngine(prepared);
-      await this.#engine.stop(inspection.containerId, intent.limits.stopGraceMs);
+      await guards.assertCleanupActive();
+      const stopping = this.#engine.stop(inspection.containerId, intent.limits.stopGraceMs);
+      await stopping;
       this.#afterBoundary("after-stop");
       inspection = await this.#inspectLaunched(prepared, persistedLaunch);
       if (inspection?.status === "running") {
         await this.#assertBoundEngine(prepared);
-        await this.#engine.kill(inspection.containerId);
+        await guards.assertCleanupActive();
+        const killing = this.#engine.kill(inspection.containerId);
+        await killing;
         this.#afterBoundary("after-kill");
         inspection = await this.#inspectLaunched(prepared, persistedLaunch);
       }
@@ -3094,7 +3357,9 @@ export class OciRunner {
     terminalRecordFromPath(prepared);
 
     await this.#assertBoundEngine(prepared);
-    await this.#engine.remove(inspection.containerId);
+    await guards.assertCleanupActive();
+    const removing = this.#engine.remove(inspection.containerId);
+    await removing;
     this.#afterBoundary("after-remove");
     const afterRemoval = await this.#inspect(inspection.containerId);
     if (afterRemoval !== null) throw new OciRunnerError("OCI container still exists after removal");

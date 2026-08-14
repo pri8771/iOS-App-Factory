@@ -1,6 +1,6 @@
 # ADR 0002: Separate the coding plane from the trusted macOS build plane
 
-- Status: accepted boundary; dormant partial implementation; production conformance pending
+- Status: accepted boundary; dependency-injected partial implementation; production conformance pending
 - Date: 2026-08-11
 
 ## Context
@@ -38,11 +38,13 @@ the live Codex adapter.
 
 ## Current partial implementation
 
-[`packages/oci-runner`](../../packages/oci-runner) implements a dormant,
-no-network slice of the coding-plane contract. It is a library and test surface;
-the daemon, scheduler, Codex adapter, CLI, and operator entrypoint do not compose
-it. Its deterministic suite uses fake engines and an injected Docker command
-transport. Separately, an explicitly invoked live Colima `OciRunner` smoke
+[`packages/oci-runner`](../../packages/oci-runner) implements a no-network slice
+of the coding-plane contract. A dependency-injected daemon `OciLocalAgent`,
+scheduler recovery path, OCI-specific V3 journal, and execution-manifest union
+now consume it in deterministic tests. The default daemon, CLI, operator
+profile, and real Codex adapter still cannot select this path. Its deterministic
+suite uses fake engines and an injected Docker command transport. Separately,
+an explicitly invoked live Colima `OciRunner` smoke
 completed the natural `planned -> created -> running -> terminal -> removed`
 lifecycle and recovered from a persisted launch marker after a process failure
 during strict inspection. It pinned Docker CLI `29.6.1`, server `29.5.2`, and
@@ -78,15 +80,34 @@ The implemented runner controls are:
   start, inspection, or isolation-attestation failures permanently block the
   run, and reaping closes only after exact-ID and exact-label absence are both
   observed. It never emits a normal execution receipt; and
-- an async, read-only `readOciEvidenceClosure` prerequisite for a future OCI
-  journal. It reopens the exact prepared identity, takes the same per-run
+- an async, read-only `readOciEvidenceClosure` consumed by the OCI V3 journal.
+  It reopens the exact prepared identity, takes the same per-run
   operation lock as reconciliation, invokes no engine operation, and does not
   mutate lifecycle evidence. It exports a canonical digest-and-length-bound
   artifact chain only for a fully validated `removed`, `quarantined`, or
   `quarantine-removed` closure. Normal removal requires create, start-dispatch,
   post-start-inspection, and post-start-attestation proof in addition to the
   terminal/output/removal chain. Incomplete state returns no closure; missing,
-  conflicting, or tampered terminal evidence fails closed.
+  conflicting, or tampered terminal evidence fails closed;
+- a zero-engine `readOciLifecycleDisposition` inventory that distinguishes
+  incomplete state, validated pre-start cancellation, and complete closures
+  under the same exact operation lock; and
+- per-call execution and cleanup authority guards. Create/start require current
+  execution authority; termination/reap markers and stop/kill/remove require
+  the same live lease owner/fence while still permitting cancellation and
+  controlled-shutdown cleanup.
+
+The injected daemon composition derives one stable run/container identity per
+logical run, accepts only an older-or-equal durable fence with every other input
+unchanged, independently reopens and re-exports the enrolled evidence root, and
+publishes a V3 journal only after exact closure comparison. The journal and
+final execution manifest content-address the complete OCI chain, and replay
+uses immutable evidence blobs without Docker. At daemon startup, read-only OCI
+inventory is cross-checked against the exact durable attempt, TaskSpec, project,
+worktree, execute step, policy, commit, and tree. Scheduler discovery is then
+temporarily scoped to those runs so a fresh lease adopts them without duplicate
+create/start; orphaned, future-fence, tampered, or quarantined state denies
+readiness.
 
 The earlier live natural receipt succeeded as UID/GID `10001`, proved the private tmpfs
 owner and mode, observed `ENETUNREACH` with no non-loopback interface, made the
@@ -113,14 +134,12 @@ particular, the current implementation does not yet provide:
    safe automatic recovery still needs process-generation ownership proof.
 4. Daemon-owned independent invocation of the package quarantine reaper and a
    real-engine failure campaign for its start, inspect, kill, remove, and
-   absence-proof boundaries. The dormant library closure is fake-engine tested;
+   absence-proof boundaries. The library closure is fake-engine tested;
    no autonomous process currently schedules it after a daemon failure.
-5. Daemon/scheduler composition and an OCI-specific agent-result journal V3
-   consumer that binds the exported OCI intent, image and engine identities,
-   inspections, raw output, terminal state, removal evidence, and lease/fence
-   closure. The library exporter is only the validated lifecycle-evidence
-   prerequisite: no daemon consumes it and no OCI journal V3 exists. The
-   host-process V2 journal is not sufficient evidence for an OCI run.
+5. An immutable in-container request/result transport and pinned PID 1 Codex
+   wrapper. The injected V3 composition currently runs only a deterministic
+   no-network protocol materializer; it cannot deliver the reviewed task bundle
+   and output schema to a pinned Codex CLI inside the image.
 6. Digest attestation of the effective default seccomp and AppArmor profiles.
    The configured privilege fields are strictly inspected, but the runtime's
    implicit profiles are not yet bound to the policy digest.
@@ -169,8 +188,9 @@ steps remain distinct trusted adapters with their own approvals and leases.
 ## Consequences
 
 - The live Codex adapter, deterministic fake-executable conformance tests, and
-  dormant OCI runner may exist in the repository, but real-model autonomous
-  execution stays disabled until the complete containment contract passes.
+  dependency-injected OCI/V3 composition may exist in the repository, but
+  real-model autonomous execution stays disabled until the complete containment
+  contract passes.
 - Closing a terminal or chat does not define execution lifetime; the daemon and
   container runtime do.
 - A coding-plane outage blocks coding attempts without weakening host quality

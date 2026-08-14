@@ -29,7 +29,13 @@ deterministic, no-external-effect Week 2 fake; production execution adapters are
 injected through `executor`. Scheduler clock, loop timing, lease duration, and
 error observation are also injectable. Composed executor/agent startup recovery
 must finish before commands become ready; callers receive retryable
-`daemon.starting` while it runs. LaunchAgent installation remains a later slice.
+`daemon.starting` while it runs. For an injected OCI V3 project, startup first
+inventories immutable run state without invoking Docker, cross-checks every run
+against its durable attempt, TaskSpec, project, worktree, and execute step, and
+then limits scheduler discovery to the exact recoverable attempts. A newly
+claimed lease adopts the prior-fence container run without a second create or
+start. Orphaned, future-fence, tampered, or quarantined state denies readiness.
+LaunchAgent installation remains a later slice.
 
 `daemon.reconcile` is a durable wake request, not a synchronous scheduler tick.
 Its command result is journaled before the service wakes the background loop, so
@@ -83,6 +89,30 @@ If a terminal supervisor receipt survives under an older fence but its V2
 journal does not, recovery neither relaunches Codex nor promotes that receipt
 into the newer fence. The attempt fails with `agent.supervisor-stale-fence`;
 the operator must inspect the durable receipt and submit a replacement attempt.
+
+An explicitly injected OCI project uses a separate V3 journal and cannot replay
+as V1 or V2. Its no-network `OciLocalAgent` derives one stable run key and
+container name per logical run, binds the TaskSpec, policy, commit, tree,
+worktree, image, engine, resource profile, and durable agent fence, and delegates
+lifecycle effects to `OciRunner`. The daemon independently reopens the enrolled
+evidence root, re-exports the complete immutable OCI closure under the runner's
+operation lock, and byte-compares it with the adapter claim before publishing
+the V3 journal. The journal and final execution manifest preserve the canonical
+intent, engine/create/start/inspection/output/terminal/removal/receipt chain;
+replay reads only content-addressed evidence and makes no Docker call.
+
+Scheduler execution authority is checked immediately before OCI create/start.
+Cancellation, stop, timeout, and daemon shutdown use a distinct cleanup guard
+that permits cleanup only while the same unexpired owner and fence remain
+current; it is checked before termination/reap markers and stop/kill/remove.
+A validated pre-start cancellation is a terminal startup disposition even
+though it is not a successful OCI closure. Incomplete matching work is admitted
+only through the startup recovery scheduler scope described above.
+
+This composition remains dependency-injected and unreachable from
+`daemon-entrypoint`; it uses a deterministic no-network image/materializer in
+tests. It does not provide a Codex input bundle, credentials, model egress,
+operator-selectable production profile, or current-tree live-engine proof.
 
 The Codex conformance adapter is not wired into `daemon-entrypoint`. Its
 no-network fake-executable test traverses the real detached supervisor and

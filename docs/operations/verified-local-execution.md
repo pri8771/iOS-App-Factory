@@ -13,15 +13,19 @@ operator daemon entrypoint deliberately does not expose this profile, and no
 paid or real-model call was used to certify it. It is not a general autonomous
 development integration. See [ADR 0002](../architecture/0002-untrusted-agent-containment.md).
 
-A separate dormant [`@app-factory/oci-runner`](../../packages/oci-runner)
-implements part of ADR 0002's no-network container contract. It is not composed
-with this daemon path. Its deterministic suite uses fake/injected engines, and
-an explicitly invoked live Colima `OciRunner` smoke completed a natural
+A separate [`@app-factory/oci-runner`](../../packages/oci-runner) implements
+part of ADR 0002's no-network container contract. A dependency-injected
+`OciLocalAgent` now composes it with the verified executor, scheduler startup
+recovery, an OCI-specific V3 result journal, and the final evidence manifest.
+The operator entrypoint still cannot select that path. Its deterministic suite
+uses fake/injected engines, and an explicitly invoked live Colima `OciRunner`
+smoke completed a natural
 create/start/terminal/remove lifecycle and recovered from a persisted launch
 marker after a strict-inspection process failure. The natural receipt succeeded
 with no residual container and no network, credential, Codex, home, or socket
-mount. This is live runner evidence, but not daemon/journal V3, autonomous PID 1
-watchdog, live-model egress/auth, autonomous stale-lock recovery,
+mount. This is earlier live runner evidence, but not current-tree V3 composition
+evidence, an autonomous PID 1 watchdog, live-model egress/auth, autonomous
+stale-lock recovery,
 daemon-owned quarantine-reaper scheduling or a current-tree live quarantine
 campaign, effective seccomp/AppArmor digest, disk-quota, or complete real-engine
 failure conformance. The recorded smoke predates the current engine-binding and
@@ -86,6 +90,31 @@ journal rather than silently downgrading. A successful verified execution may ad
 verify` checks immutable storage and reference integrity; it does not rerun or
 semantically recertify the execution. A durable blocked or failed V2 result is
 terminal for that attempt. Changed inputs require a new attempt.
+
+An enrolled dependency-injected OCI project instead requires V3 evidence and
+rejects V1/V2 downgrade. The adapter derives one stable run/container identity,
+and the daemon independently reopens the trusted OCI root and byte-compares a
+fresh canonical export before publishing the journal. The V3 journal and final
+manifest content-address the intent, engine binding, create/start/inspection
+chain, output, terminal record, exact removal evidence, and receipt. Replay
+uses only immutable evidence blobs and does not invoke Docker. Quarantine is a
+disjoint incident closure and can never become a normal result.
+
+OCI create/start calls receive current execution authority from the scheduler.
+Termination/reap markers and stop/kill/remove receive separate cleanup
+authority that remains usable after cancellation or controlled shutdown but
+still requires the same unexpired lease owner/fence. Before daemon readiness,
+the executor performs zero-engine OCI inventory, rejects orphaned, tampered,
+future-fence, or quarantined state, and temporarily narrows scheduler discovery
+to exact matching unfinished attempts. A newly claimed lease may adopt an
+older durable fence without creating or starting a second container. Validated
+pre-start cancellation is recognized as terminal startup state even though it
+has no successful OCI closure.
+
+This is not a production Codex path. No reviewed task/input bundle or output
+schema is transported into a pinned in-container CLI, no credentials or model
+egress are enabled, and `daemon-entrypoint` has no OCI profile. Current proof is
+deterministic and no-network only.
 
 Host supervised-run startup reconciliation now occurs before daemon readiness;
 a live adopted run or ambiguous identity denies startup rather than allowing a

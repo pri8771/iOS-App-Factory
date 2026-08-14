@@ -173,6 +173,12 @@ export type SchedulerExecutionContext = Readonly<{
   signal: AbortSignal;
   /** Executors must call this immediately before each externally visible effect. */
   assertActive(): Promise<void>;
+  /**
+   * Cleanup-only authority guard. Unlike assertActive, this remains usable
+   * after cancellation or daemon stop, but still rejects an absent, expired,
+   * owner-mismatched, or stale-fence lease.
+   */
+  assertCleanupActive(): Promise<void>;
   /** Long-running executors call this before the current lease can expire. */
   heartbeat(): Promise<void>;
 }>;
@@ -657,6 +663,7 @@ export class RestartSafeScheduler {
         fence: active.currentLease.fence,
         signal: active.abortController.signal,
         assertActive: async () => await this.#assertExecutionActive(active),
+        assertCleanupActive: async () => await this.#assertCleanupActive(active),
         heartbeat: async () => await this.#renew(active),
       });
       this.#throwIfStopped(active);
@@ -889,6 +896,13 @@ export class RestartSafeScheduler {
   async #assertExecutionActive(active: ActiveRun): Promise<void> {
     this.#throwIfStopped(active);
     await this.#persistence.assertExecutionActive({
+      lease: active.currentLease,
+      observedAt: this.#clock.next().toISOString(),
+    });
+  }
+
+  async #assertCleanupActive(active: ActiveRun): Promise<void> {
+    await this.#persistence.assertLease({
       lease: active.currentLease,
       observedAt: this.#clock.next().toISOString(),
     });

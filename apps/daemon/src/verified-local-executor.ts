@@ -70,6 +70,20 @@ import {
   type SupervisedRunReceiptV1,
 } from "@app-factory/process-supervisor";
 import {
+  canonicalJsonLine as canonicalOciJsonLine,
+  digestOciRunIntent,
+  openPreparedOciRun,
+  parseOciRunIntent,
+  parseOciRunReceipt,
+  readOciEvidenceClosure,
+  type OciEvidenceArtifactV1,
+  type OciEvidenceClosureV1,
+  type OciEvidenceEnvelopeV1,
+  type OciRunIntentV1,
+  type OciRunReceiptV1,
+  type OciLifecycleDispositionV1,
+} from "@app-factory/oci-runner";
+import {
   SchedulerFenceError,
   SchedulerInterruptedError,
   type SchedulerExecutionContext,
@@ -124,6 +138,21 @@ export type LocalAgentProtocolEvidenceV1 = Readonly<{
   supervisorReceipt: Uint8Array;
 }>;
 
+/**
+ * Generic agent protocol material bound to one independently exported OCI
+ * lifecycle closure. The daemon treats this value as untrusted and reopens
+ * the configured evidence root before accepting it.
+ */
+export type LocalOciAgentProtocolEvidenceV1 = Readonly<{
+  schemaVersion: 3;
+  runSpec: AgentRunSpecV1;
+  result: AgentRunResultV1;
+  events: readonly AgentEventV1[];
+  stdout: Uint8Array;
+  stderr: Uint8Array;
+  ociEvidenceClosure: OciEvidenceClosureV1;
+}>;
+
 export type LocalAgentInvocationDescriptorV1 = Readonly<{
   schemaVersion: 1;
   adapterId: string;
@@ -149,13 +178,40 @@ export type TrustedAgentInvocationIdentityV1 = Readonly<{
   model: string | null;
 }>;
 
+export type TrustedOciAgentIdentityV1 = Readonly<{
+  evidenceRoot: string;
+  engineIdentityDigest: Sha256Digest;
+  image: Readonly<{
+    reference: string;
+    imageId: Sha256Digest;
+  }>;
+  agentExecutable: string;
+  agentArguments: readonly string[];
+  environment: readonly Readonly<{ name: string; value: string }>[];
+  worktreeContainerPath: "/workspace";
+  privateTmpfsPath: "/run/app-factory";
+  cpuCount: number;
+  memoryBytes: number;
+  pidLimit: number;
+  privateTmpfsBytes: number;
+}>;
+
+export type LocalAgentProtocol = "legacy" | "supervisor-v2" | "oci-v3";
+
 export type LocalAgentRunOutcome = LocalAgentOutcomeCore &
-  Readonly<{ protocolEvidence?: LocalAgentProtocolEvidenceV1 }>;
+  Readonly<{
+    protocolEvidence?: LocalAgentProtocolEvidenceV1 | LocalOciAgentProtocolEvidenceV1;
+  }>;
 
 export type LocalAgentRunContext = Readonly<{
   spec: AgentRunSpecV1;
+  policyDigest: Sha256Digest;
+  baseCommit: string;
+  baseTree: string;
   signal: AbortSignal;
   assertActive(): Promise<void>;
+  /** Authorizes cleanup under the same live owner/fence after cancellation. */
+  assertCleanupActive(): Promise<void>;
   heartbeat(): Promise<void>;
 }>;
 
@@ -182,10 +238,14 @@ export type VerifiedLocalExecutionProject = Readonly<{
   environmentAllowlist?: readonly string[];
   /** Required means every live result and replay must use the V2 protocol closure. */
   requireAgentProtocolEvidence?: boolean;
+  /** Explicit protocol selection; omitted projects preserve the legacy boolean behavior. */
+  agentProtocol?: LocalAgentProtocol;
   /** Exact non-secret environment names injected into the supervised process. */
   agentInvocationEnvironmentNames?: readonly string[];
   /** Exact executable and provider identity required for protocol-backed runs. */
   agentInvocationIdentity?: TrustedAgentInvocationIdentityV1;
+  /** Trusted OCI identity and evidence root required exactly for OCI V3 projects. */
+  ociAgentIdentity?: TrustedOciAgentIdentityV1;
   candidatePolicyLimits?: Readonly<{
     maxChangedFileBytes?: number;
     maxDiffBytes?: number;
@@ -207,6 +267,22 @@ export type VerifiedLocalExecutionConfiguration = Readonly<{
   /** Trusted fault-injection/composition seam; production uses the immutable publisher. */
   executionManifestPublisher?: typeof commitVerifiedExecutionManifest;
 }>;
+
+export type VerifiedLocalStartupRecoveryPlanV1 = Readonly<{
+  schemaVersion: 1;
+  pendingAttemptIds: readonly string[];
+}>;
+
+type OciStartupEntryV1 = Readonly<{
+  runKey: string;
+  intent: OciRunIntentV1;
+  disposition: OciLifecycleDispositionV1;
+}>;
+
+type OciStartupInspectableAgent = LocalAgentAdapter &
+  Readonly<{
+    inspectStartup(): Promise<readonly OciStartupEntryV1[]>;
+  }>;
 
 /**
  * An explicitly classified interruption after semantic verification. Only a
@@ -298,7 +374,51 @@ type AgentResultJournalV2 = Readonly<{
   supervisorReceiptDigest: Sha256Digest;
 }>;
 
-type AgentResultJournal = AgentResultJournalV1 | AgentResultJournalV2;
+type OciJournalArtifactV1 = Readonly<{
+  logicalName: string;
+  mediaType: "application/json" | "application/octet-stream";
+  digest: Sha256Digest;
+  byteLength: number;
+}>;
+
+type AgentResultJournalV3 = Readonly<{
+  schemaVersion: 3;
+  attemptId: string;
+  taskSpecDigest: Sha256Digest;
+  baseCommit: string;
+  executeStepId: string;
+  implementingRunId: RunId;
+  agentFence: number;
+  adapterId: string;
+  adapterVersion: string;
+  runSpecDigest: Sha256Digest;
+  resultDigest: Sha256Digest;
+  eventDigest: Sha256Digest;
+  stdoutDigest: Sha256Digest;
+  stderrDigest: Sha256Digest;
+  ociEnvelopeDigest: Sha256Digest;
+  ociIntentDigest: Sha256Digest;
+  ociPolicyDigest: Sha256Digest;
+  ociBaseTree: string;
+  ociEngineIdentityDigest: Sha256Digest;
+  ociImageReference: string;
+  ociImageId: Sha256Digest;
+  ociContainerId: string;
+  ociArtifacts: readonly OciJournalArtifactV1[];
+}>;
+
+type AgentResultJournal = AgentResultJournalV1 | AgentResultJournalV2 | AgentResultJournalV3;
+
+type ValidatedGenericAgentProtocolEvidence = Readonly<{
+  runSpec: AgentRunSpecV1;
+  result: AgentRunResultV1;
+  events: readonly AgentEventV1[];
+  runSpecBytes: Buffer;
+  resultBytes: Buffer;
+  eventBytes: Buffer;
+  stdoutBytes: Buffer;
+  stderrBytes: Buffer;
+}>;
 
 type ValidatedAgentProtocolEvidence = Readonly<{
   runSpec: AgentRunSpecV1;
@@ -317,6 +437,13 @@ type ValidatedAgentProtocolEvidence = Readonly<{
   supervisorReceiptBytes: Buffer;
 }>;
 
+type ValidatedOciAgentProtocolEvidence = ValidatedGenericAgentProtocolEvidence &
+  Readonly<{
+    closure: OciEvidenceClosureV1;
+    intent: OciRunIntentV1;
+    receipt: OciRunReceiptV1;
+  }>;
+
 type AttemptBindings = Readonly<{
   taskSpec: TaskSpecV1;
   taskSpecDigest: Sha256Digest;
@@ -328,6 +455,7 @@ type AttemptBindings = Readonly<{
 type ActiveExecutionGuard = Readonly<{
   signal: AbortSignal;
   assertActive(): Promise<void>;
+  assertCleanupActive(): Promise<void>;
   heartbeat(): Promise<void>;
 }>;
 
@@ -656,6 +784,59 @@ function parseEnvironmentNames(
   return sorted;
 }
 
+function parseTrustedOciAgentIdentity(value: TrustedOciAgentIdentityV1): TrustedOciAgentIdentityV1 {
+  const evidenceRoot = validateNormalizedAbsolutePath(value.evidenceRoot, "oci evidenceRoot");
+  const engineIdentityDigest = Sha256DigestSchema.parse(value.engineIdentityDigest);
+  const parsedProfile = parseOciRunIntent({
+    schemaVersion: 1,
+    runKey: "oci-config-validation",
+    attemptId: "00000000-0000-4000-8000-000000000001",
+    runId: "00000000-0000-4000-8000-000000000002",
+    fence: 0,
+    createdAt: "2000-01-01T00:00:00.000Z",
+    taskSpecDigest: `sha256:${"1".repeat(64)}`,
+    policyDigest: `sha256:${"2".repeat(64)}`,
+    baseCommit: "3".repeat(40),
+    baseTree: "4".repeat(40),
+    containerName: "oci-config-validation",
+    image: value.image,
+    worktreeHostPath: "/private/tmp/app-factory-oci-config-validation",
+    worktreeContainerPath: value.worktreeContainerPath,
+    privateTmpfsPath: value.privateTmpfsPath,
+    networkMode: "none",
+    readOnlyRootFilesystem: true,
+    agentExecutable: value.agentExecutable,
+    agentArguments: value.agentArguments,
+    environment: value.environment,
+    limits: {
+      cpuCount: value.cpuCount,
+      memoryBytes: value.memoryBytes,
+      pidLimit: value.pidLimit,
+      outputBytesPerStream: 1_024,
+      wallTimeMs: 1_000,
+      stopGraceMs: 100,
+      privateTmpfsBytes: value.privateTmpfsBytes,
+    },
+  });
+  return {
+    evidenceRoot,
+    engineIdentityDigest,
+    image: {
+      reference: parsedProfile.image.reference,
+      imageId: Sha256DigestSchema.parse(parsedProfile.image.imageId),
+    },
+    agentExecutable: parsedProfile.agentExecutable,
+    agentArguments: parsedProfile.agentArguments,
+    environment: parsedProfile.environment,
+    worktreeContainerPath: parsedProfile.worktreeContainerPath,
+    privateTmpfsPath: parsedProfile.privateTmpfsPath,
+    cpuCount: parsedProfile.limits.cpuCount,
+    memoryBytes: parsedProfile.limits.memoryBytes,
+    pidLimit: parsedProfile.limits.pidLimit,
+    privateTmpfsBytes: parsedProfile.limits.privateTmpfsBytes,
+  };
+}
+
 function parseInvocationDescriptor(
   bytes: Buffer,
   expectedSpec: AgentRunSpecV1,
@@ -881,6 +1062,145 @@ function parseBoundSupervisorReceipt(
   return receipt;
 }
 
+function validateGenericAgentProtocolEvidence(
+  expectedSpecInput: AgentRunSpecV1,
+  outcome: LocalAgentRunOutcome,
+  untrustedEvidence: Readonly<Record<string, unknown>>,
+): ValidatedGenericAgentProtocolEvidence {
+  const expectedSpec = AgentRunSpecV1Schema.parse(expectedSpecInput);
+  const runSpec = AgentRunSpecV1Schema.parse(untrustedEvidence.runSpec);
+  if (!canonicalValuesEqual(runSpec, expectedSpec)) {
+    throw new Error("Agent protocol run spec does not match the daemon-issued run spec");
+  }
+  const result = AgentRunResultV1Schema.parse(untrustedEvidence.result);
+  if (
+    result.runId !== runSpec.runId ||
+    result.attemptId !== runSpec.attemptId ||
+    result.stepId !== runSpec.stepId ||
+    result.fence !== runSpec.fence
+  ) {
+    throw new Error("Agent protocol result is bound to different execution inputs");
+  }
+  if (Date.parse(result.finishedAt) < Date.parse(result.startedAt)) {
+    throw new Error("Agent protocol result finishes before it starts");
+  }
+  if (
+    result.status !== "succeeded" &&
+    result.status !== "blocked" &&
+    result.failure.detailArtifactDigest !== null
+  ) {
+    throw new Error("Agent protocol failure references an unavailable detail artifact");
+  }
+
+  if (!Array.isArray(untrustedEvidence.events)) {
+    throw new Error("Agent protocol events must be an array");
+  }
+  if (
+    untrustedEvidence.events.length < 2 ||
+    untrustedEvidence.events.length > runSpec.limits.maxEventCount
+  ) {
+    throw new Error("Agent protocol event count violates the issued run limits");
+  }
+  const events = untrustedEvidence.events.map((event) => AgentEventV1Schema.parse(event));
+  const eventIds = new Set<string>();
+  for (const [index, event] of events.entries()) {
+    if (
+      eventIds.has(event.eventId) ||
+      event.sequence !== index + 1 ||
+      event.runId !== runSpec.runId ||
+      event.attemptId !== runSpec.attemptId ||
+      event.stepId !== runSpec.stepId ||
+      event.fence !== runSpec.fence ||
+      (index > 0 && event.occurredAt < (events[index - 1] as AgentEventV1).occurredAt)
+    ) {
+      throw new Error("Agent protocol event identity or ordering is invalid");
+    }
+    eventIds.add(event.eventId);
+  }
+  const firstEvent = events[0] as AgentEventV1;
+  const lastEvent = events.at(-1) as AgentEventV1;
+  const blockedEvents = events.filter((event) => event.type === "agent.blocked");
+  if (
+    firstEvent.type !== "agent.started" ||
+    firstEvent.data.adapterId !== runSpec.adapterId ||
+    firstEvent.occurredAt !== result.startedAt ||
+    lastEvent.type !== "agent.finished" ||
+    lastEvent.data.status !== result.status ||
+    lastEvent.occurredAt !== result.finishedAt ||
+    events.filter((event) => event.type === "agent.started").length !== 1 ||
+    events.filter((event) => event.type === "agent.finished").length !== 1 ||
+    result.finalEventSequence !== events.length
+  ) {
+    throw new Error("Agent protocol terminal event does not match its result");
+  }
+  if (result.status === "blocked") {
+    const blockedEvent = blockedEvents[0];
+    if (
+      blockedEvents.length !== 1 ||
+      blockedEvent?.type !== "agent.blocked" ||
+      !canonicalValuesEqual(blockedEvent.data.blocker, result.blocker)
+    ) {
+      throw new Error("Agent protocol blocker event does not match its result");
+    }
+  } else if (blockedEvents.length !== 0) {
+    throw new Error("A non-blocked agent result cannot contain a blocker event");
+  }
+
+  if (
+    (outcome.kind === "succeeded" && result.status !== "succeeded") ||
+    (outcome.kind === "needs-input" && result.status !== "blocked") ||
+    (outcome.kind === "failed" &&
+      result.status !== "failed" &&
+      result.status !== "cancelled" &&
+      result.status !== "timed-out")
+  ) {
+    throw new Error("Agent protocol result status does not match the adapter outcome");
+  }
+  if (
+    outcome.kind === "needs-input" &&
+    (result.status !== "blocked" || !canonicalValuesEqual(result.blocker, outcome.blocker))
+  ) {
+    throw new Error("Agent protocol blocker does not match the adapter outcome");
+  }
+  if (
+    outcome.kind === "failed" &&
+    (result.status === "succeeded" ||
+      result.status === "blocked" ||
+      !canonicalValuesEqual(result.failure, outcome.failure))
+  ) {
+    throw new Error("Agent protocol failure does not match the adapter outcome");
+  }
+
+  if (!(untrustedEvidence.stdout instanceof Uint8Array)) {
+    throw new Error("Agent protocol stdout must be bytes");
+  }
+  if (!(untrustedEvidence.stderr instanceof Uint8Array)) {
+    throw new Error("Agent protocol stderr must be bytes");
+  }
+  const stdoutBytes = Buffer.from(untrustedEvidence.stdout);
+  const stderrBytes = Buffer.from(untrustedEvidence.stderr);
+  if (
+    result.stdout.digest !== sha256Digest(stdoutBytes) ||
+    result.stdout.byteLength !== stdoutBytes.byteLength ||
+    stdoutBytes.byteLength > runSpec.limits.maxStdoutBytes ||
+    result.stderr.digest !== sha256Digest(stderrBytes) ||
+    result.stderr.byteLength !== stderrBytes.byteLength ||
+    stderrBytes.byteLength > runSpec.limits.maxStderrBytes
+  ) {
+    throw new Error("Agent protocol output violates its metadata or issued byte limits");
+  }
+  return {
+    runSpec,
+    result,
+    events,
+    runSpecBytes: canonicalJsonBytes(runSpec),
+    resultBytes: canonicalJsonBytes(result),
+    eventBytes: canonicalJsonBytes(events),
+    stdoutBytes,
+    stderrBytes,
+  };
+}
+
 function validateAgentProtocolEvidence(
   expectedSpecInput: AgentRunSpecV1,
   expectedAdapterVersion: string,
@@ -1083,6 +1403,421 @@ function validateAgentProtocolEvidence(
   };
 }
 
+const OCI_EVIDENCE_ENVELOPE_KEYS = [
+  "schemaVersion",
+  "phase",
+  "runKey",
+  "attemptId",
+  "runId",
+  "fence",
+  "taskSpecDigest",
+  "policyDigest",
+  "baseCommit",
+  "baseTree",
+  "intentDigest",
+  "engineIdentityDigest",
+  "imageReference",
+  "imageId",
+  "containerId",
+  "artifacts",
+] as const;
+
+function parseOciEvidenceText(value: unknown, label: string, maximum = 512): string {
+  if (
+    typeof value !== "string" ||
+    value.length < 1 ||
+    value.length > maximum ||
+    value.includes("\0") ||
+    value.includes("\r") ||
+    value.includes("\n")
+  ) {
+    throw new Error(`${label} must be a bounded single-line string`);
+  }
+  return value;
+}
+
+function parseOciArtifactReference(value: unknown, label: string): OciJournalArtifactV1 {
+  if (!isRecord(value)) throw new Error(`${label} must be an object`);
+  assertExactKeys(value, ["logicalName", "mediaType", "digest", "byteLength"], label);
+  const logicalName = parseOciEvidenceText(value.logicalName, `${label}.logicalName`, 128);
+  if (!/^[a-z0-9][a-z0-9.-]{0,127}$/u.test(logicalName)) {
+    throw new Error(`${label}.logicalName is invalid`);
+  }
+  if (value.mediaType !== "application/json" && value.mediaType !== "application/octet-stream") {
+    throw new Error(`${label}.mediaType is invalid`);
+  }
+  if (!Number.isSafeInteger(value.byteLength) || (value.byteLength as number) < 0) {
+    throw new Error(`${label}.byteLength is invalid`);
+  }
+  return {
+    logicalName,
+    mediaType: value.mediaType,
+    digest: Sha256DigestSchema.parse(value.digest),
+    byteLength: value.byteLength as number,
+  };
+}
+
+function parseOciEvidenceEnvelope(value: unknown): OciEvidenceEnvelopeV1 {
+  if (!isRecord(value)) throw new Error("OCI evidence envelope must be an object");
+  assertExactKeys(value, OCI_EVIDENCE_ENVELOPE_KEYS, "OCI evidence envelope");
+  if (
+    value.schemaVersion !== 1 ||
+    (value.phase !== "removed" &&
+      value.phase !== "quarantined" &&
+      value.phase !== "quarantine-removed") ||
+    !Number.isSafeInteger(value.fence) ||
+    (value.fence as number) < 0 ||
+    !Array.isArray(value.artifacts) ||
+    value.artifacts.length < 1 ||
+    value.artifacts.length > 64
+  ) {
+    throw new Error("OCI evidence envelope has an invalid shape");
+  }
+  const runKey = parseOciEvidenceText(value.runKey, "OCI evidence runKey", 128);
+  if (!/^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$/u.test(runKey)) {
+    throw new Error("OCI evidence runKey is invalid");
+  }
+  const imageReference = parseOciEvidenceText(
+    value.imageReference,
+    "OCI evidence imageReference",
+    512,
+  );
+  if (!/^[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$/u.test(imageReference)) {
+    throw new Error("OCI evidence imageReference is not digest-pinned");
+  }
+  const containerId = parseOciEvidenceText(value.containerId, "OCI evidence containerId", 64);
+  if (!/^[0-9a-f]{64}$/u.test(containerId)) {
+    throw new Error("OCI evidence containerId is invalid");
+  }
+  const artifacts = value.artifacts.map((artifact, index) =>
+    parseOciArtifactReference(artifact, `OCI evidence artifact reference ${String(index)}`),
+  );
+  if (new Set(artifacts.map(({ logicalName }) => logicalName)).size !== artifacts.length) {
+    throw new Error("OCI evidence artifact references have duplicate logical names");
+  }
+  return {
+    schemaVersion: 1,
+    phase: value.phase,
+    runKey,
+    attemptId: AttemptIdSchema.parse(value.attemptId),
+    runId: RunIdSchema.parse(value.runId),
+    fence: value.fence as number,
+    taskSpecDigest: Sha256DigestSchema.parse(value.taskSpecDigest),
+    policyDigest: Sha256DigestSchema.parse(value.policyDigest),
+    baseCommit: GitObjectIdSchema.parse(value.baseCommit),
+    baseTree: GitObjectIdSchema.parse(value.baseTree),
+    intentDigest: Sha256DigestSchema.parse(value.intentDigest),
+    engineIdentityDigest: Sha256DigestSchema.parse(value.engineIdentityDigest),
+    imageReference,
+    imageId: Sha256DigestSchema.parse(value.imageId),
+    containerId,
+    artifacts,
+  };
+}
+
+function parseOciEvidenceClosure(value: unknown): OciEvidenceClosureV1 {
+  if (!isRecord(value)) throw new Error("OCI evidence closure must be an object");
+  assertExactKeys(
+    value,
+    ["envelope", "envelopeBytes", "envelopeDigest", "artifacts"],
+    "OCI evidence closure",
+  );
+  const envelope = parseOciEvidenceEnvelope(value.envelope);
+  if (!(value.envelopeBytes instanceof Uint8Array)) {
+    throw new Error("OCI evidence envelope must include bytes");
+  }
+  const envelopeBytes = Buffer.from(value.envelopeBytes);
+  const envelopeDigest = Sha256DigestSchema.parse(value.envelopeDigest);
+  if (
+    !canonicalOciJsonLine(envelope).equals(envelopeBytes) ||
+    sha256Digest(envelopeBytes) !== envelopeDigest
+  ) {
+    throw new Error("OCI evidence envelope is not canonically encoded or digest-bound");
+  }
+  if (!Array.isArray(value.artifacts) || value.artifacts.length !== envelope.artifacts.length) {
+    throw new Error("OCI evidence closure artifact count does not match its envelope");
+  }
+  const artifacts = value.artifacts.map((artifact, index): OciEvidenceArtifactV1 => {
+    if (!isRecord(artifact)) {
+      throw new Error(`OCI evidence artifact ${String(index)} must be an object`);
+    }
+    assertExactKeys(
+      artifact,
+      ["logicalName", "mediaType", "digest", "byteLength", "bytes"],
+      `OCI evidence artifact ${String(index)}`,
+    );
+    const reference = parseOciArtifactReference(
+      {
+        logicalName: artifact.logicalName,
+        mediaType: artifact.mediaType,
+        digest: artifact.digest,
+        byteLength: artifact.byteLength,
+      },
+      `OCI evidence artifact ${String(index)}`,
+    );
+    if (!(artifact.bytes instanceof Uint8Array)) {
+      throw new Error(`OCI evidence artifact ${String(index)} must include bytes`);
+    }
+    const bytes = Buffer.from(artifact.bytes);
+    const envelopeReference = envelope.artifacts[index];
+    if (
+      envelopeReference === undefined ||
+      !canonicalValuesEqual(reference, envelopeReference) ||
+      reference.byteLength !== bytes.byteLength ||
+      reference.digest !== sha256Digest(bytes)
+    ) {
+      throw new Error("OCI evidence closure has a missing, extra, reordered, or changed artifact");
+    }
+    return { ...reference, bytes };
+  });
+  return { envelope, envelopeBytes, envelopeDigest, artifacts };
+}
+
+function requiredOciArtifact(
+  closure: OciEvidenceClosureV1,
+  logicalName: string,
+): OciEvidenceArtifactV1 {
+  const artifact = closure.artifacts.find((candidate) => candidate.logicalName === logicalName);
+  if (artifact === undefined) throw new Error(`OCI evidence closure is missing ${logicalName}`);
+  return artifact;
+}
+
+function assertRemovedOciArtifactOrder(closure: OciEvidenceClosureV1): void {
+  const names = closure.artifacts.map(({ logicalName }) => logicalName);
+  const expected = [
+    "intent.json",
+    "engine-binding.json",
+    "create-attempt.json",
+    "created.inspect.json",
+    "launch-attempt.json",
+    "start-dispatched.json",
+    "post-start.inspect.json",
+    "post-start-attested.json",
+  ];
+  let index = expected.length;
+  if (names[index] === "running.inspect.json") {
+    expected.push("running.inspect.json");
+    index += 1;
+  }
+  if (names[index] === "termination-request.json") {
+    expected.push("termination-request.json");
+  }
+  expected.push(
+    "terminal.inspect.json",
+    "stdout.bin",
+    "stderr.bin",
+    "terminal.json",
+    "removed.json",
+    "receipt.json",
+  );
+  if (
+    names.length !== expected.length ||
+    names.some((logicalName, artifactIndex) => logicalName !== expected[artifactIndex])
+  ) {
+    throw new Error("OCI removed closure has a missing, extra, or reordered lifecycle artifact");
+  }
+}
+
+function parseCanonicalOciIntent(closure: OciEvidenceClosureV1): OciRunIntentV1 {
+  const artifact = requiredOciArtifact(closure, "intent.json");
+  let value: unknown;
+  try {
+    value = JSON.parse(artifact.bytes.toString("utf8")) as unknown;
+  } catch (error) {
+    throw new Error("OCI intent artifact is not JSON", { cause: error });
+  }
+  const intent = parseOciRunIntent(value);
+  if (!canonicalOciJsonLine(intent).equals(artifact.bytes)) {
+    throw new Error("OCI intent artifact is not canonically encoded");
+  }
+  return intent;
+}
+
+function parseCanonicalOciReceipt(closure: OciEvidenceClosureV1): OciRunReceiptV1 {
+  const artifact = requiredOciArtifact(closure, "receipt.json");
+  let value: unknown;
+  try {
+    value = JSON.parse(artifact.bytes.toString("utf8")) as unknown;
+  } catch (error) {
+    throw new Error("OCI receipt artifact is not JSON", { cause: error });
+  }
+  const receipt = parseOciRunReceipt(value);
+  if (!canonicalOciJsonLine(receipt).equals(artifact.bytes)) {
+    throw new Error("OCI receipt artifact is not canonically encoded");
+  }
+  return receipt;
+}
+
+function validateOciClosureBindings(
+  generic: ValidatedGenericAgentProtocolEvidence,
+  bindings: AttemptBindings,
+  identity: TrustedOciAgentIdentityV1,
+  closure: OciEvidenceClosureV1,
+): Readonly<{ intent: OciRunIntentV1; receipt: OciRunReceiptV1 }> {
+  const { envelope } = closure;
+  const expectedRunKey = `oci-${generic.runSpec.runId}`;
+  if (envelope.phase !== "removed") {
+    throw new Error("Successful OCI protocol evidence requires a removed lifecycle closure");
+  }
+  assertRemovedOciArtifactOrder(closure);
+  if (
+    envelope.runKey !== expectedRunKey ||
+    envelope.attemptId !== generic.runSpec.attemptId ||
+    envelope.runId !== generic.runSpec.runId ||
+    envelope.fence !== generic.runSpec.fence ||
+    envelope.taskSpecDigest !== generic.runSpec.taskSpecDigest ||
+    envelope.policyDigest !== bindings.taskSpec.policyDigest ||
+    envelope.baseCommit !== bindings.taskSpec.base.commit ||
+    envelope.baseTree !== bindings.project.allowedBaseTree ||
+    envelope.engineIdentityDigest !== identity.engineIdentityDigest ||
+    envelope.imageReference !== identity.image.reference ||
+    envelope.imageId !== identity.image.imageId
+  ) {
+    throw new Error("OCI evidence envelope is bound to different execution inputs");
+  }
+
+  const intent = parseCanonicalOciIntent(closure);
+  if (
+    intent.runKey !== envelope.runKey ||
+    intent.containerName !== `app-factory-${expectedRunKey}` ||
+    intent.attemptId !== envelope.attemptId ||
+    intent.runId !== envelope.runId ||
+    intent.fence !== envelope.fence ||
+    intent.taskSpecDigest !== envelope.taskSpecDigest ||
+    intent.policyDigest !== envelope.policyDigest ||
+    intent.baseCommit !== envelope.baseCommit ||
+    intent.baseTree !== envelope.baseTree ||
+    digestOciRunIntent(intent) !== envelope.intentDigest ||
+    intent.image.reference !== envelope.imageReference ||
+    intent.image.imageId !== envelope.imageId ||
+    intent.worktreeHostPath !== generic.runSpec.workingDirectory ||
+    intent.worktreeContainerPath !== identity.worktreeContainerPath ||
+    intent.privateTmpfsPath !== identity.privateTmpfsPath ||
+    intent.networkMode !== "none" ||
+    intent.readOnlyRootFilesystem !== true ||
+    intent.agentExecutable !== identity.agentExecutable ||
+    !canonicalValuesEqual(intent.agentArguments, identity.agentArguments) ||
+    !canonicalValuesEqual(intent.environment, identity.environment) ||
+    intent.limits.cpuCount !== identity.cpuCount ||
+    intent.limits.memoryBytes !== identity.memoryBytes ||
+    intent.limits.pidLimit !== identity.pidLimit ||
+    intent.limits.privateTmpfsBytes !== identity.privateTmpfsBytes ||
+    intent.limits.wallTimeMs !== generic.runSpec.limits.timeoutMs ||
+    intent.limits.stopGraceMs !== generic.runSpec.limits.terminationGraceMs ||
+    generic.runSpec.limits.maxStdoutBytes !== generic.runSpec.limits.maxStderrBytes ||
+    intent.limits.outputBytesPerStream !== generic.runSpec.limits.maxStdoutBytes
+  ) {
+    throw new Error("OCI intent does not match the trusted project identity and issued run spec");
+  }
+
+  const receipt = parseCanonicalOciReceipt(closure);
+  const stdoutArtifact = requiredOciArtifact(closure, "stdout.bin");
+  const stderrArtifact = requiredOciArtifact(closure, "stderr.bin");
+  const expectedReceiptOutcomes =
+    generic.result.status === "succeeded"
+      ? ["succeeded"]
+      : generic.result.status === "blocked"
+        ? ["succeeded", "failed"]
+        : generic.result.status === "timed-out"
+          ? ["timed-out"]
+          : generic.result.status === "cancelled"
+            ? ["cancelled"]
+            : ["succeeded", "failed", "output-overflow"];
+  if (
+    receipt.runKey !== intent.runKey ||
+    receipt.attemptId !== intent.attemptId ||
+    receipt.runId !== intent.runId ||
+    receipt.fence !== intent.fence ||
+    receipt.intentDigest !== envelope.intentDigest ||
+    receipt.containerId !== envelope.containerId ||
+    receipt.imageId !== envelope.imageId ||
+    receipt.startedAt !== generic.result.startedAt ||
+    receipt.finishedAt !== generic.result.finishedAt ||
+    receipt.exitCode !== generic.result.process.exitCode ||
+    generic.result.process.signal !== null ||
+    !expectedReceiptOutcomes.includes(receipt.outcome) ||
+    !stdoutArtifact.bytes.equals(generic.stdoutBytes) ||
+    !stderrArtifact.bytes.equals(generic.stderrBytes) ||
+    receipt.stdout.digest !== generic.result.stdout.digest ||
+    receipt.stdout.capturedByteLength !== generic.result.stdout.byteLength ||
+    receipt.stdout.truncated !== generic.result.stdout.truncated ||
+    receipt.stderr.digest !== generic.result.stderr.digest ||
+    receipt.stderr.capturedByteLength !== generic.result.stderr.byteLength ||
+    receipt.stderr.truncated !== generic.result.stderr.truncated
+  ) {
+    throw new Error("OCI receipt and captured output do not match the agent protocol result");
+  }
+  return { intent, receipt };
+}
+
+function assertSameOciEvidenceClosure(
+  claimed: OciEvidenceClosureV1,
+  trusted: OciEvidenceClosureV1,
+): void {
+  if (
+    claimed.envelopeDigest !== trusted.envelopeDigest ||
+    !claimed.envelopeBytes.equals(trusted.envelopeBytes) ||
+    claimed.artifacts.length !== trusted.artifacts.length ||
+    claimed.artifacts.some((artifact, index) => {
+      const trustedArtifact = trusted.artifacts[index];
+      return (
+        trustedArtifact === undefined ||
+        artifact.logicalName !== trustedArtifact.logicalName ||
+        artifact.mediaType !== trustedArtifact.mediaType ||
+        artifact.digest !== trustedArtifact.digest ||
+        artifact.byteLength !== trustedArtifact.byteLength ||
+        !artifact.bytes.equals(trustedArtifact.bytes)
+      );
+    })
+  ) {
+    throw new Error("Adapter OCI evidence does not match the trusted durable OCI closure");
+  }
+}
+
+async function validateOciAgentProtocolEvidence(
+  expectedSpec: AgentRunSpecV1,
+  bindings: AttemptBindings,
+  outcome: LocalAgentRunOutcome,
+  untrustedEvidence: unknown,
+): Promise<ValidatedOciAgentProtocolEvidence> {
+  if (!isRecord(untrustedEvidence))
+    throw new Error("OCI agent protocol evidence must be an object");
+  assertExactKeys(
+    untrustedEvidence,
+    ["schemaVersion", "runSpec", "result", "events", "stdout", "stderr", "ociEvidenceClosure"],
+    "OCI agent protocol evidence",
+  );
+  if (untrustedEvidence.schemaVersion !== 3) {
+    throw new Error("OCI agent protocol evidence has an unsupported schema version");
+  }
+  const identity = bindings.project.ociAgentIdentity;
+  if (identity === undefined) throw new Error("OCI V3 execution has no trusted OCI identity");
+  const controllerSpec = AgentRunSpecV1Schema.parse(expectedSpec);
+  const claimedSpec = AgentRunSpecV1Schema.parse(untrustedEvidence.runSpec);
+  if (claimedSpec.fence > controllerSpec.fence) {
+    throw new Error("OCI agent protocol evidence uses a future scheduler fence");
+  }
+  const durableExpectedSpec = AgentRunSpecV1Schema.parse({
+    ...controllerSpec,
+    fence: claimedSpec.fence,
+  });
+  const generic = validateGenericAgentProtocolEvidence(
+    durableExpectedSpec,
+    outcome,
+    untrustedEvidence,
+  );
+  const claimed = parseOciEvidenceClosure(untrustedEvidence.ociEvidenceClosure);
+  const claimedBindings = validateOciClosureBindings(generic, bindings, identity, claimed);
+  const prepared = openPreparedOciRun(identity.evidenceRoot, claimed.envelope.runKey);
+  if (prepared === null) throw new Error("Trusted OCI evidence run is missing");
+  const exported = await readOciEvidenceClosure(prepared);
+  if (exported === null) throw new Error("Trusted OCI evidence run has no terminal closure");
+  const trusted = parseOciEvidenceClosure(exported);
+  assertSameOciEvidenceClosure(claimed, trusted);
+  validateOciClosureBindings(generic, bindings, identity, trusted);
+  return { ...generic, closure: trusted, ...claimedBindings };
+}
+
 function parseAgentResultJournal(value: unknown): AgentResultJournal {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Agent-result journal must be an object");
@@ -1103,19 +1838,38 @@ function parseAgentResultJournal(value: unknown): AgentResultJournal {
   const versionKeys =
     record.schemaVersion === 1
       ? commonKeys
-      : [
-          ...commonKeys,
-          "runSpecDigest",
-          "resultDigest",
-          "stdoutDigest",
-          "stderrDigest",
-          "invocationDescriptorDigest",
-          "supervisorIntentDigest",
-          "supervisorReceiptDigest",
-        ];
+      : record.schemaVersion === 2
+        ? [
+            ...commonKeys,
+            "runSpecDigest",
+            "resultDigest",
+            "stdoutDigest",
+            "stderrDigest",
+            "invocationDescriptorDigest",
+            "supervisorIntentDigest",
+            "supervisorReceiptDigest",
+          ]
+        : record.schemaVersion === 3
+          ? [
+              ...commonKeys,
+              "runSpecDigest",
+              "resultDigest",
+              "stdoutDigest",
+              "stderrDigest",
+              "ociEnvelopeDigest",
+              "ociIntentDigest",
+              "ociPolicyDigest",
+              "ociBaseTree",
+              "ociEngineIdentityDigest",
+              "ociImageReference",
+              "ociImageId",
+              "ociContainerId",
+              "ociArtifacts",
+            ]
+          : commonKeys;
   assertExactKeys(record, versionKeys, "Agent-result journal");
   if (
-    (record.schemaVersion !== 1 && record.schemaVersion !== 2) ||
+    (record.schemaVersion !== 1 && record.schemaVersion !== 2 && record.schemaVersion !== 3) ||
     typeof record.baseCommit !== "string" ||
     typeof record.executeStepId !== "string" ||
     !Number.isSafeInteger(record.agentFence) ||
@@ -1137,16 +1891,64 @@ function parseAgentResultJournal(value: unknown): AgentResultJournal {
     eventDigest: Sha256DigestSchema.parse(record.eventDigest),
   };
   if (record.schemaVersion === 1) return { schemaVersion: 1, ...common };
+  if (record.schemaVersion === 2) {
+    return {
+      schemaVersion: 2,
+      ...common,
+      runSpecDigest: Sha256DigestSchema.parse(record.runSpecDigest),
+      resultDigest: Sha256DigestSchema.parse(record.resultDigest),
+      stdoutDigest: Sha256DigestSchema.parse(record.stdoutDigest),
+      stderrDigest: Sha256DigestSchema.parse(record.stderrDigest),
+      invocationDescriptorDigest: Sha256DigestSchema.parse(record.invocationDescriptorDigest),
+      supervisorIntentDigest: Sha256DigestSchema.parse(record.supervisorIntentDigest),
+      supervisorReceiptDigest: Sha256DigestSchema.parse(record.supervisorReceiptDigest),
+    };
+  }
+  if (
+    !Array.isArray(record.ociArtifacts) ||
+    record.ociArtifacts.length < 1 ||
+    record.ociArtifacts.length > 64
+  ) {
+    throw new Error("OCI V3 journal must bind every lifecycle artifact");
+  }
+  const ociArtifacts = record.ociArtifacts.map((artifact, index) =>
+    parseOciArtifactReference(artifact, `OCI V3 journal artifact ${String(index)}`),
+  );
+  if (new Set(ociArtifacts.map(({ logicalName }) => logicalName)).size !== ociArtifacts.length) {
+    throw new Error("OCI V3 journal has duplicate logical artifact names");
+  }
+  const ociImageReference = parseOciEvidenceText(
+    record.ociImageReference,
+    "OCI V3 journal image reference",
+    512,
+  );
+  if (!/^[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$/u.test(ociImageReference)) {
+    throw new Error("OCI V3 journal image reference is not digest-pinned");
+  }
+  const ociContainerId = parseOciEvidenceText(
+    record.ociContainerId,
+    "OCI V3 journal container ID",
+    64,
+  );
+  if (!/^[0-9a-f]{64}$/u.test(ociContainerId)) {
+    throw new Error("OCI V3 journal container ID is invalid");
+  }
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     ...common,
     runSpecDigest: Sha256DigestSchema.parse(record.runSpecDigest),
     resultDigest: Sha256DigestSchema.parse(record.resultDigest),
     stdoutDigest: Sha256DigestSchema.parse(record.stdoutDigest),
     stderrDigest: Sha256DigestSchema.parse(record.stderrDigest),
-    invocationDescriptorDigest: Sha256DigestSchema.parse(record.invocationDescriptorDigest),
-    supervisorIntentDigest: Sha256DigestSchema.parse(record.supervisorIntentDigest),
-    supervisorReceiptDigest: Sha256DigestSchema.parse(record.supervisorReceiptDigest),
+    ociEnvelopeDigest: Sha256DigestSchema.parse(record.ociEnvelopeDigest),
+    ociIntentDigest: Sha256DigestSchema.parse(record.ociIntentDigest),
+    ociPolicyDigest: Sha256DigestSchema.parse(record.ociPolicyDigest),
+    ociBaseTree: GitObjectIdSchema.parse(record.ociBaseTree),
+    ociEngineIdentityDigest: Sha256DigestSchema.parse(record.ociEngineIdentityDigest),
+    ociImageReference,
+    ociImageId: Sha256DigestSchema.parse(record.ociImageId),
+    ociContainerId,
+    ociArtifacts,
   };
 }
 
@@ -1272,7 +2074,22 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
                       "agentInvocationIdentity.model",
                     ),
             };
-      const requireAgentProtocolEvidence = input.requireAgentProtocolEvidence === true;
+      if (
+        input.agentProtocol !== undefined &&
+        input.agentProtocol !== "legacy" &&
+        input.agentProtocol !== "supervisor-v2" &&
+        input.agentProtocol !== "oci-v3"
+      ) {
+        throw new TypeError("Verified local execution has an unsupported agent protocol");
+      }
+      const agentProtocol =
+        input.agentProtocol ??
+        (input.requireAgentProtocolEvidence === true ? "supervisor-v2" : "legacy");
+      const requireAgentProtocolEvidence = agentProtocol === "supervisor-v2";
+      const ociAgentIdentity =
+        input.ociAgentIdentity === undefined
+          ? undefined
+          : parseTrustedOciAgentIdentity(input.ociAgentIdentity);
       if (
         (agentInvocationEnvironmentNames === undefined) !==
         (agentInvocationIdentity === undefined)
@@ -1281,13 +2098,41 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
           "Trusted agent invocation environment and identity must be declared together",
         );
       }
+      if (input.requireAgentProtocolEvidence === true && agentProtocol !== "supervisor-v2") {
+        throw new TypeError(
+          "The legacy protocol requirement flag can select only supervisor V2 evidence",
+        );
+      }
+      if (input.agentProtocol === "supervisor-v2" && input.requireAgentProtocolEvidence === false) {
+        throw new TypeError("Supervisor V2 cannot disable its legacy evidence requirement flag");
+      }
       if (
-        requireAgentProtocolEvidence !==
-        (agentInvocationEnvironmentNames !== undefined && agentInvocationIdentity !== undefined)
+        agentProtocol === "supervisor-v2" &&
+        (agentInvocationEnvironmentNames === undefined ||
+          agentInvocationIdentity === undefined ||
+          ociAgentIdentity !== undefined)
       ) {
         throw new TypeError(
-          "Protocol-backed projects must require V2 evidence and declare both trusted invocation environment and identity",
+          "Supervisor V2 projects require only the trusted host invocation environment and identity",
         );
+      }
+      if (
+        agentProtocol === "oci-v3" &&
+        (ociAgentIdentity === undefined ||
+          agentInvocationEnvironmentNames !== undefined ||
+          agentInvocationIdentity !== undefined)
+      ) {
+        throw new TypeError(
+          "OCI V3 projects require only one trusted OCI agent identity and evidence root",
+        );
+      }
+      if (
+        agentProtocol === "legacy" &&
+        (agentInvocationEnvironmentNames !== undefined ||
+          agentInvocationIdentity !== undefined ||
+          ociAgentIdentity !== undefined)
+      ) {
+        throw new TypeError("Legacy projects cannot declare protocol-specific trusted identities");
       }
       const reviewedPolicy = decodeReviewedPolicyPayload(input.policyBytes);
       if (input.agentLimits !== undefined && input.agentLimits.maxTurns !== 1) {
@@ -1317,6 +2162,8 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
           ? {}
           : { agentInvocationEnvironmentNames }),
         ...(agentInvocationIdentity === undefined ? {} : { agentInvocationIdentity }),
+        ...(ociAgentIdentity === undefined ? {} : { ociAgentIdentity }),
+        agentProtocol,
         requireAgentProtocolEvidence,
       });
     }
@@ -1325,6 +2172,52 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
 
   public get paths(): VerifiedLocalExecutionPaths {
     return this.#paths;
+  }
+
+  /**
+   * Performs read-only adapter inventory before the daemon scheduler starts.
+   * OCI runs are admitted only when their immutable intent still has one
+   * exact durable kernel owner. The returned attempts must be driven by the
+   * scheduler under a newly claimed lease before daemon readiness is true.
+   */
+  public async reconcileStartup(): Promise<VerifiedLocalStartupRecoveryPlanV1> {
+    const pendingAttemptIds = new Set<string>();
+    const inspectedAgents = new Set<object>();
+
+    for (const project of this.#projects.values()) {
+      if (inspectedAgents.has(project.agent)) continue;
+      inspectedAgents.add(project.agent);
+
+      if (project.agentProtocol === "oci-v3") {
+        const inspectStartup = Reflect.get(project.agent, "inspectStartup") as unknown;
+        if (typeof inspectStartup !== "function") {
+          throw new Error(
+            `OCI V3 agent ${project.agent.adapterId} does not expose read-only startup inventory`,
+          );
+        }
+        const entries = await (inspectStartup as OciStartupInspectableAgent["inspectStartup"]).call(
+          project.agent,
+        );
+        if (!Array.isArray(entries)) {
+          throw new Error("OCI V3 startup inventory is not an array");
+        }
+        for (const entry of entries) {
+          const pendingAttemptId = this.#classifyOciStartupEntry(entry, project.agent);
+          if (pendingAttemptId !== null) pendingAttemptIds.add(pendingAttemptId);
+        }
+        continue;
+      }
+
+      const reconcileStartup = Reflect.get(project.agent, "reconcileStartup") as unknown;
+      if (typeof reconcileStartup === "function") {
+        await (reconcileStartup as (this: LocalAgentAdapter) => Promise<void>).call(project.agent);
+      }
+    }
+
+    return {
+      schemaVersion: 1,
+      pendingAttemptIds: [...pendingAttemptIds].sort(),
+    };
   }
 
   public async execute(context: SchedulerExecutionContext): Promise<SchedulerStepOutcome> {
@@ -1374,6 +2267,170 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     }
   }
 
+  #classifyOciStartupEntry(
+    entryInput: OciStartupEntryV1,
+    inventoriedAgent: LocalAgentAdapter,
+  ): string | null {
+    if (typeof entryInput !== "object" || entryInput === null) {
+      throw new Error("OCI V3 startup inventory contains a non-object entry");
+    }
+    const intent = parseOciRunIntent(entryInput.intent);
+    if (entryInput.runKey !== intent.runKey) {
+      throw new Error("OCI V3 startup inventory changed its run-key binding");
+    }
+    this.#assertOciStartupDisposition(intent, entryInput.disposition);
+
+    const attempt = this.#repositories.attempts.findById(intent.attemptId);
+    if (attempt === null) {
+      throw new Error(`OCI startup run ${intent.runKey} has no durable kernel attempt owner`);
+    }
+    const taskSpec = this.#repositories.taskSnapshots.findById(attempt.taskId);
+    if (taskSpec === null) {
+      throw new Error(`OCI startup run ${intent.runKey} has no immutable TaskSpec owner`);
+    }
+    const project = this.#projects.get(taskSpec.base.repositoryId);
+    if (
+      project === undefined ||
+      project.agentProtocol !== "oci-v3" ||
+      project.agent !== inventoriedAgent
+    ) {
+      throw new Error(`OCI startup run ${intent.runKey} is not owned by its enrolled OCI project`);
+    }
+    if (
+      computeTaskSpecDigest(taskSpec) !== attempt.taskSpecDigest ||
+      intent.taskSpecDigest !== attempt.taskSpecDigest ||
+      sha256Digest(project.policyBytes) !== taskSpec.policyDigest ||
+      intent.policyDigest !== taskSpec.policyDigest ||
+      intent.baseCommit !== taskSpec.base.commit ||
+      intent.baseCommit !== project.allowedBaseCommit ||
+      intent.baseTree !== project.allowedBaseTree
+    ) {
+      throw new Error(`OCI startup run ${intent.runKey} conflicts with its durable task bindings`);
+    }
+    if (intent.fence > attempt.fence) {
+      throw new Error(`OCI startup run ${intent.runKey} claims a future scheduler fence`);
+    }
+
+    const executeSteps = this.#repositories.steps
+      .listByAttempt(attempt.attemptId)
+      .filter((step) => step.operation === "factory.execute");
+    if (executeSteps.length !== 1 || executeSteps[0] === undefined) {
+      throw new Error(`OCI startup run ${intent.runKey} has no unique durable execute step`);
+    }
+    const executeStep = executeSteps[0];
+    const expectedRunId = RunIdSchema.parse(
+      deterministicUuid("implementing-run", attempt.attemptId),
+    );
+    const expectedWorktree = join(
+      this.#paths.gitRuntimeRoot,
+      "worktrees",
+      project.repositoryId,
+      attempt.attemptId,
+    );
+    const limits = project.agentLimits ?? DEFAULT_AGENT_LIMITS;
+    if (
+      intent.runId !== expectedRunId ||
+      intent.worktreeHostPath !== expectedWorktree ||
+      intent.limits.outputBytesPerStream !== limits.maxStdoutBytes ||
+      limits.maxStdoutBytes !== limits.maxStderrBytes ||
+      intent.limits.wallTimeMs !== limits.timeoutMs ||
+      intent.limits.stopGraceMs !== limits.terminationGraceMs
+    ) {
+      throw new Error(`OCI startup run ${intent.runKey} conflicts with its issued run profile`);
+    }
+
+    const disposition = entryInput.disposition;
+    if (disposition.phase === "quarantined" || disposition.phase === "quarantine-removed") {
+      throw new Error(
+        `OCI startup run ${intent.runKey} is ${disposition.phase} and requires operator review`,
+      );
+    }
+    const attemptIsTerminal =
+      attempt.state === "succeeded" || attempt.state === "failed" || attempt.state === "cancelled";
+    if (attemptIsTerminal) {
+      if (disposition.phase === "incomplete") {
+        throw new Error(
+          `OCI startup run ${intent.runKey} is unfinished after its kernel owner became terminal`,
+        );
+      }
+      return null;
+    }
+    if (executeStep.state === "succeeded" || executeStep.state === "skipped") {
+      if (disposition.phase !== "removed") {
+        throw new Error(
+          `OCI startup run ${intent.runKey} conflicts with its committed execute step`,
+        );
+      }
+      return null;
+    }
+    if (executeStep.state !== "running") {
+      throw new Error(
+        `OCI startup run ${intent.runKey} has no recoverable in-flight kernel execution`,
+      );
+    }
+    if (attempt.desiredState === "running" && attempt.state === "running") {
+      return attempt.attemptId;
+    }
+    if (
+      disposition.phase !== "incomplete" &&
+      attempt.desiredState === "cancelled" &&
+      attempt.state === "running"
+    ) {
+      // Cleanup is already durably terminal, so the newly fenced scheduler can
+      // reconcile only the kernel cancellation without touching the engine.
+      return attempt.attemptId;
+    }
+    if (
+      disposition.phase !== "incomplete" &&
+      attempt.desiredState === "paused" &&
+      (attempt.state === "running" || attempt.state === "paused")
+    ) {
+      // A terminal isolated run is safe to leave checkpointed while the
+      // scheduler durably reflects the requested pause. Resume will replay it.
+      return attempt.state === "running" ? attempt.attemptId : null;
+    }
+    throw new Error(
+      `OCI startup run ${intent.runKey} has no recoverable in-flight kernel execution`,
+    );
+  }
+
+  #assertOciStartupDisposition(
+    intent: OciRunIntentV1,
+    disposition: OciLifecycleDispositionV1,
+  ): void {
+    if (typeof disposition !== "object" || disposition === null) {
+      throw new Error("OCI V3 startup inventory has an invalid lifecycle disposition");
+    }
+    if (disposition.phase === "incomplete") return;
+    if (disposition.phase === "cancelled-before-start") {
+      if (
+        disposition.cancellation.runKey !== intent.runKey ||
+        disposition.cancellation.intentDigest !== digestOciRunIntent(intent)
+      ) {
+        throw new Error("OCI pre-start cancellation changed its immutable intent binding");
+      }
+      return;
+    }
+    if (
+      disposition.phase !== "removed" &&
+      disposition.phase !== "quarantined" &&
+      disposition.phase !== "quarantine-removed"
+    ) {
+      throw new Error("OCI V3 startup inventory has an unknown lifecycle disposition");
+    }
+    const envelope = disposition.evidenceClosure.envelope;
+    if (
+      envelope.phase !== disposition.phase ||
+      envelope.runKey !== intent.runKey ||
+      envelope.attemptId !== intent.attemptId ||
+      envelope.runId !== intent.runId ||
+      envelope.fence !== intent.fence ||
+      envelope.intentDigest !== digestOciRunIntent(intent)
+    ) {
+      throw new Error("OCI startup closure changed its immutable run binding");
+    }
+  }
+
   async #prepare(context: SchedulerExecutionContext): Promise<SchedulerStepOutcome> {
     await context.assertActive();
     const bindings = this.#loadBindings(context.attemptId);
@@ -1411,7 +2468,10 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
         implementingRunId,
         context.fence,
       );
-      if (journal.schemaVersion === 2) {
+      if (bindings.project.agentProtocol === "supervisor-v2") {
+        if (journal.schemaVersion !== 2) {
+          throw new Error("Supervisor V2 execution refuses a non-V2 result journal");
+        }
         const expectedRunSpec = this.#buildAgentRunSpec(
           bindings,
           executeStep.stepId,
@@ -1427,8 +2487,26 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
         await context.assertActive();
         return schedulerOutcomeForAgentResult(protocolEvidence.result, journal.eventDigest);
       }
-      if (bindings.project.requireAgentProtocolEvidence === true) {
-        throw new Error("Protocol-backed local execution refuses a legacy V1 result journal");
+      if (bindings.project.agentProtocol === "oci-v3") {
+        if (journal.schemaVersion !== 3) {
+          throw new Error("OCI V3 execution refuses a legacy or host result journal");
+        }
+        const expectedRunSpec = this.#buildAgentRunSpec(
+          bindings,
+          executeStep.stepId,
+          implementingRunId,
+          journal.agentFence,
+        );
+        const protocolEvidence = this.#readOciAgentProtocolEvidence(
+          journal,
+          expectedRunSpec,
+          bindings,
+        );
+        await context.assertActive();
+        return schedulerOutcomeForAgentResult(protocolEvidence.result, journal.eventDigest);
+      }
+      if (journal.schemaVersion !== 1) {
+        throw new Error("Legacy execution refuses a protocol-backed result journal");
       }
       const eventBytes = this.#evidenceStore.readBlob(journal.eventDigest);
       parseAgentEventLogBytes(eventBytes, {
@@ -1452,14 +2530,21 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
       async (guard) =>
         await bindings.project.agent.run({
           spec: runSpec,
+          policyDigest: bindings.taskSpec.policyDigest,
+          baseCommit: bindings.taskSpec.base.commit,
+          baseTree: bindings.project.allowedBaseTree,
           signal: guard.signal,
           assertActive: guard.assertActive,
+          assertCleanupActive: guard.assertCleanupActive,
           heartbeat: guard.heartbeat,
         }),
     );
     assertKnownLocalAgentOutcomeKind(outcome);
     const observedFinishedAt = this.#now().toISOString();
-    if (outcome.protocolEvidence !== undefined) {
+    if (bindings.project.agentProtocol === "supervisor-v2") {
+      if (outcome.protocolEvidence === undefined) {
+        throw new Error("Supervisor V2 execution requires a complete V2 evidence envelope");
+      }
       const protocolEvidence = validateAgentProtocolEvidence(
         runSpec,
         bindings.project.agent.adapterVersion,
@@ -1478,8 +2563,29 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
       );
       return schedulerOutcomeForAgentResult(protocolEvidence.result, protocolJournal.eventDigest);
     }
-    if (bindings.project.requireAgentProtocolEvidence === true) {
-      throw new Error("Protocol-backed local execution requires a complete V2 evidence envelope");
+    if (bindings.project.agentProtocol === "oci-v3") {
+      if (outcome.protocolEvidence !== undefined) {
+        const protocolEvidence = await validateOciAgentProtocolEvidence(
+          runSpec,
+          bindings,
+          outcome,
+          outcome.protocolEvidence,
+        );
+        await context.assertActive();
+        const protocolJournal = this.#publishOciAgentProtocolEvidence(
+          bindings,
+          executeStep.stepId,
+          implementingRunId,
+          context.fence,
+          protocolEvidence,
+        );
+        return schedulerOutcomeForAgentResult(protocolEvidence.result, protocolJournal.eventDigest);
+      }
+      if (outcome.kind === "succeeded") {
+        throw new Error("OCI V3 success requires a complete removed lifecycle closure");
+      }
+    } else if (outcome.protocolEvidence !== undefined) {
+      throw new Error("Legacy execution refuses protocol-backed evidence");
     }
     if (outcome.kind === "needs-input") {
       return {
@@ -1571,7 +2677,10 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     );
     let verifiedAgentRun: VerifiedAgentRunEvidence | undefined;
     let eventLogBytes: Buffer;
-    if (journal.schemaVersion === 2) {
+    if (bindings.project.agentProtocol === "supervisor-v2") {
+      if (journal.schemaVersion !== 2) {
+        throw new Error("Supervisor V2 verification refuses a non-V2 result journal");
+      }
       const expectedRunSpec = this.#buildAgentRunSpec(
         bindings,
         executeStep.stepId,
@@ -1599,9 +2708,38 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
         supervisorReceiptDigest: journal.supervisorReceiptDigest,
         result: protocolEvidence.result,
       };
+    } else if (bindings.project.agentProtocol === "oci-v3") {
+      if (journal.schemaVersion !== 3) {
+        throw new Error("OCI V3 verification refuses a legacy or host result journal");
+      }
+      const expectedRunSpec = this.#buildAgentRunSpec(
+        bindings,
+        executeStep.stepId,
+        implementingRunId,
+        journal.agentFence,
+      );
+      const protocolEvidence = this.#readOciAgentProtocolEvidence(
+        journal,
+        expectedRunSpec,
+        bindings,
+      );
+      if (protocolEvidence.result.status !== "succeeded") {
+        throw new Error("Only a successful durable OCI agent result can enter verification");
+      }
+      eventLogBytes = protocolEvidence.eventBytes;
+      verifiedAgentRun = {
+        adapterId: journal.adapterId,
+        runSpecDigest: journal.runSpecDigest,
+        resultDigest: journal.resultDigest,
+        stdoutDigest: journal.stdoutDigest,
+        stderrDigest: journal.stderrDigest,
+        ociEnvelopeDigest: journal.ociEnvelopeDigest,
+        ociArtifacts: journal.ociArtifacts,
+        result: protocolEvidence.result,
+      };
     } else {
-      if (bindings.project.requireAgentProtocolEvidence === true) {
-        throw new Error("Protocol-backed verification refuses a legacy V1 result journal");
+      if (journal.schemaVersion !== 1) {
+        throw new Error("Legacy verification refuses a protocol-backed result journal");
       }
       eventLogBytes = this.#evidenceStore.readBlob(journal.eventDigest);
     }
@@ -1815,6 +2953,141 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     return validated;
   }
 
+  #publishOciAgentProtocolEvidence(
+    bindings: AttemptBindings,
+    executeStepId: string,
+    implementingRunId: RunId,
+    publicationFence: number,
+    evidence: ValidatedOciAgentProtocolEvidence,
+  ): AgentResultJournalV3 {
+    this.#assertActiveSynchronously(bindings.workspace.attemptId, publicationFence);
+    const runSpecDigest = this.#evidenceStore.putBlob(evidence.runSpecBytes);
+    const resultDigest = this.#evidenceStore.putBlob(evidence.resultBytes);
+    const eventDigest = this.#evidenceStore.putBlob(evidence.eventBytes);
+    const stdoutDigest = this.#evidenceStore.putBlob(evidence.stdoutBytes);
+    const stderrDigest = this.#evidenceStore.putBlob(evidence.stderrBytes);
+    const ociEnvelopeDigest = this.#evidenceStore.putBlob(evidence.closure.envelopeBytes);
+    const ociArtifacts = evidence.closure.artifacts.map(
+      ({ logicalName, mediaType, digest, byteLength, bytes }): OciJournalArtifactV1 => {
+        const storedDigest = this.#evidenceStore.putBlob(bytes);
+        if (storedDigest !== digest || byteLength !== bytes.byteLength) {
+          throw new Error("OCI lifecycle artifact changed during immutable publication");
+        }
+        return { logicalName, mediaType, digest: storedDigest, byteLength };
+      },
+    );
+    if (
+      runSpecDigest !== canonicalDigest(evidence.runSpec) ||
+      resultDigest !== canonicalDigest(evidence.result) ||
+      eventDigest !== canonicalDigest(evidence.events) ||
+      stdoutDigest !== evidence.result.stdout.digest ||
+      stderrDigest !== evidence.result.stderr.digest ||
+      ociEnvelopeDigest !== evidence.closure.envelopeDigest ||
+      !canonicalValuesEqual(ociArtifacts, evidence.closure.envelope.artifacts)
+    ) {
+      throw new Error("OCI agent protocol artifacts do not match their canonical digests");
+    }
+    const envelope = evidence.closure.envelope;
+    const journal: AgentResultJournalV3 = {
+      schemaVersion: 3,
+      attemptId: bindings.workspace.attemptId,
+      taskSpecDigest: bindings.taskSpecDigest,
+      baseCommit: bindings.taskSpec.base.commit,
+      executeStepId,
+      implementingRunId,
+      agentFence: evidence.runSpec.fence,
+      adapterId: bindings.project.agent.adapterId,
+      adapterVersion: bindings.project.agent.adapterVersion,
+      runSpecDigest,
+      resultDigest,
+      eventDigest,
+      stdoutDigest,
+      stderrDigest,
+      ociEnvelopeDigest,
+      ociIntentDigest: Sha256DigestSchema.parse(envelope.intentDigest),
+      ociPolicyDigest: Sha256DigestSchema.parse(envelope.policyDigest),
+      ociBaseTree: GitObjectIdSchema.parse(envelope.baseTree),
+      ociEngineIdentityDigest: Sha256DigestSchema.parse(envelope.engineIdentityDigest),
+      ociImageReference: envelope.imageReference,
+      ociImageId: Sha256DigestSchema.parse(envelope.imageId),
+      ociContainerId: envelope.containerId,
+      ociArtifacts,
+    };
+    this.#assertActiveSynchronously(bindings.workspace.attemptId, publicationFence);
+    this.#publishAgentResult(journal);
+    return journal;
+  }
+
+  #readOciAgentProtocolEvidence(
+    journal: AgentResultJournalV3,
+    expectedRunSpec: AgentRunSpecV1,
+    bindings: AttemptBindings,
+  ): ValidatedOciAgentProtocolEvidence {
+    const runSpecBytes = this.#evidenceStore.readBlob(journal.runSpecDigest);
+    const resultBytes = this.#evidenceStore.readBlob(journal.resultDigest);
+    const eventBytes = this.#evidenceStore.readBlob(journal.eventDigest);
+    const stdoutBytes = this.#evidenceStore.readBlob(journal.stdoutDigest);
+    const stderrBytes = this.#evidenceStore.readBlob(journal.stderrDigest);
+    const envelopeBytes = this.#evidenceStore.readBlob(journal.ociEnvelopeDigest);
+    let runSpecValue: unknown;
+    let resultValue: unknown;
+    let eventValue: unknown;
+    let envelopeValue: unknown;
+    try {
+      runSpecValue = JSON.parse(runSpecBytes.toString("utf8")) as unknown;
+      resultValue = JSON.parse(resultBytes.toString("utf8")) as unknown;
+      eventValue = JSON.parse(eventBytes.toString("utf8")) as unknown;
+      envelopeValue = JSON.parse(envelopeBytes.toString("utf8")) as unknown;
+    } catch (error) {
+      throw new Error("Durable OCI agent protocol JSON is corrupt", { cause: error });
+    }
+    const parsedResult = AgentRunResultV1Schema.parse(resultValue);
+    const generic = validateGenericAgentProtocolEvidence(
+      expectedRunSpec,
+      outcomeForValidatedResult(parsedResult),
+      {
+        runSpec: runSpecValue,
+        result: resultValue,
+        events: eventValue,
+        stdout: stdoutBytes,
+        stderr: stderrBytes,
+      },
+    );
+    const closure = parseOciEvidenceClosure({
+      envelope: envelopeValue,
+      envelopeBytes,
+      envelopeDigest: journal.ociEnvelopeDigest,
+      artifacts: journal.ociArtifacts.map((artifact) => ({
+        ...artifact,
+        bytes: this.#evidenceStore.readBlob(artifact.digest),
+      })),
+    });
+    const identity = bindings.project.ociAgentIdentity;
+    if (identity === undefined) throw new Error("OCI V3 replay has no trusted OCI identity");
+    const { intent, receipt } = validateOciClosureBindings(generic, bindings, identity, closure);
+    if (
+      !generic.runSpecBytes.equals(runSpecBytes) ||
+      !generic.resultBytes.equals(resultBytes) ||
+      !generic.eventBytes.equals(eventBytes) ||
+      canonicalDigest(generic.runSpec) !== journal.runSpecDigest ||
+      canonicalDigest(generic.result) !== journal.resultDigest ||
+      canonicalDigest(generic.events) !== journal.eventDigest ||
+      generic.result.stdout.digest !== journal.stdoutDigest ||
+      generic.result.stderr.digest !== journal.stderrDigest ||
+      closure.envelope.intentDigest !== journal.ociIntentDigest ||
+      closure.envelope.policyDigest !== journal.ociPolicyDigest ||
+      closure.envelope.baseTree !== journal.ociBaseTree ||
+      closure.envelope.engineIdentityDigest !== journal.ociEngineIdentityDigest ||
+      closure.envelope.imageReference !== journal.ociImageReference ||
+      closure.envelope.imageId !== journal.ociImageId ||
+      closure.envelope.containerId !== journal.ociContainerId ||
+      !canonicalValuesEqual(closure.envelope.artifacts, journal.ociArtifacts)
+    ) {
+      throw new Error("Durable OCI agent protocol artifacts are not consistently bound");
+    }
+    return { ...generic, closure, intent, receipt };
+  }
+
   #requiredInvocationEnvironmentNames(project: VerifiedLocalExecutionProject): readonly string[] {
     if (project.agentInvocationEnvironmentNames === undefined) {
       throw new Error(
@@ -1973,6 +3246,7 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     const guard: ActiveExecutionGuard = {
       signal: childAbort.signal,
       assertActive: async () => await guardedCall(context.assertActive),
+      assertCleanupActive: async () => await guardedCall(context.assertCleanupActive),
       heartbeat: async () => await guardedCall(context.heartbeat),
     };
     const heartbeat = (): void => {

@@ -21,6 +21,7 @@
     "@app-factory/git-workspace": "workspace:*",
     "@app-factory/independent-review": "workspace:*",
     "@app-factory/kernel": "workspace:*",
+    "@app-factory/oci-runner": "workspace:*",
     "@app-factory/process-supervisor": "workspace:*",
     "@app-factory/scheduler": "workspace:*"
   }

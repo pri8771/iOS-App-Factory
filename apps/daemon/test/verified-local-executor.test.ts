@@ -39,6 +39,17 @@ import {
   digestSupervisedRunIntent,
   parseSupervisedRunIntent,
 } from "@app-factory/process-supervisor";
+import {
+  canonicalJsonLine as canonicalOciJsonLine,
+  labelsForOciRun,
+  parseOciRunIntent,
+  prepareOciRun,
+  type OciContainerInspection,
+  type OciEnginePort,
+  type OciImageIdentityV1,
+  type OciLogCapture,
+  type OciRunIntentV1,
+} from "@app-factory/oci-runner";
 import type { SchedulerClockPort } from "@app-factory/scheduler";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -48,6 +59,7 @@ import {
 } from "../../../packages/command-client/src/index.js";
 import {
   MAX_REVIEWED_POLICY_BYTES,
+  OciLocalAgent,
   RetryableExecutionManifestPublicationError,
   commitVerifiedExecutionManifest,
   computeTaskSemanticProfileDigest,
@@ -58,6 +70,7 @@ import {
   type FactoryDaemonService,
   type LocalAgentAdapter,
   type LocalAgentProtocolEvidenceV1,
+  type LocalOciAgentProtocolEvidenceV1,
   type LocalAgentRunContext,
   type LocalAgentRunOutcome,
   type VerifiedLocalExecutionProject,
@@ -751,6 +764,388 @@ class ProtocolSwiftAgent implements LocalAgentAdapter {
   }
 }
 
+const OCI_TEST_CONTAINER_ID = "a".repeat(64);
+const OCI_TEST_IMAGE_ID = `sha256:${"b".repeat(64)}`;
+const OCI_TEST_IMAGE_REFERENCE = `factory/codex@sha256:${"c".repeat(64)}`;
+const OCI_TEST_ENGINE_ID = `sha256:${"d".repeat(64)}`;
+
+function ociInspection(
+  intent: OciRunIntentV1,
+  status: "created" | "running" | "terminal",
+): OciContainerInspection {
+  return {
+    containerId: OCI_TEST_CONTAINER_ID,
+    name: intent.containerName,
+    imageId: intent.image.imageId,
+    labels: labelsForOciRun(intent),
+    user: "10001:10001",
+    command: [intent.agentExecutable, ...intent.agentArguments],
+    entrypoint: null,
+    workingDirectory: "/workspace",
+    environment: intent.environment.map(({ name, value }) => `${name}=${value}`),
+    status,
+    createdAt: intent.createdAt,
+    startedAt: status === "created" ? null : intent.createdAt,
+    finishedAt: status === "terminal" ? intent.createdAt : null,
+    exitCode: status === "terminal" ? 0 : null,
+    oomKilled: false,
+    running: status === "running",
+    readOnlyRootFilesystem: true,
+    networkMode: "none",
+    capDrop: ["ALL"],
+    securityOptions: ["no-new-privileges=true"],
+    memoryBytes: intent.limits.memoryBytes,
+    memorySwapBytes: intent.limits.memoryBytes,
+    pidLimit: intent.limits.pidLimit,
+    cpuNanoCount: intent.limits.cpuCount * 1_000_000_000,
+    stopTimeoutSeconds: Math.ceil(intent.limits.stopGraceMs / 1_000),
+    privileged: false,
+    tmpfs: {
+      "/run/app-factory": `rw,nosuid,nodev,noexec,size=${String(intent.limits.privateTmpfsBytes)},mode=0700,uid=10001,gid=10001`,
+    },
+    logDriver: "local",
+    logOptions: {
+      "max-size": `${String(intent.limits.outputBytesPerStream)}b`,
+      "max-file": "1",
+      compress: "false",
+    },
+    mounts: [
+      {
+        type: "bind",
+        source: intent.worktreeHostPath,
+        destination: "/workspace",
+        readWrite: true,
+      },
+    ],
+  };
+}
+
+class ExecutorOciEngine implements OciEnginePort {
+  public readonly engineIdentityDigest = OCI_TEST_ENGINE_ID;
+  public inspection: OciContainerInspection | null = null;
+  public intent: OciRunIntentV1 | null = null;
+  public creates = 0;
+  public starts = 0;
+  public removals = 0;
+  public observations = 0;
+
+  public async observeEngineIdentityDigest(): Promise<string> {
+    this.observations += 1;
+    return this.engineIdentityDigest;
+  }
+
+  public async verifyImage(image: OciImageIdentityV1): Promise<void> {
+    if (image.imageId !== OCI_TEST_IMAGE_ID || image.reference !== OCI_TEST_IMAGE_REFERENCE) {
+      throw new Error("Unexpected OCI test image");
+    }
+  }
+
+  public async findByLabels(): Promise<OciContainerInspection | null> {
+    return this.inspection;
+  }
+
+  public async create(intent: OciRunIntentV1): Promise<string> {
+    this.creates += 1;
+    this.intent = intent;
+    this.inspection = ociInspection(intent, "created");
+    return OCI_TEST_CONTAINER_ID;
+  }
+
+  public async inspect(containerId: string): Promise<OciContainerInspection | null> {
+    if (containerId !== OCI_TEST_CONTAINER_ID) throw new Error("Unexpected OCI container");
+    return this.inspection;
+  }
+
+  public async start(containerId: string): Promise<void> {
+    if (containerId !== OCI_TEST_CONTAINER_ID || this.intent === null) {
+      throw new Error("Unexpected OCI start");
+    }
+    this.starts += 1;
+    writeFileSync(
+      join(this.intent.worktreeHostPath, "Sources/Greeter/GreetingFormatter.swift"),
+      EXPECTED_GREETER_SOURCE,
+    );
+    this.inspection = ociInspection(this.intent, "running");
+  }
+
+  public async logs(): Promise<OciLogCapture> {
+    const stdout = Buffer.from('{"type":"turn.completed"}\n', "utf8");
+    const stderr = Buffer.from("oci diagnostic\n", "utf8");
+    return {
+      stdout,
+      stderr,
+      stdoutObservedBytes: stdout.byteLength,
+      stderrObservedBytes: stderr.byteLength,
+    };
+  }
+
+  public async stop(): Promise<void> {
+    this.finish();
+  }
+
+  public async kill(): Promise<void> {
+    this.finish();
+  }
+
+  public async remove(): Promise<void> {
+    this.removals += 1;
+    this.inspection = null;
+  }
+
+  public finish(): void {
+    if (this.intent === null) throw new Error("OCI test run was not created");
+    this.inspection = ociInspection(this.intent, "terminal");
+  }
+}
+
+type OciEvidenceMutation =
+  "none" | "schema-downgrade" | "missing-ref" | "reordered-ref" | "run-key-convention";
+
+function mutateOciEvidence(
+  evidence: LocalOciAgentProtocolEvidenceV1,
+  mutation: Exclude<OciEvidenceMutation, "none">,
+): LocalOciAgentProtocolEvidenceV1 {
+  if (mutation === "schema-downgrade") {
+    return { ...evidence, schemaVersion: 1 } as unknown as LocalOciAgentProtocolEvidenceV1;
+  }
+  const artifacts = evidence.ociEvidenceClosure.artifacts.map((artifact) => ({
+    ...artifact,
+    bytes: Buffer.from(artifact.bytes),
+  }));
+  const references = evidence.ociEvidenceClosure.envelope.artifacts.map((artifact) => ({
+    ...artifact,
+  }));
+  if (mutation === "run-key-convention") {
+    const envelope = {
+      ...evidence.ociEvidenceClosure.envelope,
+      runKey: `alternate-${evidence.runSpec.runId}`,
+      artifacts: references,
+    };
+    const envelopeBytes = canonicalOciJsonLine(envelope);
+    return {
+      ...evidence,
+      ociEvidenceClosure: {
+        envelope,
+        envelopeBytes,
+        envelopeDigest: sha256Digest(envelopeBytes),
+        artifacts,
+      },
+    };
+  }
+  if (mutation === "missing-ref") {
+    artifacts.splice(1, 1);
+    references.splice(1, 1);
+  } else {
+    [artifacts[1], artifacts[2]] = [
+      artifacts[2] as (typeof artifacts)[number],
+      artifacts[1] as (typeof artifacts)[number],
+    ];
+    [references[1], references[2]] = [
+      references[2] as (typeof references)[number],
+      references[1] as (typeof references)[number],
+    ];
+  }
+  const envelope = { ...evidence.ociEvidenceClosure.envelope, artifacts: references };
+  const envelopeBytes = canonicalOciJsonLine(envelope);
+  return {
+    ...evidence,
+    ociEvidenceClosure: {
+      envelope,
+      envelopeBytes,
+      envelopeDigest: sha256Digest(envelopeBytes),
+      artifacts,
+    },
+  };
+}
+
+class CountingOciAgent implements LocalAgentAdapter {
+  public readonly adapterId: string;
+  public readonly adapterVersion: string;
+  public calls = 0;
+
+  public constructor(
+    private readonly delegate: OciLocalAgent,
+    private readonly mutation: OciEvidenceMutation,
+    private readonly adoptPriorFence: boolean,
+  ) {
+    this.adapterId = delegate.adapterId;
+    this.adapterVersion = delegate.adapterVersion;
+  }
+
+  public async inspectStartup() {
+    return await this.delegate.inspectStartup();
+  }
+
+  public async run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome> {
+    this.calls += 1;
+    if (this.adoptPriorFence && this.calls === 1) {
+      if (context.spec.fence < 1) throw new Error("OCI adoption fixture requires a later fence");
+      const identity = this.delegate.trustedIdentity;
+      const runKey = `oci-${context.spec.runId}`;
+      prepareOciRun(
+        identity.evidenceRoot,
+        parseOciRunIntent({
+          schemaVersion: 1,
+          runKey,
+          attemptId: context.spec.attemptId,
+          runId: context.spec.runId,
+          fence: context.spec.fence - 1,
+          createdAt: "2026-08-11T15:59:59.000Z",
+          taskSpecDigest: context.spec.taskSpecDigest,
+          policyDigest: context.policyDigest,
+          baseCommit: context.baseCommit,
+          baseTree: context.baseTree,
+          containerName: `app-factory-${runKey}`,
+          image: identity.image,
+          worktreeHostPath: context.spec.workingDirectory,
+          worktreeContainerPath: identity.worktreeContainerPath,
+          privateTmpfsPath: identity.privateTmpfsPath,
+          networkMode: "none",
+          readOnlyRootFilesystem: true,
+          agentExecutable: identity.agentExecutable,
+          agentArguments: identity.agentArguments,
+          environment: identity.environment,
+          limits: {
+            cpuCount: identity.cpuCount,
+            memoryBytes: identity.memoryBytes,
+            pidLimit: identity.pidLimit,
+            outputBytesPerStream: context.spec.limits.maxStdoutBytes,
+            wallTimeMs: context.spec.limits.timeoutMs,
+            stopGraceMs: context.spec.limits.terminationGraceMs,
+            privateTmpfsBytes: identity.privateTmpfsBytes,
+          },
+        }),
+      );
+    }
+    const outcome = await this.delegate.run(context);
+    if (this.mutation === "none" || outcome.protocolEvidence?.schemaVersion !== 3) return outcome;
+    return {
+      ...outcome,
+      protocolEvidence: mutateOciEvidence(outcome.protocolEvidence, this.mutation),
+    };
+  }
+}
+
+function ociAgentFixture(
+  f: Fixture,
+  reviewCalls: { count: number },
+  mutation: OciEvidenceMutation = "none",
+  adoptPriorFence = false,
+  dependencies: Readonly<{
+    engine?: ExecutorOciEngine;
+    sleep?: (milliseconds: number) => Promise<void>;
+  }> = {},
+): Readonly<{
+  agent: CountingOciAgent;
+  delegate: OciLocalAgent;
+  engine: ExecutorOciEngine;
+  project: VerifiedLocalExecutionProject;
+}> {
+  const runnerRoot = join(f.root, "oci-runs");
+  mkdirSync(runnerRoot, { recursive: true, mode: 0o700 });
+  const engine = dependencies.engine ?? new ExecutorOciEngine();
+  const delegate = new OciLocalAgent(
+    {
+      schemaVersion: 1,
+      runnerRoot,
+      engineIdentityDigest: OCI_TEST_ENGINE_ID,
+      image: { reference: OCI_TEST_IMAGE_REFERENCE, imageId: OCI_TEST_IMAGE_ID },
+      agentExecutable: "/usr/local/bin/codex",
+      agentArguments: ["exec", "--json", "-"],
+      environment: [
+        { name: "LANG", value: "C" },
+        { name: "PATH", value: "/usr/local/bin:/usr/bin:/bin" },
+        { name: "TZ", value: "UTC" },
+      ],
+      resources: {
+        cpuCount: 2,
+        memoryBytes: 1_073_741_824,
+        pidLimit: 128,
+        privateTmpfsBytes: 67_108_864,
+      },
+      protocolMaterializer: ({ spec, receipt, stdout, stderr }) => {
+        const events = [
+          AgentEventV1Schema.parse({
+            schemaVersion: 1,
+            eventId: "64000000-0000-4000-8000-000000000001",
+            runId: spec.runId,
+            attemptId: spec.attemptId,
+            stepId: spec.stepId,
+            fence: spec.fence,
+            sequence: 1,
+            occurredAt: receipt.startedAt,
+            type: "agent.started",
+            data: { adapterId: spec.adapterId },
+          }),
+          AgentEventV1Schema.parse({
+            schemaVersion: 1,
+            eventId: "64000000-0000-4000-8000-000000000002",
+            runId: spec.runId,
+            attemptId: spec.attemptId,
+            stepId: spec.stepId,
+            fence: spec.fence,
+            sequence: 2,
+            occurredAt: receipt.finishedAt,
+            type: "agent.finished",
+            data: { status: "succeeded" },
+          }),
+        ];
+        return {
+          result: AgentRunResultV1Schema.parse({
+            schemaVersion: 1,
+            runId: spec.runId,
+            attemptId: spec.attemptId,
+            stepId: spec.stepId,
+            fence: spec.fence,
+            startedAt: receipt.startedAt,
+            finishedAt: receipt.finishedAt,
+            finalEventSequence: events.length,
+            stdout: {
+              digest: sha256Digest(stdout),
+              byteLength: stdout.byteLength,
+              truncated: receipt.stdout.truncated,
+            },
+            stderr: {
+              digest: sha256Digest(stderr),
+              byteLength: stderr.byteLength,
+              truncated: receipt.stderr.truncated,
+            },
+            usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 },
+            process: { exitCode: receipt.exitCode, signal: null },
+            status: "succeeded",
+            failure: null,
+            blocker: null,
+          }),
+          events,
+          summary: "Implemented through the contained OCI agent.",
+          changedPaths: ["Sources/Greeter/GreetingFormatter.swift"],
+        };
+      },
+      pollMs: 1,
+    },
+    {
+      engine,
+      now: () => new Date("2026-08-11T16:00:00.000Z"),
+      sleep: dependencies.sleep ?? (async () => engine.finish()),
+    },
+  );
+  const agent = new CountingOciAgent(delegate, mutation, adoptPriorFence);
+  const enrolled = project(f, agent, reviewCalls);
+  return {
+    agent,
+    delegate,
+    engine,
+    project: {
+      ...enrolled,
+      verificationPlans: enrolled.verificationPlans.filter(
+        ({ checkId }) => checkId !== "tests.swift",
+      ),
+      agentProtocol: "oci-v3",
+      ociAgentIdentity: delegate.trustedIdentity,
+    },
+  };
+}
+
 function project(
   f: Fixture,
   agent: LocalAgentAdapter,
@@ -1193,6 +1588,175 @@ describe("daemon verified local execution", () => {
       expect(enrolledReviews.count).toBe(0);
     },
   );
+
+  it(
+    "publishes and replays a complete OCI V3 closure without relaunching containment",
+    { timeout: 180_000 },
+    async () => {
+      const f = fixture(70);
+      const reviewCalls = { count: 0 };
+      const oci = ociAgentFixture(f, reviewCalls);
+      let publications = 0;
+      const service = await start(f, oci.agent, reviewCalls, {
+        projectOverride: oci.project,
+        executionManifestPublisher: (store, evidence, agentRun) => {
+          publications += 1;
+          if (publications === 1) {
+            throw new RetryableExecutionManifestPublicationError(
+              "simulated interruption before OCI V3 manifest publication",
+            );
+          }
+          return commitVerifiedExecutionManifest(store, evidence, agentRun);
+        },
+      });
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(async () => {
+        const state = (await client.status(intake.attemptId)).attempt.state;
+        return state === "succeeded" || state === "failed";
+      }, 20_000);
+      expect((await client.status(intake.attemptId)).attempt.state).toBe("succeeded");
+
+      expect(publications).toBe(2);
+      expect(oci.agent.calls).toBe(1);
+      expect(oci.engine.creates).toBe(1);
+      expect(oci.engine.starts).toBe(1);
+      expect(oci.engine.removals).toBe(1);
+      expect(reviewCalls.count).toBe(1);
+      const journal = JSON.parse(
+        readFileSync(
+          join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`),
+          "utf8",
+        ),
+      ) as Readonly<{
+        schemaVersion: number;
+        ociEnvelopeDigest: string;
+        ociArtifacts: readonly Readonly<{ logicalName: string }>[];
+      }>;
+      expect(journal.schemaVersion).toBe(3);
+      expect(journal.ociArtifacts.map(({ logicalName }) => logicalName)).toEqual([
+        "intent.json",
+        "engine-binding.json",
+        "create-attempt.json",
+        "created.inspect.json",
+        "launch-attempt.json",
+        "start-dispatched.json",
+        "post-start.inspect.json",
+        "post-start-attested.json",
+        "running.inspect.json",
+        "terminal.inspect.json",
+        "stdout.bin",
+        "stderr.bin",
+        "terminal.json",
+        "removed.json",
+        "receipt.json",
+      ]);
+      const stored = new EvidenceStore(service.executionPaths.evidenceRoot).verify(
+        intake.attemptId,
+      );
+      const agentRun = stored.evidence.find((item) => item.kind === "agent-run");
+      expect(agentRun?.artifacts.map(({ logicalName }) => logicalName)).toEqual([
+        "agent-run-spec.v1.json",
+        "agent-run-result.v1.json",
+        "agent-stdout.bin",
+        "agent-stderr.bin",
+        "oci-evidence-envelope.v1.json",
+        ...journal.ociArtifacts.map(({ logicalName }) => `oci-${logicalName}`),
+      ]);
+      expect(
+        agentRun?.artifacts.find(
+          ({ logicalName }) => logicalName === "oci-evidence-envelope.v1.json",
+        )?.digest,
+      ).toBe(journal.ociEnvelopeDigest);
+    },
+  );
+
+  it("adopts an exact prior-fence OCI closure while publishing under the active lease", async () => {
+    const f = fixture(76);
+    const reviewCalls = { count: 0 };
+    const oci = ociAgentFixture(f, reviewCalls, "none", true);
+    const service = await start(f, oci.agent, reviewCalls, { projectOverride: oci.project });
+    const client = clientFor(service);
+    const intake = await client.run(f.taskSpec);
+    await eventually(async () => {
+      const state = (await client.status(intake.attemptId)).attempt.state;
+      return state === "succeeded" || state === "failed";
+    }, 20_000);
+    const status = await client.status(intake.attemptId);
+    expect(status.attempt.state).toBe("succeeded");
+    expect(status.attempt.fence).toBe(1);
+    expect(
+      JSON.parse(
+        readFileSync(
+          join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`),
+          "utf8",
+        ),
+      ),
+    ).toMatchObject({ schemaVersion: 3, agentFence: 0 });
+    expect(oci.agent.calls).toBe(1);
+    expect(oci.engine.creates).toBe(1);
+    expect(reviewCalls.count).toBe(1);
+  });
+
+  it.each([
+    ["schema downgrade", "schema-downgrade"],
+    ["missing lifecycle reference", "missing-ref"],
+    ["reordered lifecycle references", "reordered-ref"],
+    ["nonconventional run key", "run-key-convention"],
+  ] as const)("rejects OCI V3 %s before journal publication", async (_label, mutation) => {
+    const f = fixture(
+      71 +
+        ["schema-downgrade", "missing-ref", "reordered-ref", "run-key-convention"].indexOf(
+          mutation,
+        ),
+    );
+    const reviewCalls = { count: 0 };
+    const oci = ociAgentFixture(f, reviewCalls, mutation);
+    const service = await start(f, oci.agent, reviewCalls, { projectOverride: oci.project });
+    const client = clientFor(service);
+    const intake = await client.run(f.taskSpec);
+    await eventually(
+      async () => (await client.status(intake.attemptId)).attempt.state === "failed",
+      20_000,
+    );
+
+    expect(oci.agent.calls).toBe(1);
+    expect(reviewCalls.count).toBe(0);
+    expect(
+      existsSync(join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`)),
+    ).toBe(false);
+  });
+
+  it("rejects an adapter closure missing from the independently configured OCI root", async () => {
+    const f = fixture(75);
+    const reviewCalls = { count: 0 };
+    const oci = ociAgentFixture(f, reviewCalls);
+    const differentRoot = join(f.root, "different-oci-root");
+    mkdirSync(differentRoot, { mode: 0o700 });
+    const service = await start(f, oci.agent, reviewCalls, {
+      projectOverride: {
+        ...oci.project,
+        ociAgentIdentity: {
+          ...(oci.project.ociAgentIdentity as NonNullable<
+            VerifiedLocalExecutionProject["ociAgentIdentity"]
+          >),
+          evidenceRoot: differentRoot,
+        },
+      },
+    });
+    const client = clientFor(service);
+    const intake = await client.run(f.taskSpec);
+    await eventually(
+      async () => (await client.status(intake.attemptId)).attempt.state === "failed",
+      20_000,
+    );
+
+    expect(oci.agent.calls).toBe(1);
+    expect(reviewCalls.count).toBe(0);
+    expect(
+      existsSync(join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`)),
+    ).toBe(false);
+  });
 
   it(
     "fails closed on a corrupted V2 journal during replay without relaunching the agent",

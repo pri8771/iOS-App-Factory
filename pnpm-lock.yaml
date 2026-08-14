@@ -77,6 +77,9 @@ importers:
       '@app-factory/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
+      '@app-factory/oci-runner':
+        specifier: workspace:*
+        version: link:../../packages/oci-runner
       '@app-factory/process-supervisor':
         specifier: workspace:*
         version: link:../../packages/process-supervisor

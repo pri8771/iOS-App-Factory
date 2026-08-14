@@ -16,6 +16,7 @@
     { "path": "../../packages/git-workspace" },
     { "path": "../../packages/independent-review" },
     { "path": "../../packages/kernel" },
+    { "path": "../../packages/oci-runner" },
     { "path": "../../packages/process-supervisor" },
     { "path": "../../packages/scheduler" }
   ]

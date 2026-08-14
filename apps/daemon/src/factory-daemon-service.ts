@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 
-import { Sha256DigestSchema } from "@app-factory/contracts";
+import { AttemptIdSchema, Sha256DigestSchema, type AttemptId } from "@app-factory/contracts";
 import type {
   SchedulerClockPort,
   SchedulerExecutionContext,
@@ -80,7 +80,37 @@ export type FactoryDaemonService = Readonly<{
 }>;
 
 type StartupRecoverableExecutor = SchedulerStepExecutorPort &
-  Readonly<{ reconcileStartup?: () => Promise<void> }>;
+  Readonly<{
+    reconcileStartup?: () => Promise<StartupRecoveryPlanV1 | undefined>;
+  }>;
+
+type StartupRecoveryPlanV1 = Readonly<{
+  schemaVersion: 1;
+  pendingAttemptIds: readonly AttemptId[];
+}>;
+
+function parseStartupRecoveryPlan(value: unknown): StartupRecoveryPlanV1 {
+  if (value === undefined) return { schemaVersion: 1, pendingAttemptIds: [] };
+  if (typeof value !== "object" || value === null) {
+    throw new Error("Daemon startup recovery returned an invalid plan");
+  }
+  const candidate = value as Readonly<Record<string, unknown>>;
+  if (candidate.schemaVersion !== 1 || !Array.isArray(candidate.pendingAttemptIds)) {
+    throw new Error("Daemon startup recovery returned an unsupported plan");
+  }
+  const pendingAttemptIds = candidate.pendingAttemptIds.map((attemptId) =>
+    AttemptIdSchema.parse(attemptId),
+  );
+  if (
+    new Set(pendingAttemptIds).size !== pendingAttemptIds.length ||
+    pendingAttemptIds.some(
+      (attemptId, index) => index > 0 && attemptId <= (pendingAttemptIds[index - 1] as string),
+    )
+  ) {
+    throw new Error("Daemon startup recovery attempts must be unique and sorted");
+  }
+  return { schemaVersion: 1, pendingAttemptIds };
+}
 
 function validateDelay(label: string, value: number, maximum = MAX_POLL_INTERVAL_MS): number {
   if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
@@ -318,7 +348,9 @@ export async function startFactoryDaemonService(
   let loop: BackgroundSchedulerLoop | null = null;
   let closing = false;
   let ready = false;
-  const startupState: { recovery: (() => Promise<void>) | null } = { recovery: null };
+  const startupState: {
+    recovery: (() => Promise<StartupRecoveryPlanV1>) | null;
+  } = { recovery: null };
 
   const handler: CommandHandler = async (request, context: CommandHandlerContext) => {
     if (closing) throw closingError();
@@ -380,27 +412,10 @@ export async function startFactoryDaemonService(
                 ownerId,
                 runtimeDirectory: paths.root,
               }));
-        const recoveries: Array<() => Promise<void>> = [];
         if (executor.reconcileStartup !== undefined) {
-          recoveries.push(async () => await executor.reconcileStartup?.());
-        }
-        const recoveredAgents = new Set<object>();
-        for (const project of options.localExecution?.projects ?? []) {
-          if (recoveredAgents.has(project.agent)) continue;
-          recoveredAgents.add(project.agent);
-          const reconcile = Reflect.get(project.agent, "reconcileStartup") as unknown;
-          if (typeof reconcile === "function") {
-            recoveries.push(
-              async () =>
-                await (reconcile as (this: typeof project.agent) => Promise<void>).call(
-                  project.agent,
-                ),
-            );
-          }
-        }
-        if (recoveries.length > 0) {
           startupState.recovery = async () => {
-            for (const recover of recoveries) await recover();
+            const result = await executor.reconcileStartup?.();
+            return parseStartupRecoveryPlan(result);
           };
         }
         schedulerState.controller = createKernelSchedulerController({
@@ -418,7 +433,64 @@ export async function startFactoryDaemonService(
     if (activeController === null) {
       throw new Error("The daemon runtime did not initialize its scheduler controller");
     }
-    if (startupState.recovery !== null) await startupState.recovery();
+    if (startupState.recovery !== null) {
+      let recoveryPlan = await startupState.recovery();
+      if (recoveryPlan.pendingAttemptIds.length > 0) {
+        const recoveryDeadline =
+          Date.now() + (options.leaseDurationMs ?? 30_000) + Math.max(5_000, pollIntervalMs * 2);
+        activeController.setStartupRecoveryScope(recoveryPlan.pendingAttemptIds);
+        try {
+          while (recoveryPlan.pendingAttemptIds.length > 0) {
+            const admitted = new Set(recoveryPlan.pendingAttemptIds);
+            const tickResult = await activeController.tick();
+            if (
+              "attemptId" in tickResult &&
+              tickResult.attemptId !== null &&
+              !admitted.has(AttemptIdSchema.parse(tickResult.attemptId))
+            ) {
+              throw new Error(
+                `Startup recovery scheduler escaped its admitted attempt scope: ${tickResult.attemptId}`,
+              );
+            }
+
+            const refreshedPlan = await startupState.recovery();
+            if (refreshedPlan.pendingAttemptIds.length === 0) {
+              recoveryPlan = refreshedPlan;
+              break;
+            }
+            activeController.setStartupRecoveryScope(refreshedPlan.pendingAttemptIds);
+
+            const unchanged =
+              refreshedPlan.pendingAttemptIds.length === recoveryPlan.pendingAttemptIds.length &&
+              refreshedPlan.pendingAttemptIds.every(
+                (attemptId, index) => attemptId === recoveryPlan.pendingAttemptIds[index],
+              );
+            recoveryPlan = refreshedPlan;
+            if (!unchanged) continue;
+
+            if (
+              tickResult.kind === "contended" ||
+              tickResult.kind === "busy" ||
+              tickResult.kind === "fenced" ||
+              tickResult.kind === "interrupted"
+            ) {
+              if (Date.now() >= recoveryDeadline) {
+                throw new Error(
+                  "Startup recovery could not acquire a fresh scheduler lease before its bounded deadline",
+                );
+              }
+              await wait(Math.min(pollIntervalMs, 250), new AbortController().signal);
+              continue;
+            }
+            throw new Error(
+              `Startup recovery did not reconcile its admitted OCI run after scheduler result ${tickResult.kind}`,
+            );
+          }
+        } finally {
+          activeController.setStartupRecoveryScope(null);
+        }
+      }
+    }
     loop = new BackgroundSchedulerLoop(activeController, {
       pollIntervalMs,
       wait,

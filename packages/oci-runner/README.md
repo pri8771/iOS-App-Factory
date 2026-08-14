@@ -5,8 +5,10 @@ deliberately separate from `process-supervisor`: a host process group is useful
 for trusted helpers, but it is not the lifecycle or cancellation boundary for
 untrusted coding work.
 
-The current slice is dormant and no-network. It proves the engine contract and
-crash-reconciliation protocol without enabling a live model:
+The current slice is no-network and remains disabled in the operator
+entrypoint. It proves the engine contract and crash-reconciliation protocol and
+is consumed by a dependency-injected daemon `OciLocalAgent`/V3 journal path,
+without enabling a live model:
 
 - the Docker executable, client, server, platform, image repository digest, and
   local image ID are exact pins. A canonical engine identity binds the pinned
@@ -39,7 +41,7 @@ and exact-label discovery prove absence. Ambiguous kill or remove responses
 therefore remain retryable instead of being treated as cleanup evidence.
 
 The async `readOciEvidenceClosure` export is a read-only prerequisite for a
-future OCI result journal. It reopens the exact `PreparedOciRun` identity from
+strict OCI result journal. It reopens the exact `PreparedOciRun` identity from
 disk, takes the same per-run operation lock as reconciliation, makes no engine
 call, and does not mutate lifecycle evidence. It returns a canonical,
 digest-and-byte-length-bound artifact envelope only for a fully validated
@@ -51,7 +53,26 @@ phase-complete quarantine chain, with a durable reap request and exact-absence
 record before `quarantine-removed` can be exported. A running or otherwise
 incomplete lifecycle returns `null`; a claimed terminal closure with missing,
 conflicting, or tampered evidence fails closed. This exporter is not daemon
-composition or an OCI journal V3.
+execution by itself. The injected daemon adapter independently reopens this
+evidence root, compares the canonical closure with the adapter claim, and
+content-addresses the complete chain in an OCI-specific V3 journal and final
+execution manifest. Journal replay uses those immutable blobs and makes no
+engine call.
+
+`readOciLifecycleDisposition` is the corresponding read-only startup inventory
+primitive. Under the same exact operation lock and with zero engine calls, it
+distinguishes a valid incomplete prefix, a fully validated pre-start
+cancellation, and each complete closure. The daemon cross-checks that inventory
+against durable kernel ownership before allowing a newly leased scheduler to
+adopt a prior-fence run. Quarantine and orphan/tampered ownership remain
+fail-closed.
+
+Daemon callers also supply separate execution and cleanup effect guards.
+Create/start require current execution authority. Termination and reap markers,
+stop, kill, and remove require cleanup authority from the same unexpired lease
+owner/fence, including after cancellation or controlled daemon shutdown. Direct
+library callers may omit guards; that compatibility mode is not the daemon
+containment path.
 
 The Docker log driver bounds retained output and the adapter records captured
 and observed byte counts. Wall time is reconciled from the engine's immutable
@@ -61,7 +82,7 @@ offline.
 
 ## Live no-network smoke evidence
 
-The package-local suite passes 170/170. An explicitly invoked live Colima
+The package-local suite passes 184/184. An explicitly invoked live Colima
 `OciRunner` smoke also completed on 2026-08-11 with Docker CLI `29.6.1`, server
 `29.5.2` on `linux/arm64`, and pinned image
 `node@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2`.
@@ -90,9 +111,10 @@ that controls that endpoint.
 `network=none` means this package can run deterministic/fake images only. Do not
 mount a host Codex home, `auth.json`, API key, Docker socket, Factory runtime,
 source checkout, Git credentials, or host home into the coding container.
-Live Codex requires a separately reviewed, quota-bound egress/auth broker and
-daemon composition that consumes the exported closure into an OCI-specific
-evidence-journal version. Production containment also still requires:
+Live Codex requires a separately reviewed, immutable input/output transport and
+quota-bound egress/auth broker. The injected V3 path remains unreachable from
+the production/operator profile and has only deterministic fake-engine and
+no-network adapter evidence. Production containment also still requires:
 
 - an autonomous in-container PID 1 wall/output watchdog and proof that retained
   logs bound total generated output;
