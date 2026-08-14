@@ -21,12 +21,24 @@ import {
   type TaskSpecV1,
 } from "@app-factory/contracts";
 
+import { CliUsageError } from "./cli-errors.js";
+import {
+  buildTaskSpecFromOptions,
+  parseTaskNewArguments,
+  renderTaskNewResult,
+  writeTaskNewOutput,
+  type TaskNewOptionsV1,
+} from "./task-new.js";
+
+export { CliUsageError } from "./cli-errors.js";
+
 export type CliOutputMode = "human" | "json";
 
 export type ParsedCliCommand =
   | Readonly<{ kind: "doctor" }>
   | Readonly<{ kind: "portfolio.snapshot" }>
   | Readonly<{ kind: "task.submit" | "task.run"; taskFile: string }>
+  | Readonly<{ kind: "task.new"; options: TaskNewOptionsV1 }>
   | Readonly<{ kind: "attempt.status"; attemptId: AttemptId }>
   | Readonly<{
       kind: "attempt.events";
@@ -59,13 +71,6 @@ export type ParsedCliInvocation = Readonly<{
   retryIdentity: RetryableCommandIdentity | null;
   command: ParsedCliCommand;
 }>;
-
-export class CliUsageError extends Error {
-  public constructor(message: string) {
-    super(message);
-    this.name = "CliUsageError";
-  }
-}
 
 function usageError(message: string): never {
   throw new CliUsageError(message);
@@ -183,6 +188,21 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
       retryIdentity,
       command: { kind: command === "submit" ? "task.submit" : "task.run", taskFile },
     };
+  }
+
+  if (command === "task") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "new") {
+      let options: TaskNewOptionsV1;
+      try {
+        options = parseTaskNewArguments(arguments_);
+      } catch (error) {
+        if (error instanceof CliUsageError) throw error;
+        throw new CliUsageError(error instanceof Error ? error.message : String(error));
+      }
+      return { outputMode, retryIdentity, command: { kind: "task.new", options } };
+    }
+    usageError("Task requires one of: new.");
   }
 
   if (command === "status") {
@@ -419,6 +439,21 @@ export async function runCli(
     return 2;
   }
 
+  // `task new` without --run computes and emits a TaskSpec entirely locally;
+  // it never contacts the daemon, so it does not require a socket or token.
+  if (invocation.command.kind === "task.new" && !invocation.command.options.run) {
+    try {
+      const build = buildTaskSpecFromOptions(invocation.command.options);
+      const outPath = invocation.command.options.outPath;
+      if (outPath !== null) writeTaskNewOutput(build, outPath);
+      io.stdout(renderTaskNewResult(build, outPath, invocation.outputMode));
+      return 0;
+    } catch (error) {
+      io.stderr(renderCliError(error, invocation.outputMode));
+      return error instanceof CliUsageError ? 2 : 1;
+    }
+  }
+
   const socketPath = environment.APP_FACTORY_SOCKET;
   const authorization = environment.APP_FACTORY_AUTH_TOKEN;
   if (socketPath === undefined || authorization === undefined) {
@@ -450,6 +485,13 @@ export async function runCli(
         break;
       case "task.run":
         result = await client.run(await loadTaskSpec(invocation.command.taskFile), identity);
+        break;
+      case "task.new":
+        // Reached only when --run was set; the no-run path returns earlier.
+        result = await client.run(
+          buildTaskSpecFromOptions(invocation.command.options).taskSpec,
+          identity,
+        );
         break;
       case "attempt.status":
         result = await client.status(invocation.command.attemptId, identity);
