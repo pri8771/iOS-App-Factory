@@ -42,6 +42,11 @@ import {
 import { EvidenceStore } from "@app-factory/evidence-store";
 
 import { executeEvidenceCommand } from "./evidence-command-runtime.js";
+import {
+  executeProjectApplyCommand,
+  executeProjectEnrollPlanCommand,
+  executeProjectScanCommand,
+} from "./project-command-runtime.js";
 import { CommandHandlerError, type CommandHandler } from "./unix-command-server.js";
 
 const COMMAND_RESULTS_DIRECTORY_NAME = "command-results";
@@ -59,6 +64,7 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "task.retry",
   "attempt.unblock",
   "daemon.reconcile",
+  "project.apply",
 ]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
@@ -444,6 +450,9 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "evidence.inspect":
     case "evidence.verify":
     case "portfolio.snapshot":
+    case "project.scan":
+    case "project.enroll-plan":
+    case "project.apply":
       return null;
   }
 }
@@ -1026,6 +1035,12 @@ async function executeRequest(
         operation: "portfolio.snapshot",
         snapshot: buildLocalPortfolioReadModel(repositories, dependencies.observedAt),
       };
+    case "project.scan":
+      return await executeProjectScanCommand(dependencies.evidenceStore, request);
+    case "project.enroll-plan":
+      return executeProjectEnrollPlanCommand(dependencies.evidenceStore, request);
+    case "project.apply":
+      return executeProjectApplyCommand(dependencies.evidenceStore, request);
   }
 }
 

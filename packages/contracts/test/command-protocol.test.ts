@@ -41,6 +41,13 @@ describe("command protocol V1", () => {
     ["evidence.inspect", { attemptId: ATTEMPT_ID }],
     ["evidence.verify", { attemptId: ATTEMPT_ID }],
     ["portfolio.snapshot", {}],
+    ["project.scan", { repositoryRoot: "/repo/app" }],
+    ["project.enroll-plan", { planDigest: `sha256:${"a".repeat(64)}` }],
+    [
+      "project.apply",
+      { planDigest: `sha256:${"a".repeat(64)}`, branchName: "app-factory/enroll-abc123" },
+    ],
+    ["project.apply", { planDigest: `sha256:${"a".repeat(64)}`, branchName: null }],
   ])("accepts the strict %s request", (operation, payload) => {
     expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(true);
   });
@@ -128,6 +135,90 @@ describe("command protocol V1", () => {
         },
       }),
     ).toMatchObject({ result: { operation: "attempt.list", page: { hasMore: false } } });
+  });
+
+  it("rejects a non-absolute project.scan repository path", () => {
+    expect(
+      CommandRequestV1Schema.safeParse(request("project.scan", { repositoryRoot: "repo/app" }))
+        .success,
+    ).toBe(false);
+  });
+
+  it("rejects a malformed project.apply plan digest", () => {
+    expect(
+      CommandRequestV1Schema.safeParse(
+        request("project.apply", { planDigest: "not-a-digest", branchName: null }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it("accepts a full project.enroll-plan result envelope", () => {
+    const digest = `sha256:${"c".repeat(64)}`;
+    expect(
+      CommandResponseV1Schema.safeParse({
+        protocolVersion: 1,
+        requestId: REQUEST_ID,
+        ok: true,
+        result: {
+          operation: "project.enroll-plan",
+          planDigest: digest,
+          repositoryRoot: "/repo/app",
+          plan: {
+            schemaVersion: 1,
+            mode: "proposal-only",
+            requiresSourceRevalidation: true,
+            sourceFingerprint: digest,
+            inventoryDigest: digest,
+            blocked: true,
+            blockerIssueIds: ["esi-000000000000000000000001"],
+            actions: [
+              {
+                actionId: "epa-000000000000000000000001",
+                phase: "safety",
+                kind: "resolve-path-safety",
+                targetPath: null,
+                reason: "A symbolic link escapes the repository root.",
+                resolvesIssueIds: ["esi-000000000000000000000001"],
+              },
+            ],
+          },
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a project.apply result envelope with a null branch and commit", () => {
+    const digest = `sha256:${"d".repeat(64)}`;
+    expect(
+      CommandResponseV1Schema.safeParse({
+        protocolVersion: 1,
+        requestId: REQUEST_ID,
+        ok: true,
+        result: {
+          operation: "project.apply",
+          repositoryRoot: "/repo/app",
+          baseHeadSha: "a".repeat(40),
+          branchName: null,
+          commitSha: null,
+          appliedActionKinds: [],
+          resolvedIssueIds: [],
+          skippedActions: [
+            {
+              actionId: "epa-000000000000000000000002",
+              kind: "create-xcode-container",
+              targetPath: null,
+              reason: "requires manual enrollment work",
+            },
+          ],
+          convergence: {
+            blocked: false,
+            blockerIssueIds: [],
+            openIssueCount: 0,
+            sourceFingerprint: digest,
+          },
+        },
+      }).success,
+    ).toBe(true);
   });
 
   it("keeps operation-specific request and result types correlated", () => {

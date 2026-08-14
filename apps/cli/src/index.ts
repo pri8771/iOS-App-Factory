@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
@@ -14,15 +15,19 @@ import {
 import {
   AttemptIdSchema,
   CommandIdSchema,
+  GitBranchNameSchema,
   IsoInstantSchema,
   ProjectIdSchema,
+  Sha256DigestSchema,
   TaskIdSchema,
   TaskSpecV1Schema,
   type AttemptId,
   type AttemptListCursorV1,
   type CommandResultV1,
   type EventV1,
+  type GitBranchName,
   type ProjectId,
+  type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
 } from "@app-factory/contracts";
@@ -73,7 +78,10 @@ export type ParsedCliCommand =
       afterAttemptId: AttemptId | null;
       limit: number;
     }>
-  | Readonly<{ kind: "evidence.inspect" | "evidence.verify"; attemptId: AttemptId }>;
+  | Readonly<{ kind: "evidence.inspect" | "evidence.verify"; attemptId: AttemptId }>
+  | Readonly<{ kind: "project.scan"; repositoryRoot: string }>
+  | Readonly<{ kind: "project.enroll-plan"; planDigest: Sha256Digest }>
+  | Readonly<{ kind: "project.apply"; planDigest: Sha256Digest; branchName: GitBranchName | null }>;
 
 export type ParsedCliInvocation = Readonly<{
   outputMode: CliOutputMode;
@@ -115,6 +123,29 @@ function parsePositiveInteger(name: string, value: string | undefined, maximum: 
     usageError(`${name} must not exceed ${maximum}.`);
   }
   return parsed;
+}
+
+function parseRepositoryPath(value: string | undefined): string {
+  if (value === undefined || value.length === 0) usageError("A repository path is required.");
+  // The daemon may be a long-lived background process, so "relative to the daemon" is
+  // meaningless; resolve against the CLI's own cwd to always send an absolute, normalized path.
+  return resolve(value);
+}
+
+function parsePlanDigest(value: string | undefined): Sha256Digest {
+  if (value === undefined) usageError("A plan digest is required.");
+  const parsed = Sha256DigestSchema.safeParse(value);
+  if (!parsed.success) {
+    usageError("The plan digest must be a lowercase sha256 digest (sha256:<64 hex characters>).");
+  }
+  return parsed.data;
+}
+
+function parseBranchNameOption(value: string | undefined): GitBranchName | null {
+  if (value === undefined) return null;
+  const parsed = GitBranchNameSchema.safeParse(value);
+  if (!parsed.success) usageError("--branch must be a valid Git branch name.");
+  return parsed.data;
 }
 
 function parseNonNegativeInteger(name: string, value: string | undefined): number {
@@ -351,6 +382,31 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     usageError("Evidence requires one of: list, inspect, verify.");
   }
 
+  if (command === "project") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "scan") {
+      const repositoryRoot = parseRepositoryPath(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "project.scan", repositoryRoot } };
+    }
+    if (subcommand === "plan") {
+      const planDigest = parsePlanDigest(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "project.enroll-plan", planDigest } };
+    }
+    if (subcommand === "apply") {
+      const planDigest = parsePlanDigest(arguments_.shift());
+      const branchName = parseBranchNameOption(consumeOption(arguments_, "--branch"));
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "project.apply", planDigest, branchName },
+      };
+    }
+    usageError("Project requires one of: scan, plan, apply.");
+  }
+
   usageError(`Unknown command: ${command}`);
 }
 
@@ -415,6 +471,37 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
       const available = (value: number | null): string =>
         value === null ? "unavailable" : String(value);
       return `portfolio: ${String(result.snapshot.totals.projects)} projects, ${String(result.snapshot.totals.attempts)} attempts, ${String(result.snapshot.totals.activeAttempts)} active, ${String(result.snapshot.totals.blockers)} blockers; PRs ${available(result.snapshot.totals.openPullRequests)}, Jira todo ${available(result.snapshot.totals.jiraTodo)}, P0 ${available(result.snapshot.totals.unresolvedP0)}, P1 ${available(result.snapshot.totals.unresolvedP1)}\n`;
+    }
+    case "project.scan": {
+      const lines = [
+        `project.scan: ${result.repositoryRoot}`,
+        `plan digest: ${result.planDigest}`,
+        `fingerprint: ${result.sourceFingerprint}`,
+        `inventory digest: ${result.inventoryDigest}`,
+        result.blocked
+          ? `blocked by ${String(result.blockers.length)} issue(s):\n${result.blockers
+              .map((blocker) => `  ${blocker.issueId}\t${blocker.code}\t${blocker.summary}`)
+              .join("\n")}`
+          : "not blocked",
+      ];
+      return `${lines.join("\n")}\n`;
+    }
+    case "project.enroll-plan":
+      return `${JSON.stringify(result.plan, null, 2)}\n`;
+    case "project.apply": {
+      const lines = [
+        `project.apply: ${result.repositoryRoot}`,
+        `branch: ${result.branchName ?? "(none; nothing to apply)"}`,
+        `commit: ${result.commitSha ?? "(none)"}`,
+        `applied: ${result.appliedActionKinds.length === 0 ? "none" : result.appliedActionKinds.join(", ")}`,
+        `skipped: ${String(result.skippedActions.length)}`,
+        `convergence: ${
+          result.convergence.blocked
+            ? `still blocked (${String(result.convergence.blockerIssueIds.length)} blocker(s))`
+            : "clear"
+        }, ${String(result.convergence.openIssueCount)} open issue(s)`,
+      ];
+      return `${lines.join("\n")}\n`;
     }
   }
 }
@@ -735,6 +822,19 @@ export async function runCli(
         break;
       case "evidence.verify":
         result = await client.verifyEvidence(invocation.command.attemptId, identity);
+        break;
+      case "project.scan":
+        result = await client.scanProject(invocation.command.repositoryRoot, identity);
+        break;
+      case "project.enroll-plan":
+        result = await client.getEnrollmentPlan(invocation.command.planDigest, identity);
+        break;
+      case "project.apply":
+        result = await client.applyEnrollmentPlan(
+          invocation.command.planDigest,
+          invocation.command.branchName,
+          identity,
+        );
         break;
     }
     io.stdout(renderCommandResult(result, invocation.outputMode));

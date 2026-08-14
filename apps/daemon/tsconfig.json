@@ -18,6 +18,7 @@
     { "path": "../../packages/kernel" },
     { "path": "../../packages/oci-runner" },
     { "path": "../../packages/process-supervisor" },
+    { "path": "../../packages/project-sdk" },
     { "path": "../../packages/scheduler" }
   ]
 }

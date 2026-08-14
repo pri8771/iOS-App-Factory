@@ -83,6 +83,9 @@ importers:
       '@app-factory/process-supervisor':
         specifier: workspace:*
         version: link:../../packages/process-supervisor
+      '@app-factory/project-sdk':
+        specifier: workspace:*
+        version: link:../../packages/project-sdk
       '@app-factory/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler

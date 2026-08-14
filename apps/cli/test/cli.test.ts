@@ -20,6 +20,7 @@ const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
 const PROJECT_ID = "00000000-0000-4000-8000-000000000006";
 const NOW = "2026-08-10T12:00:00.000Z";
 const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
+const PLAN_DIGEST = `sha256:${"a".repeat(64)}`;
 
 describe("CLI argument parser", () => {
   it.each([
@@ -165,6 +166,32 @@ describe("CLI argument parser", () => {
         command: { kind: "evidence.verify", attemptId: ATTEMPT_ID },
       },
     ],
+    [
+      ["project", "scan", "/repo/app"],
+      { outputMode: "human", command: { kind: "project.scan", repositoryRoot: "/repo/app" } },
+    ],
+    [
+      ["project", "plan", PLAN_DIGEST],
+      { outputMode: "human", command: { kind: "project.enroll-plan", planDigest: PLAN_DIGEST } },
+    ],
+    [
+      ["project", "apply", PLAN_DIGEST],
+      {
+        outputMode: "human",
+        command: { kind: "project.apply", planDigest: PLAN_DIGEST, branchName: null },
+      },
+    ],
+    [
+      ["--json", "project", "apply", PLAN_DIGEST, "--branch", "app-factory/enroll-abc123"],
+      {
+        outputMode: "json",
+        command: {
+          kind: "project.apply",
+          planDigest: PLAN_DIGEST,
+          branchName: "app-factory/enroll-abc123",
+        },
+      },
+    ],
   ])("parses %j", (arguments_, expected) => {
     expect(parseCliArguments(arguments_)).toEqual({ ...expected, retryIdentity: null });
   });
@@ -212,6 +239,14 @@ describe("CLI argument parser", () => {
     [["evidence"]],
     [["evidence", "list", "--limit", "101"]],
     [["evidence", "inspect", "not-an-id"]],
+    [["project"]],
+    [["project", "unknown"]],
+    [["project", "scan"]],
+    [["project", "plan"]],
+    [["project", "plan", "not-a-digest"]],
+    [["project", "apply", "not-a-digest"]],
+    [["project", "apply", PLAN_DIGEST, "--branch"]],
+    [["project", "apply", PLAN_DIGEST, "--branch", "not a valid branch"]],
     [["doctor", "--json", "--json"]],
     [["service"]],
     [["service", "install", "--config", "service.json"]],
@@ -347,6 +382,106 @@ describe("CLI output renderer", () => {
       ),
     ).toBe(
       "portfolio: 0 projects, 0 attempts, 0 active, 0 blockers; PRs unavailable, Jira todo unavailable, P0 unavailable, P1 unavailable\n",
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "project.scan",
+          repositoryRoot: "/repo/app",
+          planDigest: PLAN_DIGEST,
+          sourceFingerprint: PLAN_DIGEST,
+          inventoryDigest: PLAN_DIGEST,
+          blocked: false,
+          blockers: [],
+        },
+        "human",
+      ),
+    ).toBe(
+      `project.scan: /repo/app\nplan digest: ${PLAN_DIGEST}\nfingerprint: ${PLAN_DIGEST}\ninventory digest: ${PLAN_DIGEST}\nnot blocked\n`,
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "project.scan",
+          repositoryRoot: "/repo/app",
+          planDigest: PLAN_DIGEST,
+          sourceFingerprint: PLAN_DIGEST,
+          inventoryDigest: PLAN_DIGEST,
+          blocked: true,
+          blockers: [
+            {
+              issueId: "esi-000000000000000000000001",
+              code: "safety.secret-material-detected",
+              summary: "A file matches secret-shaped-file detection heuristics.",
+            },
+          ],
+        },
+        "human",
+      ),
+    ).toBe(
+      `project.scan: /repo/app\nplan digest: ${PLAN_DIGEST}\nfingerprint: ${PLAN_DIGEST}\ninventory digest: ${PLAN_DIGEST}\nblocked by 1 issue(s):\n  esi-000000000000000000000001\tsafety.secret-material-detected\tA file matches secret-shaped-file detection heuristics.\n`,
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "project.enroll-plan",
+          planDigest: PLAN_DIGEST,
+          repositoryRoot: "/repo/app",
+          plan: {
+            schemaVersion: 1,
+            mode: "proposal-only",
+            requiresSourceRevalidation: true,
+            sourceFingerprint: PLAN_DIGEST,
+            inventoryDigest: PLAN_DIGEST,
+            blocked: false,
+            blockerIssueIds: [],
+            actions: [],
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          mode: "proposal-only",
+          requiresSourceRevalidation: true,
+          sourceFingerprint: PLAN_DIGEST,
+          inventoryDigest: PLAN_DIGEST,
+          blocked: false,
+          blockerIssueIds: [],
+          actions: [],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "project.apply",
+          repositoryRoot: "/repo/app",
+          baseHeadSha: "a".repeat(40),
+          branchName: "app-factory/enroll-abc123",
+          commitSha: "b".repeat(40),
+          appliedActionKinds: ["declare-project", "declare-experience"],
+          resolvedIssueIds: ["esi-000000000000000000000002"],
+          skippedActions: [],
+          convergence: {
+            blocked: false,
+            blockerIssueIds: [],
+            openIssueCount: 3,
+            sourceFingerprint: PLAN_DIGEST,
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      `project.apply: /repo/app\nbranch: app-factory/enroll-abc123\ncommit: ${"b".repeat(40)}\napplied: declare-project, declare-experience\nskipped: 0\nconvergence: clear, 3 open issue(s)\n`,
     );
   });
 
@@ -698,5 +833,133 @@ describe("runCli attempt blocker diagnosis", () => {
     expect(stdout).toContain("code: task.execution-failed");
     expect(stdout).toContain("step: 00000000-0000-4000-8000-000000000009 (factory.verify)");
     expect(stdout).toContain("evidence: none recorded");
+  });
+});
+
+describe("runCli project enrollment", () => {
+  it("scans a repository given an already-absolute path", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.scan") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "project.scan",
+          repositoryRoot: "/repo/app",
+          planDigest: PLAN_DIGEST,
+          sourceFingerprint: PLAN_DIGEST,
+          inventoryDigest: PLAN_DIGEST,
+          blocked: false,
+          blockers: [],
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "scan", "/repo/app"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("project.scan: /repo/app");
+    expect(captured().stdout).toContain("not blocked");
+  });
+
+  it("fetches the full stored plan as JSON", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.enroll-plan")
+        throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "project.enroll-plan",
+          planDigest: PLAN_DIGEST,
+          repositoryRoot: "/repo/app",
+          plan: {
+            schemaVersion: 1,
+            mode: "proposal-only",
+            requiresSourceRevalidation: true,
+            sourceFingerprint: PLAN_DIGEST,
+            inventoryDigest: PLAN_DIGEST,
+            blocked: false,
+            blockerIssueIds: [],
+            actions: [],
+          },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "plan", PLAN_DIGEST],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(captured().stdout)).toMatchObject({
+      sourceFingerprint: PLAN_DIGEST,
+      blocked: false,
+    });
+  });
+
+  it("applies a plan with an explicit branch name", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.apply") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "project.apply",
+          repositoryRoot: "/repo/app",
+          baseHeadSha: "a".repeat(40),
+          branchName: "app-factory/enroll-abc123",
+          commitSha: "b".repeat(40),
+          appliedActionKinds: ["declare-project"],
+          resolvedIssueIds: [],
+          skippedActions: [],
+          convergence: {
+            blocked: false,
+            blockerIssueIds: [],
+            openIssueCount: 0,
+            sourceFingerprint: PLAN_DIGEST,
+          },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "apply", PLAN_DIGEST, "--branch", "app-factory/enroll-abc123"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("branch: app-factory/enroll-abc123");
+    expect(captured().stdout).toContain("convergence: clear, 0 open issue(s)");
+  });
+
+  it("surfaces a fingerprint-drift failure as a distinct, non-retryable error code", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.apply") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        error: {
+          code: "project.apply-fingerprint-drift",
+          message: "the enrollment plan's sourceFingerprint no longer matches a fresh scan",
+          retryable: false,
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["--json", "project", "apply", PLAN_DIGEST],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(1);
+    expect(JSON.parse(captured().stderr)).toMatchObject({
+      ok: false,
+      error: { code: "project.apply-fingerprint-drift", retryable: false },
+    });
   });
 });

@@ -8,6 +8,31 @@
       "const": 1,
       "type": "number"
     },
+    "__schema10": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "attemptId",
+        "reason"
+      ],
+      "type": "object"
+    },
     "__schema2": {
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
@@ -64,8 +89,7 @@
           "type": "string"
         },
         "policyDigest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "type": "string"
+          "$ref": "#/$defs/__schema8"
         },
         "projectId": {
           "$ref": "#/$defs/__schema0"
@@ -148,6 +172,10 @@
       "type": "string"
     },
     "__schema8": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema9": {
       "additionalProperties": false,
       "properties": {
         "attemptId": {
@@ -156,31 +184,6 @@
       },
       "required": [
         "attemptId"
-      ],
-      "type": "object"
-    },
-    "__schema9": {
-      "additionalProperties": false,
-      "properties": {
-        "attemptId": {
-          "$ref": "#/$defs/__schema0"
-        },
-        "reason": {
-          "anyOf": [
-            {
-              "maxLength": 1000,
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "attemptId",
-        "reason"
       ],
       "type": "object"
     }
@@ -335,7 +338,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema8"
+              "$ref": "#/$defs/__schema9"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -509,7 +512,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema9"
+              "$ref": "#/$defs/__schema10"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -542,7 +545,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema9"
+              "$ref": "#/$defs/__schema10"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -575,7 +578,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema9"
+              "$ref": "#/$defs/__schema10"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -806,7 +809,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema8"
+              "$ref": "#/$defs/__schema9"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -839,7 +842,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema8"
+              "$ref": "#/$defs/__schema9"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -873,6 +876,149 @@
             },
             "payload": {
               "$ref": "#/$defs/__schema4"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "project.scan",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "repositoryRoot": {
+                  "maxLength": 4096,
+                  "minLength": 2,
+                  "pattern": "^\\/(?!.*\\/\\/)(?!.*\\\\)(?!.*\\0).+$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "repositoryRoot"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "project.enroll-plan",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "planDigest": {
+                  "$ref": "#/$defs/__schema8"
+                }
+              },
+              "required": [
+                "planDigest"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "project.apply",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "branchName": {
+                  "anyOf": [
+                    {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "planDigest": {
+                  "$ref": "#/$defs/__schema8"
+                }
+              },
+              "required": [
+                "planDigest",
+                "branchName"
+              ],
+              "type": "object"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"

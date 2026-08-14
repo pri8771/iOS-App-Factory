@@ -5,17 +5,21 @@ import { TextDecoder } from "node:util";
 
 import {
   COMMAND_PROTOCOL_VERSION_V1,
+  AbsolutePathSchema,
   AttemptIdSchema,
   AttemptListQueryV1Schema,
   CommandIdSchema,
   CommandAuthorizationV1Schema,
   CommandRequestFrameV1Schema,
   CommandResponseV1Schema,
+  GitBranchNameSchema,
   IsoInstantSchema,
   RequestIdSchema,
+  Sha256DigestSchema,
   TaskIdSchema,
   TaskSpecV1Schema,
   canonicalPortfolioReadModelDigestInputV1,
+  type AbsolutePath,
   type AttemptId,
   type AttemptListCursorV1,
   type AttemptListScopeV1,
@@ -25,9 +29,11 @@ import {
   type CommandResponseV1,
   type CommandResultForOperationV1,
   type CommandId,
+  type GitBranchName,
   type IsoInstant,
   type ProjectId,
   type RequestId,
+  type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
 } from "@app-factory/contracts";
@@ -388,6 +394,52 @@ export class CommandClient {
     return await this.#request(
       "evidence.verify",
       { attemptId: AttemptIdSchema.parse(attemptId) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Scans an existing repository and persists an enrollment plan the operator can review or apply. */
+  public async scanProject(
+    repositoryRoot: AbsolutePath | string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.scan">> {
+    return await this.#request(
+      "project.scan",
+      { repositoryRoot: AbsolutePathSchema.parse(repositoryRoot) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Fetches the full stored enrollment plan for a digest returned by {@link scanProject}. */
+  public async getEnrollmentPlan(
+    planDigest: Sha256Digest | string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.enroll-plan">> {
+    return await this.#request(
+      "project.enroll-plan",
+      { planDigest: Sha256DigestSchema.parse(planDigest) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Applies a previously scanned enrollment plan on a new branch. Durable and idempotent by command ID. */
+  public async applyEnrollmentPlan(
+    planDigest: Sha256Digest | string,
+    branchName: GitBranchName | string | null = null,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.apply">> {
+    return await this.#request(
+      "project.apply",
+      {
+        planDigest: Sha256DigestSchema.parse(planDigest),
+        branchName: branchName === null ? null : GitBranchNameSchema.parse(branchName),
+      },
       identity,
       signal,
     );
