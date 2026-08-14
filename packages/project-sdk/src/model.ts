@@ -188,6 +188,15 @@ export const LegacyAuthorityGraphV1Schema = z.strictObject({
   validation: ArtifactValidationV1Schema,
 });
 
+export const SecretDetectorV1Schema = z.enum(["filename-pattern", "content-entropy"]);
+export type SecretDetectorV1 = z.infer<typeof SecretDetectorV1Schema>;
+
+export const SecretShapedFileV1Schema = z.strictObject({
+  path: RelativeProjectPathSchema,
+  detectors: z.array(SecretDetectorV1Schema).min(1),
+});
+export type SecretShapedFileV1 = z.infer<typeof SecretShapedFileV1Schema>;
+
 export const ProjectInventoryV1Schema = z.strictObject({
   schemaVersion: z.literal(1),
   xcodeContainers: z.array(XcodeContainerV1Schema),
@@ -201,6 +210,7 @@ export const ProjectInventoryV1Schema = z.strictObject({
   legacyFactoryArtifacts: z.array(LegacyFactoryArtifactV1Schema),
   legacyAuthority: z.union([LegacyAuthorityGraphV1Schema, z.null()]),
   symbolicLinkPaths: z.array(RelativeProjectPathSchema),
+  secretShapedFiles: z.array(SecretShapedFileV1Schema),
 });
 export type ProjectInventoryV1 = z.infer<typeof ProjectInventoryV1Schema>;
 
@@ -209,6 +219,7 @@ export const EnrollmentIssueCodeV1Schema = z.enum([
   "safety.symlink-path-escape",
   "safety.symlink-chain-unsafe",
   "safety.symlink-through-exclusion",
+  "safety.secret-material-detected",
   "rules.no-canonical-authority",
   "rules.canonical-unverifiable",
   "rules.adapter-nonconforming",
@@ -239,6 +250,7 @@ export type EnrollmentIssueV1 = z.infer<typeof EnrollmentIssueV1Schema>;
 
 export const EnrollmentActionKindV1Schema = z.enum([
   "resolve-path-safety",
+  "resolve-secret-material",
   "establish-rule-authority",
   "repair-rule-adapter",
   "resolve-rule-conflict",
@@ -305,4 +317,43 @@ export const EnrollmentScanV1Schema = z.strictObject({
     gitAdminUnchanged: z.literal(true),
   }),
 });
+
+export const GitBranchNameV1Schema = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/)
+  .refine((value) => !value.includes(".."), "branch name may not contain '..'")
+  .refine((value) => !value.endsWith(".lock"), "branch name may not end with '.lock'")
+  .refine((value) => !value.endsWith("/"), "branch name may not end with '/'");
+export type GitBranchNameV1 = z.infer<typeof GitBranchNameV1Schema>;
+
+export const AppliedEnrollmentActionV1Schema = z.strictObject({
+  actionId: z.string().regex(/^epa-[0-9a-f]{24}$/),
+  kind: EnrollmentActionKindV1Schema,
+  targetPath: z.union([RelativeProjectPathSchema, z.null()]),
+  writtenPaths: z.array(RelativeProjectPathSchema),
+});
+export type AppliedEnrollmentActionV1 = z.infer<typeof AppliedEnrollmentActionV1Schema>;
+
+export const SkippedEnrollmentActionV1Schema = z.strictObject({
+  actionId: z.string().regex(/^epa-[0-9a-f]{24}$/),
+  kind: EnrollmentActionKindV1Schema,
+  targetPath: z.union([RelativeProjectPathSchema, z.null()]),
+  reason: z.string().min(1).max(2_000),
+});
+export type SkippedEnrollmentActionV1 = z.infer<typeof SkippedEnrollmentActionV1Schema>;
+
+export const EnrollmentApplyResultV1Schema = z.strictObject({
+  schemaVersion: z.literal(1),
+  repositoryRoot: z.string().min(1),
+  baseHeadSha: GitObjectIdSchema,
+  branchName: z.union([GitBranchNameV1Schema, z.null()]),
+  commitSha: z.union([GitObjectIdSchema, z.null()]),
+  appliedActions: z.array(AppliedEnrollmentActionV1Schema),
+  skippedActions: z.array(SkippedEnrollmentActionV1Schema),
+  resolvedIssueIds: z.array(z.string().regex(/^esi-[0-9a-f]{24}$/)),
+  rescan: EnrollmentScanV1Schema,
+});
+export type EnrollmentApplyResultV1 = z.infer<typeof EnrollmentApplyResultV1Schema>;
 export type EnrollmentScanV1 = z.infer<typeof EnrollmentScanV1Schema>;
