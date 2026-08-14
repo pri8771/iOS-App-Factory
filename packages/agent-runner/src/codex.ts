@@ -227,7 +227,15 @@ export const CODEX_REPORTED_RESULT_JSON_SCHEMA_V1 = {
         type: "string",
         minLength: 1,
         maxLength: 1_024,
-        pattern: "^(?!/)(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))(?!.*//)(?!.*\\/$)(?!.*\\\\).+$",
+        // Lookaround-free by necessity: the structured-output API used by
+        // Codex CLI 0.147.0-alpha.6.6 rejects regex lookaround ("regex
+        // lookaround is not supported"). This anchored alternation admits
+        // exactly the slash-separated relative paths whose segments are
+        // non-empty, backslash-free, and not "." or "..". Authoritative path
+        // validation (including NUL/newline and glob-character rejection)
+        // remains in parseCodexReportedResultV1 via assertConcreteRelativePath.
+        pattern:
+          "^(?:\\.?[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:/(?:\\.?[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
       },
     },
     blocker: {

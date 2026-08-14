@@ -430,6 +430,62 @@ describe("Codex CLI 0.147.0-alpha.6.6 recorded protocol conformance", () => {
     // rejected authoritatively by parseCodexReportedResultV1.
     expect(serializeCodexReportedResultJsonSchemaV1()).not.toContain("uniqueItems");
   });
+
+  it("keeps every wire-schema regex pattern free of lookaround", () => {
+    // The structured-output API rejects lookaround with HTTP 400
+    // invalid_json_schema ("regex lookaround is not supported"), observed live
+    // on 2026-08-14 at $.properties.changedPaths.items.pattern. Walk the whole
+    // schema so any future pattern inherits the guarantee.
+    const patterns: string[] = [];
+    const collect = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        for (const entry of node) collect(entry);
+        return;
+      }
+      if (typeof node !== "object" || node === null) return;
+      for (const [key, value] of Object.entries(node)) {
+        if (key === "pattern" && typeof value === "string") patterns.push(value);
+        collect(value);
+      }
+    };
+    collect(CODEX_REPORTED_RESULT_JSON_SCHEMA_V1);
+
+    expect(patterns.length).toBeGreaterThanOrEqual(2);
+    for (const pattern of patterns) {
+      expect(pattern).not.toContain("(?=");
+      expect(pattern).not.toContain("(?!");
+      expect(pattern).not.toContain("(?<");
+    }
+  });
+
+  it("keeps the lookaround-free changedPaths wire pattern aligned with the parser", () => {
+    const items = CODEX_REPORTED_RESULT_JSON_SCHEMA_V1.properties.changedPaths.items;
+    const wirePattern = new RegExp(items.pattern);
+
+    const accepted = [
+      "Sources/Greeter/GreetingFormatter.swift",
+      ".gitignore",
+      "a",
+      "..a",
+      "a..b",
+      "...",
+      "deep/.config/file",
+    ];
+    for (const path of accepted) {
+      expect(wirePattern.test(path)).toBe(true);
+      expect(
+        parseCodexReportedResultV1(JSON.stringify(reportedResult({ changedPaths: [path] }))),
+      ).toMatchObject({ changedPaths: [path] });
+    }
+
+    const rejected = ["/abs", ".", "..", "./a", "../a", "a/./b", "a/../b", "a//b", "a/", "a\\b"];
+    for (const path of rejected) {
+      expect(wirePattern.test(path)).toBe(false);
+      expect(() =>
+        parseCodexReportedResultV1(JSON.stringify(reportedResult({ changedPaths: [path] }))),
+      ).toThrow(/concrete normalized relative path/);
+    }
+  });
 });
 
 describe("Codex JSONL process classification", () => {
