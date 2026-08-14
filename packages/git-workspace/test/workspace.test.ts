@@ -997,3 +997,123 @@ describe("reviewed protected-path policy extension", () => {
     expect(() => decodeProtectedPathPolicyExtension(bytes)).toThrow(GitWorkspaceError);
   });
 });
+
+describe("candidate verification threads the protected-path policy extension", () => {
+  // These tests prove the extension actually reaches classifyProtectedPath
+  // from inside verifyCandidate/verifyCandidateObject (not just that
+  // classifyProtectedPath itself honors an extension when called directly,
+  // which the suite above already covers).
+  const pbxprojAllowance = parseProtectedPathPolicyExtension({
+    schemaVersion: 1,
+    additionalTrustBoundaryPathPrefixes: [],
+    additionalTrustBoundarySegments: [],
+    additionalPolicyMarkers: [],
+    allowances: ["xcode-project-membership"],
+  });
+  const noAllowance = parseProtectedPathPolicyExtension({
+    schemaVersion: 1,
+    additionalTrustBoundaryPathPrefixes: [],
+    additionalTrustBoundarySegments: [],
+    additionalPolicyMarkers: [],
+    allowances: [],
+  });
+  const extraTrustBoundary = parseProtectedPathPolicyExtension({
+    schemaVersion: 1,
+    additionalTrustBoundaryPathPrefixes: [],
+    additionalTrustBoundarySegments: ["src"],
+    additionalPolicyMarkers: [],
+    allowances: [],
+  });
+
+  function withPbxproj(f: Fixture): { mirror: FactoryMirror; workspace: FactoryWorkspaceRecord } {
+    const { mirror, workspace } = prepare(f);
+    mkdirSync(join(workspace.worktreePath, "App.xcodeproj"));
+    writeFileSync(
+      join(workspace.worktreePath, "App.xcodeproj", "project.pbxproj"),
+      "// pbxproj change\n",
+    );
+    return { mirror, workspace };
+  }
+
+  it("verifyCandidate is byte-identical whether the extension is omitted or explicitly undefined", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    updateSource(workspace, "export const value = 7;\n");
+
+    const omitted = f.manager.verifyCandidate(workspace, { authorizedScopes: ["src"] });
+    const explicitUndefined = f.manager.verifyCandidate(workspace, {
+      authorizedScopes: ["src"],
+      protectedPathPolicyExtension: undefined,
+    });
+
+    expect(explicitUndefined).toEqual(omitted);
+  });
+
+  it("verifyCandidate still rejects an Xcode project-membership file with no extension", () => {
+    const f = fixture();
+    const { workspace } = withPbxproj(f);
+
+    expect(() =>
+      f.manager.verifyCandidate(workspace, { authorizedScopes: ["App.xcodeproj"] }),
+    ).toThrow(/build, dependency, and verification configuration is protected/u);
+  });
+
+  it("verifyCandidate still rejects an Xcode project-membership file when the extension grants no allowance", () => {
+    const f = fixture();
+    const { workspace } = withPbxproj(f);
+
+    expect(() =>
+      f.manager.verifyCandidate(workspace, {
+        authorizedScopes: ["App.xcodeproj"],
+        protectedPathPolicyExtension: noAllowance,
+      }),
+    ).toThrow(/build, dependency, and verification configuration is protected/u);
+  });
+
+  it("verifyCandidate passes an Xcode project-membership change once the extension grants the allowance", () => {
+    const f = fixture();
+    const { workspace } = withPbxproj(f);
+
+    const candidate = f.manager.verifyCandidate(workspace, {
+      authorizedScopes: ["App.xcodeproj"],
+      protectedPathPolicyExtension: pbxprojAllowance,
+    });
+
+    expect(candidate.changedPaths).toEqual([
+      expect.objectContaining({ path: "App.xcodeproj/project.pbxproj", status: "A" }),
+    ]);
+  });
+
+  it("verifyCandidateObject applies the same allowance on replay", () => {
+    const f = fixture();
+    const { mirror, workspace } = withPbxproj(f);
+    const policy = {
+      authorizedScopes: ["App.xcodeproj"],
+      protectedPathPolicyExtension: pbxprojAllowance,
+    };
+    const candidate = f.manager.verifyCandidate(workspace, policy);
+
+    const replayed = f.manager.verifyCandidateObject(mirror, candidate, policy);
+    expect(replayed.candidateTreeId).toBe(candidate.candidateTreeId);
+    expect(() =>
+      f.manager.verifyCandidateObject(mirror, candidate, {
+        authorizedScopes: ["App.xcodeproj"],
+      }),
+    ).toThrow(/build, dependency, and verification configuration is protected/u);
+  });
+
+  it("an extension's additional trust-boundary protection is enforced through verifyCandidate", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    updateSource(workspace, "export const value = 99;\n");
+
+    expect(() =>
+      f.manager.verifyCandidate(workspace, {
+        authorizedScopes: ["src"],
+        protectedPathPolicyExtension: extraTrustBoundary,
+      }),
+    ).toThrow(/Factory trust-boundary code is protected/u);
+    // The same edit is fine without the extension.
+    expect(() => f.manager.verifyCandidate(workspace, { authorizedScopes: ["src"] })).not.toThrow();
+  });
+});

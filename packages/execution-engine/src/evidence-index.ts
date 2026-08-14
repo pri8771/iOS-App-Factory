@@ -29,6 +29,7 @@ import type {
   FactoryMirror,
   GitWorkspaceManager,
   NormalizedCandidatePolicy,
+  ProtectedPathPolicyExtensionV1,
 } from "@app-factory/git-workspace";
 import { normalizeCandidatePolicy } from "@app-factory/git-workspace";
 import {
@@ -383,7 +384,19 @@ export function parseReviewerDescriptor(value: unknown): ReviewerDescriptorV1 {
 
 export function parseNormalizedCandidatePolicy(value: unknown): NormalizedCandidatePolicy {
   if (!isRecord(value)) throw new ExecutionEvidenceError("Candidate policy must be an object");
-  exactKeys(value, ["authorizedScopes", "maxChangedFileBytes", "maxDiffBytes"], "Candidate policy");
+  // The extension field is strictly optional: an extension-free candidate
+  // policy must keep exactly its original three-key shape (and therefore its
+  // original canonical bytes and digest) so that today's recorded evidence
+  // stays byte-identical. Only a policy that actually carries the extension
+  // is required to carry the fourth key.
+  const hasExtension = "protectedPathPolicyExtension" in value;
+  exactKeys(
+    value,
+    hasExtension
+      ? ["authorizedScopes", "maxChangedFileBytes", "maxDiffBytes", "protectedPathPolicyExtension"]
+      : ["authorizedScopes", "maxChangedFileBytes", "maxDiffBytes"],
+    "Candidate policy",
+  );
   if (
     !Array.isArray(value.authorizedScopes) ||
     value.authorizedScopes.some((scope) => typeof scope !== "string")
@@ -394,6 +407,15 @@ export function parseNormalizedCandidatePolicy(value: unknown): NormalizedCandid
     authorizedScopes: value.authorizedScopes as readonly string[],
     maxChangedFileBytes: parsePositiveInteger(value.maxChangedFileBytes, "maxChangedFileBytes"),
     maxDiffBytes: parsePositiveInteger(value.maxDiffBytes, "maxDiffBytes"),
+    // normalizeCandidatePolicy strictly re-validates this via
+    // parseProtectedPathPolicyExtension; the cast only asserts the shape
+    // this function is about to have Git Workspace check for us.
+    ...(hasExtension
+      ? {
+          protectedPathPolicyExtension:
+            value.protectedPathPolicyExtension as ProtectedPathPolicyExtensionV1,
+        }
+      : {}),
   });
   if (!canonicalJsonBytes(parsed).equals(canonicalJsonBytes(value))) {
     throw new ExecutionEvidenceError("Candidate policy is not canonically normalized");

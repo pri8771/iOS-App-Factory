@@ -54,6 +54,7 @@ import {
   type CandidatePolicy,
   type FactoryMirror,
   type FactoryWorkspaceRecord,
+  type ProtectedPathPolicyExtensionV1,
 } from "@app-factory/git-workspace";
 import type { IndependentReviewAdapter } from "@app-factory/independent-review";
 import {
@@ -251,6 +252,14 @@ export type VerifiedLocalExecutionProject = Readonly<{
     maxChangedFileBytes?: number;
     maxDiffBytes?: number;
   }>;
+  /**
+   * Optional, reviewed extension to classifyProtectedPath's built-in
+   * defaults, carried through unchanged into the CandidatePolicy the
+   * executor builds for candidate verification. Absent by default; when
+   * absent, candidate verification behaves exactly as it did before this
+   * field existed.
+   */
+  protectedPathPolicyExtension?: ProtectedPathPolicyExtensionV1;
 }>;
 
 export type VerifiedLocalExecutionPaths = Readonly<{
@@ -2756,6 +2765,9 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     const candidatePolicy: CandidatePolicy = {
       authorizedScopes: bindings.taskSpec.requestedScope.paths,
       ...bindings.project.candidatePolicyLimits,
+      ...(bindings.project.protectedPathPolicyExtension === undefined
+        ? {}
+        : { protectedPathPolicyExtension: bindings.project.protectedPathPolicyExtension }),
     };
     const result = await this.#withHeartbeat(
       context,

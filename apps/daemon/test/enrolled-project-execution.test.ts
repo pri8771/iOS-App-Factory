@@ -5,8 +5,13 @@ import { join } from "node:path";
 
 import { RunIdSchema, type Sha256Digest } from "@app-factory/contracts";
 import { VERIFICATION_SCRATCH_TOKEN } from "@app-factory/execution-engine";
+import { GitWorkspaceManager } from "@app-factory/git-workspace";
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+  EnrolledProjectExecutionConfigurationError,
+  loadEnrolledProjectExecutionConfiguration,
+} from "../src/enrolled-project-execution.js";
 import {
   LocalExecutionProfileConfigurationError,
   loadLocalExecutionProfile,
@@ -45,6 +50,28 @@ function git(cwd: string, args: readonly string[]): string {
 
 function sha256(bytes: Uint8Array): Sha256Digest {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}` as Sha256Digest;
+}
+
+async function writeProtectedPathPolicyExtension(
+  root: string,
+  allowances: readonly string[],
+  name = "protected-path-policy-extension.json",
+  extra: Readonly<Record<string, unknown>> = {},
+): Promise<Readonly<{ file: string; digest: Sha256Digest }>> {
+  const file = join(root, name);
+  const bytes = Buffer.from(
+    JSON.stringify({
+      schemaVersion: 1,
+      additionalTrustBoundaryPathPrefixes: [],
+      additionalTrustBoundarySegments: [],
+      additionalPolicyMarkers: [],
+      allowances,
+      ...extra,
+    }),
+    "utf8",
+  );
+  await writeFile(file, bytes, { mode: 0o600 });
+  return { file, digest: sha256(bytes) };
 }
 
 /** A trivial, non-Swift-Greeter-specific repository: the enrolled-project profile
@@ -396,5 +423,177 @@ describe("enrolled-codex-v1 local execution profile", () => {
         containmentAttestationPath: await writeAttestation(fixture.root),
       }),
     ).rejects.toBeInstanceOf(LocalExecutionProfileConfigurationError);
+  });
+});
+
+describe("enrolled-project-v1 protected-path policy extension", () => {
+  it("stays absent by default: the fixture profile carries no extension", async () => {
+    const fixture = await createFixture();
+
+    const binding = loadEnrolledProjectExecutionConfiguration(
+      fixture.projectConfigurationFile,
+      fixture.runtime,
+    );
+
+    expect(binding.project.protectedPathPolicyExtension).toBeUndefined();
+  });
+
+  it("loads a digest-pinned extension and threads it unchanged into the project binding", async () => {
+    const fixture = await createFixture();
+    const extension = await writeProtectedPathPolicyExtension(fixture.root, [
+      "xcode-project-membership",
+    ]);
+    await fixture.writeProjectConfiguration({ protectedPathPolicyExtension: extension });
+
+    const binding = loadEnrolledProjectExecutionConfiguration(
+      fixture.projectConfigurationFile,
+      fixture.runtime,
+    );
+
+    expect(binding.project.protectedPathPolicyExtension).toEqual({
+      schemaVersion: 1,
+      additionalTrustBoundaryPathPrefixes: [],
+      additionalTrustBoundarySegments: [],
+      additionalPolicyMarkers: [],
+      allowances: ["xcode-project-membership"],
+    });
+  });
+
+  it("fails closed when the extension file does not match its pinned digest", async () => {
+    const fixture = await createFixture();
+    const extension = await writeProtectedPathPolicyExtension(fixture.root, [
+      "xcode-project-membership",
+    ]);
+    await fixture.writeProjectConfiguration({
+      protectedPathPolicyExtension: { file: extension.file, digest: `sha256:${"0".repeat(64)}` },
+    });
+
+    expect(() =>
+      loadEnrolledProjectExecutionConfiguration(fixture.projectConfigurationFile, fixture.runtime),
+    ).toThrow(EnrolledProjectExecutionConfigurationError);
+  });
+
+  it("fails closed when the extension file contains an unrecognized relaxation key", async () => {
+    const fixture = await createFixture();
+    const extension = await writeProtectedPathPolicyExtension(fixture.root, ["made-up-relaxation"]);
+    await fixture.writeProjectConfiguration({ protectedPathPolicyExtension: extension });
+
+    expect(() =>
+      loadEnrolledProjectExecutionConfiguration(fixture.projectConfigurationFile, fixture.runtime),
+    ).toThrow();
+  });
+
+  it("fails closed when protectedPathPolicyExtension.file is missing", async () => {
+    const fixture = await createFixture();
+    await fixture.writeProjectConfiguration({
+      protectedPathPolicyExtension: { digest: `sha256:${"0".repeat(64)}` },
+    });
+
+    expect(() =>
+      loadEnrolledProjectExecutionConfiguration(fixture.projectConfigurationFile, fixture.runtime),
+    ).toThrow(EnrolledProjectExecutionConfigurationError);
+  });
+
+  it("lets a .pbxproj change pass real candidate verification only once the loaded extension grants the allowance", async () => {
+    const fixture = await createFixture();
+    const extension = await writeProtectedPathPolicyExtension(fixture.root, [
+      "xcode-project-membership",
+    ]);
+    await fixture.writeProjectConfiguration({ protectedPathPolicyExtension: extension });
+
+    const binding = loadEnrolledProjectExecutionConfiguration(
+      fixture.projectConfigurationFile,
+      fixture.runtime,
+    );
+    expect(binding.project.protectedPathPolicyExtension?.allowances).toEqual([
+      "xcode-project-membership",
+    ]);
+
+    // Reconstruct the exact CandidatePolicy the executor builds from this
+    // loaded project (see the candidatePolicy assembly in
+    // verified-local-executor.ts) and exercise real candidate verification
+    // against a fresh attempt over the same source repository. This proves
+    // the extension the config loader produced actually controls
+    // verifyCandidate's outcome, not merely that it round-trips.
+    const manager = new GitWorkspaceManager({ gitExecutable: GIT });
+    const mirror = manager.ensureMirror({
+      sourceRepositoryPath: fixture.source,
+      runtimeRoot: join(fixture.root, "probe-runtime"),
+      repositoryId: "probe-repo",
+    });
+    const withoutAllowance = manager.createAttemptWorkspace(
+      mirror,
+      "probe-attempt-rejected",
+      fixture.baseCommit,
+    );
+    await mkdir(join(withoutAllowance.worktreePath, "App.xcodeproj"), { recursive: true });
+    await writeFile(
+      join(withoutAllowance.worktreePath, "App.xcodeproj", "project.pbxproj"),
+      "// pbxproj change\n",
+    );
+    expect(() =>
+      manager.verifyCandidate(withoutAllowance, { authorizedScopes: ["App.xcodeproj"] }),
+    ).toThrow(/build, dependency, and verification configuration is protected/u);
+
+    const withAllowance = manager.createAttemptWorkspace(
+      mirror,
+      "probe-attempt-allowed",
+      fixture.baseCommit,
+    );
+    await mkdir(join(withAllowance.worktreePath, "App.xcodeproj"), { recursive: true });
+    await writeFile(
+      join(withAllowance.worktreePath, "App.xcodeproj", "project.pbxproj"),
+      "// pbxproj change\n",
+    );
+    const candidate = manager.verifyCandidate(withAllowance, {
+      authorizedScopes: ["App.xcodeproj"],
+      protectedPathPolicyExtension: binding.project.protectedPathPolicyExtension,
+    });
+    expect(candidate.changedPaths).toEqual([
+      expect.objectContaining({ path: "App.xcodeproj/project.pbxproj", status: "A" }),
+    ]);
+  });
+
+  it("enforces an enrolled project's additional trust-boundary protection through real candidate verification", async () => {
+    const fixture = await createFixture();
+    const extension = await writeProtectedPathPolicyExtension(
+      fixture.root,
+      [],
+      "trust-boundary-extension.json",
+      { additionalTrustBoundarySegments: ["extra-protected"] },
+    );
+    await fixture.writeProjectConfiguration({ protectedPathPolicyExtension: extension });
+
+    const binding = loadEnrolledProjectExecutionConfiguration(
+      fixture.projectConfigurationFile,
+      fixture.runtime,
+    );
+
+    const manager = new GitWorkspaceManager({ gitExecutable: GIT });
+    const mirror = manager.ensureMirror({
+      sourceRepositoryPath: fixture.source,
+      runtimeRoot: join(fixture.root, "probe-runtime-trust-boundary"),
+      repositoryId: "probe-repo-trust-boundary",
+    });
+    const workspace = manager.createAttemptWorkspace(
+      mirror,
+      "probe-attempt-trust-boundary",
+      fixture.baseCommit,
+    );
+    await mkdir(join(workspace.worktreePath, "extra-protected"), { recursive: true });
+    await writeFile(join(workspace.worktreePath, "extra-protected", "file.txt"), "content\n");
+
+    // Unprotected without the extension...
+    expect(() =>
+      manager.verifyCandidate(workspace, { authorizedScopes: ["extra-protected"] }),
+    ).not.toThrow();
+    // ...but the loaded extension's additional trust-boundary segment makes
+    // it protected.
+    expect(() =>
+      manager.verifyCandidate(workspace, {
+        authorizedScopes: ["extra-protected"],
+        protectedPathPolicyExtension: binding.project.protectedPathPolicyExtension,
+      }),
+    ).toThrow(/Factory trust-boundary code is protected/u);
   });
 });

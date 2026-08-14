@@ -29,7 +29,11 @@ import {
   type TrustedVerificationPlanTemplate,
 } from "@app-factory/execution-engine";
 import type { IndependentReviewAdapter } from "@app-factory/independent-review";
-import { GitWorkspaceManager } from "@app-factory/git-workspace";
+import {
+  GitWorkspaceManager,
+  decodeProtectedPathPolicyExtension,
+  type ProtectedPathPolicyExtensionV1,
+} from "@app-factory/git-workspace";
 
 import { CODEX_PROFILE_ENVIRONMENT_NAMES } from "./codex-profile-environment.js";
 import {
@@ -55,6 +59,10 @@ const MAX_TERMINATION_GRACE_MS = 60_000;
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
 const MAX_CANDIDATE_POLICY_LIMIT_BYTES = 1024 * 1024 * 1024;
 const REVIEWER_FINDING_ID = "62000000-0000-4000-8000-000000000903";
+// Mirrors classifyProtectedPath's own reviewed-extension byte cap in
+// packages/git-workspace/src/workspace.ts; decodeProtectedPathPolicyExtension
+// enforces the true limit independently, this only bounds the file read.
+const MAX_PROTECTED_PATH_POLICY_EXTENSION_BYTES = 16 * 1024;
 
 export type EnrolledProjectConfigurationV1 = Readonly<{
   schemaVersion: 1;
@@ -76,6 +84,16 @@ export type EnrolledProjectConfigurationV1 = Readonly<{
   candidatePolicyLimits?: Readonly<{
     maxChangedFileBytes?: number;
     maxDiffBytes?: number;
+  }>;
+  /**
+   * Optional reference to a reviewed protected-path policy extension file,
+   * pinned to its exact reviewed bytes by digest. Absent by default; when
+   * absent, this enrolled project's candidate verification behaves exactly
+   * as it did before this field existed.
+   */
+  protectedPathPolicyExtension?: Readonly<{
+    file: string;
+    digest: Sha256Digest;
   }>;
   verificationPlans: readonly TrustedVerificationPlanTemplate[];
   reviewer: Readonly<{
@@ -381,6 +399,22 @@ function parseCandidatePolicyLimits(
   return result;
 }
 
+function parseProtectedPathPolicyExtensionRef(
+  value: unknown,
+): EnrolledProjectConfigurationV1["protectedPathPolicyExtension"] {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    configurationError("protectedPathPolicyExtension must be an object.");
+  }
+  exactKeys(value, ["file", "digest"], "protectedPathPolicyExtension");
+  const file = normalizedAbsolutePath(value.file, "protectedPathPolicyExtension.file");
+  const digest = Sha256DigestSchema.safeParse(value.digest);
+  if (!digest.success) {
+    configurationError("protectedPathPolicyExtension.digest must be a SHA-256 digest.");
+  }
+  return { file, digest: digest.data };
+}
+
 function parseEnvironment(value: unknown, label: string): Readonly<Record<string, string>> {
   if (!isRecord(value)) configurationError(`${label} must be an object.`);
   const allowed = new Set<string>(CODEX_PROFILE_ENVIRONMENT_NAMES);
@@ -544,7 +578,7 @@ function parseConfiguration(bytes: Buffer): EnrolledProjectConfigurationV1 {
     "taskSemantics",
     "verificationPlans",
   ];
-  const optionalTopLevelKeys = ["candidatePolicyLimits"];
+  const optionalTopLevelKeys = ["candidatePolicyLimits", "protectedPathPolicyExtension"];
   const actualTopLevelKeys = Object.keys(parsed);
   const missingTopLevelKeys = requiredTopLevelKeys.filter(
     (key) => !actualTopLevelKeys.includes(key),
@@ -568,6 +602,9 @@ function parseConfiguration(bytes: Buffer): EnrolledProjectConfigurationV1 {
     configurationError("allowedBaseCommit and allowedBaseTree must use the same object format.");
   }
   const candidatePolicyLimits = parseCandidatePolicyLimits(parsed.candidatePolicyLimits);
+  const protectedPathPolicyExtension = parseProtectedPathPolicyExtensionRef(
+    parsed.protectedPathPolicyExtension,
+  );
   return {
     schemaVersion: 1,
     mode: "enrolled-project-v1",
@@ -581,6 +618,7 @@ function parseConfiguration(bytes: Buffer): EnrolledProjectConfigurationV1 {
     policyFile: normalizedAbsolutePath(parsed.policyFile, "policyFile"),
     taskSemantics: parseTaskSemantics(parsed.taskSemantics),
     ...(candidatePolicyLimits === undefined ? {} : { candidatePolicyLimits }),
+    ...(protectedPathPolicyExtension === undefined ? {} : { protectedPathPolicyExtension }),
     verificationPlans: parseVerificationPlans(parsed.verificationPlans),
     reviewer: parseReviewer(parsed.reviewer),
   };
@@ -686,6 +724,27 @@ export function loadEnrolledProjectExecutionConfiguration(
   const policy = decodeReviewedPolicyPayload(
     readBoundedRegularFile(config.policyFile, MAX_REVIEWED_POLICY_BYTES),
   );
+  // Pin the reviewed extension to its exact bytes the same way the reviewed
+  // policy payload above is pinned to a digest: read the exact file, decode
+  // and strictly validate it, then fail closed if it does not match the
+  // digest recorded in this project's own load-time configuration.
+  const protectedPathPolicyExtension: ProtectedPathPolicyExtensionV1 | undefined =
+    config.protectedPathPolicyExtension === undefined
+      ? undefined
+      : ((): ProtectedPathPolicyExtensionV1 => {
+          const decoded = decodeProtectedPathPolicyExtension(
+            readBoundedRegularFile(
+              config.protectedPathPolicyExtension.file,
+              MAX_PROTECTED_PATH_POLICY_EXTENSION_BYTES,
+            ),
+          );
+          if (decoded.digest !== config.protectedPathPolicyExtension.digest) {
+            configurationError(
+              "The enrolled project protected-path policy extension does not match its pinned digest.",
+            );
+          }
+          return decoded.extension;
+        })();
   const executionPaths = resolveVerifiedLocalExecutionPaths(runtime);
   ensurePrivateRuntimeDirectory(runtime, "The Factory runtime directory");
   ensurePrivateRuntimeDirectory(join(runtime, "local-execution"), "The local execution root");
@@ -732,6 +791,7 @@ export function loadEnrolledProjectExecutionConfiguration(
       ...(config.candidatePolicyLimits === undefined
         ? {}
         : { candidatePolicyLimits: config.candidatePolicyLimits }),
+      ...(protectedPathPolicyExtension === undefined ? {} : { protectedPathPolicyExtension }),
     },
   };
 }
