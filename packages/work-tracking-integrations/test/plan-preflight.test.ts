@@ -47,8 +47,8 @@ describe("deterministic project provisioning", () => {
     expect(createProjectProvisionPlan({ ...spec, displayName: "Hindsight Beta" }).planId).not.toBe(
       first.planId,
     );
-    expect(first.operations).toHaveLength(8);
-    expect(new Set(first.operations.map((operation) => operation.operationMarker)).size).toBe(8);
+    expect(first.operations).toHaveLength(6);
+    expect(new Set(first.operations.map((operation) => operation.operationMarker)).size).toBe(6);
     expect(
       first.operations.every((operation) =>
         operation.operationMarker.startsWith(`app-factory:v1:${operation.provider}:`),
@@ -73,18 +73,19 @@ describe("deterministic project provisioning", () => {
       (operation) => operation.correlation.logicalKey === "quality.coherence",
     );
     expect(release?.dependsOnOperationIds).toContain(coherence?.operationId);
-    expect(first.operations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          action: "jira.issue-link.ensure",
-          payload: expect.objectContaining({
-            inwardLogicalId: "quality.coherence",
-            outwardLogicalId: "release.testflight",
-            linkType: "blocks",
-          }),
-        }),
-      ]),
-    );
+
+    // v1 plans never contain "jira.issue-link.ensure" or "jira.github.attach":
+    // provider-http-adapters' Jira adapter rejects both before any I/O
+    // because the v1 correlation contract cannot express either safely (see
+    // the comments above createProjectProvisionPlan). Every operation a plan
+    // emits must be an action the adapter can actually attempt.
+    expect(
+      first.operations.some(
+        (operation) =>
+          operation.action === "jira.issue-link.ensure" ||
+          operation.action === "jira.github.attach",
+      ),
+    ).toBe(false);
   });
 
   it("enforces small tasks, known dependencies, and an acyclic graph", () => {
@@ -119,6 +120,27 @@ describe("deterministic project provisioning", () => {
 });
 
 describe("capability preflight normalization", () => {
+  it("never requires a capability that gates an operation no v1 plan can emit", () => {
+    // jira.issue.link gates jira.issue-link.ensure; jira.remote-link.create
+    // gates jira.github.attach. Neither operation is ever produced by
+    // createProjectProvisionPlan, so requiring either capability here would
+    // block provisioning readiness forever on something the plan does not
+    // need. The plan's own action set and the required-capability matrix
+    // must agree.
+    const required = requiredCapabilitiesForProvisioning();
+    expect(required).not.toContainEqual({ provider: "jira", capability: "jira.issue.link" });
+    expect(required).not.toContainEqual({
+      provider: "jira",
+      capability: "jira.remote-link.create",
+    });
+
+    const plan = createProjectProvisionPlan(projectSpec());
+    const emittedActions = new Set(plan.operations.map((operation) => operation.action));
+    expect(emittedActions.has("jira.issue-link.ensure")).toBe(false);
+    expect(emittedActions.has("jira.github.attach")).toBe(false);
+    expect(plan.requiredCapabilities).toEqual(required);
+  });
+
   it("normalizes complete provider reports into a sorted ready matrix", () => {
     const required = requiredCapabilitiesForProvisioning();
     const jira = availableSnapshot(

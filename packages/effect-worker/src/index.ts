@@ -977,3 +977,7 @@ export function createInMemorySanitizingEvidencePort(
 // ./ports/index.ts. This file does not depend on that module, so re-
 // exporting it here creates no import cycle.
 export * from "./ports/index.js";
+
+// The plan-to-outbox bridge: turns a work-tracking-integrations provision
+// plan into planned kernel effects. See ./plan-outbox-bridge.ts.
+export * from "./plan-outbox-bridge.js";

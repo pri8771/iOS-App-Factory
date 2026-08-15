@@ -106,6 +106,32 @@ const EXTERNAL_ACTION_POLICIES = {
     resourceTypes: ["jira.issue"],
     requiredBindings: ["planDigest", "diffDigest"],
   },
+  // Project-provisioning actions emitted by
+  // `@app-factory/work-tracking-integrations`'s `createProjectProvisionPlan`
+  // (see packages/work-tracking-integrations/src/plan.ts). These are not
+  // tied to a code change, so they bind only `planDigest` - the digest of
+  // the approved `ProjectProvisionPlanV1` each operation was drawn from -
+  // and leave diffDigest/commit/buildIdentityDigest null.
+  "jira.project.ensure": {
+    provider: "jira",
+    resourceTypes: ["jira.project"],
+    requiredBindings: ["planDigest"],
+  },
+  "jira.epic.ensure": {
+    provider: "jira",
+    resourceTypes: ["jira.issue"],
+    requiredBindings: ["planDigest"],
+  },
+  "jira.issue.ensure": {
+    provider: "jira",
+    resourceTypes: ["jira.issue"],
+    requiredBindings: ["planDigest"],
+  },
+  "github.repository.ensure": {
+    provider: "github",
+    resourceTypes: ["github.repository"],
+    requiredBindings: ["planDigest"],
+  },
   "apple.upload-build": {
     provider: "apple",
     resourceTypes: ["apple.build"],
