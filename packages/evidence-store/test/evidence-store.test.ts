@@ -255,6 +255,26 @@ describe("EvidenceStore", () => {
     expect(() => store.listManifests()).toThrow(/unexpected entry/);
   });
 
+  it("ignores OS metadata junk in the manifest directory instead of failing closed", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    const stored = store.putEvidence(eventEvidence());
+    store.commitManifest(manifestFor(stored.evidence, stored.digest));
+    // Finder writes .DS_Store and AppleDouble sidecars as files; Spotlight,
+    // Trash, and fseventsd bookkeeping are directories. Both shapes must be
+    // ignored by name, regardless of entry type.
+    writeFileSync(join(root, "manifests", ".DS_Store"), "junk\n", { mode: 0o600 });
+    writeFileSync(join(root, "manifests", "._events.jsonl"), "junk\n", { mode: 0o600 });
+    mkdirSync(join(root, "manifests", ".Spotlight-V100"), { mode: 0o700 });
+    mkdirSync(join(root, "manifests", ".Trashes"), { mode: 0o700 });
+    mkdirSync(join(root, "manifests", ".fseventsd"), { mode: 0o700 });
+
+    expect(store.listManifests()).toMatchObject({
+      records: [{ manifest: { attemptId: stored.evidence.attemptId } }],
+      hasMore: false,
+    });
+  });
+
   it("rejects a manifest whose immutable filename and embedded attempt identity disagree", () => {
     const root = makeRoot();
     const store = new EvidenceStore(root);
@@ -270,6 +290,75 @@ describe("EvidenceStore", () => {
     expect(() => store.readManifestRecord(stored.evidence.attemptId)).toThrow(
       /identity does not match/u,
     );
+  });
+
+  it("lists every stored blob digest and ignores OS metadata junk in the blob tree", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    const first = store.putBlob(Buffer.from("one\n", "utf8"));
+    const second = store.putBlob(Buffer.from("two\n", "utf8"));
+
+    // Finder-style junk at both the shard level and inside a shard must be
+    // ignored, not treated as an unexpected entry.
+    writeFileSync(join(root, "blobs", "sha256", ".DS_Store"), "junk\n", { mode: 0o600 });
+    const firstHex = first.slice("sha256:".length);
+    mkdirSync(join(root, "blobs", "sha256", firstHex.slice(0, 2), "._sidecar-parent"), {
+      mode: 0o700,
+    });
+    writeFileSync(join(root, "blobs", "sha256", firstHex.slice(0, 2), ".DS_Store"), "junk\n", {
+      mode: 0o600,
+    });
+
+    expect(new Set(store.listBlobDigests())).toEqual(new Set([first, second]));
+  });
+
+  it("fails closed when the blob tree contains a genuinely unexpected entry", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    store.putBlob(Buffer.from("one\n", "utf8"));
+    writeFileSync(join(root, "blobs", "sha256", "not-a-shard.txt"), "junk\n", { mode: 0o600 });
+
+    expect(() => store.listBlobDigests()).toThrow(/unexpected entry/);
+  });
+
+  it("fails closed when a shard directory contains a genuinely unexpected entry", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    const digest = store.putBlob(Buffer.from("one\n", "utf8"));
+    const hex = digest.slice("sha256:".length);
+    writeFileSync(join(root, "blobs", "sha256", hex.slice(0, 2), "not-a-blob"), "junk\n", {
+      mode: 0o600,
+    });
+
+    expect(() => store.listBlobDigests()).toThrow(/unexpected entry/);
+  });
+
+  it("deletes a blob idempotently and refuses to delete through a symlink", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    const digest = store.putBlob(Buffer.from("delete-me\n", "utf8"));
+
+    expect(store.deleteBlob(digest)).toBe(true);
+    expect(store.listBlobDigests()).toEqual([]);
+    // Deleting an already-absent blob is not an error.
+    expect(store.deleteBlob(digest)).toBe(false);
+
+    const other = store.putBlob(Buffer.from("swap-target\n", "utf8"));
+    const otherHex = other.slice("sha256:".length);
+    const otherPath = join(root, "blobs", "sha256", otherHex.slice(0, 2), otherHex.slice(2));
+    const forgedDigest = Sha256DigestSchema.parse(`sha256:${"9".repeat(64)}`);
+    const forgedHex = forgedDigest.slice("sha256:".length);
+    mkdirSync(join(root, "blobs", "sha256", forgedHex.slice(0, 2)), {
+      mode: 0o700,
+      recursive: true,
+    });
+    symlinkSync(
+      otherPath,
+      join(root, "blobs", "sha256", forgedHex.slice(0, 2), forgedHex.slice(2)),
+    );
+
+    expect(() => store.deleteBlob(forgedDigest)).toThrow();
+    expect(readFileSync(otherPath)).toEqual(Buffer.from("swap-target\n", "utf8"));
   });
 
   it("rejects public paths and symbolic-link roots", () => {

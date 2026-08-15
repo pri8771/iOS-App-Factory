@@ -33,6 +33,25 @@ const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
 const DIGEST_PATTERN = /^sha256:([0-9a-f]{64})$/;
 
+/**
+ * OS-generated metadata entries (from Finder, Spotlight, or volume
+ * bookkeeping) that a fail-closed directory scan must tolerate rather than
+ * reject. This denylist is intentionally narrow and exact: a single Finder
+ * visit must not permanently brick evidence.list. Any entry that does not
+ * match must still fail closed — do not broaden this to "ignore anything
+ * unrecognized".
+ */
+const IGNORABLE_OS_METADATA_ENTRIES = new Set([
+  ".DS_Store",
+  ".Spotlight-V100",
+  ".Trashes",
+  ".fseventsd",
+]);
+
+function isIgnorableOsMetadataEntry(name: string): boolean {
+  return IGNORABLE_OS_METADATA_ENTRIES.has(name) || name.startsWith("._");
+}
+
 export class EvidenceStoreError extends Error {
   constructor(message: string) {
     super(message);
@@ -271,6 +290,62 @@ export class EvidenceStore {
     return bytes;
   }
 
+  /**
+   * Enumerates every content-addressed blob digest physically present under
+   * this store's blob root. Intended for retention/garbage-collection
+   * tooling that must compute which blobs are unreferenced by any
+   * manifest. Like `listManifests`, this is a fail-closed scan: OS
+   * metadata junk (Finder, Spotlight, volume bookkeeping) is ignored by an
+   * explicit narrow denylist, but any other unexpected entry throws rather
+   * than being silently skipped.
+   */
+  listBlobDigests(): readonly Sha256Digest[] {
+    const digests: Sha256Digest[] = [];
+    const shards = readdirSync(this.#blobsRoot, { withFileTypes: true })
+      .filter((entry) => !isIgnorableOsMetadataEntry(entry.name))
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const shard of shards) {
+      if (!shard.isDirectory() || shard.isSymbolicLink() || !/^[0-9a-f]{2}$/u.test(shard.name)) {
+        throw new EvidenceStoreError(
+          `Evidence blob root contains an unexpected entry: ${shard.name}`,
+        );
+      }
+      const shardPath = safeChild(this.#blobsRoot, shard.name);
+      const blobs = readdirSync(shardPath, { withFileTypes: true })
+        .filter((entry) => !isIgnorableOsMetadataEntry(entry.name))
+        .sort((left, right) => left.name.localeCompare(right.name));
+      for (const blob of blobs) {
+        if (!blob.isFile() || blob.isSymbolicLink() || !/^[0-9a-f]{62}$/u.test(blob.name)) {
+          throw new EvidenceStoreError(
+            `Evidence blob shard ${shard.name} contains an unexpected entry: ${blob.name}`,
+          );
+        }
+        digests.push(Sha256DigestSchema.parse(`sha256:${shard.name}${blob.name}`));
+      }
+    }
+    return digests;
+  }
+
+  /**
+   * Removes exactly one content-addressed blob by digest. This method has
+   * no way to check whether the blob is still referenced by a manifest and
+   * trusts the caller to have already proven that (retention/GC tooling
+   * only); it never touches `manifests/`. Idempotent: deleting an
+   * already-absent blob returns `false` rather than throwing. Refuses to
+   * unlink anything at the expected path that is not a private regular
+   * file — a symlink or foreign-owned file there is left alone and
+   * reported as a failure instead of guessed at.
+   */
+  deleteBlob(digestInput: unknown): boolean {
+    const digest = Sha256DigestSchema.parse(digestInput);
+    const hex = digestHex(digest);
+    const path = safeChild(this.#blobsRoot, hex.slice(0, 2), hex.slice(2));
+    if (!existsSync(path)) return false;
+    assertPrivateFile(path);
+    unlinkSync(path);
+    return true;
+  }
+
   commitManifest(value: unknown): EvidenceManifestV1 {
     const manifest = EvidenceManifestV1Schema.parse(value);
     this.verifyManifestValue(manifest);
@@ -324,6 +399,7 @@ export class EvidenceStore {
         ? null
         : AttemptIdSchema.parse(options.afterAttemptId);
     const attemptIds = readdirSync(this.#manifestsRoot, { withFileTypes: true })
+      .filter((entry) => !isIgnorableOsMetadataEntry(entry.name))
       .map((entry) => {
         if (!entry.isFile() || entry.isSymbolicLink() || !entry.name.endsWith(".json")) {
           throw new EvidenceStoreError(

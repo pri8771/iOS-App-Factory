@@ -256,4 +256,51 @@ describe("control-plane recovery", () => {
     ).rejects.toThrow("already exists");
     database.close();
   });
+
+  it("ignores OS metadata junk in the recovery-state directory instead of failing closed", async () => {
+    const root = temporaryDirectory();
+    const bundle = await bundleFixture(root, false);
+    const result = await restoreRecoveryBundle({
+      bundleDirectory: bundle.directory,
+      expectedManifestDigest: bundle.manifestDigest,
+      runtimeDirectory: join(root, "restored"),
+      verifyEvidence: () => true,
+      restoredAt: "2026-08-11T12:00:00.000Z",
+    });
+    const stateDirectory = join(result.runtimeDirectory, "recovery-state");
+    // Finder writes .DS_Store and AppleDouble sidecars as files; Spotlight,
+    // Trash, and fseventsd bookkeeping are directories. Both shapes must be
+    // ignored by name, regardless of entry type.
+    writeFileSync(join(stateDirectory, ".DS_Store"), "junk\n");
+    writeFileSync(join(stateDirectory, "._0000000000000001.json"), "junk\n");
+    mkdirSync(join(stateDirectory, ".Spotlight-V100"));
+    mkdirSync(join(stateDirectory, ".Trashes"));
+    mkdirSync(join(stateDirectory, ".fseventsd"));
+
+    expect(readRecoveryState(result.runtimeDirectory)).toMatchObject({
+      status: "quarantined",
+      revision: 2,
+    });
+  });
+
+  it("still fails closed on a genuinely unexpected recovery-state entry", async () => {
+    const root = temporaryDirectory();
+    const bundle = await bundleFixture(root, false);
+    const result = await restoreRecoveryBundle({
+      bundleDirectory: bundle.directory,
+      expectedManifestDigest: bundle.manifestDigest,
+      runtimeDirectory: join(root, "restored"),
+      verifyEvidence: () => true,
+      restoredAt: "2026-08-11T12:00:00.000Z",
+    });
+    writeFileSync(
+      join(result.runtimeDirectory, "recovery-state", "untrusted.txt"),
+      "not a recovery state\n",
+    );
+
+    expect(() => readRecoveryState(result.runtimeDirectory)).toThrow(
+      /unexpected recovery state entry/,
+    );
+    expect(() => readRecoveryState(result.runtimeDirectory)).toThrow(RecoveryManagerError);
+  });
 });

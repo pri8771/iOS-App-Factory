@@ -23,6 +23,7 @@
     { "path": "./packages/project-sdk" },
     { "path": "./packages/quality" },
     { "path": "./packages/recovery-manager" },
+    { "path": "./packages/retention-manager" },
     { "path": "./packages/scheduler" },
     { "path": "./packages/service-manager" },
     { "path": "./packages/simulator-runner" },

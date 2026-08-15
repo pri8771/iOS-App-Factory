@@ -169,6 +169,53 @@ export function openFactoryDatabase(
   }
 }
 
+/**
+ * Opens the control-plane database strictly read-only, for tooling (such as
+ * retention/garbage-collection) that must run safely alongside a live
+ * daemon without risking a write. Unlike `openFactoryDatabase`, this never
+ * issues a `PRAGMA ... = value` statement (those are writes and fail on a
+ * readonly connection); WAL mode is a persistent property of the database
+ * file once set, so a readonly connection already sees it and can read
+ * concurrently with the daemon's writer. Migrations are never run here:
+ * a database that is not already at the expected schema is a reason to
+ * refuse, not a reason for a read-only tool to mutate it.
+ *
+ * This intentionally checks fewer things than `inspectFactoryDatabase`:
+ * `synchronous` and `foreign_keys` are per-connection session pragmas, not
+ * persisted database-file properties, so a fresh connection does not
+ * inherit the writer's values and asserting them here would reject a
+ * perfectly healthy database. Only the file-level properties that a reader
+ * can actually observe are checked: the SQLite build, WAL mode, and
+ * integrity.
+ */
+export function openFactoryDatabaseReadOnly(
+  databasePath: string,
+  options: Pick<OpenFactoryDatabaseOptions, "busyTimeoutMs"> = {},
+): Database.Database {
+  assertAbsoluteDatabasePath(databasePath);
+  const busyTimeoutMs = options.busyTimeoutMs ?? DEFAULT_SQLITE_BUSY_TIMEOUT_MS;
+  assertBusyTimeout(busyTimeoutMs);
+
+  const database = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+    timeout: busyTimeoutMs,
+  });
+
+  try {
+    assertSafeSqliteVersion(database);
+    const journalMode = database.pragma("journal_mode", { simple: true });
+    if (typeof journalMode !== "string" || journalMode.toLowerCase() !== "wal") {
+      throw new Error(`SQLite journal_mode must be WAL: ${String(journalMode)}`);
+    }
+    assertDatabaseIntegrity(database);
+    return database;
+  } catch (error) {
+    database.close();
+    throw error;
+  }
+}
+
 export function openMigratedFactoryDatabase(
   databasePath: string,
   options: OpenFactoryDatabaseOptions & RunMigrationsOptions = {},

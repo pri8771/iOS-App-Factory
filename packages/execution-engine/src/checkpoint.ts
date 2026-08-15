@@ -32,6 +32,25 @@ const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
 const REVISION_FILE_PATTERN = /^(\d{16})\.json$/u;
 
+/**
+ * OS-generated metadata entries (from Finder, Spotlight, or volume
+ * bookkeeping) that a fail-closed directory scan must tolerate rather than
+ * reject. This denylist is intentionally narrow and exact: a single Finder
+ * visit must not permanently brick checkpoint replay. Any entry that does
+ * not match must still fail closed — do not broaden this to "ignore
+ * anything unrecognized".
+ */
+const IGNORABLE_OS_METADATA_ENTRIES = new Set([
+  ".DS_Store",
+  ".Spotlight-V100",
+  ".Trashes",
+  ".fseventsd",
+]);
+
+function isIgnorableOsMetadataEntry(name: string): boolean {
+  return IGNORABLE_OS_METADATA_ENTRIES.has(name) || name.startsWith("._");
+}
+
 export const EXECUTION_PHASES = [
   "candidate-verified",
   "tests-passed",
@@ -382,12 +401,18 @@ export class FileExecutionCheckpointStore implements ExecutionCheckpointPort {
     ensurePrivateDirectory(this.#temporaryRoot);
   }
 
-  load(attemptIdInput: AttemptId): ExecutionCheckpointV1 | null {
-    const attemptId = AttemptIdSchema.parse(attemptIdInput);
-    const directory = safeChild(this.#root, attemptId);
-    if (!existsSync(directory)) return null;
-    assertPrivateDirectory(directory);
-    const revisions = readdirSync(directory)
+  /**
+   * Lists the revision files physically present in an attempt's checkpoint
+   * directory (already-validated to exist and be private). Ignores OS
+   * metadata junk by the same narrow denylist as everywhere else in this
+   * store; any other unexpected entry throws. This is the low-level scan
+   * shared by `load` and the retention-facing listing/pruning methods
+   * below; it intentionally does not assert contiguity — that is `load`'s
+   * concern alone, since it is the one guarantee resumability depends on.
+   */
+  #scanRevisionFiles(directory: string): readonly Readonly<{ name: string; revision: number }>[] {
+    return readdirSync(directory)
+      .filter((name) => !isIgnorableOsMetadataEntry(name))
       .map((name) => {
         const match = REVISION_FILE_PATTERN.exec(name);
         if (match?.[1] === undefined) {
@@ -396,6 +421,14 @@ export class FileExecutionCheckpointStore implements ExecutionCheckpointPort {
         return { name, revision: Number(match[1]) };
       })
       .sort((left, right) => left.revision - right.revision);
+  }
+
+  load(attemptIdInput: AttemptId): ExecutionCheckpointV1 | null {
+    const attemptId = AttemptIdSchema.parse(attemptIdInput);
+    const directory = safeChild(this.#root, attemptId);
+    if (!existsSync(directory)) return null;
+    assertPrivateDirectory(directory);
+    const revisions = this.#scanRevisionFiles(directory);
     if (revisions.length === 0) return null;
     for (const [index, entry] of revisions.entries()) {
       if (entry.revision !== index + 1) {
@@ -423,6 +456,85 @@ export class FileExecutionCheckpointStore implements ExecutionCheckpointPort {
       throw new ExecutionCheckpointError("Checkpoint is not canonically encoded");
     }
     return parsed;
+  }
+
+  /**
+   * Lists every attempt with a checkpoint directory. Ignores OS metadata
+   * junk and the reserved `tmp` staging directory; any other unexpected
+   * root entry throws. For retention/garbage-collection tooling.
+   */
+  listAttemptIds(): readonly AttemptId[] {
+    const entries = readdirSync(this.#root, { withFileTypes: true })
+      .filter((entry) => !isIgnorableOsMetadataEntry(entry.name) && entry.name !== "tmp")
+      .sort((left, right) => left.name.localeCompare(right.name));
+    const attemptIds: AttemptId[] = [];
+    for (const entry of entries) {
+      const parsed = AttemptIdSchema.safeParse(entry.name);
+      if (!entry.isDirectory() || entry.isSymbolicLink() || !parsed.success) {
+        throw new ExecutionCheckpointError(`Unexpected checkpoint root entry: ${entry.name}`);
+      }
+      attemptIds.push(parsed.data);
+    }
+    return attemptIds;
+  }
+
+  /**
+   * Lists the checkpoint revision numbers physically present for an
+   * attempt, in ascending order, without `load`'s strict from-1
+   * contiguity check (retention tooling calls this after it may already
+   * have pruned a leading run of revisions for a terminal attempt; a
+   * left-truncated but internally contiguous run is expected there, not
+   * corruption). Returns `[]` if the attempt has no checkpoint directory.
+   */
+  listRevisions(attemptIdInput: AttemptId): readonly number[] {
+    const attemptId = AttemptIdSchema.parse(attemptIdInput);
+    const directory = safeChild(this.#root, attemptId);
+    if (!existsSync(directory)) return [];
+    assertPrivateDirectory(directory);
+    return this.#scanRevisionFiles(directory).map((entry) => entry.revision);
+  }
+
+  /**
+   * Deletes checkpoint revision files strictly below
+   * `keepFromRevisionInclusive` for one attempt. Always keeps at least the
+   * single latest revision present, even if the caller passes a floor
+   * above it — this store must never be left with zero revisions for an
+   * attempt that has any, since that would silently look like "no
+   * checkpoint yet" (fail open) rather than "checkpoint pruned" (fail
+   * closed). Returns the number of files actually removed. Idempotent.
+   *
+   * This method does not decide whether pruning is safe; the caller (see
+   * `@app-factory/retention-manager`) must already have proven the attempt
+   * is kernel-terminal. That proof is what makes this safe: `load` is only
+   * ever called by the execution coordinator while resuming an attempt
+   * that has not yet reached a terminal outcome (see
+   * `coordinator.ts`'s single call to `ports.checkpoints.load`), and a
+   * terminal attempt is never resumed. If `load` is ever nonetheless
+   * called again for an attempt this method has pruned, it fails closed
+   * with a clear "not contiguous" error instead of returning a silently
+   * incomplete history.
+   */
+  deleteRevisionsBelow(attemptIdInput: AttemptId, keepFromRevisionInclusive: number): number {
+    const attemptId = AttemptIdSchema.parse(attemptIdInput);
+    if (!Number.isSafeInteger(keepFromRevisionInclusive) || keepFromRevisionInclusive < 1) {
+      throw new ExecutionCheckpointError(
+        "Checkpoint retention floor must be a positive safe integer",
+      );
+    }
+    const directory = safeChild(this.#root, attemptId);
+    if (!existsSync(directory)) return 0;
+    assertPrivateDirectory(directory);
+    const revisions = this.#scanRevisionFiles(directory);
+    if (revisions.length === 0) return 0;
+    const maxRevision = Math.max(...revisions.map((entry) => entry.revision));
+    let removed = 0;
+    for (const entry of revisions) {
+      if (entry.revision >= keepFromRevisionInclusive || entry.revision === maxRevision) continue;
+      unlinkSync(safeChild(directory, entry.name));
+      removed += 1;
+    }
+    if (removed > 0) syncDirectory(directory);
+    return removed;
   }
 
   compareAndSet(

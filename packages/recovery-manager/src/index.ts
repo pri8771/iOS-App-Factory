@@ -45,6 +45,25 @@ const MANIFEST_FILE = "recovery-manifest.json";
 const RECOVERY_STATE_DIRECTORY = "recovery-state";
 const STATE_REVISION_PATTERN = /^(\d{16})\.json$/;
 
+/**
+ * OS-generated metadata entries (from Finder, Spotlight, or volume
+ * bookkeeping) that a fail-closed directory scan must tolerate rather than
+ * reject. This denylist is intentionally narrow and exact: a single Finder
+ * visit must not permanently brick recovery-state replay. Any entry that
+ * does not match must still fail closed — do not broaden this to "ignore
+ * anything unrecognized".
+ */
+const IGNORABLE_OS_METADATA_ENTRIES = new Set([
+  ".DS_Store",
+  ".Spotlight-V100",
+  ".Trashes",
+  ".fseventsd",
+]);
+
+function isIgnorableOsMetadataEntry(name: string): boolean {
+  return IGNORABLE_OS_METADATA_ENTRIES.has(name) || name.startsWith("._");
+}
+
 export class RecoveryManagerError extends Error {
   public constructor(message: string) {
     super(message);
@@ -374,6 +393,7 @@ export function readRecoveryState(runtimeDirectory: string): RecoveryStateV1 | n
   if (!existsSync(directory)) return null;
   assertPrivateDirectory(directory, "recovery state directory");
   const revisions = readdirSync(directory)
+    .filter((name) => !isIgnorableOsMetadataEntry(name))
     .map((name) => {
       const match = STATE_REVISION_PATTERN.exec(name);
       if (match?.[1] === undefined) fail(`unexpected recovery state entry: ${name}`);

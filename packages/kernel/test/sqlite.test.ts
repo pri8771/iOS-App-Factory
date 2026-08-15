@@ -14,6 +14,7 @@ import {
   inspectFactoryDatabase,
   isSqliteVersionAtLeast,
   openFactoryDatabase,
+  openFactoryDatabaseReadOnly,
 } from "../src/sqlite.js";
 
 const temporaryDirectories: string[] = [];
@@ -152,5 +153,44 @@ describe("SQLite capability baseline", () => {
     expect(() => openFactoryDatabase("relative.db")).toThrow(/path must be absolute/);
     const databasePath = join(makeTemporaryDirectory(), "factory.db");
     expect(() => openFactoryDatabase(databasePath, { busyTimeoutMs: -1 })).toThrow(/busy timeout/);
+  });
+
+  it("reads through a readonly connection without mutating pragmas, concurrently with a live writer", () => {
+    const databasePath = join(makeTemporaryDirectory(), "factory.db");
+    const writer = openFactoryDatabase(databasePath);
+    writer.exec(`
+      CREATE TABLE attempts_probe (id INTEGER PRIMARY KEY, value TEXT NOT NULL) STRICT;
+      INSERT INTO attempts_probe(id, value) VALUES (1, 'seen-before-open');
+    `);
+
+    const reader = openFactoryDatabaseReadOnly(databasePath);
+    expect(reader.prepare("SELECT id, value FROM attempts_probe").all()).toEqual([
+      { id: 1, value: "seen-before-open" },
+    ]);
+    expect(() =>
+      reader.exec("INSERT INTO attempts_probe(id, value) VALUES (2, 'blocked')"),
+    ).toThrow();
+
+    // WAL allows the reader to observe a write made by the still-open writer
+    // after the reader connection was established.
+    writer.prepare("INSERT INTO attempts_probe(id, value) VALUES (?, ?)").run(2, "seen-after-open");
+    expect(reader.prepare("SELECT COUNT(*) AS count FROM attempts_probe").get()).toEqual({
+      count: 2,
+    });
+
+    reader.close();
+    writer.close();
+  });
+
+  it("never runs migrations or writes pragmas from the readonly path, and fails closed on a missing file", () => {
+    const missingPath = join(makeTemporaryDirectory(), "does-not-exist.db");
+    expect(() => openFactoryDatabaseReadOnly(missingPath)).toThrow();
+
+    expect(() => openFactoryDatabaseReadOnly("relative.db")).toThrow(/path must be absolute/);
+    const databasePath = join(makeTemporaryDirectory(), "factory.db");
+    openFactoryDatabase(databasePath).close();
+    expect(() => openFactoryDatabaseReadOnly(databasePath, { busyTimeoutMs: -1 })).toThrow(
+      /busy timeout/,
+    );
   });
 });
