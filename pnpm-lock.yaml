@@ -56,12 +56,18 @@ importers:
 
   apps/daemon:
     dependencies:
+      '@app-factory/adapter-sdk':
+        specifier: workspace:*
+        version: link:../../packages/adapter-sdk
       '@app-factory/agent-runner':
         specifier: workspace:*
         version: link:../../packages/agent-runner
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@app-factory/effect-worker':
+        specifier: workspace:*
+        version: link:../../packages/effect-worker
       '@app-factory/evidence-store':
         specifier: workspace:*
         version: link:../../packages/evidence-store

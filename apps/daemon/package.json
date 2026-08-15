@@ -14,8 +14,10 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
+    "@app-factory/adapter-sdk": "workspace:*",
     "@app-factory/agent-runner": "workspace:*",
     "@app-factory/contracts": "workspace:*",
+    "@app-factory/effect-worker": "workspace:*",
     "@app-factory/evidence-store": "workspace:*",
     "@app-factory/execution-engine": "workspace:*",
     "@app-factory/git-workspace": "workspace:*",

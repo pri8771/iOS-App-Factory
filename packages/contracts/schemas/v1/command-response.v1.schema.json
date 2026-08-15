@@ -1577,6 +1577,263 @@
       ],
       "type": "object"
     },
+    "__schema52": {
+      "items": {
+        "$ref": "#/$defs/__schema53"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "__schema53": {
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "$ref": "#/$defs/__schema12"
+            },
+            "approvalId": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "attemptId": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "createdAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "detailDigest": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema7"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "effectId": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "lastObservedAt": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "nextReconcileAt": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "operationMarker": {
+              "maxLength": 500,
+              "minLength": 16,
+              "pattern": "^app-factory:v1:[a-z0-9][a-z0-9:._-]+$",
+              "type": "string"
+            },
+            "payloadDigest": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "policyDigest": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "providerCorrelationKey": {
+              "anyOf": [
+                {
+                  "maxLength": 1000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "$ref": "#/$defs/__schema10"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "sendCount": {
+              "$ref": "#/$defs/__schema10"
+            },
+            "state": {
+              "enum": [
+                "planned",
+                "sent",
+                "observed",
+                "confirmed",
+                "unknown",
+                "manual-intervention",
+                "rejected"
+              ],
+              "type": "string"
+            },
+            "subject": {
+              "additionalProperties": false,
+              "properties": {
+                "attemptId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "projectId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "releaseId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "taskId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "projectId",
+                "taskId",
+                "attemptId",
+                "releaseId"
+              ],
+              "type": "object"
+            },
+            "target": {
+              "additionalProperties": false,
+              "properties": {
+                "provider": {
+                  "enum": [
+                    "jira",
+                    "github",
+                    "apple",
+                    "website",
+                    "email",
+                    "social",
+                    "analytics",
+                    "crm"
+                  ],
+                  "type": "string"
+                },
+                "resourceKey": {
+                  "maxLength": 1000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "resourceType": {
+                  "$ref": "#/$defs/__schema12"
+                }
+              },
+              "required": [
+                "provider",
+                "resourceType",
+                "resourceKey"
+              ],
+              "type": "object"
+            },
+            "updatedAt": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "effectId",
+            "attemptId",
+            "action",
+            "operationMarker",
+            "target",
+            "subject",
+            "payloadDigest",
+            "policyDigest",
+            "approvalId",
+            "state",
+            "revision",
+            "sendCount",
+            "providerCorrelationKey",
+            "createdAt",
+            "updatedAt",
+            "lastObservedAt",
+            "nextReconcileAt",
+            "detailDigest"
+          ],
+          "type": "object"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema6"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "effect"
+      ],
+      "type": "object"
+    },
+    "__schema54": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "effectId": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "updatedAt": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "required": [
+            "updatedAt",
+            "effectId"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema55": {
+      "type": "boolean"
+    },
     "__schema6": {
       "const": 1,
       "type": "number"
@@ -2326,6 +2583,140 @@
                 "resolvedIssueIds",
                 "skippedActions",
                 "convergence"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "operation": {
+                  "const": "effects.status",
+                  "type": "string"
+                },
+                "status": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "counts": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "confirmed": {
+                          "$ref": "#/$defs/__schema10"
+                        },
+                        "manual-intervention": {
+                          "$ref": "#/$defs/__schema10"
+                        },
+                        "observed": {
+                          "$ref": "#/$defs/__schema10"
+                        },
+                        "planned": {
+                          "$ref": "#/$defs/__schema10"
+                        },
+                        "rejected": {
+                          "$ref": "#/$defs/__schema10"
+                        },
+                        "sent": {
+                          "$ref": "#/$defs/__schema10"
+                        },
+                        "unknown": {
+                          "$ref": "#/$defs/__schema10"
+                        }
+                      },
+                      "required": [
+                        "planned",
+                        "sent",
+                        "observed",
+                        "confirmed",
+                        "unknown",
+                        "manual-intervention",
+                        "rejected"
+                      ],
+                      "type": "object"
+                    },
+                    "pendingOutbox": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "pump": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "lastActivityAt": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/$defs/__schema2"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "lastErrorMessage": {
+                          "anyOf": [
+                            {
+                              "maxLength": 2000,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "lastActivityAt",
+                        "lastErrorMessage"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "counts",
+                    "pendingOutbox",
+                    "pump"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "operation",
+                "status"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "operation": {
+                  "const": "effects.list",
+                  "type": "string"
+                },
+                "page": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "effects": {
+                      "$ref": "#/$defs/__schema52"
+                    },
+                    "hasMore": {
+                      "$ref": "#/$defs/__schema55"
+                    },
+                    "nextAfter": {
+                      "$ref": "#/$defs/__schema54"
+                    }
+                  },
+                  "required": [
+                    "effects",
+                    "nextAfter",
+                    "hasMore"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "operation",
+                "page"
               ],
               "type": "object"
             }

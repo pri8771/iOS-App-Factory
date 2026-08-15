@@ -247,6 +247,78 @@ describe("typed command client", () => {
     client.close();
   });
 
+  it("requests effects.status with an empty read-only payload and effects.list with a strict bounded query", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const request = frame.request as Record<string, unknown>;
+        if (request.operation === "effects.status") {
+          socket.end(
+            `${JSON.stringify({
+              protocolVersion: 1,
+              requestId: frame.requestId,
+              ok: true,
+              result: {
+                operation: "effects.status",
+                status: {
+                  counts: {
+                    planned: 0,
+                    sent: 0,
+                    observed: 0,
+                    confirmed: 0,
+                    unknown: 0,
+                    "manual-intervention": 0,
+                    rejected: 0,
+                  },
+                  pendingOutbox: 0,
+                  pump: { enabled: false, lastActivityAt: null, lastErrorMessage: null },
+                },
+              },
+            })}\n`,
+          );
+          return;
+        }
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: true,
+            result: {
+              operation: "effects.list",
+              page: { effects: [], nextAfter: null, hasMore: false },
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(client.effectsStatus(identity())).resolves.toMatchObject({
+      operation: "effects.status",
+      status: { pendingOutbox: 0 },
+    });
+    expect(received[0]).toMatchObject({
+      request: { operation: "effects.status", payload: {} },
+    });
+
+    await expect(
+      client.listEffects({ state: "planned", provider: "github", limit: 10 }, identity()),
+    ).resolves.toMatchObject({ operation: "effects.list" });
+    expect(received[1]).toMatchObject({
+      request: {
+        operation: "effects.list",
+        payload: { state: "planned", provider: "github", after: null, limit: 10 },
+      },
+    });
+    client.close();
+  });
+
   it("sends the strict task.retry and attempt.unblock request payloads", async () => {
     const received: Record<string, unknown>[] = [];
     const socketPath = await createFakeServer(

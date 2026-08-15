@@ -1789,3 +1789,246 @@ describe("fenced outbox delivery and reconciliation", () => {
     database.close();
   });
 });
+
+describe("operator read model", () => {
+  const LIST_APPROVAL_1 = "70000000-0000-4000-8000-000000000060";
+  const LIST_APPROVAL_2 = "70000000-0000-4000-8000-000000000061";
+  const LIST_APPROVAL_3 = "70000000-0000-4000-8000-000000000062";
+  const LIST_EFFECT_1 = "70000000-0000-4000-8000-000000000070";
+  const LIST_EFFECT_2 = "70000000-0000-4000-8000-000000000071";
+  const LIST_EFFECT_3 = "70000000-0000-4000-8000-000000000072";
+
+  // Distinct resourceKeys: `planExternalEffect` treats two effects that target
+  // the same real-world resource as one idempotent operation (see the
+  // duplicate-collapsing behavior exercised elsewhere in this file), so
+  // fixtures that are meant to be genuinely separate effects must target
+  // different resources even when they share a provider/action.
+  function githubApproval(approvalId: string, resourceKey: string) {
+    return { ...approval(approvalId), resourceKey };
+  }
+
+  function githubEffect(effectId: string, approvalId: string, resourceKey: string) {
+    const base = effect(effectId, approvalId);
+    return {
+      ...base,
+      operationMarker: `app-factory:v1:github:merge:${effectId}`,
+      target: { ...base.target, resourceKey },
+    };
+  }
+
+  function jiraApproval(approvalId: string) {
+    return {
+      ...approval(approvalId),
+      action: "jira.transition-issue",
+      resourceType: "jira.issue",
+      resourceKey: "PROJ-1",
+    };
+  }
+
+  function jiraEffect(effectId: string, approvalId: string) {
+    return {
+      ...effect(effectId, approvalId),
+      action: "jira.transition-issue",
+      operationMarker: `app-factory:v1:jira:transition:${effectId}`,
+      target: { provider: "jira", resourceType: "jira.issue", resourceKey: "PROJ-1" },
+    };
+  }
+
+  it("counts effects by state, zero-filled with none planned", () => {
+    const { database, effects } = openSeededDatabase();
+    expect(effects.countEffectsByState()).toEqual({
+      planned: 0,
+      sent: 0,
+      observed: 0,
+      confirmed: 0,
+      unknown: 0,
+      "manual-intervention": 0,
+      rejected: 0,
+    });
+    database.close();
+  });
+
+  it("reflects durable state transitions in its per-state counts", () => {
+    const { database, effects } = openSeededDatabase();
+    effects.registerApproval(issuance(githubApproval(LIST_APPROVAL_1, "owner/repository#101")));
+    effects.planExternalEffect(
+      plan(githubEffect(LIST_EFFECT_1, LIST_APPROVAL_1, "owner/repository#101")),
+    );
+    effects.registerApproval(issuance(githubApproval(LIST_APPROVAL_2, "owner/repository#102")));
+    effects.planExternalEffect(
+      plan(githubEffect(LIST_EFFECT_2, LIST_APPROVAL_2, "owner/repository#102"), null, {
+        checkpointId: SECOND_CHECKPOINT_ID,
+        expectedCheckpointRevision: 1,
+      }),
+    );
+    expect(effects.countEffectsByState()).toMatchObject({ planned: 2 });
+
+    const claim = requireClaim(
+      effects.claimNextSend({ ownerId: "dispatcher.counts", observedAt: T2, lockedUntil: T8 }),
+    );
+    effects.beginSend({
+      effectId: claim.effect.effectId,
+      ownerId: "dispatcher.counts",
+      fence: claim.fence,
+      expectedOutboxRevision: claim.revision,
+      expectedEffectRevision: 0,
+      observedAt: T3,
+    });
+    const counts = effects.countEffectsByState();
+    expect(counts.planned + counts.sent).toBe(2);
+    expect(counts.sent).toBe(1);
+    database.close();
+  });
+
+  it("counts unlocked, actionable outbox rows and excludes locked or not-yet-due ones", () => {
+    const { database, effects } = openSeededDatabase();
+    effects.registerApproval(issuance(githubApproval(LIST_APPROVAL_1, "owner/repository#101")));
+    effects.planExternalEffect(
+      plan(githubEffect(LIST_EFFECT_1, LIST_APPROVAL_1, "owner/repository#101")),
+    );
+    effects.registerApproval(issuance(githubApproval(LIST_APPROVAL_2, "owner/repository#102")));
+    effects.planExternalEffect(
+      plan(githubEffect(LIST_EFFECT_2, LIST_APPROVAL_2, "owner/repository#102"), null, {
+        checkpointId: SECOND_CHECKPOINT_ID,
+        expectedCheckpointRevision: 1,
+      }),
+    );
+    expect(effects.countPendingOutbox(T2)).toBe(2);
+
+    const claim = requireClaim(
+      effects.claimNextSend({ ownerId: "dispatcher.pending", observedAt: T2, lockedUntil: T8 }),
+    );
+    // The claimed effect's outbox row is now locked until T8, so it drops out
+    // of the pending count while the other stays queued and unlocked.
+    expect(effects.countPendingOutbox(T2)).toBe(1);
+
+    effects.beginSend({
+      effectId: claim.effect.effectId,
+      ownerId: "dispatcher.pending",
+      fence: claim.fence,
+      expectedOutboxRevision: claim.revision,
+      expectedEffectRevision: 0,
+      observedAt: T3,
+    });
+    effects.recordSendOutcome({
+      effectId: claim.effect.effectId,
+      ownerId: "dispatcher.pending",
+      fence: claim.fence,
+      expectedOutboxRevision: claim.revision,
+      expectedEffectRevision: 1,
+      observedAt: T4,
+      outcome: {
+        kind: "ambiguous",
+        providerCorrelationKey: null,
+        nextReconcileAt: T6,
+        detailDigest: DETAIL_DIGEST,
+      },
+    });
+    // The claim released back into the outbox, but the reconciliation is not
+    // due until T6, so the now-"unknown" effect stays excluded before then.
+    expect(effects.countPendingOutbox(T4)).toBe(1);
+    expect(effects.countPendingOutbox(T6)).toBe(2);
+    database.close();
+  });
+
+  it("lists effects ordered by (updatedAt, effectId) descending with state, provider, and cursor filters", () => {
+    const { database, effects } = openSeededDatabase();
+    effects.registerApproval(issuance(githubApproval(LIST_APPROVAL_1, "owner/repository#101")));
+    effects.planExternalEffect(
+      plan(githubEffect(LIST_EFFECT_1, LIST_APPROVAL_1, "owner/repository#101")),
+    );
+    effects.registerApproval(issuance(githubApproval(LIST_APPROVAL_2, "owner/repository#102")));
+    effects.planExternalEffect(
+      plan(githubEffect(LIST_EFFECT_2, LIST_APPROVAL_2, "owner/repository#102"), null, {
+        checkpointId: SECOND_CHECKPOINT_ID,
+        expectedCheckpointRevision: 1,
+      }),
+    );
+    effects.registerApproval(issuance(jiraApproval(LIST_APPROVAL_3)));
+    effects.planExternalEffect(
+      plan(jiraEffect(LIST_EFFECT_3, LIST_APPROVAL_3), null, {
+        checkpointId: THIRD_CHECKPOINT_ID,
+        expectedCheckpointRevision: 2,
+      }),
+    );
+
+    // Advance whichever effect the outbox claims first (the send-eligible
+    // effect with the lowest effectId, per `claim()`'s tie-break) to "unknown"
+    // at T4 so it sorts ahead of the two effects still tied on their T1
+    // planning timestamp. LIST_EFFECT_1 sorts before LIST_EFFECT_2.
+    const claim = requireClaim(
+      effects.claimNextSend({ ownerId: "dispatcher.list", observedAt: T2, lockedUntil: T8 }),
+    );
+    expect(claim.effect.effectId).toBe(LIST_EFFECT_1);
+    effects.beginSend({
+      effectId: LIST_EFFECT_1,
+      ownerId: "dispatcher.list",
+      fence: claim.fence,
+      expectedOutboxRevision: claim.revision,
+      expectedEffectRevision: 0,
+      observedAt: T3,
+    });
+    effects.recordSendOutcome({
+      effectId: LIST_EFFECT_1,
+      ownerId: "dispatcher.list",
+      fence: claim.fence,
+      expectedOutboxRevision: claim.revision,
+      expectedEffectRevision: 1,
+      observedAt: T4,
+      outcome: {
+        kind: "ambiguous",
+        providerCorrelationKey: null,
+        nextReconcileAt: T6,
+        detailDigest: DETAIL_DIGEST,
+      },
+    });
+
+    const all = effects.listEffects({ state: null, provider: null, after: null, limit: 10 });
+    expect(all.effects.map(({ effect: item }) => item.effectId)).toEqual([
+      LIST_EFFECT_1,
+      LIST_EFFECT_3,
+      LIST_EFFECT_2,
+    ]);
+    expect(all.hasMore).toBe(false);
+    expect(all.nextAfter).toBeNull();
+
+    const planned = effects.listEffects({
+      state: "planned",
+      provider: null,
+      after: null,
+      limit: 10,
+    });
+    expect(planned.effects.map(({ effect: item }) => item.effectId)).toEqual([
+      LIST_EFFECT_3,
+      LIST_EFFECT_2,
+    ]);
+
+    const jiraOnly = effects.listEffects({ state: null, provider: "jira", after: null, limit: 10 });
+    expect(jiraOnly.effects.map(({ effect: item }) => item.effectId)).toEqual([LIST_EFFECT_3]);
+
+    const firstPage = effects.listEffects({ state: null, provider: null, after: null, limit: 1 });
+    expect(firstPage.effects.map(({ effect: item }) => item.effectId)).toEqual([LIST_EFFECT_1]);
+    expect(firstPage.hasMore).toBe(true);
+    expect(firstPage.nextAfter).toEqual({ updatedAt: T4, effectId: LIST_EFFECT_1 });
+
+    const secondPage = effects.listEffects({
+      state: null,
+      provider: null,
+      after: firstPage.nextAfter,
+      limit: 1,
+    });
+    expect(secondPage.effects.map(({ effect: item }) => item.effectId)).toEqual([LIST_EFFECT_3]);
+    expect(secondPage.hasMore).toBe(true);
+
+    const thirdPage = effects.listEffects({
+      state: null,
+      provider: null,
+      after: secondPage.nextAfter,
+      limit: 1,
+    });
+    expect(thirdPage.effects.map(({ effect: item }) => item.effectId)).toEqual([LIST_EFFECT_2]);
+    expect(thirdPage.hasMore).toBe(false);
+    expect(thirdPage.nextAfter).toBeNull();
+    database.close();
+  });
+});

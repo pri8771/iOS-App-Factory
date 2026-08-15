@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 
+import { AdapterRegistry } from "@app-factory/adapter-sdk";
 import { AttemptIdSchema, Sha256DigestSchema, type AttemptId } from "@app-factory/contracts";
+import type { EffectCredentialPort, EffectWorkerClockPort } from "@app-factory/effect-worker";
 import type {
   SchedulerClockPort,
   SchedulerExecutionContext,
@@ -21,6 +23,9 @@ import {
   type DaemonCommandRuntime,
   type OpenDaemonCommandRuntimeOptions,
 } from "./command-runtime.js";
+import { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
+export { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
+import { createEffectSubsystem, type EffectSubsystem } from "./effect-pump.js";
 import {
   createKernelSchedulerController,
   type KernelSchedulerController,
@@ -36,15 +41,33 @@ const COMMAND_SOCKET_FILE_NAME = "daemon.sock";
 const DEFAULT_POLL_INTERVAL_MS = 100;
 const MAX_POLL_INTERVAL_MS = 60_000;
 
-/**
- * Injectable loop timing. Implementations should release their own resources
- * when aborted; daemon shutdown itself does not depend on that cooperation.
- */
-export type DaemonLoopWait = (delayMs: number, signal: AbortSignal) => Promise<void>;
-
 export type DeterministicFakeExecutorOptions = Readonly<{
   delayMs?: number;
   wait?: DaemonLoopWait;
+}>;
+
+/**
+ * Optional effect subsystem: EffectWorker + a bounded-backoff pump loop over
+ * the kernel's effect outbox. Disabled (`enabled: false`, the default when
+ * this whole option is omitted) leaves `effects.*` commands working as a
+ * read-only view over durable kernel state with no pump running at all.
+ * Adapter registration is deliberately code-level, not config-level: the
+ * registry `createEffectSubsystem` builds always starts empty, and
+ * `configureAdapters` is the one typed seam a future task uses to register
+ * real provider adapters once their credentials exist.
+ */
+export type EffectSubsystemConfiguration = Readonly<{
+  enabled: boolean;
+  configureAdapters?: (registry: AdapterRegistry) => void;
+  credentials?: EffectCredentialPort;
+  claimDurationMs?: number;
+  adapterCallTimeoutMs?: number;
+  reconcileDelayMs?: number;
+  pollIntervalMs?: number;
+  maxBackoffMs?: number;
+  wait?: DaemonLoopWait;
+  clock?: EffectWorkerClockPort;
+  onError?: (error: unknown) => void;
 }>;
 
 export type StartFactoryDaemonServiceOptions = Readonly<{
@@ -68,6 +91,8 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   wakeOnCommand?: boolean;
   commandResultLedgerBoundary?: OpenDaemonCommandRuntimeOptions["commandResultLedgerBoundary"];
   onSchedulerError?: (error: unknown) => void;
+  /** Default OFF: omit or pass `{ enabled: false }` to keep the effect pump fully inert. */
+  effects?: EffectSubsystemConfiguration;
 }>;
 
 export type FactoryDaemonService = Readonly<{
@@ -76,6 +101,7 @@ export type FactoryDaemonService = Readonly<{
   executionPaths: VerifiedLocalExecutionPaths;
   startedAt: string;
   getLastSchedulerError(): unknown | null;
+  getLastEffectsPumpError(): unknown | null;
   close(): Promise<void>;
 }>;
 
@@ -117,43 +143,6 @@ function validateDelay(label: string, value: number, maximum = MAX_POLL_INTERVAL
     throw new TypeError(`${label} must be a safe integer between 0 and ${String(maximum)}`);
   }
   return value;
-}
-
-async function defaultWait(delayMs: number, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) return;
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(finish, delayMs);
-    function finish(): void {
-      clearTimeout(timer);
-      signal.removeEventListener("abort", finish);
-      resolve();
-    }
-    signal.addEventListener("abort", finish, { once: true });
-  });
-}
-
-async function interruptibleWait(
-  wait: DaemonLoopWait,
-  delayMs: number,
-  signal: AbortSignal,
-): Promise<void> {
-  if (signal.aborted) return;
-  let resolveAborted: (() => void) | undefined;
-  const aborted = new Promise<Readonly<{ kind: "aborted" }>>((resolve) => {
-    resolveAborted = () => resolve({ kind: "aborted" });
-  });
-  const onAbort = () => resolveAborted?.();
-  signal.addEventListener("abort", onAbort, { once: true });
-  const waited: Promise<
-    Readonly<{ kind: "completed" }> | Readonly<{ kind: "failed"; error: unknown }>
-  > = Promise.resolve()
-    .then(async () => await wait(delayMs, signal))
-    .then(() => ({ kind: "completed" as const }))
-    .catch((error: unknown) => ({ kind: "failed" as const, error }));
-  const result = await Promise.race([aborted, waited]).finally(() => {
-    signal.removeEventListener("abort", onAbort);
-  });
-  if (result.kind === "failed") throw result.error;
 }
 
 function abortedExecution(): Error {
@@ -347,6 +336,7 @@ export async function startFactoryDaemonService(
   const schedulerState: { controller: KernelSchedulerController | null } = {
     controller: null,
   };
+  const effectsState: { subsystem: EffectSubsystem | null } = { subsystem: null };
   let loop: BackgroundSchedulerLoop | null = null;
   let closing = false;
   let ready = false;
@@ -394,6 +384,47 @@ export async function startFactoryDaemonService(
     handler,
   });
 
+  const effectsConfig = options.effects;
+  const initializeEffects: OpenDaemonCommandRuntimeOptions["initializeEffects"] =
+    effectsConfig?.enabled === true
+      ? (context) => {
+          const registry = new AdapterRegistry();
+          // The registry starts empty by contract; this is the one typed
+          // seam a later task uses to register real provider adapters.
+          effectsConfig.configureAdapters?.(registry);
+          const subsystem = createEffectSubsystem({
+            ownerId,
+            effects: context.effects,
+            artifacts: context.artifacts,
+            evidenceStore: context.evidenceStore,
+            adapters: registry,
+            ...(effectsConfig.credentials === undefined
+              ? {}
+              : { credentials: effectsConfig.credentials }),
+            ...(effectsConfig.claimDurationMs === undefined
+              ? {}
+              : { claimDurationMs: effectsConfig.claimDurationMs }),
+            ...(effectsConfig.adapterCallTimeoutMs === undefined
+              ? {}
+              : { adapterCallTimeoutMs: effectsConfig.adapterCallTimeoutMs }),
+            ...(effectsConfig.reconcileDelayMs === undefined
+              ? {}
+              : { reconcileDelayMs: effectsConfig.reconcileDelayMs }),
+            ...(effectsConfig.pollIntervalMs === undefined
+              ? {}
+              : { pollIntervalMs: effectsConfig.pollIntervalMs }),
+            ...(effectsConfig.maxBackoffMs === undefined
+              ? {}
+              : { maxBackoffMs: effectsConfig.maxBackoffMs }),
+            ...(effectsConfig.wait === undefined ? {} : { wait: effectsConfig.wait }),
+            ...(effectsConfig.clock === undefined ? {} : { clock: effectsConfig.clock }),
+            ...(effectsConfig.onError === undefined ? {} : { onError: effectsConfig.onError }),
+          });
+          effectsState.subsystem = subsystem;
+          return subsystem.statusPort;
+        }
+      : undefined;
+
   try {
     runtime = await openDaemonCommandRuntime({
       runtimeDirectory: paths.root,
@@ -430,6 +461,7 @@ export async function startFactoryDaemonService(
             : { leaseDurationMs: options.leaseDurationMs }),
         });
       },
+      ...(initializeEffects === undefined ? {} : { initializeEffects }),
     });
     const activeController = schedulerState.controller;
     if (activeController === null) {
@@ -499,8 +531,13 @@ export async function startFactoryDaemonService(
       ...(options.onSchedulerError === undefined ? {} : { onError: options.onSchedulerError }),
     });
     loop.start();
+    // The pump starts only once every other composition step (including
+    // startup recovery) has completed without throwing, the same instant the
+    // daemon is about to declare itself ready to accept commands.
+    effectsState.subsystem?.start();
     ready = true;
   } catch (error) {
+    await effectsState.subsystem?.stop().catch(() => undefined);
     await schedulerState.controller?.stop().catch(() => undefined);
     runtime?.close();
     await server.close().catch(() => undefined);
@@ -510,6 +547,7 @@ export async function startFactoryDaemonService(
   const activeRuntime = runtime;
   const activeController = schedulerState.controller;
   const activeLoop = loop;
+  const activeEffectsSubsystem = effectsState.subsystem;
   if (activeRuntime === null || activeController === null || activeLoop === null) {
     throw new Error("The daemon composition finished without all owned components");
   }
@@ -521,6 +559,7 @@ export async function startFactoryDaemonService(
     executionPaths,
     startedAt: activeRuntime.startedAt,
     getLastSchedulerError: () => activeLoop.lastError,
+    getLastEffectsPumpError: () => activeEffectsSubsystem?.loop.lastError ?? null,
     close: async () => {
       if (closePromise !== null) return await closePromise;
       closing = true;
@@ -531,6 +570,7 @@ export async function startFactoryDaemonService(
           serverClose,
           activeController.stop(),
           activeLoop.stopped(),
+          activeEffectsSubsystem === null ? Promise.resolve() : activeEffectsSubsystem.stop(),
         ]);
         activeRuntime.close();
         const failures = results

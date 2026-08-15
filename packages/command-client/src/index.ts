@@ -12,6 +12,7 @@ import {
   CommandAuthorizationV1Schema,
   CommandRequestFrameV1Schema,
   CommandResponseV1Schema,
+  EffectListQueryV1Schema,
   GitBranchNameSchema,
   IsoInstantSchema,
   RequestIdSchema,
@@ -29,6 +30,9 @@ import {
   type CommandResponseV1,
   type CommandResultForOperationV1,
   type CommandId,
+  type EffectListCursorV1,
+  type ExternalEffectStateV1,
+  type ExternalProviderV1,
   type GitBranchName,
   type IsoInstant,
   type ProjectId,
@@ -466,6 +470,34 @@ export class CommandClient {
       );
     }
     return result;
+  }
+
+  /** Kernel-durable effect counts, pending outbox size, and the daemon's own pump activity. */
+  public async effectsStatus(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"effects.status">> {
+    return await this.#request("effects.status", {}, identity, signal);
+  }
+
+  /** Bounded, keyset-paginated read model of durable effects, newest-updated first. */
+  public async listEffects(
+    options: Readonly<{
+      state?: ExternalEffectStateV1 | null;
+      provider?: ExternalProviderV1 | null;
+      after?: EffectListCursorV1 | null;
+      limit?: number;
+    }> = {},
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"effects.list">> {
+    const payload = EffectListQueryV1Schema.parse({
+      state: options.state ?? null,
+      provider: options.provider ?? null,
+      after: options.after ?? null,
+      limit: options.limit ?? 50,
+    });
+    return await this.#request("effects.list", payload, identity, signal);
   }
 
   async #request<Operation extends CommandOperationV1>(

@@ -26,6 +26,7 @@ import {
   type CommandId,
   type CommandRequestV1,
   type CommandResultV1,
+  type EffectPumpStatusV1,
   type IsoInstant,
   type PortfolioProjectReadModelV1,
   type PortfolioReadModelV1,
@@ -34,11 +35,15 @@ import {
   FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME,
   canonicalJson,
   computeTaskSpecDigest,
+  createEffectRepository,
   createFactoryRepositories,
   inspectFactoryDatabase,
   openMigratedFactoryDatabase,
+  type ArtifactRepository,
+  type EffectRepository,
   type FactoryRepositories,
 } from "@app-factory/kernel";
+import { verifyCanonicalObservationAttestation } from "@app-factory/effect-worker";
 import { EvidenceStore } from "@app-factory/evidence-store";
 
 import { executeEvidenceCommand } from "./evidence-command-runtime.js";
@@ -87,6 +92,43 @@ export type DaemonRuntimeIdFactory = (
 
 export type DaemonDatabaseInitializer = (database: FactoryDatabase) => void;
 
+/** Live read-only view of the daemon's own effect pump loop, if any is running. */
+export type EffectPumpStatusPort = Readonly<{
+  status(): EffectPumpStatusV1;
+}>;
+
+const INERT_EFFECT_PUMP_STATUS: EffectPumpStatusV1 = {
+  enabled: false,
+  lastActivityAt: null,
+  lastErrorMessage: null,
+};
+
+const inertEffectPumpStatusPort: EffectPumpStatusPort = {
+  status: () => INERT_EFFECT_PUMP_STATUS,
+};
+
+export type InitializeEffectsContext = Readonly<{
+  database: FactoryDatabase;
+  /** The exact repository instance the read-only `effects.*` commands query. */
+  effects: EffectRepository;
+  artifacts: ArtifactRepository;
+  evidenceStore: EvidenceStore;
+}>;
+
+/**
+ * Daemon-only composition hook, the effect-subsystem counterpart of
+ * `initializeDatabase`. It lets a daemon composition build its own
+ * EffectWorker/AdapterRegistry/pump loop directly against the repository the
+ * `effects.status`/`effects.list` commands already read, and report that
+ * pump's live activity back into the command boundary. Returning `undefined`
+ * (the default when the hook itself is omitted) keeps the effect subsystem
+ * fully inert: `effects.*` commands still work as a read-only view over the
+ * kernel's durable state, they just report `pump.enabled: false`.
+ */
+export type InitializeEffectsPump = (
+  context: InitializeEffectsContext,
+) => EffectPumpStatusPort | undefined;
+
 export type OpenDaemonCommandRuntimeOptions = Readonly<{
   runtimeDirectory: string;
   daemonVersion: string;
@@ -99,6 +141,7 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * protocol or opening a second connection.
    */
   initializeDatabase?: DaemonDatabaseInitializer;
+  initializeEffects?: InitializeEffectsPump;
   /** Deterministic failpoint after the authoritative mutation and before result journaling. */
   commandResultLedgerBoundary?: (
     entry: Readonly<{ request: CommandRequestV1; result: CommandResultV1 }>,
@@ -453,6 +496,8 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "project.scan":
     case "project.enroll-plan":
     case "project.apply":
+    case "effects.status":
+    case "effects.list":
       return null;
   }
 }
@@ -954,6 +999,8 @@ async function executeRequest(
     observedAt: IsoInstant;
     idFactory: DaemonRuntimeIdFactory;
     evidenceStore: EvidenceStore;
+    effects: EffectRepository;
+    effectsPump: EffectPumpStatusPort;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1041,6 +1088,20 @@ async function executeRequest(
       return executeProjectEnrollPlanCommand(dependencies.evidenceStore, request);
     case "project.apply":
       return executeProjectApplyCommand(dependencies.evidenceStore, request);
+    case "effects.status":
+      return {
+        operation: "effects.status",
+        status: {
+          counts: dependencies.effects.countEffectsByState(),
+          pendingOutbox: dependencies.effects.countPendingOutbox(dependencies.observedAt),
+          pump: dependencies.effectsPump.status(),
+        },
+      };
+    case "effects.list":
+      return {
+        operation: "effects.list",
+        page: dependencies.effects.listEffects(request.payload),
+      };
   }
 }
 
@@ -1065,12 +1126,27 @@ export async function openDaemonCommandRuntime(
   const database = openMigratedFactoryDatabase(paths.database);
   let evidenceStore: EvidenceStore;
   let repositories: FactoryRepositories;
+  let effectRepository: EffectRepository;
+  let effectsPumpStatusPort: EffectPumpStatusPort;
   try {
     await chmod(paths.database, 0o600);
     await assertPrivateRegularFile(paths.database);
     repositories = createFactoryRepositories(database);
     evidenceStore = new EvidenceStore(paths.evidence);
+    // Always constructed, even with no pump composed: `effects.*` commands
+    // are a read-only view over durable kernel state and must work whether
+    // or not the daemon's own send/reconcile pump is enabled.
+    effectRepository = createEffectRepository(database, {
+      verifyObservationAttestation: verifyCanonicalObservationAttestation,
+    });
     options.initializeDatabase?.(database);
+    effectsPumpStatusPort =
+      options.initializeEffects?.({
+        database,
+        effects: effectRepository,
+        artifacts: repositories.artifacts,
+        evidenceStore,
+      }) ?? inertEffectPumpStatusPort;
   } catch (error) {
     database.close();
     throw error;
@@ -1104,6 +1180,8 @@ export async function openDaemonCommandRuntime(
           observedAt,
           idFactory,
           evidenceStore,
+          effects: effectRepository,
+          effectsPump: effectsPumpStatusPort,
         }),
       );
       if (!persistResult) return result;

@@ -4,6 +4,9 @@ import {
   ApprovalIdSchema,
   ApprovalV1Schema,
   EffectIdSchema,
+  EffectListPageV1Schema,
+  EffectListQueryV1Schema,
+  EffectStateCountsV1Schema,
   EventIdSchema,
   ExternalEffectV1Schema,
   ExternalObservationV1Schema,
@@ -15,6 +18,9 @@ import {
   StepIdSchema,
   TaskSpecV1Schema,
   type ApprovalV1,
+  type EffectListPageV1,
+  type EffectListQueryV1,
+  type EffectStateCountsV1,
   type ExternalEffectStateV1,
   type ExternalEffectV1,
   type ExternalObservationV1,
@@ -486,6 +492,18 @@ export type EffectRepository = Readonly<{
     input: ClaimedEffectMutationInput & Readonly<{ detailDigest: unknown }>,
   ): PersistedEffect;
   listEffectsForReconciliation(asOf: unknown, limit?: unknown): readonly PersistedEffect[];
+  /** Bounded, keyset-paginated operator read model ordered by (updatedAt, effectId) descending. */
+  listEffects(input: unknown): EffectListPageV1;
+  /** Total effects per durable state, fully zero-filled across every `ExternalEffectStateV1`. */
+  countEffectsByState(): EffectStateCountsV1;
+  /**
+   * Outbox rows that are both actionable (send-eligible or reconcile-due as
+   * of `asOf`) and not currently claimed. This intentionally does not
+   * replicate `claim()`'s full approval/attempt eligibility join: it is an
+   * operator-facing superset ("things still cycling through the outbox"),
+   * not a promise that the next claim will succeed.
+   */
+  countPendingOutbox(asOf: unknown): number;
 }>;
 
 type ParsedPlanningOrigin = Readonly<{
@@ -2882,6 +2900,86 @@ export function createEffectRepository(
         )
         .all(asOf, asOf, limit) as readonly EffectRow[];
       return rows.map(decodeEffect);
+    },
+
+    listEffects(inputValue) {
+      const input: EffectListQueryV1 = EffectListQueryV1Schema.parse(inputValue);
+      const conditions: string[] = [];
+      const parameters: Array<number | string> = [];
+
+      if (input.state !== null) {
+        conditions.push("e.state = ?");
+        parameters.push(input.state);
+      }
+      if (input.provider !== null) {
+        conditions.push("e.provider = ?");
+        parameters.push(input.provider);
+      }
+      if (input.after !== null) {
+        conditions.push("(e.updated_at < ? OR (e.updated_at = ? AND e.effect_id < ?))");
+        parameters.push(input.after.updatedAt, input.after.updatedAt, input.after.effectId);
+      }
+
+      const where = conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
+      const rows = database
+        .prepare(
+          `SELECT e.*
+           FROM external_effects e
+           ${where}
+           ORDER BY e.updated_at DESC, e.effect_id DESC
+           LIMIT ?`,
+        )
+        .all(...parameters, input.limit + 1) as readonly EffectRow[];
+      const decoded = rows.map((row) => decodeEffect(row).effect);
+      const hasMore = decoded.length > input.limit;
+      const effects = decoded.slice(0, input.limit);
+      const cursorSource = hasMore ? effects.at(-1) : undefined;
+      return EffectListPageV1Schema.parse({
+        effects: effects.map((effect) => ({ schemaVersion: 1, effect })),
+        nextAfter:
+          cursorSource === undefined
+            ? null
+            : { updatedAt: cursorSource.updatedAt, effectId: cursorSource.effectId },
+        hasMore,
+      });
+    },
+
+    countEffectsByState() {
+      const rows = database
+        .prepare("SELECT state, COUNT(*) AS count FROM external_effects GROUP BY state")
+        .all() as readonly Readonly<{ state: string; count: number }>[];
+      const counts: Record<string, number> = {
+        planned: 0,
+        sent: 0,
+        observed: 0,
+        confirmed: 0,
+        unknown: 0,
+        "manual-intervention": 0,
+        rejected: 0,
+      };
+      for (const row of rows) {
+        if (!(row.state in counts)) fail(`unrecognized effect state in storage: ${row.state}`);
+        counts[row.state] = row.count;
+      }
+      return EffectStateCountsV1Schema.parse(counts);
+    },
+
+    countPendingOutbox(asOfValue) {
+      const asOf = IsoInstantSchema.parse(asOfValue);
+      const row = database
+        .prepare(
+          `SELECT COUNT(*) AS count
+           FROM effect_outbox o
+           JOIN external_effects e ON e.effect_id = o.effect_id
+           WHERE (
+             e.state = 'planned'
+             OR e.state = 'sent'
+             OR (e.state IN ('unknown', 'observed') AND e.next_reconcile_at <= ?)
+           )
+             AND (o.locked_by IS NULL OR o.locked_until <= ?)`,
+        )
+        .get(asOf, asOf) as Readonly<{ count: number }>;
+      return parseNonNegativeInteger(row.count, "pending outbox count");
     },
   };
 }

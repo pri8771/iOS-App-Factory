@@ -15,6 +15,9 @@ import {
 import {
   AttemptIdSchema,
   CommandIdSchema,
+  EffectIdSchema,
+  ExternalEffectStateV1Schema,
+  ExternalProviderV1Schema,
   GitBranchNameSchema,
   IsoInstantSchema,
   ProjectIdSchema,
@@ -24,7 +27,10 @@ import {
   type AttemptId,
   type AttemptListCursorV1,
   type CommandResultV1,
+  type EffectListCursorV1,
   type EventV1,
+  type ExternalEffectStateV1,
+  type ExternalProviderV1,
   type GitBranchName,
   type ProjectId,
   type Sha256Digest,
@@ -81,7 +87,15 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "evidence.inspect" | "evidence.verify"; attemptId: AttemptId }>
   | Readonly<{ kind: "project.scan"; repositoryRoot: string }>
   | Readonly<{ kind: "project.enroll-plan"; planDigest: Sha256Digest }>
-  | Readonly<{ kind: "project.apply"; planDigest: Sha256Digest; branchName: GitBranchName | null }>;
+  | Readonly<{ kind: "project.apply"; planDigest: Sha256Digest; branchName: GitBranchName | null }>
+  | Readonly<{ kind: "effects.status" }>
+  | Readonly<{
+      kind: "effects.list";
+      state: ExternalEffectStateV1 | null;
+      provider: ExternalProviderV1 | null;
+      after: EffectListCursorV1 | null;
+      limit: number;
+    }>;
 
 export type ParsedCliInvocation = Readonly<{
   outputMode: CliOutputMode;
@@ -145,6 +159,20 @@ function parseBranchNameOption(value: string | undefined): GitBranchName | null 
   if (value === undefined) return null;
   const parsed = GitBranchNameSchema.safeParse(value);
   if (!parsed.success) usageError("--branch must be a valid Git branch name.");
+  return parsed.data;
+}
+
+function parseEffectStateOption(value: string | undefined): ExternalEffectStateV1 | null {
+  if (value === undefined) return null;
+  const parsed = ExternalEffectStateV1Schema.safeParse(value);
+  if (!parsed.success) usageError("--state must be a valid effect state.");
+  return parsed.data;
+}
+
+function parseEffectProviderOption(value: string | undefined): ExternalProviderV1 | null {
+  if (value === undefined) return null;
+  const parsed = ExternalProviderV1Schema.safeParse(value);
+  if (!parsed.success) usageError("--provider must be a valid external provider.");
   return parsed.data;
 }
 
@@ -382,6 +410,55 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     usageError("Evidence requires one of: list, inspect, verify.");
   }
 
+  if (command === "effects") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "status") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "effects.status" } };
+    }
+    if (subcommand === "list") {
+      const stateValue = consumeOption(arguments_, "--state");
+      const providerValue = consumeOption(arguments_, "--provider");
+      const afterUpdatedAtValue = consumeOption(arguments_, "--after-updated-at");
+      const afterEffectValue = consumeOption(arguments_, "--after-effect");
+      const limitValue = consumeOption(arguments_, "--limit");
+      if ((afterUpdatedAtValue === undefined) !== (afterEffectValue === undefined)) {
+        usageError("--after-updated-at and --after-effect must be provided together.");
+      }
+      const after: EffectListCursorV1 | null =
+        afterUpdatedAtValue === undefined || afterEffectValue === undefined
+          ? null
+          : {
+              updatedAt: (() => {
+                const parsed = IsoInstantSchema.safeParse(afterUpdatedAtValue);
+                if (!parsed.success) {
+                  usageError("--after-updated-at must be a canonical ISO-8601 instant.");
+                }
+                return parsed.data;
+              })(),
+              effectId: (() => {
+                const parsed = EffectIdSchema.safeParse(afterEffectValue);
+                if (!parsed.success)
+                  usageError("--after-effect must be a canonical lowercase UUID.");
+                return parsed.data;
+              })(),
+            };
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "effects.list",
+          state: parseEffectStateOption(stateValue),
+          provider: parseEffectProviderOption(providerValue),
+          after,
+          limit: limitValue === undefined ? 50 : parsePositiveInteger("--limit", limitValue, 100),
+        },
+      };
+    }
+    usageError("Effects requires one of: status, list.");
+  }
+
   if (command === "project") {
     const subcommand = arguments_.shift();
     if (subcommand === "scan") {
@@ -503,6 +580,41 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
       ];
       return `${lines.join("\n")}\n`;
     }
+    case "effects.status": {
+      const { counts, pendingOutbox, pump } = result.status;
+      const countsLine = (
+        [
+          "planned",
+          "sent",
+          "observed",
+          "confirmed",
+          "unknown",
+          "manual-intervention",
+          "rejected",
+        ] as const
+      )
+        .map((state) => `${state}=${String(counts[state])}`)
+        .join(" ");
+      const pumpLine = pump.enabled
+        ? `pump: enabled, last activity ${pump.lastActivityAt ?? "(none yet)"}${
+            pump.lastErrorMessage === null ? "" : `, last error: ${pump.lastErrorMessage}`
+          }`
+        : "pump: disabled";
+      return `effects: ${countsLine}\npending outbox: ${String(pendingOutbox)}\n${pumpLine}\n`;
+    }
+    case "effects.list":
+      return result.page.effects.length === 0
+        ? "no effects\n"
+        : `${result.page.effects
+            .map(
+              ({ effect }) =>
+                `${effect.effectId}\t${effect.state}\t${effect.target.provider}\t${effect.operationMarker}`,
+            )
+            .join("\n")}\n${
+            result.page.hasMore && result.page.nextAfter !== null
+              ? `more after ${result.page.nextAfter.updatedAt} ${result.page.nextAfter.effectId}\n`
+              : ""
+          }`;
   }
 }
 
@@ -833,6 +945,20 @@ export async function runCli(
         result = await client.applyEnrollmentPlan(
           invocation.command.planDigest,
           invocation.command.branchName,
+          identity,
+        );
+        break;
+      case "effects.status":
+        result = await client.effectsStatus(identity);
+        break;
+      case "effects.list":
+        result = await client.listEffects(
+          {
+            state: invocation.command.state,
+            provider: invocation.command.provider,
+            after: invocation.command.after,
+            limit: invocation.command.limit,
+          },
           identity,
         );
         break;

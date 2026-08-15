@@ -806,3 +806,48 @@ describe("single-writer daemon composition", () => {
     expect(restarted.getLastSchedulerError()).toBeNull();
   });
 });
+
+describe("effect pump subsystem lifecycle", () => {
+  it("stays fully inert (no pump, pump.enabled false) when the effects option is omitted", async () => {
+    const root = await makeRoot();
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.3.0-effects-off",
+      pollIntervalMs: 5,
+    });
+    services.push(service);
+    const client = clientFor(service);
+
+    const status = await client.effectsStatus();
+    expect(status.status).toMatchObject({
+      pendingOutbox: 0,
+      pump: { enabled: false, lastActivityAt: null, lastErrorMessage: null },
+    });
+    expect(service.getLastEffectsPumpError()).toBeNull();
+    await expect(service.close()).resolves.toBeUndefined();
+  });
+
+  it("starts the pump after readiness and reports it enabled, then stops cleanly on shutdown", async () => {
+    const root = await makeRoot();
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.3.0-effects-on",
+      pollIntervalMs: 5,
+      effects: { enabled: true, pollIntervalMs: 10 },
+    });
+    services.push(service);
+    const client = clientFor(service);
+
+    const status = await client.effectsStatus();
+    expect(status.status.pump.enabled).toBe(true);
+    expect(service.getLastEffectsPumpError()).toBeNull();
+
+    // The registry is never populated in this test (no configureAdapters),
+    // so with an empty outbox the pump only ever idles; shutdown must still
+    // complete cleanly and promptly.
+    await expect(service.close()).resolves.toBeUndefined();
+    expect(service.getLastEffectsPumpError()).toBeNull();
+  });
+});

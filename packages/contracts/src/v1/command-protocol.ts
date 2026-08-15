@@ -3,6 +3,11 @@ import { z } from "zod";
 import { AttemptListPageV1Schema, AttemptListQueryV1Schema } from "./attempt-read-model.js";
 import { CommandOriginV1Schema } from "./command.js";
 import {
+  EffectListPageV1Schema,
+  EffectListQueryV1Schema,
+  EffectStatusV1Schema,
+} from "./effect-read-model.js";
+import {
   EvidenceKindV1Schema,
   EvidenceManifestV1Schema,
   EvidenceSubjectV1Schema,
@@ -162,6 +167,18 @@ export const PortfolioSnapshotCommandRequestV1Schema = z.strictObject({
   payload: EmptyPayloadV1Schema,
 });
 
+export const EffectsStatusCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("effects.status"),
+  payload: EmptyPayloadV1Schema,
+});
+
+export const EffectsListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("effects.list"),
+  payload: EffectListQueryV1Schema,
+});
+
 // Project enrollment (`project.*`) wire types. `@app-factory/project-sdk` owns the canonical
 // EnrollmentScanV1/EnrollmentPlanV1/EnrollmentApplyResultV1 models and their much larger, deeply
 // nested inventory schemas; contracts cannot import that package (the `contracts-are-foundational`
@@ -269,6 +286,8 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProjectScanCommandRequestV1Schema,
   ProjectEnrollPlanCommandRequestV1Schema,
   ProjectApplyCommandRequestV1Schema,
+  EffectsStatusCommandRequestV1Schema,
+  EffectsListCommandRequestV1Schema,
 ]);
 export type CommandRequestV1 = z.infer<typeof CommandRequestV1Schema>;
 export type CommandOperationV1 = CommandRequestV1["operation"];
@@ -410,6 +429,16 @@ export const PortfolioSnapshotCommandResultV1Schema = z.strictObject({
   snapshot: PortfolioReadModelV1Schema,
 });
 
+export const EffectsStatusCommandResultV1Schema = z.strictObject({
+  operation: z.literal("effects.status"),
+  status: EffectStatusV1Schema,
+});
+
+export const EffectsListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("effects.list"),
+  page: EffectListPageV1Schema,
+});
+
 /**
  * `planDigest` identifies the daemon's persisted evidence-store record for this scan (the digest
  * `EvidenceStore.putBlob` returns for its canonical-JSON `EnrollmentScanV1`). It is not the same
@@ -476,6 +505,8 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProjectScanCommandResultV1Schema,
   ProjectEnrollPlanCommandResultV1Schema,
   ProjectApplyCommandResultV1Schema,
+  EffectsStatusCommandResultV1Schema,
+  EffectsListCommandResultV1Schema,
 ]);
 export type CommandResultV1 = z.infer<typeof CommandResultV1Schema>;
 export type CommandResultForOperationV1<Operation extends CommandOperationV1> = Extract<

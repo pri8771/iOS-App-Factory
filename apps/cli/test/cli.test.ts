@@ -192,6 +192,47 @@ describe("CLI argument parser", () => {
         },
       },
     ],
+    [["effects", "status"], { outputMode: "human", command: { kind: "effects.status" } }],
+    [
+      ["effects", "list"],
+      {
+        outputMode: "human",
+        command: { kind: "effects.list", state: null, provider: null, after: null, limit: 50 },
+      },
+    ],
+    [
+      ["effects", "list", "--state", "planned", "--provider", "github", "--limit", "10"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "effects.list",
+          state: "planned",
+          provider: "github",
+          after: null,
+          limit: 10,
+        },
+      },
+    ],
+    [
+      [
+        "effects",
+        "list",
+        "--after-updated-at",
+        NOW,
+        "--after-effect",
+        "00000000-0000-4000-8000-000000000009",
+      ],
+      {
+        outputMode: "human",
+        command: {
+          kind: "effects.list",
+          state: null,
+          provider: null,
+          after: { updatedAt: NOW, effectId: "00000000-0000-4000-8000-000000000009" },
+          limit: 50,
+        },
+      },
+    ],
   ])("parses %j", (arguments_, expected) => {
     expect(parseCliArguments(arguments_)).toEqual({ ...expected, retryIdentity: null });
   });
@@ -247,6 +288,15 @@ describe("CLI argument parser", () => {
     [["project", "apply", "not-a-digest"]],
     [["project", "apply", PLAN_DIGEST, "--branch"]],
     [["project", "apply", PLAN_DIGEST, "--branch", "not a valid branch"]],
+    [["effects"]],
+    [["effects", "unknown"]],
+    [["effects", "status", "extra"]],
+    [["effects", "list", "--state", "not-a-state"]],
+    [["effects", "list", "--provider", "not-a-provider"]],
+    [["effects", "list", "--limit", "101"]],
+    [["effects", "list", "--after-updated-at", NOW]],
+    [["effects", "list", "--after-effect", "00000000-0000-4000-8000-000000000009"]],
+    [["effects", "list", "--after-updated-at", "not-an-instant", "--after-effect", ATTEMPT_ID]],
     [["doctor", "--json", "--json"]],
     [["service"]],
     [["service", "install", "--config", "service.json"]],
@@ -482,6 +532,137 @@ describe("CLI output renderer", () => {
       ),
     ).toBe(
       `project.apply: /repo/app\nbranch: app-factory/enroll-abc123\ncommit: ${"b".repeat(40)}\napplied: declare-project, declare-experience\nskipped: 0\nconvergence: clear, 3 open issue(s)\n`,
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "effects.status",
+          status: {
+            counts: {
+              planned: 2,
+              sent: 1,
+              observed: 0,
+              confirmed: 3,
+              unknown: 0,
+              "manual-intervention": 0,
+              rejected: 0,
+            },
+            pendingOutbox: 3,
+            pump: { enabled: true, lastActivityAt: NOW, lastErrorMessage: null },
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      "effects: planned=2 sent=1 observed=0 confirmed=3 unknown=0 manual-intervention=0 rejected=0\n" +
+        `pending outbox: 3\npump: enabled, last activity ${NOW}\n`,
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "effects.status",
+          status: {
+            counts: {
+              planned: 0,
+              sent: 0,
+              observed: 0,
+              confirmed: 0,
+              unknown: 0,
+              "manual-intervention": 0,
+              rejected: 0,
+            },
+            pendingOutbox: 0,
+            pump: { enabled: false, lastActivityAt: null, lastErrorMessage: null },
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      "effects: planned=0 sent=0 observed=0 confirmed=0 unknown=0 manual-intervention=0 rejected=0\npending outbox: 0\npump: disabled\n",
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "effects.status",
+          status: {
+            counts: {
+              planned: 0,
+              sent: 0,
+              observed: 0,
+              confirmed: 0,
+              unknown: 1,
+              "manual-intervention": 0,
+              rejected: 0,
+            },
+            pendingOutbox: 1,
+            pump: { enabled: true, lastActivityAt: NOW, lastErrorMessage: "adapter unavailable" },
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      "effects: planned=0 sent=0 observed=0 confirmed=0 unknown=1 manual-intervention=0 rejected=0\n" +
+        `pending outbox: 1\npump: enabled, last activity ${NOW}, last error: adapter unavailable\n`,
+    );
+
+    expect(
+      renderCommandResult(
+        { operation: "effects.list", page: { effects: [], nextAfter: null, hasMore: false } },
+        "human",
+      ),
+    ).toBe("no effects\n");
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "effects.list",
+          page: {
+            effects: [
+              {
+                schemaVersion: 1,
+                effect: {
+                  schemaVersion: 1,
+                  effectId: ATTEMPT_ID,
+                  attemptId: ATTEMPT_ID,
+                  action: "github.merge-pr",
+                  operationMarker: `app-factory:v1:github:merge:${ATTEMPT_ID}`,
+                  target: {
+                    provider: "github",
+                    resourceType: "github.pull-request",
+                    resourceKey: "owner/repository#42",
+                  },
+                  subject: {
+                    projectId: PROJECT_ID,
+                    taskId: null,
+                    attemptId: null,
+                    releaseId: null,
+                  },
+                  payloadDigest: `sha256:${"a".repeat(64)}`,
+                  policyDigest: `sha256:${"a".repeat(64)}`,
+                  approvalId: null,
+                  state: "planned",
+                  revision: 0,
+                  sendCount: 0,
+                  providerCorrelationKey: null,
+                  createdAt: NOW,
+                  updatedAt: NOW,
+                  lastObservedAt: null,
+                  nextReconcileAt: null,
+                  detailDigest: null,
+                },
+              },
+            ],
+            nextAfter: { updatedAt: NOW, effectId: ATTEMPT_ID },
+            hasMore: true,
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      `${ATTEMPT_ID}\tplanned\tgithub\tapp-factory:v1:github:merge:${ATTEMPT_ID}\nmore after ${NOW} ${ATTEMPT_ID}\n`,
     );
   });
 

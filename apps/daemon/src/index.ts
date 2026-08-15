@@ -2,6 +2,8 @@ export * from "./command-runtime.js";
 export * from "./codex-local-agent.js";
 export * from "./codex-profile-environment.js";
 export * from "./daemon-entrypoint.js";
+export * from "./daemon-loop-wait.js";
+export * from "./effect-pump.js";
 export * from "./enrolled-project-execution.js";
 export * from "./evidence-command-runtime.js";
 export * from "./execution-evidence-manifest.js";

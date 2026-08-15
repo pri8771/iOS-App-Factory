@@ -4,7 +4,11 @@ import { isAbsolute, normalize } from "node:path";
 
 import { CommandAuthorizationV1Schema } from "@app-factory/contracts";
 
-import { startFactoryDaemonService, type FactoryDaemonService } from "./factory-daemon-service.js";
+import {
+  startFactoryDaemonService,
+  type EffectSubsystemConfiguration,
+  type FactoryDaemonService,
+} from "./factory-daemon-service.js";
 import {
   LocalExecutionProfileConfigurationError,
   loadLocalExecutionProfile,
@@ -22,6 +26,13 @@ export type DaemonProcessEnvironment = Readonly<{
   APP_FACTORY_POLL_INTERVAL_MS?: string;
   APP_FACTORY_LOCAL_EXECUTION_CONFIG?: string;
   APP_FACTORY_CONTAINMENT_ATTESTATION?: string;
+  /**
+   * Default OFF. Set to "1" or "true" to run the effect subsystem's
+   * send/reconcile pump loop. Adapter registration always stays code-level
+   * (see `EffectSubsystemConfiguration.configureAdapters`); this flag only
+   * decides whether the pump loop itself runs at all.
+   */
+  APP_FACTORY_EFFECTS_PUMP_ENABLED?: string;
 }>;
 
 export type DaemonProcessConfiguration = Readonly<{
@@ -30,6 +41,7 @@ export type DaemonProcessConfiguration = Readonly<{
   daemonVersion: string;
   pollIntervalMs: number;
   localExecution?: VerifiedLocalExecutionConfiguration;
+  effects?: EffectSubsystemConfiguration;
 }>;
 
 export type DaemonProcessIo = Readonly<{
@@ -65,6 +77,15 @@ function daemonVersion(value: string | undefined): string {
     configurationError("APP_FACTORY_DAEMON_VERSION must be a portable version identifier.");
   }
   return value;
+}
+
+/** Strict "1"/"true" (case-insensitive) → true, "0"/"false"/unset → false; anything else fails closed. */
+function booleanFlag(name: string, value: string | undefined): boolean {
+  if (value === undefined) return false;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "1" || normalized === "true") return true;
+  if (normalized === "0" || normalized === "false" || normalized === "") return false;
+  configurationError(`${name} must be one of: 1, 0, true, false.`);
 }
 
 function pollInterval(value: string | undefined): number {
@@ -258,12 +279,22 @@ export async function loadDaemonProcessConfiguration(
       throw error;
     }
   }
+  const effectsPumpEnabled = booleanFlag(
+    "APP_FACTORY_EFFECTS_PUMP_ENABLED",
+    environment.APP_FACTORY_EFFECTS_PUMP_ENABLED,
+  );
   return {
     runtimeDirectory,
     authorization,
     daemonVersion: daemonVersion(environment.APP_FACTORY_DAEMON_VERSION),
     pollIntervalMs: pollInterval(environment.APP_FACTORY_POLL_INTERVAL_MS),
     ...(localExecution === undefined ? {} : { localExecution }),
+    // Adapter registration is deliberately left unconfigured here: it stays a
+    // code-level seam (`configureAdapters`) for a future task to populate
+    // once real provider credentials exist. Omitted entirely (rather than
+    // `{ enabled: false }`) when off, matching `localExecution`'s pattern of
+    // leaving disabled subsystems out of the resolved configuration.
+    ...(effectsPumpEnabled ? { effects: { enabled: true } } : {}),
   };
 }
 
