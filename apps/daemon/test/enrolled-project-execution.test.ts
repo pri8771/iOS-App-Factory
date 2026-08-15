@@ -228,6 +228,7 @@ async function writeAttestation(root: string): Promise<string> {
 async function writeCodexProfile(
   fixtureRoot: string,
   projectConfigurationFile: string,
+  overrides: Readonly<Record<string, unknown>> = {},
 ): Promise<Readonly<{ profilePath: string; executable: string; executableDigest: Sha256Digest }>> {
   const executable = join(fixtureRoot, "fake-codex");
   const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
@@ -247,6 +248,7 @@ async function writeCodexProfile(
       expectedCliVersion: "0.147.0-alpha.1.2",
       model: "gpt-test-pinned",
       codexHome,
+      ...overrides,
     }),
     { mode: 0o600 },
   );
@@ -341,6 +343,105 @@ describe("enrolled-codex-v1 local execution profile", () => {
         approveRelease: false,
       },
     });
+  });
+
+  // The three tests below cover the maxTurns config-wiring fix: a hardcoded
+  // `maxTurns: 1` used to make the T4 multi-turn agent runner unreachable
+  // through this profile too. `agentLimits` on the loaded project is exactly
+  // what `#buildAgentRunSpec` (apps/daemon/src/verified-local-executor.ts)
+  // copies verbatim into `AgentRunSpecV1.limits` for every attempt run
+  // through this project, so asserting on it here is asserting on what
+  // reaches the AgentRunSpec.
+
+  it("threads a config-supplied maxTurns into the project agentLimits used for the AgentRunSpec", async () => {
+    const fixture = await createFixture();
+    const { profilePath } = await writeCodexProfile(
+      fixture.root,
+      fixture.projectConfigurationFile,
+      {
+        agentLimits: { maxTurns: 6 },
+      },
+    );
+
+    const loaded = await loadLocalExecutionProfile(profilePath, fixture.runtime, {
+      containmentAttestationPath: await writeAttestation(fixture.root),
+      codexAgentDependencies: {
+        preflight: async (options) => ({
+          ready: true,
+          executable: options.executable,
+          version: "0.147.0-alpha.1.2",
+          authConfigured: true,
+        }),
+      },
+    });
+
+    // The configured field changes; every sibling limit keeps its previous
+    // hardcoded value, proving per-field defaulting rather than an all-or-
+    // nothing override.
+    expect(loaded.projects[0]?.agentLimits).toEqual({
+      timeoutMs: 600_000,
+      terminationGraceMs: 5_000,
+      maxTurns: 6,
+      maxEventCount: 50_000,
+      maxStdoutBytes: 16_777_216,
+      maxStderrBytes: 16_777_216,
+    });
+  });
+
+  it("defaults maxTurns to 1 when agentLimits is absent from the profile config", async () => {
+    const fixture = await createFixture();
+    // writeCodexProfile with no overrides writes no agentLimits key at all,
+    // matching an existing, unmodified enrolled-codex-v1 profile.
+    const { profilePath } = await writeCodexProfile(fixture.root, fixture.projectConfigurationFile);
+
+    const loaded = await loadLocalExecutionProfile(profilePath, fixture.runtime, {
+      containmentAttestationPath: await writeAttestation(fixture.root),
+      codexAgentDependencies: {
+        preflight: async (options) => ({
+          ready: true,
+          executable: options.executable,
+          version: "0.147.0-alpha.1.2",
+          authConfigured: true,
+        }),
+      },
+    });
+
+    expect(loaded.projects[0]?.agentLimits?.maxTurns).toBe(1);
+  });
+
+  it.each([
+    ["zero", 0],
+    ["negative", -1],
+    ["non-integer", 1.5],
+    ["above the schema's 1000 bound", 1_001],
+  ])("fails closed when agentLimits.maxTurns is out of range (%s)", async (_label, maxTurns) => {
+    const fixture = await createFixture();
+    const { profilePath } = await writeCodexProfile(
+      fixture.root,
+      fixture.projectConfigurationFile,
+      {
+        agentLimits: { maxTurns },
+      },
+    );
+
+    let preflightCalls = 0;
+    await expect(
+      loadLocalExecutionProfile(profilePath, fixture.runtime, {
+        containmentAttestationPath: await writeAttestation(fixture.root),
+        codexAgentDependencies: {
+          preflight: async (options) => {
+            preflightCalls += 1;
+            return {
+              ready: true,
+              executable: options.executable,
+              version: "0.147.0-alpha.1.2",
+              authConfigured: true,
+            } as const;
+          },
+        },
+      }),
+    ).rejects.toBeInstanceOf(LocalExecutionProfileConfigurationError);
+    expect(preflightCalls).toBe(0);
   });
 
   it("refuses the enrolled-codex-v1 mode without an owner containment attestation and never preflights", async () => {

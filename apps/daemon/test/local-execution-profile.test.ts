@@ -231,6 +231,151 @@ describe("local execution profiles", () => {
     }
   });
 
+  // The three tests below cover the maxTurns config-wiring fix: a hardcoded
+  // `maxTurns: 1` used to make the T4 multi-turn agent runner unreachable
+  // through this profile. `agentLimits` on `loaded.projects[0]` is exactly
+  // what `#buildAgentRunSpec` (apps/daemon/src/verified-local-executor.ts)
+  // copies verbatim into `AgentRunSpecV1.limits` for every attempt run
+  // through this project, so asserting on it here is asserting on what
+  // reaches the AgentRunSpec.
+
+  it("threads a config-supplied maxTurns into the project agentLimits used for the AgentRunSpec", async () => {
+    const fixture = await createFixture();
+    const executable = join(fixture.root, "fake-codex");
+    const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
+    const codexHome = join(fixture.root, "codex-home");
+    const profilePath = join(fixture.root, "codex-profile.json");
+    await writeFile(executable, executableBytes, { mode: 0o700 });
+    await mkdir(codexHome, { mode: 0o700 });
+    await writeFile(
+      profilePath,
+      JSON.stringify({
+        schemaVersion: 1,
+        mode: "swift-greeter-codex-v1",
+        fixtureConfigurationFile: fixture.fixtureConfigurationFile,
+        executable,
+        executableDigest: sha256(executableBytes),
+        expectedCliVersion: "0.147.0-alpha.1.2",
+        model: "gpt-test-pinned",
+        codexHome,
+        agentLimits: { maxTurns: 6 },
+      }),
+      { mode: 0o600 },
+    );
+
+    const loaded = await loadLocalExecutionProfile(profilePath, fixture.runtime, {
+      containmentAttestationPath: await writeAttestation(fixture.root),
+      codexAgentDependencies: {
+        preflight: async (options) => ({
+          ready: true,
+          executable: options.executable,
+          version: "0.147.0-alpha.1.2",
+          authConfigured: true,
+        }),
+      },
+    });
+
+    // The configured field changes; every sibling limit keeps its previous
+    // hardcoded value, proving per-field defaulting rather than an all-or-
+    // nothing override.
+    expect(loaded.projects[0]?.agentLimits).toEqual({
+      timeoutMs: 600_000,
+      terminationGraceMs: 5_000,
+      maxTurns: 6,
+      maxEventCount: 50_000,
+      maxStdoutBytes: 16_777_216,
+      maxStderrBytes: 16_777_216,
+    });
+  });
+
+  it("defaults maxTurns to 1 when agentLimits is absent from the profile config", async () => {
+    const fixture = await createFixture();
+    const executable = join(fixture.root, "fake-codex");
+    const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
+    const codexHome = join(fixture.root, "codex-home");
+    const profilePath = join(fixture.root, "codex-profile.json");
+    await writeFile(executable, executableBytes, { mode: 0o700 });
+    await mkdir(codexHome, { mode: 0o700 });
+    await writeFile(
+      profilePath,
+      JSON.stringify({
+        schemaVersion: 1,
+        mode: "swift-greeter-codex-v1",
+        fixtureConfigurationFile: fixture.fixtureConfigurationFile,
+        executable,
+        executableDigest: sha256(executableBytes),
+        expectedCliVersion: "0.147.0-alpha.1.2",
+        model: "gpt-test-pinned",
+        codexHome,
+        // No agentLimits key at all: an existing, unmodified config.
+      }),
+      { mode: 0o600 },
+    );
+
+    const loaded = await loadLocalExecutionProfile(profilePath, fixture.runtime, {
+      containmentAttestationPath: await writeAttestation(fixture.root),
+      codexAgentDependencies: {
+        preflight: async (options) => ({
+          ready: true,
+          executable: options.executable,
+          version: "0.147.0-alpha.1.2",
+          authConfigured: true,
+        }),
+      },
+    });
+
+    expect(loaded.projects[0]?.agentLimits?.maxTurns).toBe(1);
+  });
+
+  it.each([
+    ["zero", 0],
+    ["negative", -1],
+    ["non-integer", 1.5],
+    ["above the schema's 1000 bound", 1_001],
+  ])("fails closed when agentLimits.maxTurns is out of range (%s)", async (_label, maxTurns) => {
+    const fixture = await createFixture();
+    const executable = join(fixture.root, "fake-codex");
+    const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
+    const codexHome = join(fixture.root, "codex-home");
+    const profilePath = join(fixture.root, "codex-profile.json");
+    await writeFile(executable, executableBytes, { mode: 0o700 });
+    await mkdir(codexHome, { mode: 0o700 });
+    await writeFile(
+      profilePath,
+      JSON.stringify({
+        schemaVersion: 1,
+        mode: "swift-greeter-codex-v1",
+        fixtureConfigurationFile: fixture.fixtureConfigurationFile,
+        executable,
+        executableDigest: sha256(executableBytes),
+        expectedCliVersion: "0.147.0-alpha.1.2",
+        model: "gpt-test-pinned",
+        codexHome,
+        agentLimits: { maxTurns },
+      }),
+      { mode: 0o600 },
+    );
+
+    let preflightCalls = 0;
+    await expect(
+      loadLocalExecutionProfile(profilePath, fixture.runtime, {
+        containmentAttestationPath: await writeAttestation(fixture.root),
+        codexAgentDependencies: {
+          preflight: async (options) => {
+            preflightCalls += 1;
+            return {
+              ready: true,
+              executable: options.executable,
+              version: "0.147.0-alpha.1.2",
+              authConfigured: true,
+            } as const;
+          },
+        },
+      }),
+    ).rejects.toBeInstanceOf(LocalExecutionProfileConfigurationError);
+    expect(preflightCalls).toBe(0);
+  });
+
   it(
     "runs a no-network fake Codex executable through the real supervisor and V2 evidence path",
     { timeout: 180_000 },
