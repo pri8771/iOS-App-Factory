@@ -38,6 +38,30 @@ const pbxprojAllowanceExtension = decodeExtension({
   allowances: ["xcode-project-membership"],
 });
 
+// The second relaxable class (see RELAXABLE_PROTECTED_PATH_CLASSES in
+// packages/git-workspace/src/workspace.ts): a project's reviewed policy may
+// grant permission to ADD new test files, but never to modify or delete
+// existing ones. That add-vs-modify distinction is decided by candidate
+// verification, not by this digest -- this file only needs to prove the
+// allowance's mere presence in the allowlist, and its presence in a policy's
+// `allowances` array, behave exactly like the existing single-allowance case
+// already proven below.
+const testFileAdditionAllowanceExtension = decodeExtension({
+  schemaVersion: 1,
+  additionalTrustBoundaryPathPrefixes: [],
+  additionalTrustBoundarySegments: [],
+  additionalPolicyMarkers: [],
+  allowances: ["test-file-addition"],
+});
+
+const bothAllowancesExtension = decodeExtension({
+  schemaVersion: 1,
+  additionalTrustBoundaryPathPrefixes: [],
+  additionalTrustBoundarySegments: [],
+  additionalPolicyMarkers: [],
+  allowances: ["xcode-project-membership", "test-file-addition"],
+});
+
 describe("candidate-policy digest neutrality (extension-free policies)", () => {
   it("keeps the recorded digest byte-identical for an explicit-limits policy", () => {
     const normalized = normalizeCandidatePolicy({
@@ -98,6 +122,77 @@ describe("candidate-policy digest neutrality (extension-free policies)", () => {
       ].sort(),
     );
     expect(canonicalDigest(withExtension)).not.toBe(canonicalDigest(withoutExtension));
+  });
+});
+
+describe("candidate-policy digest neutrality after adding the test-file-addition allowance", () => {
+  // RELAXABLE_PROTECTED_PATH_CLASSES in packages/git-workspace/src/workspace.ts
+  // grew from one entry to two (xcode-project-membership,
+  // test-file-addition) to implement T5's test-addition allowance. That
+  // allowlist is only consulted when a policy actually carries a
+  // protectedPathPolicyExtension; an extension-free policy's canonical bytes
+  // must therefore stay exactly as they were, and the two recorded digests
+  // above -- captured before this allowance existed -- must still match
+  // byte-for-byte. This is the same fixture the task requires, re-run now
+  // that a second relaxable class exists.
+  it("keeps both recorded extension-free digests unchanged now that a second relaxable class exists", () => {
+    const explicitLimits = normalizeCandidatePolicy({
+      authorizedScopes: ["src/", "docs/README.md"],
+      maxChangedFileBytes: 250_000,
+      maxDiffBytes: 2_000_000,
+    });
+    const defaultLimits = normalizeCandidatePolicy({ authorizedScopes: ["src"] });
+    expect(canonicalDigest(explicitLimits)).toBe(RECORDED_EXPLICIT_LIMITS_DIGEST);
+    expect(canonicalDigest(defaultLimits)).toBe(RECORDED_DEFAULT_LIMITS_DIGEST);
+  });
+
+  it("produces a digest for a test-file-addition-only extension that differs from the extension-free digest", () => {
+    const withoutExtension = normalizeCandidatePolicy({ authorizedScopes: ["src"] });
+    const withTestFileAddition = normalizeCandidatePolicy({
+      authorizedScopes: ["src"],
+      protectedPathPolicyExtension: testFileAdditionAllowanceExtension,
+    });
+    expect(canonicalDigest(withTestFileAddition)).not.toBe(canonicalDigest(withoutExtension));
+    expect(canonicalDigest(withoutExtension)).toBe(RECORDED_DEFAULT_LIMITS_DIGEST);
+  });
+
+  it("produces a distinct digest for each of the extension-free, single-allowance, and two-allowance shapes", () => {
+    const withoutExtension = normalizeCandidatePolicy({ authorizedScopes: ["src"] });
+    const withXcodeOnly = normalizeCandidatePolicy({
+      authorizedScopes: ["src"],
+      protectedPathPolicyExtension: pbxprojAllowanceExtension,
+    });
+    const withTestFileAdditionOnly = normalizeCandidatePolicy({
+      authorizedScopes: ["src"],
+      protectedPathPolicyExtension: testFileAdditionAllowanceExtension,
+    });
+    const withBoth = normalizeCandidatePolicy({
+      authorizedScopes: ["src"],
+      protectedPathPolicyExtension: bothAllowancesExtension,
+    });
+
+    const digests = [
+      canonicalDigest(withoutExtension),
+      canonicalDigest(withXcodeOnly),
+      canonicalDigest(withTestFileAdditionOnly),
+      canonicalDigest(withBoth),
+    ];
+    expect(new Set(digests).size).toBe(digests.length);
+    expect(canonicalDigest(withoutExtension)).toBe(RECORDED_DEFAULT_LIMITS_DIGEST);
+  });
+
+  it("round-trips a two-allowance extension through parseNormalizedCandidatePolicy to identical canonical bytes", () => {
+    const normalized = normalizeCandidatePolicy({
+      authorizedScopes: ["src"],
+      protectedPathPolicyExtension: bothAllowancesExtension,
+    });
+    const bytes = canonicalJsonBytes(normalized);
+    const parsed = parseNormalizedCandidatePolicy(JSON.parse(bytes.toString("utf8")) as unknown);
+    expect(canonicalJsonBytes(parsed)).toEqual(bytes);
+    expect(parsed.protectedPathPolicyExtension?.allowances).toEqual([
+      "xcode-project-membership",
+      "test-file-addition",
+    ]);
   });
 });
 

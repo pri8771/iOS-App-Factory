@@ -687,11 +687,29 @@ export function normalizeCandidatePolicy(policy: CandidatePolicy): NormalizedCan
 
 /**
  * Explicit allowlist of protected-path classes that a project's reviewed
- * policy extension may relax. This is the only mechanism by which
- * classifyProtectedPath ever treats an otherwise-protected path as
- * unprotected; every other extension field may only add protection.
+ * policy extension may relax. This is the only mechanism by which a path
+ * classifyProtectedPath marks protected can still be accepted; every other
+ * extension field may only add protection.
+ *
+ * The two entries are honored in different places, because
+ * classifyProtectedPath is path-only:
+ *  - "xcode-project-membership" depends only on the path (a .pbxproj or
+ *    project.yml file is always the same kind of file), so
+ *    classifyProtectedPath decides it directly, below.
+ *  - "test-file-addition" depends on the change kind too (add vs modify vs
+ *    delete), which classifyProtectedPath never sees. classifyProtectedPath
+ *    keeps classifying every test path the same way regardless of this
+ *    allowance; candidate verification (verifyCandidate /
+ *    #analyzeCandidateTree further down, which diff against the base tree
+ *    and so know the change kind) decides whether an ADD of a
+ *    test-classified path may proceed. A MODIFY or DELETE of an existing
+ *    test file is always rejected, allowance or not. See
+ *    isPermittedTestFileAddition below.
  */
-const RELAXABLE_PROTECTED_PATH_CLASSES = ["xcode-project-membership"] as const;
+const RELAXABLE_PROTECTED_PATH_CLASSES = [
+  "xcode-project-membership",
+  "test-file-addition",
+] as const;
 export type RelaxableProtectedPathClass = (typeof RELAXABLE_PROTECTED_PATH_CLASSES)[number];
 const RELAXABLE_PROTECTED_PATH_CLASS_SET: ReadonlySet<string> = new Set(
   RELAXABLE_PROTECTED_PATH_CLASSES,
@@ -717,7 +735,9 @@ const MAX_POLICY_EXTENSION_TOKEN_LENGTH = 200;
  * below canonicalizes and hashes the exact reviewed bytes so a caller can
  * bind this extension to an expected digest recorded in the project's own
  * reviewed policy lock, then pass the validated, trusted struct into
- * classifyProtectedPath.
+ * classifyProtectedPath and, for allowances that need change-kind context
+ * classifyProtectedPath doesn't have, into candidate verification (see
+ * RELAXABLE_PROTECTED_PATH_CLASSES above).
  */
 export type ProtectedPathPolicyExtensionV1 = Readonly<{
   schemaVersion: 1;
@@ -727,7 +747,12 @@ export type ProtectedPathPolicyExtensionV1 = Readonly<{
   additionalTrustBoundarySegments: readonly string[];
   /** Matched as a substring of the full lowercased path. */
   additionalPolicyMarkers: readonly string[];
-  /** Scoped relaxations; every entry must be in RELAXABLE_PROTECTED_PATH_CLASSES. */
+  /**
+   * Scoped relaxations; every entry must be in
+   * RELAXABLE_PROTECTED_PATH_CLASSES. See that constant's comment for which
+   * allowances classifyProtectedPath decides directly and which candidate
+   * verification decides using change-kind context.
+   */
   allowances: readonly RelaxableProtectedPathClass[];
 }>;
 
@@ -855,6 +880,15 @@ export function decodeProtectedPathPolicyExtension(payloadBytesInput: Uint8Array
   return { extension: parseProtectedPathPolicyExtension(parsed), digest: sha256(bytes) };
 }
 
+/**
+ * The exact reason classifyProtectedPath returns for a path it classifies as
+ * a test file or test baseline. Candidate verification compares a
+ * protected-path rejection against this exact constant -- not a re-derived
+ * guess -- to decide whether the test-file-addition allowance can apply; see
+ * isPermittedTestFileAddition below.
+ */
+const TEST_FILE_PROTECTED_PATH_REASON = "tests and test baselines are protected";
+
 export function classifyProtectedPath(
   path: string,
   policyExtension?: ProtectedPathPolicyExtensionV1,
@@ -915,7 +949,7 @@ export function classifyProtectedPath(
     ["pytest.ini", "tox.ini", ".coveragerc"].includes(basename) ||
     extension === ".xctestplan"
   ) {
-    return "tests and test baselines are protected";
+    return TEST_FILE_PROTECTED_PATH_REASON;
   }
 
   if (
@@ -979,11 +1013,13 @@ export function classifyProtectedPath(
   }
 
   // Xcode project-membership files (project.pbxproj, and XcodeGen's
-  // project.yml) are the one relaxable class: a project's reviewed policy
-  // may opt in to editing them (needed for ordinary iOS work, e.g. adding a
-  // file to a target). The default -- no policy extension, or an extension
-  // that does not grant this allowance -- keeps them protected exactly like
-  // every other build/dependency/verification file below.
+  // project.yml) are a relaxable class: a project's reviewed policy may opt
+  // in to editing them (needed for ordinary iOS work, e.g. adding a file to
+  // a target). Unlike test-file-addition (see RELAXABLE_PROTECTED_PATH_CLASSES
+  // above), this relaxation depends only on the path, so classifyProtectedPath
+  // decides it directly, right here. The default -- no policy extension, or
+  // an extension that does not grant this allowance -- keeps them protected
+  // exactly like every other build/dependency/verification file below.
   const isXcodeProjectMembershipFile = extension === ".pbxproj" || basename === "project.yml";
   const xcodeProjectMembershipAllowed =
     isXcodeProjectMembershipFile &&
@@ -1090,6 +1126,33 @@ export function classifyProtectedPath(
     return "Git diff classification is protected";
   }
   return null;
+}
+
+/**
+ * True precisely when a protected-path rejection may be relaxed under the
+ * test-file-addition allowance: the rejection is specifically the test-file
+ * classification (not some other protected class, so this allowance can
+ * never reach into an unrelated one), the change is an ADD -- the path was
+ * absent from the base tree, reported as status "A" by both callers below
+ * (#analyzeCandidateTree's diff of baseSha against the candidate tree, and
+ * verifyCandidate's pre-check diff of the working tree against baseSha) --
+ * and the policy extension grants the allowance.
+ *
+ * A MODIFY or DELETE of an existing test file always returns false here,
+ * regardless of the allowance: classifyProtectedPath's path-only "is this a
+ * test file" verdict never changes, only whether candidate verification
+ * treats that verdict as fatal for this one changed path.
+ */
+function isPermittedTestFileAddition(
+  protectedReason: string,
+  changeStatus: ChangedPath["status"],
+  policyExtension: ProtectedPathPolicyExtensionV1 | undefined,
+): boolean {
+  return (
+    protectedReason === TEST_FILE_PROTECTED_PATH_REASON &&
+    changeStatus === "A" &&
+    (policyExtension?.allowances.includes("test-file-addition") ?? false)
+  );
 }
 
 function parseMirrorMarker(value: unknown): MirrorMarker {
@@ -1969,7 +2032,14 @@ export class GitWorkspaceManager {
         change.path,
         normalizedPolicy.protectedPathPolicyExtension,
       );
-      if (protectedReason !== null) {
+      if (
+        protectedReason !== null &&
+        !isPermittedTestFileAddition(
+          protectedReason,
+          change.status,
+          normalizedPolicy.protectedPathPolicyExtension,
+        )
+      ) {
         throw new GitWorkspaceError(`${protectedReason}: ${change.path}`);
       }
       if (!scopes.some((scope) => isWithinScope(change.path, scope))) {
@@ -2268,7 +2338,10 @@ export class GitWorkspaceManager {
     let totalChangedFileBytes = 0;
     for (const changed of rawChanged) {
       const protectedReason = classifyProtectedPath(changed.path, policyExtension);
-      if (protectedReason !== null) {
+      if (
+        protectedReason !== null &&
+        !isPermittedTestFileAddition(protectedReason, changed.status, policyExtension)
+      ) {
         throw new GitWorkspaceError(`${protectedReason}: ${changed.path}`);
       }
       if (!scopes.some((scope) => isWithinScope(changed.path, scope))) {

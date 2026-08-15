@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -111,6 +111,13 @@ function prepare(
 
 function updateSource(workspace: FactoryWorkspaceRecord, body: string): void {
   writeFileSync(join(workspace.worktreePath, "src", "app.ts"), body);
+}
+
+/** Writes a brand-new (untracked) file at a possibly-nested path, creating parents as needed. */
+function writeNestedFile(worktreePath: string, relativePath: string, body: string): void {
+  const target = join(worktreePath, ...relativePath.split("/"));
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, body);
 }
 
 afterEach(() => {
@@ -942,6 +949,45 @@ describe("reviewed protected-path policy extension", () => {
     );
   });
 
+  it("classifyProtectedPath keeps classifying test paths as protected even when the extension grants test-file-addition", () => {
+    // classifyProtectedPath is path-only: it has no way to know whether a
+    // given path is being added, modified, or deleted, so the
+    // test-file-addition allowance can never be honored here. Whether a
+    // change to a test-classified path is actually permitted is decided by
+    // candidate verification instead (see the
+    // "candidate verification threads the test-file-addition allowance"
+    // suite below), which knows the change kind classifyProtectedPath does
+    // not.
+    const withAllowance = parseProtectedPathPolicyExtension({
+      schemaVersion: 1,
+      additionalTrustBoundaryPathPrefixes: [],
+      additionalTrustBoundarySegments: [],
+      additionalPolicyMarkers: [],
+      allowances: ["test-file-addition"],
+    });
+    expect(classifyProtectedPath("tests/app.test.ts", withAllowance)).toMatch(/tests/iu);
+    expect(classifyProtectedPath("tests/brand_new.test.ts", withAllowance)).toMatch(/tests/iu);
+    expect(classifyProtectedPath("tests/app.test.ts", withAllowance)).toBe(
+      classifyProtectedPath("tests/app.test.ts"),
+    );
+  });
+
+  it("accepts an extension that grants both relaxable classes at once", () => {
+    const bothAllowances = parseProtectedPathPolicyExtension({
+      schemaVersion: 1,
+      additionalTrustBoundaryPathPrefixes: [],
+      additionalTrustBoundarySegments: [],
+      additionalPolicyMarkers: [],
+      allowances: ["xcode-project-membership", "test-file-addition"],
+    });
+    expect(bothAllowances.allowances).toEqual(["xcode-project-membership", "test-file-addition"]);
+    // The xcode allowance still relaxes classifyProtectedPath's verdict on
+    // its own; the test-file-addition allowance still does not, for the
+    // reason above.
+    expect(classifyProtectedPath("project.yml", bothAllowances)).toBeNull();
+    expect(classifyProtectedPath("tests/app.test.ts", bothAllowances)).toMatch(/tests/iu);
+  });
+
   it("fails closed on an unknown relaxation key", () => {
     expect(() =>
       parseProtectedPathPolicyExtension({
@@ -1115,5 +1161,172 @@ describe("candidate verification threads the protected-path policy extension", (
     ).toThrow(/Factory trust-boundary code is protected/u);
     // The same edit is fine without the extension.
     expect(() => f.manager.verifyCandidate(workspace, { authorizedScopes: ["src"] })).not.toThrow();
+  });
+});
+
+describe("candidate verification threads the test-file-addition allowance", () => {
+  // classifyProtectedPath cannot decide this allowance itself (it is
+  // path-only, see the tests above); these tests prove candidate
+  // verification -- which diffs against the base tree and therefore knows
+  // whether a changed path is an ADD, MODIFY, or DELETE -- applies it
+  // correctly: an ADD of a brand-new test file is the only case ever
+  // permitted, and every other protected class (and every non-ADD change to
+  // an existing test file) stays rejected exactly as it is today.
+  const testFileAdditionAllowance = parseProtectedPathPolicyExtension({
+    schemaVersion: 1,
+    additionalTrustBoundaryPathPrefixes: [],
+    additionalTrustBoundarySegments: [],
+    additionalPolicyMarkers: [],
+    allowances: ["test-file-addition"],
+  });
+  const noAllowance = parseProtectedPathPolicyExtension({
+    schemaVersion: 1,
+    additionalTrustBoundaryPathPrefixes: [],
+    additionalTrustBoundarySegments: [],
+    additionalPolicyMarkers: [],
+    allowances: [],
+  });
+  const xcodeAllowanceOnly = parseProtectedPathPolicyExtension({
+    schemaVersion: 1,
+    additionalTrustBoundaryPathPrefixes: [],
+    additionalTrustBoundarySegments: [],
+    additionalPolicyMarkers: [],
+    allowances: ["xcode-project-membership"],
+  });
+
+  it("adding a new test file is rejected with no extension at all (today's behavior, unchanged)", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    writeNestedFile(workspace.worktreePath, "tests/new_regression.test.ts", "// new test\n");
+
+    expect(() => f.manager.verifyCandidate(workspace, { authorizedScopes: ["tests"] })).toThrow(
+      /tests and test baselines are protected/u,
+    );
+  });
+
+  it("adding a new test file is rejected when the extension grants no allowance", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    writeNestedFile(workspace.worktreePath, "tests/new_regression.test.ts", "// new test\n");
+
+    expect(() =>
+      f.manager.verifyCandidate(workspace, {
+        authorizedScopes: ["tests"],
+        protectedPathPolicyExtension: noAllowance,
+      }),
+    ).toThrow(/tests and test baselines are protected/u);
+  });
+
+  it("adding a new test file is rejected when the extension grants only the unrelated xcode-project-membership allowance", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    writeNestedFile(workspace.worktreePath, "tests/new_regression.test.ts", "// new test\n");
+
+    expect(() =>
+      f.manager.verifyCandidate(workspace, {
+        authorizedScopes: ["tests"],
+        protectedPathPolicyExtension: xcodeAllowanceOnly,
+      }),
+    ).toThrow(/tests and test baselines are protected/u);
+  });
+
+  it("adding a new test file passes once the extension grants test-file-addition", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    writeNestedFile(workspace.worktreePath, "tests/new_regression.test.ts", "// new test\n");
+
+    const candidate = f.manager.verifyCandidate(workspace, {
+      authorizedScopes: ["tests"],
+      protectedPathPolicyExtension: testFileAdditionAllowance,
+    });
+
+    expect(candidate.changedPaths).toEqual([
+      expect.objectContaining({ path: "tests/new_regression.test.ts", status: "A" }),
+    ]);
+  });
+
+  it("modifying an existing test file is rejected even with the allowance granted", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    writeFileSync(join(workspace.worktreePath, "tests", "app.test.ts"), "// weakened test\n");
+
+    expect(() =>
+      f.manager.verifyCandidate(workspace, {
+        authorizedScopes: ["tests"],
+        protectedPathPolicyExtension: testFileAdditionAllowance,
+      }),
+    ).toThrow(/tests and test baselines are protected/u);
+  });
+
+  it("deleting an existing test file is rejected even with the allowance granted", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    rmSync(join(workspace.worktreePath, "tests", "app.test.ts"));
+
+    expect(() =>
+      f.manager.verifyCandidate(workspace, {
+        authorizedScopes: ["tests"],
+        protectedPathPolicyExtension: testFileAdditionAllowance,
+      }),
+    ).toThrow(/tests and test baselines are protected/u);
+  });
+
+  it("verifyCandidateObject enforces the same add-only rule on replay", () => {
+    const f = fixture();
+    const { mirror, workspace } = prepare(f);
+    writeNestedFile(workspace.worktreePath, "tests/new_regression.test.ts", "// new test\n");
+    const policy = {
+      authorizedScopes: ["tests"],
+      protectedPathPolicyExtension: testFileAdditionAllowance,
+    };
+    const candidate = f.manager.verifyCandidate(workspace, policy);
+
+    const replayed = f.manager.verifyCandidateObject(mirror, candidate, policy);
+    expect(replayed.candidateTreeId).toBe(candidate.candidateTreeId);
+    expect(() =>
+      f.manager.verifyCandidateObject(mirror, candidate, { authorizedScopes: ["tests"] }),
+    ).toThrow(/tests and test baselines are protected/u);
+  });
+
+  it.each([
+    [".github/workflows/new-ci.yml", /CI configuration is protected/iu],
+    ["fastlane/NewFastfile", /signing and release automation is protected/iu],
+    ["AGENTS.md", /policy and agent rules are protected/iu],
+    ["quality-gates/new-threshold.json", /quality thresholds and baselines are protected/iu],
+    [
+      "App.xcodeproj/project.pbxproj",
+      /build, dependency, and verification configuration is protected/iu,
+    ],
+  ])("does not relax an unrelated protected class for a newly added %s", (path, expectedReason) => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    writeNestedFile(workspace.worktreePath, path, "new file\n");
+
+    expect(() =>
+      f.manager.verifyCandidate(workspace, {
+        authorizedScopes: ["."],
+        protectedPathPolicyExtension: testFileAdditionAllowance,
+      }),
+    ).toThrow(expectedReason);
+  });
+
+  it("permits an added test file alongside an ordinary source change in one candidate", () => {
+    const f = fixture();
+    const { workspace } = prepare(f);
+    updateSource(workspace, "export const value = 42;\n");
+    writeNestedFile(workspace.worktreePath, "tests/new_regression.test.ts", "// regression\n");
+
+    const candidate = f.manager.verifyCandidate(workspace, {
+      authorizedScopes: ["."],
+      protectedPathPolicyExtension: testFileAdditionAllowance,
+    });
+
+    const observed = candidate.changedPaths
+      .map((entry) => ({ path: entry.path, status: entry.status }))
+      .sort((left, right) => left.path.localeCompare(right.path));
+    expect(observed).toEqual([
+      { path: "src/app.ts", status: "M" },
+      { path: "tests/new_regression.test.ts", status: "A" },
+    ]);
   });
 });
