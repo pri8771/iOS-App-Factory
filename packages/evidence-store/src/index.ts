@@ -242,6 +242,18 @@ export class EvidenceStore {
     return digest;
   }
 
+  /**
+   * The absolute, content-addressed path a blob is (or will be) stored at.
+   * Callers that must record this store's bytes as a kernel artifact (whose
+   * `storagePath` column requires a real absolute path) use this instead of
+   * reaching into the store's private layout.
+   */
+  blobPath(digestInput: unknown): string {
+    const digest = Sha256DigestSchema.parse(digestInput);
+    const hex = digestHex(digest);
+    return safeChild(this.#blobsRoot, hex.slice(0, 2), hex.slice(2));
+  }
+
   putEvidence(value: unknown): Readonly<{ evidence: EvidenceV1; digest: Sha256Digest }> {
     const evidence = EvidenceV1Schema.parse(value);
     const bytes = canonicalJsonBytes(evidence);

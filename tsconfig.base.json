@@ -35,6 +35,7 @@
       "@app-factory/policy-engine": ["./packages/policy-engine/src/index.ts"],
       "@app-factory/portfolio": ["./packages/portfolio/src/index.ts"],
       "@app-factory/provider-http-adapters": ["./packages/provider-http-adapters/src/index.ts"],
+      "@app-factory/provider-transport": ["./packages/provider-transport/src/index.ts"],
       "@app-factory/process-supervisor": ["./packages/process-supervisor/src/index.ts"],
       "@app-factory/project-sdk": ["./packages/project-sdk/src/index.ts"],
       "@app-factory/quality": ["./packages/quality/src/index.ts"],

@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -121,6 +122,25 @@ describe("EvidenceStore", () => {
     expect(
       lstatSync(join(root, "manifests", `${stored.evidence.attemptId}.json`)).mode & 0o777,
     ).toBe(0o600);
+  });
+
+  it("exposes an absolute, content-addressed path for a stored blob", () => {
+    const root = makeRoot();
+    const store = new EvidenceStore(root);
+    const artifactBytes = Buffer.from("blob-path-fixture", "utf8");
+    const artifactDigest = store.putBlob(artifactBytes);
+
+    const path = store.blobPath(artifactDigest);
+    const realRoot = realpathSync(root);
+
+    expect(path.startsWith(`${realRoot}/blobs/sha256/`)).toBe(true);
+    expect(readFileSync(path)).toEqual(artifactBytes);
+    // The path is computable before the blob is written too: it is a pure
+    // function of the digest, not a lookup into stored state.
+    const notYetWrittenDigest = Sha256DigestSchema.parse(`sha256:${"7".repeat(64)}`);
+    expect(store.blobPath(notYetWrittenDigest)).toBe(
+      `${realRoot}/blobs/sha256/${"7".repeat(2)}/${"7".repeat(62)}`,
+    );
   });
 
   it("is replay-safe for the same bytes and rejects an immutable manifest collision", () => {

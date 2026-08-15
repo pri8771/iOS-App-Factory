@@ -1,5 +1,5 @@
 {
-  "name": "@app-factory/effect-worker",
+  "name": "@app-factory/provider-transport",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,9 +18,7 @@
     "test": "vitest run test"
   },
   "dependencies": {
-    "@app-factory/adapter-sdk": "workspace:*",
-    "@app-factory/contracts": "workspace:*",
-    "@app-factory/evidence-store": "workspace:*",
-    "@app-factory/kernel": "workspace:*"
+    "@app-factory/credential-broker": "workspace:*",
+    "@app-factory/provider-http-adapters": "workspace:*"
   }
 }

@@ -8,10 +8,5 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": [
-    { "path": "../adapter-sdk" },
-    { "path": "../contracts" },
-    { "path": "../evidence-store" },
-    { "path": "../kernel" }
-  ]
+  "references": [{ "path": "../credential-broker" }, { "path": "../provider-http-adapters" }]
 }

@@ -17,6 +17,7 @@
     { "path": "./packages/policy-engine" },
     { "path": "./packages/portfolio" },
     { "path": "./packages/provider-http-adapters" },
+    { "path": "./packages/provider-transport" },
     { "path": "./packages/agent-runner" },
     { "path": "./packages/process-supervisor" },
     { "path": "./packages/project-sdk" },

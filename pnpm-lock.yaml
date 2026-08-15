@@ -159,6 +159,9 @@ importers:
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@app-factory/evidence-store':
+        specifier: workspace:*
+        version: link:../evidence-store
       '@app-factory/kernel':
         specifier: workspace:*
         version: link:../kernel
@@ -266,6 +269,15 @@ importers:
       '@app-factory/work-tracking-integrations':
         specifier: workspace:*
         version: link:../work-tracking-integrations
+
+  packages/provider-transport:
+    dependencies:
+      '@app-factory/credential-broker':
+        specifier: workspace:*
+        version: link:../credential-broker
+      '@app-factory/provider-http-adapters':
+        specifier: workspace:*
+        version: link:../provider-http-adapters
 
   packages/quality:
     dependencies:

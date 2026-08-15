@@ -971,3 +971,9 @@ export function createInMemorySanitizingEvidencePort(
     },
   };
 }
+
+// Production port implementations (kernel-artifact-backed payload reads,
+// redacted evidence persistence, canonical observation attestation). See
+// ./ports/index.ts. This file does not depend on that module, so re-
+// exporting it here creates no import cycle.
+export * from "./ports/index.js";
