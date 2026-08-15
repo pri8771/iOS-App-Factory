@@ -661,6 +661,15 @@ async function loadTaskSpec(path: string): Promise<TaskSpecV1> {
  * operator to read raw events or evidence blobs by hand. This composes three
  * existing read-only operations (status, events, evidence) client-side; the
  * daemon gains no new operation for it.
+ *
+ * Each of the three calls is a distinct logical request, so each gets its own
+ * fresh requestId via `createRetryIdentity`: the daemon's replay ledger keys
+ * conflict detection on requestId, and reusing one requestId for different
+ * operations/payloads trips `protocol.request-id-conflict` on the second
+ * call. `createRetryIdentity` mints a new requestId while preserving the
+ * caller's commandId/issuedAt lineage, so an operator-supplied
+ * `--command-id`/`--issued-at` retry identity for the overall `blocker`
+ * invocation is still honored for every sub-call.
  */
 async function diagnoseBlocker(
   client: CommandClient,
@@ -668,7 +677,7 @@ async function diagnoseBlocker(
   mode: CliOutputMode,
   identity: CommandIdentity,
 ): Promise<string> {
-  const { attempt } = await client.status(attemptId, identity);
+  const { attempt } = await client.status(attemptId, client.createRetryIdentity(identity));
   if (attempt.state !== "blocked" && attempt.state !== "failed") {
     const summary = `attempt ${attemptId} is not blocked or failed (state: ${attempt.state})`;
     return mode === "json"
@@ -700,7 +709,11 @@ async function diagnoseBlocker(
     throw new CliUsageError(`Attempt ${attemptId} is ${attempt.state} but has no recorded cause.`);
   }
 
-  const { events } = await client.events(attemptId, { afterSequence: 0, limit: 1_000 }, identity);
+  const { events } = await client.events(
+    attemptId,
+    { afterSequence: 0, limit: 1_000 },
+    client.createRetryIdentity(identity),
+  );
   const operationByStepId = new Map<string, string>();
   for (const event of events) {
     if (event.type === "step.created")
@@ -717,7 +730,7 @@ async function diagnoseBlocker(
     artifactCount: number;
   }> = [];
   try {
-    const verified = await client.verifyEvidence(attemptId, identity);
+    const verified = await client.verifyEvidence(attemptId, client.createRetryIdentity(identity));
     evidence = verified.evidence;
   } catch (error) {
     if (!(error instanceof CommandRemoteError) || error.code !== "evidence.not-found") throw error;

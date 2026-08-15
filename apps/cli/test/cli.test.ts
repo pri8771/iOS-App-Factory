@@ -722,15 +722,27 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(async (root) => await rm(root, { recursive: true })));
 });
 
-/** A minimal fake daemon that answers by request operation, for `runCli` end-to-end tests. */
+/**
+ * A minimal fake daemon that answers by request operation, for `runCli`
+ * end-to-end tests. It also mirrors the real daemon's per-requestId replay
+ * ledger (see apps/daemon/src/unix-command-server.ts RequestReplayLedger /
+ * logicalRequestFingerprint): reusing a requestId for a different logical
+ * request (different commandId/issuedAt/origin/operation/payload) fails the
+ * call with `protocol.request-id-conflict`, exactly like production. A
+ * client bug that reuses one identity across distinct calls -- such as
+ * apps/cli diagnoseBlocker once did across its status/events/verifyEvidence
+ * calls -- is caught here instead of only in production.
+ */
 async function startFakeDaemon(
   respond: (
     operation: string,
+    requestId: string,
   ) => Readonly<{ result: unknown } | { error: Readonly<Record<string, unknown>> }>,
 ): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "app-factory-cli-"));
   roots.push(root);
   const socketPath = join(root, "daemon.sock");
+  const seenRequestFingerprints = new Map<string, string>();
   const server = createServer((socket: Socket) => {
     let buffer = "";
     socket.on("data", (chunk: Buffer) => {
@@ -738,10 +750,39 @@ async function startFakeDaemon(
       const newline = buffer.indexOf("\n");
       if (newline < 0) return;
       const frame = JSON.parse(buffer.slice(0, newline)) as Readonly<{
-        requestId: unknown;
-        request: Readonly<{ operation: string }>;
+        requestId: string;
+        request: Readonly<{
+          commandId: unknown;
+          issuedAt: unknown;
+          origin: unknown;
+          operation: string;
+          payload: unknown;
+        }>;
       }>;
-      const outcome = respond(frame.request.operation);
+      const fingerprint = JSON.stringify({
+        commandId: frame.request.commandId,
+        issuedAt: frame.request.issuedAt,
+        origin: frame.request.origin,
+        operation: frame.request.operation,
+        payload: frame.request.payload,
+      });
+      const previousFingerprint = seenRequestFingerprints.get(frame.requestId);
+      if (previousFingerprint !== undefined && previousFingerprint !== fingerprint) {
+        const conflict = {
+          protocolVersion: 1,
+          requestId: frame.requestId,
+          ok: false,
+          error: {
+            code: "protocol.request-id-conflict",
+            message: "The request ID was already used for a different command.",
+            retryable: false,
+          },
+        };
+        socket.end(`${JSON.stringify(conflict)}\n`);
+        return;
+      }
+      seenRequestFingerprints.set(frame.requestId, fingerprint);
+      const outcome = respond(frame.request.operation, frame.requestId);
       const response =
         "result" in outcome
           ? { protocolVersion: 1, requestId: frame.requestId, ok: true, result: outcome.result }
@@ -1014,6 +1055,58 @@ describe("runCli attempt blocker diagnosis", () => {
     expect(stdout).toContain("code: task.execution-failed");
     expect(stdout).toContain("step: 00000000-0000-4000-8000-000000000009 (factory.verify)");
     expect(stdout).toContain("evidence: none recorded");
+  });
+
+  it("gives the status, events, and evidence calls each a distinct request identity", async () => {
+    // Regression test: diagnoseBlocker once reused one CommandIdentity (and
+    // therefore one requestId) across all three calls. The real daemon keys
+    // its replay/conflict ledger on requestId, so reusing it for different
+    // operations fails the second and third call with
+    // protocol.request-id-conflict -- the fake daemon above reproduces that
+    // exact check. This test both proves the three calls all succeed (which
+    // requires three distinct requestIds) and records the requestIds seen to
+    // assert directly on their distinctness.
+    const requestIdsByOperation = new Map<string, string[]>();
+    const socketPath = await startFakeDaemon((operation, requestId) => {
+      const seen = requestIdsByOperation.get(operation) ?? [];
+      seen.push(requestId);
+      requestIdsByOperation.set(operation, seen);
+      if (operation === "attempt.status") {
+        return { result: { operation: "attempt.status", attempt: blockedAttempt } };
+      }
+      if (operation === "attempt.events") {
+        return {
+          result: { operation: "attempt.events", events: [], nextAfterSequence: 0 },
+        };
+      }
+      if (operation === "evidence.verify") {
+        return {
+          error: {
+            code: "evidence.not-found",
+            message: "No evidence manifest exists for this attempt.",
+            retryable: false,
+          },
+        };
+      }
+      throw new Error(`Unexpected operation in test: ${operation}`);
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["blocker", ATTEMPT_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(captured().stderr).toBe("");
+    expect(exitCode).toBe(0);
+    const allRequestIds = [
+      ...(requestIdsByOperation.get("attempt.status") ?? []),
+      ...(requestIdsByOperation.get("attempt.events") ?? []),
+      ...(requestIdsByOperation.get("evidence.verify") ?? []),
+    ];
+    expect(allRequestIds).toHaveLength(3);
+    expect(new Set(allRequestIds).size).toBe(3);
   });
 });
 

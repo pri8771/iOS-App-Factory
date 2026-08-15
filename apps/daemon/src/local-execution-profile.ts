@@ -16,7 +16,12 @@ import {
   CODEX_SAFE_AGENT_ENVIRONMENT_NAMES,
   serializeCodexReportedResultJsonSchemaV1,
 } from "@app-factory/agent-runner";
-import { Sha256DigestSchema, type Sha256Digest } from "@app-factory/contracts";
+import {
+  AgentRunLimitsV1Schema,
+  Sha256DigestSchema,
+  type AgentRunLimitsV1,
+  type Sha256Digest,
+} from "@app-factory/contracts";
 
 import {
   CodexLocalAgentConfigurationError,
@@ -64,11 +69,76 @@ const REAL_IDENTITY_PROFILE_MODES: ReadonlySet<string> = new Set([
 const CONTAINMENT_ATTESTATION_LABEL = "The owner containment attestation";
 
 /**
+ * The agent run limits every Codex-backed profile mode used to hardcode
+ * verbatim (including `maxTurns: 1`, which made the T4 multi-turn agent
+ * runner unreachable through either profile). These are now only the
+ * defaults: `agentLimits` in the profile config may override any subset of
+ * them -- see {@link parseConfiguredAgentLimits} -- so an absent config key
+ * reproduces the exact previous hardcoded behavior.
+ */
+const DEFAULT_AGENT_LIMITS: AgentRunLimitsV1 = {
+  timeoutMs: 10 * 60_000,
+  terminationGraceMs: 5_000,
+  maxTurns: 1,
+  maxEventCount: 50_000,
+  maxStdoutBytes: 16_777_216,
+  maxStderrBytes: 16_777_216,
+};
+
+const AGENT_LIMIT_FIELD_KEYS = [
+  "timeoutMs",
+  "terminationGraceMs",
+  "maxTurns",
+  "maxEventCount",
+  "maxStdoutBytes",
+  "maxStderrBytes",
+] as const satisfies readonly (keyof AgentRunLimitsV1)[];
+
+/**
+ * Parses an optional, partial `agentLimits` override from profile config.
+ * Every field is independently optional and falls back to
+ * {@link DEFAULT_AGENT_LIMITS} when absent, so an existing config with no
+ * `agentLimits` key at all -- or one that only overrides `maxTurns` --
+ * behaves identically to before this override surface existed. Each
+ * supplied field is validated fail-closed against the exact same bounds the
+ * daemon later re-validates with ({@link AgentRunLimitsV1Schema}, the
+ * authoritative shape for what reaches the AgentRunSpec), so this can never
+ * accept a value the executor would then reject.
+ */
+function parseConfiguredAgentLimits(value: unknown): AgentRunLimitsV1 {
+  if (value === undefined) return DEFAULT_AGENT_LIMITS;
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    configurationError("agentLimits must be an object.");
+  }
+  const record = value as Readonly<Record<string, unknown>>;
+  const unknownKeys = Object.keys(record).filter(
+    (key) => !(AGENT_LIMIT_FIELD_KEYS as readonly string[]).includes(key),
+  );
+  if (unknownKeys.length > 0) {
+    configurationError(`agentLimits has unsupported field(s): ${unknownKeys.join(", ")}.`);
+  }
+  const resolved = { ...DEFAULT_AGENT_LIMITS };
+  for (const key of AGENT_LIMIT_FIELD_KEYS) {
+    if (record[key] === undefined) continue;
+    const parsed = AgentRunLimitsV1Schema.shape[key].safeParse(record[key]);
+    if (!parsed.success) {
+      configurationError(
+        `agentLimits.${key} is invalid: ${parsed.error.issues[0]?.message ?? "out of range"}.`,
+      );
+    }
+    resolved[key] = parsed.data;
+  }
+  return AgentRunLimitsV1Schema.parse(resolved);
+}
+
+/**
  * The Codex CLI identity fields shared by every Codex-backed profile mode:
  * the factory-owned executable path/digest, the pinned CLI version, model,
  * and Codex home. Each mode pairs these with its own source of project data
  * (a byte-pinned fixture file for `swift-greeter-codex-v1`, an enrolled
- * project configuration file for `enrolled-codex-v1`).
+ * project configuration file for `enrolled-codex-v1`), and both pair them
+ * with the same optional, config-driven {@link parseConfiguredAgentLimits}
+ * override surface.
  */
 type CodexAgentIdentityFieldsV1 = Readonly<{
   executable: string;
@@ -76,6 +146,7 @@ type CodexAgentIdentityFieldsV1 = Readonly<{
   expectedCliVersion: string;
   model: string;
   codexHome: string;
+  agentLimits: AgentRunLimitsV1;
 }>;
 
 type SwiftGreeterCodexProfileV1 = CodexAgentIdentityFieldsV1 &
@@ -255,17 +326,21 @@ function parseConfigurationObject(bytes: Buffer): Readonly<Record<string, unknow
   return parsed as Readonly<Record<string, unknown>>;
 }
 
+/**
+ * Requires every key in `expected` to be present and rejects any key outside
+ * `expected` plus `optional`. `optional` keys (e.g. `agentLimits`) may be
+ * omitted entirely -- unlike `expected` keys, their absence is not an error.
+ */
 function exactKeys(
   record: Readonly<Record<string, unknown>>,
   expected: readonly string[],
   message = "The local execution profile has an unsupported or non-exact shape.",
+  optional: readonly string[] = [],
 ): void {
-  const actual = Object.keys(record).sort();
-  const sortedExpected = [...expected].sort();
-  if (
-    actual.length !== sortedExpected.length ||
-    actual.some((key, index) => key !== sortedExpected[index])
-  ) {
+  const actual = new Set(Object.keys(record));
+  const missingRequired = expected.some((key) => !actual.has(key));
+  const unexpected = [...actual].some((key) => !expected.includes(key) && !optional.includes(key));
+  if (missingRequired || unexpected) {
     configurationError(message);
   }
 }
@@ -375,20 +450,26 @@ function parseCodexAgentIdentityFields(
     ),
     model: boundedPortableIdentifier(record.model, "model"),
     codexHome: normalizedAbsolutePath(record.codexHome, "codexHome"),
+    agentLimits: parseConfiguredAgentLimits(record.agentLimits),
   };
 }
 
 function parseCodexProfile(record: Readonly<Record<string, unknown>>): SwiftGreeterCodexProfileV1 {
-  exactKeys(record, [
-    "codexHome",
-    "executable",
-    "executableDigest",
-    "expectedCliVersion",
-    "fixtureConfigurationFile",
-    "mode",
-    "model",
-    "schemaVersion",
-  ]);
+  exactKeys(
+    record,
+    [
+      "codexHome",
+      "executable",
+      "executableDigest",
+      "expectedCliVersion",
+      "fixtureConfigurationFile",
+      "mode",
+      "model",
+      "schemaVersion",
+    ],
+    undefined,
+    ["agentLimits"],
+  );
   if (record.schemaVersion !== 1 || record.mode !== "swift-greeter-codex-v1") {
     configurationError("The local execution profile has an unsupported schema or mode.");
   }
@@ -406,16 +487,21 @@ function parseCodexProfile(record: Readonly<Record<string, unknown>>): SwiftGree
 function parseEnrolledCodexProfile(
   record: Readonly<Record<string, unknown>>,
 ): EnrolledCodexProfileV1 {
-  exactKeys(record, [
-    "codexHome",
-    "executable",
-    "executableDigest",
-    "expectedCliVersion",
-    "mode",
-    "model",
-    "projectConfigurationFile",
-    "schemaVersion",
-  ]);
+  exactKeys(
+    record,
+    [
+      "codexHome",
+      "executable",
+      "executableDigest",
+      "expectedCliVersion",
+      "mode",
+      "model",
+      "projectConfigurationFile",
+      "schemaVersion",
+    ],
+    undefined,
+    ["agentLimits"],
+  );
   if (record.schemaVersion !== 1 || record.mode !== "enrolled-codex-v1") {
     configurationError("The local execution profile has an unsupported schema or mode.");
   }
@@ -491,14 +577,7 @@ type BuiltCodexAgentFieldsV1 = Readonly<{
   requireAgentProtocolEvidence: true;
   agentInvocationEnvironmentNames: typeof CODEX_PROFILE_INVOCATION_ENVIRONMENT_NAMES;
   agentInvocationIdentity: TrustedAgentInvocationIdentityV1;
-  agentLimits: Readonly<{
-    timeoutMs: number;
-    terminationGraceMs: number;
-    maxTurns: number;
-    maxEventCount: number;
-    maxStdoutBytes: number;
-    maxStderrBytes: number;
-  }>;
+  agentLimits: AgentRunLimitsV1;
 }>;
 
 /**
@@ -594,14 +673,7 @@ async function buildCodexAgentForProject(
       cliVersion: profile.expectedCliVersion,
       model: profile.model,
     },
-    agentLimits: {
-      timeoutMs: 10 * 60_000,
-      terminationGraceMs: 5_000,
-      maxTurns: 1,
-      maxEventCount: 50_000,
-      maxStdoutBytes: 16_777_216,
-      maxStderrBytes: 16_777_216,
-    },
+    agentLimits: profile.agentLimits,
   };
 }
 
