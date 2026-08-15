@@ -27,6 +27,13 @@ export const ReleaseStageV1Schema = z.enum([
 ]);
 export type ReleaseStageV1 = z.infer<typeof ReleaseStageV1Schema>;
 
+/**
+ * The single source of truth for release-stage sequencing. The per-stage
+ * evidence gate below and `assertReleaseAdvancement` both derive from this
+ * so the enum, the gate, and the transition rule cannot drift apart.
+ */
+export const RELEASE_STAGE_ORDER_V1: readonly ReleaseStageV1[] = ReleaseStageV1Schema.options;
+
 export const QualityCheckResultV1Schema = z.strictObject({
   checkId: NamespacedCodeSchema,
   status: z.enum(["passed", "failed", "blocked"]),
@@ -88,11 +95,14 @@ export const ReleaseManifestV1Schema = z
     stage: ReleaseStageV1Schema,
     candidate: z.strictObject({
       commit: GitObjectIdSchema,
+      tree: GitObjectIdSchema,
       cleanTree: z.literal(true),
       policyDigest: Sha256DigestSchema,
+      releaseContractDigest: Sha256DigestSchema,
       experienceManifestDigest: Sha256DigestSchema,
       qualityReportDigest: Sha256DigestSchema,
       evidenceManifestDigest: Sha256DigestSchema,
+      findingLedgerDigest: Sha256DigestSchema,
     }),
     ios: z.strictObject({
       bundleId: z
@@ -108,37 +118,45 @@ export const ReleaseManifestV1Schema = z
     archiveDigest: Sha256DigestSchema.nullable(),
     exportedArtifactDigest: Sha256DigestSchema.nullable(),
     appStoreBuildId: z.string().min(1).max(500).nullable(),
+    internalTestFlightAvailableAt: IsoInstantSchema.nullable(),
+    deviceSmokeEvidenceDigest: Sha256DigestSchema.nullable(),
     approvals: z.array(ApprovalIdSchema).max(100),
     lifecycleEventKeys: z.array(StableKeySchema).max(100),
     createdAt: IsoInstantSchema,
     updatedAt: IsoInstantSchema,
   })
   .superRefine((release, context) => {
-    const stages = [
-      "candidate",
-      "certified",
-      "archived",
-      "upload-approved",
-      "uploaded",
-      "processing",
+    const rank = RELEASE_STAGE_ORDER_V1.indexOf(release.stage);
+    const gate = (
+      field:
+        | "archiveDigest"
+        | "appStoreBuildId"
+        | "internalTestFlightAvailableAt"
+        | "deviceSmokeEvidenceDigest",
+      atOrAfterStage: ReleaseStageV1,
+      label: string,
+    ) => {
+      const threshold = RELEASE_STAGE_ORDER_V1.indexOf(atOrAfterStage);
+      const value = release[field];
+      if (rank >= threshold && value === null) {
+        context.addIssue({ code: "custom", path: [field], message: `${label} is required` });
+      }
+      if (rank < threshold && value !== null) {
+        context.addIssue({
+          code: "custom",
+          path: [field],
+          message: `${label} is not yet available`,
+        });
+      }
+    };
+    gate("archiveDigest", "archived", "archive digest");
+    gate("appStoreBuildId", "uploaded", "App Store build ID");
+    gate(
+      "internalTestFlightAvailableAt",
       "internal-testflight-available",
-      "device-smoke-passed",
-    ] as const;
-    const rank = stages.indexOf(release.stage);
-    if (rank >= stages.indexOf("archived") && release.archiveDigest === null) {
-      context.addIssue({
-        code: "custom",
-        path: ["archiveDigest"],
-        message: "archive digest is required",
-      });
-    }
-    if (rank >= stages.indexOf("uploaded") && release.appStoreBuildId === null) {
-      context.addIssue({
-        code: "custom",
-        path: ["appStoreBuildId"],
-        message: "App Store build ID is required",
-      });
-    }
+      "TestFlight availability time",
+    );
+    gate("deviceSmokeEvidenceDigest", "device-smoke-passed", "device smoke evidence digest");
     if (release.updatedAt < release.createdAt) {
       context.addIssue({
         code: "custom",
@@ -151,3 +169,64 @@ export const ReleaseManifestV1Schema = z
     }
   });
 export type ReleaseManifestV1 = z.infer<typeof ReleaseManifestV1Schema>;
+
+export class ReleaseAdvancementError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "ReleaseAdvancementError";
+  }
+}
+
+const RELEASE_IMMUTABLE_SCALAR_KEYS = [
+  "releaseId",
+  "projectId",
+  "profile",
+  "target",
+  "metadataDigest",
+] as const;
+
+const RELEASE_IMMUTABLE_OBJECT_KEYS = ["candidate", "ios"] as const;
+
+/**
+ * Enforces the release state-machine transition invariants across all eight
+ * stages: exactly one stage of advancement, an unchanged release identity
+ * (candidate cut and iOS target), and strictly-growing approvals with at
+ * least one new approval per stage. This is the canonical replacement for
+ * quality's former, narrower `assertCertificationAdvancement`; downstream
+ * packages project a read view from a `ReleaseManifestV1` rather than
+ * tracking a second, independently advancing stage.
+ */
+export function assertReleaseAdvancement(
+  previousInput: unknown,
+  nextInput: unknown,
+): ReleaseManifestV1 {
+  const previous = ReleaseManifestV1Schema.parse(previousInput);
+  const next = ReleaseManifestV1Schema.parse(nextInput);
+  const previousIndex = RELEASE_STAGE_ORDER_V1.indexOf(previous.stage);
+  const nextIndex = RELEASE_STAGE_ORDER_V1.indexOf(next.stage);
+  if (nextIndex !== previousIndex + 1) {
+    throw new ReleaseAdvancementError(
+      `Release must advance exactly one stage from ${previous.stage}`,
+    );
+  }
+  for (const key of RELEASE_IMMUTABLE_SCALAR_KEYS) {
+    if (previous[key] !== next[key]) {
+      throw new ReleaseAdvancementError(`Release changed immutable field ${key}`);
+    }
+  }
+  for (const key of RELEASE_IMMUTABLE_OBJECT_KEYS) {
+    if (JSON.stringify(previous[key]) !== JSON.stringify(next[key])) {
+      throw new ReleaseAdvancementError(`Release changed immutable field ${key}`);
+    }
+  }
+  // `ReleaseManifestV1Schema.parse` above already rejects a duplicate entry
+  // within a single object's `approvals`, so only the relational invariants
+  // - nothing removed, and the count strictly grew - remain to check here.
+  if (previous.approvals.some((approvalId) => !next.approvals.includes(approvalId))) {
+    throw new ReleaseAdvancementError("Release advancement removed an earlier approval");
+  }
+  if (next.approvals.length <= previous.approvals.length) {
+    throw new ReleaseAdvancementError("Each release stage requires a new approval");
+  }
+  return next;
+}
