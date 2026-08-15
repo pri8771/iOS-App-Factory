@@ -21,6 +21,7 @@
     "@app-factory/adapter-sdk": "workspace:*",
     "@app-factory/contracts": "workspace:*",
     "@app-factory/evidence-store": "workspace:*",
-    "@app-factory/kernel": "workspace:*"
+    "@app-factory/kernel": "workspace:*",
+    "@app-factory/work-tracking-integrations": "workspace:*"
   }
 }

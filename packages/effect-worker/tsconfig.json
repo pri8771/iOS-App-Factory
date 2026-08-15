@@ -12,6 +12,7 @@
     { "path": "../adapter-sdk" },
     { "path": "../contracts" },
     { "path": "../evidence-store" },
-    { "path": "../kernel" }
+    { "path": "../kernel" },
+    { "path": "../work-tracking-integrations" }
   ]
 }

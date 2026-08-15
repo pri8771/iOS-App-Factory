@@ -171,6 +171,9 @@ importers:
       '@app-factory/kernel':
         specifier: workspace:*
         version: link:../kernel
+      '@app-factory/work-tracking-integrations':
+        specifier: workspace:*
+        version: link:../work-tracking-integrations
 
   packages/evidence-store:
     dependencies:

@@ -19,6 +19,13 @@ import {
   type RequiredCapabilityV1,
 } from "./preflight.js";
 
+/**
+ * `jira.issue-link.ensure` and `jira.github.attach` remain declared here as
+ * recognized vocabulary (the correlation/resourceType plumbing below still
+ * names them) but `createProjectProvisionPlan` deliberately never emits
+ * either one. See the comment above `createProjectProvisionPlan` for why,
+ * and do not re-add call sites that construct them for a v1 plan.
+ */
 export type ProvisionAction =
   | "jira.project.ensure"
   | "github.repository.ensure"
@@ -392,33 +399,22 @@ export function createProjectProvisionPlan(value: unknown): ProjectProvisionPlan
       `op_${digestCanonical(logicalIdentity).slice("sha256:".length, "sha256:".length + 32)}`,
     );
   }
-  const linkOperations: ProvisionOperationV1[] = [];
-  for (const task of spec.epics.flatMap((epic) => epic.tasks)) {
-    const targetOperationId = taskOperationIdentities.get(task.logicalId);
-    if (targetOperationId === undefined) fail("task link construction failed");
-    for (const dependency of task.dependsOn) {
-      const dependencyOperationId = taskOperationIdentities.get(dependency);
-      if (dependencyOperationId === undefined) fail("task link construction failed");
-      linkOperations.push(
-        makeOperation({
-          provider: "jira",
-          action: "jira.issue-link.ensure",
-          projectId: spec.projectId,
-          containerKey: jiraContainer,
-          logicalKey: `${dependency}->${task.logicalId}:blocks`,
-          resourceKey: `${jiraContainer}:link:${dependency}:blocks:${task.logicalId}`,
-          dependsOnOperationIds: [dependencyOperationId, targetOperationId],
-          payload: {
-            projectId: spec.projectId,
-            projectKey: spec.jira.projectKey,
-            inwardLogicalId: dependency,
-            outwardLogicalId: task.logicalId,
-            linkType: "blocks",
-          },
-        }),
-      );
-    }
-  }
+  // v1 plans deliberately do not emit "jira.issue-link.ensure" operations.
+  // Task-to-task ordering is still fully captured: each jira.issue.ensure
+  // operation below already lists its sibling issue operations in
+  // dependsOnOperationIds, so the provisioning DAG is complete without a
+  // visible Jira "blocks" link. Adding the link back would only restore the
+  // human-visible Jira link, and provider-http-adapters' Jira adapter
+  // refuses to send or reconcile that action before any I/O: Jira issue
+  // links have no entity-property (or other) surface to hold the v1
+  // operation marker, so the adapter cannot durably prove "this exact link
+  // was already created" and safely skip a duplicate on retry/resume. See
+  // `case "jira.issue-link.ensure"` in packages/provider-http-adapters/src/jira.ts.
+  // Re-introducing this action requires a correlation surface that does not
+  // depend on a marker-bearing property (e.g. correlating by the immutable
+  // (linkType, inwardIssueKey, outwardIssueKey) tuple observed on the
+  // issue's own `issuelinks` field) plus matching adapter send/reconcile
+  // support - a real feature, not a one-line re-add.
   const taskOperations: ProvisionOperationV1[] = [];
   for (const epic of spec.epics) {
     const epicOperation = epicOperations.get(epic.logicalId);
@@ -456,27 +452,25 @@ export function createProjectProvisionPlan(value: unknown): ProjectProvisionPlan
       );
     }
   }
-  const attachmentOperation = makeOperation({
-    provider: "jira",
-    action: "jira.github.attach",
-    projectId: spec.projectId,
-    containerKey: jiraContainer,
-    logicalKey: githubContainer,
-    resourceKey: `${jiraContainer}:repository:${githubContainer}`,
-    dependsOnOperationIds: [projectOperation.operationId, repositoryOperation.operationId],
-    payload: {
-      projectId: spec.projectId,
-      projectKey: spec.jira.projectKey,
-      repository: githubContainer,
-    },
-  });
+  // v1 plans deliberately do not emit a "jira.github.attach" operation
+  // either. Jira remote links are issue-scoped
+  // (POST /rest/api/3/issue/{issueIdOrKey}/remotelink) but this plan's repo
+  // attachment intent is project/repository-scoped only - there is no task
+  // or epic issue in scope that is *the* correct anchor. Provider-http-
+  // adapters' Jira adapter refuses this before any I/O for exactly that
+  // reason: picking an issue on the adapter's own initiative would attach
+  // the remote link to a resource the original approval never named,
+  // silently widening what was approved. See `case "jira.github.attach"` in
+  // packages/provider-http-adapters/src/jira.ts. Re-introducing this
+  // operation needs a product decision about which issue (or new project-
+  // level concept) legitimately owns the repository link, captured as an
+  // explicit field on ProjectProvisionSpecV1/ProjectEpicSpecV1 - not a
+  // correlation-contract tweak.
   const operations = [
     projectOperation,
     repositoryOperation,
     ...epicOperations.values(),
     ...taskOperations,
-    ...linkOperations,
-    attachmentOperation,
   ].sort((left, right) =>
     compare(`${left.action}:${left.resourceKey}`, `${right.action}:${right.resourceKey}`),
   );

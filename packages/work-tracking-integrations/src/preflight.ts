@@ -239,14 +239,21 @@ export function normalizeCapabilityPreflight(
   };
 }
 
+/**
+ * "jira.issue.link" and "jira.remote-link.create" are intentionally absent:
+ * `createProjectProvisionPlan` (plan.ts) never emits the "jira.issue-link.ensure"
+ * or "jira.github.attach" operations those capabilities would gate, so
+ * requiring them here would block readiness forever on a capability no v1
+ * plan actually needs. See the comments above `createProjectProvisionPlan`
+ * for why those two operations are excluded. If they are ever reintroduced,
+ * add their capabilities back here in the same change.
+ */
 export function requiredCapabilitiesForProvisioning(): readonly RequiredCapabilityV1[] {
   return [
     { provider: "github", capability: "github.repository.create" },
     { provider: "github", capability: "github.repository.read" },
     { provider: "jira", capability: "jira.issue.create" },
-    { provider: "jira", capability: "jira.issue.link" },
     { provider: "jira", capability: "jira.project.create" },
-    { provider: "jira", capability: "jira.remote-link.create" },
   ];
 }
 
