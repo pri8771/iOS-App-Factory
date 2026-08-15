@@ -22,27 +22,51 @@ chat / CLI / dashboard
 
 ## Repository layout
 
+This is a full listing of `apps/` (4) and `packages/` (29), one line each,
+regenerated from the current tree — see [`docs/progress/IMPLEMENTATION_STATUS.md`](docs/progress/IMPLEMENTATION_STATUS.md)
+for which of these are wired into a runnable path versus dormant/contracts-only.
+
 ```text
 apps/
-  cli/             command-line client
-  daemon/          singleton local scheduler and command broker
-  mcp/             stdio bridge for supported local AI clients
-  dashboard/       local web control surface
+  cli/        thin client for the typed daemon command service
+  daemon/     singleton local scheduler, command broker, and SQLite owner
+  dashboard/  loopback-only local web control surface over the command client
+  mcp/        stdio MCP bridge for Claude, Codex, Cursor, and other hosts
 packages/
-  contracts/       versioned commands, events, manifests, and schemas
-  kernel/          SQLite execution state, leases, approvals, and outbox
-  command-client/  typed authenticated client used by CLI, MCP, and dashboard
-  process-supervisor/ per-attempt process and recovery boundary
-  agent-runner/     credential-minimized Codex process adapter
-  adapter-sdk/      Jira, GitHub, Apple, and provider integration ports
-  provider-http-adapters/ strict Jira Cloud/GitHub requests and reconciliation
-  module-sdk/       lifecycle/event modules and optional UI contributions
-  quality/          deterministic verification and evidence contracts
-  project-sdk/      enrollment and project capability contracts
-  testkit/          crash, adapter, fixture, and conformance utilities
+  adapter-sdk/                 provider-neutral effect-adapter boundary and capability preflight
+  agent-runner/                credential-isolated headless Codex/Claude process adapters
+  command-client/              typed daemon client shared by the CLI, MCP, and dashboard
+  contracts/                   versioned command/event schemas and generated TypeScript types
+  credential-broker/           just-in-time macOS Keychain reads, never exposed to agents
+  effect-worker/               claims the durable outbox and calls external-provider adapters
+  evidence-store/              immutable, content-addressed evidence blobs and manifests
+  execution-engine/            verifies and commits agent-produced trees to Git
+  git-workspace/               Git isolation, deterministic worktrees, and protected-path policy
+  independent-review/          digest-bound, read-only review request/report validation
+  kernel/                      SQLite execution state, leases, approvals, and outbox
+  learning-engine/             turns closed findings into reviewable lesson proposals
+  module-sdk/                  lifecycle/event modules and optional UI contributions
+  oci-runner/                  Factory-owned coding-plane containment primitive (no-network slice)
+  policy-engine/               compiles versioned policy into AGENTS.md and a digest-bound lock
+  portfolio/                   provider-neutral multi-project read model and work scheduler
+  process-supervisor/          per-attempt process fencing, events, and orphan recovery
+  project-sdk/                 read-only discovery and enrollment planning for existing projects
+  provider-http-adapters/      strict Jira Cloud REST / GitHub GraphQL adapters
+  provider-transport/          fetch-based HTTP transport enforcing credential scope and deadlines
+  quality/                     deterministic verification, evidence indexes, release certification
+  recovery-manager/            integrity-bound control-plane recovery bundle create/restore
+  scheduler/                   restart-safe prepare/execute/verify attempt scheduler
+  service-manager/             deterministic macOS LaunchAgent plan for the Factory daemon
+  simulator-runner/            plans and executes lease-bound iOS Simulator test sessions
+  testkit/                     shared fixtures/harnesses for crash, fake-effect, and conformance tests
+  trusted-verifier/            runs a pre-approved deterministic check in a separate clean checkout
+  website-lifecycle/           plans an approval-required website PR on TestFlight availability
+  work-tracking-integrations/  provider-neutral Jira/GitHub planning and read-only observation
 docs/
   architecture/    decisions and system boundaries
-  roadmap/         dependency-ordered delivery stages
+  operations/      dated operator procedures and verification evidence
+  progress/        current implementation and enrollment status ledgers
+  roadmap/         capability-staged delivery plan and historical planning baseline
 ```
 
 ## Runtime principles
@@ -56,7 +80,7 @@ docs/
 
 See [docs/roadmap/BUILD_STAGES.md](docs/roadmap/BUILD_STAGES.md) for the build
 order, [docs/progress/IMPLEMENTATION_STATUS.md](docs/progress/IMPLEMENTATION_STATUS.md)
-for the honest Weeks 1–16 implementation ledger, and
+for the honest capability implementation ledger, and
 [docs/OPERATOR_RUNBOOK.md](docs/OPERATOR_RUNBOOK.md) for the supported local
 operator flow. The daemon is fake-by-default; its only current real-toolchain
 profile is the exact deterministic Swift Greeter conformance slice documented

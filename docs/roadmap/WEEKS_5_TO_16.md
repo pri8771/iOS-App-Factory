@@ -7,6 +7,17 @@ Primary outcome: one new Factory-certified Hindsight build available in Internal
 
 Detailed Jira-ready tasks and subtasks: `DETAILED_BACKLOG_WEEKS_5_TO_16.md`
 
+> **2026-08-14 re-baseline note:** This document is preserved as the original
+> historical planning baseline. Its task breakdown and exit-gate intent
+> remain accurate engineering content, but the Week 5–16 calendar above is no
+> longer being tracked as a live schedule — implementation order and pace
+> diverged from it (see `BUILD_STAGES.md`'s own re-baseline note for how
+> early that divergence started). [`BUILD_STAGES.md`](BUILD_STAGES.md) is the
+> current authoritative capability-stage sequencing (this document's scope
+> maps roughly onto Stages 3–8), and
+> [`docs/progress/IMPLEMENTATION_STATUS.md`](../progress/IMPLEMENTATION_STATUS.md)
+> is the current authoritative status ledger.
+
 ## Honest finish line
 
 By the end of Week 16, the Factory should have:

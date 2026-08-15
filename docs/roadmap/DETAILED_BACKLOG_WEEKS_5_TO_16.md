@@ -4,6 +4,15 @@ Status: proposed Jira-ready implementation backlog
 Dates: September 7–November 27, 2026  
 Parent roadmap: `WEEKS_5_TO_16.md`
 
+> **2026-08-14 re-baseline note:** This document is preserved as the original
+> historical planning baseline. Its `AF-Wxx-yy` task breakdown remains
+> accurate engineering content, but the calendar dates above are no longer
+> tracked as a live schedule — see the re-baseline notes in `BUILD_STAGES.md`
+> and `WEEKS_5_TO_16.md` for why. [`BUILD_STAGES.md`](BUILD_STAGES.md) is the
+> current authoritative capability-stage sequencing, and
+> [`docs/progress/IMPLEMENTATION_STATUS.md`](../progress/IMPLEMENTATION_STATUS.md)
+> is the current authoritative status ledger.
+
 ## How to use this backlog
 
 - An `AF-Wxx-yy` item is normally one Jira Task/Story and one reviewable PR.

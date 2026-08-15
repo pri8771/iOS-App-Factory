@@ -21,7 +21,8 @@ pnpm --filter @app-factory/oci-runner test
 ```
 
 The corrected package-local test script is authoritative for this focused
-suite. Its latest run passed 154 of 154 tests.
+suite. Recounted 2026-08-14 (`pnpm --filter @app-factory/oci-runner test`,
+run twice for stability): 184 of 184 tests passed, across 5 test files.
 
 The suite uses fake lifecycle engines and an injected Docker command transport
 to validate:

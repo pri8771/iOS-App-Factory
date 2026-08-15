@@ -4,6 +4,16 @@ Status: proposed implementation baseline
 Dates: August 10–September 4, 2026 (20 focused working days)  
 Primary commitment: one restart-safe local Codex coding slice against a protected Swift fixture
 
+> **2026-08-14 re-baseline note:** This document is preserved as the original
+> historical planning baseline. Its task breakdown and exit-gate intent
+> remain accurate engineering content, but the Week 1–4 calendar above is no
+> longer being tracked as a live schedule — implementation order and pace
+> diverged from it. [`BUILD_STAGES.md`](BUILD_STAGES.md) is the current
+> authoritative capability-stage sequencing (this document's scope maps
+> roughly onto Stages 0–2), and
+> [`docs/progress/IMPLEMENTATION_STATUS.md`](../progress/IMPLEMENTATION_STATUS.md)
+> is the current authoritative status ledger.
+
 ## What four weeks will prove
 
 At the end of this period, the Factory must be able to do this:

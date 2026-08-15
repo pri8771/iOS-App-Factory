@@ -12,9 +12,16 @@ checkout, performs independent review, creates one local broker commit, and
 publishes immutable evidence. That profile is deliberately not a general Codex
 runner. Neither mode edits an enrolled app, opens a PR, or uploads to TestFlight.
 
-Codex conformance components exist for no-network fake-executable development,
-but the operator entrypoint cannot select them. Do not point them at a real
-model or add a launch path until the containment contract in
+Codex conformance components exist for no-network fake-executable development.
+As of 2026-08-14 the operator entrypoint _can_ select a real-identity Codex
+profile (`swift-greeter-codex-v1` or the config-driven `enrolled-codex-v1`),
+gated behind a required owner containment attestation
+(`APP_FACTORY_CONTAINMENT_ATTESTATION`; see
+[`docs/progress/IMPLEMENTATION_STATUS.md`](progress/IMPLEMENTATION_STATUS.md)
+and the recorded
+[containment attestation](operations/containment-attestation-2026-08-14.json)).
+No paid or real-model run has occurred yet. Do not point either mode at a
+real model or add a new launch path until the containment contract in
 [`ADR 0002`](architecture/0002-untrusted-agent-containment.md) passes.
 The dormant OCI slice has a separate
 [no-network contract-validation procedure](operations/oci-no-network-validation.md);
