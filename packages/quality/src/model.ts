@@ -4,6 +4,7 @@ import {
   ApprovalIdSchema,
   GitObjectIdSchema,
   IsoInstantSchema,
+  NamespacedCodeSchema,
   ProjectIdSchema,
   ReleaseIdSchema,
   RelativePathSchema,
@@ -158,11 +159,15 @@ export const QualityFindingV1Schema = z.strictObject({
 });
 export type QualityFindingV1 = z.infer<typeof QualityFindingV1Schema>;
 
+// `profile` intentionally reuses contracts' general NamespacedCodeSchema
+// (not a fixed literal): this shape is always produced by projecting a
+// `ReleaseManifestV1`, whose own `profile` is a NamespacedCode, so the
+// projection must accept whatever contracts allows.
 const CertificationEnvelopeV1Shape = {
   schemaVersion: SchemaVersionV1Schema,
   releaseId: ReleaseIdSchema,
   projectId: ProjectIdSchema,
-  profile: z.literal("ios-internal-testflight-v1"),
+  profile: NamespacedCodeSchema,
   gitCommit: GitObjectIdSchema,
   gitTree: GitObjectIdSchema,
   cleanTree: z.literal(true),
@@ -175,10 +180,26 @@ const CertificationEnvelopeV1Shape = {
   generatedAt: IsoInstantSchema,
 };
 
+// One arm per `ReleaseStageV1` value in `@app-factory/contracts`
+// (packages/contracts/src/v1/release.ts). CertificationV1 is a read
+// projection of a ReleaseManifestV1 (see certification.ts,
+// `projectCertificationV1`): it must keep exactly the same eight stages, in
+// the same order, with a nullability signature for archiveDigest /
+// appStoreBuildId / testFlightInstalledAt / deviceSmokeEvidenceDigest that
+// matches the source schema's per-stage evidence gate. If contracts' stage
+// list ever changes, this union must change with it.
 export const CertificationV1Schema = z.discriminatedUnion("stage", [
   z.strictObject({
     ...CertificationEnvelopeV1Shape,
     stage: z.literal("candidate"),
+    archiveDigest: z.null(),
+    appStoreBuildId: z.null(),
+    testFlightInstalledAt: z.null(),
+    deviceSmokeEvidenceDigest: z.null(),
+  }),
+  z.strictObject({
+    ...CertificationEnvelopeV1Shape,
+    stage: z.literal("certified"),
     archiveDigest: z.null(),
     appStoreBuildId: z.null(),
     testFlightInstalledAt: z.null(),
@@ -194,10 +215,34 @@ export const CertificationV1Schema = z.discriminatedUnion("stage", [
   }),
   z.strictObject({
     ...CertificationEnvelopeV1Shape,
+    stage: z.literal("upload-approved"),
+    archiveDigest: Sha256DigestSchema,
+    appStoreBuildId: z.null(),
+    testFlightInstalledAt: z.null(),
+    deviceSmokeEvidenceDigest: z.null(),
+  }),
+  z.strictObject({
+    ...CertificationEnvelopeV1Shape,
     stage: z.literal("uploaded"),
     archiveDigest: Sha256DigestSchema,
     appStoreBuildId: z.string().min(1).max(500),
     testFlightInstalledAt: z.null(),
+    deviceSmokeEvidenceDigest: z.null(),
+  }),
+  z.strictObject({
+    ...CertificationEnvelopeV1Shape,
+    stage: z.literal("processing"),
+    archiveDigest: Sha256DigestSchema,
+    appStoreBuildId: z.string().min(1).max(500),
+    testFlightInstalledAt: z.null(),
+    deviceSmokeEvidenceDigest: z.null(),
+  }),
+  z.strictObject({
+    ...CertificationEnvelopeV1Shape,
+    stage: z.literal("internal-testflight-available"),
+    archiveDigest: Sha256DigestSchema,
+    appStoreBuildId: z.string().min(1).max(500),
+    testFlightInstalledAt: IsoInstantSchema,
     deviceSmokeEvidenceDigest: z.null(),
   }),
   z.strictObject({

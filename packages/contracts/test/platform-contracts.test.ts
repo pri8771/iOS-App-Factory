@@ -180,11 +180,14 @@ describe("platform contracts", () => {
       target: "ios-internal-testflight",
       candidate: {
         commit: "a".repeat(40),
+        tree: "b".repeat(40),
         cleanTree: true,
         policyDigest: DIGEST_A,
+        releaseContractDigest: DIGEST_A,
         experienceManifestDigest: DIGEST_B,
         qualityReportDigest: DIGEST_A,
         evidenceManifestDigest: DIGEST_B,
+        findingLedgerDigest: DIGEST_B,
       },
       ios: {
         bundleId: "com.example.hindsight",
@@ -194,6 +197,8 @@ describe("platform contracts", () => {
       },
       metadataDigest: DIGEST_A,
       exportedArtifactDigest: null,
+      internalTestFlightAvailableAt: null,
+      deviceSmokeEvidenceDigest: null,
       approvals: [APPROVAL_ID],
       lifecycleEventKeys: [],
       createdAt: NOW,

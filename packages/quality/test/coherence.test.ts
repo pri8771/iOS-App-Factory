@@ -3,12 +3,19 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
-  assertCertificationAdvancement,
+  RELEASE_STAGE_ORDER_V1,
+  ReleaseManifestV1Schema,
+  assertReleaseAdvancement,
+  type ReleaseManifestV1,
+  type ReleaseStageV1,
+} from "@app-factory/contracts";
+
+import {
   CertificationError,
   evaluateExperienceCoherence,
+  projectCertificationV1,
   qualityDigest,
   verifyCertification,
-  type CertificationV1,
   type ExperienceManifestV1,
   type QualityFindingV1,
   type ReleaseContractV1,
@@ -206,37 +213,71 @@ describe("whole-product experience coherence", () => {
   });
 });
 
-function certificate(
+function releaseManifest(
   contract: ReleaseContractV1,
   experience: ExperienceManifestV1,
   findings: readonly QualityFindingV1[],
-  overrides: Partial<CertificationV1> = {},
-): CertificationV1 {
-  return {
+  overrides: Partial<ReleaseManifestV1> = {},
+): ReleaseManifestV1 {
+  return ReleaseManifestV1Schema.parse({
     schemaVersion: 1,
-    stage: "candidate",
     releaseId: randomUUID(),
     projectId: PROJECT_ID,
     profile: "ios-internal-testflight-v1",
-    gitCommit: "a".repeat(40),
-    gitTree: "b".repeat(40),
-    cleanTree: true,
-    policyDigest: contract.policyDigest,
-    releaseContractDigest: qualityDigest(contract),
-    experienceManifestDigest: qualityDigest(experience),
-    evidenceManifestDigest: DIGEST,
-    findingLedgerDigest: qualityDigest(findings),
-    approvalIds: [randomUUID()],
-    generatedAt: "2026-08-10T12:00:00.000Z",
+    target: "ios-internal-testflight",
+    stage: "candidate",
+    candidate: {
+      commit: "a".repeat(40),
+      tree: "b".repeat(40),
+      cleanTree: true,
+      policyDigest: contract.policyDigest,
+      releaseContractDigest: qualityDigest(contract),
+      experienceManifestDigest: qualityDigest(experience),
+      qualityReportDigest: DIGEST,
+      evidenceManifestDigest: DIGEST,
+      findingLedgerDigest: qualityDigest(findings),
+    },
+    ios: {
+      bundleId: "com.example.hindsight",
+      marketingVersion: "1.0",
+      buildNumber: "1",
+      testerGroup: "Internal",
+    },
+    metadataDigest: DIGEST,
     archiveDigest: null,
+    exportedArtifactDigest: null,
     appStoreBuildId: null,
-    testFlightInstalledAt: null,
+    internalTestFlightAvailableAt: null,
     deviceSmokeEvidenceDigest: null,
+    approvals: [randomUUID()],
+    lifecycleEventKeys: [],
+    createdAt: "2026-08-10T12:00:00.000Z",
+    updatedAt: "2026-08-10T12:00:00.000Z",
     ...overrides,
-  } as CertificationV1;
+  });
 }
 
-describe("SHA-bound release certification", () => {
+const EVIDENCE_BY_STAGE: Record<ReleaseStageV1, Partial<ReleaseManifestV1>> = {
+  candidate: {},
+  certified: {},
+  archived: { archiveDigest: SCREENSHOT },
+  "upload-approved": { archiveDigest: SCREENSHOT },
+  uploaded: { archiveDigest: SCREENSHOT, appStoreBuildId: "42" },
+  processing: { archiveDigest: SCREENSHOT, appStoreBuildId: "42" },
+  "internal-testflight-available": {
+    archiveDigest: SCREENSHOT,
+    appStoreBuildId: "42",
+    internalTestFlightAvailableAt: "2026-08-10T12:05:00.000Z",
+  },
+  "device-smoke-passed": {
+    archiveDigest: SCREENSHOT,
+    appStoreBuildId: "42",
+    internalTestFlightAvailableAt: "2026-08-10T12:05:00.000Z",
+    deviceSmokeEvidenceDigest: SCREENSHOT,
+  },
+};
+
+describe("release-manifest-bound certification projection", () => {
   it("certifies only the exact coherent contract, inventory, and finding ledger", () => {
     const contract = release();
     const experience = manifest(contract);
@@ -247,50 +288,136 @@ describe("SHA-bound release certification", () => {
       staticUi: [],
       observedAt: "2026-08-10T12:00:00.000Z",
     });
-    const value = certificate(contract, experience, []);
+    const value = releaseManifest(contract, experience, []);
     expect(
       verifyCertification({
-        certification: value,
+        releaseManifest: value,
         releaseContract: contract,
         experienceManifest: experience,
         coherence,
         findingLedger: [],
       }),
-    ).toEqual(value);
-    expect(() =>
+    ).toEqual(projectCertificationV1(value));
+    const tampered = () =>
       verifyCertification({
-        certification: { ...value, experienceManifestDigest: DIGEST },
+        releaseManifest: {
+          ...value,
+          candidate: { ...value.candidate, experienceManifestDigest: DIGEST },
+        },
         releaseContract: contract,
         experienceManifest: experience,
         coherence,
         findingLedger: [],
-      }),
-    ).toThrow(/exact experience manifest/);
+      });
+    expect(tampered).toThrow(CertificationError);
+    expect(tampered).toThrow(/exact experience manifest/);
   });
 
-  it("requires sequential immutable promotion with a new approval at each stage", () => {
+  it("rejects a release bound to an open blocking finding", () => {
     const contract = release();
     const experience = manifest(contract);
-    const candidate = certificate(contract, experience, []);
-    const archived = {
-      ...candidate,
-      stage: "archived",
+    const coherence = evaluateExperienceCoherence({
+      releaseContract: contract,
+      experienceManifest: experience,
+      runtimeLineage: runtime(),
+      staticUi: [],
+      observedAt: "2026-08-10T12:00:00.000Z",
+    });
+    const findings: QualityFindingV1[] = [
+      {
+        schemaVersion: 1,
+        findingId: `qf-${"1".repeat(24)}`,
+        fingerprint: DIGEST,
+        ruleId: "quality.manual.blocker",
+        severity: "p0",
+        routeId: null,
+        stateId: null,
+        path: null,
+        summary: "Unresolved p0 blocker.",
+        rootCause: null,
+        escapedGate: null,
+        regressionId: null,
+        lessonScope: null,
+        evidenceDigests: [],
+        status: "open",
+      },
+    ];
+    const value = releaseManifest(contract, experience, findings);
+    expect(() =>
+      verifyCertification({
+        releaseManifest: value,
+        releaseContract: contract,
+        experienceManifest: experience,
+        coherence,
+        findingLedger: findings,
+      }),
+    ).toThrow(/unresolved release blocker/);
+  });
+
+  it("projects every one of the eight release stages onto the matching certification stage", () => {
+    const contract = release();
+    const experience = manifest(contract);
+    for (const stage of RELEASE_STAGE_ORDER_V1) {
+      const value = releaseManifest(contract, experience, [], {
+        stage,
+        ...EVIDENCE_BY_STAGE[stage],
+      });
+      const projected = projectCertificationV1(value);
+      expect(projected.stage).toBe(stage);
+      expect(projected.archiveDigest).toBe(value.archiveDigest);
+      expect(projected.appStoreBuildId).toBe(value.appStoreBuildId);
+      expect(projected.testFlightInstalledAt).toBe(value.internalTestFlightAvailableAt);
+      expect(projected.deviceSmokeEvidenceDigest).toBe(value.deviceSmokeEvidenceDigest);
+    }
+  });
+
+  it("keeps the projection consistent while advancing a release through every legacy 4-stage milestone", () => {
+    const contract = release();
+    const experience = manifest(contract);
+    let current = releaseManifest(contract, experience, []);
+    expect(projectCertificationV1(current).stage).toBe("candidate");
+
+    for (const stage of RELEASE_STAGE_ORDER_V1.slice(1)) {
+      const next = ReleaseManifestV1Schema.parse({
+        ...current,
+        stage,
+        ...EVIDENCE_BY_STAGE[stage],
+        approvals: [...current.approvals, randomUUID()],
+        updatedAt: "2026-08-10T12:05:00.000Z",
+      });
+      current = assertReleaseAdvancement(current, next);
+      expect(projectCertificationV1(current).stage).toBe(stage);
+    }
+
+    // The four stages the old 4-stage CertificationV1 model recognized are
+    // reached along the way, now with two additional evidence-bearing stops
+    // (upload-approved, processing) and two additional gate stops
+    // (certified, internal-testflight-available) in between.
+    expect(projectCertificationV1(current)).toMatchObject({
+      stage: "device-smoke-passed",
       archiveDigest: SCREENSHOT,
-      approvalIds: [...candidate.approvalIds, randomUUID()],
-    } as CertificationV1;
-    expect(assertCertificationAdvancement(candidate, archived)).toEqual(archived);
+      appStoreBuildId: "42",
+      testFlightInstalledAt: "2026-08-10T12:05:00.000Z",
+      deviceSmokeEvidenceDigest: SCREENSHOT,
+    });
+  });
+
+  it("rejects a changed immutable field across a release advancement", () => {
+    const contract = release();
+    const experience = manifest(contract);
+    const candidate = releaseManifest(contract, experience, []);
+    const certified = ReleaseManifestV1Schema.parse({
+      ...candidate,
+      stage: "certified",
+      approvals: [...candidate.approvals, randomUUID()],
+      updatedAt: "2026-08-10T12:05:00.000Z",
+    });
+    expect(assertReleaseAdvancement(candidate, certified)).toEqual(certified);
     expect(() =>
-      assertCertificationAdvancement(candidate, {
-        ...archived,
-        stage: "uploaded",
-        appStoreBuildId: "123",
+      assertReleaseAdvancement(candidate, {
+        ...certified,
+        candidate: { ...candidate.candidate, commit: "c".repeat(40) },
       }),
-    ).toThrow(CertificationError);
-    expect(() =>
-      assertCertificationAdvancement(candidate, {
-        ...archived,
-        gitCommit: "c".repeat(40),
-      }),
-    ).toThrow(/immutable field gitCommit/);
+    ).toThrow(/immutable field candidate/);
   });
 });
