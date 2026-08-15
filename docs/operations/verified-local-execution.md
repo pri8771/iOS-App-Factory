@@ -8,9 +8,13 @@ path.
 The repository also contains a Codex conformance adapter and profile loader.
 They pin executable digest, CLI version, model, exact environment, structured
 output schema, and supervised invocation identity. A no-network fake
-executable passes the actual detached-supervisor and V2 evidence path. The
-operator daemon entrypoint deliberately does not expose this profile, and no
-paid or real-model call was used to certify it. It is not a general autonomous
+executable passes the actual detached-supervisor and V2 evidence path. As of
+2026-08-14, `daemon-entrypoint` routes `APP_FACTORY_LOCAL_EXECUTION_CONFIG`
+through the profile loader and _can_ select a real-identity Codex profile
+(`swift-greeter-codex-v1`, or the config-driven `enrolled-codex-v1` for an
+enrolled project); either mode loads only with a valid owner containment
+attestation (`APP_FACTORY_CONTAINMENT_ATTESTATION`). No paid or real-model
+call has been used to certify it, and it is not a general autonomous
 development integration. See [ADR 0002](../architecture/0002-untrusted-agent-containment.md).
 
 A separate [`@app-factory/oci-runner`](../../packages/oci-runner) implements

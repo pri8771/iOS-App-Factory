@@ -1,9 +1,23 @@
 # Dependency-ordered build stages
 
-These are capability stages, not calendar promises. The committed near-term
-schedule is defined in `FIRST_4_WEEKS.md` and `WEEKS_5_TO_16.md`; their narrower
-exit gates take precedence when a stage lists more output than fits its delivery
-window.
+These are capability stages, not calendar promises.
+
+> **2026-08-14 re-baseline note:** `FIRST_4_WEEKS.md`, `WEEKS_5_TO_16.md`, and
+> `DETAILED_BACKLOG_WEEKS_5_TO_16.md` were originally written as a committed
+> calendar (Week 1 = August 10–14, Week 2 = August 17–21, and so on). Actual
+> delivery order and pace diverged from that calendar almost immediately —
+> [`docs/progress/IMPLEMENTATION_STATUS.md`](../progress/IMPLEMENTATION_STATUS.md)
+> already marks several rows as Implemented while their original calendar
+> dates are still in the future, for example original "Week 2" (dated August
+> 17–21) and original "Week 7" (dated September 21–25). The three documents
+> below are kept as the historical planning record — their
+> task breakdowns, dependencies, and exit-gate intent are still accurate
+> engineering content — but their dates and week numbers are no longer a
+> schedule anyone is tracking against. This file's stage numbering (Stage
+> 0–8) is the current authoritative sequencing; `IMPLEMENTATION_STATUS.md` is
+> the current authoritative status. Narrower exit gates in the historical
+> documents still describe real, still-relevant completion criteria for their
+> corresponding stage above; they just do not carry committed dates anymore.
 
 ## Stage 0 — Foundation and contracts
 
