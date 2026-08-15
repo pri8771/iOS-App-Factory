@@ -53,6 +53,25 @@ const DEFAULT_POLL_MS = 25;
 const MAX_POLL_MS = 5_000;
 const MAX_SUMMARY_LENGTH = 1_000;
 
+/**
+ * OS-generated metadata entries (from Finder, Spotlight, or volume
+ * bookkeeping) that a fail-closed directory scan must tolerate rather than
+ * reject. This denylist is intentionally narrow and exact: a single Finder
+ * visit must not permanently brick OCI startup recovery. Any entry that
+ * does not match must still fail closed — do not broaden this to "ignore
+ * anything unrecognized".
+ */
+const IGNORABLE_OS_METADATA_ENTRIES = new Set([
+  ".DS_Store",
+  ".Spotlight-V100",
+  ".Trashes",
+  ".fseventsd",
+]);
+
+function isIgnorableOsMetadataEntry(name: string): boolean {
+  return IGNORABLE_OS_METADATA_ENTRIES.has(name) || name.startsWith("._");
+}
+
 export type OciLocalAgentMaterializerInputV1 = Readonly<{
   spec: AgentRunSpecV1;
   receipt: OciRunReceiptV1;
@@ -667,9 +686,9 @@ export class OciLocalAgent implements LocalAgentAdapter {
     ) {
       throw new Error("OCI startup recovery requires the configured real evidence directory.");
     }
-    const candidates = readdirSync(this.#configuration.runnerRoot, {
-      withFileTypes: true,
-    }).sort((left, right) => left.name.localeCompare(right.name));
+    const candidates = readdirSync(this.#configuration.runnerRoot, { withFileTypes: true })
+      .filter((entry) => !isIgnorableOsMetadataEntry(entry.name))
+      .sort((left, right) => left.name.localeCompare(right.name));
     const entries: OciLocalAgentStartupEntryV1[] = [];
     for (const candidate of candidates) {
       if (

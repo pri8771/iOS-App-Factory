@@ -40,6 +40,7 @@
       "@app-factory/project-sdk": ["./packages/project-sdk/src/index.ts"],
       "@app-factory/quality": ["./packages/quality/src/index.ts"],
       "@app-factory/recovery-manager": ["./packages/recovery-manager/src/index.ts"],
+      "@app-factory/retention-manager": ["./packages/retention-manager/src/index.ts"],
       "@app-factory/scheduler": ["./packages/scheduler/src/index.ts"],
       "@app-factory/service-manager": ["./packages/service-manager/src/index.ts"],
       "@app-factory/simulator-runner": ["./packages/simulator-runner/src/index.ts"],

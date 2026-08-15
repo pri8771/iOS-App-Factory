@@ -19,6 +19,25 @@ export const LEGAL_ATTEMPT_STATE_TRANSITIONS = {
   cancelled: [],
 } as const satisfies Readonly<Record<AttemptStateV1, readonly AttemptStateV1[]>>;
 
+/**
+ * Attempt states with no legal outgoing transition (see
+ * `LEGAL_ATTEMPT_STATE_TRANSITIONS` above, and the `attempts` table's
+ * terminal-coherence CHECK constraint in migration 0001). Once an attempt
+ * reaches one of these states it will never execute or mutate its durable
+ * state again, which is what makes it safe for retention/garbage-collection
+ * tooling to reclaim its per-attempt working state.
+ */
+export const TERMINAL_ATTEMPT_STATES = [
+  "succeeded",
+  "failed",
+  "cancelled",
+] as const satisfies readonly AttemptStateV1[];
+
+export function isTerminalAttemptState(stateInput: unknown): boolean {
+  const state = AttemptStateV1Schema.parse(stateInput);
+  return (TERMINAL_ATTEMPT_STATES as readonly AttemptStateV1[]).includes(state);
+}
+
 export const LEGAL_STEP_STATE_TRANSITIONS = {
   pending: ["running", "skipped"],
   running: ["blocked", "succeeded", "failed", "cancelled"],
@@ -63,8 +82,7 @@ export function assertLegalStepStateTransition(fromInput: unknown, toInput: unkn
 
 export function assertAttemptSnapshotCoherence(attemptInput: unknown): ExecutionAttemptV1 {
   const attempt = ExecutionAttemptV1Schema.parse(attemptInput);
-  const terminal =
-    attempt.state === "succeeded" || attempt.state === "failed" || attempt.state === "cancelled";
+  const terminal = isTerminalAttemptState(attempt.state);
 
   if ((attempt.state === "blocked") !== (attempt.blocker !== null)) {
     failStateInvariant("attempt blocker must be present exactly when state is blocked");

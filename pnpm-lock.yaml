@@ -309,6 +309,33 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  packages/retention-manager:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@app-factory/evidence-store':
+        specifier: workspace:*
+        version: link:../evidence-store
+      '@app-factory/execution-engine':
+        specifier: workspace:*
+        version: link:../execution-engine
+      '@app-factory/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      '@app-factory/oci-runner':
+        specifier: workspace:*
+        version: link:../oci-runner
+      '@app-factory/process-supervisor':
+        specifier: workspace:*
+        version: link:../process-supervisor
+      better-sqlite3:
+        specifier: 12.11.1
+        version: 12.11.1
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/scheduler: {}
 
   packages/service-manager:

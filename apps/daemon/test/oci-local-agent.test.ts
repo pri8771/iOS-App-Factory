@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, realpathSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -531,6 +531,44 @@ describe("OciLocalAgent", () => {
       start: engine.startCount,
       remove: engine.removeCount,
     }).toEqual(beforeRestart);
+  });
+
+  it("ignores OS metadata junk in the runner root instead of failing closed startup recovery", async () => {
+    const data = fixture();
+    const engine = new FakeEngine();
+    const abort = new AbortController();
+    abort.abort();
+    await agent(data.runnerRoot, engine).run(context(data.runSpec, abort.signal));
+
+    // Finder writes .DS_Store and AppleDouble sidecars as files; Spotlight,
+    // Trash, and fseventsd bookkeeping are directories. Both shapes must be
+    // ignored by name, regardless of entry type.
+    writeFileSync(join(data.runnerRoot, ".DS_Store"), "junk\n");
+    writeFileSync(join(data.runnerRoot, "._oci-junk"), "junk\n");
+    mkdirSync(join(data.runnerRoot, ".Spotlight-V100"));
+    mkdirSync(join(data.runnerRoot, ".Trashes"));
+    mkdirSync(join(data.runnerRoot, ".fseventsd"));
+
+    const restarted = agent(data.runnerRoot, engine);
+    await expect(restarted.inspectStartup()).resolves.toMatchObject([
+      {
+        runKey: deriveOciLocalAgentRunKey(data.runSpec),
+        intent: { runId: data.runSpec.runId, fence: data.runSpec.fence },
+        disposition: { phase: "cancelled-before-start" },
+      },
+    ]);
+  });
+
+  it("still fails closed on a genuinely unexpected entry in the runner root", async () => {
+    const data = fixture();
+    const engine = new FakeEngine();
+    const abort = new AbortController();
+    abort.abort();
+    await agent(data.runnerRoot, engine).run(context(data.runSpec, abort.signal));
+    mkdirSync(join(data.runnerRoot, "not-an-oci-run"));
+
+    const restarted = agent(data.runnerRoot, engine);
+    await expect(restarted.inspectStartup()).rejects.toThrow(/invalid run entry/);
   });
 
   it("observes abort during a running container and drives durable cancellation", async () => {
