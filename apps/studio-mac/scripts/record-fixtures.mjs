@@ -75,7 +75,7 @@ const projectB = {
 const projectC = {
   projectId: "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5d",
   slug: "svara",
-  displayName: "Svara \"Sound\" — ünïcödé / slash \\ backslash \t tab",
+  displayName: 'Svara "Sound" — ünïcödé / slash \\ backslash \t tab',
   metadataSource: "task-derived",
   lifecycleStage: "released",
   attemptCount: 0,
@@ -132,21 +132,112 @@ writeFileSync(dir + "portfolio-snapshot.canonical.txt", canonical);
 writeFileSync(dir + "portfolio-snapshot.digest.txt", digest + "\n");
 
 // localeCompare ordering fixture
-const keys = ["schemaVersion","generatedAt","projects","totals","projectId","slug","displayName","metadataSource","lifecycleStage","attemptCount","activeAttemptCount","blockerCount","lastActivityAt","lastDeliveryAt","openPullRequestCount","jiraTodoCount","jiraInProgressCount","unresolvedP0","unresolvedP1","releaseStage","analyticsFreshness","sources","health","healthReasons","localExecution","jira","github","quality","release","analytics","attempts","activeAttempts","blockers","openPullRequests","jiraTodo","jiraInProgress","a","A","b","B","aB","Ab","ab","AB","a1","a10","a2","Z","z","zz","Zz","zZ","ZZ","item","Item","ITEM","x9","x10","x1"];
+const keys = [
+  "schemaVersion",
+  "generatedAt",
+  "projects",
+  "totals",
+  "projectId",
+  "slug",
+  "displayName",
+  "metadataSource",
+  "lifecycleStage",
+  "attemptCount",
+  "activeAttemptCount",
+  "blockerCount",
+  "lastActivityAt",
+  "lastDeliveryAt",
+  "openPullRequestCount",
+  "jiraTodoCount",
+  "jiraInProgressCount",
+  "unresolvedP0",
+  "unresolvedP1",
+  "releaseStage",
+  "analyticsFreshness",
+  "sources",
+  "health",
+  "healthReasons",
+  "localExecution",
+  "jira",
+  "github",
+  "quality",
+  "release",
+  "analytics",
+  "attempts",
+  "activeAttempts",
+  "blockers",
+  "openPullRequests",
+  "jiraTodo",
+  "jiraInProgress",
+  "a",
+  "A",
+  "b",
+  "B",
+  "aB",
+  "Ab",
+  "ab",
+  "AB",
+  "a1",
+  "a10",
+  "a2",
+  "Z",
+  "z",
+  "zz",
+  "Zz",
+  "zZ",
+  "ZZ",
+  "item",
+  "Item",
+  "ITEM",
+  "x9",
+  "x10",
+  "x1",
+];
 const sorted = [...keys].sort((l, r) => l.localeCompare(r));
 writeFileSync(dir + "locale-compare-order.json", JSON.stringify(sorted) + "\n");
 
 // number formatting fixture
 // Two literals are deliberately beyond 2^53 (parsed from strings so eslint's no-loss-of-precision stays
 // happy): they pin that the Swift side reproduces JavaScript's rounding, not the exact integer.
-const numbers = [0, -0, 1, -1, 3, 42, 100, 1e21, 1e20, 123456789012345680000, 0.1, 0.5, 1.5, -2.25, 1e-7, 1e-6, 0.000001234, 1.7976931348623157e308, 5e-324, 9007199254740991, 9007199254740992, Number("9007199254740993"), 1234.5678, 1e300, Number("12345678901234567890"), 0.30000000000000004];
-writeFileSync(dir + "number-format.json", JSON.stringify(numbers.map((n) => [String(n), JSON.stringify(n)])) + "\n");
+const numbers = [
+  0,
+  -0,
+  1,
+  -1,
+  3,
+  42,
+  100,
+  1e21,
+  1e20,
+  123456789012345680000,
+  0.1,
+  0.5,
+  1.5,
+  -2.25,
+  1e-7,
+  1e-6,
+  0.000001234,
+  1.7976931348623157e308,
+  5e-324,
+  9007199254740991,
+  9007199254740992,
+  Number("9007199254740993"),
+  1234.5678,
+  1e300,
+  Number("12345678901234567890"),
+  0.30000000000000004,
+];
+writeFileSync(
+  dir + "number-format.json",
+  JSON.stringify(numbers.map((n) => [String(n), JSON.stringify(n)])) + "\n",
+);
 console.log(digest);
 console.log(canonical.length);
 
 // ---- Additional authoritative response fixtures (validated with CommandResponseV1Schema) ----
 const rid = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
-const ok = (result) => CommandResponseV1Schema.parse({ protocolVersion: 1, requestId: rid, ok: true, result });
+const ok = (result) =>
+  CommandResponseV1Schema.parse({ protocolVersion: 1, requestId: rid, ok: true, result });
 const attempt = (n, state, extra = {}) => ({
   schemaVersion: 1,
   attemptId: `0000000${n}-0000-4000-8000-00000000000${n}`,
@@ -212,7 +303,10 @@ const fixtures = {
         causationEventId: null,
         fence: 0,
         type: "attempt.created",
-        data: { taskId: "10000001-0000-4000-8000-000000000001", taskSpecDigest: `sha256:${"ab".repeat(32)}` },
+        data: {
+          taskId: "10000001-0000-4000-8000-000000000001",
+          taskSpecDigest: `sha256:${"ab".repeat(32)}`,
+        },
       },
       {
         schemaVersion: 1,
@@ -254,7 +348,11 @@ const fixtures = {
         causationEventId: null,
         fence: 1,
         type: "commit.recorded",
-        data: { commit: "a".repeat(40), tree: "b".repeat(40), attemptMarker: "app-factory:v1:attempt:1" },
+        data: {
+          commit: "a".repeat(40),
+          tree: "b".repeat(40),
+          attemptMarker: "app-factory:v1:attempt:1",
+        },
       },
     ],
     nextAfterSequence: 4,
@@ -288,14 +386,22 @@ const fixtures = {
     inventoryDigest: `sha256:${"56".repeat(32)}`,
     blocked: true,
     blockers: [
-      { issueId: `esi-${"a1".repeat(12)}`, code: "enroll.secret-material", summary: "A .env file with credentials is tracked." },
+      {
+        issueId: `esi-${"a1".repeat(12)}`,
+        code: "enroll.secret-material",
+        summary: "A .env file with credentials is tracked.",
+      },
     ],
   }),
   "failure.response.json": CommandResponseV1Schema.parse({
     protocolVersion: 1,
     requestId: rid,
     ok: false,
-    error: { code: "daemon.handler-timeout-ambiguous", message: "Command completion is unknown after timeout; retry with the same command ID.", retryable: true },
+    error: {
+      code: "daemon.handler-timeout-ambiguous",
+      message: "Command completion is unknown after timeout; retry with the same command ID.",
+      retryable: true,
+    },
   }),
 };
 for (const [name, value] of Object.entries(fixtures)) {
