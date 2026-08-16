@@ -18,6 +18,7 @@ import {
   ExternalResourceV1Schema,
 } from "./external-effect.js";
 import { LessonV1Schema, LifecycleEventV1Schema } from "./learning.js";
+import { ProjectLifecycleStateV1Schema, TypedGateV1Schema } from "./lifecycle.js";
 import { ModuleManifestV1Schema } from "./module.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
@@ -90,6 +91,18 @@ export const contractSchemaCatalogV1 = [
     fileName: "lifecycle-event.v1.schema.json",
     id: "urn:app-factory:contracts:v1:lifecycle-event",
     schema: LifecycleEventV1Schema,
+  },
+  {
+    name: "typed-gate",
+    fileName: "typed-gate.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:typed-gate",
+    schema: TypedGateV1Schema,
+  },
+  {
+    name: "project-lifecycle-state",
+    fileName: "project-lifecycle-state.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:project-lifecycle-state",
+    schema: ProjectLifecycleStateV1Schema,
   },
   {
     name: "lesson",

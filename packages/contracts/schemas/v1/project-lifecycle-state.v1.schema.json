@@ -1,0 +1,420 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema10": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema8"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "tests",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "invalid_run",
+            "failed",
+            "passed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema11": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema8"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "visual",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "failed",
+            "passed",
+            "human_review_required"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema12": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema8"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "device",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "simulator_only",
+            "physical_pass",
+            "human_required"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema13": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema8"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "legal",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "blocked",
+            "cleared"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema14": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema8"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "store",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "in_progress",
+            "ready"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema15": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema8"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "market",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "state": {
+          "enum": [
+            "hypothesis",
+            "evidence"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema2": {
+      "enum": [
+        "idea",
+        "building",
+        "qa",
+        "launch-prep",
+        "live",
+        "frozen"
+      ],
+      "type": "string"
+    },
+    "__schema3": {
+      "items": {
+        "$ref": "#/$defs/__schema4"
+      },
+      "maxItems": 7,
+      "type": "array"
+    },
+    "__schema4": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/__schema5"
+        },
+        {
+          "$ref": "#/$defs/__schema10"
+        },
+        {
+          "$ref": "#/$defs/__schema11"
+        },
+        {
+          "$ref": "#/$defs/__schema12"
+        },
+        {
+          "$ref": "#/$defs/__schema13"
+        },
+        {
+          "$ref": "#/$defs/__schema14"
+        },
+        {
+          "$ref": "#/$defs/__schema15"
+        }
+      ]
+    },
+    "__schema5": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema8"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "build",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "state": {
+          "enum": [
+            "unknown",
+            "failed",
+            "verified"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema6": {
+      "enum": [
+        "human",
+        "machine"
+      ],
+      "type": "string"
+    },
+    "__schema7": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "__schema8": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema9": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:project-lifecycle-state",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "gates": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "stage": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/__schema9"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "stage",
+    "gates",
+    "updatedAt"
+  ],
+  "type": "object"
+}

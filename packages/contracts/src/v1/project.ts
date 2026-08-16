@@ -17,17 +17,33 @@ import {
 export const ProjectKindV1Schema = z.enum(["ios", "web", "service", "library"]);
 export type ProjectKindV1 = z.infer<typeof ProjectKindV1Schema>;
 
-export const ProjectLifecycleStageV1Schema = z.enum([
-  "exploring",
-  "planned",
-  "building",
-  "qa",
-  "internal-testflight",
-  "released",
-  "paused",
-  "archived",
-]);
-export type ProjectLifecycleStageV1 = z.infer<typeof ProjectLifecycleStageV1Schema>;
+/**
+ * @deprecated The pre-ADR-0005 project-manifest lifecycle vocabulary. It is
+ * still accepted on `ProjectManifestV1.lifecycleStage` (and the portfolio
+ * read models derived from it) so existing manifests keep parsing, but no
+ * new surface should be typed with it. The canonical vocabulary is
+ * `ProjectLifecycleStageV1` in `./lifecycle.js`; fold a legacy value onto it
+ * with `projectLifecycleStageFromLegacyV1`. See
+ * docs/architecture/0005-lifecycle-reconciliation.md.
+ */
+export const LegacyProjectLifecycleStageV1Schema = z
+  .enum([
+    "exploring",
+    "planned",
+    "building",
+    "qa",
+    "internal-testflight",
+    "released",
+    "paused",
+    "archived",
+  ])
+  .meta({
+    description:
+      "Deprecated (ADR 0005): legacy project-manifest lifecycle stage. Fold onto ProjectLifecycleStageV1 (idea | building | qa | launch-prep | live | frozen) via LEGACY_PROJECT_LIFECYCLE_STAGE_MAP_V1.",
+    deprecated: true,
+  });
+/** @deprecated See `LegacyProjectLifecycleStageV1Schema`. */
+export type LegacyProjectLifecycleStageV1 = z.infer<typeof LegacyProjectLifecycleStageV1Schema>;
 
 const WorkingDirectoryV1Schema = z.union([z.literal("."), RelativePathSchema]);
 
@@ -73,7 +89,7 @@ export const ProjectManifestV1Schema = z
     slug: StableKeySchema,
     displayName: z.string().min(1).max(200),
     kind: ProjectKindV1Schema,
-    lifecycleStage: ProjectLifecycleStageV1Schema,
+    lifecycleStage: LegacyProjectLifecycleStageV1Schema,
     repository: z.strictObject({
       repositoryId: RepositoryIdSchema,
       defaultBranch: z

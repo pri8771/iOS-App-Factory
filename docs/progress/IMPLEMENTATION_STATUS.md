@@ -149,11 +149,22 @@ Open gaps this decision carries, none scheduled by this entry:
   inside one running agent) and `EnrollmentPlanActionV1Schema.phase` (a
   six-value enrollment-action category) — neither of which is a Studio Phase
   Preset stage.
-- Four lifecycle vocabularies are reported to disagree: the separately
-  versioned rules corpus's 14-stage lifecycle, a mission-control `gates.md`,
-  this repository's own project-manifest lifecycle, and the in-progress
-  studio-ios preset. The first two are not part of this repository.
-  Reconciling all four has not started.
+- Four lifecycle vocabularies disagreed: the separately versioned rules
+  corpus's 14-stage lifecycle, a mission-control `gates.md`, this
+  repository's own project-manifest lifecycle, and the 8-stage
+  `ReleaseManifestV1` machine (ADR 0003). **Reconciled by
+  [ADR 0005](../architecture/0005-lifecycle-reconciliation.md)** at the
+  contracts level: `gates.md`'s six stages and seven typed gates are the
+  project lifecycle (`ProjectLifecycleStageV1`, `TypedGateV1`,
+  `ProjectLifecycleStateV1`, and the pure `advanceProjectLifecycleStage` /
+  `applyProjectLifecycleGate` / `evaluateProjectLifecycleV1` in
+  [`packages/contracts/src/v1/lifecycle.ts`](../../packages/contracts/src/v1/lifecycle.ts)),
+  ADR 0003's eight stages are the release sub-lifecycle beneath
+  `launch-prep -> live`, the corpus's fourteen are a mapping table, and the
+  legacy manifest enum stays accepted as `LegacyProjectLifecycleStageV1`
+  (deprecated). Not yet persisted or wired: no kernel table, daemon
+  command, or lifecycle event consumes the new state; the in-progress
+  studio-ios preset (not in this branch) must bind to it.
 - The separately versioned rules corpus is reported pinned at three
   different versions depending on consumer (0.2.0 local, 0.4.0 upstream,
   0.5.0 CLI); not independently checked from within this repository, whose

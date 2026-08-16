@@ -62,11 +62,14 @@ Deliverables:
   a check registry in `packages/policy-engine` — none exist there today
   (verified 2026-08-16).
 
-Gates: reconciling the four lifecycle vocabularies ADR 0004 records (the
-separately versioned rules corpus's 14-stage lifecycle, a mission-control
-`gates.md`, this repository's own project-manifest lifecycle, and the
-in-progress studio-ios preset) should happen no later than this phase, so
-Phase 4's planner is not built against a vocabulary that changes under it.
+Gates: the lifecycle-vocabulary reconciliation ADR 0004 required is decided
+in [ADR 0005](../architecture/0005-lifecycle-reconciliation.md) — the
+project lifecycle is `ProjectLifecycleStageV1` (`idea | building | qa |
+launch-prep | live | frozen`) with typed, owner-marked gates, and the
+release sub-lifecycle beneath `launch-prep -> live` is ADR 0003's
+`ReleaseManifestV1`. Phase 2's `phase`/preset/milestone schema and the
+in-progress studio-ios preset must bind to that vocabulary; persisting
+`ProjectLifecycleStateV1` in the daemon is Phase 2 work, not yet done.
 
 Status: not started. No milestone type, Studio `phase` field, or
 policy-scoping code exists anywhere in this repository as of this writing.
@@ -101,10 +104,11 @@ Deliverables:
   plus gates, per the deep-dive finding recorded in
   [ADR 0004](../architecture/0004-studio-mac-app.md).
 
-Gates: depends on Phase 2's `phase`/preset/milestone schema and the
-lifecycle-vocabulary reconciliation named there; building the planner ahead
-of that reconciliation risks binding Phase Presets to a vocabulary that
-later changes.
+Gates: depends on Phase 2's `phase`/preset/milestone schema. The
+lifecycle vocabulary the planner binds to is settled by
+[ADR 0005](../architecture/0005-lifecycle-reconciliation.md)
+(`ProjectLifecycleStageV1` + `TypedGateV1`; human-only gate states are the
+gold ◆ hand-off items).
 
 Status: not started.
 

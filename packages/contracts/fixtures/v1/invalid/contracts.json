@@ -159,6 +159,40 @@
         "entries": [],
         "requiredKinds": ["verification"]
       }
+    },
+    {
+      "name": "typed-gate-rejects-foreign-state",
+      "schema": "typed-gate",
+      "value": {
+        "gate": "build",
+        "state": "passed",
+        "owner": "machine",
+        "sha": "3333333333333333333333333333333333333333",
+        "evidenceDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "at": "2026-08-16T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "typed-gate-rejects-missing-evidence-field",
+      "schema": "typed-gate",
+      "value": {
+        "gate": "store",
+        "state": "in_progress",
+        "owner": "machine",
+        "sha": "3333333333333333333333333333333333333333",
+        "at": "2026-08-16T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "lifecycle-state-rejects-unknown-stage",
+      "schema": "project-lifecycle-state",
+      "value": {
+        "schemaVersion": 1,
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "stage": "released",
+        "gates": [],
+        "updatedAt": "2026-08-16T12:02:00.000Z"
+      }
     }
   ]
 }

@@ -1,0 +1,366 @@
+{
+  "$defs": {
+    "__schema0": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "build",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "state": {
+          "enum": [
+            "unknown",
+            "failed",
+            "verified"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema1": {
+      "enum": [
+        "human",
+        "machine"
+      ],
+      "type": "string"
+    },
+    "__schema10": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "market",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "state": {
+          "enum": [
+            "hypothesis",
+            "evidence"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema2": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "__schema3": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema4": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema5": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "tests",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "invalid_run",
+            "failed",
+            "passed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema6": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "visual",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "failed",
+            "passed",
+            "human_review_required"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema7": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "device",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "simulator_only",
+            "physical_pass",
+            "human_required"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema8": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "legal",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "blocked",
+            "cleared"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    },
+    "__schema9": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "evidenceDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gate": {
+          "const": "store",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "sha": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "state": {
+          "enum": [
+            "not_run",
+            "in_progress",
+            "ready"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "state",
+        "owner",
+        "sha",
+        "evidenceDigest",
+        "at"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:typed-gate",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/__schema0"
+    },
+    {
+      "$ref": "#/$defs/__schema5"
+    },
+    {
+      "$ref": "#/$defs/__schema6"
+    },
+    {
+      "$ref": "#/$defs/__schema7"
+    },
+    {
+      "$ref": "#/$defs/__schema8"
+    },
+    {
+      "$ref": "#/$defs/__schema9"
+    },
+    {
+      "$ref": "#/$defs/__schema10"
+    }
+  ]
+}
