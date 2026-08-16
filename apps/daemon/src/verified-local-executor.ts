@@ -2554,28 +2554,40 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     assertKnownLocalAgentOutcomeKind(outcome);
     const observedFinishedAt = this.#now().toISOString();
     if (bindings.project.agentProtocol === "supervisor-v2") {
-      if (outcome.protocolEvidence === undefined) {
+      if (outcome.protocolEvidence !== undefined) {
+        const protocolEvidence = validateAgentProtocolEvidence(
+          runSpec,
+          bindings.project.agent.adapterVersion,
+          this.#requiredInvocationEnvironmentNames(bindings.project),
+          this.#requiredInvocationIdentity(bindings.project),
+          outcome,
+          outcome.protocolEvidence,
+        );
+        await context.assertActive();
+        const protocolJournal = this.#publishAgentProtocolEvidence(
+          bindings,
+          executeStep.stepId,
+          implementingRunId,
+          context.fence,
+          protocolEvidence,
+        );
+        return schedulerOutcomeForAgentResult(protocolEvidence.result, protocolJournal.eventDigest);
+      }
+      // Any outcome that claims the agent ran to completion must carry the
+      // complete V2 closure; an evidence-free success is a protocol breach and
+      // fails closed. An evidence-free `failed`/`needs-input` outcome, by
+      // contrast, is exactly what the supervised adapter emits when it
+      // refuses to launch or when durable reconciliation of an earlier fence
+      // stops it (e.g. `agent.supervisor-stale-fence` after a daemon restart
+      // adopts an older-fence run, `agent.supervisor-intent-conflict`,
+      // `agent.supervisor-ambiguous`): no agent ran under this fence, so there
+      // is no closure to demand, and the adapter's own code is the real cause.
+      // Fall through so that code reaches the attempt instead of being masked
+      // as `local-execution.verification-failed`.
+      if (outcome.kind === "succeeded") {
         throw new Error("Supervisor V2 execution requires a complete V2 evidence envelope");
       }
-      const protocolEvidence = validateAgentProtocolEvidence(
-        runSpec,
-        bindings.project.agent.adapterVersion,
-        this.#requiredInvocationEnvironmentNames(bindings.project),
-        this.#requiredInvocationIdentity(bindings.project),
-        outcome,
-        outcome.protocolEvidence,
-      );
-      await context.assertActive();
-      const protocolJournal = this.#publishAgentProtocolEvidence(
-        bindings,
-        executeStep.stepId,
-        implementingRunId,
-        context.fence,
-        protocolEvidence,
-      );
-      return schedulerOutcomeForAgentResult(protocolEvidence.result, protocolJournal.eventDigest);
-    }
-    if (bindings.project.agentProtocol === "oci-v3") {
+    } else if (bindings.project.agentProtocol === "oci-v3") {
       if (outcome.protocolEvidence !== undefined) {
         const protocolEvidence = await validateOciAgentProtocolEvidence(
           runSpec,

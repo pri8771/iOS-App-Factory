@@ -2436,6 +2436,150 @@ describe("daemon verified local execution", () => {
     },
   );
 
+  it(
+    "surfaces a supervisor V2 pre-launch stale-fence rejection under its real code after restart adoption",
+    { timeout: 60_000 },
+    async () => {
+      // Restart-adoption scenario: a Codex-style supervised adapter (supervisor V2,
+      // protocol evidence required) is asked to run under a fresh fence, discovers a
+      // durable terminal receipt for the same logical run at an older fence during
+      // #reconcilePriorFences, and refuses to launch. No agent process ran under
+      // this fence, so the outcome carries no protocol evidence -- exactly what
+      // CodexLocalAgent emits. The attempt must fail under the adapter's own code,
+      // not be masked as `local-execution.verification-failed`.
+      const f = fixture(91);
+      const staleFenceSummary =
+        "An older-fence Codex run at fence 1 has a durable terminal receipt. Its worktree effects cannot be safely replayed into fence 2; inspect the receipt and submit a replacement attempt.";
+      const preLaunchRejectingAgent: LocalAgentAdapter & { calls: number } = {
+        adapterId: "agent.supervised-protocol",
+        adapterVersion: "1.0.0",
+        calls: 0,
+        async run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome> {
+          preLaunchRejectingAgent.calls += 1;
+          await context.assertActive();
+          return {
+            kind: "failed",
+            failure: {
+              code: NamespacedCodeSchema.parse("agent.supervisor-stale-fence"),
+              summary: staleFenceSummary,
+              retryable: false,
+              detailArtifactDigest: null,
+            },
+          };
+        },
+      };
+      const reviewCalls = { count: 0 };
+      const service = await start(f, preLaunchRejectingAgent, reviewCalls);
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(async () => {
+        const status = await client.status(intake.attemptId);
+        return status.attempt.state === "failed";
+      }, 30_000);
+
+      const status = await client.status(intake.attemptId);
+      expect(status.attempt.outcome).toMatchObject({
+        kind: "failed",
+        failure: {
+          code: "agent.supervisor-stale-fence",
+          summary: staleFenceSummary,
+          retryable: false,
+        },
+      });
+      expect(preLaunchRejectingAgent.calls).toBe(1);
+      expect(reviewCalls.count).toBe(0);
+      // A pre-launch rejection publishes no agent-result journal: nothing ran under this fence.
+      expect(
+        existsSync(join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`)),
+      ).toBe(false);
+    },
+  );
+
+  it(
+    "keeps blocking evidence-free supervisor V2 outcomes that claim the agent ran",
+    { timeout: 60_000 },
+    async () => {
+      // The complementary guarantee: an evidence-free *success* still fails closed
+      // under the generic protocol-breach code, because a success claims an agent
+      // ran to completion and must carry the complete V2 closure.
+      const f = fixture(92);
+      const evidenceFreeSuccessAgent: LocalAgentAdapter = {
+        adapterId: "agent.supervised-protocol",
+        adapterVersion: "1.0.0",
+        async run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome> {
+          await context.assertActive();
+          writeFileSync(
+            join(context.spec.workingDirectory, "Sources/Greeter/GreetingFormatter.swift"),
+            EXPECTED_GREETER_SOURCE,
+          );
+          return {
+            kind: "succeeded",
+            summary: "claims completion without a V2 closure",
+            changedPaths: ["Sources/Greeter/GreetingFormatter.swift"],
+          };
+        },
+      };
+      const reviewCalls = { count: 0 };
+      const service = await start(f, evidenceFreeSuccessAgent, reviewCalls);
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(async () => {
+        const status = await client.status(intake.attemptId);
+        return status.attempt.state === "failed";
+      }, 30_000);
+
+      expect((await client.status(intake.attemptId)).attempt.outcome).toMatchObject({
+        kind: "failed",
+        failure: { code: "local-execution.verification-failed", retryable: false },
+      });
+      expect(reviewCalls.count).toBe(0);
+    },
+  );
+
+  it(
+    "propagates an evidence-free supervisor V2 ambiguity blocker instead of failing the attempt",
+    { timeout: 60_000 },
+    async () => {
+      // `supervisorAmbiguityOutcome` in CodexLocalAgent deliberately blocks (rather
+      // than fails) so an operator can inspect the durable run identity before
+      // resuming; that intent must reach the attempt as a blocker with its own code.
+      const f = fixture(93);
+      const ambiguousAgent: LocalAgentAdapter = {
+        adapterId: "agent.supervised-protocol",
+        adapterVersion: "1.0.0",
+        async run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome> {
+          await context.assertActive();
+          return {
+            kind: "needs-input",
+            blocker: {
+              kind: "environment",
+              code: NamespacedCodeSchema.parse("agent.supervisor-ambiguous"),
+              summary: "Durable Codex preparation failed closed: intent directory unreadable.",
+              requiredAction:
+                "Inspect the durable supervised-run identity and receipt before explicitly resuming or submitting a replacement attempt.",
+            },
+          };
+        },
+      };
+      const reviewCalls = { count: 0 };
+      const service = await start(f, ambiguousAgent, reviewCalls);
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(async () => {
+        const status = await client.status(intake.attemptId);
+        return status.attempt.state === "blocked";
+      }, 30_000);
+
+      const status = await client.status(intake.attemptId);
+      expect(status.attempt.state).toBe("blocked");
+      expect(status.attempt.blocker).toMatchObject({
+        code: "agent.supervisor-ambiguous",
+        summary: "Durable Codex preparation failed closed: intent directory unreadable.",
+      });
+      expect(reviewCalls.count).toBe(0);
+    },
+  );
+
   it("rejects invalid and oversized policy configuration", async () => {
     expect(() => decodeReviewedPolicyPayload(Buffer.from([0xff]))).toThrow(/valid UTF-8/u);
     expect(() => decodeReviewedPolicyPayload(Buffer.alloc(MAX_REVIEWED_POLICY_BYTES + 1))).toThrow(
