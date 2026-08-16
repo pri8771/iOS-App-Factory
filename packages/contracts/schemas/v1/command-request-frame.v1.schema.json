@@ -33,6 +33,124 @@
       ],
       "type": "object"
     },
+    "__schema11": {
+      "maxLength": 4096,
+      "minLength": 2,
+      "pattern": "^\\/(?!.*\\/\\/)(?!.*\\\\)(?!.*\\0).+$",
+      "type": "string"
+    },
+    "__schema12": {
+      "maxLength": 255,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+      "type": "string"
+    },
+    "__schema13": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "queue-task",
+              "type": "string"
+            },
+            "taskSpec": {
+              "$ref": "#/$defs/__schema5"
+            }
+          },
+          "required": [
+            "kind",
+            "taskSpec"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "run-phase",
+              "type": "string"
+            },
+            "taskSpec": {
+              "$ref": "#/$defs/__schema5"
+            }
+          },
+          "required": [
+            "kind",
+            "taskSpec"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "scan-project",
+              "type": "string"
+            },
+            "repositoryRoot": {
+              "$ref": "#/$defs/__schema11"
+            }
+          },
+          "required": [
+            "kind",
+            "repositoryRoot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "branchName": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema12"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "kind": {
+              "const": "enroll-project",
+              "type": "string"
+            },
+            "planDigest": {
+              "$ref": "#/$defs/__schema8"
+            }
+          },
+          "required": [
+            "kind",
+            "planDigest",
+            "branchName"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "answer": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "attemptId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "kind": {
+              "const": "approve-attempt",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "attemptId",
+            "answer"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "__schema2": {
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
@@ -911,10 +1029,7 @@
               "additionalProperties": false,
               "properties": {
                 "repositoryRoot": {
-                  "maxLength": 4096,
-                  "minLength": 2,
-                  "pattern": "^\\/(?!.*\\/\\/)(?!.*\\\\)(?!.*\\0).+$",
-                  "type": "string"
+                  "$ref": "#/$defs/__schema11"
                 }
               },
               "required": [
@@ -1000,10 +1115,7 @@
                 "branchName": {
                   "anyOf": [
                     {
-                      "maxLength": 255,
-                      "minLength": 1,
-                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
-                      "type": "string"
+                      "$ref": "#/$defs/__schema12"
                     },
                     {
                       "type": "null"
@@ -1159,6 +1271,234 @@
                 "provider",
                 "after",
                 "limit"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "studio.snapshot",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "studio.assistant.query",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "query": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "projectId": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "question": {
+                      "maxLength": 2000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema1"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "question",
+                    "projectId"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "studio.assistant.intent.propose",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "intent": {
+                  "$ref": "#/$defs/__schema13"
+                },
+                "utterance": {
+                  "maxLength": 2000,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "utterance",
+                "intent"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "studio.assistant.intent.execute",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "intent": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "intentId": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "payload": {
+                      "$ref": "#/$defs/__schema13"
+                    },
+                    "proposedAt": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "requiresConfirmation": {
+                      "type": "boolean"
+                    },
+                    "schemaVersion": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "summary": {
+                      "maxLength": 500,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "utterance": {
+                      "maxLength": 2000,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "intentId",
+                    "utterance",
+                    "payload",
+                    "summary",
+                    "requiresConfirmation",
+                    "proposedAt"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "intent"
               ],
               "type": "object"
             },

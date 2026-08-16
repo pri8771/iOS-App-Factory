@@ -6,7 +6,10 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { canonicalPortfolioReadModelDigestInputV1 } from "@app-factory/contracts";
+import {
+  canonicalPortfolioReadModelDigestInputV1,
+  canonicalStudioSnapshotDigestInputV1,
+} from "@app-factory/contracts";
 
 import { createCommandClient, type CommandClientError } from "../src/index.js";
 
@@ -175,6 +178,37 @@ function portfolioResponse(requestId: unknown): Record<string, unknown> {
         ...snapshot,
         sourceSnapshotDigest: `sha256:${createHash("sha256")
           .update(canonicalPortfolioReadModelDigestInputV1(snapshot), "utf8")
+          .digest("hex")}`,
+      },
+    },
+  };
+}
+
+function studioSnapshotResponse(requestId: unknown): Record<string, unknown> {
+  const snapshot = {
+    schemaVersion: 1 as const,
+    generatedAt: NOW.toISOString(),
+    projects: [],
+    rooms: [],
+    roomsUnavailableReason: "not yet wired (studio/milestones-and-phase pending)",
+    portfolio: {
+      verifiedThisWeek: { value: 0, unavailableReason: null },
+      awaitingYouCount: { value: 0, unavailableReason: null },
+      passRate: { value: null, unavailableReason: "no data" },
+      medianRunSeconds: { value: null, unavailableReason: "no data" },
+      agentWindowShare: { value: null, unavailableReason: "not yet computed" },
+    },
+  };
+  return {
+    protocolVersion: 1,
+    requestId,
+    ok: true,
+    result: {
+      operation: "studio.snapshot",
+      snapshot: {
+        ...snapshot,
+        sourceSnapshotDigest: `sha256:${createHash("sha256")
+          .update(canonicalStudioSnapshotDigestInputV1(snapshot), "utf8")
           .digest("hex")}`,
       },
     },
@@ -460,6 +494,181 @@ describe("typed command client", () => {
     await expect(client.portfolioSnapshot(identity())).rejects.toMatchObject<
       Partial<CommandClientError>
     >({ code: "protocol.portfolio-digest-mismatch", retryable: false });
+    client.close();
+  });
+
+  it("requests the studio snapshot and verifies its canonical source digest", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(`${JSON.stringify(studioSnapshotResponse(frame.requestId))}\n`);
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    await expect(client.studioSnapshot(identity())).resolves.toMatchObject({
+      operation: "studio.snapshot",
+      snapshot: { projects: [], rooms: [] },
+    });
+    expect(received[0]).toMatchObject({ request: { operation: "studio.snapshot", payload: {} } });
+    client.close();
+  });
+
+  it("rejects a studio snapshot response whose canonical source digest is stale", async () => {
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        const response = studioSnapshotResponse(frame.requestId);
+        const result = response.result as Record<string, unknown>;
+        const snapshot = result.snapshot as Record<string, unknown>;
+        socket.end(
+          `${JSON.stringify({
+            ...response,
+            result: {
+              ...result,
+              snapshot: { ...snapshot, sourceSnapshotDigest: `sha256:${"f".repeat(64)}` },
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    await expect(client.studioSnapshot(identity())).rejects.toMatchObject<
+      Partial<CommandClientError>
+    >({ code: "protocol.studio-snapshot-digest-mismatch", retryable: false });
+    client.close();
+  });
+
+  it("asks the assistant with a strict scoped query payload", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: true,
+            result: {
+              operation: "studio.assistant.query",
+              answer: {
+                kind: "cannot-answer",
+                schemaVersion: 1,
+                cannotAnswer: { reason: "no-matching-data", detail: "No data." },
+              },
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.assistantQuery("status?", { projectId: null }, identity()),
+    ).resolves.toMatchObject({ answer: { kind: "cannot-answer" } });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "studio.assistant.query",
+        payload: { query: { schemaVersion: 1, question: "status?", projectId: null } },
+      },
+    });
+    client.close();
+  });
+
+  it("proposes and executes an assistant intent through the strict wire payloads", async () => {
+    const taskSpec = {
+      schemaVersion: 1,
+      taskId: TASK_ID,
+      projectId: "00000000-0000-4000-8000-000000000015",
+      createdAt: NOW.toISOString(),
+      title: "Ship it",
+      objective: "Ship it.",
+      acceptanceCriteria: [{ id: "done", statement: "It ships.", verification: "operator" }],
+      base: { repositoryId: "00000000-0000-4000-8000-000000000016", commit: "a".repeat(40) },
+      requestedScope: { paths: ["Sources/App.swift"] },
+      policyDigest: `sha256:${"b".repeat(64)}`,
+    };
+    const intent = {
+      schemaVersion: 1 as const,
+      intentId: "00000000-0000-4000-8000-000000000017",
+      utterance: `run task ${TASK_ID} now`,
+      payload: { kind: "run-phase" as const, taskSpec },
+      summary: "Run it.",
+      requiresConfirmation: true,
+      proposedAt: NOW.toISOString(),
+    };
+
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const request = frame.request as Record<string, unknown>;
+        const result =
+          request.operation === "studio.assistant.intent.propose"
+            ? { operation: "studio.assistant.intent.propose", intent }
+            : {
+                operation: "studio.assistant.intent.execute",
+                intentId: intent.intentId,
+                outcome: {
+                  kind: "task.run",
+                  result: {
+                    operation: "task.run",
+                    taskId: TASK_ID,
+                    attemptId: "00000000-0000-4000-8000-000000000018",
+                    state: "queued",
+                  },
+                },
+              };
+        socket.end(
+          `${JSON.stringify({ protocolVersion: 1, requestId: frame.requestId, ok: true, result })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    const proposed = await client.proposeAssistantIntent(
+      intent.utterance,
+      intent.payload,
+      identity(),
+    );
+    expect(proposed.intent).toMatchObject({ intentId: intent.intentId });
+
+    const executed = await client.executeAssistantIntent(
+      proposed.intent,
+      identity("00000000-0000-4000-8000-000000000019"),
+    );
+    expect(executed).toMatchObject({ outcome: { kind: "task.run" } });
+
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "studio.assistant.intent.propose",
+        payload: { utterance: intent.utterance, intent: intent.payload },
+      },
+    });
+    expect(received[1]).toMatchObject({
+      request: { operation: "studio.assistant.intent.execute", payload: { intent } },
+    });
     client.close();
   });
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -6,6 +7,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { CommandClientError } from "@app-factory/command-client";
+import { canonicalStudioSnapshotDigestInputV1 } from "@app-factory/contracts";
 
 import {
   CliUsageError,
@@ -233,6 +235,25 @@ describe("CLI argument parser", () => {
         },
       },
     ],
+    [["studio", "snapshot"], { outputMode: "human", command: { kind: "studio.snapshot" } }],
+    [
+      ["studio", "ask", "What is the status?"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "studio.assistant.query",
+          question: "What is the status?",
+          projectId: null,
+        },
+      },
+    ],
+    [
+      ["studio", "ask", "status?", "--project", PROJECT_ID],
+      {
+        outputMode: "human",
+        command: { kind: "studio.assistant.query", question: "status?", projectId: PROJECT_ID },
+      },
+    ],
   ])("parses %j", (arguments_, expected) => {
     expect(parseCliArguments(arguments_)).toEqual({ ...expected, retryIdentity: null });
   });
@@ -432,6 +453,74 @@ describe("CLI output renderer", () => {
       ),
     ).toBe(
       "portfolio: 0 projects, 0 attempts, 0 active, 0 blockers; PRs unavailable, Jira todo unavailable, P0 unavailable, P1 unavailable\n",
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "studio.snapshot",
+          snapshot: {
+            schemaVersion: 1,
+            generatedAt: NOW,
+            projects: [],
+            rooms: [],
+            roomsUnavailableReason: "not yet wired (studio/milestones-and-phase pending)",
+            portfolio: {
+              verifiedThisWeek: { value: 0, unavailableReason: null },
+              awaitingYouCount: { value: 0, unavailableReason: null },
+              passRate: { value: null, unavailableReason: "no succeeded or failed attempts" },
+              medianRunSeconds: { value: null, unavailableReason: "no succeeded attempts" },
+              agentWindowShare: { value: null, unavailableReason: "not yet computed" },
+            },
+            sourceSnapshotDigest: `sha256:${"a".repeat(64)}`,
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      [
+        `studio: 0 project(s), digest sha256:${"a".repeat(64)}`,
+        "verified this week: 0",
+        "awaiting you: 0",
+        "pass rate: unavailable (no succeeded or failed attempts)",
+        "median run seconds: unavailable (no succeeded attempts)",
+        "agent window share: unavailable (not yet computed)",
+        "",
+      ].join("\n"),
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "studio.assistant.query",
+          answer: {
+            kind: "answered",
+            schemaVersion: 1,
+            text: "Project Alpha's latest attempt is running.",
+            citations: [{ kind: "attempt", id: ATTEMPT_ID }],
+          },
+        },
+        "human",
+      ),
+    ).toBe(`Project Alpha's latest attempt is running.\ncitations: attempt:${ATTEMPT_ID}\n`);
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "studio.assistant.query",
+          answer: {
+            kind: "cannot-answer",
+            schemaVersion: 1,
+            cannotAnswer: {
+              reason: "no-milestone-target-date",
+              detail: "No milestone with a real target date exists yet.",
+            },
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      "cannot answer [no-milestone-target-date]: No milestone with a real target date exists yet.\n",
     );
 
     expect(
@@ -1235,5 +1324,76 @@ describe("runCli project enrollment", () => {
       ok: false,
       error: { code: "project.apply-fingerprint-drift", retryable: false },
     });
+  });
+});
+
+describe("runCli studio surface", () => {
+  it("fetches and verifies the studio snapshot digest", async () => {
+    const snapshot = {
+      schemaVersion: 1,
+      generatedAt: NOW,
+      projects: [],
+      rooms: [],
+      roomsUnavailableReason: "not yet wired (studio/milestones-and-phase pending)",
+      portfolio: {
+        verifiedThisWeek: { value: 0, unavailableReason: null },
+        awaitingYouCount: { value: 0, unavailableReason: null },
+        passRate: { value: null, unavailableReason: "no data" },
+        medianRunSeconds: { value: null, unavailableReason: "no data" },
+        agentWindowShare: { value: null, unavailableReason: "not yet computed" },
+      },
+    };
+    const sourceSnapshotDigest = `sha256:${createHash("sha256")
+      .update(canonicalStudioSnapshotDigestInputV1(snapshot as never))
+      .digest("hex")}`;
+
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "studio.snapshot") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: { operation: "studio.snapshot", snapshot: { ...snapshot, sourceSnapshotDigest } },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["studio", "snapshot"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("studio: 0 project(s)");
+  });
+
+  it("asks the assistant and prints an honest refusal", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "studio.assistant.query")
+        throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "studio.assistant.query",
+          answer: {
+            kind: "cannot-answer",
+            schemaVersion: 1,
+            cannotAnswer: {
+              reason: "no-milestone-target-date",
+              detail: "No milestone with a real target date exists yet.",
+            },
+          },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["studio", "ask", "when does this ship?"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toBe(
+      "cannot answer [no-milestone-target-date]: No milestone with a real target date exists yet.\n",
+    );
   });
 });

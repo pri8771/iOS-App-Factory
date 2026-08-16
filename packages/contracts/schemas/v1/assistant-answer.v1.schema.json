@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "attempt",
+            "milestone",
+            "gate",
+            "doc"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:assistant-answer",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "type": "array"
+        },
+        "kind": {
+          "const": "answered",
+          "type": "string"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "schemaVersion",
+        "text",
+        "citations"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "cannotAnswer": {
+          "additionalProperties": false,
+          "properties": {
+            "detail": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "reason": {
+              "enum": [
+                "no-milestone-target-date",
+                "no-matching-project",
+                "no-matching-data"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason",
+            "detail"
+          ],
+          "type": "object"
+        },
+        "kind": {
+          "const": "cannot-answer",
+          "type": "string"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "required": [
+        "kind",
+        "schemaVersion",
+        "cannotAnswer"
+      ],
+      "type": "object"
+    }
+  ]
+}

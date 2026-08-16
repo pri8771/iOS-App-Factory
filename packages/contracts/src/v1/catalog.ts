@@ -21,6 +21,12 @@ import { LessonV1Schema, LifecycleEventV1Schema } from "./learning.js";
 import { ModuleManifestV1Schema } from "./module.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
+import {
+  AssistantAnswerV1Schema,
+  AssistantIntentV1Schema,
+  AssistantQueryV1Schema,
+} from "./studio-assistant.js";
+import { StudioSnapshotV1Schema } from "./studio-snapshot.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
 export type ContractSchemaCatalogEntryV1 = Readonly<{
@@ -180,6 +186,30 @@ export const contractSchemaCatalogV1 = [
     fileName: "evidence-manifest.v1.schema.json",
     id: "urn:app-factory:contracts:v1:evidence-manifest",
     schema: EvidenceManifestV1Schema,
+  },
+  {
+    name: "studio-snapshot",
+    fileName: "studio-snapshot.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:studio-snapshot",
+    schema: StudioSnapshotV1Schema,
+  },
+  {
+    name: "assistant-query",
+    fileName: "assistant-query.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:assistant-query",
+    schema: AssistantQueryV1Schema,
+  },
+  {
+    name: "assistant-answer",
+    fileName: "assistant-answer.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:assistant-answer",
+    schema: AssistantAnswerV1Schema,
+  },
+  {
+    name: "assistant-intent",
+    fileName: "assistant-intent.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:assistant-intent",
+    schema: AssistantIntentV1Schema,
   },
 ] as const satisfies readonly ContractSchemaCatalogEntryV1[];
 

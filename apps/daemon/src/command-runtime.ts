@@ -14,6 +14,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import {
   AttemptIdSchema,
   canonicalPortfolioReadModelDigestInputV1,
+  CommandIdSchema,
   CommandRequestV1Schema,
   CommandResultV1Schema,
   EventIdSchema,
@@ -22,6 +23,7 @@ import {
   Sha256DigestSchema,
   StableKeySchema,
   COMMAND_PROTOCOL_VERSION_V1,
+  type AssistantIntentExecutionOutcomeV1,
   type AttemptId,
   type CommandId,
   type CommandRequestV1,
@@ -46,13 +48,22 @@ import {
 import { verifyCanonicalObservationAttestation } from "@app-factory/effect-worker";
 import { EvidenceStore } from "@app-factory/evidence-store";
 
+import type { DaemonRuntimeIdFactory, DaemonRuntimeIdPurpose } from "./daemon-runtime-ids.js";
 import { executeEvidenceCommand } from "./evidence-command-runtime.js";
 import {
   executeProjectApplyCommand,
   executeProjectEnrollPlanCommand,
   executeProjectScanCommand,
 } from "./project-command-runtime.js";
+import {
+  buildAssistantIntentDispatchRequestV1,
+  buildStudioSnapshotV1,
+  computeAssistantAnswerV1,
+  proposeAssistantIntentV1,
+} from "./studio-command-runtime.js";
 import { CommandHandlerError, type CommandHandler } from "./unix-command-server.js";
+
+export type { DaemonRuntimeIdFactory, DaemonRuntimeIdPurpose } from "./daemon-runtime-ids.js";
 
 const COMMAND_RESULTS_DIRECTORY_NAME = "command-results";
 const RESULT_LEDGER_VERSION = 1;
@@ -73,22 +84,6 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
 ]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
-
-export type DaemonRuntimeIdPurpose =
-  | "attempt"
-  | "attempt-created-event"
-  | "desired-state-event"
-  | "retry-attempt"
-  | "retry-created-event"
-  | "unblock-fence-event"
-  | "unblock-answered-event"
-  | "unblock-step-event"
-  | "unblock-attempt-event";
-
-export type DaemonRuntimeIdFactory = (
-  purpose: DaemonRuntimeIdPurpose,
-  commandId: CommandId,
-) => string;
 
 export type DaemonDatabaseInitializer = (database: FactoryDatabase) => void;
 
@@ -498,6 +493,10 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "project.apply":
     case "effects.status":
     case "effects.list":
+    case "studio.snapshot":
+    case "studio.assistant.query":
+    case "studio.assistant.intent.propose":
+    case "studio.assistant.intent.execute":
       return null;
   }
 }
@@ -1001,6 +1000,8 @@ async function executeRequest(
     evidenceStore: EvidenceStore;
     effects: EffectRepository;
     effectsPump: EffectPumpStatusPort;
+    /** Only used by `studio.assistant.intent.execute` to durably ledger the op it dispatches to. */
+    paths: DaemonRuntimePaths;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1102,6 +1103,100 @@ async function executeRequest(
         operation: "effects.list",
         page: dependencies.effects.listEffects(request.payload),
       };
+    case "studio.snapshot":
+      return {
+        operation: "studio.snapshot",
+        snapshot: buildStudioSnapshotV1(repositories, dependencies.observedAt),
+      };
+    case "studio.assistant.query":
+      return {
+        operation: "studio.assistant.query",
+        answer: computeAssistantAnswerV1(
+          buildStudioSnapshotV1(repositories, dependencies.observedAt),
+          request.payload.query,
+        ),
+      };
+    case "studio.assistant.intent.propose":
+      return {
+        operation: "studio.assistant.intent.propose",
+        intent: proposeAssistantIntentV1(
+          request.payload,
+          dependencies.observedAt,
+          dependencies.idFactory,
+          request.commandId,
+        ),
+      };
+    case "studio.assistant.intent.execute": {
+      // The inner commandId is derived deterministically from this execute command's own
+      // commandId, so a retried execute call (same outer commandId) derives the identical inner
+      // commandId and rides the dispatched operation's own existing idempotency below, rather than
+      // this handler inventing a second idempotency mechanism.
+      const innerCommandId = CommandIdSchema.parse(
+        dependencies.idFactory("assistant-intent-dispatch", request.commandId),
+      );
+      const inner = buildAssistantIntentDispatchRequestV1(
+        request.payload.intent,
+        { issuedAt: request.issuedAt, origin: request.origin },
+        innerCommandId,
+      );
+      assertPlausibleClientTimestamps(inner, dependencies.observedAt);
+      assertKernelCommandIdentity(repositories, inner);
+
+      const innerDurable = DURABLE_COMMAND_RESULT_OPERATIONS.has(inner.operation);
+      let innerResult: CommandResultV1;
+      if (innerDurable) {
+        const existingInner = await readLedgerEntry(dependencies.paths, inner.commandId);
+        if (existingInner !== null) {
+          assertMatchingRequest(existingInner.request, inner);
+          innerResult = existingInner.result;
+        } else {
+          innerResult = CommandResultV1Schema.parse(
+            await executeRequest(repositories, database, inner, dependencies),
+          );
+          const persistedInner = await persistLedgerEntry(dependencies.paths, {
+            ledgerVersion: RESULT_LEDGER_VERSION,
+            request: inner,
+            result: innerResult,
+          });
+          assertMatchingRequest(persistedInner.request, inner);
+          innerResult = persistedInner.result;
+        }
+      } else {
+        innerResult = CommandResultV1Schema.parse(
+          await executeRequest(repositories, database, inner, dependencies),
+        );
+      }
+
+      let outcome: AssistantIntentExecutionOutcomeV1;
+      switch (innerResult.operation) {
+        case "task.submit":
+          outcome = { kind: "task.submit", result: innerResult };
+          break;
+        case "task.run":
+          outcome = { kind: "task.run", result: innerResult };
+          break;
+        case "project.scan":
+          outcome = { kind: "project.scan", result: innerResult };
+          break;
+        case "project.apply":
+          outcome = { kind: "project.apply", result: innerResult };
+          break;
+        case "attempt.unblock":
+          outcome = { kind: "attempt.unblock", result: innerResult };
+          break;
+        default:
+          throw new CommandHandlerError(
+            "assistant.intent-dispatch-unexpected-operation",
+            `Unexpected dispatched operation ${innerResult.operation} for an assistant intent.`,
+            false,
+          );
+      }
+      return {
+        operation: "studio.assistant.intent.execute",
+        intentId: request.payload.intent.intentId,
+        outcome,
+      };
+    }
   }
 }
 
@@ -1182,6 +1277,7 @@ export async function openDaemonCommandRuntime(
           evidenceStore,
           effects: effectRepository,
           effectsPump: effectsPumpStatusPort,
+          paths,
         }),
       );
       if (!persistResult) return result;

@@ -1,0 +1,289 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptanceCriteria": {
+          "items": {
+            "$ref": "#/$defs/__schema4"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "type": "array"
+        },
+        "base": {
+          "additionalProperties": false,
+          "properties": {
+            "commit": {
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+              "type": "string"
+            },
+            "repositoryId": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "repositoryId",
+            "commit"
+          ],
+          "type": "object"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "objective": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "policyDigest": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "projectId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "requestedScope": {
+          "additionalProperties": false,
+          "properties": {
+            "paths": {
+              "items": {
+                "$ref": "#/$defs/__schema5"
+              },
+              "maxItems": 100,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "paths"
+          ],
+          "type": "object"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "taskId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "taskId",
+        "projectId",
+        "createdAt",
+        "title",
+        "objective",
+        "acceptanceCriteria",
+        "base",
+        "requestedScope",
+        "policyDigest"
+      ],
+      "type": "object"
+    },
+    "__schema3": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema4": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "verification": {
+          "enum": [
+            "automated",
+            "review",
+            "operator"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "statement",
+        "verification"
+      ],
+      "type": "object"
+    },
+    "__schema5": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
+      "type": "string"
+    },
+    "__schema6": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:assistant-intent",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "intentId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "payload": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "queue-task",
+              "type": "string"
+            },
+            "taskSpec": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "required": [
+            "kind",
+            "taskSpec"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "run-phase",
+              "type": "string"
+            },
+            "taskSpec": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "required": [
+            "kind",
+            "taskSpec"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "scan-project",
+              "type": "string"
+            },
+            "repositoryRoot": {
+              "maxLength": 4096,
+              "minLength": 2,
+              "pattern": "^\\/(?!.*\\/\\/)(?!.*\\\\)(?!.*\\0).+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "repositoryRoot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "branchName": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "kind": {
+              "const": "enroll-project",
+              "type": "string"
+            },
+            "planDigest": {
+              "$ref": "#/$defs/__schema6"
+            }
+          },
+          "required": [
+            "kind",
+            "planDigest",
+            "branchName"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "answer": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "attemptId": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "kind": {
+              "const": "approve-attempt",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "attemptId",
+            "answer"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "proposedAt": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "requiresConfirmation": {
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "summary": {
+      "maxLength": 500,
+      "minLength": 1,
+      "type": "string"
+    },
+    "utterance": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "intentId",
+    "utterance",
+    "payload",
+    "summary",
+    "requiresConfirmation",
+    "proposedAt"
+  ],
+  "type": "object"
+}

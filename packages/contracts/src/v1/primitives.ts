@@ -63,6 +63,9 @@ export type ReleaseId = z.infer<typeof ReleaseIdSchema>;
 export const LessonIdSchema = LowercaseUuidSchema.brand<"LessonId">();
 export type LessonId = z.infer<typeof LessonIdSchema>;
 
+export const AssistantIntentIdSchema = LowercaseUuidSchema.brand<"AssistantIntentId">();
+export type AssistantIntentId = z.infer<typeof AssistantIntentIdSchema>;
+
 export const IsoInstantSchema = z.iso
   .datetime({ offset: false, precision: 3 })
   .brand<"IsoInstant">();

@@ -54,6 +54,8 @@ export type CliOutputMode = "human" | "json";
 export type ParsedCliCommand =
   | Readonly<{ kind: "doctor" }>
   | Readonly<{ kind: "portfolio.snapshot" }>
+  | Readonly<{ kind: "studio.snapshot" }>
+  | Readonly<{ kind: "studio.assistant.query"; question: string; projectId: ProjectId | null }>
   | Readonly<{ kind: "task.submit" | "task.run"; taskFile: string }>
   | Readonly<{ kind: "task.new"; options: TaskNewOptionsV1 }>
   | Readonly<{ kind: "attempt.status"; attemptId: AttemptId }>
@@ -252,6 +254,30 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
   if (command === "portfolio") {
     rejectUnexpected(arguments_);
     return { outputMode, retryIdentity, command: { kind: "portfolio.snapshot" } };
+  }
+
+  if (command === "studio") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "snapshot") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "studio.snapshot" } };
+    }
+    if (subcommand === "ask") {
+      const question = arguments_.shift();
+      if (question === undefined || question.length === 0) usageError("A question is required.");
+      const projectValue = consumeOption(arguments_, "--project");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "studio.assistant.query",
+          question,
+          projectId: projectValue === undefined ? null : parseProjectId(projectValue),
+        },
+      };
+    }
+    usageError("Studio requires one of: snapshot, ask.");
   }
 
   if (command === "submit" || command === "run") {
@@ -549,6 +575,30 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
         value === null ? "unavailable" : String(value);
       return `portfolio: ${String(result.snapshot.totals.projects)} projects, ${String(result.snapshot.totals.attempts)} attempts, ${String(result.snapshot.totals.activeAttempts)} active, ${String(result.snapshot.totals.blockers)} blockers; PRs ${available(result.snapshot.totals.openPullRequests)}, Jira todo ${available(result.snapshot.totals.jiraTodo)}, P0 ${available(result.snapshot.totals.unresolvedP0)}, P1 ${available(result.snapshot.totals.unresolvedP1)}\n`;
     }
+    case "studio.snapshot": {
+      const metric = (value: number | null, unavailableReason: string | null): string =>
+        value === null ? `unavailable (${unavailableReason ?? "unknown"})` : String(value);
+      const { portfolio } = result.snapshot;
+      const lines = [
+        `studio: ${String(result.snapshot.projects.length)} project(s), digest ${result.snapshot.sourceSnapshotDigest}`,
+        `verified this week: ${metric(portfolio.verifiedThisWeek.value, portfolio.verifiedThisWeek.unavailableReason)}`,
+        `awaiting you: ${metric(portfolio.awaitingYouCount.value, portfolio.awaitingYouCount.unavailableReason)}`,
+        `pass rate: ${metric(portfolio.passRate.value, portfolio.passRate.unavailableReason)}`,
+        `median run seconds: ${metric(portfolio.medianRunSeconds.value, portfolio.medianRunSeconds.unavailableReason)}`,
+        `agent window share: ${metric(portfolio.agentWindowShare.value, portfolio.agentWindowShare.unavailableReason)}`,
+      ];
+      return `${lines.join("\n")}\n`;
+    }
+    case "studio.assistant.query": {
+      const { answer } = result;
+      return answer.kind === "answered"
+        ? `${answer.text}\ncitations: ${answer.citations.map((citation) => `${citation.kind}:${citation.id}`).join(", ")}\n`
+        : `cannot answer [${answer.cannotAnswer.reason}]: ${answer.cannotAnswer.detail}\n`;
+    }
+    case "studio.assistant.intent.propose":
+      return `${JSON.stringify(result.intent, null, 2)}\n`;
+    case "studio.assistant.intent.execute":
+      return `studio.assistant.intent.execute: intent ${result.intentId} dispatched to ${result.outcome.kind}\n${JSON.stringify(result.outcome.result, null, 2)}\n`;
     case "project.scan": {
       const lines = [
         `project.scan: ${result.repositoryRoot}`,
@@ -847,6 +897,16 @@ export async function runCli(
         break;
       case "portfolio.snapshot":
         result = await client.portfolioSnapshot(identity);
+        break;
+      case "studio.snapshot":
+        result = await client.studioSnapshot(identity);
+        break;
+      case "studio.assistant.query":
+        result = await client.assistantQuery(
+          invocation.command.question,
+          { projectId: invocation.command.projectId },
+          identity,
+        );
         break;
       case "task.submit":
         result = await client.submit(await loadTaskSpec(invocation.command.taskFile), identity);
