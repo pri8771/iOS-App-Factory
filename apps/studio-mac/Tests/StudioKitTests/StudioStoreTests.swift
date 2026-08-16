@@ -62,8 +62,51 @@ final class StudioStoreTests: XCTestCase {
         XCTAssertEqual(store.assistantContext.link, "connected · daemon 0.1.0-ui-demo ready")
 
         let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
-        XCTAssertEqual(operations, ["doctor", "portfolio.snapshot", "attempt.list", "evidence.list"])
-        XCTAssertEqual(server.frames[2]["request"]?["payload"], ["scope": "all", "projectId": nil, "after": nil, "limit": 100])
+        // `fixtureServer()` does not answer studio.snapshot (falls to "protocol.unknown-operation" in
+        // its default case), so `refresh()` probes it first and falls back to the phase-1 sequence —
+        // exactly what a today's-main daemon that has never heard of Studio Phase 2 looks like.
+        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "portfolio.snapshot", "attempt.list", "evidence.list"])
+        XCTAssertEqual(server.frames[3]["request"]?["payload"], ["scope": "all", "projectId": nil, "after": nil, "limit": 100])
+    }
+
+    /// A daemon that *does* answer `studio.snapshot` sources the dashboard from it and skips the
+    /// phase-1 reads entirely (`evidence.list` is still fetched — project detail's run checks need it
+    /// either way).
+    func testStudioSnapshotSourcesTheDashboardWhenSupported() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            let requestId = frame["requestId"]?.stringValue ?? ""
+            let operation = frame["request"]?["operation"]?.stringValue ?? ""
+            let file: String
+            switch operation {
+            case "doctor": file = "doctor.response.json"
+            case "studio.snapshot": file = "studio-snapshot.response.json"
+            case "evidence.list": file = "evidence-list.response.json"
+            default:
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unknown-operation", message: operation, retryable: false))
+            }
+            return .reply(try! WireResponse.fixture(file, requestId: requestId))
+        }
+        defer { server.stop() }
+        let store = try makeStore(server)
+        await store.connect()
+
+        XCTAssertNotNil(store.studioSnapshot)
+        XCTAssertNil(store.portfolio)
+        XCTAssertNil(store.attempts)
+        XCTAssertNil(store.errors["studio.snapshot"])
+        let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
+        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "evidence.list"], "portfolio.snapshot/attempt.list are skipped once studio.snapshot answers")
+
+        let dashboard = store.dashboard
+        XCTAssertEqual(dashboard.gauges.map(\.id), DashboardDerivation.studioGaugeOrder)
+        XCTAssertEqual(dashboard.gauges[0].readout, "2", "studio.snapshot's own project count")
+        XCTAssertEqual(dashboard.gauges[1].readout, "2", "verifiedThisWeek.value")
+        XCTAssertEqual(dashboard.gauges[2].readout, "1", "awaitingYouCount.value")
+        XCTAssertEqual(dashboard.gauges[2].role, .human)
+        XCTAssertNil(dashboard.gauges[5].readout, "agentWindowShare is unavailableReason in the fixture")
+        XCTAssertEqual(dashboard.gauges[5].provenance, .notYetSourced)
+        XCTAssertEqual(dashboard.awaiting.count, 4, "1 studio.snapshot awaitingHuman item + 3 fixture ◆ gates")
+        XCTAssertEqual(dashboard.awaiting[0].provenance, .live("studio.snapshot"))
     }
 
     func testPerOperationFailuresAreKeptNotSwallowed() async throws {
@@ -106,6 +149,48 @@ final class StudioStoreTests: XCTestCase {
         XCTAssertNotNil(store.timeline)
         await store.connect()
         XCTAssertEqual(store.link, .unconfigured)
+    }
+
+    /// `project.milestones.list` is cached per project (mirroring `loadRun`), and
+    /// `upsertMilestone` refreshes that cache so the panel and the Gantt row go live without a
+    /// manual reload — the "timelines can become live from inside the app" requirement.
+    func testMilestonesAreCachedAndUpsertRefreshesTheCache() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            let requestId = frame["requestId"]?.stringValue ?? ""
+            let operation = frame["request"]?["operation"]?.stringValue ?? ""
+            switch operation {
+            case "doctor": return .reply(try! WireResponse.fixture("doctor.response.json", requestId: requestId))
+            case "project.milestones.list":
+                return .reply(try! WireResponse.fixture("project-milestones-list.response.json", requestId: requestId))
+            case "project.milestone.upsert":
+                return .reply(try! WireResponse.fixture("project-milestone-upsert.response.json", requestId: requestId))
+            default:
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unknown-operation", message: operation, retryable: false))
+            }
+        }
+        defer { server.stop() }
+        let store = try makeStore(server)
+        await store.connect()
+
+        let projectId = ProjectID(unchecked: "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f")
+        let loaded = await store.loadMilestones(projectId)
+        let timeline = try XCTUnwrap(loaded)
+        XCTAssertEqual(timeline.milestones.count, 2)
+        XCTAssertEqual(store.milestoneTimelines[projectId]?.milestones.count, 2)
+
+        // Cached: a second call does not hit the wire.
+        let framesBeforeSecondLoad = server.frames.count
+        _ = await store.loadMilestones(projectId)
+        XCTAssertEqual(server.frames.count, framesBeforeSecondLoad)
+
+        let draft = timeline.milestones[0].draft
+        let result = await store.upsertMilestone(draft, expectedRevision: timeline.milestones[0].revision)
+        guard case .success(let upserted) = result else { return XCTFail("expected the upsert to succeed") }
+        XCTAssertFalse(upserted.created)
+        // The cache was force-refreshed by the upsert (a second project.milestones.list frame).
+        let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
+        XCTAssertEqual(operations.filter { $0 == "project.milestone.upsert" }.count, 1)
+        XCTAssertEqual(operations.filter { $0 == "project.milestones.list" }.count, 2)
     }
 
     func testLoadRunReadsEventsAndReportsEvidenceVerifyFailureHonestly() async throws {

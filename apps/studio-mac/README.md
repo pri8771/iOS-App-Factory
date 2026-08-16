@@ -11,20 +11,29 @@ apps/studio-mac/
 │   │                             DiamondGate, StatusPill, HUDButton, ProvenanceBadge, HUDGallery
 │   ├── Client/                   DaemonClient (actor, Network.framework), AuthorizationToken,
 │   │                             ExchangeSession, DaemonClientError, DaemonLocator
-│   ├── Models/                   Codable mirrors of packages/contracts v1 (all 21 operations),
-│   │                             Provenance/Sourced, Timeline (ProjectTimeline, DayStamp, fixture loader)
-│   ├── Canonical/                JSONValue, CanonicalJSON, PortfolioDigest
-│   ├── Dashboard/                DashboardModel (pure derivations), TimelineView (Canvas Gantt),
-│   │                             PortfolioReticle, GaugeRowView, AwaitingYouList, PhaseRingsRow +
-│   │                             LifecycleTrack, ProjectDetailView, RunDetail
-│   ├── Chat/                     ScriptedAssistant (stub) + ChatModel, CornerChatView, ChatScreen
+│   ├── Models/                   Codable mirrors of packages/contracts v1 (27 operations — the
+│   │                             phase-1 21 plus Studio Phase 2's studio.snapshot,
+│   │                             studio.assistant.{query,intent.propose,intent.execute},
+│   │                             project.milestones.{list,upsert}: StudioSnapshot.swift,
+│   │                             Assistant.swift, Milestone.swift), Provenance/Sourced,
+│   │                             Timeline (ProjectTimeline, DayStamp, fixture loader)
+│   ├── Canonical/                JSONValue, CanonicalJSON, PortfolioDigest, StudioSnapshotDigest
+│   ├── Dashboard/                DashboardModel (pure derivations — a phase-1 portfolio.snapshot
+│   │                             branch and a Phase 2 studio.snapshot branch), TimelineView
+│   │                             (Canvas Gantt), PortfolioReticle, GaugeRowView, AwaitingYouList,
+│   │                             PhaseRingsRow + LifecycleTrack, ProjectDetailView, RunDetail,
+│   │                             MilestoneEditorView
+│   ├── Chat/                     ScriptedAssistant (stub fallback) + DaemonAssistant
+│   │                             (AssistantBackend, IntentRecognizer) + ChatModel, CornerChatView,
+│   │                             ChatScreen
 │   ├── Shell/                    StudioStore (@Observable), StudioTitleBar, DashboardScreen,
 │   │                             StudioRootView, PhasesScreen
 │   └── Resources/timeline-fixture.json   FIXTURE rows for the six apps (see docs 0002)
 ├── Sources/Studio/StudioApp.swift  the app: locate daemon from env, own the store, one window
 ├── Tests/StudioKitTests/         unit, fake-daemon, snapshot, and live-daemon (skippable) tests
 ├── scripts/record-fixtures.mjs   regenerates Tests/…/Fixtures through the real zod schemas
-└── docs/architecture/            0001 foundations · 0002 dashboard provenance + fixture timeline
+└── docs/architecture/            0001 foundations · 0002 dashboard provenance + fixture timeline ·
+                                   0003 Studio Phase 2 (studio.snapshot, assistant, milestones)
 ```
 
 ## Build & test
@@ -75,19 +84,31 @@ APP_FACTORY_DAEMON_VERSION=0.1.0-ui-demo node ../daemon/dist/main.js &
 APP_FACTORY_SOCKET="$RT/runtime/daemon.sock" APP_FACTORY_AUTH_FILE="$RT/etc/auth.token" .build/release/Studio
 ```
 
-## What is live, fixture, or stub (phase 1)
+## What is live, fixture, or stub
 
 Every value on screen carries a provenance badge — LIVE · DERIVED · FIXTURE · STATIC · NOT YET SOURCED.
 
+Studio feature-detects `studio.snapshot` on every refresh (see docs/architecture/0003): against a
+daemon with the Phase 2 studio service, the dashboard, awaiting-you, timeline gates/milestones, and the
+corner chat are sourced from it; against a phase-1-only daemon (or none), everything below still holds.
+
 * **Live** (daemon): title-bar beacon (doctor), projects gauge, awaiting-you count, reticle when the
   daemon reports lifecycle stages, awaiting-you blocked attempts, attempt marks on timeline rows,
-  live-only project rows, project detail readouts, latest-run checks (attempt.events + evidence.verify),
-  assistant answers about attempts / blocked / projects / daemon.
-* **Derived** (computed from live): verified · 7d.
+  live-only project rows, project detail readouts, latest-run checks (attempt.events + evidence.verify).
+  With `studio.snapshot`: the gauge row's verified/awaiting/pass-rate/median-run/agent-window readouts
+  (each independently NOT YET SOURCED per its own `unavailableReason`), awaiting-you from
+  `projects[].awaitingHuman`, ◆ gates from `projects[].gates` (gold only when human-owned), milestone
+  bars overlaid on the timeline (flips a matched fixture row FIXTURE → FIXTURE + LIVE), the project
+  detail gates/milestones panels, and the corner chat's `studio.assistant.query` answers (citations as
+  chips) and intent confirmation cards.
+* **Derived** (computed from live): verified · 7d (phase-1 path only — Phase 2 reads it straight off
+  `StudioPortfolioAggregates.verifiedThisWeek`).
 * **Fixture** (`timeline-fixture.json`, TODO milestones schema): the six timeline rows and their
   lifecycle tracks, ◆ gates in awaiting-you, phase rings, reticle fallback.
-* **Static / stub**: budget 38%, the Phases tab, the scripted assistant's fallbacks.
-* **Not yet sourced**: min / release, agent window.
+* **Static / stub**: budget 38%, the Phases tab, the scripted assistant — now only the fallback path
+  when `studio.assistant.query`/`.intent.propose` is unsupported or fails (see docs/architecture/0003).
+* **Not yet sourced**: min / release (no Phase 2 aggregate names it — see 0003); agent window until the
+  daemon actually computes `agentWindowShare` (today it always reports `unavailableReason`).
 
 ## Design rules (non-negotiable)
 

@@ -13,7 +13,11 @@ import Foundation
 
 public let commandProtocolVersion = 1
 
-/// The 21 wire operations, verbatim.
+/// The 27 wire operations, verbatim. The last 6 are Studio Phase 2: `studio.snapshot` and
+/// `studio.assistant.*` come from `studio/service-skeleton` (tip cdfe558); `project.milestones.list`
+/// and `project.milestone.upsert` come from `studio/milestones-and-phase` (tip 3cff9a7). Neither branch
+/// has merged to `main` as of this writing — see `DaemonClient.isUnsupportedOperation` for how the
+/// client feature-detects them against a daemon that does not know these operations yet.
 public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable {
     case doctor
     case taskSubmit = "task.submit"
@@ -36,6 +40,12 @@ public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable 
     case projectApply = "project.apply"
     case effectsStatus = "effects.status"
     case effectsList = "effects.list"
+    case studioSnapshot = "studio.snapshot"
+    case studioAssistantQuery = "studio.assistant.query"
+    case studioAssistantIntentPropose = "studio.assistant.intent.propose"
+    case studioAssistantIntentExecute = "studio.assistant.intent.execute"
+    case projectMilestonesList = "project.milestones.list"
+    case projectMilestoneUpsert = "project.milestone.upsert"
 }
 
 /// `CommandOriginV1Schema` — there is no "studio" origin on the wire yet; Studio speaks as
@@ -234,6 +244,37 @@ public struct ProjectApplyPayload: Encodable, Sendable, Hashable {
     }
 }
 
+// MARK: Studio Phase 2 payloads
+
+public struct StudioAssistantQueryPayload: Encodable, Sendable, Hashable {
+    public var query: AssistantQuery
+    public init(query: AssistantQuery) { self.query = query }
+}
+
+public struct StudioAssistantIntentProposePayload: Encodable, Sendable, Hashable {
+    public var utterance: String
+    public var intent: AssistantIntentPayload
+    public init(utterance: String, intent: AssistantIntentPayload) {
+        self.utterance = utterance
+        self.intent = intent
+    }
+}
+
+public struct StudioAssistantIntentExecutePayload: Encodable, Sendable, Hashable {
+    public var intent: AssistantIntent
+    public init(intent: AssistantIntent) { self.intent = intent }
+}
+
+public struct ProjectMilestonesListPayload: Encodable, Sendable, Hashable {
+    public var projectId: ProjectID
+    public init(projectId: ProjectID) { self.projectId = projectId }
+}
+
+/// `project.milestone.upsert`'s payload IS `ProjectMilestoneUpsertV1Schema` directly (not nested
+/// under a `payload.upsert` field) — `ProjectMilestoneUpsert` already has the hand-written
+/// `encode(to:)` its nullable `expectedRevision` needs.
+public typealias ProjectMilestoneUpsertPayload = ProjectMilestoneUpsert
+
 // MARK: Results
 
 public enum DaemonReadiness: String, Hashable, Sendable, Codable, CaseIterable {
@@ -285,6 +326,12 @@ public struct ReconcileResult: Hashable, Sendable, Codable {
     public var reconciledAttemptIds: [AttemptID]
 }
 
+/// `studio.assistant.intent.execute`'s result: `{operation, intentId, outcome}`.
+public struct StudioAssistantIntentExecuteResult: Hashable, Sendable, Codable {
+    public var intentId: AssistantIntentID
+    public var outcome: AssistantIntentExecutionOutcome
+}
+
 /// `CommandResultV1` — an `operation`-discriminated union.
 public enum CommandResult: Sendable {
     case doctor(DoctorResult)
@@ -308,6 +355,12 @@ public enum CommandResult: Sendable {
     case projectApply(ProjectApplyResult)
     case effectsStatus(EffectStatus)
     case effectsList(EffectListPage)
+    case studioSnapshot(StudioSnapshot)
+    case studioAssistantQuery(AssistantAnswer)
+    case studioAssistantIntentPropose(AssistantIntent)
+    case studioAssistantIntentExecute(StudioAssistantIntentExecuteResult)
+    case projectMilestonesList(ProjectMilestoneTimeline)
+    case projectMilestoneUpsert(ProjectMilestoneUpsertResult)
 
     public var operation: CommandOperation {
         switch self {
@@ -332,6 +385,12 @@ public enum CommandResult: Sendable {
         case .projectApply: return .projectApply
         case .effectsStatus: return .effectsStatus
         case .effectsList: return .effectsList
+        case .studioSnapshot: return .studioSnapshot
+        case .studioAssistantQuery: return .studioAssistantQuery
+        case .studioAssistantIntentPropose: return .studioAssistantIntentPropose
+        case .studioAssistantIntentExecute: return .studioAssistantIntentExecute
+        case .projectMilestonesList: return .projectMilestonesList
+        case .projectMilestoneUpsert: return .projectMilestoneUpsert
         }
     }
 }
@@ -340,6 +399,7 @@ extension CommandResult: Decodable {
     private enum CodingKeys: String, CodingKey {
         case operation
         case attempt, events, nextAfterSequence, page, snapshot, status, manifest, manifestDigest
+        case answer, intent, timeline
     }
 
     public init(from decoder: any Decoder) throws {
@@ -370,6 +430,12 @@ extension CommandResult: Decodable {
         case .projectApply: self = .projectApply(try single.decode(ProjectApplyResult.self))
         case .effectsStatus: self = .effectsStatus(try c.decode(EffectStatus.self, forKey: .status))
         case .effectsList: self = .effectsList(try c.decode(EffectListPage.self, forKey: .page))
+        case .studioSnapshot: self = .studioSnapshot(try c.decode(StudioSnapshot.self, forKey: .snapshot))
+        case .studioAssistantQuery: self = .studioAssistantQuery(try c.decode(AssistantAnswer.self, forKey: .answer))
+        case .studioAssistantIntentPropose: self = .studioAssistantIntentPropose(try c.decode(AssistantIntent.self, forKey: .intent))
+        case .studioAssistantIntentExecute: self = .studioAssistantIntentExecute(try single.decode(StudioAssistantIntentExecuteResult.self))
+        case .projectMilestonesList: self = .projectMilestonesList(try c.decode(ProjectMilestoneTimeline.self, forKey: .timeline))
+        case .projectMilestoneUpsert: self = .projectMilestoneUpsert(try single.decode(ProjectMilestoneUpsertResult.self))
         }
     }
 }

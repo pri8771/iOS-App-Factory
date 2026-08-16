@@ -252,6 +252,117 @@ final class DashboardDerivationTests: XCTestCase {
         XCTAssertEqual(checks.map(\.provenance), [.live("attempt.events"), .live("attempt.events")])
     }
 
+    // MARK: studio.snapshot-sourced dashboard (Studio Phase 2)
+
+    /// A hand-built snapshot exercising every unavailableReason field, a matched fixture row (proving
+    /// the FIXTURE → LIVE badge flip via a real milestone), a live-only row with a human-owned gate,
+    /// and an awaitingHuman item — everything `DashboardDerivation`'s studio-mode branch has to render.
+    private func studioSnapshot(gateState: StudioGateState = .pending, gateOwner: String? = "human") -> StudioSnapshot {
+        let hindsight = StudioProject(
+            projectId: ProjectID(unchecked: "9c8b7a6f-5e4d-4c3b-8a19-0f1e2d3c4b5a"), name: "Hindsight",
+            lifecycleStage: nil,
+            gates: StudioProjectGates(typed: nil, owner: nil, state: .unavailable, unavailableReason: studioNotYetWiredReason),
+            latestAttemptSummary: nil,
+            awaitingHuman: [StudioAwaitingHumanItem(kind: .blockedAttempt,
+                                                    attemptId: AttemptID(unchecked: "00000004-0000-4000-8000-000000000004"),
+                                                    summary: "needs an operator answer",
+                                                    since: IsoInstant(unchecked: "2026-08-16T14:00:00.000Z"))],
+            timeline: StudioProjectTimeline(
+                milestones: [StudioMilestone(milestoneId: StudioMilestoneID(unchecked: "hindsight-beta"), name: "Beta review",
+                                             targetDate: IsoInstant(unchecked: "2026-08-20T00:00:00.000Z"), status: .planned)],
+                milestonesUnavailableReason: nil, actuals: []))
+        let zenith = StudioProject(
+            projectId: ProjectID(unchecked: "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5e"), name: "Zenith",
+            lifecycleStage: .building,
+            gates: StudioProjectGates(typed: "legal", owner: gateOwner, state: gateState, unavailableReason: nil),
+            latestAttemptSummary: nil, awaitingHuman: [],
+            timeline: StudioProjectTimeline(milestones: [], milestonesUnavailableReason: studioNotYetWiredReason, actuals: []))
+        return StudioSnapshot(
+            generatedAt: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z"), projects: [hindsight, zenith], rooms: [],
+            roomsUnavailableReason: studioNotYetWiredReason,
+            portfolio: StudioPortfolioAggregates(
+                verifiedThisWeek: StudioCountMetric(value: 5, unavailableReason: nil),
+                awaitingYouCount: StudioCountMetric(value: nil, unavailableReason: "no source yet"),
+                passRate: StudioRatioMetric(value: 0.5, unavailableReason: nil),
+                medianRunSeconds: StudioDurationSecondsMetric(value: nil, unavailableReason: "no runs sampled"),
+                agentWindowShare: StudioRatioMetric(value: 0.25, unavailableReason: nil)),
+            sourceSnapshotDigest: Sha256Digest(unchecked: "sha256:" + String(repeating: "0", count: 64)))
+    }
+
+    func testStudioGaugesRenderUnavailableReasonAsNotYetSourcedNeverANumber() throws {
+        let inputs = DashboardInputs(doctor: doctor, timeline: try TimelineFixture.loadBundled(), studioSnapshot: studioSnapshot(), now: now)
+        let gauges = DashboardDerivation.gauges(inputs)
+        XCTAssertEqual(gauges.map(\.id), DashboardDerivation.studioGaugeOrder)
+
+        XCTAssertEqual(gauges[0].readout, "2", "studio.snapshot's own project count")
+        XCTAssertEqual(gauges[0].provenance, .live("studio.snapshot"))
+        XCTAssertEqual(gauges[1].readout, "5", "verifiedThisWeek.value")
+        // awaitingYouCount has no value in this fixture — an honest not-yet-sourced, never a fake 0.
+        XCTAssertNil(gauges[2].readout)
+        XCTAssertNil(gauges[2].fraction)
+        XCTAssertEqual(gauges[2].provenance, .notYetSourced)
+        XCTAssertEqual(gauges[2].role, .human, "the gold gauge stays gold even while unsourced")
+        XCTAssertEqual(gauges[3].readout, "50%")
+        XCTAssertEqual(gauges[3].fraction, 0.5)
+        XCTAssertNil(gauges[4].readout, "medianRunSeconds has no value")
+        XCTAssertEqual(gauges[4].provenance, .notYetSourced)
+        XCTAssertEqual(gauges[5].readout, "25%")
+    }
+
+    func testStudioAwaitingComesFromAwaitingHumanBadgedLive() throws {
+        let inputs = DashboardInputs(timeline: try TimelineFixture.loadBundled(), studioSnapshot: studioSnapshot(), now: now)
+        let snapshot = DashboardDerivation.snapshot(inputs)
+        let studioItems = snapshot.awaiting.filter { $0.provenance == .live("studio.snapshot") }
+        XCTAssertEqual(studioItems.count, 1)
+        XCTAssertTrue(studioItems[0].title.contains("Hindsight"))
+        XCTAssertEqual(studioItems[0].attemptId?.rawValue, "00000004-0000-4000-8000-000000000004")
+    }
+
+    func testStudioTimelineOverlaysRealMilestonesAndFlipsFixtureToLive() throws {
+        let inputs = DashboardInputs(timeline: try TimelineFixture.loadBundled(), studioSnapshot: studioSnapshot(), now: now)
+        let projects = DashboardDerivation.projects(inputs)
+        let hindsight = try XCTUnwrap(projects.first { $0.slug == "hindsight" })
+        guard case .fixture(let note) = hindsight.provenance else { return XCTFail("expected a fixture+live provenance, got \(hindsight.provenance)") }
+        XCTAssertTrue(note.hasSuffix("+ live"), "the badge flips FIXTURE → FIXTURE + LIVE")
+        let milestoneBar = try XCTUnwrap(hindsight.timeline.bars.first { $0.provenance == .live("studio.snapshot") && $0.kind != .gate })
+        XCTAssertEqual(milestoneBar.label, "Beta review")
+        XCTAssertEqual(milestoneBar.start.rawValue, "2026-08-20")
+        XCTAssertEqual(milestoneBar.kind, .plan, "status .planned maps to a planned bar")
+    }
+
+    func testStudioLiveOnlyRowGetsAGoldGateWhenHumanOwnedAndNoMilestonesNote() throws {
+        let inputs = DashboardInputs(timeline: try TimelineFixture.loadBundled(), studioSnapshot: studioSnapshot(), now: now)
+        let projects = DashboardDerivation.projects(inputs)
+        let zenith = try XCTUnwrap(projects.first { $0.slug == "zenith" })
+        XCTAssertEqual(zenith.timeline.provenance, .live("studio.snapshot"))
+        // The fixture's milestonesUnavailableReason is more precise than a generic "no milestones" —
+        // studioProjects prefers it when the daemon gave one.
+        XCTAssertEqual(zenith.timeline.note, studioNotYetWiredReason)
+        let gate = try XCTUnwrap(zenith.timeline.bars.first { $0.kind == .gate })
+        XCTAssertEqual(gate.gateState, .waiting, "state .pending + human owner is still waiting on you")
+        XCTAssertEqual(gate.label, "legal")
+    }
+
+    func testStudioGateDrawsNothingWhenMachineOwnedOrUnavailable() throws {
+        let machineOwned = DashboardInputs(timeline: try TimelineFixture.loadBundled(),
+                                           studioSnapshot: studioSnapshot(gateOwner: "machine"), now: now)
+        let machineProjects = DashboardDerivation.projects(machineOwned)
+        let machineZenith = try XCTUnwrap(machineProjects.first { $0.slug == "zenith" })
+        XCTAssertNil(machineZenith.timeline.bars.first { $0.kind == .gate }, "diamonds are this app's human-gate language only")
+
+        let unavailable = DashboardInputs(timeline: try TimelineFixture.loadBundled(),
+                                          studioSnapshot: studioSnapshot(gateState: .unavailable, gateOwner: nil), now: now)
+        let unavailableProjects = DashboardDerivation.projects(unavailable)
+        let unavailableZenith = try XCTUnwrap(unavailableProjects.first { $0.slug == "zenith" })
+        XCTAssertNil(unavailableZenith.timeline.bars.first { $0.kind == .gate })
+    }
+
+    func testSlugifyMatchesSimpleNamesButNotMultiWordOnes() {
+        XCTAssertEqual(DashboardDerivation.slugify("Hindsight"), "hindsight")
+        XCTAssertEqual(DashboardDerivation.slugify("Anjali — Journal"), "anjali-journal")
+        XCTAssertNotEqual(DashboardDerivation.slugify("Anjali — Journal"), "anjali", "no slug field on StudioProjectV1 — see DashboardModel.swift")
+    }
+
     func testRunChecksIncludeVerifiedEvidence() throws {
         let verify = EvidenceVerifyResult(
             integrityVerified: true,

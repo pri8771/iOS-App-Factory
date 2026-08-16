@@ -40,12 +40,20 @@ public final class StudioStore {
     public private(set) var portfolio: PortfolioReadModel?
     public private(set) var attempts: [AttemptListItem]?
     public private(set) var evidence: [EvidenceManifestDescriptor]?
+    /// `studio.snapshot`, once a refresh has confirmed the daemon supports it. `nil` either means
+    /// "not loaded yet" or "this daemon doesn't have the studio service" — `errors["studio.snapshot"]`
+    /// distinguishes a real failure from silent, expected unsupported-operation fallback (which sets
+    /// no error).
+    public private(set) var studioSnapshot: StudioSnapshot?
     /// Per-operation errors from the last refresh, keyed by wire operation.
     public private(set) var errors: [String: String] = [:]
     public private(set) var lastRefreshAt: Date?
     public private(set) var isRefreshing = false
     /// Cached run details by attempt.
     public private(set) var runs: [AttemptID: RunDetail] = [:]
+    /// Cached `project.milestones.list` results by project.
+    public private(set) var milestoneTimelines: [ProjectID: ProjectMilestoneTimeline] = [:]
+    public private(set) var milestoneErrors: [ProjectID: String] = [:]
 
     public let timeline: TimelineFixture?
     public let timelineLoadError: String?
@@ -95,7 +103,7 @@ public final class StudioStore {
 
     public var inputs: DashboardInputs {
         DashboardInputs(doctor: link.doctor, portfolio: portfolio, attempts: attempts, evidence: evidence,
-                        timeline: timeline, now: now())
+                        timeline: timeline, studioSnapshot: studioSnapshot, now: now())
     }
 
     public var dashboard: DashboardSnapshot { DashboardDerivation.snapshot(inputs) }
@@ -133,23 +141,47 @@ public final class StudioStore {
         await refresh()
     }
 
-    /// portfolio.snapshot · attempt.list (scope all, up to 100) · evidence.list. Each independently.
+    /// Tries `studio.snapshot` first (Phase 2); on an unsupported-operation-style failure (see
+    /// `DaemonClientError.isUnsupportedOperation`) falls back to the phase-1 path — portfolio.snapshot
+    /// · attempt.list (scope all, up to 100). `evidence.list` is fetched either way: project detail's
+    /// "latest run" checks read it regardless of which snapshot sourced the dashboard.
     public func refresh() async {
         guard let client, isConnected else { return }
         isRefreshing = true
         defer { isRefreshing = false }
+
+        var sourcedFromStudio = false
         do {
-            portfolio = try await client.portfolioSnapshot()
-            errors["portfolio.snapshot"] = nil
+            studioSnapshot = try await client.studioSnapshot()
+            errors["studio.snapshot"] = nil
+            sourcedFromStudio = true
+        } catch let error as DaemonClientError where error.isUnsupportedOperation {
+            studioSnapshot = nil
+            errors["studio.snapshot"] = nil
         } catch {
-            errors["portfolio.snapshot"] = describe(error)
+            studioSnapshot = nil
+            errors["studio.snapshot"] = describe(error)
         }
-        do {
-            let page = try await client.listAttempts(AttemptListQuery(scope: .all, limit: AttemptListQuery.maxItems))
-            attempts = page.attempts
+
+        if sourcedFromStudio {
+            portfolio = nil
+            attempts = nil
+            errors["portfolio.snapshot"] = nil
             errors["attempt.list"] = nil
-        } catch {
-            errors["attempt.list"] = describe(error)
+        } else {
+            do {
+                portfolio = try await client.portfolioSnapshot()
+                errors["portfolio.snapshot"] = nil
+            } catch {
+                errors["portfolio.snapshot"] = describe(error)
+            }
+            do {
+                let page = try await client.listAttempts(AttemptListQuery(scope: .all, limit: AttemptListQuery.maxItems))
+                attempts = page.attempts
+                errors["attempt.list"] = nil
+            } catch {
+                errors["attempt.list"] = describe(error)
+            }
         }
         do {
             let page = try await client.listEvidence(limit: 50)
@@ -209,7 +241,72 @@ public final class StudioStore {
         return detail
     }
 
-    private func describe(_ error: any Error) -> String {
+    /// `project.milestones.list` for one project. Cached; `force` refetches (used after an upsert).
+    @discardableResult
+    public func loadMilestones(_ projectId: ProjectID, force: Bool = false) async -> ProjectMilestoneTimeline? {
+        if !force, let cached = milestoneTimelines[projectId] { return cached }
+        guard let client, isConnected else { return nil }
+        do {
+            let timeline = try await client.milestonesList(projectId: projectId)
+            milestoneTimelines[projectId] = timeline
+            milestoneErrors[projectId] = nil
+            return timeline
+        } catch {
+            milestoneErrors[projectId] = describe(error)
+            return nil
+        }
+    }
+
+    /// Creates or compare-and-set updates a milestone, then refreshes that project's cached timeline
+    /// so the panel and the Gantt row are live from inside the app.
+    @discardableResult
+    public func upsertMilestone(_ draft: ProjectMilestoneDraft, expectedRevision: Int?) async -> Result<ProjectMilestoneUpsertResult, AssistantBackendError> {
+        guard let client else { return .failure(AssistantBackendError("no daemon configured")) }
+        do {
+            let result = try await client.upsertMilestone(draft, expectedRevision: expectedRevision)
+            await loadMilestones(draft.projectId, force: true)
+            return .success(result)
+        } catch {
+            return .failure(AssistantBackendError(describe(error)))
+        }
+    }
+
+    /// The daemon-backed corner-chat assistant. Captures only the (`Sendable`) client, not `self`, so
+    /// it can be handed to `ChatModel` and called off the main actor.
+    public var assistantBackend: AssistantBackend {
+        let client = self.client
+        return AssistantBackend(
+            query: { question, projectId in
+                guard let client else { return .unsupported }
+                do {
+                    return .answer(try await client.assistantQuery(AssistantQuery(question: question, projectId: projectId)))
+                } catch let error as DaemonClientError where error.isUnsupportedOperation {
+                    return .unsupported
+                } catch {
+                    return .failed(Self.describeStatic(error))
+                }
+            },
+            proposeIntent: { utterance, payload in
+                guard let client else { return .failure(AssistantBackendError("no daemon configured")) }
+                do {
+                    return .success(try await client.proposeIntent(utterance: utterance, payload: payload))
+                } catch {
+                    return .failure(AssistantBackendError(Self.describeStatic(error)))
+                }
+            },
+            executeIntent: { intent in
+                guard let client else { return .failure(AssistantBackendError("no daemon configured")) }
+                do {
+                    return .success(try await client.executeIntent(intent).outcome)
+                } catch {
+                    return .failure(AssistantBackendError(Self.describeStatic(error)))
+                }
+            })
+    }
+
+    private func describe(_ error: any Error) -> String { Self.describeStatic(error) }
+
+    nonisolated private static func describeStatic(_ error: any Error) -> String {
         if let e = error as? DaemonClientError { return e.description }
         return String(describing: error)
     }

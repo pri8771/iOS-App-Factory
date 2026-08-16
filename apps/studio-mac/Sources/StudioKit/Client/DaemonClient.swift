@@ -248,6 +248,75 @@ public actor DaemonClient {
         return result
     }
 
+    // MARK: Studio Phase 2 (studio/service-skeleton, studio/milestones-and-phase — unmerged;
+    // see `DaemonClientError.isUnsupportedOperation` for the feature-detection contract)
+
+    /// Fetches the studio read model and re-verifies `sourceSnapshotDigest` against the raw wire
+    /// contents, mirroring `portfolioSnapshot()`.
+    public func studioSnapshot(identity: CommandIdentity? = nil) async throws -> StudioSnapshot {
+        let exchange = try await request(.studioSnapshot, EmptyPayload(), identity)
+        guard case .studioSnapshot(let snapshot) = exchange.result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        guard let tree = try? JSONValue.parse(exchange.responseLine),
+              let rawSnapshot = tree["result"]?["snapshot"]
+        else { throw DaemonClientError.invalidResponse }
+        do {
+            try StudioSnapshotDigest.verify(rawSnapshot)
+        } catch {
+            throw DaemonClientError.studioSnapshotDigestMismatch
+        }
+        return snapshot
+    }
+
+    /// Asks the deterministic, rules-based corner-chat responder a question grounded in the current
+    /// studio snapshot.
+    public func assistantQuery(_ query: AssistantQuery, identity: CommandIdentity? = nil) async throws -> AssistantAnswer {
+        guard case .studioAssistantQuery(let answer) = try await request(.studioAssistantQuery, StudioAssistantQueryPayload(query: query), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return answer
+    }
+
+    /// Proposes an intent from a chat utterance; the daemon re-validates `utterance` against `payload`
+    /// deterministically and does not execute anything yet.
+    public func proposeIntent(utterance: String, payload: AssistantIntentPayload,
+                              identity: CommandIdentity? = nil) async throws -> AssistantIntent {
+        let request = StudioAssistantIntentProposePayload(utterance: utterance, intent: payload)
+        guard case .studioAssistantIntentPropose(let intent) = try await self.request(.studioAssistantIntentPropose, request, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return intent
+    }
+
+    /// Confirms a previously proposed intent. The daemon re-validates it from scratch and dispatches
+    /// to the one existing command each intent kind names (see `AssistantIntentExecutionOutcome`).
+    public func executeIntent(_ intent: AssistantIntent, identity: CommandIdentity? = nil) async throws -> StudioAssistantIntentExecuteResult {
+        let payload = StudioAssistantIntentExecutePayload(intent: intent)
+        guard case .studioAssistantIntentExecute(let result) = try await request(.studioAssistantIntentExecute, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    /// The full milestone plan for one project alongside what has actually happened.
+    public func milestonesList(projectId: ProjectID, identity: CommandIdentity? = nil) async throws -> ProjectMilestoneTimeline {
+        guard case .projectMilestonesList(let timeline) = try await request(.projectMilestonesList, ProjectMilestonesListPayload(projectId: projectId), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return timeline
+    }
+
+    /// Creates (`expectedRevision: nil`) or compare-and-set updates a milestone.
+    public func upsertMilestone(_ milestone: ProjectMilestoneDraft, expectedRevision: Int?,
+                                identity: CommandIdentity? = nil) async throws -> ProjectMilestoneUpsertResult {
+        let payload = ProjectMilestoneUpsertPayload(milestone: milestone, expectedRevision: expectedRevision)
+        guard case .projectMilestoneUpsert(let result) = try await request(.projectMilestoneUpsert, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
     // MARK: Core
 
     struct Exchange: Sendable {

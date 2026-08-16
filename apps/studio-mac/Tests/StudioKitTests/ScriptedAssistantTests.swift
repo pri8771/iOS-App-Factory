@@ -86,22 +86,24 @@ final class ScriptedAssistantTests: XCTestCase {
     }
 
     @MainActor
-    func testChatModelAppendsUserAndAssistantMessages() throws {
+    func testChatModelAppendsUserAndAssistantMessages() async throws {
         let chat = ChatModel()
         XCTAssertEqual(chat.conversations.map(\.id), ["portfolio", "hindsight", "roam"])
         XCTAssertEqual(chat.selected?.messages.count, 1, "the greeting")
         chat.draft = "  how many attempts?  "
-        let reply = chat.send(chat.draft, context: try context())
+        let reply = await chat.send(chat.draft, context: try context())
         XCTAssertNotNil(reply)
         XCTAssertEqual(chat.selected?.messages.count, 3)
         XCTAssertEqual(chat.selected?.messages[1].role, .user)
         XCTAssertEqual(chat.selected?.messages[1].text, "how many attempts?")
         XCTAssertEqual(chat.selected?.messages[2].role, .assistant)
         XCTAssertEqual(chat.selected?.messages[2].provenance, .live("attempt.list"))
+        XCTAssertTrue(chat.selected?.messages[2].isStub ?? false, "no backend was supplied — the reply is the scripted stub")
         XCTAssertEqual(chat.draft, "")
-        XCTAssertNil(chat.send("   ", context: try context()), "blank sends nothing")
+        let blank = await chat.send("   ", context: try context())
+        XCTAssertNil(blank, "blank sends nothing")
         chat.select("roam")
-        chat.send("when does roam ship", context: try context())
+        _ = await chat.send("when does roam ship", context: try context())
         XCTAssertEqual(chat.conversations[2].messages.count, 2)
         chat.newConversation(title: "Scratch")
         XCTAssertEqual(chat.conversations.count, 4)

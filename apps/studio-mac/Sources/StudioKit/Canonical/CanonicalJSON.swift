@@ -248,3 +248,42 @@ public enum PortfolioDigest {
         return diff == 0
     }
 }
+
+// MARK: - StudioSnapshotDigest
+//
+// Client-side re-verification of `StudioSnapshotV1.sourceSnapshotDigest`, matching
+// `studioSnapshotDigestInputV1` / `canonicalStudioSnapshotDigestInputV1` (studio-snapshot.ts): the same
+// recursively-key-sorted-canonical-JSON sha256 recipe as `PortfolioDigest`, over a different field set.
+
+public enum StudioSnapshotDigest {
+    private static let inputKeys = ["schemaVersion", "generatedAt", "projects", "rooms", "roomsUnavailableReason", "portfolio"]
+
+    public static func digestInput(_ snapshot: JSONValue) throws -> JSONValue {
+        guard let object = snapshot.objectValue else { throw PortfolioDigest.VerificationError.notAnObject }
+        var input: [String: JSONValue] = [:]
+        for key in inputKeys {
+            guard let value = object[key] else { throw PortfolioDigest.VerificationError.missingField(key) }
+            input[key] = value
+        }
+        return .object(input)
+    }
+
+    public static func canonicalText(_ snapshot: JSONValue) throws -> String {
+        CanonicalJSON.serialize(try digestInput(snapshot))
+    }
+
+    public static func compute(_ snapshot: JSONValue) throws -> Sha256Digest {
+        CanonicalJSON.digest(of: try canonicalText(snapshot))
+    }
+
+    /// Throws `.mismatch` when the embedded `sourceSnapshotDigest` does not match its contents.
+    public static func verify(_ snapshot: JSONValue) throws {
+        guard let claimed = snapshot["sourceSnapshotDigest"]?.stringValue else {
+            throw PortfolioDigest.VerificationError.missingField("sourceSnapshotDigest")
+        }
+        let computed = try compute(snapshot)
+        guard PortfolioDigest.constantTimeEqual(claimed, computed.rawValue) else {
+            throw PortfolioDigest.VerificationError.mismatch(expected: Sha256Digest(unchecked: claimed), computed: computed)
+        }
+    }
+}

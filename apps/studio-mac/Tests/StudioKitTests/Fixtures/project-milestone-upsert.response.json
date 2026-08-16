@@ -1,0 +1,25 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "project.milestone.upsert",
+    "milestone": {
+      "schemaVersion": 1,
+      "milestoneId": "70000001-0000-4000-8000-000000000001",
+      "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+      "phase": "beta",
+      "kind": "gate",
+      "label": "Beta review",
+      "targetDate": "2026-08-22",
+      "dependsOn": [],
+      "owner": "human",
+      "status": "active",
+      "evidenceDigest": null,
+      "revision": 1,
+      "createdAt": "2026-08-10T09:00:00.000Z",
+      "updatedAt": "2026-08-16T22:05:00.000Z"
+    },
+    "created": false
+  }
+}

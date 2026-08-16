@@ -103,18 +103,58 @@ final class DashboardSnapshotTests: XCTestCase {
                   size: CGSize(width: 1100, height: 620), named: "project-detail")
     }
 
-    func testCornerChatAndFab() {
+    /// Project detail sourced from `studio.snapshot`: a live-only row (its display name doesn't
+    /// slugify to a fixture slug — see `DashboardDerivation.slugify`), a human-owned gold gate, and a
+    /// loaded `project.milestones.list` panel.
+    func testProjectDetailStudioLive() throws {
+        let studioResponse = try JSONDecoder().decode(CommandResponse.self, from: Fixtures.data("studio-snapshot.response.json"))
+        guard case .success(_, .studioSnapshot(let studioSnapshot)) = studioResponse else { throw NSError(domain: "fixture", code: 1) }
+        let doctor = DoctorResult(readiness: .ready, daemonVersion: "0.1.0-ui-demo", protocolVersion: 1,
+                                  startedAt: IsoInstant(unchecked: "2026-08-16T16:00:00.000Z"), issues: [])
+        let inputs = DashboardInputs(doctor: doctor, timeline: fixture, studioSnapshot: studioSnapshot,
+                                     now: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z").date!)
+        let dashboardSnapshot = DashboardDerivation.snapshot(inputs)
+        let project = try XCTUnwrap(dashboardSnapshot.project(slug: DashboardDerivation.slugify("Anjali — Journal")))
+        let milestonesResponse = try JSONDecoder().decode(CommandResponse.self, from: Fixtures.data("project-milestones-list.response.json"))
+        guard case .success(_, .projectMilestonesList(let timeline)) = milestonesResponse else { throw NSError(domain: "fixture", code: 1) }
+        assertHUD(ProjectDetailView(project: project, isConnected: true, onBack: {}, milestoneTimeline: timeline)
+                    .background(HUDTheme.void),
+                  size: CGSize(width: 1100, height: 760), named: "project-detail-studio")
+    }
+
+    /// The gold confirmation card in every settled state: pending (Confirm/Cancel), executing, and
+    /// executed — the last showing the resulting attempt id per `IntentCard.Status`.
+    func testIntentConfirmationCard() {
+        let intent = AssistantIntent(
+            intentId: AssistantIntentID(unchecked: "60000001-0000-4000-8000-000000000001"),
+            utterance: "approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload.",
+            payload: .approveAttempt(attemptId: AttemptID(unchecked: "00000004-0000-4000-8000-000000000004"),
+                                     answer: "Approved — go ahead and upload."),
+            summary: "Approve attempt 00000004-0000-4000-8000-000000000004 and resume it with the given answer.",
+            requiresConfirmation: true, proposedAt: IsoInstant(unchecked: "2026-08-16T22:01:00.000Z"))
+        assertHUD(
+            VStack(alignment: .leading, spacing: 16) {
+                IntentConfirmationCard(card: IntentCard(intent: intent, status: .pending), onConfirm: {}, onCancel: {})
+                IntentConfirmationCard(card: IntentCard(intent: intent, status: .executing), onConfirm: {}, onCancel: {})
+                IntentConfirmationCard(card: IntentCard(intent: intent, status: .executed(summary: "attempt 00000004-0000-4000-8000-000000000004")),
+                                       onConfirm: {}, onCancel: {})
+            }
+            .padding(16).frame(width: 420, alignment: .leading).background(HUDTheme.void),
+            size: CGSize(width: 460, height: 440), named: "intent-confirmation-card")
+    }
+
+    func testCornerChatAndFab() async {
         let chat = ChatModel()
-        chat.send("how many attempts?", context: AssistantContext(link: "offline · [client] transport.connection-failed"))
+        await chat.send("how many attempts?", context: AssistantContext(link: "offline · [client] transport.connection-failed"))
         assertHUD(HStack(alignment: .bottom, spacing: 24) {
             CornerChatView(chat: chat, context: { AssistantContext(link: "offline") }, minimized: .constant(false), onExpand: {})
             CornerChatView(chat: chat, context: { AssistantContext(link: "offline") }, minimized: .constant(true))
         }.padding(24).background(HUDTheme.void), size: CGSize(width: 520, height: 520), named: "corner-chat")
     }
 
-    func testChatScreenAndPhases() {
+    func testChatScreenAndPhases() async {
         let chat = ChatModel()
-        chat.send("what's blocked?", context: AssistantContext(link: "offline", timeline: fixture, now: today.date))
+        await chat.send("what's blocked?", context: AssistantContext(link: "offline", timeline: fixture, now: today.date))
         assertHUD(ChatScreen(chat: chat, context: { AssistantContext(link: "offline") }),
                   size: CGSize(width: 900, height: 420), named: "chat-screen")
         assertHUD(PhasesScreen().background(HUDTheme.void), size: CGSize(width: 800, height: 300), named: "phases")

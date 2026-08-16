@@ -1,0 +1,68 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "project.milestones.list",
+    "timeline": {
+      "schemaVersion": 1,
+      "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+      "generatedAt": "2026-08-16T22:00:00.000Z",
+      "milestones": [
+        {
+          "schemaVersion": 1,
+          "milestoneId": "70000001-0000-4000-8000-000000000001",
+          "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+          "phase": "beta",
+          "kind": "gate",
+          "label": "Beta review",
+          "targetDate": "2026-08-20",
+          "dependsOn": [],
+          "owner": "human",
+          "status": "planned",
+          "evidenceDigest": null,
+          "revision": 0,
+          "createdAt": "2026-08-10T09:00:00.000Z",
+          "updatedAt": "2026-08-10T09:00:00.000Z"
+        },
+        {
+          "schemaVersion": 1,
+          "milestoneId": "70000002-0000-4000-8000-000000000002",
+          "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+          "phase": "launch",
+          "kind": "release",
+          "label": "Store listing + sign-off",
+          "targetDate": "2026-09-05",
+          "dependsOn": [
+            "70000001-0000-4000-8000-000000000001"
+          ],
+          "owner": "human",
+          "status": "planned",
+          "evidenceDigest": null,
+          "revision": 1,
+          "createdAt": "2026-08-10T09:05:00.000Z",
+          "updatedAt": "2026-08-15T10:00:00.000Z"
+        }
+      ],
+      "actuals": {
+        "phases": [
+          {
+            "phase": "beta",
+            "attemptCount": 3,
+            "activeAttemptCount": 1,
+            "blockerCount": 0,
+            "succeededAttemptCount": 2,
+            "firstAttemptAt": "2026-08-11T09:00:00.000Z",
+            "lastActivityAt": "2026-08-16T11:05:00.000Z",
+            "lastSucceededAt": "2026-08-16T11:05:00.000Z"
+          }
+        ],
+        "lifecycle": []
+      },
+      "sources": {
+        "localExecution": "available",
+        "lifecycleEvents": "unavailable"
+      }
+    }
+  }
+}

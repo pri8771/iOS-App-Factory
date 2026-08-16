@@ -27,7 +27,8 @@ public struct StudioRootView: View {
                 screen
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 if tab != .chat {
-                    CornerChatView(chat: store.chat, context: { store.assistantContext }, minimized: $chatMinimized) {
+                    CornerChatView(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend,
+                                   minimized: $chatMinimized) {
                         tab = .chat
                     }
                     .padding(HUDTheme.space.l)
@@ -44,7 +45,11 @@ public struct StudioRootView: View {
             if let slug = selectedSlug, let project = store.dashboard.project(slug: slug) {
                 ProjectDetailView(project: project, runs: store.runs, isConnected: store.isConnected,
                                   loadRun: { id in await store.loadRun(id) },
-                                  onBack: { selectedSlug = nil })
+                                  onBack: { selectedSlug = nil },
+                                  milestoneTimeline: project.projectId.flatMap { store.milestoneTimelines[$0] },
+                                  milestoneError: project.projectId.flatMap { store.milestoneErrors[$0] },
+                                  onLoadMilestones: project.projectId.map { id in { await store.loadMilestones(id) } },
+                                  onUpsertMilestone: { draft, revision in await store.upsertMilestone(draft, expectedRevision: revision) })
                     .id(slug)
                     .transition(.opacity)
             } else {
@@ -53,10 +58,16 @@ public struct StudioRootView: View {
                     .transition(.opacity)
             }
         case .chat:
-            ChatScreen(chat: store.chat, context: { store.assistantContext })
+            ChatScreen(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend)
         case .phases:
             PhasesScreen()
         }
+    }
+
+    /// `nil` until the store has a client at all — the phase-1 stub then stays the only assistant.
+    private var assistantBackend: (() -> AssistantBackend?)? {
+        guard store.socketPath != nil else { return nil }
+        return { store.assistantBackend }
     }
 
     private var timelineNote: String? {

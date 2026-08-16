@@ -1,0 +1,112 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "studio.snapshot",
+    "snapshot": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-08-16T22:00:00.000Z",
+      "projects": [
+        {
+          "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+          "name": "Anjali — Journal",
+          "lifecycleStage": "building",
+          "gates": {
+            "typed": "legal",
+            "owner": "human",
+            "state": "blocked",
+            "unavailableReason": null
+          },
+          "latestAttemptSummary": {
+            "attemptId": "00000001-0000-4000-8000-000000000001",
+            "taskId": "10000001-0000-4000-8000-000000000001",
+            "state": "succeeded",
+            "updatedAt": "2026-08-16T11:05:00.000Z",
+            "blocker": null
+          },
+          "awaitingHuman": [
+            {
+              "kind": "blocked-attempt",
+              "attemptId": "00000004-0000-4000-8000-000000000004",
+              "summary": "Waiting for approval to upload build 4 to TestFlight.",
+              "since": "2026-08-16T14:05:00.000Z"
+            }
+          ],
+          "timeline": {
+            "milestones": [
+              {
+                "milestoneId": "anjali-beta",
+                "name": "Beta review",
+                "targetDate": "2026-08-20T00:00:00.000Z",
+                "status": "at-risk"
+              },
+              {
+                "milestoneId": "anjali-listing",
+                "name": "Store listing + sign-off",
+                "targetDate": "2026-09-05T00:00:00.000Z",
+                "status": "planned"
+              }
+            ],
+            "milestonesUnavailableReason": null,
+            "actuals": [
+              {
+                "attemptId": "00000001-0000-4000-8000-000000000001",
+                "label": "attempt started",
+                "occurredAt": "2026-08-16T11:00:00.000Z"
+              },
+              {
+                "attemptId": "00000001-0000-4000-8000-000000000001",
+                "label": "attempt succeeded",
+                "occurredAt": "2026-08-16T11:05:00.000Z"
+              }
+            ]
+          }
+        },
+        {
+          "projectId": "9c8b7a6f-5e4d-4c3b-8a19-0f1e2d3c4b5a",
+          "name": "Hindsight",
+          "lifecycleStage": null,
+          "gates": {
+            "typed": null,
+            "owner": null,
+            "state": "unavailable",
+            "unavailableReason": "not yet wired (studio/milestones-and-phase pending)"
+          },
+          "latestAttemptSummary": null,
+          "awaitingHuman": [],
+          "timeline": {
+            "milestones": [],
+            "milestonesUnavailableReason": "not yet wired (studio/milestones-and-phase pending)",
+            "actuals": []
+          }
+        }
+      ],
+      "rooms": [],
+      "roomsUnavailableReason": "not yet wired (studio/milestones-and-phase pending)",
+      "portfolio": {
+        "verifiedThisWeek": {
+          "value": 2,
+          "unavailableReason": null
+        },
+        "awaitingYouCount": {
+          "value": 1,
+          "unavailableReason": null
+        },
+        "passRate": {
+          "value": 0.8,
+          "unavailableReason": null
+        },
+        "medianRunSeconds": {
+          "value": 185.5,
+          "unavailableReason": null
+        },
+        "agentWindowShare": {
+          "value": null,
+          "unavailableReason": "not yet computed: step-level timing is not aggregated into an agent-active-window ratio"
+        }
+      },
+      "sourceSnapshotDigest": "sha256:5566d7f7b039fcb97cb7c6a8d57e803dcf0507298aa1e96bd4c0ef9130cea4fe"
+    }
+  }
+}

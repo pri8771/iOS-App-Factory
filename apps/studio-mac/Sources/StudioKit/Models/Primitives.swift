@@ -71,6 +71,10 @@ enum WirePatterns {
         pattern: "\\A(?!/)(?!\\.{1,2}(?:/|$))(?!.*/\\.{1,2}(?:/|$))(?!.*//)(?!.*/$)(?!.*\\\\)(?!.*\\x00).+\\z")
     static let gitBranchName = try! NSRegularExpression(pattern: "\\A[A-Za-z0-9][A-Za-z0-9._/-]*\\z")
     static let authorization = try! NSRegularExpression(pattern: "\\A[\\x21-\\x7e]+\\z")
+    /// `z.iso.date()` — a plain calendar date, e.g. "2026-08-20". Format only, like zod: a
+    /// calendar-invalid date (Feb 30) is a daemon bug, not a wire violation, so this does not check it.
+    static let calendarDate = try! NSRegularExpression(
+        pattern: "\\A[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])\\z")
 
     static func matches(_ regex: NSRegularExpression, _ value: String) -> Bool {
         let range = NSRange(value.startIndex..<value.endIndex, in: value)
@@ -133,6 +137,24 @@ public enum GitBranchNameRule: WireStringRule {
     }
 }
 
+/// `CalendarDateSchema` (`packages/contracts/src/v1/primitives.ts`, `studio/milestones-and-phase`) —
+/// a milestone's `targetDate`. `null` (not this type) is the honest "no estimate"; see
+/// `ProjectMilestone`.
+public enum CalendarDateRule: WireStringRule {
+    public static let name = "calendar date (YYYY-MM-DD)"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.calendarDate, value) }
+}
+
+/// A plain, non-UUID string brand: `z.string().min(1).max(maxLength).brand()`. Used for the
+/// studio-snapshot placeholder ids (`StudioMilestoneId`, `StudioRoomId`) that predate a real ID
+/// scheme — unlike `MilestoneID` (below), which is a real UUID minted by the milestones service.
+public protocol WireBoundedStringRule: WireStringRule {
+    static var maxLength: Int { get }
+}
+extension WireBoundedStringRule {
+    public static func isValid(_ value: String) -> Bool { !value.isEmpty && value.count <= maxLength }
+}
+
 // MARK: Branded ids
 //
 // Each id is its own type even though they share the UUID rule: `WireID<Tag>` gives the brand.
@@ -186,6 +208,10 @@ public enum EvidenceIDTag: Sendable {}
 public enum ApprovalIDTag: Sendable {}
 public enum EffectIDTag: Sendable {}
 public enum ReleaseIDTag: Sendable {}
+public enum AssistantIntentIDTag: Sendable {}
+/// The real, revisioned milestone concept (`milestone.ts`, `studio/milestones-and-phase`) — a UUID,
+/// unlike the studio-snapshot placeholder's `StudioMilestoneID` (a plain bounded string) below.
+public enum MilestoneIDTag: Sendable {}
 
 public typealias ProjectID = WireID<ProjectIDTag>
 public typealias RepositoryID = WireID<RepositoryIDTag>
@@ -200,6 +226,8 @@ public typealias EvidenceID = WireID<EvidenceIDTag>
 public typealias ApprovalID = WireID<ApprovalIDTag>
 public typealias EffectID = WireID<EffectIDTag>
 public typealias ReleaseID = WireID<ReleaseIDTag>
+public typealias AssistantIntentID = WireID<AssistantIntentIDTag>
+public typealias MilestoneID = WireID<MilestoneIDTag>
 
 public typealias Sha256Digest = WireString<Sha256DigestRule>
 public typealias GitObjectID = WireString<GitObjectIDRule>
@@ -208,6 +236,29 @@ public typealias StableKey = WireString<StableKeyRule>
 public typealias AbsolutePath = WireString<AbsolutePathRule>
 public typealias RelativePath = WireString<RelativePathRule>
 public typealias GitBranchName = WireString<GitBranchNameRule>
+public typealias CalendarDate = WireString<CalendarDateRule>
+
+/// `StudioMilestoneIdV1Schema` (`studio-snapshot.ts`) — the placeholder milestone id nested in
+/// `StudioSnapshotV1`. Not a UUID; unrelated to `MilestoneID`.
+public enum StudioMilestoneIDRule: WireBoundedStringRule {
+    public static let name = "studio milestone id"
+    public static let maxLength = 128
+}
+public typealias StudioMilestoneID = WireString<StudioMilestoneIDRule>
+
+/// `StudioRoomIdV1Schema` (`studio-snapshot.ts`) — always empty (`rooms: []`) until the rooms
+/// worktree merges; modelled for forward compatibility only.
+public enum StudioRoomIDRule: WireBoundedStringRule {
+    public static let name = "studio room id"
+    public static let maxLength = 128
+}
+public typealias StudioRoomID = WireString<StudioRoomIDRule>
+
+extension WireString where Tag == CalendarDateRule {
+    /// Bridges to `DayStamp` for placing a milestone on the timeline. `nil` only if the wire value
+    /// somehow describes a calendar-invalid date (`z.iso.date()` checks format, not validity).
+    public var dayStamp: DayStamp? { try? DayStamp(rawValue) }
+}
 
 /// `z.iso.datetime({ offset: false, precision: 3 })` — e.g. "2026-08-16T17:03:00.000Z".
 public typealias IsoInstant = WireString<IsoInstantRule>

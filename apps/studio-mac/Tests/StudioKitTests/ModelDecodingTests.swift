@@ -222,13 +222,146 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(String(decoding: try JSONEncoder().encode(EmptyPayload()), as: UTF8.self), "{}")
     }
 
-    func testAllTwentyOneOperationsAreNamed() {
-        XCTAssertEqual(CommandOperation.allCases.count, 21)
+    func testAllTwentySevenOperationsAreNamed() {
+        XCTAssertEqual(CommandOperation.allCases.count, 27)
         XCTAssertEqual(Set(CommandOperation.allCases.map(\.rawValue)), [
             "doctor", "task.submit", "task.run", "attempt.status", "attempt.events", "attempt.list",
             "attempt.pause", "attempt.resume", "attempt.cancel", "task.retry", "attempt.unblock",
             "daemon.reconcile", "evidence.list", "evidence.inspect", "evidence.verify", "portfolio.snapshot",
             "project.scan", "project.enroll-plan", "project.apply", "effects.status", "effects.list",
+            "studio.snapshot", "studio.assistant.query", "studio.assistant.intent.propose",
+            "studio.assistant.intent.execute", "project.milestones.list", "project.milestone.upsert",
         ])
+    }
+
+    // MARK: Studio Phase 2 — studio.snapshot, studio.assistant.*, project.milestones.*
+    //
+    // Every fixture below was produced by validating real data through the actual zod schemas on the
+    // unmerged branches that own them (`studio/service-skeleton` tip cdfe558 for studio.snapshot /
+    // studio.assistant.*, `studio/milestones-and-phase` tip 3cff9a7 for project.milestones.*) — the
+    // same "record through the real contracts" discipline as the phase-1 fixtures, just against a
+    // branch's build instead of `main`'s (see docs/architecture/0001, decision 5).
+
+    func testStudioSnapshotModel() throws {
+        guard case .success(_, .studioSnapshot(let snapshot)) = try decode("studio-snapshot.response.json") else {
+            return XCTFail("expected studio.snapshot")
+        }
+        XCTAssertEqual(snapshot.projects.count, 2)
+        let anjali = snapshot.projects[0]
+        XCTAssertEqual(anjali.name, "Anjali — Journal")
+        XCTAssertEqual(anjali.lifecycleStage, .building)
+        XCTAssertEqual(anjali.gates.state, .blocked)
+        XCTAssertEqual(anjali.gates.typed, "legal")
+        XCTAssertTrue(anjali.gates.ownerIsHuman)
+        XCTAssertNil(anjali.gates.unavailableReason)
+        XCTAssertEqual(anjali.awaitingHuman.count, 1)
+        XCTAssertEqual(anjali.awaitingHuman[0].kind, .blockedAttempt)
+        XCTAssertEqual(anjali.timeline.milestones.count, 2)
+        XCTAssertNil(anjali.timeline.milestonesUnavailableReason)
+        let hindsight = snapshot.projects[1]
+        XCTAssertNil(hindsight.lifecycleStage)
+        XCTAssertEqual(hindsight.gates.state, .unavailable)
+        XCTAssertEqual(hindsight.gates.unavailableReason, studioNotYetWiredReason)
+        XCTAssertNil(hindsight.gates.typed)
+        XCTAssertTrue(hindsight.timeline.milestones.isEmpty)
+        XCTAssertEqual(hindsight.timeline.milestonesUnavailableReason, studioNotYetWiredReason)
+        XCTAssertTrue(snapshot.rooms.isEmpty)
+        XCTAssertEqual(snapshot.roomsUnavailableReason, studioNotYetWiredReason)
+        // Every field of StudioPortfolioAggregates is independently nullable — mixed here on purpose.
+        XCTAssertEqual(snapshot.portfolio.verifiedThisWeek.value, 2)
+        XCTAssertEqual(snapshot.portfolio.passRate.value, 0.8)
+        XCTAssertEqual(snapshot.portfolio.medianRunSeconds.value, 185.5)
+        XCTAssertNil(snapshot.portfolio.agentWindowShare.value)
+        XCTAssertNotNil(snapshot.portfolio.agentWindowShare.unavailableReason)
+        XCTAssertEqual(snapshot.sourceSnapshotDigest.rawValue,
+                       try Fixtures.string("studio-snapshot.digest.txt").trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    func testStudioSnapshotDigestMatchesCanonicalFixture() throws {
+        let tree = try JSONValue.parse(Fixtures.data("studio-snapshot.response.json"))
+        let snapshot = try XCTUnwrap(tree["result"]?["snapshot"])
+        let canonical = try StudioSnapshotDigest.canonicalText(snapshot)
+        XCTAssertEqual(canonical, try Fixtures.string("studio-snapshot.canonical.txt"))
+        XCTAssertNoThrow(try StudioSnapshotDigest.verify(snapshot))
+    }
+
+    func testAssistantAnswerAnsweredCarriesCitations() throws {
+        guard case .success(_, .studioAssistantQuery(.answered(let text, let citations))) = try decode("assistant-query-answered.response.json") else {
+            return XCTFail("expected an answered studio.assistant.query")
+        }
+        XCTAssertFalse(text.isEmpty)
+        XCTAssertEqual(citations.map(\.kind), [.attempt, .gate])
+    }
+
+    func testAssistantAnswerCannotAnswerNamesAReason() throws {
+        guard case .success(_, .studioAssistantQuery(.cannotAnswer(let reason, let detail))) = try decode("assistant-query-cannot-answer.response.json") else {
+            return XCTFail("expected a cannot-answer studio.assistant.query")
+        }
+        XCTAssertEqual(reason, .noMilestoneTargetDate)
+        XCTAssertFalse(detail.isEmpty)
+    }
+
+    func testAssistantIntentProposeIsApproveAttempt() throws {
+        guard case .success(_, .studioAssistantIntentPropose(let intent)) = try decode("assistant-intent-propose.response.json") else {
+            return XCTFail("expected studio.assistant.intent.propose")
+        }
+        XCTAssertTrue(intent.requiresConfirmation)
+        guard case .approveAttempt(let attemptId, let answer) = intent.payload else { return XCTFail("expected approve-attempt") }
+        XCTAssertTrue(intent.utterance.contains(attemptId.rawValue), "the utterance must literally mention its identifier")
+        XCTAssertFalse(answer.isEmpty)
+    }
+
+    func testAssistantIntentExecuteOutcomeCarriesTheResultingAttemptId() throws {
+        guard case .success(_, .studioAssistantIntentExecute(let result)) = try decode("assistant-intent-execute.response.json") else {
+            return XCTFail("expected studio.assistant.intent.execute")
+        }
+        guard case .attemptUnblock(let unblock) = result.outcome else { return XCTFail("expected an attempt.unblock outcome") }
+        XCTAssertEqual(result.outcome.attemptId, unblock.attemptId)
+        XCTAssertTrue(unblock.accepted)
+    }
+
+    func testProjectMilestonesListOrdersDatedMilestonesFirst() throws {
+        guard case .success(_, .projectMilestonesList(let timeline)) = try decode("project-milestones-list.response.json") else {
+            return XCTFail("expected project.milestones.list")
+        }
+        XCTAssertEqual(timeline.milestones.count, 2)
+        XCTAssertEqual(timeline.milestones.map(\.label), ["Beta review", "Store listing + sign-off"])
+        XCTAssertEqual(timeline.milestones[0].targetDate?.rawValue, "2026-08-20")
+        XCTAssertEqual(timeline.milestones[0].dependsOn, [])
+        XCTAssertEqual(timeline.milestones[1].dependsOn, [timeline.milestones[0].milestoneId])
+        XCTAssertEqual(timeline.actuals.phases.count, 1)
+        XCTAssertEqual(timeline.actuals.phases[0].succeededAttemptCount, 2)
+        XCTAssertEqual(timeline.sources.localExecution, .available)
+        XCTAssertEqual(timeline.sources.lifecycleEvents, .unavailable)
+    }
+
+    func testProjectMilestoneUpsertResult() throws {
+        guard case .success(_, .projectMilestoneUpsert(let result)) = try decode("project-milestone-upsert.response.json") else {
+            return XCTFail("expected project.milestone.upsert")
+        }
+        XCTAssertFalse(result.created, "the fixture is a compare-and-set update, not a create")
+        XCTAssertEqual(result.milestone.revision, 1)
+        XCTAssertEqual(result.milestone.status, .active)
+        XCTAssertEqual(result.milestone.targetDate?.rawValue, "2026-08-22")
+    }
+
+    func testProjectMilestoneUpsertPayloadEncodesNullsExplicitly() throws {
+        let draft = ProjectMilestoneDraft(milestoneId: MilestoneID(unchecked: "70000001-0000-4000-8000-000000000001"),
+                                          projectId: ProjectID(unchecked: "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f"),
+                                          phase: StableKey(unchecked: "beta"), kind: .gate, label: "Beta review",
+                                          targetDate: nil, dependsOn: [], owner: .human, status: .planned, evidenceDigest: nil)
+        let payload = ProjectMilestoneUpsert(milestone: draft, expectedRevision: nil)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let text = String(decoding: try encoder.encode(payload), as: UTF8.self)
+        XCTAssertTrue(text.contains("\"targetDate\":null"), text)
+        XCTAssertTrue(text.contains("\"evidenceDigest\":null"), text)
+        XCTAssertTrue(text.contains("\"expectedRevision\":null"), text)
+    }
+
+    func testCalendarDateRejectsNonDateStrings() {
+        XCTAssertNoThrow(try CalendarDate("2026-08-20"))
+        XCTAssertThrowsError(try CalendarDate("2026-08-20T00:00:00.000Z"), "an instant is not a calendar date")
+        XCTAssertThrowsError(try CalendarDate("2026-08-20\n"), "ICU `$` must not accept a trailing newline")
     }
 }

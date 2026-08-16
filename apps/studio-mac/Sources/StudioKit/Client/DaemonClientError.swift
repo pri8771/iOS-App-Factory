@@ -36,6 +36,20 @@ public struct DaemonClientError: Error, Sendable, Equatable, CustomStringConvert
         return false
     }
 
+    /// True when this looks like "the daemon doesn't know this operation" rather than a real failure
+    /// of a supported one — the feature-detection signal Studio Phase 2 uses to fall back from
+    /// `studio.snapshot` / `studio.assistant.*` / `project.milestones.*` to the pre-Phase-2 path.
+    ///
+    /// The contract does not name a dedicated code for this yet: a daemon that has never heard of an
+    /// operation rejects the whole request frame at `CommandRequestFrameV1Schema.parse` (today's main
+    /// branch answers `protocol.invalid-request`, indistinguishable from a malformed request).
+    /// `protocol.unknown-operation` is included because it is the more specific code a daemon that
+    /// recognises the frame shape but not this particular operation could reasonably answer with, and
+    /// nothing in `command-protocol.ts` reserves it for another meaning.
+    public var isUnsupportedOperation: Bool {
+        isRemote && (code == "protocol.unknown-operation" || code == "protocol.invalid-request")
+    }
+
     /// The same error with a retry identity attached (only when retryable).
     func attaching(_ identity: RetryableCommandIdentity) -> DaemonClientError {
         guard retryable else { return self }
@@ -95,4 +109,7 @@ public struct DaemonClientError: Error, Sendable, Equatable, CustomStringConvert
     static let portfolioDigestMismatch = DaemonClientError(
         code: "protocol.portfolio-digest-mismatch",
         message: "The portfolio source digest does not match its contents.", retryable: false)
+    static let studioSnapshotDigestMismatch = DaemonClientError(
+        code: "protocol.studio-snapshot-digest-mismatch",
+        message: "The studio snapshot source digest does not match its contents.", retryable: false)
 }

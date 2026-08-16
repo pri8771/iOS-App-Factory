@@ -194,19 +194,50 @@ public enum ScriptedAssistant {
 
 public enum ChatRole: Hashable, Sendable { case user, assistant }
 
+/// A daemon-proposed intent, embedded in an assistant message as a confirmation card — gold, because
+/// executing it is the human's decision, never the machine's.
+public struct IntentCard: Hashable, Sendable {
+    public enum Status: Hashable, Sendable {
+        case pending
+        case executing
+        case executed(summary: String)
+        case failed(String)
+        case cancelled
+    }
+
+    public var intent: AssistantIntent
+    public var status: Status
+
+    public init(intent: AssistantIntent, status: Status = .pending) {
+        self.intent = intent
+        self.status = status
+    }
+}
+
 public struct ChatMessage: Hashable, Sendable, Identifiable {
     public var id: UUID
     public var role: ChatRole
     public var text: String
     public var at: Date
     public var provenance: Provenance?
+    /// Citations for an "answered" daemon reply (`AssistantAnswer.answered`) — rendered as small chips.
+    public var citations: [AssistantCitation]
+    /// True for a reply from `ScriptedAssistant` — the honest STUB label; false for a real daemon
+    /// assistant reply (`studio.assistant.query`).
+    public var isStub: Bool
+    /// Set when this message is a pending/settled intent confirmation card rather than plain text.
+    public var intentCard: IntentCard?
 
-    public init(id: UUID = UUID(), role: ChatRole, text: String, at: Date = Date(), provenance: Provenance? = nil) {
+    public init(id: UUID = UUID(), role: ChatRole, text: String, at: Date = Date(), provenance: Provenance? = nil,
+                citations: [AssistantCitation] = [], isStub: Bool = false, intentCard: IntentCard? = nil) {
         self.id = id
         self.role = role
         self.text = text
         self.at = at
         self.provenance = provenance
+        self.citations = citations
+        self.isStub = isStub
+        self.intentCard = intentCard
     }
 }
 
@@ -255,15 +286,96 @@ public final class ChatModel {
         selectedId = id
     }
 
-    /// Appends the user's message and the stub's reply. Returns the reply.
+    /// Appends the user's message and the assistant's reply, then returns the reply.
+    ///
+    /// With no `backend` (or on a real daemon call falling back — see `AssistantQueryOutcome`) this
+    /// is `ScriptedAssistant`, tagged STUB. With a `backend`, an utterance `IntentRecognizer`
+    /// recognizes proposes an intent (rendered as a confirmation card via `confirmIntent`/
+    /// `cancelIntent`); anything else asks `studio.assistant.query` and renders `AssistantAnswer`
+    /// (citations as chips for `answered`, an honest line for `cannot-answer`).
     @discardableResult
-    public func send(_ text: String, context: AssistantContext) -> AssistantReply? {
+    public func send(_ text: String, context: AssistantContext, backend: AssistantBackend? = nil) async -> AssistantReply? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let index = conversations.firstIndex(where: { $0.id == selectedId }) else { return nil }
         conversations[index].messages.append(ChatMessage(role: .user, text: trimmed, at: context.now))
-        let reply = ScriptedAssistant.answer(trimmed, context: context)
-        conversations[index].messages.append(ChatMessage(role: .assistant, text: reply.text, at: context.now, provenance: reply.provenance))
         draft = ""
-        return reply
+
+        guard let backend else {
+            let reply = ScriptedAssistant.answer(trimmed, context: context)
+            appendStub(reply, at: context.now)
+            return reply
+        }
+
+        if let payload = IntentRecognizer.recognize(trimmed) {
+            switch await backend.proposeIntent(trimmed, payload) {
+            case .success(let intent):
+                guard let i = conversations.firstIndex(where: { $0.id == selectedId }) else { return nil }
+                conversations[i].messages.append(ChatMessage(role: .assistant, text: intent.summary, at: context.now,
+                                                              provenance: .live("studio.assistant.intent.propose"),
+                                                              intentCard: IntentCard(intent: intent)))
+                return AssistantReply(intent.summary, .live("studio.assistant.intent.propose"))
+            case .failure:
+                let reply = ScriptedAssistant.answer(trimmed, context: context)
+                appendStub(reply, at: context.now)
+                return reply
+            }
+        }
+
+        switch await backend.query(trimmed, nil) {
+        case .answer(.answered(let text, let citations)):
+            guard let i = conversations.firstIndex(where: { $0.id == selectedId }) else { return nil }
+            let provenance = Provenance.live("studio.assistant.query")
+            conversations[i].messages.append(ChatMessage(role: .assistant, text: text, at: context.now, provenance: provenance,
+                                                          citations: citations))
+            return AssistantReply(text, provenance)
+        case .answer(.cannotAnswer(let reason, let detail)):
+            guard let i = conversations.firstIndex(where: { $0.id == selectedId }) else { return nil }
+            let text = "Can't answer that: \(detail) (\(reason.rawValue))"
+            let provenance = Provenance.live("studio.assistant.query")
+            conversations[i].messages.append(ChatMessage(role: .assistant, text: text, at: context.now, provenance: provenance))
+            return AssistantReply(text, provenance)
+        case .unsupported, .failed:
+            let reply = ScriptedAssistant.answer(trimmed, context: context)
+            appendStub(reply, at: context.now)
+            return reply
+        }
+    }
+
+    private func appendStub(_ reply: AssistantReply, at: Date) {
+        guard let index = conversations.firstIndex(where: { $0.id == selectedId }) else { return }
+        conversations[index].messages.append(ChatMessage(role: .assistant, text: reply.text, at: at,
+                                                          provenance: reply.provenance, isStub: true))
+    }
+
+    private func location(of messageId: UUID) -> (conversation: Int, message: Int)? {
+        for (ci, conversation) in conversations.enumerated() {
+            if let mi = conversation.messages.firstIndex(where: { $0.id == messageId }) { return (ci, mi) }
+        }
+        return nil
+    }
+
+    /// The human declines the proposed intent — never executed.
+    public func cancelIntent(_ messageId: UUID) {
+        guard let (ci, mi) = location(of: messageId), var card = conversations[ci].messages[mi].intentCard else { return }
+        card.status = .cancelled
+        conversations[ci].messages[mi].intentCard = card
+    }
+
+    /// The human confirms: calls `studio.assistant.intent.execute` and records the outcome (the
+    /// resulting attempt id when the outcome has one) on the same card.
+    public func confirmIntent(_ messageId: UUID, backend: AssistantBackend) async {
+        guard let (ci, mi) = location(of: messageId), var card = conversations[ci].messages[mi].intentCard else { return }
+        card.status = .executing
+        conversations[ci].messages[mi].intentCard = card
+        let result = await backend.executeIntent(card.intent)
+        guard let (ci2, mi2) = location(of: messageId) else { return }
+        var updated = conversations[ci2].messages[mi2].intentCard ?? card
+        switch result {
+        case .success(let outcome):
+            updated.status = .executed(summary: outcome.attemptId.map { "attempt \($0.rawValue)" } ?? "done — no attempt id")
+        case .failure(let error):
+            updated.status = .failed(error.description)
+        }
+        conversations[ci2].messages[mi2].intentCard = updated
     }
 }
