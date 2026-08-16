@@ -301,6 +301,123 @@
         ],
         "requiredKinds": ["verification"]
       }
+    },
+    {
+      "name": "room-with-benched-participant",
+      "schema": "room",
+      "value": {
+        "schemaVersion": 1,
+        "roomId": "30000000-0000-4000-8000-000000000001",
+        "title": "Design review",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "createdAt": "2026-08-16T10:00:00.000Z",
+        "updatedAt": "2026-08-16T10:05:00.000Z",
+        "unattendedEnabled": false,
+        "headSequence": 2,
+        "headMessageId": "40000000-0000-4000-8000-000000000002",
+        "lastHumanAt": "2026-08-16T10:01:00.000Z",
+        "humanTypingUntil": null,
+        "roundCounter": 1,
+        "activeGrantId": null,
+        "pendingTrigger": {
+          "kind": "agent-message",
+          "requestedAt": "2026-08-16T10:05:00.000Z",
+          "sourceSequence": 2
+        },
+        "agentCooldownEvents": 2,
+        "participants": [
+          {
+            "persona": "architect",
+            "provider": "ollama",
+            "displayName": "Architect",
+            "position": 0,
+            "benchedUntil": null,
+            "benchReason": null
+          },
+          {
+            "persona": "critic",
+            "provider": "ollama",
+            "displayName": "Critic",
+            "position": 1,
+            "benchedUntil": "2026-08-16T10:20:00.000Z",
+            "benchReason": "limit"
+          }
+        ],
+        "budget": {
+          "dayKey": "2026-08-16",
+          "dailyCeilingTokens": 10000,
+          "unattendedDailyCeilingTokens": 2000,
+          "maxTokensPerReply": 1000,
+          "spentTokens": 100,
+          "reservedTokens": 0,
+          "unattendedSpentTokens": 0
+        }
+      }
+    },
+    {
+      "name": "room-message-agent-chat",
+      "schema": "room-message",
+      "value": {
+        "schemaVersion": 1,
+        "roomId": "30000000-0000-4000-8000-000000000001",
+        "messageId": "40000000-0000-4000-8000-000000000002",
+        "sequence": 2,
+        "occurredAt": "2026-08-16T10:05:00.000Z",
+        "roundNumber": 1,
+        "grantId": "40000000-0000-4000-9000-000000000001",
+        "kind": "message",
+        "author": {
+          "kind": "agent",
+          "persona": "architect"
+        },
+        "body": "Start with the data model.",
+        "mentions": []
+      }
+    },
+    {
+      "name": "room-message-agent-error-line",
+      "schema": "room-message",
+      "value": {
+        "schemaVersion": 1,
+        "roomId": "30000000-0000-4000-8000-000000000001",
+        "messageId": "40000000-0000-4000-8000-000000000003",
+        "sequence": 3,
+        "occurredAt": "2026-08-16T10:06:00.000Z",
+        "roundNumber": 2,
+        "grantId": "40000000-0000-4000-9000-000000000002",
+        "kind": "system",
+        "code": "agent-error",
+        "body": "critic failed (limit); provider ollama benched until 2026-08-16T10:20:00.000Z.",
+        "persona": "critic",
+        "errorCode": "limit",
+        "benchedUntil": "2026-08-16T10:20:00.000Z",
+        "retryAt": "2026-08-16T10:20:00.000Z"
+      }
+    },
+    {
+      "name": "room-grant-committed",
+      "schema": "room-grant",
+      "value": {
+        "schemaVersion": 1,
+        "grantId": "40000000-0000-4000-9000-000000000001",
+        "roomId": "30000000-0000-4000-8000-000000000001",
+        "roundNumber": 1,
+        "persona": "architect",
+        "headSequence": 1,
+        "state": "committed",
+        "ownerPid": 4242,
+        "workerPid": null,
+        "reservedTokens": 1000,
+        "leaseExpiresAt": "2026-08-16T10:07:00.000Z",
+        "createdAt": "2026-08-16T10:05:00.000Z",
+        "updatedAt": "2026-08-16T10:05:30.000Z",
+        "outcome": {
+          "kind": "committed",
+          "messageSequence": 2,
+          "tokensUsed": 100,
+          "revalidated": false
+        }
+      }
     }
   ]
 }

@@ -851,3 +851,163 @@ describe("effect pump subsystem lifecycle", () => {
     expect(service.getLastEffectsPumpError()).toBeNull();
   });
 });
+
+describe("room moderator subsystem lifecycle", () => {
+  const ROOM_ID = "30000000-0000-4000-8000-000000000001";
+  const roomSpec = {
+    roomId: ROOM_ID,
+    title: "Service rooms",
+    projectId: null,
+    unattendedEnabled: false,
+    agentCooldownEvents: 1,
+    participants: [
+      { persona: "architect", provider: "ollama", displayName: "Architect" },
+      { persona: "critic", provider: "ollama", displayName: "Critic" },
+    ],
+    budget: {
+      dailyCeilingTokens: 5_000,
+      unattendedDailyCeilingTokens: 500,
+      maxTokensPerReply: 500,
+    },
+  } as const;
+
+  it("keeps rooms as an inert transcript when the rooms option is omitted", async () => {
+    const root = await makeRoot();
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.4.0-rooms-off",
+      pollIntervalMs: 5,
+    });
+    services.push(service);
+    const client = clientFor(service);
+    const created = await client.createRoom(roomSpec);
+    expect(created).toMatchObject({ operation: "room.create", duplicate: false });
+    await client.postToRoom(ROOM_ID, "priyansh", "anyone there?");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const events = await client.roomEvents(ROOM_ID);
+    expect(events.moderator.enabled).toBe(false);
+    expect(events.messages.map((message) => message.kind)).toEqual(["message"]);
+    expect(events.room.pendingTrigger?.kind).toBe("human-message");
+    expect(service.getLastRoomsError()).toBeNull();
+    await expect(service.close()).resolves.toBeUndefined();
+  });
+
+  it("refuses to enable rooms without the model-facing ports", async () => {
+    const root = await makeRoot();
+    await expect(
+      startFactoryDaemonService({
+        runtimeDirectory: root,
+        authorization: AUTHORIZATION,
+        daemonVersion: "0.4.0-rooms-misconfigured",
+        pollIntervalMs: 5,
+        rooms: { enabled: true },
+      }),
+    ).rejects.toThrow(/rooms\.scorer, rooms\.contributor, and rooms\.revalidator are required/);
+    // Composition failure released socket ownership: a follow-up daemon starts cleanly.
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.4.0-rooms-off",
+      pollIntervalMs: 5,
+    });
+    services.push(service);
+    await expect(service.close()).resolves.toBeUndefined();
+  });
+
+  it("moderates a room end to end over the socket, resumes after restart, and stops cleanly", async () => {
+    const root = await makeRoot();
+    let clock = Date.parse("2026-08-16T12:00:00.000Z");
+    const now = () => new Date(clock).toISOString();
+    const roomsConfig = {
+      enabled: true,
+      scorer: {
+        score: (request: { candidates: readonly { persona: string }[] }) =>
+          Promise.resolve(
+            Object.fromEntries(
+              request.candidates.map((candidate) => [
+                candidate.persona,
+                candidate.persona === "critic" ? 2 : 0,
+              ]),
+            ),
+          ),
+      },
+      contributor: {
+        contribute: (request: { participant: { persona: string } }) =>
+          Promise.resolve({
+            kind: "message" as const,
+            body: `${request.participant.persona} answering`,
+            tokensUsed: 30,
+          }),
+      },
+      revalidator: { revalidate: () => Promise.resolve({ decision: "post" as const }) },
+    };
+    const first = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.4.0-rooms-on",
+      pollIntervalMs: 5,
+      now,
+      rooms: roomsConfig,
+    });
+    services.push(first);
+    const clientAt = (service: FactoryDaemonService): CommandClient => {
+      const client = createCommandClient({
+        socketPath: service.socketPath,
+        authorization: AUTHORIZATION,
+        origin: "cli",
+        now: () => new Date(clock),
+      });
+      clients.push(client);
+      return client;
+    };
+    const client = clientAt(first);
+    await client.createRoom(roomSpec);
+    clock += 1_000;
+    await client.postToRoom(ROOM_ID, "priyansh", "@critic what next?");
+    await eventually(async () => (await client.roomEvents(ROOM_ID)).room.headSequence >= 3);
+    let events = await client.roomEvents(ROOM_ID);
+    expect(events.room).toMatchObject({ pendingTrigger: null, activeGrantId: null });
+    expect(events.moderator).toEqual({ enabled: true, attendance: "attended" });
+    // critic answered; the chain then found architect (urgency 0) only, so it passed legibly.
+    expect(
+      events.messages.map((message) =>
+        message.kind === "system" ? `system:${message.code}` : message.author.kind,
+      ),
+    ).toEqual(["human", "agent", "system:all-passed"]);
+    expect(events.room.budget).toMatchObject({ reservedTokens: 0, spentTokens: 30 });
+    expect(first.getLastRoomsError()).toBeNull();
+    await first.close();
+
+    // Restart against the same database: the sweep finds nothing open and the transcript
+    // continues from its durable head.
+    const second = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.4.0-rooms-on-restart",
+      pollIntervalMs: 5,
+      now,
+      rooms: roomsConfig,
+    });
+    services.push(second);
+    const client2 = clientAt(second);
+    clock += 1_000;
+    await client2.postToRoom(ROOM_ID, "priyansh", "@architect and you?");
+    await eventually(async () => (await client2.roomEvents(ROOM_ID)).room.headSequence >= 6);
+    events = await client2.roomEvents(ROOM_ID, { afterSequence: 3 });
+    // @architect is a forced invite but only wins ties: critic's urgency 2 beats the forced
+    // floor of 1, so critic answers; the chain then finds only architect at urgency 0.
+    expect(
+      events.messages.map((message) =>
+        message.kind === "system"
+          ? `system:${message.code}`
+          : `${message.author.kind}:${message.author.kind === "agent" ? message.author.persona : "human"}`,
+      ),
+    ).toEqual(["human:human", "agent:critic", "system:all-passed"]);
+    expect(events.room).toMatchObject({ pendingTrigger: null, activeGrantId: null });
+    const typing = await client2.signalRoomTyping(ROOM_ID, "priyansh", 5_000);
+    expect(typing.typingUntil).toBe(new Date(clock + 5_000).toISOString());
+    expect(second.getLastRoomsError()).toBeNull();
+    await expect(second.close()).resolves.toBeUndefined();
+  });
+});

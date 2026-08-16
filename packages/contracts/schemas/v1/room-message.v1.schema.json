@@ -1,0 +1,267 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema3": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema4": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema5": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema6": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema7": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:room-message",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "handle": {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "human",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "handle"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "agent",
+                  "type": "string"
+                },
+                "persona": {
+                  "$ref": "#/$defs/__schema7"
+                }
+              },
+              "required": [
+                "kind",
+                "persona"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "body": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "grantId": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "kind": {
+          "const": "message",
+          "type": "string"
+        },
+        "mentions": {
+          "items": {
+            "$ref": "#/$defs/__schema7"
+          },
+          "maxItems": 16,
+          "type": "array"
+        },
+        "messageId": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "roomId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "roundNumber": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema3"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "roomId",
+        "messageId",
+        "sequence",
+        "occurredAt",
+        "roundNumber",
+        "grantId",
+        "kind",
+        "author",
+        "body",
+        "mentions"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "benchedUntil": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema4"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "body": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "code": {
+          "enum": [
+            "all-passed",
+            "agent-passed",
+            "agent-error",
+            "factory-event",
+            "room-dormant",
+            "throttled",
+            "budget-exhausted",
+            "chain-cap",
+            "grant-orphaned",
+            "contribution-dropped",
+            "contribution-revised",
+            "scorer-unavailable"
+          ],
+          "type": "string"
+        },
+        "errorCode": {
+          "anyOf": [
+            {
+              "enum": [
+                "limit",
+                "timeout",
+                "capacity",
+                "internal"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "grantId": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "kind": {
+          "const": "system",
+          "type": "string"
+        },
+        "messageId": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "persona": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema7"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retryAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema4"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "roomId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "roundNumber": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema3"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "roomId",
+        "messageId",
+        "sequence",
+        "occurredAt",
+        "roundNumber",
+        "grantId",
+        "kind",
+        "code",
+        "body",
+        "persona",
+        "errorCode",
+        "benchedUntil",
+        "retryAt"
+      ],
+      "type": "object"
+    }
+  ]
+}

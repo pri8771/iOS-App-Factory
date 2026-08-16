@@ -27,6 +27,12 @@ import { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-lo
 export { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
 import { createEffectSubsystem, type EffectSubsystem } from "./effect-pump.js";
 import {
+  createRoomSubsystem,
+  type RoomSubsystem,
+  type RoomSubsystemConfiguration,
+} from "./room-subsystem.js";
+export { nodeRoomProcessPort, type RoomSubsystemConfiguration } from "./room-subsystem.js";
+import {
   createKernelSchedulerController,
   type KernelSchedulerController,
 } from "./kernel-scheduler-adapter.js";
@@ -93,6 +99,8 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   onSchedulerError?: (error: unknown) => void;
   /** Default OFF: omit or pass `{ enabled: false }` to keep the effect pump fully inert. */
   effects?: EffectSubsystemConfiguration;
+  /** Default OFF: omit or pass `{ enabled: false }` to keep the room moderator inert. */
+  rooms?: RoomSubsystemConfiguration;
 }>;
 
 export type FactoryDaemonService = Readonly<{
@@ -102,6 +110,7 @@ export type FactoryDaemonService = Readonly<{
   startedAt: string;
   getLastSchedulerError(): unknown | null;
   getLastEffectsPumpError(): unknown | null;
+  getLastRoomsError(): unknown | null;
   close(): Promise<void>;
 }>;
 
@@ -337,6 +346,7 @@ export async function startFactoryDaemonService(
     controller: null,
   };
   const effectsState: { subsystem: EffectSubsystem | null } = { subsystem: null };
+  const roomsState: { subsystem: RoomSubsystem | null } = { subsystem: null };
   let loop: BackgroundSchedulerLoop | null = null;
   let closing = false;
   let ready = false;
@@ -425,6 +435,25 @@ export async function startFactoryDaemonService(
         }
       : undefined;
 
+  const roomsConfig = options.rooms;
+  const daemonNow = options.now;
+  const initializeRooms: OpenDaemonCommandRuntimeOptions["initializeRooms"] =
+    roomsConfig?.enabled === true
+      ? (context) => {
+          // The moderator shares the command runtime's notion of "now" unless
+          // a clock is injected explicitly, so attendance and lease arithmetic
+          // agree with the instants stamped on human posts.
+          const subsystem = createRoomSubsystem(
+            roomsConfig.clock === undefined && daemonNow !== undefined
+              ? { ...roomsConfig, clock: { now: () => new Date(daemonNow()) } }
+              : roomsConfig,
+            context.rooms,
+          );
+          roomsState.subsystem = subsystem;
+          return subsystem.statusPort;
+        }
+      : undefined;
+
   try {
     runtime = await openDaemonCommandRuntime({
       runtimeDirectory: paths.root,
@@ -462,6 +491,7 @@ export async function startFactoryDaemonService(
         });
       },
       ...(initializeEffects === undefined ? {} : { initializeEffects }),
+      ...(initializeRooms === undefined ? {} : { initializeRooms }),
     });
     const activeController = schedulerState.controller;
     if (activeController === null) {
@@ -535,8 +565,12 @@ export async function startFactoryDaemonService(
     // startup recovery) has completed without throwing, the same instant the
     // daemon is about to declare itself ready to accept commands.
     effectsState.subsystem?.start();
+    // The room moderator sweeps orphaned grants and resumes pending rooms at
+    // the same instant, strictly after startup recovery succeeded.
+    roomsState.subsystem?.start();
     ready = true;
   } catch (error) {
+    await roomsState.subsystem?.stop().catch(() => undefined);
     await effectsState.subsystem?.stop().catch(() => undefined);
     await schedulerState.controller?.stop().catch(() => undefined);
     runtime?.close();
@@ -548,6 +582,7 @@ export async function startFactoryDaemonService(
   const activeController = schedulerState.controller;
   const activeLoop = loop;
   const activeEffectsSubsystem = effectsState.subsystem;
+  const activeRoomsSubsystem = roomsState.subsystem;
   if (activeRuntime === null || activeController === null || activeLoop === null) {
     throw new Error("The daemon composition finished without all owned components");
   }
@@ -560,6 +595,7 @@ export async function startFactoryDaemonService(
     startedAt: activeRuntime.startedAt,
     getLastSchedulerError: () => activeLoop.lastError,
     getLastEffectsPumpError: () => activeEffectsSubsystem?.loop.lastError ?? null,
+    getLastRoomsError: () => activeRoomsSubsystem?.loop.lastError ?? null,
     close: async () => {
       if (closePromise !== null) return await closePromise;
       closing = true;
@@ -571,6 +607,7 @@ export async function startFactoryDaemonService(
           activeController.stop(),
           activeLoop.stopped(),
           activeEffectsSubsystem === null ? Promise.resolve() : activeEffectsSubsystem.stop(),
+          activeRoomsSubsystem === null ? Promise.resolve() : activeRoomsSubsystem.stop(),
         ]);
         activeRuntime.close();
         const failures = results

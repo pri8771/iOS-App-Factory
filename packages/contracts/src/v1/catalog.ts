@@ -21,6 +21,7 @@ import { LessonV1Schema, LifecycleEventV1Schema } from "./learning.js";
 import { ModuleManifestV1Schema } from "./module.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
+import { RoomGrantV1Schema, RoomMessageV1Schema, RoomV1Schema } from "./room.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
 export type ContractSchemaCatalogEntryV1 = Readonly<{
@@ -102,6 +103,24 @@ export const contractSchemaCatalogV1 = [
     fileName: "task-spec.v1.schema.json",
     id: "urn:app-factory:contracts:v1:task-spec",
     schema: TaskSpecV1Schema,
+  },
+  {
+    name: "room",
+    fileName: "room.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:room",
+    schema: RoomV1Schema,
+  },
+  {
+    name: "room-message",
+    fileName: "room-message.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:room-message",
+    schema: RoomMessageV1Schema,
+  },
+  {
+    name: "room-grant",
+    fileName: "room-grant.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:room-grant",
+    schema: RoomGrantV1Schema,
   },
   {
     name: "command",

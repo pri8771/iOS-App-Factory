@@ -64,6 +64,7 @@ packages/
   scheduler/                   restart-safe prepare/execute/verify attempt scheduler
   service-manager/             deterministic macOS LaunchAgent plan for the Factory daemon
   simulator-runner/            plans and executes lease-bound iOS Simulator test sessions
+  studio-rooms/                Studio room engine: deterministic moderator over a single-writer transcript
   testkit/                     shared fixtures/harnesses for crash, fake-effect, and conformance tests
   trusted-verifier/            runs a pre-approved deterministic check in a separate clean checkout
   website-lifecycle/           plans an approval-required website PR on TestFlight availability

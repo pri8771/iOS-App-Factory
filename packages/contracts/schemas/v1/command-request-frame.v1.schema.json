@@ -9,6 +9,11 @@
       "type": "number"
     },
     "__schema10": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema11": {
       "additionalProperties": false,
       "properties": {
         "attemptId": {
@@ -32,6 +37,43 @@
         "reason"
       ],
       "type": "object"
+    },
+    "__schema12": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema13": {
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "persona": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        "provider": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "persona",
+        "provider",
+        "displayName"
+      ],
+      "type": "object"
+    },
+    "__schema14": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema15": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+      "type": "string"
     },
     "__schema2": {
       "format": "date-time",
@@ -374,9 +416,7 @@
               "additionalProperties": false,
               "properties": {
                 "afterSequence": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "$ref": "#/$defs/__schema10"
                 },
                 "attemptId": {
                   "$ref": "#/$defs/__schema0"
@@ -512,7 +552,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema10"
+              "$ref": "#/$defs/__schema11"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -545,7 +585,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema10"
+              "$ref": "#/$defs/__schema11"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -578,7 +618,7 @@
               "$ref": "#/$defs/__schema3"
             },
             "payload": {
-              "$ref": "#/$defs/__schema10"
+              "$ref": "#/$defs/__schema11"
             },
             "schemaVersion": {
               "$ref": "#/$defs/__schema1"
@@ -1159,6 +1199,305 @@
                 "provider",
                 "after",
                 "limit"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "room.create",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "agentCooldownEvents": {
+                  "maximum": 1000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "budget": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "dailyCeilingTokens": {
+                      "$ref": "#/$defs/__schema14"
+                    },
+                    "maxTokensPerReply": {
+                      "$ref": "#/$defs/__schema14"
+                    },
+                    "unattendedDailyCeilingTokens": {
+                      "$ref": "#/$defs/__schema10"
+                    }
+                  },
+                  "required": [
+                    "dailyCeilingTokens",
+                    "unattendedDailyCeilingTokens",
+                    "maxTokensPerReply"
+                  ],
+                  "type": "object"
+                },
+                "participants": {
+                  "items": {
+                    "$ref": "#/$defs/__schema13"
+                  },
+                  "maxItems": 16,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "projectId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "roomId": {
+                  "$ref": "#/$defs/__schema12"
+                },
+                "title": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "unattendedEnabled": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "roomId",
+                "title",
+                "projectId",
+                "unattendedEnabled",
+                "agentCooldownEvents",
+                "participants",
+                "budget"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "room.list",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "limit": {
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "limit"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "room.post",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "body": {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "handle": {
+                  "$ref": "#/$defs/__schema15"
+                },
+                "roomId": {
+                  "$ref": "#/$defs/__schema12"
+                }
+              },
+              "required": [
+                "roomId",
+                "handle",
+                "body"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "room.events",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "afterSequence": {
+                  "$ref": "#/$defs/__schema10"
+                },
+                "limit": {
+                  "maximum": 1000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "roomId": {
+                  "$ref": "#/$defs/__schema12"
+                }
+              },
+              "required": [
+                "roomId",
+                "afterSequence",
+                "limit"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "room.typing",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "handle": {
+                  "$ref": "#/$defs/__schema15"
+                },
+                "roomId": {
+                  "$ref": "#/$defs/__schema12"
+                },
+                "ttlMs": {
+                  "maximum": 30000,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "roomId",
+                "handle",
+                "ttlMs"
               ],
               "type": "object"
             },

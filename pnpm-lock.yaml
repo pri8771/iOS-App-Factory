@@ -95,6 +95,9 @@ importers:
       '@app-factory/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
+      '@app-factory/studio-rooms':
+        specifier: workspace:*
+        version: link:../../packages/studio-rooms
 
   apps/dashboard:
     dependencies:
@@ -352,6 +355,21 @@ importers:
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../contracts
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/studio-rooms:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@app-factory/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      better-sqlite3:
+        specifier: 12.11.1
+        version: 12.11.1
       zod:
         specifier: 4.4.3
         version: 4.4.3

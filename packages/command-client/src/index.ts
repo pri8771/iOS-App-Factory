@@ -16,6 +16,9 @@ import {
   GitBranchNameSchema,
   IsoInstantSchema,
   RequestIdSchema,
+  RoomCreateSpecV1Schema,
+  RoomHumanHandleSchema,
+  RoomIdSchema,
   Sha256DigestSchema,
   TaskIdSchema,
   TaskSpecV1Schema,
@@ -37,6 +40,7 @@ import {
   type IsoInstant,
   type ProjectId,
   type RequestId,
+  type RoomCreateSpecV1,
   type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
@@ -498,6 +502,77 @@ export class CommandClient {
       limit: options.limit ?? 50,
     });
     return await this.#request("effects.list", payload, identity, signal);
+  }
+
+  /** Creates a Studio room (idempotent for an identical spec under the same roomId). */
+  public async createRoom(
+    spec: RoomCreateSpecV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"room.create">> {
+    return await this.#request("room.create", RoomCreateSpecV1Schema.parse(spec), identity, signal);
+  }
+
+  public async listRooms(
+    options: Readonly<{ limit?: number }> = {},
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"room.list">> {
+    return await this.#request("room.list", { limit: options.limit ?? 50 }, identity, signal);
+  }
+
+  /** Appends a human message to the single-writer transcript and wakes the moderator. */
+  public async postToRoom(
+    roomId: string,
+    handle: string,
+    body: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"room.post">> {
+    return await this.#request(
+      "room.post",
+      {
+        roomId: RoomIdSchema.parse(roomId),
+        handle: RoomHumanHandleSchema.parse(handle),
+        body,
+      },
+      identity,
+      signal,
+    );
+  }
+
+  public async roomEvents(
+    roomId: string,
+    options: Readonly<{ afterSequence?: number; limit?: number }> = {},
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"room.events">> {
+    return await this.#request(
+      "room.events",
+      {
+        roomId: RoomIdSchema.parse(roomId),
+        afterSequence: options.afterSequence ?? 0,
+        limit: options.limit ?? 200,
+      },
+      identity,
+      signal,
+    );
+  }
+
+  /** Human typing signal: the moderator defers agent rounds until it expires. */
+  public async signalRoomTyping(
+    roomId: string,
+    handle: string,
+    ttlMs = 5_000,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"room.typing">> {
+    return await this.#request(
+      "room.typing",
+      { roomId: RoomIdSchema.parse(roomId), handle: RoomHumanHandleSchema.parse(handle), ttlMs },
+      identity,
+      signal,
+    );
   }
 
   async #request<Operation extends CommandOperationV1>(

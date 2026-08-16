@@ -44,6 +44,7 @@
       "@app-factory/scheduler": ["./packages/scheduler/src/index.ts"],
       "@app-factory/service-manager": ["./packages/service-manager/src/index.ts"],
       "@app-factory/simulator-runner": ["./packages/simulator-runner/src/index.ts"],
+      "@app-factory/studio-rooms": ["./packages/studio-rooms/src/index.ts"],
       "@app-factory/testkit": ["./packages/testkit/src/index.ts"],
       "@app-factory/trusted-verifier": ["./packages/trusted-verifier/src/index.ts"],
       "@app-factory/website-lifecycle": ["./packages/website-lifecycle/src/index.ts"],

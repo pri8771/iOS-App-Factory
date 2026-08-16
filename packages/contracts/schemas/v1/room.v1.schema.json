@@ -1,0 +1,264 @@
+{
+  "$defs": {
+    "__schema0": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema1": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema2": {
+      "additionalProperties": false,
+      "properties": {
+        "benchReason": {
+          "anyOf": [
+            {
+              "enum": [
+                "limit",
+                "timeout",
+                "capacity",
+                "internal"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "benchedUntil": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema0"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "displayName": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "persona": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "provider": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "persona",
+        "provider",
+        "displayName",
+        "position",
+        "benchedUntil",
+        "benchReason"
+      ],
+      "type": "object"
+    },
+    "__schema3": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:room",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activeGrantId": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "agentCooldownEvents": {
+      "maximum": 1000,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "budget": {
+      "additionalProperties": false,
+      "properties": {
+        "dailyCeilingTokens": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "dayKey": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "maxTokensPerReply": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "reservedTokens": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "spentTokens": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "unattendedDailyCeilingTokens": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "unattendedSpentTokens": {
+          "$ref": "#/$defs/__schema1"
+        }
+      },
+      "required": [
+        "dayKey",
+        "dailyCeilingTokens",
+        "unattendedDailyCeilingTokens",
+        "maxTokensPerReply",
+        "spentTokens",
+        "reservedTokens",
+        "unattendedSpentTokens"
+      ],
+      "type": "object"
+    },
+    "createdAt": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "headMessageId": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "headSequence": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "humanTypingUntil": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema0"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lastHumanAt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema0"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "participants": {
+      "items": {
+        "$ref": "#/$defs/__schema2"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "type": "array"
+    },
+    "pendingTrigger": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "human-message",
+                "agent-message",
+                "factory-event",
+                "wake"
+              ],
+              "type": "string"
+            },
+            "requestedAt": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "sourceSequence": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "kind",
+            "requestedAt",
+            "sourceSequence"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "projectId": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "roomId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "roundCounter": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "unattendedEnabled": {
+      "type": "boolean"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/__schema0"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "roomId",
+    "title",
+    "projectId",
+    "createdAt",
+    "updatedAt",
+    "unattendedEnabled",
+    "headSequence",
+    "headMessageId",
+    "lastHumanAt",
+    "humanTypingUntil",
+    "roundCounter",
+    "activeGrantId",
+    "pendingTrigger",
+    "agentCooldownEvents",
+    "participants",
+    "budget"
+  ],
+  "type": "object"
+}
