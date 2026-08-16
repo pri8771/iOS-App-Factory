@@ -1,7 +1,9 @@
 # Implementation status
 
-Updated: 2026-08-14 (docs/truth-sweep re-verification pass against
-`integration/t3-t7` tip `34917e5`)
+Updated: 2026-08-16 (adds the "Studio (Mac app)" section below; the
+docs/truth-sweep re-verification pass against `integration/t3-t7` tip
+`34917e5` described next remains the last full-repository verification run,
+dated 2026-08-14 — this update did not repeat it)
 
 This ledger maps the originally planned Weeks 1–16 capabilities (see the
 2026-08-14 re-baseline note in
@@ -121,6 +123,50 @@ website repository has been mutated. See the
 | 14 — Internal TestFlight | **Blocked — row 13 and external Apple account** | Contracts can represent uploaded, processing, and internal-TestFlight-available stages and lifecycle events. | No upload, processing poll, compliance answer, tester-group assignment, App Store build reconciliation, or signed availability event has run. |
 | 15 — device proof and command center v1 | **Partly implemented; dormant/blocked** | The packaged loopback dashboard has daemon health, attempt actions, one-use browser authentication, graceful shutdown, and a canonical-digest-verified local portfolio view. The daemon maintains bounded project execution summaries without rescanning all history. [`packages/portfolio`](../../packages/portfolio) separately derives planning health, analytics freshness, and conflict-free scheduling proposals. The simulator runner supports visible, commentable sessions. | Jira/PR/quality/approval/release panels and live analytics sources are not composed. Scheduling is proposal-only. There is no TestFlight build or physical-device attestation. |
 | 16 — learning, recovery, and second-project proof | **Recovery paths partly connected; learning/second-project gates remain** | Reviewed lesson proposals/replay/adoption plans are in [`packages/learning-engine`](../../packages/learning-engine); recovery bundles/quarantine are in [`packages/recovery-manager`](../../packages/recovery-manager); an approval-required private-beta website PR plan is in [`packages/website-lifecycle`](../../packages/website-lifecycle). Host-supervisor recovery remains connected, and injected OCI V3 startup now inventories immutable state, scopes recovery scheduling, and adopts an exact prior-fence run without duplicate launch. | Kernel registration and atomic approval consumption for `lesson.policy-adopt` are **blocked by protected approval**. Restored-runtime quarantine consumption remains **blocked by protected approval**; OCI quarantine and stale-lock recovery still require operator handling. No second project has passed enrollment, and the website module has no enrolled repository/configuration or deployment approval. |
+
+## Studio (Mac app)
+
+Not part of the originally planned Weeks 1–16 backlog table above; recorded
+here because the 2026-08-16 owner decision
+([ADR 0004](../architecture/0004-studio-mac-app.md),
+[`docs/roadmap/STUDIO_PHASES.md`](../roadmap/STUDIO_PHASES.md)) makes it the
+Gen 5 product target and demotes `apps/dashboard` to a debug surface.
+
+**Honest status: Phase 1 (shell) is in progress on branch `studio/phase1`,
+built in a separate worktree. Nothing is merged into this branch and nothing
+is verified.** No Studio capability described in ADR 0004 or
+`STUDIO_PHASES.md` exists in this repository yet. `apps/` here is still
+exactly the four listed in [`README.md`](../../README.md): `cli`, `daemon`,
+`dashboard`, `mcp`.
+
+Open gaps this decision carries, none scheduled by this entry:
+
+- No `milestones[]` schema exists anywhere under `packages/` (verified
+  2026-08-16: zero matches for "milestone").
+- `packages/contracts/src/v1/task-spec.ts` has no `phase` field. The word
+  "phase" is already used for two unrelated concepts elsewhere in contracts —
+  `AgentProgressEventV1Schema.data.phase` (a free-form label for a step
+  inside one running agent) and `EnrollmentPlanActionV1Schema.phase` (a
+  six-value enrollment-action category) — neither of which is a Studio Phase
+  Preset stage.
+- Four lifecycle vocabularies are reported to disagree: the separately
+  versioned rules corpus's 14-stage lifecycle, a mission-control `gates.md`,
+  this repository's own project-manifest lifecycle, and the in-progress
+  studio-ios preset. The first two are not part of this repository.
+  Reconciling all four has not started.
+- The separately versioned rules corpus is reported pinned at three
+  different versions depending on consumer (0.2.0 local, 0.4.0 upstream,
+  0.5.0 CLI); not independently checked from within this repository, whose
+  own `packages/policy-engine` uses an unrelated integer `policyVersion`,
+  not this semver string.
+- `packages/policy-engine/src/index.ts` has no rule scoping (`appliesTo` a
+  phase), waivers, a human-only owner field, or a check registry (verified
+  2026-08-16: zero matches for `appliesTo`, `waiver`, or `scope` in that
+  file).
+
+See [ADR 0004](../architecture/0004-studio-mac-app.md) for the full decision
+and [`docs/roadmap/STUDIO_PHASES.md`](../roadmap/STUDIO_PHASES.md) for the
+six-phase capability plan.
 
 ## Repository verification
 

@@ -19,6 +19,16 @@ These are capability stages, not calendar promises.
 > documents still describe real, still-relevant completion criteria for their
 > corresponding stage above; they just do not carry committed dates anymore.
 
+> **2026-08-16 product-roadmap note:** The stages below remain the current
+> engineering sequencing for the Gen 4 kernel and daemon this document
+> describes. For the Gen 5 product surface — the Studio Mac app — the current
+> roadmap is [`docs/roadmap/STUDIO_PHASES.md`](STUDIO_PHASES.md), following
+> the owner's 2026-08-16 decision recorded in
+> [ADR 0004](../architecture/0004-studio-mac-app.md). Stage 7's plan to grow
+> `apps/dashboard` into "the full supported local command center" below is
+> superseded by that decision; the dashboard is demoted to a debug surface
+> and Studio Phases 1–6 take its place as the client-experience plan.
+
 ## Stage 0 — Foundation and contracts
 
 Output:
