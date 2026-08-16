@@ -36,13 +36,13 @@ snapshot-tested with `now` pinned to 2026-08-16.
 
 What each gauge is, and where its number comes from:
 
-| gauge              | value                                                                    | provenance |
-| ------------------ | ------------------------------------------------------------------------ | ---------- |
-| projects           | `portfolio.totals.projects`; arc = projects with active attempts / total | live       |
-| verified · 7d      | succeeded attempts terminal in the last 7 days **that have an evidence manifest** (attempt.list ∩ evidence.list); arc = verified / terminal runs in window | derived |
-| awaiting you       | `portfolio.totals.blockers` (the only gold gauge); caption names fixture gates, never folds them in | live |
-| min / release      | —                                                                         | not yet sourced (release rail, phase 6) |
-| agent window       | —                                                                         | not yet sourced (provider telemetry) |
+| gauge         | value                                                                                                                                                      | provenance                              |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| projects      | `portfolio.totals.projects`; arc = projects with active attempts / total                                                                                   | live                                    |
+| verified · 7d | succeeded attempts terminal in the last 7 days **that have an evidence manifest** (attempt.list ∩ evidence.list); arc = verified / terminal runs in window | derived                                 |
+| awaiting you  | `portfolio.totals.blockers` (the only gold gauge); caption names fixture gates, never folds them in                                                        | live                                    |
+| min / release | —                                                                                                                                                          | not yet sourced (release rail, phase 6) |
+| agent window  | —                                                                                                                                                          | not yet sourced (provider telemetry)    |
 
 The reticle reads the daemon's `lifecycleStage`s (exploring 0 → released 1, paused/archived make no
 claim) when at least one project has a stage; otherwise it falls back to the fixture's lifecycle
@@ -59,10 +59,10 @@ under the chart.
 
 Live data is merged by slug (`PortfolioProject.slug` ↔ fixture `slug`):
 
-* on a matched row, live attempts are drawn as marks — succeeded → done, in flight → live, blocked →
+- on a matched row, live attempts are drawn as marks — succeeded → done, in flight → live, blocked →
   ◆ waiting — with `.live("attempt.list")`; failed/cancelled attempts have no bar kind in the
   prototype vocabulary and are not drawn; the row is badged FIXTURE + LIVE;
-* a daemon project the fixture does not know gets a live-only row: lifecycle from its stage (steps
+- a daemon project the fixture does not know gets a live-only row: lifecycle from its stage (steps
   before = done, stage = active, after = planned, and the device-smoke gate always **unknown** because
   the daemon records no human gate), its attempt marks, and a dashed-alert "no milestones" span from
   today to the window edge — the machine refusing to guess, drawn as such.
@@ -106,8 +106,8 @@ The Phases tab is a dashed "planned" panel with the phase schema and no controls
 
 ## Consequences
 
-* A reviewer can tell live from fixture from stub without reading code: it is printed on screen.
-* Replacing the fixture with `portfolio.milestones` is a one-function change behind `ProjectTimeline`.
-* Against the demo daemon (task-derived projects, no lifecycle stages, no evidence manifests) the
+- A reviewer can tell live from fixture from stub without reading code: it is printed on screen.
+- Replacing the fixture with `portfolio.milestones` is a one-function change behind `ProjectTimeline`.
+- Against the demo daemon (task-derived projects, no lifecycle stages, no evidence manifests) the
   dashboard honestly reads: projects = the daemon's count, verified = 0 of N runs (no manifests),
   reticle = fixture, plus a live-only "no milestones" row — which is exactly what that daemon knows.

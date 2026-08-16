@@ -35,11 +35,7 @@
             "analytics": "available"
           },
           "health": "blocked",
-          "healthReasons": [
-            "delivery-blocker",
-            "unresolved-p1",
-            "analytics-stale"
-          ]
+          "healthReasons": ["delivery-blocker", "unresolved-p1", "analytics-stale"]
         },
         {
           "projectId": "9c8b7a6f-5e4d-4c3b-8a19-0f1e2d3c4b5a",

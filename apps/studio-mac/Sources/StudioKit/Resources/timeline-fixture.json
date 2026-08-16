@@ -114,7 +114,12 @@
       ],
       "bars": [
         { "kind": "done", "label": "build", "start": "2026-07-15", "end": "2026-08-01" },
-        { "kind": "unknown", "label": "upload + release", "start": "2026-08-16", "end": "2026-10-15" }
+        {
+          "kind": "unknown",
+          "label": "upload + release",
+          "start": "2026-08-16",
+          "end": "2026-10-15"
+        }
       ]
     }
   ]

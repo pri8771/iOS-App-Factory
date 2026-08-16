@@ -1,1 +1,20 @@
-{"protocolVersion":1,"requestId":"3f2504e0-4f89-41d3-9a0c-0305e82c3301","ok":true,"result":{"operation":"project.scan","repositoryRoot":"/Users/example/code/hindsight","planDigest":"sha256:1212121212121212121212121212121212121212121212121212121212121212","sourceFingerprint":"sha256:3434343434343434343434343434343434343434343434343434343434343434","inventoryDigest":"sha256:5656565656565656565656565656565656565656565656565656565656565656","blocked":true,"blockers":[{"issueId":"esi-a1a1a1a1a1a1a1a1a1a1a1a1","code":"enroll.secret-material","summary":"A .env file with credentials is tracked."}]}}
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "project.scan",
+    "repositoryRoot": "/Users/example/code/hindsight",
+    "planDigest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+    "sourceFingerprint": "sha256:3434343434343434343434343434343434343434343434343434343434343434",
+    "inventoryDigest": "sha256:5656565656565656565656565656565656565656565656565656565656565656",
+    "blocked": true,
+    "blockers": [
+      {
+        "issueId": "esi-a1a1a1a1a1a1a1a1a1a1a1a1",
+        "code": "enroll.secret-material",
+        "summary": "A .env file with credentials is tracked."
+      }
+    ]
+  }
+}

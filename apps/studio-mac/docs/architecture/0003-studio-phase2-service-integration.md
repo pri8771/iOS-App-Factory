@@ -9,12 +9,12 @@ Phase 1 shipped against a daemon that only had the pre-existing 21 operations. S
 service (`docs/roadmap/STUDIO_PHASES.md` Phase 2/3) lands on three separate, still-unmerged worktrees as
 of this writing:
 
-* `studio/service-skeleton` (tip cdfe558) — `studio.snapshot`, `studio.assistant.query`,
+- `studio/service-skeleton` (tip cdfe558) — `studio.snapshot`, `studio.assistant.query`,
   `studio.assistant.intent.{propose,execute}`. Composes today from attempts/events/the local portfolio
   projection; `milestones`, project `gates`, and portfolio `rooms` are placeholders this file's daemon
   always reports empty with an explicit `unavailableReason` (`STUDIO_NOT_YET_WIRED_REASON_V1` /
   `studioNotYetWiredReason`), because the branches that will populate them are the two below.
-* `studio/milestones-and-phase` (tip 3cff9a7) — the real, revisioned milestone concept:
+- `studio/milestones-and-phase` (tip 3cff9a7) — the real, revisioned milestone concept:
   `project.milestones.list` / `project.milestone.upsert`, `ProjectMilestoneV1`.
   `studio/lifecycle-reconciliation`'s new 6-stage `ProjectLifecycleStageV1` / `TypedGateV1` are not
   referenced by any of the six ops this phase builds against — `StudioProjectV1.lifecycleStage` still
@@ -118,7 +118,7 @@ do; `project.scan`/`project.apply` don't).
 
 ### 8. Fixtures: recorded against each branch's own build, not `main`'s
 
-`scripts/record-fixtures.mjs` imports `packages/contracts/dist/index.js` from the *current* worktree,
+`scripts/record-fixtures.mjs` imports `packages/contracts/dist/index.js` from the _current_ worktree,
 which is `main`-based and has none of these six operations. The nine new fixtures
 (`studio-snapshot.*`, `assistant-*.response.json`, `project-milestone*.response.json`) were instead
 produced by two small scripts run against `/private/tmp/af-studiosvc` (studio/service-skeleton's own
@@ -129,12 +129,12 @@ hand-authored guesses.
 
 ## Consequences
 
-* A studio-mode dashboard and a phase-1 dashboard are the same `DashboardSnapshot` shape; every view
+- A studio-mode dashboard and a phase-1 dashboard are the same `DashboardSnapshot` shape; every view
   that already knew how to render one keeps working unmodified for the other.
-* When the three branches above merge and get reconciled with each other, the seams this ADR documents
+- When the three branches above merge and get reconciled with each other, the seams this ADR documents
   (decision 4, decision 5, decision 6) are exactly the diffs to expect: `StudioMilestone` collapsing
   into `ProjectMilestone`, a real slug appearing on `StudioProjectV1`, and `StudioProjectGatesV1`
   becoming (or gaining) a `TypedGateV1[]`.
-* `DaemonClientError.isUnsupportedOperation`'s two-code guess (decision 2) should be revisited once the
+- `DaemonClientError.isUnsupportedOperation`'s two-code guess (decision 2) should be revisited once the
   daemon actually ships a dedicated code for "operation not recognised" — grep for
   `isUnsupportedOperation` to find every call site that assumes it.

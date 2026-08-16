@@ -45,14 +45,14 @@ and snapshot the view as an image in both appearances. Reference PNGs are commit
 
 `DaemonClient` mirrors `packages/command-client/src/index.ts` operation for operation:
 
-* one JSONL frame per Unix-socket `NWConnection`, read to EOF (the server half-closes after one line);
-* `requestId` per delivery; `commandId` + `issuedAt` are the durable identity;
-* every ambiguous outcome (timeout, transport failure after connect, malformed / invalid / mismatched
+- one JSONL frame per Unix-socket `NWConnection`, read to EOF (the server half-closes after one line);
+- `requestId` per delivery; `commandId` + `issuedAt` are the durable identity;
+- every ambiguous outcome (timeout, transport failure after connect, malformed / invalid / mismatched
   response, cancel-after-dispatch, close-after-dispatch, retryable remote error) throws a retryable
   `DaemonClientError` carrying `retryIdentity`, and `createRetryIdentity` mints a new `requestId`
   around the same durable identity so the daemon replays instead of re-executing;
-* the response `requestId` and `operation` are checked against what was dispatched;
-* error codes and copy are the Node client's, verbatim, so operator docs apply to both.
+- the response `requestId` and `operation` are checked against what was dispatched;
+- error codes and copy are the Node client's, verbatim, so operator docs apply to both.
 
 Request payload types with zod `.nullable()` fields implement `encode(to:)` by hand: Swift's
 synthesized encoder omits `nil`, but zod `strictObject` requires the key to be present as `null`.
@@ -69,11 +69,11 @@ Studio speaks as `origin: "dashboard"`. There is no `studio` origin in `CommandO
 `canonicalPortfolioReadModelDigestInputV1` is `JSON.stringify(normalize(input))` where `normalize`
 sorts keys with `localeCompare`. `CanonicalJSON` reproduces that byte for byte:
 
-* the digest input is exactly `{schemaVersion, generatedAt, projects, totals}` taken from the raw
+- the digest input is exactly `{schemaVersion, generatedAt, projects, totals}` taken from the raw
   `result.snapshot` JSON tree (not re-encoded from the typed model), so nothing is lost or reordered;
-* numbers follow ECMAScript `Number::toString` (`JSONValue` holds `Double`, as `JSON.parse` does);
-* strings follow `JSON.stringify` escaping (`/` and non-ASCII pass through);
-* keys sort by JavaScript `localeCompare`. `localeCompare` is ICU root/en collation, not code-point
+- numbers follow ECMAScript `Number::toString` (`JSONValue` holds `Double`, as `JSON.parse` does);
+- strings follow `JSON.stringify` escaping (`/` and non-ASCII pass through);
+- keys sort by JavaScript `localeCompare`. `localeCompare` is ICU root/en collation, not code-point
   order (`"a" < "A" < "b"`, digits before letters, `"item" < "Item" < "ITEM"`). For the
   pure-alphanumeric keys the contracts use we implement that collation directly; anything else falls
   back to Foundation's ICU-backed localized comparison in `en_US`.
@@ -87,8 +87,8 @@ apps/studio-mac/scripts/record-fixtures.mjs`.
 
 ## Consequences
 
-* Contracts changes show up as failing model/digest tests, not as runtime surprises.
-* The design system can be reviewed and snapshot-diffed without running the app.
-* A daemon-side collation locale other than root/en (e.g. `LANG=da_DK`) could in theory order keys
+- Contracts changes show up as failing model/digest tests, not as runtime surprises.
+- The design system can be reviewed and snapshot-diffed without running the app.
+- A daemon-side collation locale other than root/en (e.g. `LANG=da_DK`) could in theory order keys
   differently; the digest test would catch it against a fixture recorded there. Documented, not
   guarded.

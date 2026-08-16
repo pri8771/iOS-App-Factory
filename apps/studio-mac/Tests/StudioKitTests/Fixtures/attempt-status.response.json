@@ -1,1 +1,30 @@
-{"protocolVersion":1,"requestId":"3f2504e0-4f89-41d3-9a0c-0305e82c3301","ok":true,"result":{"operation":"attempt.status","attempt":{"schemaVersion":1,"attemptId":"00000004-0000-4000-8000-000000000004","taskId":"10000004-0000-4000-8000-000000000004","taskSpecDigest":"sha256:abababababababababababababababababababababababababababababababab","attemptNumber":1,"state":"blocked","desiredState":"running","revision":4,"fence":2,"currentStepId":"20000004-0000-4000-8000-000000000004","blocker":{"kind":"approval","code":"gate.testflight-upload","summary":"Waiting for approval to upload build 4 to TestFlight.","requiredAction":"Approve or decline in Studio."},"outcome":null,"createdAt":"2026-08-16T14:00:00.000Z","updatedAt":"2026-08-16T14:05:00.000Z","terminalAt":null}}}
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "attempt.status",
+    "attempt": {
+      "schemaVersion": 1,
+      "attemptId": "00000004-0000-4000-8000-000000000004",
+      "taskId": "10000004-0000-4000-8000-000000000004",
+      "taskSpecDigest": "sha256:abababababababababababababababababababababababababababababababab",
+      "attemptNumber": 1,
+      "state": "blocked",
+      "desiredState": "running",
+      "revision": 4,
+      "fence": 2,
+      "currentStepId": "20000004-0000-4000-8000-000000000004",
+      "blocker": {
+        "kind": "approval",
+        "code": "gate.testflight-upload",
+        "summary": "Waiting for approval to upload build 4 to TestFlight.",
+        "requiredAction": "Approve or decline in Studio."
+      },
+      "outcome": null,
+      "createdAt": "2026-08-16T14:00:00.000Z",
+      "updatedAt": "2026-08-16T14:05:00.000Z",
+      "terminalAt": null
+    }
+  }
+}

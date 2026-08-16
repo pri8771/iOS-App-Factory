@@ -1,1 +1,10 @@
-{"protocolVersion":1,"requestId":"3f2504e0-4f89-41d3-9a0c-0305e82c3301","ok":false,"error":{"code":"daemon.handler-timeout-ambiguous","message":"Command completion is unknown after timeout; retry with the same command ID.","retryable":true}}
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": false,
+  "error": {
+    "code": "daemon.handler-timeout-ambiguous",
+    "message": "Command completion is unknown after timeout; retry with the same command ID.",
+    "retryable": true
+  }
+}

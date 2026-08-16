@@ -92,7 +92,7 @@ Studio feature-detects `studio.snapshot` on every refresh (see docs/architecture
 daemon with the Phase 2 studio service, the dashboard, awaiting-you, timeline gates/milestones, and the
 corner chat are sourced from it; against a phase-1-only daemon (or none), everything below still holds.
 
-* **Live** (daemon): title-bar beacon (doctor), projects gauge, awaiting-you count, reticle when the
+- **Live** (daemon): title-bar beacon (doctor), projects gauge, awaiting-you count, reticle when the
   daemon reports lifecycle stages, awaiting-you blocked attempts, attempt marks on timeline rows,
   live-only project rows, project detail readouts, latest-run checks (attempt.events + evidence.verify).
   With `studio.snapshot`: the gauge row's verified/awaiting/pass-rate/median-run/agent-window readouts
@@ -101,19 +101,19 @@ corner chat are sourced from it; against a phase-1-only daemon (or none), everyt
   bars overlaid on the timeline (flips a matched fixture row FIXTURE → FIXTURE + LIVE), the project
   detail gates/milestones panels, and the corner chat's `studio.assistant.query` answers (citations as
   chips) and intent confirmation cards.
-* **Derived** (computed from live): verified · 7d (phase-1 path only — Phase 2 reads it straight off
+- **Derived** (computed from live): verified · 7d (phase-1 path only — Phase 2 reads it straight off
   `StudioPortfolioAggregates.verifiedThisWeek`).
-* **Fixture** (`timeline-fixture.json`, TODO milestones schema): the six timeline rows and their
+- **Fixture** (`timeline-fixture.json`, TODO milestones schema): the six timeline rows and their
   lifecycle tracks, ◆ gates in awaiting-you, phase rings, reticle fallback.
-* **Static / stub**: budget 38%, the Phases tab, the scripted assistant — now only the fallback path
+- **Static / stub**: budget 38%, the Phases tab, the scripted assistant — now only the fallback path
   when `studio.assistant.query`/`.intent.propose` is unsupported or fails (see docs/architecture/0003).
-* **Not yet sourced**: min / release (no Phase 2 aggregate names it — see 0003); agent window until the
+- **Not yet sourced**: min / release (no Phase 2 aggregate names it — see 0003); agent window until the
   daemon actually computes `agentWindowShare` (today it always reports `unavailableReason`).
 
 ## Design rules (non-negotiable)
 
-* Cyan (`HUDTheme.arc`) is the machine's voice. Gold (`HUDTheme.gold`) is only things waiting on the
+- Cyan (`HUDTheme.arc`) is the machine's voice. Gold (`HUDTheme.gold`) is only things waiting on the
   human. Components take a `HUDRole`, never a raw colour, so this holds by construction.
-* Mono uppercase letter-spaced labels; Avenir Next for headings; SF Pro for body.
-* Bracketed panel corners, radial gauges, phase rings, ◆ human gates, dashed cyan = planned,
+- Mono uppercase letter-spaced labels; Avenir Next for headings; SF Pro for body.
+- Bracketed panel corners, radial gauges, phase rings, ◆ human gates, dashed cyan = planned,
   dashed alert = "won't guess". Every instrument shows a real value or an honest "—".

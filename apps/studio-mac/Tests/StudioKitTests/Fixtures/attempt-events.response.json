@@ -1,1 +1,72 @@
-{"protocolVersion":1,"requestId":"3f2504e0-4f89-41d3-9a0c-0305e82c3301","ok":true,"result":{"operation":"attempt.events","events":[{"schemaVersion":1,"eventId":"30000001-0000-4000-8000-000000000001","attemptId":"00000001-0000-4000-8000-000000000001","sequence":1,"occurredAt":"2026-08-16T11:00:00.000Z","commandId":"40000001-0000-4000-8000-000000000001","causationEventId":null,"fence":0,"type":"attempt.created","data":{"taskId":"10000001-0000-4000-8000-000000000001","taskSpecDigest":"sha256:abababababababababababababababababababababababababababababababab"}},{"schemaVersion":1,"eventId":"30000001-0000-4000-8000-000000000002","attemptId":"00000001-0000-4000-8000-000000000001","sequence":2,"occurredAt":"2026-08-16T11:00:01.000Z","commandId":null,"causationEventId":"30000001-0000-4000-8000-000000000001","fence":1,"type":"attempt.state-changed","data":{"from":"queued","to":"running","blocker":null,"outcome":null}},{"schemaVersion":1,"eventId":"30000001-0000-4000-8000-000000000003","attemptId":"00000001-0000-4000-8000-000000000001","sequence":3,"occurredAt":"2026-08-16T11:00:02.000Z","commandId":null,"causationEventId":null,"fence":1,"type":"step.state-changed","data":{"stepId":"20000001-0000-4000-8000-000000000001","from":"running","to":"failed","outputDigest":null,"failureCode":"verify.tests-failed"}},{"schemaVersion":1,"eventId":"30000001-0000-4000-8000-000000000004","attemptId":"00000001-0000-4000-8000-000000000001","sequence":4,"occurredAt":"2026-08-16T11:00:03.000Z","commandId":null,"causationEventId":null,"fence":1,"type":"commit.recorded","data":{"commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","tree":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","attemptMarker":"app-factory:v1:attempt:1"}}],"nextAfterSequence":4}}
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "attempt.events",
+    "events": [
+      {
+        "schemaVersion": 1,
+        "eventId": "30000001-0000-4000-8000-000000000001",
+        "attemptId": "00000001-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "occurredAt": "2026-08-16T11:00:00.000Z",
+        "commandId": "40000001-0000-4000-8000-000000000001",
+        "causationEventId": null,
+        "fence": 0,
+        "type": "attempt.created",
+        "data": {
+          "taskId": "10000001-0000-4000-8000-000000000001",
+          "taskSpecDigest": "sha256:abababababababababababababababababababababababababababababababab"
+        }
+      },
+      {
+        "schemaVersion": 1,
+        "eventId": "30000001-0000-4000-8000-000000000002",
+        "attemptId": "00000001-0000-4000-8000-000000000001",
+        "sequence": 2,
+        "occurredAt": "2026-08-16T11:00:01.000Z",
+        "commandId": null,
+        "causationEventId": "30000001-0000-4000-8000-000000000001",
+        "fence": 1,
+        "type": "attempt.state-changed",
+        "data": { "from": "queued", "to": "running", "blocker": null, "outcome": null }
+      },
+      {
+        "schemaVersion": 1,
+        "eventId": "30000001-0000-4000-8000-000000000003",
+        "attemptId": "00000001-0000-4000-8000-000000000001",
+        "sequence": 3,
+        "occurredAt": "2026-08-16T11:00:02.000Z",
+        "commandId": null,
+        "causationEventId": null,
+        "fence": 1,
+        "type": "step.state-changed",
+        "data": {
+          "stepId": "20000001-0000-4000-8000-000000000001",
+          "from": "running",
+          "to": "failed",
+          "outputDigest": null,
+          "failureCode": "verify.tests-failed"
+        }
+      },
+      {
+        "schemaVersion": 1,
+        "eventId": "30000001-0000-4000-8000-000000000004",
+        "attemptId": "00000001-0000-4000-8000-000000000001",
+        "sequence": 4,
+        "occurredAt": "2026-08-16T11:00:03.000Z",
+        "commandId": null,
+        "causationEventId": null,
+        "fence": 1,
+        "type": "commit.recorded",
+        "data": {
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "attemptMarker": "app-factory:v1:attempt:1"
+        }
+      }
+    ],
+    "nextAfterSequence": 4
+  }
+}
