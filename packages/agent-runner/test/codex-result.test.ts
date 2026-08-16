@@ -16,6 +16,7 @@ import {
   type CodexAdapterIdentityV1,
 } from "../src/codex-result.js";
 import {
+  CODEX_MALFORMED_BLOCKER_CODE,
   VERIFIED_CODEX_CLI_VERSIONS,
   type CodexProcessCapture,
   type CodexReportedResultV1,
@@ -241,6 +242,76 @@ describe("Codex run result materialization", () => {
 
     const protocolError = materialize({ capture: capture({ stdout: "not-json\n" }) });
     expect(protocolError.result).toMatchObject({
+      status: "failed",
+      failure: { code: "agent.protocol-error", retryable: false },
+    });
+  });
+
+  it.each([
+    ["upper-snake", "NEEDS_CLARIFICATION"],
+    ["spaces", "needs clarification from owner"],
+    ["empty", ""],
+  ] as const)(
+    "materializes a structurally complete blocker with a malformed %s code as a clean blocked outcome",
+    (_shape, rawCode) => {
+      const materialized = materialize({
+        capture: capture({
+          stdout: completedJsonl(
+            reportedResult({
+              reportedDisposition: "blocked",
+              summary: "A product decision is needed.",
+              changedPaths: [],
+              blocker: {
+                kind: "clarification",
+                code: rawCode,
+                summary: "Choose the intended behavior.",
+                requiredAction: "Choose option A or B.",
+              },
+            }),
+          ),
+        }),
+      });
+
+      expect(materialized.result.status).toBe("blocked");
+      expect(materialized.result.failure).toBeNull();
+      expect(materialized.result.blocker).toMatchObject({
+        kind: "clarification",
+        code: CODEX_MALFORMED_BLOCKER_CODE,
+        requiredAction: "Choose option A or B.",
+      });
+      // The raw model-emitted code is preserved verbatim (JSON-quoted) in the summary.
+      expect(materialized.result.blocker?.summary).toContain(JSON.stringify(rawCode));
+      expect(materialized.result.blocker?.summary).toContain("Choose the intended behavior.");
+      expect(materialized.result.blocker?.summary.length).toBeLessThanOrEqual(1_000);
+      expect(AgentRunResultV1Schema.safeParse(materialized.result).success).toBe(true);
+      expect(materialized.events.map((event) => event.type)).toContain("agent.blocked");
+      expect(materialized.events.at(-1)).toMatchObject({
+        type: "agent.finished",
+        data: { status: "blocked" },
+      });
+    },
+  );
+
+  it("still fails closed as a protocol error when the blocker code is not a string at all", () => {
+    const materialized = materialize({
+      capture: capture({
+        stdout: completedJsonl({
+          ...reportedResult({
+            reportedDisposition: "blocked",
+            summary: "A product decision is needed.",
+            changedPaths: [],
+          }),
+          // Bypasses the TypeScript type on purpose: the model can emit anything.
+          blocker: {
+            kind: "clarification",
+            code: 42,
+            summary: "Choose the intended behavior.",
+            requiredAction: null,
+          } as unknown as CodexReportedResultV1["blocker"],
+        }),
+      }),
+    });
+    expect(materialized.result).toMatchObject({
       status: "failed",
       failure: { code: "agent.protocol-error", retryable: false },
     });
