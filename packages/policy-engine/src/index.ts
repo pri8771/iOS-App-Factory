@@ -24,6 +24,16 @@ import {
 } from "@app-factory/contracts";
 import { z } from "zod";
 
+import { renderAdapterBinding, renderAuthorityDeclarationsSection } from "./declarations.js";
+
+export {
+  AUTHORITY_DECLARATION_VERSION,
+  adapterBindingDeclarations,
+  authorityDeclarations,
+  type PolicyDeclarationInputV1,
+  type PolicyDeclarationV1,
+} from "./declarations.js";
+
 const NAMESPACED_CODE_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$/;
 const RuleIdSchema = z.string().regex(/^rule\.[a-z0-9]+(?:[.-][a-z0-9]+)+$/);
 const WaiverIdSchema = z.string().regex(/^waiver\.[a-z0-9]+(?:[.-][a-z0-9]+)+$/);
@@ -441,7 +451,7 @@ function renderWaiver(waiver: WaiverV1): string {
   return `- \`${waiver.waiverId}\` waives \`${waiver.ruleId}\` until ${waiver.expiresAt} within ${renderScope(waiver.scope)}; approved by ${waiver.approver.owner} \`${waiver.approver.principal}\`. Reason: ${waiver.reason} Replacement verification: ${waiver.replacementVerification.statement}${replacementCheck}.${evidence}`;
 }
 
-function renderAuthority(source: CanonicalPolicySourceV1): string {
+function renderAuthority(source: CanonicalPolicySourceV1, sourceDigest: Sha256Digest): string {
   const principles = source.principles.map((item) => `- ${item}`).join("\n");
   const rules = source.rules.map(renderRule).join("\n");
   const checks =
@@ -458,7 +468,7 @@ function renderAuthority(source: CanonicalPolicySourceV1): string {
         `- \`${surface.path}\` — ${surface.classification}; changes require \`${surface.changeApprovalAction}\`.`,
     )
     .join("\n");
-  return `# ${source.title}\n\n## Authority\n\nThis AGENTS.md is the canonical instruction authority for every coding client.\nGenerated client files may point here but cannot weaken it.\n\n## Principles\n\n${principles}\n\n## Enforced rules\n\n${rules}\n\n${checks}${waivers}## Protected surfaces\n\n${protectedSurfaces}\n\n## Completion\n\nAgent prose is never proof of completion. The broker, trusted checks, independent review, and approval records are authoritative.\n`;
+  return `# ${source.title}\n\n## Authority\n\nThis AGENTS.md is the canonical instruction authority for every coding client.\nGenerated client files may point here but cannot weaken it.\n\n## Principles\n\n${principles}\n\n## Enforced rules\n\n${rules}\n\n${checks}${waivers}## Protected surfaces\n\n${protectedSurfaces}\n\n## Completion\n\nAgent prose is never proof of completion. The broker, trusted checks, independent review, and approval records are authoritative.\n\n${renderAuthorityDeclarationsSection(source, sourceDigest)}`;
 }
 
 function generatedFile(
@@ -510,17 +520,24 @@ function requiredChecksOf(source: CanonicalPolicySourceV1): string[] {
 export function compilePolicyBundle(sourceInput: unknown, generatedAt: unknown): PolicyBundleV1 {
   const source = CanonicalPolicySourceV1Schema.parse(sourceInput);
   const generatedAtValue = z.iso.datetime({ offset: false, precision: 3 }).parse(generatedAt);
-  const authority = generatedFile("all", "AGENTS.md", renderAuthority(source));
+  const sourceDigest = digest(canonical(source));
+  const authority = generatedFile("all", "AGENTS.md", renderAuthority(source, sourceDigest));
+  const binding = renderAdapterBinding(authority.path, authority.digest);
   const clients = source.clients ?? DEFAULT_POLICY_ADAPTER_CLIENTS_V1;
   const files: GeneratedPolicyFile[] = [
     authority,
     ...clients.flatMap((client) =>
       client === "codex"
         ? []
-        : [generatedFile(client, CLIENT_ADAPTERS[client].path, CLIENT_ADAPTERS[client].contents)],
+        : [
+            generatedFile(
+              client,
+              CLIENT_ADAPTERS[client].path,
+              `${CLIENT_ADAPTERS[client].contents}\n${binding}`,
+            ),
+          ],
     ),
   ].sort((left, right) => left.path.localeCompare(right.path));
-  const sourceDigest = digest(canonical(source));
   const requiredChecks = requiredChecksOf(source);
   const lock = PolicyLockV1Schema.parse({
     schemaVersion: 1,

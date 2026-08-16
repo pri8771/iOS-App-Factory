@@ -1,0 +1,33 @@
+{
+  "name": "@app-factory/policy-corpus",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "factory-policy-corpus": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "clean": "tsc -b --clean",
+    "test": "vitest run packages/policy-corpus/test"
+  },
+  "dependencies": {
+    "@app-factory/contracts": "workspace:*",
+    "@app-factory/policy-engine": "workspace:*",
+    "@app-factory/project-sdk": "workspace:*",
+    "zod": "4.4.3"
+  }
+}

@@ -240,6 +240,21 @@ importers:
 
   packages/oci-runner: {}
 
+  packages/policy-corpus:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@app-factory/policy-engine':
+        specifier: workspace:*
+        version: link:../policy-engine
+      '@app-factory/project-sdk':
+        specifier: workspace:*
+        version: link:../project-sdk
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/policy-engine:
     dependencies:
       '@app-factory/contracts':

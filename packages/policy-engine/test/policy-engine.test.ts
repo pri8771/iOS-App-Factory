@@ -19,6 +19,8 @@ import {
   PolicyEngineError,
   RuleV1Schema,
   WaiverV1Schema,
+  adapterBindingDeclarations,
+  authorityDeclarations,
   comparePolicyAuthority,
   compilePolicyBundle,
   decideTaskPolicyBinding,
@@ -26,6 +28,22 @@ import {
   resolvePolicyContext,
   verifyPolicyBundle,
 } from "../src/index.js";
+
+// Mirrors the project scanner's declaration grammar (packages/project-sdk/src/scanner.ts).
+const DECLARATION_PATTERN =
+  /^\s*(?:[-*]\s*)?(?:factory-rule\s*:?\s+|factory\.rule\.)([a-z][a-z0-9]*(?:[._-][a-z0-9]+)*)\s*=\s*(\S(?:.*\S)?)\s*$/iu;
+
+function parseDeclarations(contents: string): ReadonlyMap<string, readonly string[]> {
+  const parsed = new Map<string, string[]>();
+  for (const line of contents.split("\n")) {
+    const match = DECLARATION_PATTERN.exec(line);
+    if (match?.[1] === undefined || match[2] === undefined) continue;
+    const values = parsed.get(match[1].toLowerCase()) ?? [];
+    values.push(match[2]);
+    parsed.set(match[1].toLowerCase(), values);
+  }
+  return parsed;
+}
 
 const roots: string[] = [];
 const GENERATED_AT = "2026-08-11T12:00:00.000Z";
@@ -107,7 +125,7 @@ function scopedSource() {
         enforcement: "human-approval",
         requiredCheck: "release.human-signoff",
         layer: "domain-standard",
-        appliesTo: { phases: ["release"], lifecycleStages: ["internal-testflight", "released"] },
+        appliesTo: { phases: ["release"], lifecycleStages: ["launch-prep", "live"] },
       },
       {
         ruleId: "rule.release.reviewed",
@@ -240,6 +258,58 @@ describe("canonical cross-client policy", () => {
     expect(() => verifyPolicyBundle(root, bundle)).toThrow(/symbolic link/);
   });
 
+  it("emits scanner-parsable declarations in the authority and digest bindings in every adapter", () => {
+    const bundle = compilePolicyBundle(source(), "2026-08-11T12:00:00.000Z");
+    const authority = bundle.files.find((file) => file.path === "AGENTS.md");
+    if (authority === undefined) throw new Error("AGENTS.md is missing");
+    const declarations = parseDeclarations(authority.contents);
+
+    expect(declarations.get("authority.version")).toEqual(["1"]);
+    expect(declarations.get("policy.id")).toEqual(["factory.ios-policy"]);
+    expect(declarations.get("policy.version")).toEqual(["1"]);
+    expect(declarations.get("policy.digest")).toEqual([bundle.sourceDigest]);
+    for (const rule of source().rules) {
+      expect(declarations.get(`${rule.ruleId}.enforcement`)).toEqual([rule.enforcement]);
+      expect(declarations.get(`${rule.ruleId}.check`)).toEqual([rule.requiredCheck]);
+    }
+    // The authority never claims adapter-only bindings, and no key carries two values.
+    expect(declarations.has("authority.import")).toBe(false);
+    expect(declarations.has("authority.digest")).toBe(false);
+    for (const values of declarations.values()) expect(values).toHaveLength(1);
+    expect(authorityDeclarations(source(), bundle.sourceDigest)).toHaveLength(
+      4 + source().rules.length * 2,
+    );
+
+    for (const adapter of bundle.files.filter((file) => file.client !== "all")) {
+      const bound = parseDeclarations(adapter.contents);
+      expect(bound.get("authority.import")).toEqual(["AGENTS.md"]);
+      expect(bound.get("authority.digest")).toEqual([authority.digest]);
+      expect(bound.size).toBe(2);
+    }
+    expect(adapterBindingDeclarations("AGENTS.md", authority.digest)).toEqual([
+      { key: "authority.import", value: "AGENTS.md" },
+      { key: "authority.digest", value: authority.digest },
+    ]);
+  });
+
+  it("changes every adapter binding when the authority bytes change", () => {
+    const base = compilePolicyBundle(source(), "2026-08-11T12:00:00.000Z");
+    const changed = compilePolicyBundle(
+      { ...source(), principles: [...source().principles, "Report untested behavior."] },
+      "2026-08-11T12:00:00.000Z",
+    );
+    const digestOf = (bundle: typeof base, path: string): string | undefined =>
+      bundle.files.find((file) => file.path === path)?.digest;
+    expect(digestOf(changed, "AGENTS.md")).not.toEqual(digestOf(base, "AGENTS.md"));
+    for (const path of ["CLAUDE.md", "GEMINI.md", ".cursor/rules/app-factory.mdc"]) {
+      expect(digestOf(changed, path)).not.toEqual(digestOf(base, path));
+      const adapter = changed.files.find((file) => file.path === path);
+      expect(parseDeclarations(adapter?.contents ?? "").get("authority.digest")).toEqual([
+        digestOf(changed, "AGENTS.md"),
+      ]);
+    }
+  });
+
   it("rejects duplicate rule IDs and weakening duplicate protected scopes", () => {
     const duplicate = source();
     expect(() =>
@@ -334,7 +404,7 @@ describe("rule scoping and authority ordering", () => {
     expect(ids({ phase: "release", lifecycleStage: "building" })).not.toContain(
       "rule.release.human-signoff",
     );
-    expect(ids({ phase: "release", lifecycleStage: "released" })).toContain(
+    expect(ids({ phase: "release", lifecycleStage: "live" })).toContain(
       "rule.release.human-signoff",
     );
     expect(ids({ taskKind: "feature" })).not.toContain("rule.release.reviewed");
@@ -666,7 +736,7 @@ describe("AGENTS.md rendering", () => {
       (file) => file.path === "AGENTS.md",
     );
     expect(authority?.contents).toContain(
-      "- `rule.release.human-signoff`: A human must approve every release build. (enforced by `human-approval`; check `release.human-signoff`; layer `domain-standard`) Applies to phases `release`; lifecycle stages `internal-testflight`, `released`.",
+      "- `rule.release.human-signoff`: A human must approve every release build. (enforced by `human-approval`; check `release.human-signoff`; layer `domain-standard`) Applies to phases `release`; lifecycle stages `launch-prep`, `live`.",
     );
     expect(authority?.contents).toContain(
       "## Required checks\n\n- `policy.changed-paths` (kind `broker`)",

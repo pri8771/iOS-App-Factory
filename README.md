@@ -53,6 +53,7 @@ packages/
   learning-engine/             turns closed findings into reviewable lesson proposals
   module-sdk/                  lifecycle/event modules and optional UI contributions
   oci-runner/                  Factory-owned coding-plane containment primitive (no-network slice)
+  policy-corpus/               compiles the iOS App Factory rules corpus and proves it against the scanner
   policy-engine/               compiles versioned policy into AGENTS.md and a digest-bound lock
   portfolio/                   provider-neutral multi-project read model and work scheduler
   process-supervisor/          per-attempt process fencing, events, and orphan recovery
@@ -70,6 +71,7 @@ packages/
   work-tracking-integrations/  provider-neutral Jira/GitHub planning and read-only observation
 docs/
   architecture/    decisions and system boundaries
+  policy/          compiled rules-corpus policy source, sidecar, and reconciliation
   operations/      dated operator procedures and verification evidence
   progress/        current implementation and enrollment status ledgers
   roadmap/         capability-staged delivery plan and historical planning baseline

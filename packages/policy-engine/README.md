@@ -64,3 +64,24 @@ covering waivers never suppress a rule.
 `decideTaskPolicyBinding(lock, taskPolicyDigest)` is the daemon's task-intake
 gate (`taskPolicyGate`, default off): no lock, an invalid lock, or any digest
 disagreement rejects the TaskSpec before durable state exists.
+
+## Machine-checkable declarations
+
+The generated `AGENTS.md` ends with a `## Machine-checkable declarations`
+section of `factory-rule: <key>=<value>` lines — `authority.version`,
+`policy.id`, `policy.version`, `policy.digest` (the canonical source digest),
+and one `<ruleId>.enforcement` / `<ruleId>.check` pair per rule. Every
+generated adapter (`CLAUDE.md`, `GEMINI.md`, `.cursor/rules/app-factory.mdc`,
+`.github/copilot-instructions.md`) ends with `authority.import=AGENTS.md` and
+`authority.digest=<sha256 of the generated AGENTS.md>`.
+
+These are the exact declarations `@app-factory/project-sdk`'s scanner requires
+before it reports a root `AGENTS.md` as `canonical` and an adapter as
+`conforming`; without them a compiled bundle applied to a repository would
+reintroduce the `rules.canonical-unverifiable` and `rules.adapter-nonconforming`
+enrollment blockers. Because they are part of the compiled bytes, they are
+covered by the same digest lock and drift check as the prose.
+
+The compiled corpus source lives at
+`docs/policy/ios-app-factory-policy-source.v1.json`; `@app-factory/policy-corpus`
+compiles, materializes, and proves it against the scanner.

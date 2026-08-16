@@ -1,0 +1,737 @@
+{
+  "schemaVersion": 1,
+  "policyId": "ios-app-factory.rules",
+  "policyVersion": 1,
+  "corpus": {
+    "repository": "pri8771/iOS_app_factory_rules",
+    "localPath": "~/Documents/other/studio_ops/iOS_app_factory_rules",
+    "version": "0.2.0",
+    "commit": "89ce224",
+    "files": [
+      {
+        "path": "VERSION",
+        "sha256": "sha256:1f930dd1f133c1f97a94fe3acb8db34372cf4c01ffdb2b3ff4ca72f9494121e9"
+      },
+      {
+        "path": "AGENTS.md",
+        "sha256": "sha256:93e77cdc56a14b300f0f473a4ebfdd2427f6a9ed768b9c7afc99b3a11e07d184"
+      },
+      {
+        "path": "governance/STUDIO_PRINCIPLES.md",
+        "sha256": "sha256:2058f8c50af6e2820fc505f53496e4021ae55f98996412a5d0e46a181b7f3cd7"
+      },
+      {
+        "path": "governance/DEFINITION_OF_DONE.md",
+        "sha256": "sha256:adfe3ae90275fde3015fda0102c769fb0cfa0554695df128906eeb70abd3f094"
+      },
+      {
+        "path": "governance/DOCUMENTATION_POLICY.md",
+        "sha256": "sha256:5d9b2228b1d280331e81252e59903045b2fd670d5a21dcddbed74e70ffc591f0"
+      },
+      {
+        "path": "governance/PROJECT_LIFECYCLE.md",
+        "sha256": "sha256:0f48933e847f4846644a15aecd62daa6d6f3dd588c39ccc3a380f77d03a9ee2d"
+      },
+      {
+        "path": "standards/quality/VIBE_CODING_QUALITY_RULEBOOK.md",
+        "sha256": "sha256:8d3d8f40d498eddfb8d00761a9833d44d0cfc1c176c12c529b81002cdf0f7505"
+      },
+      {
+        "path": "standards/ai/AI_CODING_AGENT_STANDARD.md",
+        "sha256": "sha256:c1cd4359cc60afdab5c8c0fb4983cd3a558678da29d86bfa3c0f9f95e4580b1c"
+      },
+      {
+        "path": "standards/platforms/APPLE_STANDARD.md",
+        "sha256": "sha256:7335f931f91c9a3d4f62c78c98e1c030a4c0982c36b0f42fd60f458e70c009ac"
+      },
+      {
+        "path": "standards/engineering/ARCHITECTURE_STANDARD.md",
+        "sha256": "sha256:e8cec13515958928b09fc32c18fbf45a42b2abbb2a5e3c0de19d1879c2b6cf59"
+      },
+      {
+        "path": "playbooks/REGISTER_EXISTING_PROJECT.md",
+        "sha256": "sha256:1ba8df285d10cfa7abed97005adc7ad791273d94464aa001231f133f2bd38a5f"
+      }
+    ],
+    "additionalSources": [
+      {
+        "repository": "mission-control",
+        "localPath": "~/Documents/other/studio_ops/mission-control",
+        "commit": "bbbdf9d",
+        "files": [
+          {
+            "path": "gates.md",
+            "sha256": "sha256:51a8ee4e538fc140426dc1467f94e93a434f4b771fe3aa3530426e32959de7a8"
+          }
+        ]
+      }
+    ],
+    "otherObservedVersions": [
+      {
+        "version": "0.4.0",
+        "observedAt": "studio-ios/registry/standards.yaml, studio-ios/standards/domains/IOS_APP_FACTORY.md, studio/conduit/.factory/standard-lock.json (all under ~/Documents/other/studio_ops); upstream pri8771/iOS_app_factory_rules not fetched",
+        "fetched": false
+      },
+      {
+        "version": "0.5.0",
+        "observedAt": "reported as the CLI-pinned version by docs/architecture/0004-studio-mac-app.md; no local artifact carrying 0.5.0 was located during this task",
+        "fetched": false
+      }
+    ]
+  },
+  "principleSources": [
+    {
+      "index": 0,
+      "sources": ["STUDIO_PRINCIPLES.md#1", "VIBE_CODING_QUALITY_RULEBOOK.md#purpose"]
+    },
+    {
+      "index": 1,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#2",
+        "DEFINITION_OF_DONE.md#behavior",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-2"
+      ]
+    },
+    {
+      "index": 2,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#3",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-3",
+        "APPLE_STANDARD.md#shared-requirements",
+        "AI_CODING_AGENT_STANDARD.md#during-implementation"
+      ]
+    },
+    { "index": 3, "sources": ["STUDIO_PRINCIPLES.md#4"] },
+    {
+      "index": 4,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#5",
+        "APPLE_STANDARD.md#shared-requirements",
+        "ARCHITECTURE_STANDARD.md#rules"
+      ]
+    },
+    { "index": 5, "sources": ["STUDIO_PRINCIPLES.md#6"] },
+    {
+      "index": 6,
+      "sources": ["STUDIO_PRINCIPLES.md#7", "AI_CODING_AGENT_STANDARD.md#new-projects"]
+    },
+    {
+      "index": 7,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#8",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-8",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#data-integrity"
+      ]
+    },
+    {
+      "index": 8,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#9",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-10",
+        "AI_CODING_AGENT_STANDARD.md#completion-reporting"
+      ]
+    },
+    {
+      "index": 9,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#10",
+        "AGENTS.md#completion-language",
+        "PROJECT_LIFECYCLE.md#rules",
+        "DEFINITION_OF_DONE.md#verification"
+      ]
+    },
+    {
+      "index": 10,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#11",
+        "AI_CODING_AGENT_STANDARD.md#existing-projects",
+        "ARCHITECTURE_STANDARD.md#existing-projects"
+      ]
+    },
+    {
+      "index": 11,
+      "sources": ["STUDIO_PRINCIPLES.md#12", "AI_CODING_AGENT_STANDARD.md#new-projects"]
+    },
+    {
+      "index": 12,
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-1",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-4",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#screen-states"
+      ]
+    },
+    {
+      "index": 13,
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-6",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#error-handling",
+        "DEFINITION_OF_DONE.md#behavior"
+      ]
+    },
+    {
+      "index": 14,
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-7",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#asynchronous-behavior",
+        "DEFINITION_OF_DONE.md#state"
+      ]
+    },
+    { "index": 15, "sources": ["VIBE_CODING_QUALITY_RULEBOOK.md#error-handling"] },
+    {
+      "index": 16,
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-5",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#layout-and-resizing",
+        "DEFINITION_OF_DONE.md#interface"
+      ]
+    },
+    {
+      "index": 17,
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-9",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#data-integrity",
+        "DEFINITION_OF_DONE.md#data"
+      ]
+    },
+    {
+      "index": 18,
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#permissions-and-privacy",
+        "app-factory AGENTS.md#required-behavior"
+      ]
+    },
+    { "index": 19, "sources": ["VIBE_CODING_QUALITY_RULEBOOK.md#ai-features"] },
+    { "index": 20, "sources": ["DOCUMENTATION_POLICY.md#authority"] },
+    {
+      "index": 21,
+      "sources": [
+        "DOCUMENTATION_POLICY.md#maintenance",
+        "studio_ops consolidation-plan 2026-07-21 (GitHub is the source of truth; Notion/Jira are read-only mirrors)"
+      ]
+    },
+    { "index": 22, "sources": ["app-factory AGENTS.md#required-behavior"] },
+    {
+      "index": 23,
+      "sources": [
+        "app-factory AGENTS.md#required-behavior",
+        "AI_CODING_AGENT_STANDARD.md#during-implementation"
+      ]
+    },
+    {
+      "index": 24,
+      "sources": ["app-factory AGENTS.md#required-behavior", "gates.md#stage-advance-rules"]
+    },
+    { "index": 25, "sources": ["gates.md#owners", "gates.md#gates-and-their-states"] },
+    {
+      "index": 26,
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#release-hygiene",
+        "DEFINITION_OF_DONE.md#verification"
+      ]
+    },
+    { "index": 27, "sources": ["APPLE_STANDARD.md#verification"] }
+  ],
+  "ruleSources": [
+    {
+      "ruleId": "rule.dod.verification",
+      "sources": [
+        "DEFINITION_OF_DONE.md#verification",
+        "PROJECT_LIFECYCLE.md#rules",
+        "APPLE_STANDARD.md#verification",
+        "app-factory AGENTS.md#required-behavior"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa"]
+    },
+    {
+      "ruleId": "rule.dod.experience-coverage",
+      "sources": [
+        "DEFINITION_OF_DONE.md#state",
+        "DEFINITION_OF_DONE.md#interface",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#screen-states",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#layout-and-resizing",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#required-edge-case-set"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["qa"]
+    },
+    {
+      "ruleId": "rule.dod.non-happy-path-tested",
+      "sources": [
+        "DEFINITION_OF_DONE.md#verification",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#required-edge-case-set",
+        "app-factory AGENTS.md#required-behavior"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.dod.completion-report",
+      "sources": [
+        "DEFINITION_OF_DONE.md#verification",
+        "AI_CODING_AGENT_STANDARD.md#completion-reporting",
+        "STUDIO_PRINCIPLES.md#9"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa"]
+    },
+    {
+      "ruleId": "rule.completion.evidence-manifest",
+      "sources": [
+        "AGENTS.md#completion-language",
+        "PROJECT_LIFECYCLE.md#work-item-lifecycle",
+        "PROJECT_LIFECYCLE.md#rules",
+        "STUDIO_PRINCIPLES.md#10",
+        "app-factory AGENTS.md#definition-of-done"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa", "launch-prep"]
+    },
+    {
+      "ruleId": "rule.gates.sha-bound",
+      "sources": ["gates.md#gates-and-their-states", "gates.md#stage-advance-rules"],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa", "launch-prep", "live"]
+    },
+    {
+      "ruleId": "rule.scope.declared-paths",
+      "sources": [
+        "app-factory AGENTS.md#required-behavior",
+        "AI_CODING_AGENT_STANDARD.md#existing-projects"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.scope.protected-surfaces",
+      "sources": [
+        "app-factory AGENTS.md#protected-surfaces",
+        "AI_CODING_AGENT_STANDARD.md#during-implementation"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa", "launch-prep"]
+    },
+    {
+      "ruleId": "rule.security.no-credentials-in-artifacts",
+      "sources": [
+        "app-factory AGENTS.md#required-behavior",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#permissions-and-privacy",
+        "AGENTS.md#change-rules"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa", "launch-prep"]
+    },
+    {
+      "ruleId": "rule.docs.repo-is-truth",
+      "sources": [
+        "DOCUMENTATION_POLICY.md#authority",
+        "studio_ops consolidation-plan 2026-07-21 (GitHub is the source of truth; Notion/Jira are read-only mirrors)",
+        "gates.md#representation"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa", "launch-prep", "live"]
+    },
+    {
+      "ruleId": "rule.docs.same-change",
+      "sources": [
+        "DOCUMENTATION_POLICY.md#maintenance",
+        "AI_CODING_AGENT_STANDARD.md#during-implementation"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.data.no-fake-fallback",
+      "sources": [
+        "STUDIO_PRINCIPLES.md#3",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-3",
+        "DEFINITION_OF_DONE.md#data",
+        "ARCHITECTURE_STANDARD.md#rules"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.ui.no-decorative-controls",
+      "sources": [
+        "DEFINITION_OF_DONE.md#behavior",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#fake-feature-prohibition",
+        "AI_CODING_AGENT_STANDARD.md#during-implementation"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.ui.success-after-confirmation",
+      "sources": [
+        "STUDIO_PRINCIPLES.md#2",
+        "DEFINITION_OF_DONE.md#behavior",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#asynchronous-behavior"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.ui.explicit-states",
+      "sources": [
+        "DEFINITION_OF_DONE.md#state",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#screen-states",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#error-handling"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.async.no-duplicates-no-stale",
+      "sources": [
+        "DEFINITION_OF_DONE.md#behavior",
+        "DEFINITION_OF_DONE.md#state",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#asynchronous-behavior"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.errors.owned-and-safe",
+      "sources": ["DEFINITION_OF_DONE.md#state", "VIBE_CODING_QUALITY_RULEBOOK.md#error-handling"],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.data.persistence-verified",
+      "sources": [
+        "DEFINITION_OF_DONE.md#data",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#data-integrity",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-9"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa"]
+    },
+    {
+      "ruleId": "rule.data.recoverable-work-preserved",
+      "sources": [
+        "DEFINITION_OF_DONE.md#behavior",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#non-negotiable-8",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#forms",
+        "VIBE_CODING_QUALITY_RULEBOOK.md#navigation"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.privacy.minimal-collection",
+      "sources": ["VIBE_CODING_QUALITY_RULEBOOK.md#permissions-and-privacy"],
+      "humanOnly": false,
+      "appliesTo": ["building", "launch-prep"]
+    },
+    {
+      "ruleId": "rule.ai.validated-output",
+      "sources": ["VIBE_CODING_QUALITY_RULEBOOK.md#ai-features"],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.existing.inventory-before-restructure",
+      "sources": [
+        "STUDIO_PRINCIPLES.md#11",
+        "AI_CODING_AGENT_STANDARD.md#existing-projects",
+        "REGISTER_EXISTING_PROJECT.md#baseline-before-restructuring"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["idea", "building"]
+    },
+    {
+      "ruleId": "rule.new.scope-before-breadth",
+      "sources": ["STUDIO_PRINCIPLES.md#12", "AI_CODING_AGENT_STANDARD.md#new-projects"],
+      "humanOnly": false,
+      "appliesTo": ["idea", "building"]
+    },
+    {
+      "ruleId": "rule.existing.no-rescaffold-without-decision",
+      "sources": [
+        "AI_CODING_AGENT_STANDARD.md#existing-projects",
+        "ARCHITECTURE_STANDARD.md#existing-projects"
+      ],
+      "humanOnly": true,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.dependencies.justified",
+      "sources": [
+        "ARCHITECTURE_STANDARD.md#rules",
+        "APPLE_STANDARD.md#shared-requirements",
+        "STUDIO_PRINCIPLES.md#5"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.accessibility.primary-workflow",
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#accessibility",
+        "DEFINITION_OF_DONE.md#interface",
+        "APPLE_STANDARD.md#shared-requirements"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa"]
+    },
+    {
+      "ruleId": "rule.release.hygiene",
+      "sources": [
+        "VIBE_CODING_QUALITY_RULEBOOK.md#release-hygiene",
+        "DEFINITION_OF_DONE.md#verification",
+        "APPLE_STANDARD.md#shared-requirements"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["launch-prep"]
+    },
+    {
+      "ruleId": "rule.gate.legal",
+      "sources": ["gates.md#gates-and-their-states", "gates.md#owners"],
+      "humanOnly": true,
+      "appliesTo": ["launch-prep"]
+    },
+    {
+      "ruleId": "rule.gate.device",
+      "sources": ["gates.md#gates-and-their-states", "gates.md#owners"],
+      "humanOnly": true,
+      "appliesTo": ["qa", "launch-prep"]
+    },
+    {
+      "ruleId": "rule.gate.store",
+      "sources": ["gates.md#gates-and-their-states", "gates.md#owners"],
+      "humanOnly": true,
+      "appliesTo": ["launch-prep"]
+    },
+    {
+      "ruleId": "rule.gate.market",
+      "sources": ["gates.md#gates-and-their-states", "gates.md#stage-advance-rules"],
+      "humanOnly": true,
+      "appliesTo": ["live"]
+    },
+    {
+      "ruleId": "rule.release.credentialed-actions",
+      "sources": ["gates.md#owners", "app-factory AGENTS.md#required-behavior"],
+      "humanOnly": true,
+      "appliesTo": ["launch-prep", "live"]
+    }
+  ],
+  "checkRegistry": [
+    {
+      "check": "xcodebuild.test",
+      "kind": "trusted-check",
+      "executor": "packages/trusted-verifier plan on the trusted macOS plane running xcodebuild build+test for the shared scheme; the checkId is not yet registered anywhere",
+      "status": "planned"
+    },
+    {
+      "check": "quality.experience-matrix",
+      "kind": "trusted-check",
+      "executor": "packages/quality matrix/coherence findings (quality.matrix.required-case-missing, clipped-critical-content, missing-accessibility-semantics) under the ios-internal-testflight-v1 profile; a check id binding those findings does not yet exist",
+      "status": "planned"
+    },
+    {
+      "check": "broker.evidence-manifest",
+      "kind": "broker",
+      "executor": "kernel completion transition requiring an evidence-store manifest bound to the candidate tree (packages/kernel, packages/evidence-store); the check id is not yet registered",
+      "status": "planned"
+    },
+    {
+      "check": "broker.gate-sha-binding",
+      "kind": "broker",
+      "executor": "gate/state records bound to a commit SHA with automatic demotion on regression (mission-control gates.md semantics); no kernel implementation yet",
+      "status": "planned"
+    },
+    {
+      "check": "policy.changed-paths",
+      "kind": "broker",
+      "executor": "broker changed-path allowlist against the task's declared scope (name already used by packages/policy-engine tests)",
+      "status": "planned"
+    },
+    {
+      "check": "policy.protected-surfaces",
+      "kind": "broker",
+      "executor": "broker refusal of changes to PolicyLockV1.protectedSurfaces without the surface's changeApprovalAction",
+      "status": "planned"
+    },
+    {
+      "check": "broker.secret-scan",
+      "kind": "broker",
+      "executor": "secret-shaped-file detection (packages/project-sdk scanner heuristics) applied to the candidate diff before commit",
+      "status": "planned"
+    },
+    {
+      "check": "broker.mirror-effects",
+      "kind": "broker",
+      "executor": "outbound tracker/dashboard writes only as effects derived from repository records (packages/effect-worker, packages/work-tracking-integrations); no inbound authority",
+      "status": "planned"
+    },
+    {
+      "check": "approval.architecture-decision",
+      "kind": "approval",
+      "executor": "ApprovalV1 action recorded by the owner referencing an ADR",
+      "status": "planned"
+    },
+    {
+      "check": "approval.gate-legal",
+      "kind": "approval",
+      "executor": "ApprovalV1 action, owner-only (gates.md: gate:legal cleared)",
+      "status": "planned"
+    },
+    {
+      "check": "approval.gate-device",
+      "kind": "approval",
+      "executor": "ApprovalV1 action, owner-only (gates.md: gate:device physical_pass)",
+      "status": "planned"
+    },
+    {
+      "check": "approval.gate-store",
+      "kind": "approval",
+      "executor": "ApprovalV1 action, owner-only (gates.md: gate:store ready)",
+      "status": "planned"
+    },
+    {
+      "check": "approval.gate-market",
+      "kind": "approval",
+      "executor": "ApprovalV1 action, owner-only, never automated (gates.md: gate:market evidence)",
+      "status": "planned"
+    },
+    {
+      "check": "approval.credentialed-action",
+      "kind": "approval",
+      "executor": "ApprovalV1 action gating credential-broker use for signing, upload, DNS, and account changes",
+      "status": "planned"
+    },
+    {
+      "check": "review.test-coverage",
+      "kind": "review",
+      "executor": "independent review rubric item (packages/independent-review); finding code review.missing-test already exists",
+      "status": "planned"
+    },
+    {
+      "check": "review.completion-report",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.docs-same-change",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.fake-feature",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.state-modeling",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.data-integrity",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.privacy-and-logging",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.ai-output-handling",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.project-baseline",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.dependency-justification",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.accessibility",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    },
+    {
+      "check": "review.release-hygiene",
+      "kind": "review",
+      "executor": "independent review rubric item",
+      "status": "planned"
+    }
+  ],
+  "protectedSurfaceNotes": [
+    {
+      "path": ".factory/**",
+      "note": "Legacy 0.2.0 authority layout. Protected so a parallel legacy layout cannot be reintroduced silently after migration to .app-factory/ (Hindsight factory/pilot-1.1 archived it under .app-factory/legacy/)."
+    },
+    {
+      "path": ".app-factory/**",
+      "note": "Current project/experience manifests and archived legacy content."
+    },
+    {
+      "path": "*UITests/**",
+      "note": "Glob covers HindsightUITests/**; the engine schema stores the string verbatim and does not interpret globs yet."
+    },
+    {
+      "path": "**/*.entitlements",
+      "note": "Signing surface; glob semantics are a broker concern, not the schema's."
+    },
+    { "path": "**/ExportOptions.plist", "note": "Signing/export surface." },
+    {
+      "path": "docs/RELEASE_CHECKLIST.md",
+      "note": "Hindsight keeps this file at Docs/RELEASE_CHECKLIST.md (capital D); a per-project override or case-insensitive surface match is needed before the compiled lock can protect it there."
+    }
+  ],
+  "todos": [
+    {
+      "field": "rules[].appliesTo",
+      "branch": "studio/policy-engine-scoping",
+      "note": "Phase scoping is carried here as free-form stage names from mission-control gates.md (idea, building, qa, launch-prep, live); the engine schema has no such field yet."
+    },
+    {
+      "field": "rules[].humanOnly",
+      "branch": "studio/policy-engine-scoping",
+      "note": "Human-only owner flag for gate:legal, gate:device, gate:store, gate:market, credentialed actions, and architecture decisions."
+    },
+    {
+      "field": "checkRegistry",
+      "branch": "studio/policy-engine-scoping",
+      "note": "requiredCheck codes are free-form NamespacedCode strings today; a registry mapping code to executor and status is needed so the broker can fail closed on unknown checks."
+    },
+    {
+      "field": "protectedSurfaces[].path glob semantics",
+      "branch": "studio/policy-engine-scoping",
+      "note": "The engine stores surface paths verbatim; whether **, *, and case-insensitivity are honored is undefined until the broker's matcher is specified."
+    },
+    {
+      "field": "source.corpus provenance",
+      "branch": "studio/policy-engine-scoping",
+      "note": "The engine's integer policyVersion is unrelated to the corpus semver; the corpus version, commit, and file digests live only in this sidecar."
+    },
+    {
+      "field": "project-local preamble",
+      "branch": "studio/policy-engine-scoping",
+      "note": "The compiled AGENTS.md replaces the whole file, so Hindsight's project-specific reading order (.app-factory/project.json, quality/quality-manifest.json, Docs/*) has no home in the compiled authority; it belongs in the project manifest or a nested AGENTS.md scope."
+    },
+    {
+      "field": "copilot adapter",
+      "branch": "studio/policy-engine-scoping",
+      "note": "The corpus lists .github/copilot-instructions.md as a supported entry point but PolicyClient and ProjectManifestV1.rules.clientEntrypoints.client do not include copilot; an existing copilot adapter stays bound to the pre-bundle AGENTS.md digest and trips rules.adapter-nonconforming plus rules.conflicting-declaration until it is regenerated or removed."
+    }
+  ]
+}
