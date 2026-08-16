@@ -1,0 +1,18 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "studio.assistant.intent.execute",
+    "intentId": "60000001-0000-4000-8000-000000000001",
+    "outcome": {
+      "kind": "attempt.unblock",
+      "result": {
+        "operation": "attempt.unblock",
+        "attemptId": "00000004-0000-4000-8000-000000000004",
+        "state": "running",
+        "accepted": true
+      }
+    }
+  }
+}

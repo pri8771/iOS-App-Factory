@@ -1,0 +1,123 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "portfolio.snapshot",
+    "snapshot": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-08-16T21:00:00.000Z",
+      "projects": [
+        {
+          "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+          "slug": "anjali",
+          "displayName": "Anjali — Journal",
+          "metadataSource": "task-derived",
+          "lifecycleStage": "building",
+          "attemptCount": 7,
+          "activeAttemptCount": 2,
+          "blockerCount": 1,
+          "lastActivityAt": "2026-08-16T20:15:04.512Z",
+          "lastDeliveryAt": "2026-08-15T09:00:00.000Z",
+          "openPullRequestCount": 3,
+          "jiraTodoCount": 12,
+          "jiraInProgressCount": 4,
+          "unresolvedP0": 0,
+          "unresolvedP1": 2,
+          "releaseStage": "internal-testflight",
+          "analyticsFreshness": "stale",
+          "sources": {
+            "localExecution": "available",
+            "jira": "available",
+            "github": "available",
+            "quality": "available",
+            "release": "available",
+            "analytics": "available"
+          },
+          "health": "blocked",
+          "healthReasons": [
+            "delivery-blocker",
+            "unresolved-p1",
+            "analytics-stale"
+          ]
+        },
+        {
+          "projectId": "9c8b7a6f-5e4d-4c3b-8a19-0f1e2d3c4b5a",
+          "slug": "hindsight",
+          "displayName": "Hindsight",
+          "metadataSource": "task-derived",
+          "lifecycleStage": null,
+          "attemptCount": 3,
+          "activeAttemptCount": 0,
+          "blockerCount": 0,
+          "lastActivityAt": "2026-08-16T18:30:00.000Z",
+          "lastDeliveryAt": null,
+          "openPullRequestCount": null,
+          "jiraTodoCount": null,
+          "jiraInProgressCount": null,
+          "unresolvedP0": null,
+          "unresolvedP1": null,
+          "releaseStage": null,
+          "analyticsFreshness": "unavailable",
+          "sources": {
+            "localExecution": "available",
+            "jira": "unavailable",
+            "github": "unavailable",
+            "quality": "unavailable",
+            "release": "unavailable",
+            "analytics": "unavailable"
+          },
+          "health": "unknown",
+          "healthReasons": [
+            "jira-unavailable",
+            "github-unavailable",
+            "quality-unavailable",
+            "release-unavailable",
+            "analytics-unavailable"
+          ]
+        },
+        {
+          "projectId": "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5d",
+          "slug": "svara",
+          "displayName": "Svara \"Sound\" — ünïcödé / slash \\ backslash \t tab",
+          "metadataSource": "task-derived",
+          "lifecycleStage": "released",
+          "attemptCount": 0,
+          "activeAttemptCount": 0,
+          "blockerCount": 0,
+          "lastActivityAt": null,
+          "lastDeliveryAt": null,
+          "openPullRequestCount": 0,
+          "jiraTodoCount": 0,
+          "jiraInProgressCount": 0,
+          "unresolvedP0": 0,
+          "unresolvedP1": 0,
+          "releaseStage": "released",
+          "analyticsFreshness": "fresh",
+          "sources": {
+            "localExecution": "available",
+            "jira": "available",
+            "github": "available",
+            "quality": "available",
+            "release": "available",
+            "analytics": "available"
+          },
+          "health": "healthy",
+          "healthReasons": []
+        }
+      ],
+      "totals": {
+        "projects": 3,
+        "attempts": 10,
+        "activeAttempts": 2,
+        "blockers": 1,
+        "openPullRequests": null,
+        "jiraTodo": null,
+        "jiraInProgress": null,
+        "unresolvedP0": null,
+        "unresolvedP1": null
+      },
+      "sourceSnapshotDigest": "sha256:843a488e3b38592db02a7560c56dea1302c33102bdc08b849483d98bba2f407c"
+    }
+  }
+}

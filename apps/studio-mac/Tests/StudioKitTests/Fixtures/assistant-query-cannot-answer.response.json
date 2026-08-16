@@ -1,0 +1,16 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "studio.assistant.query",
+    "answer": {
+      "kind": "cannot-answer",
+      "schemaVersion": 1,
+      "cannotAnswer": {
+        "reason": "no-milestone-target-date",
+        "detail": "No milestone with a real target date exists yet in the current snapshot; the assistant does not invent one."
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "studio.assistant.query",
+    "answer": {
+      "kind": "answered",
+      "schemaVersion": 1,
+      "text": "Anjali — Journal's latest attempt is succeeded (updated 2026-08-16T11:05:00.000Z); 1 item(s) await you.",
+      "citations": [
+        {
+          "kind": "attempt",
+          "id": "00000001-0000-4000-8000-000000000001"
+        },
+        {
+          "kind": "gate",
+          "id": "legal"
+        }
+      ]
+    }
+  }
+}

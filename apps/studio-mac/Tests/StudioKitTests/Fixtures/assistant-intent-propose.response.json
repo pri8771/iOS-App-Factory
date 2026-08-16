@@ -1,0 +1,21 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "studio.assistant.intent.propose",
+    "intent": {
+      "schemaVersion": 1,
+      "intentId": "60000001-0000-4000-8000-000000000001",
+      "utterance": "approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload.",
+      "payload": {
+        "kind": "approve-attempt",
+        "attemptId": "00000004-0000-4000-8000-000000000004",
+        "answer": "Approved — go ahead and upload."
+      },
+      "summary": "Approve attempt 00000004-0000-4000-8000-000000000004 and resume it with the given answer.",
+      "requiresConfirmation": true,
+      "proposedAt": "2026-08-16T22:01:00.000Z"
+    }
+  }
+}

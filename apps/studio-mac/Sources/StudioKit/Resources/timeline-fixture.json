@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-08-16",
+  "note": "FIXTURE. Mirrors the six real apps' evidence-backed status as of 2026-08-16 (Mala 1.0(2) submitted 08-06; Hindsight 1.0(4) ASC-accepted 08-10, factory pilot 08-14/15; Svara 1.0(4) uploaded 08-13; Anjali in TestFlight, listing + 0/22 sign-off open; AuraFit first upload 08-13; Roam candidate frozen, never uploaded). Planned spans are illustrative until the daemon has a milestones schema — TODO(studio-phase-2): replace with portfolio.milestones.",
+  "window": { "start": "2026-07-15", "end": "2026-10-15" },
+  "projects": [
+    {
+      "slug": "mala",
+      "name": "Mala",
+      "note": "1.0 (2) submitted 08-06 · waiting for App Review",
+      "lifecycle": [
+        { "phase": "idea", "state": "done" },
+        { "phase": "building", "state": "done" },
+        { "phase": "qa", "state": "done" },
+        { "phase": "launch-prep", "state": "done" },
+        { "phase": "device-smoke", "state": "gate-cleared" },
+        { "phase": "live", "state": "planned" }
+      ],
+      "bars": [
+        { "kind": "done", "label": "build 1.0", "start": "2026-07-15", "end": "2026-08-03" },
+        { "kind": "gate", "label": "device smoke", "start": "2026-08-05", "gate": "cleared" },
+        { "kind": "review", "label": "app review", "start": "2026-08-06", "end": null },
+        { "kind": "plan", "label": "release 1.0", "start": "2026-08-24", "end": "2026-08-31" }
+      ]
+    },
+    {
+      "slug": "hindsight",
+      "name": "Hindsight",
+      "note": "1.0 (4) ASC-accepted 08-10 · factory pilot verified 08-15",
+      "lifecycle": [
+        { "phase": "idea", "state": "done" },
+        { "phase": "building", "state": "done" },
+        { "phase": "qa", "state": "done" },
+        { "phase": "launch-prep", "state": "done" },
+        { "phase": "device-smoke", "state": "gate-waiting" },
+        { "phase": "live", "state": "planned" }
+      ],
+      "bars": [
+        { "kind": "done", "label": "build 1.0", "start": "2026-07-15", "end": "2026-08-09" },
+        { "kind": "done", "label": "factory pilot", "start": "2026-08-14", "end": "2026-08-15" },
+        { "kind": "gate", "label": "device smoke", "start": "2026-08-17", "gate": "waiting" },
+        { "kind": "plan", "label": "release 1.0", "start": "2026-08-18", "end": "2026-08-25" },
+        { "kind": "plan", "label": "1.1 track", "start": "2026-09-01", "end": "2026-09-30" }
+      ]
+    },
+    {
+      "slug": "svara",
+      "name": "Svara",
+      "note": "1.0 (4) uploaded 08-13",
+      "lifecycle": [
+        { "phase": "idea", "state": "done" },
+        { "phase": "building", "state": "done" },
+        { "phase": "qa", "state": "done" },
+        { "phase": "launch-prep", "state": "active" },
+        { "phase": "device-smoke", "state": "gate-waiting" },
+        { "phase": "live", "state": "planned" }
+      ],
+      "bars": [
+        { "kind": "done", "label": "build 1.0", "start": "2026-07-20", "end": "2026-08-12" },
+        { "kind": "live", "label": "testflight", "start": "2026-08-13", "end": null },
+        { "kind": "gate", "label": "device smoke", "start": "2026-08-19", "gate": "waiting" },
+        { "kind": "plan", "label": "submit", "start": "2026-08-20", "end": "2026-08-27" }
+      ]
+    },
+    {
+      "slug": "anjali",
+      "name": "Anjali",
+      "note": "TestFlight · ASC listing + 0/22 prayer sign-off open",
+      "lifecycle": [
+        { "phase": "idea", "state": "done" },
+        { "phase": "building", "state": "done" },
+        { "phase": "qa", "state": "active" },
+        { "phase": "launch-prep", "state": "planned" },
+        { "phase": "device-smoke", "state": "gate-waiting" },
+        { "phase": "live", "state": "unknown" }
+      ],
+      "bars": [
+        { "kind": "done", "label": "build", "start": "2026-07-15", "end": "2026-08-05" },
+        { "kind": "live", "label": "testflight", "start": "2026-08-06", "end": null },
+        { "kind": "gate", "label": "listing + sign-off", "start": "2026-08-21", "gate": "waiting" },
+        { "kind": "unknown", "label": "release", "start": "2026-08-22", "end": "2026-09-30" }
+      ]
+    },
+    {
+      "slug": "aurafit",
+      "name": "AuraFit",
+      "note": "first upload 08-13",
+      "lifecycle": [
+        { "phase": "idea", "state": "done" },
+        { "phase": "building", "state": "done" },
+        { "phase": "qa", "state": "active" },
+        { "phase": "launch-prep", "state": "planned" },
+        { "phase": "device-smoke", "state": "planned" },
+        { "phase": "live", "state": "unknown" }
+      ],
+      "bars": [
+        { "kind": "done", "label": "build", "start": "2026-07-22", "end": "2026-08-12" },
+        { "kind": "live", "label": "testflight", "start": "2026-08-13", "end": null },
+        { "kind": "plan", "label": "qa", "start": "2026-08-17", "end": "2026-08-31" },
+        { "kind": "unknown", "label": "release", "start": "2026-09-01", "end": "2026-10-15" }
+      ]
+    },
+    {
+      "slug": "roam",
+      "name": "Roam",
+      "note": "candidate frozen · never uploaded · 12 of 14 checklist items open",
+      "lifecycle": [
+        { "phase": "idea", "state": "done" },
+        { "phase": "building", "state": "done" },
+        { "phase": "qa", "state": "unknown" },
+        { "phase": "launch-prep", "state": "unknown" },
+        { "phase": "device-smoke", "state": "unknown" },
+        { "phase": "live", "state": "unknown" }
+      ],
+      "bars": [
+        { "kind": "done", "label": "build", "start": "2026-07-15", "end": "2026-08-01" },
+        { "kind": "unknown", "label": "upload + release", "start": "2026-08-16", "end": "2026-10-15" }
+      ]
+    }
+  ]
+}
