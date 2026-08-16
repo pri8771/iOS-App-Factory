@@ -213,9 +213,20 @@ describe("trusted verification", () => {
 
   it("settles by the termination deadline when an escaped descendant retains verifier pipes", async () => {
     const checkout = makeCheckout();
-    const escaped = ["setTimeout(() => process.exit(0), 1500)", "setInterval(() => {}, 1000)"].join(
-      ";",
-    );
+    // Timing budget (measured on Node 24.18 / Apple M5 Pro, 2026-08-16):
+    // a spawned Node child reaches user code after ~41-58 ms and the leader
+    // has spawned its detached descendant after ~44-73 ms (p90), more under
+    // load. The leader therefore needs a timeout comfortably above that
+    // (300 ms, ~4x p90) or SIGTERM lands before the escaped descendant even
+    // exists and the verifier -- correctly -- settles a clean group. The
+    // escaped descendant must then outlive the verifier's termination
+    // deadline (stop + max(1000, 2*grace) = ~1300 ms after start) by a wide
+    // margin, so its inherited pipes are still open when the deadline fires.
+    const ESCAPED_LIFETIME_MS = 2_500;
+    const escaped = [
+      `setTimeout(() => process.exit(0), ${String(ESCAPED_LIFETIME_MS)})`,
+      "setInterval(() => {}, 1000)",
+    ].join(";");
     const leader = [
       "require('node:child_process').spawn(process.execPath, ['-e', " +
         `${JSON.stringify(escaped)}], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] })`,
@@ -225,12 +236,17 @@ describe("trusted verification", () => {
 
     await expect(
       runTrustedVerification(
-        plan(checkout, ["-e", leader], { timeoutMs: 30, terminationGraceMs: 50 }),
+        plan(checkout, ["-e", leader], { timeoutMs: 300, terminationGraceMs: 50 }),
       ),
     ).rejects.toThrow("did not terminate after SIGKILL");
-    expect(Date.now() - startedAt).toBeLessThan(1_400);
+    // Settled by the verifier's own deadline (~1300 ms), well before the escaped
+    // descendant's exit would have closed the pipes at ~2500 ms.
+    expect(Date.now() - startedAt).toBeLessThan(2_200);
     expect(existsSync(checkout.scratch)).toBe(true);
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 600));
+    // Let the escaped descendant exit before the checkout is removed.
+    await new Promise((resolvePromise) =>
+      setTimeout(resolvePromise, Math.max(0, startedAt + ESCAPED_LIFETIME_MS + 700 - Date.now())),
+    );
   });
 
   it("rejects an attached branch, dirty input, and unsafe environment", async () => {
