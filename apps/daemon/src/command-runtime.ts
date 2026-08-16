@@ -28,8 +28,11 @@ import {
   type CommandResultV1,
   type EffectPumpStatusV1,
   type IsoInstant,
+  type PolicyLockV1,
   type PortfolioProjectReadModelV1,
   type PortfolioReadModelV1,
+  type ProjectId,
+  type TaskSpecV1,
 } from "@app-factory/contracts";
 import {
   FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME,
@@ -45,6 +48,7 @@ import {
 } from "@app-factory/kernel";
 import { verifyCanonicalObservationAttestation } from "@app-factory/effect-worker";
 import { EvidenceStore } from "@app-factory/evidence-store";
+import { decideTaskPolicyBinding } from "@app-factory/policy-engine";
 
 import { executeEvidenceCommand } from "./evidence-command-runtime.js";
 import {
@@ -129,6 +133,27 @@ export type InitializeEffectsPump = (
   context: InitializeEffectsContext,
 ) => EffectPumpStatusPort | undefined;
 
+/**
+ * Resolves the enrolled policy lock for one project, or `null` when the
+ * project has no enrolled lock. Anything other than a valid lock whose
+ * `policyDigest` equals the TaskSpec digest rejects the intake (fail closed).
+ */
+export type EnrolledPolicyLockResolver = (
+  projectId: ProjectId,
+) => Promise<PolicyLockV1 | null> | PolicyLockV1 | null;
+
+/**
+ * Task-intake policy gate. Default OFF: omit the option or pass
+ * `{ enabled: false }` and `task.submit`/`task.run` intake behaves exactly as
+ * before. When enabled, every intake first resolves the project's enrolled
+ * policy lock and rejects a TaskSpec whose `policyDigest` does not match it,
+ * before any durable state is created.
+ */
+export type TaskPolicyGateOptions = Readonly<{
+  enabled: boolean;
+  resolvePolicyLock: EnrolledPolicyLockResolver;
+}>;
+
 export type OpenDaemonCommandRuntimeOptions = Readonly<{
   runtimeDirectory: string;
   daemonVersion: string;
@@ -142,6 +167,8 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    */
   initializeDatabase?: DaemonDatabaseInitializer;
   initializeEffects?: InitializeEffectsPump;
+  /** Default OFF; see {@link TaskPolicyGateOptions}. */
+  taskPolicyGate?: TaskPolicyGateOptions;
   /** Deterministic failpoint after the authoritative mutation and before result journaling. */
   commandResultLedgerBoundary?: (
     entry: Readonly<{ request: CommandRequestV1; result: CommandResultV1 }>,
@@ -612,6 +639,27 @@ function nextEventContext(repositories: FactoryRepositories, attemptId: AttemptI
   };
 }
 
+async function assertTaskPolicyBinding(
+  gate: TaskPolicyGateOptions | undefined,
+  taskSpec: TaskSpecV1,
+): Promise<void> {
+  if (gate?.enabled !== true) return;
+  let lock: PolicyLockV1 | null;
+  try {
+    lock = await gate.resolvePolicyLock(taskSpec.projectId);
+  } catch {
+    throw new CommandHandlerError(
+      "policy.lock-unavailable",
+      "The enrolled policy lock for the task's project could not be resolved.",
+      false,
+    );
+  }
+  const decision = decideTaskPolicyBinding(lock, taskSpec.policyDigest);
+  if (decision.verdict === "rejected") {
+    throw new CommandHandlerError(decision.code, decision.message, false);
+  }
+}
+
 function intakeTask(
   repositories: FactoryRepositories,
   request: Extract<CommandRequestV1, { operation: "task.submit" | "task.run" }>,
@@ -1001,6 +1049,7 @@ async function executeRequest(
     evidenceStore: EvidenceStore;
     effects: EffectRepository;
     effectsPump: EffectPumpStatusPort;
+    taskPolicyGate: TaskPolicyGateOptions | undefined;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1022,6 +1071,7 @@ async function executeRequest(
     }
     case "task.submit":
     case "task.run":
+      await assertTaskPolicyBinding(dependencies.taskPolicyGate, request.payload.taskSpec);
       return intakeTask(repositories, request, dependencies.observedAt, dependencies.idFactory);
     case "attempt.status":
       return {
@@ -1182,6 +1232,7 @@ export async function openDaemonCommandRuntime(
           evidenceStore,
           effects: effectRepository,
           effectsPump: effectsPumpStatusPort,
+          taskPolicyGate: options.taskPolicyGate,
         }),
       );
       if (!persistResult) return result;

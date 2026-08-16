@@ -90,6 +90,8 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   /** Disable event-driven wakeups for polling-only diagnostics and deterministic harnesses. */
   wakeOnCommand?: boolean;
   commandResultLedgerBoundary?: OpenDaemonCommandRuntimeOptions["commandResultLedgerBoundary"];
+  /** Default OFF: omit or pass `{ enabled: false }` to keep task intake ungated. */
+  taskPolicyGate?: OpenDaemonCommandRuntimeOptions["taskPolicyGate"];
   onSchedulerError?: (error: unknown) => void;
   /** Default OFF: omit or pass `{ enabled: false }` to keep the effect pump fully inert. */
   effects?: EffectSubsystemConfiguration;
@@ -434,6 +436,7 @@ export async function startFactoryDaemonService(
       ...(options.commandResultLedgerBoundary === undefined
         ? {}
         : { commandResultLedgerBoundary: options.commandResultLedgerBoundary }),
+      ...(options.taskPolicyGate === undefined ? {} : { taskPolicyGate: options.taskPolicyGate }),
       initializeDatabase: (database) => {
         const executor: StartupRecoverableExecutor =
           options.executor ??

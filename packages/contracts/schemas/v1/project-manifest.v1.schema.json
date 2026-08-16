@@ -16,7 +16,8 @@
             "codex",
             "claude",
             "cursor",
-            "antigravity"
+            "antigravity",
+            "copilot"
           ],
           "type": "string"
         },

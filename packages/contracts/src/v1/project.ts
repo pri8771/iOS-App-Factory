@@ -108,7 +108,7 @@ export const ProjectManifestV1Schema = z
       clientEntrypoints: z
         .array(
           z.strictObject({
-            client: z.enum(["codex", "claude", "cursor", "antigravity"]),
+            client: z.enum(["codex", "claude", "cursor", "antigravity", "copilot"]),
             path: RelativePathSchema,
             digest: Sha256DigestSchema,
           }),

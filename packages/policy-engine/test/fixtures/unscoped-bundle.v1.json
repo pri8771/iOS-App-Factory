@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "schemaVersion": 1,
+    "policyId": "factory.ios-policy",
+    "policyVersion": 1,
+    "title": "iOS App Factory Rules",
+    "authority": "AGENTS.md",
+    "principles": ["Preserve user changes.", "Bind completion to immutable evidence."],
+    "rules": [
+      {
+        "ruleId": "rule.scope.preserve",
+        "statement": "Only change declared paths.",
+        "enforcement": "broker",
+        "requiredCheck": "policy.changed-paths"
+      },
+      {
+        "ruleId": "rule.quality.coherence",
+        "statement": "One design generation must cover every public route.",
+        "enforcement": "trusted-check",
+        "requiredCheck": "quality.ui-coherence"
+      }
+    ],
+    "protectedSurfaces": [
+      {
+        "path": "quality/baselines",
+        "classification": "baseline",
+        "changeApprovalAction": "quality.baseline-change"
+      }
+    ]
+  },
+  "sourceDigest": "sha256:700c6bc7490de34bcf31744cf91f086283992537a254a176b62d7c061b541d86",
+  "files": [
+    {
+      "client": "cursor",
+      "path": ".cursor/rules/app-factory.mdc",
+      "contents": "---\ndescription: App Factory canonical engineering policy\nalwaysApply: true\n---\n\nRead and follow AGENTS.md at the repository root. It is authoritative; this adapter adds no exceptions.\n",
+      "digest": "sha256:8f48099a8a493bf39216f08fd284b5bdf377b52028a81377d2c906937c39c9d0"
+    },
+    {
+      "client": "all",
+      "path": "AGENTS.md",
+      "contents": "# iOS App Factory Rules\n\n## Authority\n\nThis AGENTS.md is the canonical instruction authority for every coding client.\nGenerated client files may point here but cannot weaken it.\n\n## Principles\n\n- Preserve user changes.\n- Bind completion to immutable evidence.\n\n## Enforced rules\n\n- `rule.scope.preserve`: Only change declared paths. (enforced by `broker`; check `policy.changed-paths`)\n- `rule.quality.coherence`: One design generation must cover every public route. (enforced by `trusted-check`; check `quality.ui-coherence`)\n\n## Protected surfaces\n\n- `quality/baselines` — baseline; changes require `quality.baseline-change`.\n\n## Completion\n\nAgent prose is never proof of completion. The broker, trusted checks, independent review, and approval records are authoritative.\n",
+      "digest": "sha256:c14f9171244c9b88d412962aa87f1b6355eea2ff9c170ff2c35d36f294b30590"
+    },
+    {
+      "client": "claude",
+      "path": "CLAUDE.md",
+      "contents": "# Generated App Factory client adapter\n\n@AGENTS.md\n\nAGENTS.md is authoritative. This file may not override or weaken it.\n",
+      "digest": "sha256:3fde097219f0c9286710ca2a427fda0f8e65adb42179eff7d3470800db90c5c8"
+    },
+    {
+      "client": "antigravity",
+      "path": "GEMINI.md",
+      "contents": "# Generated App Factory client adapter\n\nRead and follow AGENTS.md at the repository root. It is authoritative; this adapter adds no exceptions.\n",
+      "digest": "sha256:c6f8547969df8a93f90612495937864fb0a97a9420c057ce1527c42f8166ad23"
+    }
+  ],
+  "lock": {
+    "schemaVersion": 1,
+    "policyId": "factory.ios-policy",
+    "policyVersion": 1,
+    "policyDigest": "sha256:700c6bc7490de34bcf31744cf91f086283992537a254a176b62d7c061b541d86",
+    "authorityFiles": [
+      {
+        "path": ".cursor/rules/app-factory.mdc",
+        "digest": "sha256:8f48099a8a493bf39216f08fd284b5bdf377b52028a81377d2c906937c39c9d0"
+      },
+      {
+        "path": "AGENTS.md",
+        "digest": "sha256:c14f9171244c9b88d412962aa87f1b6355eea2ff9c170ff2c35d36f294b30590"
+      },
+      {
+        "path": "CLAUDE.md",
+        "digest": "sha256:3fde097219f0c9286710ca2a427fda0f8e65adb42179eff7d3470800db90c5c8"
+      },
+      {
+        "path": "GEMINI.md",
+        "digest": "sha256:c6f8547969df8a93f90612495937864fb0a97a9420c057ce1527c42f8166ad23"
+      }
+    ],
+    "protectedSurfaces": [
+      {
+        "path": ".cursor/rules/app-factory.mdc",
+        "classification": "policy",
+        "changeApprovalAction": "policy.generated-file-change"
+      },
+      {
+        "path": "AGENTS.md",
+        "classification": "policy",
+        "changeApprovalAction": "policy.generated-file-change"
+      },
+      {
+        "path": "CLAUDE.md",
+        "classification": "policy",
+        "changeApprovalAction": "policy.generated-file-change"
+      },
+      {
+        "path": "GEMINI.md",
+        "classification": "policy",
+        "changeApprovalAction": "policy.generated-file-change"
+      },
+      {
+        "path": "quality/baselines",
+        "classification": "baseline",
+        "changeApprovalAction": "quality.baseline-change"
+      }
+    ],
+    "requiredChecks": ["policy.changed-paths", "quality.ui-coherence"],
+    "generatedAt": "2026-08-11T12:00:00.000Z"
+  },
+  "bundleDigest": "sha256:71ea102511420e7beaeb6cf854297bff62c3d077dd949fe0784750e870502a3d"
+}
