@@ -6,6 +6,9 @@ import { TextDecoder } from "node:util";
 import {
   COMMAND_PROTOCOL_VERSION_V1,
   AbsolutePathSchema,
+  AssistantIntentPayloadV1Schema,
+  AssistantIntentV1Schema,
+  AssistantQueryV1Schema,
   AttemptIdSchema,
   AttemptListQueryV1Schema,
   CommandIdSchema,
@@ -25,7 +28,10 @@ import {
   TaskIdSchema,
   TaskSpecV1Schema,
   canonicalPortfolioReadModelDigestInputV1,
+  canonicalStudioSnapshotDigestInputV1,
   type AbsolutePath,
+  type AssistantIntentPayloadV1,
+  type AssistantIntentV1,
   type AttemptId,
   type AttemptListCursorV1,
   type AttemptListScopeV1,
@@ -532,6 +538,77 @@ export class CommandClient {
       );
     }
     return result;
+  }
+
+  /**
+   * The single studio dashboard read on open. Verifies `sourceSnapshotDigest` exactly like
+   * {@link portfolioSnapshot} verifies the portfolio read model's own digest.
+   */
+  public async studioSnapshot(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"studio.snapshot">> {
+    const result = await this.#request("studio.snapshot", {}, identity, signal);
+    const expectedDigest = `sha256:${createHash("sha256")
+      .update(canonicalStudioSnapshotDigestInputV1(result.snapshot), "utf8")
+      .digest("hex")}`;
+    if (
+      !timingSafeEqual(
+        Buffer.from(result.snapshot.sourceSnapshotDigest, "utf8"),
+        Buffer.from(expectedDigest, "utf8"),
+      )
+    ) {
+      throw new CommandClientError(
+        "protocol.studio-snapshot-digest-mismatch",
+        "The studio snapshot source digest does not match its contents.",
+        false,
+      );
+    }
+    return result;
+  }
+
+  /** Asks the corner-chat assistant a question; answered only from the current studio snapshot. */
+  public async assistantQuery(
+    question: string,
+    options: Readonly<{ projectId?: ProjectId | null }> = {},
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"studio.assistant.query">> {
+    const query = AssistantQueryV1Schema.parse({
+      schemaVersion: 1,
+      question,
+      projectId: options.projectId ?? null,
+    });
+    return await this.#request("studio.assistant.query", { query }, identity, signal);
+  }
+
+  /** Proposes a typed intent from a fixed phrasing; nothing executes until {@link executeAssistantIntent}. */
+  public async proposeAssistantIntent(
+    utterance: string,
+    intent: AssistantIntentPayloadV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"studio.assistant.intent.propose">> {
+    return await this.#request(
+      "studio.assistant.intent.propose",
+      { utterance, intent: AssistantIntentPayloadV1Schema.parse(intent) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Confirms and dispatches a previously proposed intent, echoed back verbatim. */
+  public async executeAssistantIntent(
+    intent: AssistantIntentV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"studio.assistant.intent.execute">> {
+    return await this.#request(
+      "studio.assistant.intent.execute",
+      { intent: AssistantIntentV1Schema.parse(intent) },
+      identity,
+      signal,
+    );
   }
 
   /** Kernel-durable effect counts, pending outbox size, and the daemon's own pump activity. */

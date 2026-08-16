@@ -1,0 +1,621 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema10": {
+      "enum": [
+        "blocked-attempt",
+        "gate-approval"
+      ],
+      "type": "string"
+    },
+    "__schema11": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema4"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema12": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema13": {
+      "items": {
+        "$ref": "#/$defs/__schema14"
+      },
+      "maxItems": 200,
+      "type": "array"
+    },
+    "__schema14": {
+      "additionalProperties": false,
+      "properties": {
+        "milestoneId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "at-risk",
+            "met",
+            "missed"
+          ],
+          "type": "string"
+        },
+        "targetDate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "milestoneId",
+        "name",
+        "targetDate",
+        "status"
+      ],
+      "type": "object"
+    },
+    "__schema15": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema16": {
+      "items": {
+        "$ref": "#/$defs/__schema17"
+      },
+      "maxItems": 1000,
+      "type": "array"
+    },
+    "__schema17": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema1"
+        }
+      },
+      "required": [
+        "attemptId",
+        "label",
+        "occurredAt"
+      ],
+      "type": "object"
+    },
+    "__schema18": {
+      "items": {
+        "$ref": "#/$defs/__schema19"
+      },
+      "maxItems": 1000,
+      "type": "array"
+    },
+    "__schema19": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "project",
+            "portfolio"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "roomId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "roomId",
+        "name",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "__schema2": {
+      "items": {
+        "$ref": "#/$defs/__schema3"
+      },
+      "maxItems": 1000,
+      "type": "array"
+    },
+    "__schema20": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema21": {
+      "additionalProperties": false,
+      "properties": {
+        "agentWindowShare": {
+          "$ref": "#/$defs/__schema25"
+        },
+        "awaitingYouCount": {
+          "$ref": "#/$defs/__schema22"
+        },
+        "medianRunSeconds": {
+          "additionalProperties": false,
+          "properties": {
+            "unavailableReason": {
+              "$ref": "#/$defs/__schema29"
+            },
+            "value": {
+              "$ref": "#/$defs/__schema28"
+            }
+          },
+          "required": [
+            "value",
+            "unavailableReason"
+          ],
+          "type": "object"
+        },
+        "passRate": {
+          "$ref": "#/$defs/__schema25"
+        },
+        "verifiedThisWeek": {
+          "$ref": "#/$defs/__schema22"
+        }
+      },
+      "required": [
+        "verifiedThisWeek",
+        "awaitingYouCount",
+        "passRate",
+        "medianRunSeconds",
+        "agentWindowShare"
+      ],
+      "type": "object"
+    },
+    "__schema22": {
+      "additionalProperties": false,
+      "properties": {
+        "unavailableReason": {
+          "$ref": "#/$defs/__schema24"
+        },
+        "value": {
+          "$ref": "#/$defs/__schema23"
+        }
+      },
+      "required": [
+        "value",
+        "unavailableReason"
+      ],
+      "type": "object"
+    },
+    "__schema23": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema24": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema25": {
+      "additionalProperties": false,
+      "properties": {
+        "unavailableReason": {
+          "$ref": "#/$defs/__schema27"
+        },
+        "value": {
+          "$ref": "#/$defs/__schema26"
+        }
+      },
+      "required": [
+        "value",
+        "unavailableReason"
+      ],
+      "type": "object"
+    },
+    "__schema26": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema27": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema28": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema29": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema3": {
+      "additionalProperties": false,
+      "properties": {
+        "awaitingHuman": {
+          "items": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "gates": {
+          "additionalProperties": false,
+          "properties": {
+            "owner": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "state": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "typed": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "unavailableReason": {
+              "$ref": "#/$defs/__schema8"
+            }
+          },
+          "required": [
+            "typed",
+            "owner",
+            "state",
+            "unavailableReason"
+          ],
+          "type": "object"
+        },
+        "latestAttemptSummary": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "attemptId": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "blocker": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "maxLength": 128,
+                          "minLength": 3,
+                          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": [
+                            "authentication",
+                            "clarification",
+                            "approval",
+                            "environment",
+                            "policy"
+                          ],
+                          "type": "string"
+                        },
+                        "requiredAction": {
+                          "anyOf": [
+                            {
+                              "maxLength": 2000,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "maxLength": 1000,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "code",
+                        "summary",
+                        "requiredAction"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "queued",
+                    "running",
+                    "paused",
+                    "blocked",
+                    "succeeded",
+                    "failed",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                "taskId": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "updatedAt": {
+                  "$ref": "#/$defs/__schema1"
+                }
+              },
+              "required": [
+                "attemptId",
+                "taskId",
+                "state",
+                "updatedAt",
+                "blocker"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lifecycleStage": {
+          "anyOf": [
+            {
+              "enum": [
+                "idea",
+                "building",
+                "qa",
+                "launch-prep",
+                "live",
+                "frozen"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "projectId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "timeline": {
+          "additionalProperties": false,
+          "properties": {
+            "actuals": {
+              "$ref": "#/$defs/__schema16"
+            },
+            "milestones": {
+              "$ref": "#/$defs/__schema13"
+            },
+            "milestonesUnavailableReason": {
+              "$ref": "#/$defs/__schema15"
+            }
+          },
+          "required": [
+            "milestones",
+            "milestonesUnavailableReason",
+            "actuals"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "projectId",
+        "name",
+        "lifecycleStage",
+        "gates",
+        "latestAttemptSummary",
+        "awaitingHuman",
+        "timeline"
+      ],
+      "type": "object"
+    },
+    "__schema30": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema4": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema5": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema6": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema7": {
+      "enum": [
+        "pending",
+        "satisfied",
+        "waived",
+        "blocked",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "__schema8": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema9": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema11"
+        },
+        "kind": {
+          "$ref": "#/$defs/__schema10"
+        },
+        "since": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "summary": {
+          "$ref": "#/$defs/__schema12"
+        }
+      },
+      "required": [
+        "kind",
+        "attemptId",
+        "summary",
+        "since"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:studio-snapshot",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "generatedAt": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "portfolio": {
+      "$ref": "#/$defs/__schema21"
+    },
+    "projects": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "rooms": {
+      "$ref": "#/$defs/__schema18"
+    },
+    "roomsUnavailableReason": {
+      "$ref": "#/$defs/__schema20"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "sourceSnapshotDigest": {
+      "$ref": "#/$defs/__schema30"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "projects",
+    "rooms",
+    "roomsUnavailableReason",
+    "portfolio",
+    "sourceSnapshotDigest"
+  ],
+  "type": "object"
+}

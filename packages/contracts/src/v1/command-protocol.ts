@@ -21,6 +21,7 @@ import {
 } from "./milestone.js";
 import {
   AbsolutePathSchema,
+  AssistantIntentIdSchema,
   AttemptIdSchema,
   CommandIdSchema,
   EvidenceIdSchema,
@@ -51,6 +52,13 @@ import {
   RoomV1Schema,
 } from "./room.js";
 import { RunRecordV1Schema } from "./run-record.js";
+import {
+  AssistantAnswerV1Schema,
+  AssistantIntentPayloadV1Schema,
+  AssistantIntentV1Schema,
+  AssistantQueryV1Schema,
+} from "./studio-assistant.js";
+import { StudioSnapshotV1Schema } from "./studio-snapshot.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
 export const COMMAND_PROTOCOL_VERSION_V1 = 1 as const;
@@ -350,6 +358,33 @@ export const RoomTypingCommandRequestV1Schema = z.strictObject({
   }),
 });
 
+export const StudioSnapshotCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("studio.snapshot"),
+  payload: EmptyPayloadV1Schema,
+});
+
+export const StudioAssistantQueryCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("studio.assistant.query"),
+  payload: z.strictObject({ query: AssistantQueryV1Schema }),
+});
+
+export const StudioAssistantIntentProposeCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("studio.assistant.intent.propose"),
+  payload: z.strictObject({
+    utterance: z.string().min(1).max(2_000),
+    intent: AssistantIntentPayloadV1Schema,
+  }),
+});
+
+export const StudioAssistantIntentExecuteCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("studio.assistant.intent.execute"),
+  payload: z.strictObject({ intent: AssistantIntentV1Schema }),
+});
+
 export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandRequestV1Schema,
   SubmitCommandRequestV1Schema,
@@ -380,6 +415,10 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   RoomPostCommandRequestV1Schema,
   RoomEventsCommandRequestV1Schema,
   RoomTypingCommandRequestV1Schema,
+  StudioSnapshotCommandRequestV1Schema,
+  StudioAssistantQueryCommandRequestV1Schema,
+  StudioAssistantIntentProposeCommandRequestV1Schema,
+  StudioAssistantIntentExecuteCommandRequestV1Schema,
 ]);
 export type CommandRequestV1 = z.infer<typeof CommandRequestV1Schema>;
 export type CommandOperationV1 = CommandRequestV1["operation"];
@@ -640,6 +679,43 @@ export const RoomTypingCommandResultV1Schema = z.strictObject({
   typingUntil: IsoInstantSchema,
 });
 
+export const StudioSnapshotCommandResultV1Schema = z.strictObject({
+  operation: z.literal("studio.snapshot"),
+  snapshot: StudioSnapshotV1Schema,
+});
+
+export const StudioAssistantQueryCommandResultV1Schema = z.strictObject({
+  operation: z.literal("studio.assistant.query"),
+  answer: AssistantAnswerV1Schema,
+});
+
+export const StudioAssistantIntentProposeCommandResultV1Schema = z.strictObject({
+  operation: z.literal("studio.assistant.intent.propose"),
+  intent: AssistantIntentV1Schema,
+});
+
+/**
+ * Tags which existing daemon operation `studio.assistant.intent.execute` actually dispatched to,
+ * and embeds that operation's own, already-defined result schema verbatim — no separate,
+ * potentially-drifting copy of its shape.
+ */
+export const AssistantIntentExecutionOutcomeV1Schema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("task.submit"), result: SubmitCommandResultV1Schema }),
+  z.strictObject({ kind: z.literal("task.run"), result: RunCommandResultV1Schema }),
+  z.strictObject({ kind: z.literal("project.scan"), result: ProjectScanCommandResultV1Schema }),
+  z.strictObject({ kind: z.literal("project.apply"), result: ProjectApplyCommandResultV1Schema }),
+  z.strictObject({ kind: z.literal("attempt.unblock"), result: UnblockCommandResultV1Schema }),
+]);
+export type AssistantIntentExecutionOutcomeV1 = z.infer<
+  typeof AssistantIntentExecutionOutcomeV1Schema
+>;
+
+export const StudioAssistantIntentExecuteCommandResultV1Schema = z.strictObject({
+  operation: z.literal("studio.assistant.intent.execute"),
+  intentId: AssistantIntentIdSchema,
+  outcome: AssistantIntentExecutionOutcomeV1Schema,
+});
+
 export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandResultV1Schema,
   SubmitCommandResultV1Schema,
@@ -670,6 +746,10 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   RoomPostCommandResultV1Schema,
   RoomEventsCommandResultV1Schema,
   RoomTypingCommandResultV1Schema,
+  StudioSnapshotCommandResultV1Schema,
+  StudioAssistantQueryCommandResultV1Schema,
+  StudioAssistantIntentProposeCommandResultV1Schema,
+  StudioAssistantIntentExecuteCommandResultV1Schema,
 ]);
 export type CommandResultV1 = z.infer<typeof CommandResultV1Schema>;
 export type CommandResultForOperationV1<Operation extends CommandOperationV1> = Extract<
