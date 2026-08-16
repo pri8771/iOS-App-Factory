@@ -220,6 +220,8 @@
       "type": "string"
     },
     "__schema5": {
+      "deprecated": true,
+      "description": "Deprecated (ADR 0005): legacy project-manifest lifecycle stage. Fold onto ProjectLifecycleStageV1 (idea | building | qa | launch-prep | live | frozen) via LEGACY_PROJECT_LIFECYCLE_STAGE_MAP_V1.",
       "enum": [
         "exploring",
         "planned",

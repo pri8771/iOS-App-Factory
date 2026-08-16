@@ -8,7 +8,7 @@ import {
   Sha256DigestSchema,
   StableKeySchema,
 } from "./primitives.js";
-import { ProjectLifecycleStageV1Schema } from "./project.js";
+import { LegacyProjectLifecycleStageV1Schema } from "./project.js";
 
 export const MAX_PORTFOLIO_PROJECTS_V1 = 1_000 as const;
 
@@ -99,7 +99,7 @@ export const PortfolioProjectReadModelV1Schema = z
     slug: StableKeySchema,
     displayName: z.string().min(1).max(200),
     metadataSource: z.literal("task-derived"),
-    lifecycleStage: ProjectLifecycleStageV1Schema.nullable(),
+    lifecycleStage: LegacyProjectLifecycleStageV1Schema.nullable(),
     attemptCount: NonNegativeSafeIntegerSchema,
     activeAttemptCount: NonNegativeSafeIntegerSchema,
     blockerCount: NonNegativeSafeIntegerSchema,

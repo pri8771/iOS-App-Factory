@@ -301,6 +301,74 @@
         ],
         "requiredKinds": ["verification"]
       }
+    },
+    {
+      "name": "human-legal-cleared-gate",
+      "schema": "typed-gate",
+      "value": {
+        "gate": "legal",
+        "state": "cleared",
+        "owner": "human",
+        "sha": "3333333333333333333333333333333333333333",
+        "evidenceDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "at": "2026-08-16T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "machine-tests-not-run-gate",
+      "schema": "typed-gate",
+      "value": {
+        "gate": "tests",
+        "state": "not_run",
+        "owner": "machine",
+        "sha": "3333333333333333333333333333333333333333",
+        "evidenceDigest": null,
+        "at": "2026-08-16T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "qa-lifecycle-state",
+      "schema": "project-lifecycle-state",
+      "value": {
+        "schemaVersion": 1,
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "stage": "qa",
+        "gates": [
+          {
+            "gate": "build",
+            "state": "verified",
+            "owner": "machine",
+            "sha": "3333333333333333333333333333333333333333",
+            "evidenceDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "at": "2026-08-16T12:00:00.000Z"
+          },
+          {
+            "gate": "tests",
+            "state": "passed",
+            "owner": "machine",
+            "sha": "3333333333333333333333333333333333333333",
+            "evidenceDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "at": "2026-08-16T12:01:00.000Z"
+          },
+          {
+            "gate": "visual",
+            "state": "human_review_required",
+            "owner": "machine",
+            "sha": "3333333333333333333333333333333333333333",
+            "evidenceDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "at": "2026-08-16T12:02:00.000Z"
+          },
+          {
+            "gate": "market",
+            "state": "hypothesis",
+            "owner": "machine",
+            "sha": "3333333333333333333333333333333333333333",
+            "evidenceDigest": null,
+            "at": "2026-08-16T12:00:00.000Z"
+          }
+        ],
+        "updatedAt": "2026-08-16T12:02:00.000Z"
+      }
     }
   ]
 }
