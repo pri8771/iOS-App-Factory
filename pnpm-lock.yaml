@@ -240,6 +240,12 @@ importers:
 
   packages/oci-runner: {}
 
+  packages/ollama-scorer:
+    dependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/policy-corpus:
     dependencies:
       '@app-factory/contracts':
