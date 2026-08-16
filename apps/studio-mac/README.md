@@ -54,6 +54,27 @@ swift run Studio
 `APP_FACTORY_RUNTIME_DIR` (socket = `<dir>/daemon.sock`) and `APP_FACTORY_AUTH_TOKEN` are also honoured.
 The token file must be a private (0600, owned by you) regular file, as the daemon itself requires.
 
+Release binary (bare executable, no bundle; the same environment applies):
+
+```sh
+swift build -c release
+APP_FACTORY_SOCKET=/tmp/af-ui/runtime/daemon.sock \
+APP_FACTORY_AUTH_FILE=/tmp/af-ui/etc/auth.token \
+.build/release/Studio
+```
+
+No daemon at that path? Run one on a private runtime and point both the app and the tests at it — the
+daemon insists on a 0700 runtime directory and a 0600 token file, and Unix socket paths must stay short:
+
+```sh
+RT="$TMPDIR/afrt"; mkdir -p "$RT/runtime" "$RT/etc"; chmod 700 "$RT" "$RT/runtime" "$RT/etc"
+(umask 077; head -c 32 /dev/urandom | xxd -p -c 64 | tr -d '\n' > "$RT/etc/auth.token")
+APP_FACTORY_RUNTIME_DIR="$RT/runtime" APP_FACTORY_AUTH_FILE="$RT/etc/auth.token" \
+APP_FACTORY_DAEMON_VERSION=0.1.0-ui-demo node ../daemon/dist/main.js &
+# seed attempts with @app-factory/command-client (task.run × 3 → DeterministicFakeExecutor → succeeded)
+APP_FACTORY_SOCKET="$RT/runtime/daemon.sock" APP_FACTORY_AUTH_FILE="$RT/etc/auth.token" .build/release/Studio
+```
+
 ## What is live, fixture, or stub (phase 1)
 
 Every value on screen carries a provenance badge — LIVE · DERIVED · FIXTURE · STATIC · NOT YET SOURCED.
