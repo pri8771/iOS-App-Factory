@@ -23,15 +23,21 @@ chat / CLI / dashboard
 ## Repository layout
 
 This is a full listing of `apps/` (4) and `packages/` (29), one line each,
-regenerated from the current tree — see [`docs/progress/IMPLEMENTATION_STATUS.md`](docs/progress/IMPLEMENTATION_STATUS.md)
-for which of these are wired into a runnable path versus dormant/contracts-only.
+regenerated from the current tree, plus one planned app not yet present in
+this tree — see [`docs/progress/IMPLEMENTATION_STATUS.md`](docs/progress/IMPLEMENTATION_STATUS.md)
+for which of these are wired into a runnable path versus dormant/contracts-only,
+and [`docs/architecture/0004-studio-mac-app.md`](docs/architecture/0004-studio-mac-app.md)
+for the Studio Mac app product decision.
 
 ```text
 apps/
-  cli/        thin client for the typed daemon command service
-  daemon/     singleton local scheduler, command broker, and SQLite owner
-  dashboard/  loopback-only local web control surface over the command client
-  mcp/        stdio MCP bridge for Claude, Codex, Cursor, and other hosts
+  cli/         thin client for the typed daemon command service
+  daemon/      singleton local scheduler, command broker, and SQLite owner
+  dashboard/   local web debug surface over the command client (not the
+               product — see docs/architecture/0004-studio-mac-app.md)
+  mcp/         stdio MCP bridge for Claude, Codex, Cursor, and other hosts
+  studio-mac/  planned — native Mac app, the Gen 5 product target; in
+               progress on branch studio/phase1, not yet merged here
 packages/
   adapter-sdk/                 provider-neutral effect-adapter boundary and capability preflight
   agent-runner/                credential-isolated headless Codex/Claude process adapters
