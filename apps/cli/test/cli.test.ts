@@ -167,6 +167,14 @@ describe("CLI argument parser", () => {
       },
     ],
     [
+      ["run", "export", ATTEMPT_ID],
+      { outputMode: "human", command: { kind: "run.export", attemptId: ATTEMPT_ID } },
+    ],
+    [
+      ["--json", "run", "export", ATTEMPT_ID],
+      { outputMode: "json", command: { kind: "run.export", attemptId: ATTEMPT_ID } },
+    ],
+    [
       ["project", "scan", "/repo/app"],
       { outputMode: "human", command: { kind: "project.scan", repositoryRoot: "/repo/app" } },
     ],
@@ -280,6 +288,10 @@ describe("CLI argument parser", () => {
     [["evidence"]],
     [["evidence", "list", "--limit", "101"]],
     [["evidence", "inspect", "not-an-id"]],
+    [["run", "export"]],
+    [["run", "export", "not-an-id"]],
+    [["run", "export", ATTEMPT_ID, "extra"]],
+    [["run", "export", ATTEMPT_ID, "--task", "task.json"]],
     [["project"]],
     [["project", "unknown"]],
     [["project", "scan"]],
@@ -664,6 +676,118 @@ describe("CLI output renderer", () => {
     ).toBe(
       `${ATTEMPT_ID}\tplanned\tgithub\tapp-factory:v1:github:merge:${ATTEMPT_ID}\nmore after ${NOW} ${ATTEMPT_ID}\n`,
     );
+  });
+
+  it("renders a run record as a compact human summary and a machine-stable JSON envelope", () => {
+    const digest = (character: string) => `sha256:${character.repeat(64)}` as const;
+    const runExport = {
+      operation: "run.export",
+      recordDigest: digest("d"),
+      record: {
+        schemaVersion: 1,
+        attemptId: ATTEMPT_ID,
+        taskId: "00000000-0000-4000-8000-000000000008",
+        attemptNumber: 1,
+        state: "succeeded",
+        implementingRunId: "00000000-0000-4000-8000-000000000011",
+        repositoryId: "00000000-0000-4000-8000-000000000012",
+        taskSpecDigest: digest("1"),
+        policyDigest: digest("2"),
+        baseCommit: "a".repeat(40),
+        candidateTree: "b".repeat(40),
+        fence: 3,
+        brokerCommit: {
+          commit: "c".repeat(40),
+          tree: "b".repeat(40),
+          commitDigest: digest("3"),
+          attemptMarker: ATTEMPT_ID,
+        },
+        verification: [
+          {
+            checkId: "tests.swift",
+            argv: ["/usr/bin/swift", "test"],
+            checkoutTree: "b".repeat(40),
+            startedAt: NOW,
+            finishedAt: NOW,
+            toolVersions: [{ name: "swift", version: "6.0" }],
+            passed: true,
+            exitCode: 0,
+          },
+        ],
+        review: {
+          reviewerId: "fixture.reviewer",
+          reviewerVersion: "1.0.0",
+          reviewerRunId: "00000000-0000-4000-8000-000000000013",
+          verdict: "pass",
+          findingCount: 0,
+          reviewInputDigest: digest("4"),
+        },
+        evidence: {
+          manifestDigest: digest("5"),
+          indexDigest: digest("6"),
+          entryCount: 5,
+          artifactCount: 20,
+        },
+        agent: {
+          adapterId: "openai.codex",
+          adapterVersion: "1.0.0",
+          cliVersion: "0.148.0-alpha.9",
+          model: "gpt-5.6-codex",
+          executableDigest: digest("7"),
+          usage: { inputTokens: 71_953, outputTokens: 923, cachedInputTokens: 53_248 },
+        },
+        timings: {
+          attemptCreatedAt: NOW,
+          attemptTerminalAt: NOW,
+          agentStartedAt: NOW,
+          agentFinishedAt: NOW,
+          evidenceCreatedAt: NOW,
+        },
+      },
+    } as const;
+
+    const human = renderCommandResult(runExport, "human");
+    expect(human).toBe(
+      [
+        `run record ${ATTEMPT_ID} (${digest("d")})`,
+        "task: 00000000-0000-4000-8000-000000000008 attempt 1 fence 3",
+        `task spec: ${digest("1")}`,
+        `policy: ${digest("2")}`,
+        `repository: 00000000-0000-4000-8000-000000000012 base ${"a".repeat(40)}`,
+        `broker commit: ${"c".repeat(40)} tree ${"b".repeat(40)}`,
+        "verification: tests.swift=passed",
+        "review: pass by fixture.reviewer@1.0.0 (0 finding(s))",
+        `evidence: manifest ${digest("5")} index ${digest("6")} (5 records, 20 artifacts)`,
+        `agent: openai.codex@1.0.0 cli 0.148.0-alpha.9 model gpt-5.6-codex executable ${digest("7")}`,
+        "tokens: 71953 in / 53248 cached / 923 out",
+        `timings: attempt ${NOW} -> ${NOW}; agent ${NOW} -> ${NOW}; evidence ${NOW}`,
+        "",
+      ].join("\n"),
+    );
+    expect(JSON.parse(renderCommandResult(runExport, "json"))).toEqual({
+      ok: true,
+      result: runExport,
+    });
+
+    const legacyAgent = renderCommandResult(
+      {
+        ...runExport,
+        record: {
+          ...runExport.record,
+          agent: {
+            adapterId: "fixture.swift-greeter-agent",
+            adapterVersion: null,
+            cliVersion: null,
+            model: null,
+            executableDigest: null,
+            usage: null,
+          },
+        },
+      },
+      "human",
+    );
+    expect(legacyAgent).toContain("agent: fixture.swift-greeter-agent\n");
+    expect(legacyAgent).toContain("tokens: unavailable\n");
   });
 
   it("renders machine-stable JSON success and failure envelopes", () => {

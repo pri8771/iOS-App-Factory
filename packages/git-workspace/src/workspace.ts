@@ -132,6 +132,11 @@ export type EnsureMirrorInput = Readonly<{
   repositoryId: string;
 }>;
 
+export type OpenExistingMirrorInput = Readonly<{
+  runtimeRoot: string;
+  repositoryId: string;
+}>;
+
 export type PrepareImmutableMirrorInput = EnsureMirrorInput &
   Readonly<{
     sourceIdentityDigest: string;
@@ -1641,6 +1646,38 @@ export class GitWorkspaceManager {
       if (!existsSync(bindingPath)) throw error;
     }
     return this.openPreparedImmutableMirror(input);
+  }
+
+  /**
+   * Opens an already-published Factory mirror for read-only inspection from
+   * nothing but its runtime root and repository ID, taking the source path
+   * from the mirror's own on-disk ownership marker. It never clones,
+   * refreshes, or reads the source repository, and never creates the mirror:
+   * a mirror that does not exist, is not a bare repository, has no marker,
+   * or whose marker does not describe this exact path fails closed. This is
+   * the seam durable, after-the-fact verifiers (e.g. `run.export`) use to
+   * re-derive a run's broker commit from the sealed mirror rather than from
+   * any in-memory enrollment state.
+   */
+  openExistingMirror(input: OpenExistingMirrorInput): FactoryMirror {
+    assertNormalizedAbsolute(input.runtimeRoot, "Runtime root");
+    assertIdentifier(input.repositoryId, "Repository ID");
+    if (!existsSync(input.runtimeRoot)) {
+      throw new GitWorkspaceError("Runtime root does not exist");
+    }
+    const runtimeRoot = this.#ensureRuntimeRoot(input.runtimeRoot);
+    const mirrorPath = safeChild(runtimeRoot, "mirrors", `${input.repositoryId}.git`);
+    if (!existsSync(mirrorPath)) {
+      throw new GitWorkspaceError(`No Factory mirror exists for repository ${input.repositoryId}`);
+    }
+    assertRealDirectory(mirrorPath, "Factory mirror");
+    const diskMarker = parseMirrorMarker(
+      readPrivateJson(safeChild(mirrorPath, MIRROR_MARKER_FILE)),
+    );
+    if (diskMarker.repositoryId !== input.repositoryId || diskMarker.mirrorPath !== mirrorPath) {
+      throw new GitWorkspaceError("Mirror ownership marker does not describe this mirror");
+    }
+    return this.#validateMirror({ ...diskMarker, runtimeRoot });
   }
 
   /** Opens a previously prepared mirror without reading or refreshing its source. */

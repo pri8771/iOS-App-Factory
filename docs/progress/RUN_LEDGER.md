@@ -26,10 +26,12 @@ git -C <mirror path> show <brokerCommit> --stat
 
 The mirror path is `<runtime>/local-execution/git/mirrors/<repositoryId>.git`.
 
-**Known gap:** there is no `factory run export` that emits a signed, committable run
-record. Until there is, this file is maintained by hand and every entry must cite a
-runtime path and a mirror ref. Do not add a row you have not verified with the
-commands above.
+`factory run export <attemptId>` (added 2026-08-16) emits the canonical, digest-bound
+run record for a succeeded attempt, re-derived from the runtime's evidence store and
+the sealed mirror; `--json` includes `recordDigest`. New rows should cite that digest
+alongside the runtime path and mirror ref. The rows below predate the verb and were
+verified by hand with the commands above; the record is not yet signed. Do not add a
+row you have not verified.
 
 ## Runs
 

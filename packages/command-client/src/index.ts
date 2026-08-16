@@ -403,6 +403,25 @@ export class CommandClient {
     );
   }
 
+  /**
+   * Exports the canonical, digest-bound record of one verified run. The daemon
+   * re-derives it from durable state (kernel row, evidence store, Factory
+   * mirror) and fails closed if the attempt is not terminal or its evidence
+   * does not verify.
+   */
+  public async exportRun(
+    attemptId: AttemptId,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"run.export">> {
+    return await this.#request(
+      "run.export",
+      { attemptId: AttemptIdSchema.parse(attemptId) },
+      identity,
+      signal,
+    );
+  }
+
   /** Scans an existing repository and persists an enrollment plan the operator can review or apply. */
   public async scanProject(
     repositoryRoot: AbsolutePath | string,

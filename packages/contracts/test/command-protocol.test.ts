@@ -40,6 +40,7 @@ describe("command protocol V1", () => {
     ["evidence.list", { afterAttemptId: null, limit: 50 }],
     ["evidence.inspect", { attemptId: ATTEMPT_ID }],
     ["evidence.verify", { attemptId: ATTEMPT_ID }],
+    ["run.export", { attemptId: ATTEMPT_ID }],
     ["portfolio.snapshot", {}],
     ["project.scan", { repositoryRoot: "/repo/app" }],
     ["project.enroll-plan", { planDigest: `sha256:${"a".repeat(64)}` }],
@@ -135,6 +136,93 @@ describe("command protocol V1", () => {
         },
       }),
     ).toMatchObject({ result: { operation: "attempt.list", page: { hasMore: false } } });
+  });
+
+  it("accepts a strict, digest-bound run record through the success envelope and rejects drift", () => {
+    const digest = (character: string) => `sha256:${character.repeat(64)}`;
+    const record = {
+      schemaVersion: 1,
+      attemptId: ATTEMPT_ID,
+      taskId: "00000000-0000-4000-8000-000000000102",
+      attemptNumber: 1,
+      state: "succeeded",
+      implementingRunId: "00000000-0000-4000-8000-000000000103",
+      repositoryId: "00000000-0000-4000-8000-000000000104",
+      taskSpecDigest: digest("1"),
+      policyDigest: digest("2"),
+      baseCommit: "a".repeat(40),
+      candidateTree: "b".repeat(40),
+      fence: 2,
+      brokerCommit: {
+        commit: "c".repeat(40),
+        tree: "b".repeat(40),
+        commitDigest: digest("3"),
+        attemptMarker: ATTEMPT_ID,
+      },
+      verification: [
+        {
+          checkId: "tests.swift",
+          argv: ["/usr/bin/swift", "test"],
+          checkoutTree: "b".repeat(40),
+          startedAt: NOW,
+          finishedAt: NOW,
+          toolVersions: [],
+          passed: true,
+          exitCode: 0,
+        },
+      ],
+      review: {
+        reviewerId: "fixture.reviewer",
+        reviewerVersion: "1.0.0",
+        reviewerRunId: "00000000-0000-4000-8000-000000000105",
+        verdict: "pass",
+        findingCount: 0,
+        reviewInputDigest: digest("4"),
+      },
+      evidence: {
+        manifestDigest: digest("5"),
+        indexDigest: digest("6"),
+        entryCount: 5,
+        artifactCount: 20,
+      },
+      agent: {
+        adapterId: "openai.codex",
+        adapterVersion: "1.0.0",
+        cliVersion: "0.148.0-alpha.9",
+        model: "gpt-5.6-codex",
+        executableDigest: digest("7"),
+        usage: { inputTokens: 10, outputTokens: 2, cachedInputTokens: null },
+      },
+      timings: {
+        attemptCreatedAt: NOW,
+        attemptTerminalAt: NOW,
+        agentStartedAt: NOW,
+        agentFinishedAt: NOW,
+        evidenceCreatedAt: NOW,
+      },
+    };
+    const envelope = (candidate: unknown) => ({
+      protocolVersion: 1,
+      requestId: REQUEST_ID,
+      ok: true,
+      result: { operation: "run.export", record: candidate, recordDigest: digest("d") },
+    });
+    expect(CommandResponseV1Schema.safeParse(envelope(record)).success).toBe(true);
+    // Only a verified, committed run is exportable, so any other state is not representable.
+    expect(
+      CommandResponseV1Schema.safeParse(envelope({ ...record, state: "failed" })).success,
+    ).toBe(false);
+    expect(
+      CommandResponseV1Schema.safeParse(envelope({ ...record, verification: [] })).success,
+    ).toBe(false);
+    expect(
+      CommandResponseV1Schema.safeParse(envelope({ ...record, unexpected: true })).success,
+    ).toBe(false);
+    expect(
+      CommandResponseV1Schema.safeParse(
+        envelope({ ...record, agent: { ...record.agent, adapterId: "NOT_A_CODE" } }),
+      ).success,
+    ).toBe(false);
   });
 
   it("rejects a non-absolute project.scan repository path", () => {

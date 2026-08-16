@@ -63,6 +63,7 @@ import {
   OciLocalAgent,
   RetryableExecutionManifestPublicationError,
   commitVerifiedExecutionManifest,
+  computeRunRecordDigest,
   computeTaskSemanticProfileDigest,
   decodeReviewedPolicyPayload,
   reconcileAgentResultPublicationLinks,
@@ -1555,6 +1556,100 @@ describe("daemon verified local execution", () => {
       ) as Readonly<Record<string, unknown>>;
       expect(intentArtifact.digest).toBe(journal.supervisorIntentDigest);
       expect(storedReceipt.intentDigest).toBe(digestSupervisedRunIntent(storedIntent));
+
+      // `run export` re-derives the canonical run record from the durable evidence
+      // store and the sealed Factory mirror; nothing comes from daemon memory.
+      const mirrorPath = join(
+        service.executionPaths.gitRuntimeRoot,
+        "mirrors",
+        `${REPOSITORY_ID}.git`,
+      );
+      const brokerCommitSha = git(f.root, [
+        "--git-dir",
+        mirrorPath,
+        "rev-parse",
+        "--verify",
+        `refs/app-factory/attempts/${intake.attemptId}^{commit}`,
+      ]);
+      const exported = await client.exportRun(intake.attemptId);
+      expect(exported.operation).toBe("run.export");
+      expect(exported.record).toMatchObject({
+        schemaVersion: 1,
+        attemptId: intake.attemptId,
+        taskId: f.taskSpec.taskId,
+        attemptNumber: 1,
+        state: "succeeded",
+        repositoryId: REPOSITORY_ID,
+        taskSpecDigest: journal.taskSpecDigest,
+        policyDigest: f.policyDigest,
+        baseCommit: f.baseCommit,
+        brokerCommit: { commit: brokerCommitSha, attemptMarker: intake.attemptId },
+        review: { verdict: "pass", findingCount: 0 },
+        evidence: {
+          manifestDigest: integrity.manifest.manifestDigest,
+          entryCount: integrity.manifest.entryCount,
+          artifactCount: integrity.artifactCount,
+        },
+        agent: {
+          adapterId: agent.adapterId,
+          adapterVersion: agent.adapterVersion,
+          cliVersion: "0.147.0-alpha.1.2",
+          model: "gpt-5.6-codex",
+          executableDigest: sha256Digest(Buffer.from("codex executable fixture", "utf8")),
+          usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 2 },
+        },
+      });
+      expect(exported.record.verification.map((claim) => claim.checkId)).toEqual([
+        "tests.swift",
+        "acceptance.signature",
+        "acceptance.behavior",
+      ]);
+      expect(exported.record.verification.every((claim) => claim.passed)).toBe(true);
+      expect(
+        exported.record.timings.agentStartedAt <= exported.record.timings.agentFinishedAt,
+      ).toBe(true);
+      expect(
+        exported.record.timings.attemptCreatedAt <= exported.record.timings.attemptTerminalAt,
+      ).toBe(true);
+      expect(exported.recordDigest).toBe(computeRunRecordDigest(exported.record));
+      // The broker commit's tree is the verified candidate tree in the mirror.
+      expect(
+        git(f.root, [
+          "--git-dir",
+          mirrorPath,
+          "rev-parse",
+          "--verify",
+          `${brokerCommitSha}^{tree}`,
+        ]),
+      ).toBe(exported.record.brokerCommit.tree);
+      expect(exported.record.candidateTree).toBe(exported.record.brokerCommit.tree);
+
+      // The record is a function of durable state only: a fresh daemon over the same
+      // runtime directory, with no attempt in memory, exports the identical record.
+      client.close();
+      await service.close();
+      const restarted = await start(f, new ProtocolSwiftAgent(), { count: 0 });
+      const restartedClient = clientFor(restarted);
+      const reExported = await restartedClient.exportRun(intake.attemptId);
+      expect(reExported.record).toEqual(exported.record);
+      expect(reExported.recordDigest).toBe(exported.recordDigest);
+
+      // A verified evidence store is not enough on its own: the broker commit must
+      // still be re-derivable from the mirror. Removing the attempt ref fails closed.
+      git(f.root, [
+        "--git-dir",
+        mirrorPath,
+        "update-ref",
+        "-d",
+        `refs/app-factory/attempts/${intake.attemptId}`,
+      ]);
+      await expect(restartedClient.exportRun(intake.attemptId)).rejects.toMatchObject({
+        name: "CommandRemoteError",
+        code: "run.export-integrity-failed",
+      });
+      expect(await restartedClient.verifyEvidence(intake.attemptId)).toMatchObject({
+        integrityVerified: true,
+      });
     },
   );
 

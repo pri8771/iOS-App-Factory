@@ -85,6 +85,7 @@ export type ParsedCliCommand =
       limit: number;
     }>
   | Readonly<{ kind: "evidence.inspect" | "evidence.verify"; attemptId: AttemptId }>
+  | Readonly<{ kind: "run.export"; attemptId: AttemptId }>
   | Readonly<{ kind: "project.scan"; repositoryRoot: string }>
   | Readonly<{ kind: "project.enroll-plan"; planDigest: Sha256Digest }>
   | Readonly<{ kind: "project.apply"; planDigest: Sha256Digest; branchName: GitBranchName | null }>
@@ -252,6 +253,15 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
   if (command === "portfolio") {
     rejectUnexpected(arguments_);
     return { outputMode, retryIdentity, command: { kind: "portfolio.snapshot" } };
+  }
+
+  // `run export <attemptId>` re-derives a verified run's canonical record; it
+  // is distinguished from `run --task <file>` by its literal first argument.
+  if (command === "run" && arguments_[0] === "export") {
+    arguments_.shift();
+    const attemptId = parseAttemptId(arguments_.shift());
+    rejectUnexpected(arguments_);
+    return { outputMode, retryIdentity, command: { kind: "run.export", attemptId } };
   }
 
   if (command === "submit" || command === "run") {
@@ -544,6 +554,37 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
       return `evidence manifest ${result.manifest.attemptId}: ${String(result.manifest.entries.length)} entries (${result.manifestDigest})\n`;
     case "evidence.verify":
       return `evidence storage integrity verified for ${result.manifest.attemptId}: ${String(result.evidence.length)} records, ${String(result.artifactCount)} artifacts (${result.manifest.manifestDigest})\n`;
+    case "run.export": {
+      const { record } = result;
+      const usage = record.agent.usage;
+      const tokens =
+        usage === null
+          ? "unavailable"
+          : `${String(usage.inputTokens ?? "?")} in / ${String(usage.cachedInputTokens ?? "?")} cached / ${String(usage.outputTokens ?? "?")} out`;
+      const lines = [
+        `run record ${record.attemptId} (${result.recordDigest})`,
+        `task: ${record.taskId} attempt ${String(record.attemptNumber)} fence ${String(record.fence)}`,
+        `task spec: ${record.taskSpecDigest}`,
+        `policy: ${record.policyDigest}`,
+        `repository: ${record.repositoryId} base ${record.baseCommit}`,
+        `broker commit: ${record.brokerCommit.commit} tree ${record.brokerCommit.tree}`,
+        `verification: ${record.verification
+          .map((claim) => `${claim.checkId}=${claim.passed ? "passed" : "failed"}`)
+          .join(", ")}`,
+        `review: ${record.review.verdict} by ${record.review.reviewerId}@${record.review.reviewerVersion} (${String(record.review.findingCount)} finding(s))`,
+        `evidence: manifest ${record.evidence.manifestDigest} index ${record.evidence.indexDigest} (${String(record.evidence.entryCount)} records, ${String(record.evidence.artifactCount)} artifacts)`,
+        `agent: ${record.agent.adapterId}${record.agent.adapterVersion === null ? "" : `@${record.agent.adapterVersion}`}${
+          record.agent.cliVersion === null ? "" : ` cli ${record.agent.cliVersion}`
+        }${record.agent.model === null ? "" : ` model ${record.agent.model}`}${
+          record.agent.executableDigest === null
+            ? ""
+            : ` executable ${record.agent.executableDigest}`
+        }`,
+        `tokens: ${tokens}`,
+        `timings: attempt ${record.timings.attemptCreatedAt} -> ${record.timings.attemptTerminalAt}; agent ${record.timings.agentStartedAt} -> ${record.timings.agentFinishedAt}; evidence ${record.timings.evidenceCreatedAt}`,
+      ];
+      return `${lines.join("\n")}\n`;
+    }
     case "portfolio.snapshot": {
       const available = (value: number | null): string =>
         value === null ? "unavailable" : String(value);
@@ -947,6 +988,9 @@ export async function runCli(
         break;
       case "evidence.verify":
         result = await client.verifyEvidence(invocation.command.attemptId, identity);
+        break;
+      case "run.export":
+        result = await client.exportRun(invocation.command.attemptId, identity);
         break;
       case "project.scan":
         result = await client.scanProject(invocation.command.repositoryRoot, identity);

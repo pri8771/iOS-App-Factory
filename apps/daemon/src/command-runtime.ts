@@ -52,7 +52,13 @@ import {
   executeProjectEnrollPlanCommand,
   executeProjectScanCommand,
 } from "./project-command-runtime.js";
+import {
+  createRunExportMirrorPort,
+  executeRunExportCommand,
+  type RunExportMirrorPort,
+} from "./run-export-command-runtime.js";
 import { CommandHandlerError, type CommandHandler } from "./unix-command-server.js";
+import { resolveVerifiedLocalExecutionPaths } from "./verified-local-executor.js";
 
 const COMMAND_RESULTS_DIRECTORY_NAME = "command-results";
 const RESULT_LEDGER_VERSION = 1;
@@ -146,6 +152,15 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
   commandResultLedgerBoundary?: (
     entry: Readonly<{ request: CommandRequestV1; result: CommandResultV1 }>,
   ) => Promise<void> | void;
+  /**
+   * Git executable `run.export` uses to re-derive a run's broker commit from
+   * the sealed Factory mirror under this runtime directory. Defaults to the
+   * git-workspace default (`/usr/bin/git`); the daemon service passes the
+   * enrolled profile's own `gitExecutable` so export and execution agree.
+   */
+  gitExecutable?: string;
+  /** Test seam: replaces the default mirror port `run.export` opens mirrors through. */
+  runExportMirrors?: RunExportMirrorPort;
 }>;
 
 export type DaemonRuntimePaths = Readonly<{
@@ -492,6 +507,7 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "evidence.list":
     case "evidence.inspect":
     case "evidence.verify":
+    case "run.export":
     case "portfolio.snapshot":
     case "project.scan":
     case "project.enroll-plan":
@@ -1001,6 +1017,7 @@ async function executeRequest(
     evidenceStore: EvidenceStore;
     effects: EffectRepository;
     effectsPump: EffectPumpStatusPort;
+    runExportMirrors: RunExportMirrorPort;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1077,6 +1094,15 @@ async function executeRequest(
     case "evidence.inspect":
     case "evidence.verify":
       return executeEvidenceCommand(dependencies.evidenceStore, request);
+    case "run.export":
+      return executeRunExportCommand(
+        {
+          repositories,
+          evidenceStore: dependencies.evidenceStore,
+          mirrors: dependencies.runExportMirrors,
+        },
+        request,
+      );
     case "portfolio.snapshot":
       return {
         operation: "portfolio.snapshot",
@@ -1151,6 +1177,12 @@ export async function openDaemonCommandRuntime(
     database.close();
     throw error;
   }
+  const runExportMirrors =
+    options.runExportMirrors ??
+    createRunExportMirrorPort({
+      gitRuntimeRoot: resolveVerifiedLocalExecutionPaths(paths.root).gitRuntimeRoot,
+      ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
+    });
   const serial = new SerialExecutor();
   let closed = false;
 
@@ -1182,6 +1214,7 @@ export async function openDaemonCommandRuntime(
           evidenceStore,
           effects: effectRepository,
           effectsPump: effectsPumpStatusPort,
+          runExportMirrors,
         }),
       );
       if (!persistResult) return result;

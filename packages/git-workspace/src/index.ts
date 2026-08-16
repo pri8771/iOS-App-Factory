@@ -17,6 +17,7 @@ export {
   type BrokerCommitRecord,
   type ChangedPath,
   type EnsureMirrorInput,
+  type OpenExistingMirrorInput,
   type FactoryMirror,
   type FactoryWorkspaceRecord,
   type GitWorkspaceManagerOptions,
