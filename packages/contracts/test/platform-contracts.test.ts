@@ -76,6 +76,19 @@ function projectManifest() {
 describe("platform contracts", () => {
   it("accepts a versioned project manifest and rejects duplicate protected paths", () => {
     expect(ProjectManifestV1Schema.safeParse(projectManifest()).success).toBe(true);
+    const manifest = projectManifest();
+    expect(
+      ProjectManifestV1Schema.safeParse({
+        ...manifest,
+        rules: {
+          ...manifest.rules,
+          clientEntrypoints: [
+            ...manifest.rules.clientEntrypoints,
+            { client: "copilot", path: ".github/copilot-instructions.md", digest: DIGEST_A },
+          ],
+        },
+      }).success,
+    ).toBe(true);
     const invalid = projectManifest();
     expect(
       ProjectManifestV1Schema.safeParse({
