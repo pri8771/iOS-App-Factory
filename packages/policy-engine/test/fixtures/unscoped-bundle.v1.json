@@ -6,10 +6,7 @@
     "policyVersion": 1,
     "title": "iOS App Factory Rules",
     "authority": "AGENTS.md",
-    "principles": [
-      "Preserve user changes.",
-      "Bind completion to immutable evidence."
-    ],
+    "principles": ["Preserve user changes.", "Bind completion to immutable evidence."],
     "rules": [
       {
         "ruleId": "rule.scope.preserve",
@@ -109,10 +106,7 @@
         "changeApprovalAction": "quality.baseline-change"
       }
     ],
-    "requiredChecks": [
-      "policy.changed-paths",
-      "quality.ui-coherence"
-    ],
+    "requiredChecks": ["policy.changed-paths", "quality.ui-coherence"],
     "generatedAt": "2026-08-11T12:00:00.000Z"
   },
   "bundleDigest": "sha256:742ee0ef7cd818347e7150dd3067c886f4e17e3c0966af4d78bd5926bdb29234"
