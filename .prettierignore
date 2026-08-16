@@ -3,3 +3,4 @@ dist/
 node_modules/
 packages/contracts/schemas/
 pnpm-lock.yaml
+.build/
