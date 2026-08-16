@@ -20,6 +20,16 @@ import {
 } from "@app-factory/contracts";
 import { z } from "zod";
 
+import { renderAdapterBinding, renderAuthorityDeclarationsSection } from "./declarations.js";
+
+export {
+  AUTHORITY_DECLARATION_VERSION,
+  adapterBindingDeclarations,
+  authorityDeclarations,
+  type PolicyDeclarationInputV1,
+  type PolicyDeclarationV1,
+} from "./declarations.js";
+
 const RuleIdSchema = z.string().regex(/^rule\.[a-z0-9]+(?:[.-][a-z0-9]+)+$/);
 
 export const CanonicalPolicySourceV1Schema = z
@@ -127,7 +137,7 @@ function digest(value: Uint8Array | string): Sha256Digest {
   return Sha256DigestSchema.parse(`sha256:${createHash("sha256").update(value).digest("hex")}`);
 }
 
-function renderAuthority(source: CanonicalPolicySourceV1): string {
+function renderAuthority(source: CanonicalPolicySourceV1, sourceDigest: Sha256Digest): string {
   const principles = source.principles.map((item) => `- ${item}`).join("\n");
   const rules = source.rules
     .map(
@@ -141,7 +151,7 @@ function renderAuthority(source: CanonicalPolicySourceV1): string {
         `- \`${surface.path}\` — ${surface.classification}; changes require \`${surface.changeApprovalAction}\`.`,
     )
     .join("\n");
-  return `# ${source.title}\n\n## Authority\n\nThis AGENTS.md is the canonical instruction authority for every coding client.\nGenerated client files may point here but cannot weaken it.\n\n## Principles\n\n${principles}\n\n## Enforced rules\n\n${rules}\n\n## Protected surfaces\n\n${protectedSurfaces}\n\n## Completion\n\nAgent prose is never proof of completion. The broker, trusted checks, independent review, and approval records are authoritative.\n`;
+  return `# ${source.title}\n\n## Authority\n\nThis AGENTS.md is the canonical instruction authority for every coding client.\nGenerated client files may point here but cannot weaken it.\n\n## Principles\n\n${principles}\n\n## Enforced rules\n\n${rules}\n\n## Protected surfaces\n\n${protectedSurfaces}\n\n## Completion\n\nAgent prose is never proof of completion. The broker, trusted checks, independent review, and approval records are authoritative.\n\n${renderAuthorityDeclarationsSection(source, sourceDigest)}`;
 }
 
 function generatedFile(
@@ -155,26 +165,27 @@ function generatedFile(
 export function compilePolicyBundle(sourceInput: unknown, generatedAt: unknown): PolicyBundleV1 {
   const source = CanonicalPolicySourceV1Schema.parse(sourceInput);
   const generatedAtValue = z.iso.datetime({ offset: false, precision: 3 }).parse(generatedAt);
-  const authority = generatedFile("all", "AGENTS.md", renderAuthority(source));
+  const sourceDigest = digest(canonical(source));
+  const authority = generatedFile("all", "AGENTS.md", renderAuthority(source, sourceDigest));
+  const binding = renderAdapterBinding(authority.path, authority.digest);
   const files: GeneratedPolicyFile[] = [
     authority,
     generatedFile(
       "claude",
       "CLAUDE.md",
-      "# Generated App Factory client adapter\n\n@AGENTS.md\n\nAGENTS.md is authoritative. This file may not override or weaken it.\n",
+      `# Generated App Factory client adapter\n\n@AGENTS.md\n\nAGENTS.md is authoritative. This file may not override or weaken it.\n\n${binding}`,
     ),
     generatedFile(
       "cursor",
       ".cursor/rules/app-factory.mdc",
-      "---\ndescription: App Factory canonical engineering policy\nalwaysApply: true\n---\n\nRead and follow AGENTS.md at the repository root. It is authoritative; this adapter adds no exceptions.\n",
+      `---\ndescription: App Factory canonical engineering policy\nalwaysApply: true\n---\n\nRead and follow AGENTS.md at the repository root. It is authoritative; this adapter adds no exceptions.\n\n${binding}`,
     ),
     generatedFile(
       "antigravity",
       "GEMINI.md",
-      "# Generated App Factory client adapter\n\nRead and follow AGENTS.md at the repository root. It is authoritative; this adapter adds no exceptions.\n",
+      `# Generated App Factory client adapter\n\nRead and follow AGENTS.md at the repository root. It is authoritative; this adapter adds no exceptions.\n\n${binding}`,
     ),
   ].sort((left, right) => left.path.localeCompare(right.path));
-  const sourceDigest = digest(canonical(source));
   const requiredChecks = [...new Set(source.rules.map((rule) => rule.requiredCheck))].sort();
   const lock = PolicyLockV1Schema.parse({
     schemaVersion: 1,

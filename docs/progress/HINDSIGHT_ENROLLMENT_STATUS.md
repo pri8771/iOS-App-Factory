@@ -86,3 +86,20 @@ baseline update, assertion weakening, or TestFlight promotion was performed.
 Legacy-layout migration, rule-authority changes, the deterministic crash, and
 the separate SwiftData store-lifetime diagnostics remain reviewed follow-up
 work before enrollment or release.
+
+## 2026-08-16 compiled rules-corpus proof (scratch clone only)
+
+The compiled iOS App Factory policy
+([`docs/policy/ios-app-factory-policy-source.v1.json`](../policy/ios-app-factory-policy-source.v1.json))
+was applied to a throwaway clone of `factory/pilot-1.1` (`10cc1b1`), never to
+the real checkout. On that branch the three blockers above were already clear
+(the 2026-08-14 `.factory` → `.app-factory/legacy` migration plus a
+one-declaration `AGENTS.md`). The stock policy-engine output regressed
+`rules.canonical-unverifiable` and `rules.adapter-nonconforming`; after the
+compiler learned to emit `factory-rule:` declarations and adapter digest
+bindings, the bundle kept both clear for every file it owns, leaving only the
+Copilot adapter (not compiler-owned) nonconforming until rebound. Full
+stage-by-stage results, digests, and reproduction commands:
+[`docs/policy/RULES_CORPUS_RECONCILIATION.md`](../policy/RULES_CORPUS_RECONCILIATION.md)
+§5. The `safety.secret-material-detected` findings on that branch were out of
+scope and untouched.

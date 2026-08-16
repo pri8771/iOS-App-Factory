@@ -156,13 +156,23 @@ Open gaps this decision carries, none scheduled by this entry:
   Reconciling all four has not started.
 - The separately versioned rules corpus is reported pinned at three
   different versions depending on consumer (0.2.0 local, 0.4.0 upstream,
-  0.5.0 CLI); not independently checked from within this repository, whose
-  own `packages/policy-engine` uses an unrelated integer `policyVersion`,
-  not this semver string.
+  0.5.0 CLI); this repository's own `packages/policy-engine` uses an
+  unrelated integer `policyVersion`, not this semver string. As of
+  2026-08-16 the local 0.2.0 corpus is compiled into
+  [`docs/policy/ios-app-factory-policy-source.v1.json`](../policy/ios-app-factory-policy-source.v1.json)
+  by [`packages/policy-corpus`](../../packages/policy-corpus); the 0.4.0 and
+  0.5.0 pins remain unfetched/unlocated (see
+  [`docs/policy/RULES_CORPUS_RECONCILIATION.md`](../policy/RULES_CORPUS_RECONCILIATION.md)).
 - `packages/policy-engine/src/index.ts` has no rule scoping (`appliesTo` a
   phase), waivers, a human-only owner field, or a check registry (verified
   2026-08-16: zero matches for `appliesTo`, `waiver`, or `scope` in that
-  file).
+  file). The compiled corpus carries those fields in a sidecar JSON until
+  the engine schema gains them. Since 2026-08-16 the compiler does emit
+  scanner-parsable `factory-rule:` declarations and adapter digest bindings
+  (`packages/policy-engine/src/declarations.ts`); without them a compiled
+  bundle reintroduced the `rules.canonical-unverifiable` and
+  `rules.adapter-nonconforming` enrollment blockers on a Hindsight scratch
+  clone.
 
 See [ADR 0004](../architecture/0004-studio-mac-app.md) for the full decision
 and [`docs/roadmap/STUDIO_PHASES.md`](../roadmap/STUDIO_PHASES.md) for the
