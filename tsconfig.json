@@ -14,6 +14,7 @@
     { "path": "./packages/learning-engine" },
     { "path": "./packages/module-sdk" },
     { "path": "./packages/oci-runner" },
+    { "path": "./packages/ollama-scorer" },
     { "path": "./packages/policy-engine" },
     { "path": "./packages/portfolio" },
     { "path": "./packages/provider-http-adapters" },

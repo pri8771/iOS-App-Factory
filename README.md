@@ -53,6 +53,7 @@ packages/
   learning-engine/             turns closed findings into reviewable lesson proposals
   module-sdk/                  lifecycle/event modules and optional UI contributions
   oci-runner/                  Factory-owned coding-plane containment primitive (no-network slice)
+  ollama-scorer/               loopback-Ollama urgency scorer + rolling summarizer for Studio rooms
   policy-engine/               compiles versioned policy into AGENTS.md and a digest-bound lock
   portfolio/                   provider-neutral multi-project read model and work scheduler
   process-supervisor/          per-attempt process fencing, events, and orphan recovery
