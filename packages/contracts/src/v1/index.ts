@@ -12,6 +12,7 @@ export * from "./external-effect.js";
 export * from "./json-schema.js";
 export * from "./learning.js";
 export * from "./lifecycle.js";
+export * from "./milestone.js";
 export * from "./module.js";
 export * from "./portfolio-read-model.js";
 export * from "./primitives.js";

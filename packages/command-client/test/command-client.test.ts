@@ -319,6 +319,92 @@ describe("typed command client", () => {
     client.close();
   });
 
+  it("sends the strict project.milestones.list and project.milestone.upsert payloads", async () => {
+    const PROJECT_ID = "00000000-0000-4000-8000-000000000021";
+    const MILESTONE_ID = "00000000-0000-4000-8000-000000000022";
+    const draft = {
+      milestoneId: MILESTONE_ID,
+      projectId: PROJECT_ID,
+      phase: "build",
+      kind: "gate",
+      label: "Owner approves TestFlight",
+      targetDate: null,
+      dependsOn: [],
+      owner: "human",
+      status: "planned",
+      evidenceDigest: null,
+    } as const;
+    const stored = {
+      schemaVersion: 1,
+      ...draft,
+      revision: 0,
+      createdAt: NOW.toISOString(),
+      updatedAt: NOW.toISOString(),
+    };
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const request = frame.request as Record<string, unknown>;
+        const result =
+          request.operation === "project.milestone.upsert"
+            ? { operation: "project.milestone.upsert", milestone: stored, created: true }
+            : {
+                operation: "project.milestones.list",
+                timeline: {
+                  schemaVersion: 1,
+                  projectId: PROJECT_ID,
+                  generatedAt: NOW.toISOString(),
+                  milestones: [stored],
+                  actuals: { phases: [], lifecycle: [] },
+                  sources: { localExecution: "available", lifecycleEvents: "unavailable" },
+                },
+              };
+        socket.end(
+          `${JSON.stringify({ protocolVersion: 1, requestId: frame.requestId, ok: true, result })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.upsertProjectMilestone({ milestone: draft, expectedRevision: null }, identity()),
+    ).resolves.toMatchObject({
+      operation: "project.milestone.upsert",
+      created: true,
+      milestone: { milestoneId: MILESTONE_ID, targetDate: null, revision: 0 },
+    });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "project.milestone.upsert",
+        payload: { milestone: draft, expectedRevision: null },
+      },
+    });
+
+    await expect(client.listProjectMilestones(PROJECT_ID, identity())).resolves.toMatchObject({
+      operation: "project.milestones.list",
+      timeline: { projectId: PROJECT_ID, milestones: [{ targetDate: null }] },
+    });
+    expect(received[1]).toMatchObject({
+      request: { operation: "project.milestones.list", payload: { projectId: PROJECT_ID } },
+    });
+
+    await expect(
+      client.upsertProjectMilestone(
+        { milestone: { ...draft, targetDate: "2026-02-30" }, expectedRevision: null },
+        identity(),
+      ),
+    ).rejects.toThrow();
+    await expect(client.listProjectMilestones("not-a-project", identity())).rejects.toThrow();
+    expect(received).toHaveLength(2);
+    client.close();
+  });
+
   it("sends the strict task.retry and attempt.unblock request payloads", async () => {
     const received: Record<string, unknown>[] = [];
     const socketPath = await createFakeServer(

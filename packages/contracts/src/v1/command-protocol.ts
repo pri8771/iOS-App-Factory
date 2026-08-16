@@ -15,6 +15,11 @@ import {
 import { EventV1Schema } from "./event.js";
 import { ExecutionAttemptV1Schema, type AttemptDesiredStateV1 } from "./execution.js";
 import {
+  ProjectMilestoneUpsertV1Schema,
+  ProjectMilestoneV1Schema,
+  ProjectTimelineV1Schema,
+} from "./milestone.js";
+import {
   AbsolutePathSchema,
   AttemptIdSchema,
   CommandIdSchema,
@@ -24,6 +29,7 @@ import {
   IsoInstantSchema,
   NamespacedCodeSchema,
   NonNegativeSafeIntegerSchema,
+  ProjectIdSchema,
   RelativePathSchema,
   RequestIdSchema,
   SchemaVersionV1Schema,
@@ -273,6 +279,18 @@ export const ProjectApplyCommandRequestV1Schema = z.strictObject({
   }),
 });
 
+export const ProjectMilestonesListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.milestones.list"),
+  payload: z.strictObject({ projectId: ProjectIdSchema }),
+});
+
+export const ProjectMilestoneUpsertCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.milestone.upsert"),
+  payload: ProjectMilestoneUpsertV1Schema,
+});
+
 export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandRequestV1Schema,
   SubmitCommandRequestV1Schema,
@@ -294,6 +312,8 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProjectScanCommandRequestV1Schema,
   ProjectEnrollPlanCommandRequestV1Schema,
   ProjectApplyCommandRequestV1Schema,
+  ProjectMilestonesListCommandRequestV1Schema,
+  ProjectMilestoneUpsertCommandRequestV1Schema,
   EffectsStatusCommandRequestV1Schema,
   EffectsListCommandRequestV1Schema,
 ]);
@@ -507,6 +527,23 @@ export const ProjectApplyCommandResultV1Schema = z.strictObject({
   convergence: ProjectApplyConvergenceV1Schema,
 });
 
+/**
+ * `project.milestones.list` answers with the whole `ProjectTimelineV1` (the
+ * project's milestones plus the actuals derived from its attempts) rather
+ * than a bare list, so a Studio timeline never has to stitch plan and actuals
+ * from two reads that could observe different states.
+ */
+export const ProjectMilestonesListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.milestones.list"),
+  timeline: ProjectTimelineV1Schema,
+});
+
+export const ProjectMilestoneUpsertCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.milestone.upsert"),
+  milestone: ProjectMilestoneV1Schema,
+  created: z.boolean(),
+});
+
 export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandResultV1Schema,
   SubmitCommandResultV1Schema,
@@ -528,6 +565,8 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProjectScanCommandResultV1Schema,
   ProjectEnrollPlanCommandResultV1Schema,
   ProjectApplyCommandResultV1Schema,
+  ProjectMilestonesListCommandResultV1Schema,
+  ProjectMilestoneUpsertCommandResultV1Schema,
   EffectsStatusCommandResultV1Schema,
   EffectsListCommandResultV1Schema,
 ]);

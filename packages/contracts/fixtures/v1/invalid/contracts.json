@@ -193,6 +193,54 @@
         "gates": [],
         "updatedAt": "2026-08-16T12:02:00.000Z"
       }
+    },
+    {
+      "name": "task-spec-rejects-non-stable-phase",
+      "schema": "task-spec",
+      "value": {
+        "schemaVersion": 1,
+        "taskId": "00000000-0000-4000-8000-000000000003",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "createdAt": "2026-08-10T12:00:00.000Z",
+        "title": "Implement the greeting",
+        "objective": "Return the requested greeting from the fixture package.",
+        "phase": "Build Phase",
+        "acceptanceCriteria": [
+          {
+            "id": "returns-greeting",
+            "statement": "The package returns Hello, Factory.",
+            "verification": "automated"
+          }
+        ],
+        "base": {
+          "repositoryId": "00000000-0000-4000-8000-000000000002",
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "requestedScope": {
+          "paths": ["Sources/FactoryFixture/Greeting.swift"]
+        },
+        "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "project-milestone-rejects-impossible-calendar-date",
+      "schema": "project-milestone",
+      "value": {
+        "schemaVersion": 1,
+        "milestoneId": "75000000-0000-4000-8000-000000000201",
+        "projectId": "75000000-0000-4000-8000-000000000101",
+        "phase": "build",
+        "kind": "stage",
+        "label": "Core loop builds green",
+        "targetDate": "2026-02-30",
+        "dependsOn": [],
+        "owner": "machine",
+        "status": "active",
+        "evidenceDigest": null,
+        "revision": 1,
+        "createdAt": "2026-08-16T09:00:00.000Z",
+        "updatedAt": "2026-08-16T10:00:00.000Z"
+      }
     }
   ]
 }

@@ -63,10 +63,22 @@ export type ReleaseId = z.infer<typeof ReleaseIdSchema>;
 export const LessonIdSchema = LowercaseUuidSchema.brand<"LessonId">();
 export type LessonId = z.infer<typeof LessonIdSchema>;
 
+export const MilestoneIdSchema = LowercaseUuidSchema.brand<"MilestoneId">();
+export type MilestoneId = z.infer<typeof MilestoneIdSchema>;
+
 export const IsoInstantSchema = z.iso
   .datetime({ offset: false, precision: 3 })
   .brand<"IsoInstant">();
 export type IsoInstant = z.infer<typeof IsoInstantSchema>;
+
+/**
+ * A calendar date (`YYYY-MM-DD`) with no time or zone. Used for human-facing
+ * targets such as milestone target dates, which are planning commitments and
+ * not observed instants; the day-of-month is validated against the month and
+ * leap years so `2026-02-30` is rejected at the boundary.
+ */
+export const CalendarDateSchema = z.iso.date().brand<"CalendarDate">();
+export type CalendarDate = z.infer<typeof CalendarDateSchema>;
 
 export const Sha256DigestSchema = z
   .string()

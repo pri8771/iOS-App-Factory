@@ -52,6 +52,7 @@ function attemptListPage(
         schemaVersion: 1,
         projectId: PROJECT,
         title,
+        phase: null,
         attempt: {
           schemaVersion: 1,
           attemptId: ATTEMPT,

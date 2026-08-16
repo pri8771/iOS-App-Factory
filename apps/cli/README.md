@@ -28,6 +28,22 @@ the persisted plan, applies its automatable actions on a new branch, and
 fails closed if the digest is unknown or the repository has drifted since
 the scan.
 
+Studio milestones live under `project` too. `project milestones <project-id>`
+prints the project's timeline: its milestone plan (dated milestones first in
+calendar order, then undated ones) next to the per-phase actuals derived from
+its attempts. `project milestone upsert --project-id UUID --phase KEY --kind
+stage|gate|release --label TEXT --owner human|machine --status
+planned|active|done|abandoned [--milestone-id UUID] [--target-date YYYY-MM-DD]
+[--depends-on UUID]... [--evidence-digest sha256:...] [--expected-revision N]`
+creates a milestone (no `--expected-revision`) or compare-and-set updates one
+(`--expected-revision` must equal the stored revision). `--target-date` is
+optional and its absence is stored as `null` and rendered as `won't guess`; the
+CLI never fills in a date. `--milestone-id` may be omitted on a first create
+(one is generated and printed) but must be given on a retry so the replayed
+payload is identical. `task new` accepts `--phase KEY` to tag the task with the
+Studio phase it belongs to; omitting it leaves the spec without a `phase` key,
+so its digest is unchanged.
+
 Every invocation creates an explicit durable command identity. If delivery is
 ambiguous after dispatch, human output prints a recovery command and JSON
 output includes `error.retryIdentity`. Retry the same operation and payload

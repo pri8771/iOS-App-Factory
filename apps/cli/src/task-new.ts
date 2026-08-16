@@ -11,6 +11,7 @@ import {
   RelativePathSchema,
   RepositoryIdSchema,
   Sha256DigestSchema,
+  StableKeySchema,
   TaskIdSchema,
   TaskSpecV1Schema,
   type AcceptanceCriterionV1,
@@ -18,6 +19,7 @@ import {
   type ProjectId,
   type RepositoryId,
   type Sha256Digest,
+  type StableKey,
   type TaskSpecV1,
 } from "@app-factory/contracts";
 
@@ -53,6 +55,8 @@ export type TaskNewOptionsV1 = Readonly<{
   acceptancePath: string;
   scopePaths: readonly string[];
   projectId: ProjectId;
+  /** The Studio phase this task belongs to; null leaves the spec without a `phase` key. */
+  phase: StableKey | null;
   taskId: string | null;
   createdAt: string | null;
   policyPathOverride: string | null;
@@ -266,6 +270,13 @@ export function parseTaskNewArguments(argv: readonly string[]): TaskNewOptionsV1
   if (scopePaths.length > MAX_SCOPE_PATHS) {
     throw new CliUsageError(`--scope may be provided at most ${String(MAX_SCOPE_PATHS)} times.`);
   }
+  const phaseValue = consumeOption(arguments_, "--phase") ?? null;
+  const parsedPhase = phaseValue === null ? null : StableKeySchema.safeParse(phaseValue);
+  if (parsedPhase !== null && !parsedPhase.success) {
+    throw new CliUsageError(
+      "--phase must be a stable lowercase key (a-z, 0-9, hyphens; at most 64 characters).",
+    );
+  }
   const policyPathOverride = consumeOption(arguments_, "--policy") ?? null;
   const taskIdValue = consumeOption(arguments_, "--task-id") ?? null;
   if (taskIdValue !== null && !TaskIdSchema.safeParse(taskIdValue).success) {
@@ -285,6 +296,7 @@ export function parseTaskNewArguments(argv: readonly string[]): TaskNewOptionsV1
     acceptancePath,
     scopePaths,
     projectId: parsedProjectId.data,
+    phase: parsedPhase === null ? null : parsedPhase.data,
     taskId: taskIdValue,
     createdAt: createdAtValue,
     policyPathOverride,
@@ -442,6 +454,10 @@ export function buildTaskSpecFromOptions(
       createdAt,
       title: options.title,
       objective: options.objective,
+      // Spread rather than `phase: options.phase ?? undefined`: an absent phase
+      // must leave no key at all, so the spec's canonical bytes and digest are
+      // identical to a spec built before the field existed.
+      ...(options.phase === null ? {} : { phase: options.phase }),
       acceptanceCriteria,
       base: { repositoryId: profile.repositoryId, commit: baseCommit },
       requestedScope: { paths: scopePaths },

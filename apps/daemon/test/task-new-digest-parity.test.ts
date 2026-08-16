@@ -122,5 +122,36 @@ describe("factory task new digest parity with the daemon's canonical helpers", (
     // (see @app-factory/kernel computeTaskSpecDigest, also used by the
     // daemon's own attempt bindings and durable repositories).
     expect(build.taskSpecDigest).toBe(computeTaskSpecDigest(build.taskSpec));
+
+    // The optional Studio phase rides through the same canonical algorithm on
+    // both sides: present when requested, absent (no key, unchanged digest)
+    // when not.
+    const phased = buildTaskSpecFromOptions({ ...options, phase: options.phase ?? null });
+    expect(phased.taskSpecDigest).toBe(build.taskSpecDigest);
+    const withPhase = buildTaskSpecFromOptions(
+      parseTaskNewArguments([
+        "--profile",
+        profilePath,
+        "--title",
+        "Add a farewell",
+        "--objective",
+        "Add a farewell method.",
+        "--acceptance",
+        acceptancePath,
+        "--project-id",
+        PROJECT_ID,
+        "--scope",
+        "src/Greeter.swift",
+        "--task-id",
+        "00000000-0000-4000-8000-000000000007",
+        "--created-at",
+        "2026-08-10T12:00:00.000Z",
+        "--phase",
+        "build",
+      ]),
+    );
+    expect(withPhase.taskSpec.phase).toBe("build");
+    expect(withPhase.taskSpecDigest).toBe(computeTaskSpecDigest(withPhase.taskSpec));
+    expect(withPhase.taskSpecDigest).not.toBe(build.taskSpecDigest);
   });
 });

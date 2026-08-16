@@ -21,6 +21,35 @@ const PROJECT_ID = "00000000-0000-4000-8000-000000000006";
 const NOW = "2026-08-10T12:00:00.000Z";
 const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 const PLAN_DIGEST = `sha256:${"a".repeat(64)}`;
+const MILESTONE_ID = "00000000-0000-4000-8000-000000000021";
+const OTHER_MILESTONE_ID = "00000000-0000-4000-8000-000000000022";
+function withMilestoneOption(option: string, value: string): string[] {
+  const argv = [...MILESTONE_UPSERT_ARGV];
+  const index = argv.indexOf(option);
+  if (index === -1) throw new Error(`${option} is not part of the base argv`);
+  argv[index + 1] = value;
+  return argv;
+}
+
+const MILESTONE_UPSERT_ARGV = [
+  "project",
+  "milestone",
+  "upsert",
+  "--project-id",
+  PROJECT_ID,
+  "--milestone-id",
+  MILESTONE_ID,
+  "--phase",
+  "build",
+  "--kind",
+  "gate",
+  "--label",
+  "Owner approves TestFlight",
+  "--owner",
+  "human",
+  "--status",
+  "planned",
+];
 
 describe("CLI argument parser", () => {
   it.each([
@@ -241,6 +270,69 @@ describe("CLI argument parser", () => {
         },
       },
     ],
+    [
+      ["project", "milestones", PROJECT_ID],
+      { outputMode: "human", command: { kind: "project.milestones.list", projectId: PROJECT_ID } },
+    ],
+    [
+      MILESTONE_UPSERT_ARGV,
+      {
+        outputMode: "human",
+        command: {
+          kind: "project.milestone.upsert",
+          upsert: {
+            milestone: {
+              milestoneId: MILESTONE_ID,
+              projectId: PROJECT_ID,
+              phase: "build",
+              kind: "gate",
+              label: "Owner approves TestFlight",
+              targetDate: null,
+              dependsOn: [],
+              owner: "human",
+              status: "planned",
+              evidenceDigest: null,
+            },
+            expectedRevision: null,
+          },
+        },
+      },
+    ],
+    [
+      [
+        ...MILESTONE_UPSERT_ARGV,
+        "--target-date",
+        "2026-09-01",
+        "--depends-on",
+        OTHER_MILESTONE_ID,
+        "--evidence-digest",
+        PLAN_DIGEST,
+        "--expected-revision",
+        "2",
+        "--json",
+      ],
+      {
+        outputMode: "json",
+        command: {
+          kind: "project.milestone.upsert",
+          upsert: {
+            milestone: {
+              milestoneId: MILESTONE_ID,
+              projectId: PROJECT_ID,
+              phase: "build",
+              kind: "gate",
+              label: "Owner approves TestFlight",
+              targetDate: "2026-09-01",
+              dependsOn: [OTHER_MILESTONE_ID],
+              owner: "human",
+              status: "planned",
+              evidenceDigest: PLAN_DIGEST,
+            },
+            expectedRevision: 2,
+          },
+        },
+      },
+    ],
   ])("parses %j", (arguments_, expected) => {
     expect(parseCliArguments(arguments_)).toEqual({ ...expected, retryIdentity: null });
   });
@@ -262,6 +354,28 @@ describe("CLI argument parser", () => {
       },
       command: { kind: "attempt.pause", attemptId: ATTEMPT_ID },
     });
+  });
+
+  it("generates a milestone ID for a first create but never fills in a target date", () => {
+    const argv = MILESTONE_UPSERT_ARGV.filter(
+      (argument) => argument !== "--milestone-id" && argument !== MILESTONE_ID,
+    );
+    const first = parseCliArguments(argv);
+    const second = parseCliArguments(argv);
+    if (
+      first.command.kind !== "project.milestone.upsert" ||
+      second.command.kind !== "project.milestone.upsert"
+    ) {
+      throw new Error("Unexpected command kind");
+    }
+    expect(first.command.upsert.milestone.milestoneId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(first.command.upsert.milestone.milestoneId).not.toBe(
+      second.command.upsert.milestone.milestoneId,
+    );
+    expect(first.command.upsert.milestone.targetDate).toBeNull();
+    expect(first.command.upsert.expectedRevision).toBeNull();
   });
 
   it.each([
@@ -300,6 +414,54 @@ describe("CLI argument parser", () => {
     [["project", "apply", "not-a-digest"]],
     [["project", "apply", PLAN_DIGEST, "--branch"]],
     [["project", "apply", PLAN_DIGEST, "--branch", "not a valid branch"]],
+    [["project", "milestones"]],
+    [["project", "milestones", "not-an-id"]],
+    [["project", "milestones", PROJECT_ID, "extra"]],
+    [["project", "milestone"]],
+    [["project", "milestone", "delete"]],
+    [["project", "milestone", "upsert"]],
+    [
+      [
+        ...MILESTONE_UPSERT_ARGV.filter(
+          (argument) => argument !== "--project-id" && argument !== PROJECT_ID,
+        ),
+      ],
+    ],
+    [[...MILESTONE_UPSERT_ARGV, "--target-date", "2026-02-30"]],
+    [[...MILESTONE_UPSERT_ARGV, "--target-date", "tomorrow"]],
+    [[...MILESTONE_UPSERT_ARGV, "--phase", "research"]],
+    [withMilestoneOption("--phase", "Build Phase")],
+    [withMilestoneOption("--kind", "wish")],
+    [withMilestoneOption("--owner", "robot")],
+    [withMilestoneOption("--status", "maybe")],
+    [withMilestoneOption("--label", "")],
+    [withMilestoneOption("--milestone-id", "not-an-id")],
+    [[...MILESTONE_UPSERT_ARGV, "--depends-on", "not-an-id"]],
+    [[...MILESTONE_UPSERT_ARGV, "--depends-on", MILESTONE_ID]],
+    [
+      [
+        ...MILESTONE_UPSERT_ARGV,
+        "--depends-on",
+        OTHER_MILESTONE_ID,
+        "--depends-on",
+        OTHER_MILESTONE_ID,
+      ],
+    ],
+    [[...MILESTONE_UPSERT_ARGV, "--expected-revision", "-1"]],
+    [[...MILESTONE_UPSERT_ARGV, "--expected-revision", "1.5"]],
+    [[...MILESTONE_UPSERT_ARGV, "--evidence-digest", "not-a-digest"]],
+    [[...MILESTONE_UPSERT_ARGV, "--unknown", "x"]],
+    [
+      [
+        ...MILESTONE_UPSERT_ARGV.filter(
+          (argument) => argument !== "--milestone-id" && argument !== MILESTONE_ID,
+        ),
+        "--command-id",
+        "00000000-0000-4000-8000-000000000004",
+        "--issued-at",
+        NOW,
+      ],
+    ],
     [["effects"]],
     [["effects", "unknown"]],
     [["effects", "status", "extra"]],
@@ -367,6 +529,7 @@ describe("CLI output renderer", () => {
                 schemaVersion: 1,
                 projectId: PROJECT_ID,
                 title: "Fix\nunsafe title",
+                phase: null,
                 attempt: {
                   schemaVersion: 1,
                   attemptId: ATTEMPT_ID,
@@ -393,7 +556,7 @@ describe("CLI output renderer", () => {
         "human",
       ),
     ).toBe(
-      `${ATTEMPT_ID}\tqueued\t${PROJECT_ID}\t"Fix\\nunsafe title"\nmore after ${NOW} ${ATTEMPT_ID}\n`,
+      `${ATTEMPT_ID}\tqueued\t${PROJECT_ID}\t(no phase)\t"Fix\\nunsafe title"\nmore after ${NOW} ${ATTEMPT_ID}\n`,
     );
 
     expect(
@@ -1358,6 +1521,180 @@ describe("runCli project enrollment", () => {
     expect(JSON.parse(captured().stderr)).toMatchObject({
       ok: false,
       error: { code: "project.apply-fingerprint-drift", retryable: false },
+    });
+  });
+});
+
+describe("runCli project milestones", () => {
+  const dated = {
+    schemaVersion: 1,
+    milestoneId: MILESTONE_ID,
+    projectId: PROJECT_ID,
+    phase: "build",
+    kind: "stage",
+    label: "Core loop builds green",
+    targetDate: "2026-09-01",
+    dependsOn: [],
+    owner: "machine",
+    status: "done",
+    evidenceDigest: PLAN_DIGEST,
+    revision: 2,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+  const undated = {
+    ...dated,
+    milestoneId: OTHER_MILESTONE_ID,
+    kind: "gate",
+    phase: "release",
+    label: "Owner approves TestFlight",
+    targetDate: null,
+    dependsOn: [MILESTONE_ID],
+    owner: "human",
+    status: "planned",
+    evidenceDigest: null,
+    revision: 0,
+  };
+  const timeline = {
+    schemaVersion: 1,
+    projectId: PROJECT_ID,
+    generatedAt: NOW,
+    milestones: [dated, undated],
+    actuals: {
+      phases: [
+        {
+          phase: "build",
+          attemptCount: 2,
+          activeAttemptCount: 1,
+          blockerCount: 0,
+          succeededAttemptCount: 1,
+          firstAttemptAt: "2026-08-09T12:00:00.000Z",
+          lastActivityAt: NOW,
+          lastSucceededAt: NOW,
+        },
+      ],
+      lifecycle: [],
+    },
+    sources: { localExecution: "available", lifecycleEvents: "unavailable" },
+  };
+
+  it("lists a project's timeline and renders an undated milestone as won't guess", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.milestones.list") {
+        throw new Error(`Unexpected operation: ${operation}`);
+      }
+      return { result: { operation: "project.milestones.list", timeline } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "milestones", PROJECT_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    const lines = captured().stdout.split("\n");
+    expect(lines[0]).toBe(
+      `project.milestones: ${PROJECT_ID} (2 milestones, 1 phases with attempts; lifecycle events unavailable)`,
+    );
+    expect(lines[1]).toBe(
+      `${MILESTONE_ID}\tdone\tstage\tbuild\t2026-09-01\tmachine\tr2\t"Core loop builds green"`,
+    );
+    expect(lines[2]).toBe(
+      `${OTHER_MILESTONE_ID}\tplanned\tgate\trelease\twon't guess\thuman\tr0\t"Owner approves TestFlight"`,
+    );
+    expect(lines[3]).toBe("actuals:");
+    expect(lines[4]).toBe(
+      `build\t2 attempts, 1 active, 0 blocked, 1 succeeded\tfirst 2026-08-09T12:00:00.000Z\tlast ${NOW}\tsucceeded ${NOW}`,
+    );
+    expect(captured().stdout).not.toContain("null");
+  });
+
+  it("upserts a milestone, sending null for an omitted target date, and renders the result", async () => {
+    let payload: unknown;
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.milestone.upsert") {
+        throw new Error(`Unexpected operation: ${operation}`);
+      }
+      return {
+        result: {
+          operation: "project.milestone.upsert",
+          milestone: {
+            ...undated,
+            milestoneId: MILESTONE_ID,
+            phase: "build",
+            dependsOn: [],
+          },
+          created: true,
+        },
+      };
+    });
+    const server = servers.at(-1);
+    server?.prependListener("connection", (socket: Socket) => {
+      let buffer = "";
+      socket.on("data", (chunk: Buffer) => {
+        buffer += chunk.toString("utf8");
+        const newline = buffer.indexOf("\n");
+        if (newline < 0) return;
+        payload = (JSON.parse(buffer.slice(0, newline)) as { request: { payload: unknown } })
+          .request.payload;
+      });
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      MILESTONE_UPSERT_ARGV,
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(payload).toEqual({
+      milestone: {
+        milestoneId: MILESTONE_ID,
+        projectId: PROJECT_ID,
+        phase: "build",
+        kind: "gate",
+        label: "Owner approves TestFlight",
+        targetDate: null,
+        dependsOn: [],
+        owner: "human",
+        status: "planned",
+        evidenceDigest: null,
+      },
+      expectedRevision: null,
+    });
+    expect(captured().stdout).toBe(
+      `project.milestone.upsert: created ${MILESTONE_ID} r0 planned gate build target won't guess "Owner approves TestFlight"\n`,
+    );
+  });
+
+  it("surfaces a revision conflict as a distinct, non-retryable error code", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.milestone.upsert") {
+        throw new Error(`Unexpected operation: ${operation}`);
+      }
+      return {
+        error: {
+          code: "milestone.revision-conflict",
+          message: "milestone is at revision 3, not 2",
+          retryable: false,
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["--json", ...MILESTONE_UPSERT_ARGV, "--expected-revision", "2"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(1);
+    expect(JSON.parse(captured().stderr)).toMatchObject({
+      ok: false,
+      error: { code: "milestone.revision-conflict", retryable: false },
     });
   });
 });

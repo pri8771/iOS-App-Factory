@@ -19,6 +19,7 @@ import {
   EventIdSchema,
   IsoInstantSchema,
   PortfolioReadModelV1Schema,
+  ProjectTimelineV1Schema,
   Sha256DigestSchema,
   StableKeySchema,
   COMMAND_PROTOCOL_VERSION_V1,
@@ -32,10 +33,12 @@ import {
   type PortfolioProjectReadModelV1,
   type PortfolioReadModelV1,
   type ProjectId,
+  type ProjectTimelineV1,
   type TaskSpecV1,
 } from "@app-factory/contracts";
 import {
   FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME,
+  ProjectMilestoneUpsertError,
   canonicalJson,
   computeTaskSpecDigest,
   createEffectRepository,
@@ -80,6 +83,7 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "attempt.unblock",
   "daemon.reconcile",
   "project.apply",
+  "project.milestone.upsert",
 ]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
@@ -539,6 +543,8 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "project.scan":
     case "project.enroll-plan":
     case "project.apply":
+    case "project.milestones.list":
+    case "project.milestone.upsert":
     case "effects.status":
     case "effects.list":
       return null;
@@ -623,12 +629,26 @@ function assertKernelCommandIdentity(
   request: CommandRequestV1,
 ): void {
   const stored = repositories.commands.findById(request.commandId);
-  if (stored === null) return;
-  const expected = expectedKernelCommand(request);
-  if (expected === null || canonicalJson(stored) !== canonicalJson(expected)) {
+  if (stored !== null) {
+    const expected = expectedKernelCommand(request);
+    if (expected === null || canonicalJson(stored) !== canonicalJson(expected)) {
+      throw new CommandHandlerError(
+        "command.identity-conflict",
+        "The command ID is already bound to a different durable kernel command.",
+        false,
+      );
+    }
+  }
+  // Milestone upserts journal their command in their own ledger; a command ID
+  // that already wrote a milestone revision may only be replayed as that same
+  // upsert (the repository itself proves content equality on replay).
+  if (
+    request.operation !== "project.milestone.upsert" &&
+    repositories.milestones.findRevisionByCommandId(request.commandId) !== null
+  ) {
     throw new CommandHandlerError(
       "command.identity-conflict",
-      "The command ID is already bound to a different durable kernel command.",
+      "The command ID is already bound to a durable milestone upsert.",
       false,
     );
   }
@@ -1053,6 +1073,73 @@ function unblockAttempt(
   };
 }
 
+/**
+ * The Studio timeline read model: the project's milestone plan next to the
+ * actuals its attempts already produced. Lifecycle events have no durable
+ * kernel store yet, so that source is reported unavailable and its actuals
+ * stay empty rather than being approximated from anything else.
+ */
+function buildProjectTimeline(
+  repositories: FactoryRepositories,
+  projectId: ProjectId,
+  observedAt: IsoInstant,
+): ProjectTimelineV1 {
+  const milestones = repositories.milestones.listByProject(projectId);
+  const phases = repositories.milestones.listPhaseActuals(projectId);
+  const generatedAt = laterInstant(
+    observedAt,
+    ...milestones.map((milestone) => milestone.updatedAt),
+    ...phases.map((actuals) => actuals.lastActivityAt),
+  );
+  return ProjectTimelineV1Schema.parse({
+    schemaVersion: 1,
+    projectId,
+    generatedAt,
+    milestones,
+    actuals: { phases, lifecycle: [] },
+    sources: { localExecution: "available", lifecycleEvents: "unavailable" },
+  });
+}
+
+function upsertProjectMilestone(
+  repositories: FactoryRepositories,
+  request: Extract<CommandRequestV1, { operation: "project.milestone.upsert" }>,
+  observedAt: IsoInstant,
+): CommandResultV1 {
+  const head = repositories.milestones.findById(request.payload.milestone.milestoneId);
+  // A strictly later instant than the head keeps per-milestone history
+  // monotonic even under a coarse or fixed daemon clock; the kernel refuses
+  // anything else. Creation uses the observed instant as-is.
+  const recordedAt = head === null ? observedAt : nextInstant(observedAt, head.updatedAt);
+  try {
+    const upserted = repositories.milestones.upsert({
+      command: {
+        schemaVersion: 1,
+        commandId: request.commandId,
+        issuedAt: request.issuedAt,
+        origin: request.origin,
+        kind: "project.milestone.upsert",
+        upsert: request.payload,
+      },
+      recordedAt,
+    });
+    return {
+      operation: "project.milestone.upsert",
+      milestone: upserted.milestone,
+      created: upserted.created,
+    };
+  } catch (error) {
+    if (error instanceof ProjectMilestoneUpsertError) {
+      throw new CommandHandlerError(
+        error.code === "milestone.identity-conflict" ? "command.identity-conflict" : error.code,
+        error.message,
+        false,
+      );
+    }
+    throw error;
+  }
+}
+
 async function executeRequest(
   repositories: FactoryRepositories,
   database: ReturnType<typeof openMigratedFactoryDatabase>,
@@ -1164,6 +1251,17 @@ async function executeRequest(
       return executeProjectEnrollPlanCommand(dependencies.evidenceStore, request);
     case "project.apply":
       return executeProjectApplyCommand(dependencies.evidenceStore, request);
+    case "project.milestones.list":
+      return {
+        operation: "project.milestones.list",
+        timeline: buildProjectTimeline(
+          repositories,
+          request.payload.projectId,
+          dependencies.observedAt,
+        ),
+      };
+    case "project.milestone.upsert":
+      return upsertProjectMilestone(repositories, request, dependencies.observedAt);
     case "effects.status":
       return {
         operation: "effects.status",

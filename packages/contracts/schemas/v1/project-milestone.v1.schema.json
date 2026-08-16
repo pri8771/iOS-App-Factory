@@ -1,0 +1,149 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema10": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema11": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema2": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema3": {
+      "enum": [
+        "stage",
+        "gate",
+        "release"
+      ],
+      "type": "string"
+    },
+    "__schema4": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema5": {
+      "anyOf": [
+        {
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema6": {
+      "items": {
+        "$ref": "#/$defs/__schema1"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "__schema7": {
+      "enum": [
+        "human",
+        "machine"
+      ],
+      "type": "string"
+    },
+    "__schema8": {
+      "enum": [
+        "planned",
+        "active",
+        "done",
+        "abandoned"
+      ],
+      "type": "string"
+    },
+    "__schema9": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:project-milestone",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "createdAt": {
+      "$ref": "#/$defs/__schema11"
+    },
+    "dependsOn": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "evidenceDigest": {
+      "$ref": "#/$defs/__schema9"
+    },
+    "kind": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "label": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "milestoneId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "owner": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "phase": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "revision": {
+      "$ref": "#/$defs/__schema10"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "status": {
+      "$ref": "#/$defs/__schema8"
+    },
+    "targetDate": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/__schema11"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "milestoneId",
+    "projectId",
+    "phase",
+    "kind",
+    "label",
+    "targetDate",
+    "dependsOn",
+    "owner",
+    "status",
+    "evidenceDigest",
+    "revision",
+    "createdAt",
+    "updatedAt"
+  ],
+  "type": "object"
+}
