@@ -12,6 +12,7 @@ import {
   type RelativeProjectPath,
   type SkippedEnrollmentActionV1,
 } from "./model.js";
+import { parseRuleDeclarationLine } from "./rule-declarations.js";
 import { projectDigest, scanExistingProject } from "./scanner.js";
 
 /**
@@ -30,7 +31,9 @@ import { projectDigest, scanExistingProject } from "./scanner.js";
  *   3. Applies on a brand-new branch. It never force-pushes, never pushes at all, and never
  *      moves, deletes, or commits onto any branch other than the one it creates.
  *   4. Re-runs `scanExistingProject` after committing to prove convergence: every issue an
- *      applied action targeted must be gone from the rescan, or the apply itself fails closed.
+ *      applied action targeted must be gone from the rescan, and the rescan must not carry any
+ *      `rules.*` blocker the baseline scan did not already have, or the apply itself fails
+ *      closed (and rolls the branch back).
  */
 
 export type ApplyEnrollmentPlanOptions = Readonly<{
@@ -55,7 +58,10 @@ export class EnrollmentApplyFingerprintDriftError extends EnrollmentApplyError {
   }
 }
 
-/** An applied action's targeted issue was still present after the post-apply rescan. */
+/**
+ * The post-apply rescan did not converge: an applied action's targeted issue was still present,
+ * or the rescan carried a `rules.*` blocker the baseline scan did not have.
+ */
 export class EnrollmentApplyConvergenceError extends EnrollmentApplyError {
   constructor(message: string) {
     super(message);
@@ -248,12 +254,51 @@ function appendBlock(existing: string | null, block: string): string {
   return `${existing}${separator}${block}`;
 }
 
-function buildAdapterBindingBlock(canonicalPath: string, canonicalDigest: string): string {
+/** Declaration keys that together constitute an adapter's binding to its canonical authority. */
+const ADAPTER_BINDING_KEYS: ReadonlySet<string> = new Set(["authority.import", "authority.digest"]);
+
+function adapterBindingLines(canonicalPath: string, canonicalDigest: string): readonly string[] {
   return [
     `factory-rule: authority.import=${canonicalPath}`,
     `factory-rule: authority.digest=${canonicalDigest}`,
-    "",
-  ].join("\n");
+  ];
+}
+
+function buildAdapterBindingBlock(canonicalPath: string, canonicalDigest: string): string {
+  return [...adapterBindingLines(canonicalPath, canonicalDigest), ""].join("\n");
+}
+
+/**
+ * Produces the adapter file's content bound to its canonical authority.
+ *
+ * An adapter that already carries binding declarations (`authority.import` / `authority.digest`,
+ * in either spelling the scanner accepts) has every such line removed and exactly one fresh pair
+ * written in place of the first one — typically the case after the root AGENTS.md was
+ * regenerated and the adapter still names the old digest. Appending a second pair instead would
+ * leave two `authority.digest` values at one scope, which the scanner reports as
+ * `rules.conflicting-declaration`. An adapter with no prior binding gets the pair appended.
+ * Every other line is preserved byte-for-byte, as is the file's line-ending style.
+ */
+function bindAdapterContent(
+  existing: string | null,
+  canonicalPath: string,
+  canonicalDigest: string,
+): string {
+  const block = buildAdapterBindingBlock(canonicalPath, canonicalDigest);
+  if (existing === null || existing.trim() === "") return block;
+  const kept: string[] = [];
+  let firstBindingIndex = -1;
+  for (const line of existing.split(/\r?\n/u)) {
+    const declaration = parseRuleDeclarationLine(line);
+    if (declaration !== null && ADAPTER_BINDING_KEYS.has(declaration.key)) {
+      if (firstBindingIndex === -1) firstBindingIndex = kept.length;
+      continue;
+    }
+    kept.push(line);
+  }
+  if (firstBindingIndex === -1) return appendBlock(existing, block);
+  kept.splice(firstBindingIndex, 0, ...adapterBindingLines(canonicalPath, canonicalDigest));
+  return kept.join(existing.includes("\r\n") ? "\r\n" : "\n");
 }
 
 function buildCommitMessage(
@@ -432,7 +477,7 @@ export function applyEnrollmentPlan(options: ApplyEnrollmentPlanOptions): Enroll
           writeRepositoryFile(
             repositoryRoot,
             affectedPath,
-            appendBlock(existing, buildAdapterBindingBlock(canonicalPath, canonicalDigest)),
+            bindAdapterContent(existing, canonicalPath, canonicalDigest),
           );
           writtenPaths.add(affectedPath);
           fixedPaths.push(affectedPath);
@@ -497,6 +542,26 @@ export function applyEnrollmentPlan(options: ApplyEnrollmentPlanOptions): Enroll
     if (stillOpen.length > 0) {
       throw new EnrollmentApplyConvergenceError(
         `applied actions did not resolve their targeted issues on rescan: ${stillOpen.join(", ")}`,
+      );
+    }
+    // Resolving the targeted issues is necessary but not sufficient: a rewrite of one rule file
+    // can create a rule blocker elsewhere (for example a second `authority.digest` value at the
+    // same scope, or an adapter whose binding a regenerated AGENTS.md just invalidated). Any
+    // `rules.*` blocker the baseline did not carry means the apply made the tree worse; refuse to
+    // report success rather than hand back a "converged" result with a fresh blocker inside it.
+    const baselineIssueIds = new Set(baseline.issues.map((issue) => issue.issueId));
+    const introducedRuleBlockers = rescan.issues.filter(
+      (issue) =>
+        issue.severity === "blocker" &&
+        issue.code.startsWith("rules.") &&
+        !baselineIssueIds.has(issue.issueId),
+    );
+    if (introducedRuleBlockers.length > 0) {
+      throw new EnrollmentApplyConvergenceError(
+        "applied actions introduced rule blockers on rescan that the baseline scan did not have: " +
+          introducedRuleBlockers
+            .map((issue) => `${issue.code} (${issue.issueId}) on ${issue.paths.join(", ")}`)
+            .join("; "),
       );
     }
 

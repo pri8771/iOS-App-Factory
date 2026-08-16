@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -49,9 +56,64 @@ function createRepository(files: Readonly<Record<string, string>>): string {
 }
 
 const AUTHORITY = ["# Canonical authority", "factory-rule: authority.version=1", ""].join("\n");
+const REGENERATED_AUTHORITY = [
+  "# Canonical authority (regenerated)",
+  "factory-rule: authority.version=1",
+  "factory-rule: review.required=true",
+  "",
+].join("\n");
+const COPILOT_ADAPTER_PATH = ".github/copilot-instructions.md";
+const ADAPTER_PROSE = "Project-specific guidance that must survive the rebind.";
 
 function originalBranchName(root: string): string {
   return git(root, "rev-parse", "--abbrev-ref", "HEAD").toString("utf8").trim();
+}
+
+function commitAll(root: string, message: string): void {
+  git(root, "add", "-A");
+  git(root, "commit", "--quiet", "-m", message);
+}
+
+function readRepositoryFile(root: string, path: string): string {
+  return readFileSync(join(root, path), "utf8");
+}
+
+function ruleFileDigest(root: string, path: string): string {
+  const digest = scanExistingProject({ repositoryRoot: root }).inventory.ruleFiles.find(
+    (file) => file.path === path,
+  )?.digest;
+  if (digest === undefined) throw new Error(`rule file ${path} not inventoried`);
+  return digest;
+}
+
+/** Raw lines that name the given binding key, independent of the scanner's own parser. */
+function rawBindingLines(content: string, key: "authority.import" | "authority.digest"): string[] {
+  return content.split(/\r?\n/u).filter((line) => line.includes(key));
+}
+
+/**
+ * Root AGENTS.md plus an adapter that was correctly bound to it, after which AGENTS.md is
+ * regenerated so the adapter's `authority.digest` goes stale — the shape observed on Hindsight
+ * `factory/pilot-1.1` once a compiled policy bundle replaced AGENTS.md and the Copilot adapter
+ * (which the compiler does not own) kept naming the pre-bundle digest.
+ */
+function createRepositoryWithStaleBoundAdapter(
+  adapterPath: string,
+  bindingLines: (digest: string) => readonly string[],
+): Readonly<{ repositoryRoot: string; staleDigest: string; freshDigest: string }> {
+  const repositoryRoot = createRepository({ "AGENTS.md": AUTHORITY });
+  const staleDigest = ruleFileDigest(repositoryRoot, "AGENTS.md");
+  write(
+    repositoryRoot,
+    adapterPath,
+    ["# Adapter", "", ...bindingLines(staleDigest), "", ADAPTER_PROSE, ""].join("\n"),
+  );
+  commitAll(repositoryRoot, "bind adapter");
+  write(repositoryRoot, "AGENTS.md", REGENERATED_AUTHORITY);
+  commitAll(repositoryRoot, "regenerate authority");
+  const freshDigest = ruleFileDigest(repositoryRoot, "AGENTS.md");
+  if (freshDigest === staleDigest) throw new Error("fixture did not change the authority digest");
+  return { repositoryRoot, staleDigest, freshDigest };
 }
 
 describe("plan-apply executor", () => {
@@ -228,5 +290,189 @@ describe("plan-apply executor", () => {
       expect(error).toBeInstanceOf(EnrollmentApplyError);
       expect(error).not.toBeInstanceOf(EnrollmentApplyConvergenceError);
     }
+  });
+
+  it("rebinds a stale-bound adapter in place with exactly one authority.import/digest pair", () => {
+    const { repositoryRoot, staleDigest, freshDigest } = createRepositoryWithStaleBoundAdapter(
+      COPILOT_ADAPTER_PATH,
+      (digest) => [
+        "factory-rule: authority.import=AGENTS.md",
+        `factory-rule: authority.digest=${digest}`,
+      ],
+    );
+    const scan = scanExistingProject({ repositoryRoot });
+    expect(
+      scan.inventory.ruleFiles.find((file) => file.path === COPILOT_ADAPTER_PATH)?.authority.status,
+    ).toBe("nonconforming");
+    const repairAction = scan.plan.actions.find((action) => action.kind === "repair-rule-adapter");
+    expect(repairAction?.targetPath).toBe(COPILOT_ADAPTER_PATH);
+
+    const result = applyEnrollmentPlan({ plan: scan.plan, repositoryRoot });
+
+    expect(result.appliedActions.map((action) => action.kind)).toContain("repair-rule-adapter");
+    const content = readRepositoryFile(repositoryRoot, COPILOT_ADAPTER_PATH);
+    // Exactly one pair, naming the fresh digest, and no trace of the stale one.
+    expect(rawBindingLines(content, "authority.import")).toEqual([
+      "factory-rule: authority.import=AGENTS.md",
+    ]);
+    expect(rawBindingLines(content, "authority.digest")).toEqual([
+      `factory-rule: authority.digest=${freshDigest}`,
+    ]);
+    expect(content).not.toContain(staleDigest);
+    // Rebound in place (where the stale pair was), not appended after the prose; the prose and
+    // heading survive untouched.
+    expect(content).toBe(
+      [
+        "# Adapter",
+        "",
+        "factory-rule: authority.import=AGENTS.md",
+        `factory-rule: authority.digest=${freshDigest}`,
+        "",
+        ADAPTER_PROSE,
+        "",
+      ].join("\n"),
+    );
+
+    const adapter = result.rescan.inventory.ruleFiles.find(
+      (file) => file.path === COPILOT_ADAPTER_PATH,
+    );
+    expect(adapter?.authority.status).toBe("conforming");
+    expect(adapter?.authority.canonicalDigest).toBe(freshDigest);
+    expect(adapter?.declarations.filter((item) => item.key === "authority.digest")).toHaveLength(1);
+    expect(adapter?.declarations.filter((item) => item.key === "authority.import")).toHaveLength(1);
+  });
+
+  it("does not introduce rules.conflicting-declaration when rebinding a stale adapter", () => {
+    const { repositoryRoot, freshDigest } = createRepositoryWithStaleBoundAdapter(
+      COPILOT_ADAPTER_PATH,
+      (digest) => [
+        "factory-rule: authority.import=AGENTS.md",
+        `factory-rule: authority.digest=${digest}`,
+      ],
+    );
+    const scan = scanExistingProject({ repositoryRoot });
+    expect(scan.issues.map((issue) => issue.code)).toContain("rules.adapter-nonconforming");
+    expect(scan.issues.map((issue) => issue.code)).not.toContain("rules.conflicting-declaration");
+
+    const result = applyEnrollmentPlan({ plan: scan.plan, repositoryRoot });
+
+    const rescanCodes = result.rescan.issues.map((issue) => issue.code);
+    expect(rescanCodes).not.toContain("rules.adapter-nonconforming");
+    expect(rescanCodes).not.toContain("rules.conflicting-declaration");
+    expect(result.rescan.plan.blocked).toBe(false);
+    const effectiveDigest = result.rescan.inventory.effectiveRules.find(
+      (rule) => rule.scopePath === "." && rule.key === "authority.digest",
+    );
+    expect(effectiveDigest?.conflict).toBe(false);
+    expect(effectiveDigest?.value).toBe(freshDigest);
+
+    // Convergence is real, not an artifact of the apply's own rescan.
+    const independentRescan = scanExistingProject({ repositoryRoot });
+    expect(independentRescan.issues.map((issue) => issue.code)).not.toContain(
+      "rules.conflicting-declaration",
+    );
+  });
+
+  it("replaces every stale binding spelling and bullet form the scanner accepts, not just the canonical one", () => {
+    const { repositoryRoot, staleDigest, freshDigest } = createRepositoryWithStaleBoundAdapter(
+      "CLAUDE.md",
+      (digest) => [
+        "- factory.rule.authority.import=AGENTS.md",
+        `* Factory-Rule authority.digest=${digest}`,
+        `factory-rule: authority.digest=${digest}`,
+      ],
+    );
+    const scan = scanExistingProject({ repositoryRoot });
+
+    const result = applyEnrollmentPlan({ plan: scan.plan, repositoryRoot });
+
+    const content = readRepositoryFile(repositoryRoot, "CLAUDE.md");
+    expect(content).not.toContain(staleDigest);
+    expect(rawBindingLines(content, "authority.digest")).toEqual([
+      `factory-rule: authority.digest=${freshDigest}`,
+    ]);
+    expect(rawBindingLines(content, "authority.import")).toEqual([
+      "factory-rule: authority.import=AGENTS.md",
+    ]);
+    expect(content).toContain(ADAPTER_PROSE);
+    const rescanCodes = result.rescan.issues.map((issue) => issue.code);
+    expect(rescanCodes).not.toContain("rules.adapter-nonconforming");
+    expect(rescanCodes).not.toContain("rules.conflicting-declaration");
+  });
+
+  it("still appends a fresh binding to an adapter that has no prior binding", () => {
+    const original = ["# Claude adapter", "", ADAPTER_PROSE, ""].join("\n");
+    const repositoryRoot = createRepository({ "AGENTS.md": AUTHORITY, "CLAUDE.md": original });
+    const freshDigest = ruleFileDigest(repositoryRoot, "AGENTS.md");
+    const scan = scanExistingProject({ repositoryRoot });
+    expect(scan.plan.actions.map((action) => action.kind)).toContain("repair-rule-adapter");
+    expect(scan.plan.actions.map((action) => action.kind)).not.toContain(
+      "establish-rule-authority",
+    );
+
+    const result = applyEnrollmentPlan({ plan: scan.plan, repositoryRoot });
+
+    const content = readRepositoryFile(repositoryRoot, "CLAUDE.md");
+    expect(content).toBe(
+      `${original}\nfactory-rule: authority.import=AGENTS.md\nfactory-rule: authority.digest=${freshDigest}\n`,
+    );
+    expect(rawBindingLines(content, "authority.digest")).toHaveLength(1);
+    expect(rawBindingLines(content, "authority.import")).toHaveLength(1);
+    const adapter = result.rescan.inventory.ruleFiles.find((file) => file.path === "CLAUDE.md");
+    expect(adapter?.authority.status).toBe("conforming");
+    const rescanCodes = result.rescan.issues.map((issue) => issue.code);
+    expect(rescanCodes).not.toContain("rules.adapter-nonconforming");
+    expect(rescanCodes).not.toContain("rules.conflicting-declaration");
+  });
+
+  it("fails closed and rolls back when the rescan carries a rules.* blocker the baseline did not", () => {
+    // A root AGENTS.md with no machine-checkable declarations is `rules.canonical-unverifiable`,
+    // yet an adapter digest-bound to it counts as conforming. Establishing authority rewrites
+    // AGENTS.md, so that adapter's binding goes stale on rescan — a *new*
+    // `rules.adapter-nonconforming` blocker no plan action targeted. The executor must not hand
+    // back a "converged" result with that blocker inside it.
+    const repositoryRoot = createRepository({ "AGENTS.md": "# Bare authority, no declarations\n" });
+    const bareDigest = ruleFileDigest(repositoryRoot, "AGENTS.md");
+    write(
+      repositoryRoot,
+      "CLAUDE.md",
+      [
+        "# Claude adapter",
+        "factory-rule: authority.import=AGENTS.md",
+        `factory-rule: authority.digest=${bareDigest}`,
+        "",
+      ].join("\n"),
+    );
+    commitAll(repositoryRoot, "bind adapter to bare authority");
+
+    const scan = scanExistingProject({ repositoryRoot });
+    const baselineCodes = scan.issues.map((issue) => issue.code);
+    expect(baselineCodes).toContain("rules.canonical-unverifiable");
+    expect(baselineCodes).not.toContain("rules.adapter-nonconforming");
+    expect(scan.plan.actions.map((action) => action.kind)).toContain("establish-rule-authority");
+
+    const branch = originalBranchName(repositoryRoot);
+    const branchesBefore = git(repositoryRoot, "branch", "--list").toString("utf8");
+    const headBefore = git(repositoryRoot, "rev-parse", "HEAD").toString("utf8").trim();
+
+    try {
+      applyEnrollmentPlan({ plan: scan.plan, repositoryRoot });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(EnrollmentApplyConvergenceError);
+      expect((error as Error).message).toMatch(/rules\.adapter-nonconforming/u);
+      expect((error as Error).message).toMatch(/baseline scan did not have/u);
+    }
+
+    // Rolled back: no new branch survives, HEAD and the original branch are untouched, and the
+    // working tree is clean. (The plan itself is now stale by design — the rollback's checkout
+    // rewrites .git/index, which the sourceFingerprint binds to — so it is not re-applied here.)
+    expect(git(repositoryRoot, "branch", "--list").toString("utf8")).toBe(branchesBefore);
+    expect(originalBranchName(repositoryRoot)).toBe(branch);
+    expect(git(repositoryRoot, "rev-parse", "HEAD").toString("utf8").trim()).toBe(headBefore);
+    expect(git(repositoryRoot, "status", "--porcelain").toString("utf8")).toBe("");
+    expect(readRepositoryFile(repositoryRoot, "AGENTS.md")).toBe(
+      "# Bare authority, no declarations\n",
+    );
   });
 });

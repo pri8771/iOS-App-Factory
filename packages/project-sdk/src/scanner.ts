@@ -38,6 +38,7 @@ import {
   type RelativeProjectPath,
   type Sha256Digest,
 } from "./model.js";
+import { parseRuleDeclarationLine } from "./rule-declarations.js";
 
 const DEFAULT_MAX_SCAN_ENTRIES = 100_000;
 const DEFAULT_MAX_SCANNED_FILE_BYTES = 2 * 1024 * 1024 * 1024;
@@ -1030,15 +1031,9 @@ function parseRuleDeclarations(
   content: string,
 ): ProjectInventoryV1["ruleFiles"][number]["declarations"] {
   const declarations: ProjectInventoryV1["ruleFiles"][number]["declarations"][number][] = [];
-  const pattern =
-    /^\s*(?:[-*]\s*)?(?:factory-rule\s*:?\s+|factory\.rule\.)([a-z][a-z0-9]*(?:[._-][a-z0-9]+)*)\s*=\s*(\S(?:.*\S)?)\s*$/iu;
   for (const [index, line] of content.split(/\r?\n/u).entries()) {
-    const match = pattern.exec(line);
-    const key = match?.[1];
-    const value = match?.[2];
-    if (key !== undefined && value !== undefined) {
-      declarations.push({ key: key.toLowerCase(), value, line: index + 1 });
-    }
+    const declaration = parseRuleDeclarationLine(line);
+    if (declaration !== null) declarations.push({ ...declaration, line: index + 1 });
   }
   return declarations.sort(
     (left, right) =>
