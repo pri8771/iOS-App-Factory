@@ -15,6 +15,8 @@ import {
   EffectListQueryV1Schema,
   GitBranchNameSchema,
   IsoInstantSchema,
+  ProjectIdSchema,
+  ProjectMilestoneUpsertV1Schema,
   RequestIdSchema,
   Sha256DigestSchema,
   TaskIdSchema,
@@ -36,6 +38,7 @@ import {
   type GitBranchName,
   type IsoInstant,
   type ProjectId,
+  type ProjectMilestoneUpsertV1,
   type RequestId,
   type Sha256Digest,
   type TaskId,
@@ -444,6 +447,42 @@ export class CommandClient {
         planDigest: Sha256DigestSchema.parse(planDigest),
         branchName: branchName === null ? null : GitBranchNameSchema.parse(branchName),
       },
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * The project's Studio timeline: its milestone plan next to the actuals its
+   * attempts produced. Read-only; an undated milestone comes back with
+   * `targetDate: null` and must be rendered as "won't guess", never defaulted.
+   */
+  public async listProjectMilestones(
+    projectId: ProjectId | string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.milestones.list">> {
+    return await this.#request(
+      "project.milestones.list",
+      { projectId: ProjectIdSchema.parse(projectId) },
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * Creates (`expectedRevision: null`) or compare-and-set updates one milestone.
+   * Durable and idempotent by command ID; a retry with the same identity and
+   * payload returns the original result.
+   */
+  public async upsertProjectMilestone(
+    upsert: ProjectMilestoneUpsertV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.milestone.upsert">> {
+    return await this.#request(
+      "project.milestone.upsert",
+      ProjectMilestoneUpsertV1Schema.parse(upsert),
       identity,
       signal,
     );

@@ -5,11 +5,14 @@
       "type": "string"
     },
     "__schema1": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema2": {
       "additionalProperties": false,
       "properties": {
         "id": {
-          "pattern": "^[a-z][a-z0-9-]{0,63}$",
-          "type": "string"
+          "$ref": "#/$defs/__schema1"
         },
         "statement": {
           "maxLength": 2000,
@@ -32,7 +35,7 @@
       ],
       "type": "object"
     },
-    "__schema2": {
+    "__schema3": {
       "maxLength": 1024,
       "minLength": 1,
       "pattern": "^(?!\\/)(?!\\.{1,2}(?:\\/|$))(?!.*\\/\\.{1,2}(?:\\/|$))(?!.*\\/\\/)(?!.*\\/$)(?!.*\\\\)(?!.*\\0).+$",
@@ -45,7 +48,7 @@
   "properties": {
     "acceptanceCriteria": {
       "items": {
-        "$ref": "#/$defs/__schema1"
+        "$ref": "#/$defs/__schema2"
       },
       "maxItems": 50,
       "minItems": 1,
@@ -78,6 +81,9 @@
       "minLength": 1,
       "type": "string"
     },
+    "phase": {
+      "$ref": "#/$defs/__schema1"
+    },
     "policyDigest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
@@ -90,7 +96,7 @@
       "properties": {
         "paths": {
           "items": {
-            "$ref": "#/$defs/__schema2"
+            "$ref": "#/$defs/__schema3"
           },
           "maxItems": 100,
           "minItems": 1,

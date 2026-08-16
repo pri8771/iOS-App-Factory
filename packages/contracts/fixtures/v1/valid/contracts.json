@@ -301,6 +301,165 @@
         ],
         "requiredKinds": ["verification"]
       }
+    },
+    {
+      "name": "task-spec-with-phase",
+      "schema": "task-spec",
+      "value": {
+        "schemaVersion": 1,
+        "taskId": "00000000-0000-4000-8000-000000000003",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "createdAt": "2026-08-10T12:00:00.000Z",
+        "title": "Implement the greeting",
+        "objective": "Return the requested greeting from the fixture package.",
+        "phase": "build",
+        "acceptanceCriteria": [
+          {
+            "id": "returns-greeting",
+            "statement": "The package returns Hello, Factory.",
+            "verification": "automated"
+          }
+        ],
+        "base": {
+          "repositoryId": "00000000-0000-4000-8000-000000000002",
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "requestedScope": {
+          "paths": ["Sources/FactoryFixture/Greeting.swift"]
+        },
+        "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "project-milestone-dated",
+      "schema": "project-milestone",
+      "value": {
+        "schemaVersion": 1,
+        "milestoneId": "75000000-0000-4000-8000-000000000201",
+        "projectId": "75000000-0000-4000-8000-000000000101",
+        "phase": "build",
+        "kind": "stage",
+        "label": "Core loop builds green",
+        "targetDate": "2026-09-01",
+        "dependsOn": [],
+        "owner": "machine",
+        "status": "active",
+        "evidenceDigest": null,
+        "revision": 1,
+        "createdAt": "2026-08-16T09:00:00.000Z",
+        "updatedAt": "2026-08-16T10:00:00.000Z"
+      }
+    },
+    {
+      "name": "project-milestone-undated-wont-guess",
+      "schema": "project-milestone",
+      "value": {
+        "schemaVersion": 1,
+        "milestoneId": "75000000-0000-4000-8000-000000000202",
+        "projectId": "75000000-0000-4000-8000-000000000101",
+        "phase": "release",
+        "kind": "gate",
+        "label": "Owner approves TestFlight",
+        "targetDate": null,
+        "dependsOn": ["75000000-0000-4000-8000-000000000201"],
+        "owner": "human",
+        "status": "planned",
+        "evidenceDigest": null,
+        "revision": 0,
+        "createdAt": "2026-08-16T09:30:00.000Z",
+        "updatedAt": "2026-08-16T09:30:00.000Z"
+      }
+    },
+    {
+      "name": "project-timeline-with-actuals",
+      "schema": "project-timeline",
+      "value": {
+        "schemaVersion": 1,
+        "projectId": "75000000-0000-4000-8000-000000000101",
+        "generatedAt": "2026-08-16T12:00:00.000Z",
+        "milestones": [
+          {
+            "schemaVersion": 1,
+            "milestoneId": "75000000-0000-4000-8000-000000000201",
+            "projectId": "75000000-0000-4000-8000-000000000101",
+            "phase": "build",
+            "kind": "stage",
+            "label": "Core loop builds green",
+            "targetDate": "2026-09-01",
+            "dependsOn": [],
+            "owner": "machine",
+            "status": "done",
+            "evidenceDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "revision": 2,
+            "createdAt": "2026-08-16T09:00:00.000Z",
+            "updatedAt": "2026-08-16T11:00:00.000Z"
+          },
+          {
+            "schemaVersion": 1,
+            "milestoneId": "75000000-0000-4000-8000-000000000203",
+            "projectId": "75000000-0000-4000-8000-000000000101",
+            "phase": "release",
+            "kind": "release",
+            "label": "1.0 on the App Store",
+            "targetDate": "2026-10-15",
+            "dependsOn": [
+              "75000000-0000-4000-8000-000000000201",
+              "75000000-0000-4000-8000-000000000202"
+            ],
+            "owner": "human",
+            "status": "planned",
+            "evidenceDigest": null,
+            "revision": 0,
+            "createdAt": "2026-08-16T09:45:00.000Z",
+            "updatedAt": "2026-08-16T09:45:00.000Z"
+          },
+          {
+            "schemaVersion": 1,
+            "milestoneId": "75000000-0000-4000-8000-000000000202",
+            "projectId": "75000000-0000-4000-8000-000000000101",
+            "phase": "release",
+            "kind": "gate",
+            "label": "Owner approves TestFlight",
+            "targetDate": null,
+            "dependsOn": ["75000000-0000-4000-8000-000000000201"],
+            "owner": "human",
+            "status": "planned",
+            "evidenceDigest": null,
+            "revision": 0,
+            "createdAt": "2026-08-16T09:30:00.000Z",
+            "updatedAt": "2026-08-16T09:30:00.000Z"
+          }
+        ],
+        "actuals": {
+          "phases": [
+            {
+              "phase": "build",
+              "attemptCount": 3,
+              "activeAttemptCount": 1,
+              "blockerCount": 1,
+              "succeededAttemptCount": 1,
+              "firstAttemptAt": "2026-08-12T08:00:00.000Z",
+              "lastActivityAt": "2026-08-16T11:00:00.000Z",
+              "lastSucceededAt": "2026-08-15T18:00:00.000Z"
+            },
+            {
+              "phase": null,
+              "attemptCount": 1,
+              "activeAttemptCount": 0,
+              "blockerCount": 0,
+              "succeededAttemptCount": 0,
+              "firstAttemptAt": "2026-08-11T08:00:00.000Z",
+              "lastActivityAt": "2026-08-11T09:00:00.000Z",
+              "lastSucceededAt": null
+            }
+          ],
+          "lifecycle": []
+        },
+        "sources": {
+          "localExecution": "available",
+          "lifecycleEvents": "unavailable"
+        }
+      }
     }
   ]
 }

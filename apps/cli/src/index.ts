@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -14,14 +15,21 @@ import {
 } from "@app-factory/command-client";
 import {
   AttemptIdSchema,
+  CalendarDateSchema,
   CommandIdSchema,
   EffectIdSchema,
   ExternalEffectStateV1Schema,
   ExternalProviderV1Schema,
   GitBranchNameSchema,
   IsoInstantSchema,
+  MilestoneIdSchema,
   ProjectIdSchema,
+  ProjectMilestoneKindV1Schema,
+  ProjectMilestoneOwnerV1Schema,
+  ProjectMilestoneStatusV1Schema,
+  ProjectMilestoneUpsertV1Schema,
   Sha256DigestSchema,
+  StableKeySchema,
   TaskIdSchema,
   TaskSpecV1Schema,
   type AttemptId,
@@ -33,6 +41,7 @@ import {
   type ExternalProviderV1,
   type GitBranchName,
   type ProjectId,
+  type ProjectMilestoneUpsertV1,
   type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
@@ -88,6 +97,8 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "project.scan"; repositoryRoot: string }>
   | Readonly<{ kind: "project.enroll-plan"; planDigest: Sha256Digest }>
   | Readonly<{ kind: "project.apply"; planDigest: Sha256Digest; branchName: GitBranchName | null }>
+  | Readonly<{ kind: "project.milestones.list"; projectId: ProjectId }>
+  | Readonly<{ kind: "project.milestone.upsert"; upsert: ProjectMilestoneUpsertV1 }>
   | Readonly<{ kind: "effects.status" }>
   | Readonly<{
       kind: "effects.list";
@@ -183,6 +194,128 @@ function parseNonNegativeInteger(name: string, value: string | undefined): numbe
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed)) usageError(`${name} is too large.`);
   return parsed;
+}
+
+/** Human rendering of an absent target date: the plan has no honest estimate. */
+export const MILESTONE_NO_TARGET_DATE_LABEL = "won't guess";
+
+function parseEnumOption<Value extends string>(
+  option: string,
+  value: string | undefined,
+  schema: Readonly<{ safeParse: (input: unknown) => { success: boolean; data?: Value } }>,
+  choices: readonly string[],
+): Value {
+  if (value === undefined) usageError(`${option} is required (one of: ${choices.join(", ")}).`);
+  const parsed = schema.safeParse(value);
+  if (!parsed.success || parsed.data === undefined) {
+    usageError(`${option} must be one of: ${choices.join(", ")}.`);
+  }
+  return parsed.data;
+}
+
+/**
+ * Parses `project milestone upsert`. `--target-date` is optional and its
+ * absence is meaningful: the milestone is stored with `targetDate: null` and
+ * rendered as "won't guess". The CLI never fills in today's date or anything
+ * else. `--milestone-id` may be omitted on a first create (one is generated
+ * and printed), but a retry (`--command-id`/`--issued-at`) must name it, so
+ * the replayed payload is byte-identical to the original.
+ */
+function parseMilestoneUpsertArguments(
+  arguments_: string[],
+  retrying: boolean,
+): ProjectMilestoneUpsertV1 {
+  const projectId = parseProjectId(consumeOption(arguments_, "--project-id"));
+  const milestoneIdValue = consumeOption(arguments_, "--milestone-id");
+  if (milestoneIdValue === undefined && retrying) {
+    usageError("--milestone-id is required when retrying with --command-id and --issued-at.");
+  }
+  const milestoneId = MilestoneIdSchema.safeParse(milestoneIdValue ?? randomUUID());
+  if (!milestoneId.success) usageError("--milestone-id must be a canonical lowercase UUID.");
+  const phaseValue = consumeOption(arguments_, "--phase");
+  if (phaseValue === undefined) usageError("--phase is required.");
+  const phase = StableKeySchema.safeParse(phaseValue);
+  if (!phase.success) {
+    usageError(
+      "--phase must be a stable lowercase key (a-z, 0-9, hyphens; at most 64 characters).",
+    );
+  }
+  const kind = parseEnumOption(
+    "--kind",
+    consumeOption(arguments_, "--kind"),
+    ProjectMilestoneKindV1Schema,
+    ProjectMilestoneKindV1Schema.options,
+  );
+  const label = consumeOption(arguments_, "--label");
+  if (label === undefined || label.length === 0) usageError("--label is required.");
+  const targetDateValue = consumeOption(arguments_, "--target-date");
+  const targetDate =
+    targetDateValue === undefined
+      ? null
+      : (() => {
+          const parsed = CalendarDateSchema.safeParse(targetDateValue);
+          if (!parsed.success)
+            usageError("--target-date must be a real calendar date (YYYY-MM-DD).");
+          return parsed.data;
+        })();
+  const dependsOn: string[] = [];
+  for (;;) {
+    const index = arguments_.indexOf("--depends-on");
+    if (index === -1) break;
+    const value = arguments_[index + 1];
+    if (value === undefined || value.startsWith("--")) usageError("--depends-on requires a value.");
+    if (!MilestoneIdSchema.safeParse(value).success) {
+      usageError("--depends-on must be a canonical lowercase UUID.");
+    }
+    dependsOn.push(value);
+    arguments_.splice(index, 2);
+  }
+  const owner = parseEnumOption(
+    "--owner",
+    consumeOption(arguments_, "--owner"),
+    ProjectMilestoneOwnerV1Schema,
+    ProjectMilestoneOwnerV1Schema.options,
+  );
+  const status = parseEnumOption(
+    "--status",
+    consumeOption(arguments_, "--status"),
+    ProjectMilestoneStatusV1Schema,
+    ProjectMilestoneStatusV1Schema.options,
+  );
+  const evidenceValue = consumeOption(arguments_, "--evidence-digest");
+  const evidenceDigest =
+    evidenceValue === undefined
+      ? null
+      : (() => {
+          const parsed = Sha256DigestSchema.safeParse(evidenceValue);
+          if (!parsed.success) {
+            usageError("--evidence-digest must be a lowercase sha256 digest.");
+          }
+          return parsed.data;
+        })();
+  const expectedRevisionValue = consumeOption(arguments_, "--expected-revision");
+  const expectedRevision =
+    expectedRevisionValue === undefined
+      ? null
+      : parseNonNegativeInteger("--expected-revision", expectedRevisionValue);
+  rejectUnexpected(arguments_);
+  const upsert = ProjectMilestoneUpsertV1Schema.safeParse({
+    milestone: {
+      milestoneId: milestoneId.data,
+      projectId,
+      phase: phase.data,
+      kind,
+      label,
+      targetDate,
+      dependsOn,
+      owner,
+      status,
+      evidenceDigest,
+    },
+    expectedRevision,
+  });
+  if (!upsert.success) usageError(`The milestone is invalid: ${upsert.error.message}`);
+  return upsert.data;
 }
 
 function consumeOption(arguments_: string[], option: string): string | undefined {
@@ -481,7 +614,20 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
         command: { kind: "project.apply", planDigest, branchName },
       };
     }
-    usageError("Project requires one of: scan, plan, apply.");
+    if (subcommand === "milestones") {
+      const projectId = parseProjectId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "project.milestones.list", projectId } };
+    }
+    if (subcommand === "milestone") {
+      const verb = arguments_.shift();
+      if (verb === "upsert") {
+        const upsert = parseMilestoneUpsertArguments(arguments_, retryIdentity !== null);
+        return { outputMode, retryIdentity, command: { kind: "project.milestone.upsert", upsert } };
+      }
+      usageError("Project milestone requires: upsert.");
+    }
+    usageError("Project requires one of: scan, plan, apply, milestones, milestone.");
   }
 
   usageError(`Unknown command: ${command}`);
@@ -511,8 +657,8 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
         ? "no attempts\n"
         : `${result.page.attempts
             .map(
-              ({ attempt, projectId, title }) =>
-                `${attempt.attemptId}\t${attempt.state}\t${projectId}\t${JSON.stringify(title)}`,
+              ({ attempt, projectId, phase, title }) =>
+                `${attempt.attemptId}\t${attempt.state}\t${projectId}\t${phase ?? "(no phase)"}\t${JSON.stringify(title)}`,
             )
             .join("\n")}\n${
             result.page.hasMore && result.page.nextAfter !== null
@@ -579,6 +725,37 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
         }, ${String(result.convergence.openIssueCount)} open issue(s)`,
       ];
       return `${lines.join("\n")}\n`;
+    }
+    case "project.milestones.list": {
+      const { timeline } = result;
+      const header = `project.milestones: ${timeline.projectId} (${String(timeline.milestones.length)} milestones, ${String(timeline.actuals.phases.length)} phases with attempts; lifecycle events ${timeline.sources.lifecycleEvents})`;
+      const milestones =
+        timeline.milestones.length === 0
+          ? "no milestones"
+          : timeline.milestones
+              .map(
+                (milestone) =>
+                  `${milestone.milestoneId}\t${milestone.status}\t${milestone.kind}\t${milestone.phase}\t${
+                    milestone.targetDate ?? MILESTONE_NO_TARGET_DATE_LABEL
+                  }\t${milestone.owner}\tr${String(milestone.revision)}\t${JSON.stringify(milestone.label)}`,
+              )
+              .join("\n");
+      const actuals =
+        timeline.actuals.phases.length === 0
+          ? "no attempts observed"
+          : timeline.actuals.phases
+              .map(
+                (phase) =>
+                  `${phase.phase ?? "(no phase)"}\t${String(phase.attemptCount)} attempts, ${String(phase.activeAttemptCount)} active, ${String(phase.blockerCount)} blocked, ${String(phase.succeededAttemptCount)} succeeded\tfirst ${phase.firstAttemptAt}\tlast ${phase.lastActivityAt}\tsucceeded ${phase.lastSucceededAt ?? "never"}`,
+              )
+              .join("\n");
+      return `${header}\n${milestones}\nactuals:\n${actuals}\n`;
+    }
+    case "project.milestone.upsert": {
+      const { milestone } = result;
+      return `project.milestone.upsert: ${result.created ? "created" : "updated"} ${milestone.milestoneId} r${String(milestone.revision)} ${milestone.status} ${milestone.kind} ${milestone.phase} target ${
+        milestone.targetDate ?? MILESTONE_NO_TARGET_DATE_LABEL
+      } ${JSON.stringify(milestone.label)}\n`;
     }
     case "effects.status": {
       const { counts, pendingOutbox, pump } = result.status;
@@ -960,6 +1137,12 @@ export async function runCli(
           invocation.command.branchName,
           identity,
         );
+        break;
+      case "project.milestones.list":
+        result = await client.listProjectMilestones(invocation.command.projectId, identity);
+        break;
+      case "project.milestone.upsert":
+        result = await client.upsertProjectMilestone(invocation.command.upsert, identity);
         break;
       case "effects.status":
         result = await client.effectsStatus(identity);

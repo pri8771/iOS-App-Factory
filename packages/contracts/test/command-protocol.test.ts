@@ -48,6 +48,25 @@ describe("command protocol V1", () => {
       { planDigest: `sha256:${"a".repeat(64)}`, branchName: "app-factory/enroll-abc123" },
     ],
     ["project.apply", { planDigest: `sha256:${"a".repeat(64)}`, branchName: null }],
+    ["project.milestones.list", { projectId: "00000000-0000-4000-8000-000000000103" }],
+    [
+      "project.milestone.upsert",
+      {
+        milestone: {
+          milestoneId: "00000000-0000-4000-8000-000000000104",
+          projectId: "00000000-0000-4000-8000-000000000103",
+          phase: "build",
+          kind: "stage",
+          label: "Core loop builds green",
+          targetDate: null,
+          dependsOn: [],
+          owner: "machine",
+          status: "planned",
+          evidenceDigest: null,
+        },
+        expectedRevision: null,
+      },
+    ],
   ])("accepts the strict %s request", (operation, payload) => {
     expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(true);
   });

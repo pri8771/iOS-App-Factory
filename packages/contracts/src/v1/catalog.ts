@@ -18,6 +18,7 @@ import {
   ExternalResourceV1Schema,
 } from "./external-effect.js";
 import { LessonV1Schema, LifecycleEventV1Schema } from "./learning.js";
+import { ProjectMilestoneV1Schema, ProjectTimelineV1Schema } from "./milestone.js";
 import { ModuleManifestV1Schema } from "./module.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
@@ -102,6 +103,18 @@ export const contractSchemaCatalogV1 = [
     fileName: "task-spec.v1.schema.json",
     id: "urn:app-factory:contracts:v1:task-spec",
     schema: TaskSpecV1Schema,
+  },
+  {
+    name: "project-milestone",
+    fileName: "project-milestone.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:project-milestone",
+    schema: ProjectMilestoneV1Schema,
+  },
+  {
+    name: "project-timeline",
+    fileName: "project-timeline.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:project-timeline",
+    schema: ProjectTimelineV1Schema,
   },
   {
     name: "command",

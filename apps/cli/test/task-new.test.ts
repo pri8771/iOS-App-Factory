@@ -154,6 +154,7 @@ describe("parseTaskNewArguments", () => {
       acceptancePath: f.acceptancePath,
       scopePaths: ["src/Greeter.swift"],
       projectId: PROJECT_ID,
+      phase: null,
       taskId: TASK_ID,
       createdAt: CREATED_AT,
       policyPathOverride: null,
@@ -161,6 +162,18 @@ describe("parseTaskNewArguments", () => {
       gitExecutable: "git",
       run: false,
     });
+  });
+
+  it("parses --phase as a stable key and rejects anything else", () => {
+    const f = fixture();
+    expect(parseTaskNewArguments([...baseArgv(f), "--phase", "build"]).phase).toBe("build");
+    expect(parseTaskNewArguments([...baseArgv(f), "--phase", "phase-2"]).phase).toBe("phase-2");
+    for (const phase of ["Build", "build phase", "", "a".repeat(65)]) {
+      expect(() => parseTaskNewArguments([...baseArgv(f), "--phase", phase])).toThrow(
+        CliUsageError,
+      );
+    }
+    expect(() => parseTaskNewArguments([...baseArgv(f), "--phase"])).toThrow(CliUsageError);
   });
 
   it("collects repeated --scope flags in order", () => {
@@ -320,6 +333,25 @@ describe("buildTaskSpecFromOptions digest computation", () => {
       requestedScope: { paths: ["src/Greeter.swift"] },
     });
     expect(build.taskSpec.acceptanceCriteria).toHaveLength(2);
+  });
+
+  it("adds phase only when requested, leaving a phase-less spec byte-identical", () => {
+    const f = fixture();
+    const withoutPhase = buildTaskSpecFromOptions(parseTaskNewArguments(baseArgv(f)));
+    expect("phase" in withoutPhase.taskSpec).toBe(false);
+    expect(JSON.stringify(withoutPhase.taskSpec)).not.toContain("phase");
+
+    const withPhase = buildTaskSpecFromOptions(
+      parseTaskNewArguments([...baseArgv(f), "--phase", "build"]),
+    );
+    expect(withPhase.taskSpec.phase).toBe("build");
+    expect(withPhase.taskSpecDigest).not.toBe(withoutPhase.taskSpecDigest);
+    expect(TaskSpecV1Schema.parse(withPhase.taskSpec)).toEqual(withPhase.taskSpec);
+
+    // Rebuilding the phase-less spec after a phased one changes nothing.
+    expect(buildTaskSpecFromOptions(parseTaskNewArguments(baseArgv(f))).taskSpecDigest).toBe(
+      withoutPhase.taskSpecDigest,
+    );
   });
 
   it("derives base.commit from the profile's live source repository", () => {

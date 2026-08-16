@@ -6,6 +6,7 @@ import {
   IsoInstantSchema,
   ProjectIdSchema,
   SchemaVersionV1Schema,
+  StableKeySchema,
 } from "./primitives.js";
 
 export const MAX_ATTEMPT_LIST_ITEMS_V1 = 100 as const;
@@ -35,6 +36,8 @@ export const AttemptListItemV1Schema = z.strictObject({
   schemaVersion: SchemaVersionV1Schema,
   projectId: ProjectIdSchema,
   title: z.string().min(1).max(200),
+  /** The task's Studio phase, or null when the task spec declared none. */
+  phase: StableKeySchema.nullable(),
   attempt: ExecutionAttemptV1Schema,
 });
 export type AttemptListItemV1 = z.infer<typeof AttemptListItemV1Schema>;

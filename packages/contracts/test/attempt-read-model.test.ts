@@ -20,6 +20,7 @@ function item(index: number, updatedAt = NOW) {
     schemaVersion: 1,
     projectId: PROJECT_ID,
     title: `Attempt ${String(index)}`,
+    phase: index % 2 === 0 ? "build" : null,
     attempt: {
       schemaVersion: 1,
       attemptId: attemptId(index),

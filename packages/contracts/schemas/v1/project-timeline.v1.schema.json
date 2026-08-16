@@ -1,0 +1,339 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema10": {
+      "enum": [
+        "human",
+        "machine"
+      ],
+      "type": "string"
+    },
+    "__schema11": {
+      "enum": [
+        "planned",
+        "active",
+        "done",
+        "abandoned"
+      ],
+      "type": "string"
+    },
+    "__schema12": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema13"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema13": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema14": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema15": {
+      "additionalProperties": false,
+      "properties": {
+        "lifecycle": {
+          "items": {
+            "$ref": "#/$defs/__schema20"
+          },
+          "maxItems": 1000,
+          "type": "array"
+        },
+        "phases": {
+          "items": {
+            "$ref": "#/$defs/__schema16"
+          },
+          "maxItems": 500,
+          "type": "array"
+        }
+      },
+      "required": [
+        "phases",
+        "lifecycle"
+      ],
+      "type": "object"
+    },
+    "__schema16": {
+      "additionalProperties": false,
+      "properties": {
+        "activeAttemptCount": {
+          "$ref": "#/$defs/__schema14"
+        },
+        "attemptCount": {
+          "$ref": "#/$defs/__schema18"
+        },
+        "blockerCount": {
+          "$ref": "#/$defs/__schema14"
+        },
+        "firstAttemptAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "lastActivityAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "lastSucceededAt": {
+          "$ref": "#/$defs/__schema19"
+        },
+        "phase": {
+          "$ref": "#/$defs/__schema17"
+        },
+        "succeededAttemptCount": {
+          "$ref": "#/$defs/__schema14"
+        }
+      },
+      "required": [
+        "phase",
+        "attemptCount",
+        "activeAttemptCount",
+        "blockerCount",
+        "succeededAttemptCount",
+        "firstAttemptAt",
+        "lastActivityAt",
+        "lastSucceededAt"
+      ],
+      "type": "object"
+    },
+    "__schema17": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema5"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema18": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema19": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema2"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema2": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema20": {
+      "additionalProperties": false,
+      "properties": {
+        "emittedAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "eventId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "evidenceDigest": {
+          "$ref": "#/$defs/__schema13"
+        },
+        "releaseId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "type",
+        "releaseId",
+        "evidenceDigest",
+        "emittedAt"
+      ],
+      "type": "object"
+    },
+    "__schema21": {
+      "additionalProperties": false,
+      "properties": {
+        "lifecycleEvents": {
+          "enum": [
+            "available",
+            "unavailable"
+          ],
+          "type": "string"
+        },
+        "localExecution": {
+          "const": "available",
+          "type": "string"
+        }
+      },
+      "required": [
+        "localExecution",
+        "lifecycleEvents"
+      ],
+      "type": "object"
+    },
+    "__schema3": {
+      "items": {
+        "$ref": "#/$defs/__schema4"
+      },
+      "maxItems": 500,
+      "type": "array"
+    },
+    "__schema4": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "dependsOn": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "evidenceDigest": {
+          "$ref": "#/$defs/__schema12"
+        },
+        "kind": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "label": {
+          "$ref": "#/$defs/__schema7"
+        },
+        "milestoneId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema10"
+        },
+        "phase": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "projectId": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "revision": {
+          "$ref": "#/$defs/__schema14"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "status": {
+          "$ref": "#/$defs/__schema11"
+        },
+        "targetDate": {
+          "$ref": "#/$defs/__schema8"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/__schema2"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "milestoneId",
+        "projectId",
+        "phase",
+        "kind",
+        "label",
+        "targetDate",
+        "dependsOn",
+        "owner",
+        "status",
+        "evidenceDigest",
+        "revision",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
+    "__schema5": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema6": {
+      "enum": [
+        "stage",
+        "gate",
+        "release"
+      ],
+      "type": "string"
+    },
+    "__schema7": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema8": {
+      "anyOf": [
+        {
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema9": {
+      "items": {
+        "$ref": "#/$defs/__schema1"
+      },
+      "maxItems": 50,
+      "type": "array"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:project-timeline",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actuals": {
+      "$ref": "#/$defs/__schema15"
+    },
+    "generatedAt": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "milestones": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "sources": {
+      "$ref": "#/$defs/__schema21"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "generatedAt",
+    "milestones",
+    "actuals",
+    "sources"
+  ],
+  "type": "object"
+}
