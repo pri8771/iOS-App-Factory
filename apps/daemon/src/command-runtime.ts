@@ -34,6 +34,8 @@ import {
   type PortfolioReadModelV1,
   type ProjectId,
   type ProjectTimelineV1,
+  type RoomId,
+  RoomMessageIdSchema,
   type TaskSpecV1,
 } from "@app-factory/contracts";
 import {
@@ -52,6 +54,12 @@ import {
 import { verifyCanonicalObservationAttestation } from "@app-factory/effect-worker";
 import { EvidenceStore } from "@app-factory/evidence-store";
 import { decideTaskPolicyBinding } from "@app-factory/policy-engine";
+import {
+  DEFAULT_ROOM_DORMANCY_MS,
+  RoomError,
+  RoomRepository,
+  roomAttendanceAt,
+} from "@app-factory/studio-rooms";
 
 import { executeEvidenceCommand } from "./evidence-command-runtime.js";
 import {
@@ -84,6 +92,8 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "daemon.reconcile",
   "project.apply",
   "project.milestone.upsert",
+  "room.create",
+  "room.post",
 ]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
@@ -97,7 +107,8 @@ export type DaemonRuntimeIdPurpose =
   | "unblock-fence-event"
   | "unblock-answered-event"
   | "unblock-step-event"
-  | "unblock-attempt-event";
+  | "unblock-attempt-event"
+  | "room-message";
 
 export type DaemonRuntimeIdFactory = (
   purpose: DaemonRuntimeIdPurpose,
@@ -120,6 +131,38 @@ const INERT_EFFECT_PUMP_STATUS: EffectPumpStatusV1 = {
 const inertEffectPumpStatusPort: EffectPumpStatusPort = {
   status: () => INERT_EFFECT_PUMP_STATUS,
 };
+
+/**
+ * Live view of the daemon's own room moderator, if one is composed. With no
+ * moderator (`enabled: false`, the default), `room.*` commands still work as a
+ * durable transcript — humans can create rooms and post — but no agent is
+ * ever granted the floor and `room.events` reports `moderator.enabled: false`.
+ */
+export type RoomsStatusPort = Readonly<{
+  enabled: boolean;
+  /** Dormancy threshold the moderator applies; reported so clients render attendance the same way. */
+  dormancyMs: number;
+  wake(roomId: RoomId): void;
+}>;
+
+const inertRoomsStatusPort: RoomsStatusPort = {
+  enabled: false,
+  dormancyMs: DEFAULT_ROOM_DORMANCY_MS,
+  wake: () => undefined,
+};
+
+export type InitializeRoomsContext = Readonly<{
+  database: FactoryDatabase;
+  /** The exact repository instance the `room.*` commands read and write. */
+  rooms: RoomRepository;
+}>;
+
+/**
+ * Daemon-only composition hook for the room moderator (`@app-factory/studio-rooms`).
+ * Returning `undefined` (the default when omitted) keeps the moderator fully
+ * inert while the transcript commands keep working.
+ */
+export type InitializeRooms = (context: InitializeRoomsContext) => RoomsStatusPort | undefined;
 
 export type InitializeEffectsContext = Readonly<{
   database: FactoryDatabase;
@@ -179,6 +222,7 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
   initializeEffects?: InitializeEffectsPump;
   /** Default OFF; see {@link TaskPolicyGateOptions}. */
   taskPolicyGate?: TaskPolicyGateOptions;
+  initializeRooms?: InitializeRooms;
   /** Deterministic failpoint after the authoritative mutation and before result journaling. */
   commandResultLedgerBoundary?: (
     entry: Readonly<{ request: CommandRequestV1; result: CommandResultV1 }>,
@@ -317,10 +361,14 @@ function parseGeneratedAttemptId(
 
 function parseGeneratedEventId(
   factory: DaemonRuntimeIdFactory,
-  purpose: Exclude<DaemonRuntimeIdPurpose, "attempt">,
+  purpose: Exclude<DaemonRuntimeIdPurpose, "attempt" | "retry-attempt" | "room-message">,
   commandId: CommandId,
 ) {
   return EventIdSchema.parse(factory(purpose, commandId));
+}
+
+function parseGeneratedRoomMessageId(factory: DaemonRuntimeIdFactory, commandId: CommandId) {
+  return RoomMessageIdSchema.parse(factory("room-message", commandId));
 }
 
 function laterInstant(...values: readonly string[]): IsoInstant {
@@ -547,7 +595,97 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "project.milestone.upsert":
     case "effects.status":
     case "effects.list":
+    case "room.create":
+    case "room.list":
+    case "room.post":
+    case "room.events":
+    case "room.typing":
       return null;
+  }
+}
+
+/** Room-engine refusals are typed; forward them verbatim as protocol errors. */
+function roomErrorToHandlerError(error: unknown): never {
+  if (error instanceof RoomError) {
+    const mapped = new CommandHandlerError(error.code, error.message, error.retryable);
+    mapped.cause = error;
+    throw mapped;
+  }
+  throw error;
+}
+
+type RoomCommandRequestV1 = Extract<
+  CommandRequestV1,
+  { operation: "room.create" | "room.list" | "room.post" | "room.events" | "room.typing" }
+>;
+
+/**
+ * `room.*` commands are a durable single-writer transcript over the kernel's
+ * room tables. The moderator (if composed) is woken by the caller strictly
+ * after the human append is authoritative and journaled.
+ */
+function executeRoomCommand(
+  request: RoomCommandRequestV1,
+  dependencies: Readonly<{
+    observedAt: IsoInstant;
+    idFactory: DaemonRuntimeIdFactory;
+    rooms: RoomRepository;
+    roomsStatus: RoomsStatusPort;
+  }>,
+): CommandResultV1 {
+  try {
+    switch (request.operation) {
+      case "room.create": {
+        const created = dependencies.rooms.createRoom(request.payload, dependencies.observedAt);
+        return { operation: "room.create", room: created.room, duplicate: created.duplicate };
+      }
+      case "room.list":
+        return {
+          operation: "room.list",
+          rooms: [...dependencies.rooms.listRooms(request.payload.limit)],
+        };
+      case "room.post": {
+        const appended = dependencies.rooms.appendHumanMessage({
+          roomId: request.payload.roomId,
+          messageId: parseGeneratedRoomMessageId(dependencies.idFactory, request.commandId),
+          handle: request.payload.handle,
+          body: request.payload.body,
+          now: dependencies.observedAt,
+        });
+        return { operation: "room.post", message: appended.message, room: appended.room };
+      }
+      case "room.events": {
+        const room = dependencies.rooms.requireRoom(request.payload.roomId);
+        const messages = dependencies.rooms.listMessages(
+          room.roomId,
+          request.payload.afterSequence,
+          request.payload.limit,
+        );
+        return {
+          operation: "room.events",
+          room,
+          moderator: {
+            enabled: dependencies.roomsStatus.enabled,
+            attendance: roomAttendanceAt(
+              room,
+              dependencies.observedAt,
+              dependencies.roomsStatus.dormancyMs,
+            ),
+          },
+          messages: [...messages],
+          nextAfterSequence: messages.at(-1)?.sequence ?? request.payload.afterSequence,
+        };
+      }
+      case "room.typing": {
+        const typingUntil = IsoInstantSchema.parse(
+          new Date(Date.parse(dependencies.observedAt) + request.payload.ttlMs).toISOString(),
+        );
+        const room = dependencies.rooms.setHumanTyping(request.payload.roomId, typingUntil);
+        return { operation: "room.typing", roomId: room.roomId, typingUntil };
+      }
+    }
+  } catch (error) {
+    roomErrorToHandlerError(error);
   }
 }
 
@@ -1154,6 +1292,8 @@ async function executeRequest(
     effectsPump: EffectPumpStatusPort;
     taskPolicyGate: TaskPolicyGateOptions | undefined;
     runExportMirrors: RunExportMirrorPort;
+    rooms: RoomRepository;
+    roomsStatus: RoomsStatusPort;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1276,6 +1416,12 @@ async function executeRequest(
         operation: "effects.list",
         page: dependencies.effects.listEffects(request.payload),
       };
+    case "room.create":
+    case "room.list":
+    case "room.post":
+    case "room.events":
+    case "room.typing":
+      return executeRoomCommand(request, dependencies);
   }
 }
 
@@ -1302,6 +1448,8 @@ export async function openDaemonCommandRuntime(
   let repositories: FactoryRepositories;
   let effectRepository: EffectRepository;
   let effectsPumpStatusPort: EffectPumpStatusPort;
+  let roomRepository: RoomRepository;
+  let roomsStatusPort: RoomsStatusPort;
   try {
     await chmod(paths.database, 0o600);
     await assertPrivateRegularFile(paths.database);
@@ -1313,6 +1461,9 @@ export async function openDaemonCommandRuntime(
     effectRepository = createEffectRepository(database, {
       verifyObservationAttestation: verifyCanonicalObservationAttestation,
     });
+    // Always constructed: `room.*` commands are a durable transcript whether
+    // or not a moderator is composed to grant agents the floor.
+    roomRepository = new RoomRepository(database);
     options.initializeDatabase?.(database);
     effectsPumpStatusPort =
       options.initializeEffects?.({
@@ -1321,6 +1472,8 @@ export async function openDaemonCommandRuntime(
         artifacts: repositories.artifacts,
         evidenceStore,
       }) ?? inertEffectPumpStatusPort;
+    roomsStatusPort =
+      options.initializeRooms?.({ database, rooms: roomRepository }) ?? inertRoomsStatusPort;
   } catch (error) {
     database.close();
     throw error;
@@ -1364,8 +1517,15 @@ export async function openDaemonCommandRuntime(
           effectsPump: effectsPumpStatusPort,
           taskPolicyGate: options.taskPolicyGate,
           runExportMirrors,
+          rooms: roomRepository,
+          roomsStatus: roomsStatusPort,
         }),
       );
+      // A human post is the moderator's cue; the wake happens after the
+      // authoritative append (and, for durable results, after journaling).
+      if (request.operation === "room.post" && !persistResult) {
+        roomsStatusPort.wake(request.payload.roomId);
+      }
       if (!persistResult) return result;
       try {
         await options.commandResultLedgerBoundary?.({ request, result });
@@ -1375,6 +1535,9 @@ export async function openDaemonCommandRuntime(
           result,
         });
         assertMatchingRequest(persisted.request, request);
+        if (request.operation === "room.post") {
+          roomsStatusPort.wake(request.payload.roomId);
+        }
         return persisted.result;
       } catch {
         // The kernel mutation may already be authoritative even though its

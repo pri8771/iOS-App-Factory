@@ -37,6 +37,19 @@ import {
   TaskIdSchema,
 } from "./primitives.js";
 import { PortfolioReadModelV1Schema } from "./portfolio-read-model.js";
+import {
+  MAX_ROOM_EVENTS_LIMIT_V1,
+  MAX_ROOM_LIST_ITEMS_V1,
+  MAX_ROOM_MESSAGE_BODY_LENGTH_V1,
+  MAX_ROOM_TYPING_TTL_MS_V1,
+  RoomChatMessageV1Schema,
+  RoomCreateSpecV1Schema,
+  RoomHumanHandleSchema,
+  RoomIdSchema,
+  RoomMessageV1Schema,
+  RoomModeratorStatusV1Schema,
+  RoomV1Schema,
+} from "./room.js";
 import { RunRecordV1Schema } from "./run-record.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
@@ -291,6 +304,52 @@ export const ProjectMilestoneUpsertCommandRequestV1Schema = z.strictObject({
   payload: ProjectMilestoneUpsertV1Schema,
 });
 
+// Studio rooms (`room.*`) wire types. The moderator is daemon-owned deterministic code
+// (`@app-factory/studio-rooms`); these commands only create rooms, append human messages
+// (the single-writer transcript is CAS-appended by the daemon), read events, and signal
+// human typing so the moderator defers agent chains while the human is composing.
+export const RoomCreateCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("room.create"),
+  payload: RoomCreateSpecV1Schema,
+});
+
+export const RoomListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("room.list"),
+  payload: z.strictObject({ limit: z.number().int().min(1).max(MAX_ROOM_LIST_ITEMS_V1) }),
+});
+
+export const RoomPostCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("room.post"),
+  payload: z.strictObject({
+    roomId: RoomIdSchema,
+    handle: RoomHumanHandleSchema,
+    body: z.string().min(1).max(MAX_ROOM_MESSAGE_BODY_LENGTH_V1),
+  }),
+});
+
+export const RoomEventsCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("room.events"),
+  payload: z.strictObject({
+    roomId: RoomIdSchema,
+    afterSequence: NonNegativeSafeIntegerSchema,
+    limit: z.number().int().min(1).max(MAX_ROOM_EVENTS_LIMIT_V1),
+  }),
+});
+
+export const RoomTypingCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("room.typing"),
+  payload: z.strictObject({
+    roomId: RoomIdSchema,
+    handle: RoomHumanHandleSchema,
+    ttlMs: z.number().int().min(1).max(MAX_ROOM_TYPING_TTL_MS_V1),
+  }),
+});
+
 export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandRequestV1Schema,
   SubmitCommandRequestV1Schema,
@@ -316,6 +375,11 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProjectMilestoneUpsertCommandRequestV1Schema,
   EffectsStatusCommandRequestV1Schema,
   EffectsListCommandRequestV1Schema,
+  RoomCreateCommandRequestV1Schema,
+  RoomListCommandRequestV1Schema,
+  RoomPostCommandRequestV1Schema,
+  RoomEventsCommandRequestV1Schema,
+  RoomTypingCommandRequestV1Schema,
 ]);
 export type CommandRequestV1 = z.infer<typeof CommandRequestV1Schema>;
 export type CommandOperationV1 = CommandRequestV1["operation"];
@@ -544,6 +608,38 @@ export const ProjectMilestoneUpsertCommandResultV1Schema = z.strictObject({
   created: z.boolean(),
 });
 
+export const RoomCreateCommandResultV1Schema = z.strictObject({
+  operation: z.literal("room.create"),
+  room: RoomV1Schema,
+  /** True when the same roomId was already created with an identical spec. */
+  duplicate: z.boolean(),
+});
+
+export const RoomListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("room.list"),
+  rooms: z.array(RoomV1Schema).max(MAX_ROOM_LIST_ITEMS_V1),
+});
+
+export const RoomPostCommandResultV1Schema = z.strictObject({
+  operation: z.literal("room.post"),
+  message: RoomChatMessageV1Schema,
+  room: RoomV1Schema,
+});
+
+export const RoomEventsCommandResultV1Schema = z.strictObject({
+  operation: z.literal("room.events"),
+  room: RoomV1Schema,
+  moderator: RoomModeratorStatusV1Schema,
+  messages: z.array(RoomMessageV1Schema).max(MAX_ROOM_EVENTS_LIMIT_V1),
+  nextAfterSequence: NonNegativeSafeIntegerSchema,
+});
+
+export const RoomTypingCommandResultV1Schema = z.strictObject({
+  operation: z.literal("room.typing"),
+  roomId: RoomIdSchema,
+  typingUntil: IsoInstantSchema,
+});
+
 export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   DoctorCommandResultV1Schema,
   SubmitCommandResultV1Schema,
@@ -569,6 +665,11 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProjectMilestoneUpsertCommandResultV1Schema,
   EffectsStatusCommandResultV1Schema,
   EffectsListCommandResultV1Schema,
+  RoomCreateCommandResultV1Schema,
+  RoomListCommandResultV1Schema,
+  RoomPostCommandResultV1Schema,
+  RoomEventsCommandResultV1Schema,
+  RoomTypingCommandResultV1Schema,
 ]);
 export type CommandResultV1 = z.infer<typeof CommandResultV1Schema>;
 export type CommandResultForOperationV1<Operation extends CommandOperationV1> = Extract<

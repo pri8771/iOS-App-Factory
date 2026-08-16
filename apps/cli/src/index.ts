@@ -833,6 +833,41 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
               ? `more after ${result.page.nextAfter.updatedAt} ${result.page.nextAfter.effectId}\n`
               : ""
           }`;
+    case "room.create":
+      return `room ${result.room.roomId}: ${JSON.stringify(result.room.title)}${
+        result.duplicate ? " (already existed)" : ""
+      }\n`;
+    case "room.list":
+      return result.rooms.length === 0
+        ? "no rooms\n"
+        : `${result.rooms
+            .map(
+              (room) =>
+                `${room.roomId}\t${JSON.stringify(room.title)}\thead ${String(room.headSequence)}\t${
+                  room.activeGrantId === null ? "idle" : "generating"
+                }`,
+            )
+            .join("\n")}\n`;
+    case "room.post":
+      return `room ${result.room.roomId}: posted #${String(result.message.sequence)}\n`;
+    case "room.events":
+      return `${
+        result.messages.length === 0
+          ? "no messages"
+          : result.messages
+              .map((message) =>
+                message.kind === "system"
+                  ? `${String(message.sequence)}\t${message.occurredAt}\tsystem:${message.code}\t${message.body}`
+                  : `${String(message.sequence)}\t${message.occurredAt}\t${
+                      message.author.kind === "human"
+                        ? `@${message.author.handle}`
+                        : message.author.persona
+                    }\t${message.body}`,
+              )
+              .join("\n")
+      }\nmoderator: ${result.moderator.enabled ? "enabled" : "disabled"}, room ${result.moderator.attendance}\n`;
+    case "room.typing":
+      return `room ${result.roomId}: typing until ${result.typingUntil}\n`;
   }
 }
 

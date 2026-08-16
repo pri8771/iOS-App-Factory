@@ -12,6 +12,7 @@ const NOW = "2026-08-10T12:00:00.000Z";
 const COMMAND_ID = "00000000-0000-4000-8000-000000000004";
 const REQUEST_ID = "00000000-0000-4000-8000-000000000010";
 const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
+const ROOM_ID = "30000000-0000-4000-8000-000000000001";
 const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 
 function request(operation: string, payload: unknown): unknown {
@@ -68,6 +69,26 @@ describe("command protocol V1", () => {
         expectedRevision: null,
       },
     ],
+    [
+      "room.create",
+      {
+        roomId: ROOM_ID,
+        title: "Design review",
+        projectId: null,
+        unattendedEnabled: true,
+        agentCooldownEvents: 2,
+        participants: [{ persona: "architect", provider: "ollama", displayName: "Architect" }],
+        budget: {
+          dailyCeilingTokens: 10_000,
+          unattendedDailyCeilingTokens: 1_000,
+          maxTokensPerReply: 500,
+        },
+      },
+    ],
+    ["room.list", { limit: 50 }],
+    ["room.post", { roomId: ROOM_ID, handle: "priyansh", body: "@architect thoughts?" }],
+    ["room.events", { roomId: ROOM_ID, afterSequence: 0, limit: 200 }],
+    ["room.typing", { roomId: ROOM_ID, handle: "priyansh", ttlMs: 5_000 }],
   ])("accepts the strict %s request", (operation, payload) => {
     expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(true);
   });
@@ -328,6 +349,43 @@ describe("command protocol V1", () => {
     ).toBe(true);
   });
 
+  it.each([
+    [
+      "room.create",
+      {
+        roomId: ROOM_ID,
+        title: "",
+        projectId: null,
+        unattendedEnabled: false,
+        agentCooldownEvents: 1,
+        participants: [],
+        budget: { dailyCeilingTokens: 1, unattendedDailyCeilingTokens: 0, maxTokensPerReply: 1 },
+      },
+    ],
+    [
+      "room.create",
+      {
+        roomId: ROOM_ID,
+        title: "dup personas",
+        projectId: null,
+        unattendedEnabled: false,
+        agentCooldownEvents: 1,
+        participants: [
+          { persona: "a", provider: "ollama", displayName: "A" },
+          { persona: "a", provider: "ollama", displayName: "B" },
+        ],
+        budget: { dailyCeilingTokens: 10, unattendedDailyCeilingTokens: 0, maxTokensPerReply: 1 },
+      },
+    ],
+    ["room.post", { roomId: ROOM_ID, handle: "bad handle", body: "x" }],
+    ["room.post", { roomId: ROOM_ID, handle: "ok", body: "" }],
+    ["room.events", { roomId: ROOM_ID, afterSequence: -1, limit: 10 }],
+    ["room.typing", { roomId: ROOM_ID, handle: "ok", ttlMs: 60_000 }],
+    ["room.list", {}],
+  ])("rejects the malformed %s request", (operation, payload) => {
+    expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(false);
+  });
+
   it("keeps operation-specific request and result types correlated", () => {
     expectTypeOf<CommandRequestForOperationV1<"attempt.pause">["payload"]>().toEqualTypeOf<{
       attemptId: string & { readonly __brand: "AttemptId" };
@@ -348,5 +406,11 @@ describe("command protocol V1", () => {
     expectTypeOf<
       CommandResultForOperationV1<"evidence.verify">["integrityVerified"]
     >().toEqualTypeOf<true>();
+    expectTypeOf<
+      CommandResultForOperationV1<"room.events">["moderator"]["attendance"]
+    >().toEqualTypeOf<"attended" | "dormant">();
+    expectTypeOf<
+      CommandResultForOperationV1<"room.create">["duplicate"]
+    >().toEqualTypeOf<boolean>();
   });
 });

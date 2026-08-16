@@ -9,6 +9,7 @@ import { projectExecutionProjectionsMigration } from "./migrations/0004-project-
 import { attemptListIndexesMigration } from "./migrations/0005-attempt-list-indexes.js";
 import { retryAndUnblockCommandsMigration } from "./migrations/0006-retry-and-unblock-commands.js";
 import { projectMilestonesMigration } from "./migrations/0007-project-milestones.js";
+import { studioRoomsMigration } from "./migrations/0008-studio-rooms.js";
 import type { SqlMigration } from "./migration-types.js";
 
 export type { SqlMigration } from "./migration-types.js";
@@ -38,6 +39,7 @@ export const FACTORY_MIGRATIONS: readonly SqlMigration[] = [
   attemptListIndexesMigration,
   retryAndUnblockCommandsMigration,
   projectMilestonesMigration,
+  studioRoomsMigration,
 ];
 
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;

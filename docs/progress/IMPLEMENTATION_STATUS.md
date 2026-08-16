@@ -139,6 +139,29 @@ is verified.** No Studio capability described in ADR 0004 or
 exactly the four listed in [`README.md`](../../README.md): `cli`, `daemon`,
 `dashboard`, `mcp`.
 
+**Rooms core (Studio phase 2/3 groundwork), branch `studio/rooms-core`:**
+[`packages/studio-rooms`](../../packages/studio-rooms) adds the daemon-owned
+room engine — a deterministic moderator over a single-writer, append-only
+transcript in the kernel control plane (migration
+[`0007-studio-rooms`](../../packages/kernel/src/migrations/0007-studio-rooms.ts):
+`rooms`, `room_participants`, `room_messages`, `room_grants`,
+`room_budgets`). Implemented and tested: Tier 0 deterministic admission
+(author exclusion, `@mention` forced invite, per-agent cooldown, the hard cap
+of three consecutive agent messages, budget and shared-quota gates), Tier 1
+one `ScorerPort` call per round, Tier 2 admitted-agent `pass`, head-stamped
+wall-clock grant leases with compare-and-swap commit and `RevalidatePort`
+hold when the human posted meanwhile, budget reservations, a priority
+`QuotaGovernorPort` (factory > rooms), unattended-mode dormancy, typed
+`limit|timeout|capacity|internal` failure events with bench-until (never a
+hold), and an orphan sweep on start/wake. Wire ops `room.create`,
+`room.list`, `room.post`, `room.events`, `room.typing` are in
+`packages/contracts`, the daemon command runtime, `command-client`, and the
+CLI renderer. The daemon composes the moderator only when
+`startFactoryDaemonService({ rooms: { enabled: true, scorer, contributor,
+revalidator } })` is given all three ports; **no LLM adapter exists in this
+repository** (the Ollama adapter is a separate task), so in production the
+`room.*` commands are today a durable transcript with the moderator inert.
+
 Open gaps this decision carries, none scheduled by this entry:
 
 - No `milestones[]` schema exists anywhere under `packages/` (verified

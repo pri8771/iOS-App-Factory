@@ -2249,10 +2249,499 @@
     "__schema75": {
       "type": "boolean"
     },
+    "__schema76": {
+      "additionalProperties": false,
+      "properties": {
+        "activeGrantId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema79"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agentCooldownEvents": {
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "budget": {
+          "additionalProperties": false,
+          "properties": {
+            "dailyCeilingTokens": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "dayKey": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "maxTokensPerReply": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "reservedTokens": {
+              "$ref": "#/$defs/__schema10"
+            },
+            "spentTokens": {
+              "$ref": "#/$defs/__schema10"
+            },
+            "unattendedDailyCeilingTokens": {
+              "$ref": "#/$defs/__schema10"
+            },
+            "unattendedSpentTokens": {
+              "$ref": "#/$defs/__schema10"
+            }
+          },
+          "required": [
+            "dayKey",
+            "dailyCeilingTokens",
+            "unattendedDailyCeilingTokens",
+            "maxTokensPerReply",
+            "spentTokens",
+            "reservedTokens",
+            "unattendedSpentTokens"
+          ],
+          "type": "object"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "headMessageId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema78"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "headSequence": {
+          "$ref": "#/$defs/__schema10"
+        },
+        "humanTypingUntil": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastHumanAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "participants": {
+          "items": {
+            "$ref": "#/$defs/__schema80"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "type": "array"
+        },
+        "pendingTrigger": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "human-message",
+                    "agent-message",
+                    "factory-event",
+                    "wake"
+                  ],
+                  "type": "string"
+                },
+                "requestedAt": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "sourceSequence": {
+                  "$ref": "#/$defs/__schema10"
+                }
+              },
+              "required": [
+                "kind",
+                "requestedAt",
+                "sourceSequence"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "projectId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "roomId": {
+          "$ref": "#/$defs/__schema77"
+        },
+        "roundCounter": {
+          "$ref": "#/$defs/__schema10"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "unattendedEnabled": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/__schema2"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "roomId",
+        "title",
+        "projectId",
+        "createdAt",
+        "updatedAt",
+        "unattendedEnabled",
+        "headSequence",
+        "headMessageId",
+        "lastHumanAt",
+        "humanTypingUntil",
+        "roundCounter",
+        "activeGrantId",
+        "pendingTrigger",
+        "agentCooldownEvents",
+        "participants",
+        "budget"
+      ],
+      "type": "object"
+    },
+    "__schema77": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema78": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema79": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
     "__schema8": {
       "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
+    },
+    "__schema80": {
+      "additionalProperties": false,
+      "properties": {
+        "benchReason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema82"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "benchedUntil": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "displayName": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "persona": {
+          "$ref": "#/$defs/__schema81"
+        },
+        "position": {
+          "$ref": "#/$defs/__schema10"
+        },
+        "provider": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "persona",
+        "provider",
+        "displayName",
+        "position",
+        "benchedUntil",
+        "benchReason"
+      ],
+      "type": "object"
+    },
+    "__schema81": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema82": {
+      "enum": [
+        "limit",
+        "timeout",
+        "capacity",
+        "internal"
+      ],
+      "type": "string"
+    },
+    "__schema83": {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "handle": {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "human",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "handle"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "agent",
+                  "type": "string"
+                },
+                "persona": {
+                  "$ref": "#/$defs/__schema81"
+                }
+              },
+              "required": [
+                "kind",
+                "persona"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "body": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "grantId": {
+          "$ref": "#/$defs/__schema85"
+        },
+        "kind": {
+          "const": "message",
+          "type": "string"
+        },
+        "mentions": {
+          "items": {
+            "$ref": "#/$defs/__schema81"
+          },
+          "maxItems": 16,
+          "type": "array"
+        },
+        "messageId": {
+          "$ref": "#/$defs/__schema78"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "roomId": {
+          "$ref": "#/$defs/__schema77"
+        },
+        "roundNumber": {
+          "$ref": "#/$defs/__schema84"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "sequence": {
+          "$ref": "#/$defs/__schema8"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "roomId",
+        "messageId",
+        "sequence",
+        "occurredAt",
+        "roundNumber",
+        "grantId",
+        "kind",
+        "author",
+        "body",
+        "mentions"
+      ],
+      "type": "object"
+    },
+    "__schema84": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema10"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema85": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema79"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema86": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/__schema83"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "benchedUntil": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "body": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "code": {
+              "enum": [
+                "all-passed",
+                "agent-passed",
+                "agent-error",
+                "factory-event",
+                "room-dormant",
+                "throttled",
+                "budget-exhausted",
+                "chain-cap",
+                "grant-orphaned",
+                "contribution-dropped",
+                "contribution-revised",
+                "scorer-unavailable"
+              ],
+              "type": "string"
+            },
+            "errorCode": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema82"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "grantId": {
+              "$ref": "#/$defs/__schema85"
+            },
+            "kind": {
+              "const": "system",
+              "type": "string"
+            },
+            "messageId": {
+              "$ref": "#/$defs/__schema78"
+            },
+            "occurredAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "persona": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema81"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retryAt": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "roomId": {
+              "$ref": "#/$defs/__schema77"
+            },
+            "roundNumber": {
+              "$ref": "#/$defs/__schema84"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema6"
+            },
+            "sequence": {
+              "$ref": "#/$defs/__schema8"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "roomId",
+            "messageId",
+            "sequence",
+            "occurredAt",
+            "roundNumber",
+            "grantId",
+            "kind",
+            "code",
+            "body",
+            "persona",
+            "errorCode",
+            "benchedUntil",
+            "retryAt"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "__schema9": {
       "enum": [
@@ -3510,6 +3999,140 @@
               "required": [
                 "operation",
                 "page"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "duplicate": {
+                  "type": "boolean"
+                },
+                "operation": {
+                  "const": "room.create",
+                  "type": "string"
+                },
+                "room": {
+                  "$ref": "#/$defs/__schema76"
+                }
+              },
+              "required": [
+                "operation",
+                "room",
+                "duplicate"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "operation": {
+                  "const": "room.list",
+                  "type": "string"
+                },
+                "rooms": {
+                  "items": {
+                    "$ref": "#/$defs/__schema76"
+                  },
+                  "maxItems": 200,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "operation",
+                "rooms"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "message": {
+                  "$ref": "#/$defs/__schema83"
+                },
+                "operation": {
+                  "const": "room.post",
+                  "type": "string"
+                },
+                "room": {
+                  "$ref": "#/$defs/__schema76"
+                }
+              },
+              "required": [
+                "operation",
+                "message",
+                "room"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "messages": {
+                  "items": {
+                    "$ref": "#/$defs/__schema86"
+                  },
+                  "maxItems": 1000,
+                  "type": "array"
+                },
+                "moderator": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "attendance": {
+                      "enum": [
+                        "attended",
+                        "dormant"
+                      ],
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "attendance"
+                  ],
+                  "type": "object"
+                },
+                "nextAfterSequence": {
+                  "$ref": "#/$defs/__schema10"
+                },
+                "operation": {
+                  "const": "room.events",
+                  "type": "string"
+                },
+                "room": {
+                  "$ref": "#/$defs/__schema76"
+                }
+              },
+              "required": [
+                "operation",
+                "room",
+                "moderator",
+                "messages",
+                "nextAfterSequence"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "operation": {
+                  "const": "room.typing",
+                  "type": "string"
+                },
+                "roomId": {
+                  "$ref": "#/$defs/__schema77"
+                },
+                "typingUntil": {
+                  "$ref": "#/$defs/__schema2"
+                }
+              },
+              "required": [
+                "operation",
+                "roomId",
+                "typingUntil"
               ],
               "type": "object"
             }

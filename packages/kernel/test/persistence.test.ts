@@ -246,9 +246,9 @@ describe("migration runner", () => {
     const first = runMigrations(database, { now: () => new Date(NOW) });
     const second = runMigrations(database, { now: () => new Date(LATER) });
 
-    expect(first).toEqual({ currentVersion: 7, newlyAppliedVersions: [1, 2, 3, 4, 5, 6, 7] });
-    expect(second).toEqual({ currentVersion: 7, newlyAppliedVersions: [] });
-    expect(database.pragma("user_version", { simple: true })).toBe(7);
+    expect(first).toEqual({ currentVersion: 8, newlyAppliedVersions: [1, 2, 3, 4, 5, 6, 7, 8] });
+    expect(second).toEqual({ currentVersion: 8, newlyAppliedVersions: [] });
+    expect(database.pragma("user_version", { simple: true })).toBe(8);
     expect(listAppliedMigrations(database)).toEqual([
       {
         version: 1,
@@ -289,6 +289,12 @@ describe("migration runner", () => {
       {
         version: 7,
         name: "project-milestones",
+        checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+        appliedAt: NOW,
+      },
+      {
+        version: 8,
+        name: "studio-rooms",
         checksum: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
         appliedAt: NOW,
       },
@@ -337,6 +343,11 @@ describe("migration runner", () => {
       "project_execution_projections",
       "project_milestone_revisions",
       "project_milestones",
+      "room_budgets",
+      "room_grants",
+      "room_messages",
+      "room_participants",
+      "rooms",
       "schema_migrations",
       "steps",
       "task_snapshots",
@@ -349,7 +360,7 @@ describe("migration runner", () => {
     const database = openFactoryDatabase(makeDatabasePath());
     runMigrations(database, { now: () => new Date(NOW) });
     const brokenMigration: SqlMigration = {
-      version: 8,
+      version: 9,
       name: "broken-probe",
       sql: `
         CREATE TABLE must_rollback (id INTEGER PRIMARY KEY) STRICT;
@@ -362,10 +373,10 @@ describe("migration runner", () => {
         migrations: [...FACTORY_MIGRATIONS, brokenMigration],
         now: () => new Date(LATER),
       }),
-    ).toThrow(/Migration 8 \(broken-probe\) failed/);
-    expect(database.pragma("user_version", { simple: true })).toBe(7);
+    ).toThrow(/Migration 9 \(broken-probe\) failed/);
+    expect(database.pragma("user_version", { simple: true })).toBe(8);
     expect(listAppliedMigrations(database).map((migration) => migration.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7,
+      1, 2, 3, 4, 5, 6, 7, 8,
     ]);
     expect(
       database
@@ -386,10 +397,10 @@ describe("migration runner", () => {
     expect(database.pragma("user_version", { simple: true })).toBe(1);
 
     expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
-      currentVersion: 7,
-      newlyAppliedVersions: [2, 3, 4, 5, 6, 7],
+      currentVersion: 8,
+      newlyAppliedVersions: [2, 3, 4, 5, 6, 7, 8],
     });
-    expect(database.pragma("user_version", { simple: true })).toBe(7);
+    expect(database.pragma("user_version", { simple: true })).toBe(8);
     const stepColumns = database.pragma("table_info(steps)") as readonly Readonly<{
       name: string;
     }>[];
@@ -409,8 +420,8 @@ describe("migration runner", () => {
     });
 
     expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
-      currentVersion: 7,
-      newlyAppliedVersions: [3, 4, 5, 6, 7],
+      currentVersion: 8,
+      newlyAppliedVersions: [3, 4, 5, 6, 7, 8],
     });
     const trigger = database
       .prepare(
@@ -418,7 +429,7 @@ describe("migration runner", () => {
       )
       .get() as Readonly<{ sql: string }>;
     expect(trigger.sql).toContain("NEW.state IN ('confirmed', 'manual-intervention')");
-    expect(database.pragma("user_version", { simple: true })).toBe(7);
+    expect(database.pragma("user_version", { simple: true })).toBe(8);
     expect(database.pragma("foreign_key_check")).toEqual([]);
     database.close();
   });
@@ -615,7 +626,7 @@ describe("migration runner", () => {
     const database = openFactoryDatabase(makeDatabasePath());
     const first = runMigrations(database, { now: () => new Date(NOW) });
     const second = runMigrations(database, { now: () => new Date(LATER) });
-    expect(first.newlyAppliedVersions).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(first.newlyAppliedVersions).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(second.newlyAppliedVersions).toEqual([]);
     expect(database.pragma("foreign_keys", { simple: true })).toBe(1);
     expect(database.pragma("foreign_key_check")).toEqual([]);
