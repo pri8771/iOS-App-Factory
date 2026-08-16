@@ -30,6 +30,7 @@ let package = Package(
                 .product(name: "Highlightr", package: "Highlightr"),
             ],
             path: "Sources/StudioKit",
+            resources: [.copy("Resources/timeline-fixture.json")],
             swiftSettings: [
                 .enableUpcomingFeature("ExistentialAny"),
             ]

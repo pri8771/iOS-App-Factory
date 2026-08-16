@@ -9,21 +9,6 @@ import XCTest
 @MainActor
 final class DesignSystemSnapshotTests: XCTestCase {
 
-    private func assertHUD<V: View>(_ view: V, size: CGSize, named name: String,
-                                    file: StaticString = #filePath, testName: String = #function, line: UInt = #line) {
-        for (appearance, suffix) in [(NSAppearance.Name.darkAqua, "dark"), (.aqua, "light")] {
-            let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
-            host.appearance = NSAppearance(named: appearance)
-            host.frame = CGRect(origin: .zero, size: size)
-            let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
-            window.contentView = host
-            window.appearance = host.appearance
-            host.layoutSubtreeIfNeeded()
-            assertSnapshot(of: host, as: .image(precision: 0.995, perceptualPrecision: 0.98),
-                           named: "\(name)-\(suffix)", file: file, testName: testName, line: line)
-        }
-    }
-
     func testGallery() {
         assertHUD(HUDGallery(), size: CGSize(width: 900, height: 620), named: "gallery")
     }
