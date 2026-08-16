@@ -1,7 +1,17 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { cp, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -560,6 +570,170 @@ describe("local execution profiles", () => {
         containmentAttestationPath: await writeAttestation(fixture.root),
       }),
     ).rejects.toBeInstanceOf(LocalExecutionProfileConfigurationError);
+  });
+
+  describe("sibling executable pins", () => {
+    async function codexProfileWithSiblings(
+      siblingExecutables: unknown,
+      options: Readonly<{ binDirectory?: string }> = {},
+    ): Promise<
+      Readonly<{
+        fixture: Awaited<ReturnType<typeof createFixture>>;
+        executable: string;
+        profilePath: string;
+        writeSibling: (name: string, contents: string, mode?: number) => Promise<string>;
+        preflightCalls: () => number;
+        load: () => Promise<Awaited<ReturnType<typeof loadLocalExecutionProfile>>>;
+      }>
+    > {
+      const fixture = await createFixture();
+      const binDirectory = options.binDirectory ?? join(fixture.root, "bin");
+      await mkdir(binDirectory, { recursive: true, mode: 0o700 });
+      const executable = join(binDirectory, "fake-codex");
+      const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
+      const codexHome = join(fixture.root, "codex-home");
+      const profilePath = join(fixture.root, "codex-profile.json");
+      await writeFile(executable, executableBytes, { mode: 0o700 });
+      await mkdir(codexHome, { mode: 0o700 });
+      await writeFile(
+        profilePath,
+        JSON.stringify({
+          schemaVersion: 1,
+          mode: "swift-greeter-codex-v1",
+          fixtureConfigurationFile: fixture.fixtureConfigurationFile,
+          executable,
+          executableDigest: sha256(executableBytes),
+          expectedCliVersion: "0.147.0-alpha.1.2",
+          model: "gpt-test-pinned",
+          codexHome,
+          ...(siblingExecutables === undefined ? {} : { siblingExecutables }),
+        }),
+        { mode: 0o600 },
+      );
+      let preflightCalls = 0;
+      const attestation = await writeAttestation(fixture.root);
+      return {
+        fixture,
+        executable,
+        profilePath,
+        writeSibling: async (name, contents, mode = 0o700) => {
+          const path = join(binDirectory, name);
+          await writeFile(path, contents, { mode });
+          return path;
+        },
+        preflightCalls: () => preflightCalls,
+        load: async () =>
+          await loadLocalExecutionProfile(profilePath, fixture.runtime, {
+            containmentAttestationPath: attestation,
+            codexAgentDependencies: {
+              preflight: async (preflightOptions) => {
+                preflightCalls += 1;
+                return {
+                  ready: true,
+                  executable: preflightOptions.executable,
+                  version: "0.147.0-alpha.1.2",
+                  authConfigured: true,
+                } as const;
+              },
+            },
+          }),
+      };
+    }
+
+    const HOST_SCRIPT = "#!/bin/sh\nexec /bin/false\n";
+
+    it("loads when every declared sibling is present next to the executable with its exact digest", async () => {
+      const profile = await codexProfileWithSiblings([
+        { name: "codex-code-mode-host", digest: sha256(Buffer.from(HOST_SCRIPT, "utf8")) },
+      ]);
+      await profile.writeSibling("codex-code-mode-host", HOST_SCRIPT);
+
+      const loaded = await profile.load();
+      expect(loaded.projects).toHaveLength(1);
+      expect(loaded.projects[0]?.agent).toMatchObject({ adapterId: "openai.codex" });
+      expect(profile.preflightCalls()).toBe(1);
+    });
+
+    it("keeps profiles without the key loading exactly as before", async () => {
+      const profile = await codexProfileWithSiblings(undefined);
+      const loaded = await profile.load();
+      expect(loaded.projects).toHaveLength(1);
+    });
+
+    it("fails closed before preflight when a declared sibling is missing", async () => {
+      const profile = await codexProfileWithSiblings([
+        { name: "codex-code-mode-host", digest: sha256(Buffer.from(HOST_SCRIPT, "utf8")) },
+      ]);
+
+      await expect(profile.load()).rejects.toThrow(
+        /Sibling executable codex-code-mode-host is missing or cannot be opened safely/,
+      );
+      await expect(profile.load()).rejects.toBeInstanceOf(LocalExecutionProfileConfigurationError);
+      expect(profile.preflightCalls()).toBe(0);
+    });
+
+    it("fails closed before preflight when a declared sibling's digest does not match", async () => {
+      const profile = await codexProfileWithSiblings([
+        { name: "codex-code-mode-host", digest: sha256(Buffer.from(HOST_SCRIPT, "utf8")) },
+      ]);
+      await profile.writeSibling("codex-code-mode-host", "#!/bin/sh\nexec /bin/true\n");
+
+      await expect(profile.load()).rejects.toThrow(
+        /Sibling executable codex-code-mode-host does not match its pinned digest/,
+      );
+      expect(profile.preflightCalls()).toBe(0);
+    });
+
+    it("refuses a sibling that is not an executable regular file", async () => {
+      const profile = await codexProfileWithSiblings([
+        { name: "codex-code-mode-host", digest: sha256(Buffer.from(HOST_SCRIPT, "utf8")) },
+      ]);
+      await profile.writeSibling("codex-code-mode-host", HOST_SCRIPT, 0o600);
+
+      await expect(profile.load()).rejects.toThrow(/executable regular file/);
+      expect(profile.preflightCalls()).toBe(0);
+    });
+
+    it("refuses a symlinked sibling even when the link target has the pinned bytes", async () => {
+      const profile = await codexProfileWithSiblings([
+        { name: "codex-code-mode-host", digest: sha256(Buffer.from(HOST_SCRIPT, "utf8")) },
+      ]);
+      const target = join(profile.fixture.root, "elsewhere-host");
+      await writeFile(target, HOST_SCRIPT, { mode: 0o700 });
+      await symlink(target, join(profile.executable, "..", "codex-code-mode-host"));
+
+      await expect(profile.load()).rejects.toBeInstanceOf(LocalExecutionProfileConfigurationError);
+      expect(profile.preflightCalls()).toBe(0);
+    });
+
+    it("rejects malformed sibling declarations at parse time", async () => {
+      const validDigest = sha256(Buffer.from(HOST_SCRIPT, "utf8"));
+      const cases: readonly unknown[] = [
+        "codex-code-mode-host",
+        [{ name: "codex-code-mode-host" }],
+        [{ name: "codex-code-mode-host", digest: validDigest, extra: true }],
+        [{ name: "codex-code-mode-host", digest: "sha256:nope" }],
+        [{ name: "../escaped-host", digest: validDigest }],
+        [{ name: "nested/host", digest: validDigest }],
+        [{ name: "", digest: validDigest }],
+        [{ name: "fake-codex", digest: validDigest }],
+        [
+          { name: "codex-code-mode-host", digest: validDigest },
+          { name: "codex-code-mode-host", digest: validDigest },
+        ],
+        Array.from({ length: 17 }, (_, index) => ({
+          name: `host-${String(index)}`,
+          digest: validDigest,
+        })),
+      ];
+      for (const siblingExecutables of cases) {
+        const profile = await codexProfileWithSiblings(siblingExecutables);
+        await expect(profile.load()).rejects.toBeInstanceOf(
+          LocalExecutionProfileConfigurationError,
+        );
+        expect(profile.preflightCalls()).toBe(0);
+      }
+    });
   });
 
   it("refuses the Codex mode without an owner containment attestation and never preflights", async () => {

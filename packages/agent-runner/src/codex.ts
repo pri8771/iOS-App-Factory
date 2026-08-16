@@ -193,6 +193,20 @@ function readBoundedString(value: unknown, label: string, maximumLength: number)
 
 export type CodexReportedDispositionV1 = "finished" | "blocked" | "failed";
 
+/**
+ * The canonical code a blocked Codex result is materialized under when the
+ * model emitted a `blocker.code` that is not a lowercase namespaced code
+ * (upper-snake, spaces, empty, ...). The raw emitted text is preserved in the
+ * blocker summary so nothing the model reported is lost, while the outcome
+ * stays a clean, unblockable `blocked` result rather than a non-retryable
+ * protocol error. `NamespacedCodeSchema` itself is never weakened: only this
+ * exact, well-formed replacement code ever reaches the contract.
+ */
+export const CODEX_MALFORMED_BLOCKER_CODE = "agent.blocker-code-malformed";
+const MAX_RAW_BLOCKER_CODE_LENGTH = 1_024;
+const MAX_PRESERVED_BLOCKER_CODE_LENGTH = 128;
+const MAX_NAMESPACED_CODE_LENGTH = 128;
+
 export type CodexReportedBlockerV1 = Readonly<{
   kind: "authentication" | "clarification" | "approval" | "environment" | "policy";
   code: string;
@@ -277,6 +291,35 @@ export function serializeCodexReportedResultJsonSchemaV1(): string {
   return `${JSON.stringify(CODEX_REPORTED_RESULT_JSON_SCHEMA_V1, null, 2)}\n`;
 }
 
+/**
+ * Accepts a well-formed namespaced blocker code as-is. A model-emitted code
+ * that is a string but not a namespaced code is a content defect, not a
+ * protocol defect: the blocker is still structurally complete, so it is
+ * materialized under {@link CODEX_MALFORMED_BLOCKER_CODE} with the raw text
+ * preserved (bounded) at the front of the summary. Anything that is not a
+ * bounded string at all remains a structural violation and throws.
+ */
+function normalizeReportedBlockerCode(
+  rawCode: unknown,
+  summary: string,
+): Readonly<{ code: string; summary: string }> {
+  if (typeof rawCode !== "string" || rawCode.length > MAX_RAW_BLOCKER_CODE_LENGTH) {
+    throw new TypeError("blocker.code must be a bounded string");
+  }
+  if (rawCode.length <= MAX_NAMESPACED_CODE_LENGTH && NAMESPACED_CODE_PATTERN.test(rawCode)) {
+    return { code: rawCode, summary };
+  }
+  const preserved =
+    rawCode.length > MAX_PRESERVED_BLOCKER_CODE_LENGTH
+      ? `${rawCode.slice(0, MAX_PRESERVED_BLOCKER_CODE_LENGTH)}…`
+      : rawCode;
+  const provenance = `Codex reported the malformed blocker code ${JSON.stringify(preserved)}. `;
+  return {
+    code: CODEX_MALFORMED_BLOCKER_CODE,
+    summary: `${provenance}${summary}`.slice(0, 1_000),
+  };
+}
+
 export function parseCodexReportedResultV1(contents: string): CodexReportedResultV1 {
   let parsed: unknown;
   try {
@@ -335,13 +378,11 @@ export function parseCodexReportedResultV1(contents: string): CodexReportedResul
     ) {
       throw new TypeError("blocker.kind is invalid");
     }
-    if (
-      typeof parsed.blocker.code !== "string" ||
-      !NAMESPACED_CODE_PATTERN.test(parsed.blocker.code)
-    ) {
-      throw new TypeError("blocker.code must be a namespaced code");
-    }
-    const blockerSummary = readBoundedString(parsed.blocker.summary, "blocker.summary", 1_000);
+    const normalizedBlocker = normalizeReportedBlockerCode(
+      parsed.blocker.code,
+      readBoundedString(parsed.blocker.summary, "blocker.summary", 1_000),
+    );
+    const blockerSummary = normalizedBlocker.summary;
     const requiredAction = parsed.blocker.requiredAction;
     if (
       requiredAction !== null &&
@@ -354,7 +395,7 @@ export function parseCodexReportedResultV1(contents: string): CodexReportedResul
 
     blocker = {
       kind: parsed.blocker.kind,
-      code: parsed.blocker.code,
+      code: normalizedBlocker.code,
       summary: blockerSummary,
       requiredAction,
     };

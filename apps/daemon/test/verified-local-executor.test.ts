@@ -63,6 +63,7 @@ import {
   OciLocalAgent,
   RetryableExecutionManifestPublicationError,
   commitVerifiedExecutionManifest,
+  computeRunRecordDigest,
   computeTaskSemanticProfileDigest,
   decodeReviewedPolicyPayload,
   reconcileAgentResultPublicationLinks,
@@ -1555,6 +1556,100 @@ describe("daemon verified local execution", () => {
       ) as Readonly<Record<string, unknown>>;
       expect(intentArtifact.digest).toBe(journal.supervisorIntentDigest);
       expect(storedReceipt.intentDigest).toBe(digestSupervisedRunIntent(storedIntent));
+
+      // `run export` re-derives the canonical run record from the durable evidence
+      // store and the sealed Factory mirror; nothing comes from daemon memory.
+      const mirrorPath = join(
+        service.executionPaths.gitRuntimeRoot,
+        "mirrors",
+        `${REPOSITORY_ID}.git`,
+      );
+      const brokerCommitSha = git(f.root, [
+        "--git-dir",
+        mirrorPath,
+        "rev-parse",
+        "--verify",
+        `refs/app-factory/attempts/${intake.attemptId}^{commit}`,
+      ]);
+      const exported = await client.exportRun(intake.attemptId);
+      expect(exported.operation).toBe("run.export");
+      expect(exported.record).toMatchObject({
+        schemaVersion: 1,
+        attemptId: intake.attemptId,
+        taskId: f.taskSpec.taskId,
+        attemptNumber: 1,
+        state: "succeeded",
+        repositoryId: REPOSITORY_ID,
+        taskSpecDigest: journal.taskSpecDigest,
+        policyDigest: f.policyDigest,
+        baseCommit: f.baseCommit,
+        brokerCommit: { commit: brokerCommitSha, attemptMarker: intake.attemptId },
+        review: { verdict: "pass", findingCount: 0 },
+        evidence: {
+          manifestDigest: integrity.manifest.manifestDigest,
+          entryCount: integrity.manifest.entryCount,
+          artifactCount: integrity.artifactCount,
+        },
+        agent: {
+          adapterId: agent.adapterId,
+          adapterVersion: agent.adapterVersion,
+          cliVersion: "0.147.0-alpha.1.2",
+          model: "gpt-5.6-codex",
+          executableDigest: sha256Digest(Buffer.from("codex executable fixture", "utf8")),
+          usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 2 },
+        },
+      });
+      expect(exported.record.verification.map((claim) => claim.checkId)).toEqual([
+        "tests.swift",
+        "acceptance.signature",
+        "acceptance.behavior",
+      ]);
+      expect(exported.record.verification.every((claim) => claim.passed)).toBe(true);
+      expect(
+        exported.record.timings.agentStartedAt <= exported.record.timings.agentFinishedAt,
+      ).toBe(true);
+      expect(
+        exported.record.timings.attemptCreatedAt <= exported.record.timings.attemptTerminalAt,
+      ).toBe(true);
+      expect(exported.recordDigest).toBe(computeRunRecordDigest(exported.record));
+      // The broker commit's tree is the verified candidate tree in the mirror.
+      expect(
+        git(f.root, [
+          "--git-dir",
+          mirrorPath,
+          "rev-parse",
+          "--verify",
+          `${brokerCommitSha}^{tree}`,
+        ]),
+      ).toBe(exported.record.brokerCommit.tree);
+      expect(exported.record.candidateTree).toBe(exported.record.brokerCommit.tree);
+
+      // The record is a function of durable state only: a fresh daemon over the same
+      // runtime directory, with no attempt in memory, exports the identical record.
+      client.close();
+      await service.close();
+      const restarted = await start(f, new ProtocolSwiftAgent(), { count: 0 });
+      const restartedClient = clientFor(restarted);
+      const reExported = await restartedClient.exportRun(intake.attemptId);
+      expect(reExported.record).toEqual(exported.record);
+      expect(reExported.recordDigest).toBe(exported.recordDigest);
+
+      // A verified evidence store is not enough on its own: the broker commit must
+      // still be re-derivable from the mirror. Removing the attempt ref fails closed.
+      git(f.root, [
+        "--git-dir",
+        mirrorPath,
+        "update-ref",
+        "-d",
+        `refs/app-factory/attempts/${intake.attemptId}`,
+      ]);
+      await expect(restartedClient.exportRun(intake.attemptId)).rejects.toMatchObject({
+        name: "CommandRemoteError",
+        code: "run.export-integrity-failed",
+      });
+      expect(await restartedClient.verifyEvidence(intake.attemptId)).toMatchObject({
+        integrityVerified: true,
+      });
     },
   );
 
@@ -2433,6 +2528,150 @@ describe("daemon verified local execution", () => {
           intake.attemptId,
         )?.phase,
       ).toBe("tests-passed");
+    },
+  );
+
+  it(
+    "surfaces a supervisor V2 pre-launch stale-fence rejection under its real code after restart adoption",
+    { timeout: 60_000 },
+    async () => {
+      // Restart-adoption scenario: a Codex-style supervised adapter (supervisor V2,
+      // protocol evidence required) is asked to run under a fresh fence, discovers a
+      // durable terminal receipt for the same logical run at an older fence during
+      // #reconcilePriorFences, and refuses to launch. No agent process ran under
+      // this fence, so the outcome carries no protocol evidence -- exactly what
+      // CodexLocalAgent emits. The attempt must fail under the adapter's own code,
+      // not be masked as `local-execution.verification-failed`.
+      const f = fixture(91);
+      const staleFenceSummary =
+        "An older-fence Codex run at fence 1 has a durable terminal receipt. Its worktree effects cannot be safely replayed into fence 2; inspect the receipt and submit a replacement attempt.";
+      const preLaunchRejectingAgent: LocalAgentAdapter & { calls: number } = {
+        adapterId: "agent.supervised-protocol",
+        adapterVersion: "1.0.0",
+        calls: 0,
+        async run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome> {
+          preLaunchRejectingAgent.calls += 1;
+          await context.assertActive();
+          return {
+            kind: "failed",
+            failure: {
+              code: NamespacedCodeSchema.parse("agent.supervisor-stale-fence"),
+              summary: staleFenceSummary,
+              retryable: false,
+              detailArtifactDigest: null,
+            },
+          };
+        },
+      };
+      const reviewCalls = { count: 0 };
+      const service = await start(f, preLaunchRejectingAgent, reviewCalls);
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(async () => {
+        const status = await client.status(intake.attemptId);
+        return status.attempt.state === "failed";
+      }, 30_000);
+
+      const status = await client.status(intake.attemptId);
+      expect(status.attempt.outcome).toMatchObject({
+        kind: "failed",
+        failure: {
+          code: "agent.supervisor-stale-fence",
+          summary: staleFenceSummary,
+          retryable: false,
+        },
+      });
+      expect(preLaunchRejectingAgent.calls).toBe(1);
+      expect(reviewCalls.count).toBe(0);
+      // A pre-launch rejection publishes no agent-result journal: nothing ran under this fence.
+      expect(
+        existsSync(join(service.executionPaths.agentResultRoot, `${intake.attemptId}.json`)),
+      ).toBe(false);
+    },
+  );
+
+  it(
+    "keeps blocking evidence-free supervisor V2 outcomes that claim the agent ran",
+    { timeout: 60_000 },
+    async () => {
+      // The complementary guarantee: an evidence-free *success* still fails closed
+      // under the generic protocol-breach code, because a success claims an agent
+      // ran to completion and must carry the complete V2 closure.
+      const f = fixture(92);
+      const evidenceFreeSuccessAgent: LocalAgentAdapter = {
+        adapterId: "agent.supervised-protocol",
+        adapterVersion: "1.0.0",
+        async run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome> {
+          await context.assertActive();
+          writeFileSync(
+            join(context.spec.workingDirectory, "Sources/Greeter/GreetingFormatter.swift"),
+            EXPECTED_GREETER_SOURCE,
+          );
+          return {
+            kind: "succeeded",
+            summary: "claims completion without a V2 closure",
+            changedPaths: ["Sources/Greeter/GreetingFormatter.swift"],
+          };
+        },
+      };
+      const reviewCalls = { count: 0 };
+      const service = await start(f, evidenceFreeSuccessAgent, reviewCalls);
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(async () => {
+        const status = await client.status(intake.attemptId);
+        return status.attempt.state === "failed";
+      }, 30_000);
+
+      expect((await client.status(intake.attemptId)).attempt.outcome).toMatchObject({
+        kind: "failed",
+        failure: { code: "local-execution.verification-failed", retryable: false },
+      });
+      expect(reviewCalls.count).toBe(0);
+    },
+  );
+
+  it(
+    "propagates an evidence-free supervisor V2 ambiguity blocker instead of failing the attempt",
+    { timeout: 60_000 },
+    async () => {
+      // `supervisorAmbiguityOutcome` in CodexLocalAgent deliberately blocks (rather
+      // than fails) so an operator can inspect the durable run identity before
+      // resuming; that intent must reach the attempt as a blocker with its own code.
+      const f = fixture(93);
+      const ambiguousAgent: LocalAgentAdapter = {
+        adapterId: "agent.supervised-protocol",
+        adapterVersion: "1.0.0",
+        async run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome> {
+          await context.assertActive();
+          return {
+            kind: "needs-input",
+            blocker: {
+              kind: "environment",
+              code: NamespacedCodeSchema.parse("agent.supervisor-ambiguous"),
+              summary: "Durable Codex preparation failed closed: intent directory unreadable.",
+              requiredAction:
+                "Inspect the durable supervised-run identity and receipt before explicitly resuming or submitting a replacement attempt.",
+            },
+          };
+        },
+      };
+      const reviewCalls = { count: 0 };
+      const service = await start(f, ambiguousAgent, reviewCalls);
+      const client = clientFor(service);
+      const intake = await client.run(f.taskSpec);
+      await eventually(async () => {
+        const status = await client.status(intake.attemptId);
+        return status.attempt.state === "blocked";
+      }, 30_000);
+
+      const status = await client.status(intake.attemptId);
+      expect(status.attempt.state).toBe("blocked");
+      expect(status.attempt.blocker).toMatchObject({
+        code: "agent.supervisor-ambiguous",
+        summary: "Durable Codex preparation failed closed: intent directory unreadable.",
+      });
+      expect(reviewCalls.count).toBe(0);
     },
   );
 

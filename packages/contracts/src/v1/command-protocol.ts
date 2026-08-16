@@ -31,6 +31,7 @@ import {
   TaskIdSchema,
 } from "./primitives.js";
 import { PortfolioReadModelV1Schema } from "./portfolio-read-model.js";
+import { RunRecordV1Schema } from "./run-record.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
 export const COMMAND_PROTOCOL_VERSION_V1 = 1 as const;
@@ -161,6 +162,12 @@ export const EvidenceVerifyCommandRequestV1Schema = z.strictObject({
   payload: AttemptPayloadV1Schema,
 });
 
+export const RunExportCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("run.export"),
+  payload: AttemptPayloadV1Schema,
+});
+
 export const PortfolioSnapshotCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("portfolio.snapshot"),
@@ -282,6 +289,7 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   EvidenceListCommandRequestV1Schema,
   EvidenceInspectCommandRequestV1Schema,
   EvidenceVerifyCommandRequestV1Schema,
+  RunExportCommandRequestV1Schema,
   PortfolioSnapshotCommandRequestV1Schema,
   ProjectScanCommandRequestV1Schema,
   ProjectEnrollPlanCommandRequestV1Schema,
@@ -424,6 +432,20 @@ export const EvidenceVerifyCommandResultV1Schema = z.strictObject({
   artifactCount: NonNegativeSafeIntegerSchema,
 });
 
+/**
+ * The exported run record plus the SHA-256 digest of its canonical JSON
+ * encoding (object keys sorted recursively, no insignificant whitespace, no
+ * trailing newline -- the same canonical form the execution engine uses for
+ * its evidence index digests). The daemon re-derives the record from durable state
+ * only and fails closed unless the attempt is terminal, its evidence manifest
+ * verifies, and the execution closure re-verifies against the Factory mirror.
+ */
+export const RunExportCommandResultV1Schema = z.strictObject({
+  operation: z.literal("run.export"),
+  record: RunRecordV1Schema,
+  recordDigest: Sha256DigestSchema,
+});
+
 export const PortfolioSnapshotCommandResultV1Schema = z.strictObject({
   operation: z.literal("portfolio.snapshot"),
   snapshot: PortfolioReadModelV1Schema,
@@ -501,6 +523,7 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   EvidenceListCommandResultV1Schema,
   EvidenceInspectCommandResultV1Schema,
   EvidenceVerifyCommandResultV1Schema,
+  RunExportCommandResultV1Schema,
   PortfolioSnapshotCommandResultV1Schema,
   ProjectScanCommandResultV1Schema,
   ProjectEnrollPlanCommandResultV1Schema,

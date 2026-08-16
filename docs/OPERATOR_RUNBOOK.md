@@ -126,8 +126,21 @@ reconcile [ATTEMPT_UUID]
 evidence list [--after ATTEMPT_UUID] [--limit N]
 evidence inspect ATTEMPT_UUID
 evidence verify ATTEMPT_UUID
+run export ATTEMPT_UUID
 portfolio
 ```
+
+`run export` emits the canonical, digest-bound record of one verified run:
+attempt and task identity, task spec and policy digests, base commit, broker
+commit and tree, every trusted verification claim, the independent review
+verdict, the evidence manifest and index digests, the agent identity (adapter,
+CLI version, model, executable digest), token usage, and timings. The daemon
+re-derives it from durable state only -- the kernel attempt row, the immutable
+evidence store, and the sealed Factory mirror -- and fails closed unless the
+attempt is terminal and succeeded, its evidence verifies, and the execution
+closure re-verifies against the mirror. `--json` yields the record plus
+`recordDigest` (SHA-256 of the record's canonical JSON), suitable for
+committing to a run ledger.
 
 Add `--json` anywhere in the invocation for a stable machine-readable envelope.
 `reconcile` durably acknowledges a scheduler wake request; it does not execute

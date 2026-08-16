@@ -437,6 +437,9 @@ export async function startFactoryDaemonService(
         ? {}
         : { commandResultLedgerBoundary: options.commandResultLedgerBoundary }),
       ...(options.taskPolicyGate === undefined ? {} : { taskPolicyGate: options.taskPolicyGate }),
+      ...(options.localExecution?.gitExecutable === undefined
+        ? {}
+        : { gitExecutable: options.localExecution.gitExecutable }),
       initializeDatabase: (database) => {
         const executor: StartupRecoverableExecutor =
           options.executor ??

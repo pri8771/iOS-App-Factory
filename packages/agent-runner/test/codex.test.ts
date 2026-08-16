@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentRunSpecV1Schema, type AgentRunSpecV1 } from "@app-factory/contracts";
 
 import {
+  CODEX_MALFORMED_BLOCKER_CODE,
   CODEX_REPORTED_RESULT_JSON_SCHEMA_V1,
   VERIFIED_CODEX_CLI_VERSIONS,
   buildCodexInvocation,
@@ -358,6 +359,58 @@ describe("Codex strict reported result", () => {
         JSON.stringify(reportedResult({ reportedDisposition: "blocked" })),
       ),
     ).toThrow(/requires a blocker/);
+  });
+
+  it("normalizes a malformed blocker code without weakening the namespaced-code contract", () => {
+    const blocked = (code: unknown) =>
+      JSON.stringify(
+        reportedResult({
+          reportedDisposition: "blocked",
+          summary: "Blocked on a product decision.",
+          changedPaths: [],
+          blocker: {
+            kind: "clarification",
+            code: code as string,
+            summary: "Pick the intended behavior.",
+            requiredAction: null,
+          },
+        }),
+      );
+
+    // A well-formed code passes through untouched.
+    expect(parseCodexReportedResultV1(blocked("product.decision-needed")).blocker).toMatchObject({
+      code: "product.decision-needed",
+      summary: "Pick the intended behavior.",
+    });
+
+    for (const rawCode of ["NEEDS_CLARIFICATION", "needs clarification", ""]) {
+      const parsed = parseCodexReportedResultV1(blocked(rawCode));
+      expect(parsed.reportedDisposition).toBe("blocked");
+      expect(parsed.blocker).toMatchObject({
+        kind: "clarification",
+        code: CODEX_MALFORMED_BLOCKER_CODE,
+        requiredAction: null,
+      });
+      expect(parsed.blocker?.summary).toContain(JSON.stringify(rawCode));
+      expect(parsed.blocker?.summary).toContain("Pick the intended behavior.");
+    }
+
+    // The replacement code itself satisfies the exact pattern the schema advertises.
+    expect(
+      new RegExp(
+        CODEX_REPORTED_RESULT_JSON_SCHEMA_V1.properties.blocker.anyOf[1].properties.code.pattern,
+      ).test(CODEX_MALFORMED_BLOCKER_CODE),
+    ).toBe(true);
+
+    // An oversized raw code is preserved only up to a bound; the summary stays within its cap.
+    const oversized = parseCodexReportedResultV1(blocked("X".repeat(1_024)));
+    expect(oversized.blocker?.summary.length).toBeLessThanOrEqual(1_000);
+    expect(oversized.blocker?.summary).toContain(`${"X".repeat(128)}…`);
+
+    // Non-string or unbounded codes remain structural violations.
+    expect(() => parseCodexReportedResultV1(blocked(42))).toThrow(/bounded string/);
+    expect(() => parseCodexReportedResultV1(blocked(null))).toThrow(/bounded string/);
+    expect(() => parseCodexReportedResultV1(blocked("X".repeat(1_025)))).toThrow(/bounded string/);
   });
 });
 

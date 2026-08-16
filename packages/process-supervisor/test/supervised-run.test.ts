@@ -477,6 +477,16 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
     });
 
     it("bounds an uncooperative target with timeout and forced process-group termination", async () => {
+      // Timing budget (measured on Node 24.18 / Apple M5 Pro, 2026-08-16):
+      // the controller's timeout starts when execution permission is sent,
+      // and from there the gate must exec the target and the target must
+      // reach user code before it can install its SIGTERM handler. That
+      // gate->target-ready path measures ~82-92 ms unloaded and ~103-120 ms
+      // (p90 117 ms) under CPU load, so a 100 ms timeout regularly fires
+      // before the target is uncooperative at all: plain SIGTERM then kills
+      // it and the receipt honestly reports SIGTERM. 1000 ms (~8x loaded p90)
+      // lets the target become uncooperative first, which is the premise
+      // this test exists to check.
       const prepared = prepare({
         runKey: "timeout-one",
         argv: [
@@ -484,7 +494,7 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
           "process.on('SIGTERM',()=>{});process.stdout.write('ready');setInterval(()=>{},1000)",
         ],
         limits: {
-          timeoutMs: 100,
+          timeoutMs: 1_000,
           graceMs: 50,
           forceWaitMs: 500,
           pollMs: 10,
@@ -493,6 +503,9 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
       });
       await launchAndWait(prepared);
       const terminal = await waitForTerminal(prepared);
+      // The target proved it had installed its SIGTERM handler before the
+      // timeout fired; a missing marker means the budget above was exceeded.
+      expect(readFileSync(prepared.paths.stdoutPath, "utf8")).toBe("ready");
       expect(terminal.receipt.outcome).toBe("timed-out");
       expect(terminal.receipt.terminationOrigin).toBe("timeout");
       expect(terminal.receipt.process.signal).toBe("SIGKILL");

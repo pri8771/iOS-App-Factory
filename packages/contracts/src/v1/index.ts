@@ -17,4 +17,5 @@ export * from "./portfolio-read-model.js";
 export * from "./primitives.js";
 export * from "./project.js";
 export * from "./release.js";
+export * from "./run-record.js";
 export * from "./task-spec.js";

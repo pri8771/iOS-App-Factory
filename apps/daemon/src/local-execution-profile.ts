@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   closeSync,
   constants,
@@ -10,7 +11,7 @@ import {
   realpathSync,
   writeSync,
 } from "node:fs";
-import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 
 import {
   CODEX_SAFE_AGENT_ENVIRONMENT_NAMES,
@@ -54,6 +55,11 @@ const MAX_ATTESTATION_BYTES = 16 * 1024;
 const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
 const PRIVATE_MODE_MASK = 0o077;
+/** Same executable size bound the Codex adapter applies to the pinned CLI binary itself. */
+const MAX_SIBLING_EXECUTABLE_BYTES = 512 * 1024 * 1024;
+const MAX_SIBLING_EXECUTABLES = 16;
+const MAX_SIBLING_EXECUTABLE_NAME_LENGTH = 255;
+const SIBLING_EXECUTABLE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/u;
 
 /**
  * Profile modes that bind a real agent identity (a pinned executable digest,
@@ -147,6 +153,22 @@ type CodexAgentIdentityFieldsV1 = Readonly<{
   model: string;
   codexHome: string;
   agentLimits: AgentRunLimitsV1;
+  siblingExecutables: readonly SiblingExecutablePinV1[];
+}>;
+
+/**
+ * A digest pin for one executable that must sit next to the pinned Codex CLI
+ * binary (same directory) and that the CLI may exec at run time -- e.g.
+ * `codex-code-mode-host` beside `codex`. Only the file name is configured; the
+ * directory is always `dirname(executable)`, so a pin can never point outside
+ * the reviewed binary's own directory. Verified fail-closed at profile load:
+ * a missing sibling, a symlink, a foreign owner, or a digest mismatch refuses
+ * the whole profile exactly like a mismatched primary executable does.
+ */
+export type SiblingExecutablePinV1 = Readonly<{
+  name: string;
+  path: string;
+  digest: Sha256Digest;
 }>;
 
 type SwiftGreeterCodexProfileV1 = CodexAgentIdentityFieldsV1 &
@@ -433,6 +455,142 @@ function requireOwnerContainmentAttestation(
   return readOwnerContainmentAttestation(path);
 }
 
+/**
+ * Parses the optional `siblingExecutables` list: `[{ name, digest }, ...]`.
+ * Names must be plain file names (no separators, no `.`/`..`), unique, and
+ * distinct from the primary executable's own name; each resolves to
+ * `dirname(executable)/<name>`. Absent key = no sibling pins (unchanged
+ * behavior). Presence on disk and digest equality are checked separately at
+ * load by {@link verifySiblingExecutables}, after the primary binary itself.
+ */
+function parseSiblingExecutablePins(
+  value: unknown,
+  executable: string,
+): readonly SiblingExecutablePinV1[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_SIBLING_EXECUTABLES) {
+    configurationError(
+      `siblingExecutables must be an array of at most ${String(MAX_SIBLING_EXECUTABLES)} entries.`,
+    );
+  }
+  const directory = dirname(executable);
+  const primaryName = basename(executable);
+  const names = new Set<string>();
+  return value.map((entry, index): SiblingExecutablePinV1 => {
+    const label = `siblingExecutables[${String(index)}]`;
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      configurationError(`${label} must be an object.`);
+    }
+    const record = entry as Readonly<Record<string, unknown>>;
+    exactKeys(record, ["digest", "name"], `${label} must contain exactly name and digest.`);
+    const name = record.name;
+    if (
+      typeof name !== "string" ||
+      name.length < 1 ||
+      name.length > MAX_SIBLING_EXECUTABLE_NAME_LENGTH ||
+      name === "." ||
+      name === ".." ||
+      name.includes("/") ||
+      name.includes("\\") ||
+      name.includes("\0") ||
+      !SIBLING_EXECUTABLE_NAME_PATTERN.test(name)
+    ) {
+      configurationError(`${label}.name must be a plain portable file name.`);
+    }
+    if (name === primaryName) {
+      configurationError(`${label}.name must not repeat the primary executable's own name.`);
+    }
+    if (names.has(name)) configurationError(`${label}.name is declared more than once.`);
+    names.add(name);
+    const digest = Sha256DigestSchema.safeParse(record.digest);
+    if (!digest.success) configurationError(`${label}.digest must be a SHA-256 digest.`);
+    const path = join(directory, name);
+    if (dirname(path) !== directory || basename(path) !== name) {
+      configurationError(`${label}.name did not resolve to a direct sibling of the executable.`);
+    }
+    return { name, path, digest: digest.data };
+  });
+}
+
+/**
+ * Digests one pinned sibling executable with the same file-identity
+ * discipline the Codex adapter applies to the primary binary: a real,
+ * single-link, executable regular file owned by the current user or root,
+ * opened O_NOFOLLOW under a symlink-free directory chain, bounded in size,
+ * and unchanged for the duration of the read. Any deviation -- including a
+ * missing file -- refuses the profile.
+ */
+function verifySiblingExecutable(pin: SiblingExecutablePinV1): void {
+  const label = `Sibling executable ${pin.name}`;
+  assertNoSymbolicLinkAncestors(dirname(pin.path));
+  let descriptor: number;
+  try {
+    descriptor = openSync(pin.path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  } catch (error) {
+    configurationError(`${label} is missing or cannot be opened safely at ${pin.path}.`, error);
+  }
+  try {
+    const before = fstatSync(descriptor);
+    const userId = currentUserId();
+    if (
+      !before.isFile() ||
+      before.nlink !== 1 ||
+      before.size < 1 ||
+      before.size > MAX_SIBLING_EXECUTABLE_BYTES ||
+      (before.mode & 0o111) === 0 ||
+      (userId !== undefined && before.uid !== userId && before.uid !== 0)
+    ) {
+      configurationError(
+        `${label} must be one bounded executable regular file owned by the current user or root.`,
+      );
+    }
+    let realPath: string;
+    try {
+      realPath = realpathSync.native(pin.path);
+    } catch (error) {
+      configurationError(`${label} could not be resolved to a real path.`, error);
+    }
+    if (realPath !== pin.path) {
+      configurationError(`${label} must be a real file, not a symbolic link.`);
+    }
+    const hash = createHash("sha256");
+    const chunk = Buffer.allocUnsafe(1024 * 1024);
+    let total = 0;
+    for (;;) {
+      const count = readSync(descriptor, chunk, 0, chunk.byteLength, total);
+      if (count === 0) break;
+      hash.update(chunk.subarray(0, count));
+      total += count;
+      if (total > before.size) configurationError(`${label} changed while it was being read.`);
+    }
+    const after = fstatSync(descriptor);
+    if (
+      total !== before.size ||
+      after.dev !== before.dev ||
+      after.ino !== before.ino ||
+      after.nlink !== before.nlink ||
+      after.size !== before.size ||
+      after.mode !== before.mode ||
+      after.uid !== before.uid ||
+      after.mtimeMs !== before.mtimeMs ||
+      after.ctimeMs !== before.ctimeMs
+    ) {
+      configurationError(`${label} changed while it was being read.`);
+    }
+    const observed = `sha256:${hash.digest("hex")}`;
+    if (observed !== pin.digest) {
+      configurationError(`${label} does not match its pinned digest.`);
+    }
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+/** Verifies every declared sibling pin, in declaration order, failing closed on the first defect. */
+function verifySiblingExecutables(pins: readonly SiblingExecutablePinV1[]): void {
+  for (const pin of pins) verifySiblingExecutable(pin);
+}
+
 function parseCodexAgentIdentityFields(
   record: Readonly<Record<string, unknown>>,
 ): CodexAgentIdentityFieldsV1 {
@@ -440,8 +598,9 @@ function parseCodexAgentIdentityFields(
   if (!executableDigest.success) {
     configurationError("executableDigest must be a SHA-256 digest.");
   }
+  const executable = normalizedAbsolutePath(record.executable, "executable");
   return {
-    executable: normalizedAbsolutePath(record.executable, "executable"),
+    executable,
     executableDigest: executableDigest.data,
     expectedCliVersion: boundedPortableIdentifier(
       record.expectedCliVersion,
@@ -451,6 +610,7 @@ function parseCodexAgentIdentityFields(
     model: boundedPortableIdentifier(record.model, "model"),
     codexHome: normalizedAbsolutePath(record.codexHome, "codexHome"),
     agentLimits: parseConfiguredAgentLimits(record.agentLimits),
+    siblingExecutables: parseSiblingExecutablePins(record.siblingExecutables, executable),
   };
 }
 
@@ -468,7 +628,7 @@ function parseCodexProfile(record: Readonly<Record<string, unknown>>): SwiftGree
       "schemaVersion",
     ],
     undefined,
-    ["agentLimits"],
+    ["agentLimits", "siblingExecutables"],
   );
   if (record.schemaVersion !== 1 || record.mode !== "swift-greeter-codex-v1") {
     configurationError("The local execution profile has an unsupported schema or mode.");
@@ -500,7 +660,7 @@ function parseEnrolledCodexProfile(
       "schemaVersion",
     ],
     undefined,
-    ["agentLimits"],
+    ["agentLimits", "siblingExecutables"],
   );
   if (record.schemaVersion !== 1 || record.mode !== "enrolled-codex-v1") {
     configurationError("The local execution profile has an unsupported schema or mode.");
@@ -651,6 +811,11 @@ async function buildCodexAgentForProject(
     registrationTimeoutMs: 10_000,
     pollMs: 25,
   };
+  // Every declared sibling (e.g. codex-code-mode-host next to codex) is held
+  // to its pin before the adapter is even constructed, so a drifted or missing
+  // sibling refuses the profile without spawning the primary binary at all;
+  // the adapter then proves the primary binary's own identity and digest.
+  verifySiblingExecutables(profile.siblingExecutables);
   const createAgent = dependencies.createCodexAgent ?? createCodexLocalAgent;
   let agent: CodexLocalAgent;
   try {

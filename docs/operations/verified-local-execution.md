@@ -75,7 +75,11 @@ that case fails bounded and preserves scratch for operator investigation.
 Completed executions publish one immutable manifest covering the agent event
 log, every trusted test record and its stdout/stderr, independent review, broker
 commit, and bound inputs. `evidence verify` recomputes storage and reference
-integrity; it does not re-certify execution semantics. Only an explicitly
+integrity; it does not re-certify execution semantics. `run export` goes one
+step further for a succeeded attempt: it re-verifies the whole execution
+closure semantically against the sealed Factory mirror (candidate object,
+patch, trusted test records, review, broker commit) and emits one canonical,
+digest-bound run record, failing closed on any drift. Only an explicitly
 classified transient publication interruption replays from the completed
 coordinator checkpoint. A collision, corrupt manifest, permission failure, or
 other unclassified publication error fails the attempt terminally for operator
