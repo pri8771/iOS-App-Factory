@@ -21,6 +21,10 @@ import {
   MirrorProjectionV1Schema,
   PhaseDefinitionUpsertV1Schema,
   PhasePresetUpsertV1Schema,
+  PhaseRunCreateV1Schema,
+  PhaseRunDecisionV1Schema,
+  PhaseRunIdSchema,
+  PhaseRunListQueryV1Schema,
   ProjectIdSchema,
   ProjectMilestoneUpsertV1Schema,
   ProjectPlanApproveGateV1Schema,
@@ -58,6 +62,10 @@ import {
   type MirrorProjectionV1,
   type PhaseDefinitionUpsertV1,
   type PhasePresetUpsertV1,
+  type PhaseRunCreateV1,
+  type PhaseRunDecisionV1,
+  type PhaseRunId,
+  type PhaseRunListQueryV1,
   type ProjectId,
   type ProjectMilestoneUpsertV1,
   type ProjectPlanApproveGateV1,
@@ -734,6 +742,74 @@ export class CommandClient {
     return await this.#request(
       "plan.tick",
       { planId: ProjectPlanIdSchema.parse(planId) },
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * Runs a phase end to end: resolves it (from a preset or the standalone library), executes its
+   * cast by mode, commits any declared outputs into the project's enrolled mirror, grades them if
+   * the phase declares a grader, and returns the run's terminal (or `awaiting-human`) state.
+   * Durable and idempotent by command ID.
+   */
+  public async runPhase(
+    create: PhaseRunCreateV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"phase.run">> {
+    return await this.#request("phase.run", PhaseRunCreateV1Schema.parse(create), identity, signal);
+  }
+
+  public async phaseStatus(
+    phaseRunId: PhaseRunId,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"phase.status">> {
+    return await this.#request(
+      "phase.status",
+      { phaseRunId: PhaseRunIdSchema.parse(phaseRunId) },
+      identity,
+      signal,
+    );
+  }
+
+  public async listPhaseRuns(
+    query: PhaseRunListQueryV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"phase.list">> {
+    return await this.#request(
+      "phase.list",
+      PhaseRunListQueryV1Schema.parse(query),
+      identity,
+      signal,
+    );
+  }
+
+  /** Approves an `awaiting-human` phase run (owner authority): transitions it to `succeeded`. */
+  public async approvePhaseRun(
+    decision: PhaseRunDecisionV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"phase.approve">> {
+    return await this.#request(
+      "phase.approve",
+      PhaseRunDecisionV1Schema.parse(decision),
+      identity,
+      signal,
+    );
+  }
+
+  /** Rejects an `awaiting-human` phase run (owner authority): transitions it to `failed`. */
+  public async rejectPhaseRun(
+    decision: PhaseRunDecisionV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"phase.reject">> {
+    return await this.#request(
+      "phase.reject",
+      PhaseRunDecisionV1Schema.parse(decision),
       identity,
       signal,
     );

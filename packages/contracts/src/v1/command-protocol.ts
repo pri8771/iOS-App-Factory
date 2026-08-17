@@ -37,6 +37,13 @@ import {
   ProjectPlanV1Schema,
 } from "./project-plan.js";
 import {
+  PhaseRunCreateV1Schema,
+  PhaseRunDecisionV1Schema,
+  PhaseRunListQueryV1Schema,
+  PhaseRunListPageV1Schema,
+  PhaseRunV1Schema,
+} from "./phase-run.js";
+import {
   AbsolutePathSchema,
   AssistantIntentIdSchema,
   AttemptIdSchema,
@@ -47,6 +54,7 @@ import {
   IsoInstantSchema,
   NamespacedCodeSchema,
   NonNegativeSafeIntegerSchema,
+  PhaseRunIdSchema,
   ProjectIdSchema,
   ProjectPlanIdSchema,
   RelativePathSchema,
@@ -448,6 +456,38 @@ export const PlanTickCommandRequestV1Schema = z.strictObject({
   payload: ProjectPlanTickV1Schema,
 });
 
+// Phase Runner (`phase.run`/`phase.status`/`phase.list`/`phase.approve`/`phase.reject`) wire types.
+// See `phase-run.ts` for `PhaseRunV1` itself; this is the one place a phase actually executes.
+export const PhaseRunCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("phase.run"),
+  payload: PhaseRunCreateV1Schema,
+});
+
+export const PhaseStatusCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("phase.status"),
+  payload: z.strictObject({ phaseRunId: PhaseRunIdSchema }),
+});
+
+export const PhaseListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("phase.list"),
+  payload: PhaseRunListQueryV1Schema,
+});
+
+export const PhaseApproveCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("phase.approve"),
+  payload: PhaseRunDecisionV1Schema,
+});
+
+export const PhaseRejectCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("phase.reject"),
+  payload: PhaseRunDecisionV1Schema,
+});
+
 // Studio rooms (`room.*`) wire types. The moderator is daemon-owned deterministic code
 // (`@app-factory/studio-rooms`); these commands only create rooms, append human messages
 // (the single-writer transcript is CAS-appended by the daemon), read events, and signal
@@ -557,6 +597,11 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   PlanApproveGateCommandRequestV1Schema,
   PlanStatusCommandRequestV1Schema,
   PlanTickCommandRequestV1Schema,
+  PhaseRunCommandRequestV1Schema,
+  PhaseStatusCommandRequestV1Schema,
+  PhaseListCommandRequestV1Schema,
+  PhaseApproveCommandRequestV1Schema,
+  PhaseRejectCommandRequestV1Schema,
   EffectsStatusCommandRequestV1Schema,
   EffectsListCommandRequestV1Schema,
   RoomCreateCommandRequestV1Schema,
@@ -902,6 +947,31 @@ export const PlanTickCommandResultV1Schema = z.strictObject({
   advanced: z.boolean(),
 });
 
+export const PhaseRunCommandResultV1Schema = z.strictObject({
+  operation: z.literal("phase.run"),
+  run: PhaseRunV1Schema,
+});
+
+export const PhaseStatusCommandResultV1Schema = z.strictObject({
+  operation: z.literal("phase.status"),
+  run: PhaseRunV1Schema,
+});
+
+export const PhaseListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("phase.list"),
+  page: PhaseRunListPageV1Schema,
+});
+
+export const PhaseApproveCommandResultV1Schema = z.strictObject({
+  operation: z.literal("phase.approve"),
+  run: PhaseRunV1Schema,
+});
+
+export const PhaseRejectCommandResultV1Schema = z.strictObject({
+  operation: z.literal("phase.reject"),
+  run: PhaseRunV1Schema,
+});
+
 export const RoomCreateCommandResultV1Schema = z.strictObject({
   operation: z.literal("room.create"),
   room: RoomV1Schema,
@@ -1009,6 +1079,11 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   PlanApproveGateCommandResultV1Schema,
   PlanStatusCommandResultV1Schema,
   PlanTickCommandResultV1Schema,
+  PhaseRunCommandResultV1Schema,
+  PhaseStatusCommandResultV1Schema,
+  PhaseListCommandResultV1Schema,
+  PhaseApproveCommandResultV1Schema,
+  PhaseRejectCommandResultV1Schema,
   EffectsStatusCommandResultV1Schema,
   EffectsListCommandResultV1Schema,
   RoomCreateCommandResultV1Schema,

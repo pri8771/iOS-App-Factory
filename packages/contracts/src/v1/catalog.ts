@@ -23,6 +23,7 @@ import { ProjectMilestoneV1Schema, ProjectTimelineV1Schema } from "./milestone.j
 import { MirrorProjectionDiffV1Schema, MirrorProjectionV1Schema } from "./mirror-projection.js";
 import { ModuleManifestV1Schema } from "./module.js";
 import { PhaseDefinitionV1Schema, PhasePresetV1Schema } from "./phase.js";
+import { PhaseRunV1Schema } from "./phase-run.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { ProjectDocsSnapshotV1Schema } from "./project-docs-snapshot.js";
 import { ProjectPlanV1Schema } from "./project-plan.js";
@@ -295,6 +296,12 @@ export const contractSchemaCatalogV1 = [
     fileName: "project-plan.v1.schema.json",
     id: "urn:app-factory:contracts:v1:project-plan",
     schema: ProjectPlanV1Schema,
+  },
+  {
+    name: "phase-run",
+    fileName: "phase-run.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:phase-run",
+    schema: PhaseRunV1Schema,
   },
 ] as const satisfies readonly ContractSchemaCatalogEntryV1[];
 

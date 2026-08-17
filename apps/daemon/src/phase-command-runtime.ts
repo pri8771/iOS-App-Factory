@@ -57,6 +57,25 @@ export function loadKnownStandardRuleIdsV1(policySourcePath?: string): ReadonlyS
   }
 }
 
+/**
+ * `ruleId -> statement`, for Phase Runner to render `rules.standard[]` as ENFORCED constraints in a
+ * participant's instruction (`phase-run-executor.ts`). Fails closed the same way
+ * `loadKnownStandardRuleIdsV1` does: any problem loading the source yields an empty map, so a run
+ * falls back to rendering the bare ruleId rather than fabricating rule text.
+ */
+export function loadStandardRuleStatementsV1(
+  policySourcePath?: string,
+): ReadonlyMap<string, string> {
+  const path = policySourcePath ?? defaultPolicySourcePathV1();
+  try {
+    const source = loadPolicySource(path);
+    return new Map(source.rules.map((rule) => [rule.ruleId, rule.statement]));
+  } catch (error) {
+    if (error instanceof PolicyCorpusError || error instanceof Error) return new Map();
+    throw error;
+  }
+}
+
 export function buildPresetListResultV1(repositories: FactoryRepositories): CommandResultV1 {
   return { operation: "preset.list", presets: [...repositories.phasePresets.listAll()] };
 }

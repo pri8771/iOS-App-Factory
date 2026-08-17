@@ -283,11 +283,61 @@ describe("studio snapshot V1", () => {
         projects: [
           {
             ...snapshot.projects[0],
-            awaitingHuman: [{ kind: "blocked-attempt", attemptId: null, summary: "x", since: NOW }],
+            awaitingHuman: [
+              {
+                kind: "blocked-attempt",
+                attemptId: null,
+                phaseRunId: null,
+                summary: "x",
+                since: NOW,
+              },
+            ],
           },
           snapshot.projects[1],
         ],
       }),
     ).toThrow(/attemptId must be present exactly for a blocked-attempt item/);
+  });
+
+  it("rejects a phase-run awaitingHuman item without a phaseRunId, and vice versa", () => {
+    const snapshot = localSnapshot();
+    expect(() =>
+      StudioSnapshotV1Schema.parse({
+        ...snapshot,
+        projects: [
+          {
+            ...snapshot.projects[0],
+            awaitingHuman: [
+              { kind: "phase-run", attemptId: null, phaseRunId: null, summary: "x", since: NOW },
+            ],
+          },
+          snapshot.projects[1],
+        ],
+      }),
+    ).toThrow(/phaseRunId must be present exactly for a phase-run item/);
+  });
+
+  it("accepts a phase-run awaitingHuman item with a phaseRunId", () => {
+    const snapshot = localSnapshot();
+    const phaseRunId = "00000000-0000-4000-8000-0000000000aa";
+    const withItem = StudioSnapshotV1Schema.parse({
+      ...snapshot,
+      projects: [
+        {
+          ...snapshot.projects[0],
+          awaitingHuman: [
+            {
+              kind: "phase-run",
+              attemptId: null,
+              phaseRunId,
+              summary: "Phase awaiting approval.",
+              since: NOW,
+            },
+          ],
+        },
+        snapshot.projects[1],
+      ],
+    });
+    expect(withItem.projects[0]?.awaitingHuman[0]?.phaseRunId).toBe(phaseRunId);
   });
 });

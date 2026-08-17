@@ -13,6 +13,7 @@ import {
   BlockerV1Schema,
   IsoInstantSchema,
   NonNegativeSafeIntegerSchema,
+  PhaseRunIdSchema,
   ProjectIdSchema,
   SchemaVersionV1Schema,
   Sha256DigestSchema,
@@ -170,18 +171,26 @@ export const StudioAttemptSummaryV1Schema = z.strictObject({
 });
 export type StudioAttemptSummaryV1 = z.infer<typeof StudioAttemptSummaryV1Schema>;
 
-export const StudioAwaitingHumanKindV1Schema = z.enum(["blocked-attempt", "gate-approval"]);
+export const StudioAwaitingHumanKindV1Schema = z.enum([
+  "blocked-attempt",
+  "gate-approval",
+  "phase-run",
+]);
 export type StudioAwaitingHumanKindV1 = z.infer<typeof StudioAwaitingHumanKindV1Schema>;
 
 /**
  * One item the human owner still needs to act on. `"blocked-attempt"` is populated for real today
  * from live attempt state; `"gate-approval"` exists for forward compatibility with
  * `studio/policy-engine-scoping`'s owner-approval gates and is never emitted by this daemon yet.
+ * `"phase-run"` is populated for real from Phase Runner (`phase-run.ts`): a run whose phase declared
+ * `gates` reaches `awaiting-human` after its outputs are committed, and `phase.approve`/
+ * `phase.reject` are what an owner uses to clear it.
  */
 export const StudioAwaitingHumanItemV1Schema = z
   .strictObject({
     kind: StudioAwaitingHumanKindV1Schema,
     attemptId: AttemptIdSchema.nullable(),
+    phaseRunId: PhaseRunIdSchema.nullable(),
     summary: z.string().min(1).max(1_000),
     since: IsoInstantSchema,
   })
@@ -191,6 +200,13 @@ export const StudioAwaitingHumanItemV1Schema = z
         code: "custom",
         path: ["attemptId"],
         message: "attemptId must be present exactly for a blocked-attempt item",
+      });
+    }
+    if ((item.kind === "phase-run") !== (item.phaseRunId !== null)) {
+      context.addIssue({
+        code: "custom",
+        path: ["phaseRunId"],
+        message: "phaseRunId must be present exactly for a phase-run item",
       });
     }
   });

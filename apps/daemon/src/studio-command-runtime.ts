@@ -196,6 +196,7 @@ function buildDocsAugmentation(
     .map((item) => ({
       kind: "gate-approval",
       attemptId: null,
+      phaseRunId: null,
       summary: item.text,
       since: docsSnapshot.generatedAt,
     }));
@@ -283,8 +284,18 @@ function buildStudioProject(
     .map((attempt) => ({
       kind: "blocked-attempt",
       attemptId: attempt.attemptId,
+      phaseRunId: null,
       summary: attempt.blocker?.summary ?? "Attempt is blocked and needs an operator answer.",
       since: attempt.updatedAt,
+    }));
+  const phaseRunItems: StudioAwaitingHumanItemV1[] = repositories.phaseRuns
+    .listAwaitingHumanByProject(summary.projectId)
+    .map((run) => ({
+      kind: "phase-run",
+      attemptId: null,
+      phaseRunId: run.phaseRunId,
+      summary: `Phase "${run.phaseSnapshot.name}" is awaiting your approval.`,
+      since: run.updatedAt,
     }));
 
   // Mirrors buildLocalPortfolioReadModel's own placeholder slug/displayName in command-runtime.ts:
@@ -307,7 +318,11 @@ function buildStudioProject(
       unavailableReason: STUDIO_NO_GATE_RECORDS_REASON_V1,
     },
     latestAttemptSummary,
-    awaitingHuman: [...blockedAttemptItems, ...(augmentation?.extraAwaitingHuman ?? [])],
+    awaitingHuman: [
+      ...blockedAttemptItems,
+      ...phaseRunItems,
+      ...(augmentation?.extraAwaitingHuman ?? []),
+    ],
     timeline: {
       milestones: [...milestones],
       milestonesUnavailableReason: null,

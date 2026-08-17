@@ -112,7 +112,13 @@ describe("studio.snapshot repo-docs wiring", () => {
     expect(project?.latestAttemptSummary).toBeNull();
     // The one unchecked release-checklist item surfaces as a gate-approval awaitingHuman item.
     expect(project?.awaitingHuman).toEqual([
-      { kind: "gate-approval", attemptId: null, summary: "Ship it", since: expect.any(String) },
+      {
+        kind: "gate-approval",
+        attemptId: null,
+        phaseRunId: null,
+        summary: "Ship it",
+        since: expect.any(String),
+      },
     ]);
     expect(project?.docsProvenance).toMatchObject({
       sourceKind: "observed",
