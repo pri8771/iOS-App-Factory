@@ -17,7 +17,9 @@ export type DaemonRuntimeIdPurpose =
   | "unblock-attempt-event"
   | "room-message"
   | "assistant-intent"
-  | "assistant-intent-dispatch";
+  | "assistant-intent-dispatch"
+  | "phase-run"
+  | "phase-run-room";
 
 export type DaemonRuntimeIdFactory = (
   purpose: DaemonRuntimeIdPurpose,

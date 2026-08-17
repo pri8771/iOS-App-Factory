@@ -69,6 +69,9 @@ export type MilestoneId = z.infer<typeof MilestoneIdSchema>;
 export const AssistantIntentIdSchema = LowercaseUuidSchema.brand<"AssistantIntentId">();
 export type AssistantIntentId = z.infer<typeof AssistantIntentIdSchema>;
 
+export const PhaseRunIdSchema = LowercaseUuidSchema.brand<"PhaseRunId">();
+export type PhaseRunId = z.infer<typeof PhaseRunIdSchema>;
+
 export const IsoInstantSchema = z.iso
   .datetime({ offset: false, precision: 3 })
   .brand<"IsoInstant">();

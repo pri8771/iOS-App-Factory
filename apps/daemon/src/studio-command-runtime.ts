@@ -143,14 +143,25 @@ function buildStudioProject(
           updatedAt: latest.updatedAt,
           blocker: latest.blocker,
         };
-  const awaitingHuman: StudioAwaitingHumanItemV1[] = sampledAttempts
+  const blockedAttemptItems: StudioAwaitingHumanItemV1[] = sampledAttempts
     .filter((attempt) => attempt.state === "blocked")
     .map((attempt) => ({
       kind: "blocked-attempt",
       attemptId: attempt.attemptId,
+      phaseRunId: null,
       summary: attempt.blocker?.summary ?? "Attempt is blocked and needs an operator answer.",
       since: attempt.updatedAt,
     }));
+  const phaseRunItems: StudioAwaitingHumanItemV1[] = repositories.phaseRuns
+    .listAwaitingHumanByProject(summary.projectId)
+    .map((run) => ({
+      kind: "phase-run",
+      attemptId: null,
+      phaseRunId: run.phaseRunId,
+      summary: `Phase "${run.phaseSnapshot.name}" is awaiting your approval.`,
+      since: run.updatedAt,
+    }));
+  const awaitingHuman: StudioAwaitingHumanItemV1[] = [...blockedAttemptItems, ...phaseRunItems];
 
   // Mirrors buildLocalPortfolioReadModel's own placeholder slug/displayName in command-runtime.ts:
   // no project-manifest/display-name source is wired into the local execution profile yet, so the

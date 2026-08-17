@@ -20,6 +20,7 @@ import {
 
 const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
 const PROJECT_ID = "00000000-0000-4000-8000-000000000006";
+const PHASE_RUN_ID = "00000000-0000-4000-8000-0000000000f1";
 const NOW = "2026-08-10T12:00:00.000Z";
 const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 const PLAN_DIGEST = `sha256:${"a".repeat(64)}`;
@@ -352,6 +353,62 @@ describe("CLI argument parser", () => {
       {
         outputMode: "human",
         command: { kind: "studio.assistant.query", question: "status?", projectId: PROJECT_ID },
+      },
+    ],
+    [
+      ["phase", "run", "ios-app-standard-0.4.0", "research", "--project", PROJECT_ID],
+      {
+        outputMode: "human",
+        command: {
+          kind: "phase.run",
+          presetId: "ios-app-standard-0.4.0",
+          phaseId: "research",
+          projectId: PROJECT_ID,
+        },
+      },
+    ],
+    [
+      ["phase", "run", "research", "--project", PROJECT_ID],
+      {
+        outputMode: "human",
+        command: { kind: "phase.run", presetId: null, phaseId: "research", projectId: PROJECT_ID },
+      },
+    ],
+    [
+      ["phase", "status", PHASE_RUN_ID],
+      { outputMode: "human", command: { kind: "phase.status", phaseRunId: PHASE_RUN_ID } },
+    ],
+    [
+      ["phase", "list"],
+      {
+        outputMode: "human",
+        command: { kind: "phase.list", projectId: null, state: null, limit: 50 },
+      },
+    ],
+    [
+      ["phase", "list", "--project", PROJECT_ID, "--state", "awaiting-human"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "phase.list",
+          projectId: PROJECT_ID,
+          state: "awaiting-human",
+          limit: 50,
+        },
+      },
+    ],
+    [
+      ["phase", "approve", PHASE_RUN_ID],
+      {
+        outputMode: "human",
+        command: { kind: "phase.approve", phaseRunId: PHASE_RUN_ID, reason: null },
+      },
+    ],
+    [
+      ["phase", "reject", PHASE_RUN_ID, "--reason", "Not ready"],
+      {
+        outputMode: "human",
+        command: { kind: "phase.reject", phaseRunId: PHASE_RUN_ID, reason: "Not ready" },
       },
     ],
   ])("parses %j", (arguments_, expected) => {
@@ -1113,6 +1170,7 @@ async function startFakeDaemon(
   respond: (
     operation: string,
     requestId: string,
+    request?: Readonly<{ payload: unknown }>,
   ) => Readonly<{ result: unknown } | { error: Readonly<Record<string, unknown>> }>,
 ): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "app-factory-cli-"));
@@ -1158,7 +1216,7 @@ async function startFakeDaemon(
         return;
       }
       seenRequestFingerprints.set(frame.requestId, fingerprint);
-      const outcome = respond(frame.request.operation, frame.requestId);
+      const outcome = respond(frame.request.operation, frame.requestId, frame.request);
       const response =
         "result" in outcome
           ? { protocolVersion: 1, requestId: frame.requestId, ok: true, result: outcome.result }
@@ -1921,6 +1979,177 @@ describe("runCli phases", () => {
 
     expect(exitCode).toBe(2);
     expect(captured().stderr).toContain("preset ID must be a stable lowercase key");
+  });
+});
+
+describe("runCli phase", () => {
+  const phaseSnapshot = {
+    schemaVersion: 1,
+    phaseId: "research",
+    name: "Research",
+    purpose: "Inventory prior art before proposing a design.",
+    mode: "solo",
+    cast: {
+      participants: [{ provider: "ollama", persona: "researcher", readOnly: true }],
+      coordinator: null,
+      grader: null,
+    },
+    inputs: ["docs"],
+    rules: { standard: [], yours: [], requiredOutput: [], acceptanceChecks: [] },
+    outputs: [{ path: "docs/product/research.md", schema: null }],
+    gates: [],
+    budget: { estimateMinutes: 20, timeoutSeconds: 1_800 },
+    revision: 0,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+  function run(overrides: Readonly<Record<string, unknown>> = {}) {
+    return {
+      schemaVersion: 1,
+      phaseRunId: PHASE_RUN_ID,
+      presetId: "ios-app-standard-0.4.0",
+      phaseId: "research",
+      projectId: PROJECT_ID,
+      phaseSnapshotDigest: `sha256:${"a".repeat(64)}`,
+      phaseSnapshot,
+      state: "succeeded",
+      revision: 2,
+      roomId: null,
+      outputs: [
+        {
+          path: "docs/product/research.md",
+          digest: `sha256:${"b".repeat(64)}`,
+          evidence: {
+            commit: "c".repeat(40),
+            tree: "d".repeat(40),
+            branch: "factory/phase/research/x",
+          },
+        },
+      ],
+      graderVerdict: null,
+      tokenUsage: { totalTokens: 120 },
+      outcome: { kind: "succeeded" },
+      createdAt: NOW,
+      startedAt: NOW,
+      finishedAt: NOW,
+      updatedAt: NOW,
+      ...overrides,
+    };
+  }
+
+  it("runs a phase from a preset and reports its terminal state", async () => {
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "phase.run") throw new Error(`Unexpected operation: ${operation}`);
+      expect(request?.payload).toEqual({
+        presetId: "ios-app-standard-0.4.0",
+        phaseId: "research",
+        projectId: PROJECT_ID,
+        inputsOverride: null,
+      });
+      return { result: { operation: "phase.run", run: run() } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phase", "run", "ios-app-standard-0.4.0", "research", "--project", PROJECT_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toBe(
+      `phase.run: ${PHASE_RUN_ID} research is succeeded (revision 2)\noutputs: docs/product/research.md\noutcome: succeeded\n`,
+    );
+  });
+
+  it("reports an awaiting-human run", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "phase.status") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "phase.status",
+          run: run({ state: "awaiting-human", outcome: null, finishedAt: null, outputs: [] }),
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phase", "status", PHASE_RUN_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toBe(
+      `phase.status: ${PHASE_RUN_ID} research is awaiting-human (revision 2)\n`,
+    );
+  });
+
+  it("approves an awaiting-human run", async () => {
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "phase.approve") throw new Error(`Unexpected operation: ${operation}`);
+      expect(request?.payload).toEqual({ phaseRunId: PHASE_RUN_ID, reason: null });
+      return { result: { operation: "phase.approve", run: run() } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phase", "approve", PHASE_RUN_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("phase.approve:");
+  });
+
+  it("rejects an awaiting-human run with a reason", async () => {
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "phase.reject") throw new Error(`Unexpected operation: ${operation}`);
+      expect(request?.payload).toEqual({ phaseRunId: PHASE_RUN_ID, reason: "Not ready" });
+      return {
+        result: {
+          operation: "phase.reject",
+          run: run({
+            state: "failed",
+            outcome: { kind: "failed", code: "rejected", summary: "Not ready" },
+          }),
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phase", "reject", PHASE_RUN_ID, "--reason", "Not ready"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("outcome: failed (rejected) Not ready");
+  });
+
+  it("lists phase runs", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "phase.list") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "phase.list",
+          page: { runs: [run()], nextAfter: null, hasMore: false },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phase", "list", "--project", PROJECT_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toBe(`${PHASE_RUN_ID}\tresearch\t${PROJECT_ID}\tsucceeded\tr2\n`);
   });
 });
 

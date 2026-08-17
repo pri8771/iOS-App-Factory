@@ -15,6 +15,7 @@ export * from "./lifecycle.js";
 export * from "./milestone.js";
 export * from "./module.js";
 export * from "./phase.js";
+export * from "./phase-run.js";
 export * from "./portfolio-read-model.js";
 export * from "./primitives.js";
 export * from "./project.js";

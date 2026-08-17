@@ -23,7 +23,10 @@ import {
   GitBranchNameSchema,
   IsoInstantSchema,
   MilestoneIdSchema,
+  PhaseIdSchema,
   PhasePresetIdSchema,
+  PhaseRunIdSchema,
+  PhaseRunStateV1Schema,
   ProjectIdSchema,
   ProjectMilestoneKindV1Schema,
   ProjectMilestoneOwnerV1Schema,
@@ -41,7 +44,10 @@ import {
   type ExternalEffectStateV1,
   type ExternalProviderV1,
   type GitBranchName,
+  type PhaseId,
   type PhasePresetId,
+  type PhaseRunId,
+  type PhaseRunStateV1,
   type ProjectId,
   type ProjectMilestoneUpsertV1,
   type Sha256Digest,
@@ -106,6 +112,24 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "project.milestone.upsert"; upsert: ProjectMilestoneUpsertV1 }>
   | Readonly<{ kind: "phases.list" }>
   | Readonly<{ kind: "phases.show"; presetId: PhasePresetId }>
+  | Readonly<{
+      kind: "phase.run";
+      presetId: PhasePresetId | null;
+      phaseId: PhaseId;
+      projectId: ProjectId;
+    }>
+  | Readonly<{ kind: "phase.status"; phaseRunId: PhaseRunId }>
+  | Readonly<{
+      kind: "phase.list";
+      projectId: ProjectId | null;
+      state: PhaseRunStateV1 | null;
+      limit: number;
+    }>
+  | Readonly<{
+      kind: "phase.approve" | "phase.reject";
+      phaseRunId: PhaseRunId;
+      reason: string | null;
+    }>
   | Readonly<{ kind: "effects.status" }>
   | Readonly<{
       kind: "effects.list";
@@ -151,6 +175,31 @@ function parsePresetId(value: string | undefined): PhasePresetId {
   const parsed = PhasePresetIdSchema.safeParse(value);
   if (!parsed.success)
     usageError("The preset ID must be a stable lowercase key, e.g. ios-app-standard-0.4.0.");
+  return parsed.data;
+}
+
+function parsePhaseId(value: string | undefined): PhaseId {
+  if (value === undefined) usageError("A phase ID is required.");
+  const parsed = PhaseIdSchema.safeParse(value);
+  if (!parsed.success) usageError("The phase ID must be a stable lowercase key, e.g. research.");
+  return parsed.data;
+}
+
+function parsePhaseRunId(value: string | undefined): PhaseRunId {
+  if (value === undefined) usageError("A phase run ID is required.");
+  const parsed = PhaseRunIdSchema.safeParse(value);
+  if (!parsed.success) usageError("The phase run ID must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
+function parsePhaseRunStateOption(value: string | undefined): PhaseRunStateV1 | null {
+  if (value === undefined) return null;
+  const parsed = PhaseRunStateV1Schema.safeParse(value);
+  if (!parsed.success) {
+    usageError(
+      "--state must be one of: queued, running, awaiting-human, succeeded, failed, cancelled.",
+    );
+  }
   return parsed.data;
 }
 
@@ -692,6 +741,62 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     usageError("Phases requires one of: list, show.");
   }
 
+  if (command === "phase") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "run") {
+      const projectValue = consumeOption(arguments_, "--project");
+      const positionals = arguments_.splice(0, arguments_.length);
+      // `phase run <preset> <phase> --project <id>` names the phase's preset; `phase run <phase>
+      // --project <id>` runs a standalone phase from the phase-definition library (presetId null).
+      const [first, second, ...rest] = positionals;
+      if (rest.length > 0) usageError("Unexpected argument(s): " + rest.join(" "));
+      const presetId = second === undefined ? null : parsePresetId(first);
+      const phaseId = parsePhaseId(second === undefined ? first : second);
+      const projectId = parseProjectId(projectValue);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "phase.run", presetId, phaseId, projectId },
+      };
+    }
+    if (subcommand === "status") {
+      const phaseRunId = parsePhaseRunId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "phase.status", phaseRunId } };
+    }
+    if (subcommand === "list") {
+      const projectValue = consumeOption(arguments_, "--project");
+      const stateValue = consumeOption(arguments_, "--state");
+      const limitValue = consumeOption(arguments_, "--limit");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "phase.list",
+          projectId: projectValue === undefined ? null : parseProjectId(projectValue),
+          state: parsePhaseRunStateOption(stateValue),
+          limit: limitValue === undefined ? 50 : parsePositiveInteger("--limit", limitValue, 100),
+        },
+      };
+    }
+    if (subcommand === "approve" || subcommand === "reject") {
+      const phaseRunId = parsePhaseRunId(arguments_.shift());
+      const reason = consumeOption(arguments_, "--reason") ?? null;
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: subcommand === "approve" ? "phase.approve" : "phase.reject",
+          phaseRunId,
+          reason,
+        },
+      };
+    }
+    usageError("Phase requires one of: run, status, list, approve, reject.");
+  }
+
   usageError(`Unknown command: ${command}`);
 }
 
@@ -890,6 +995,33 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
     case "phase.upsert": {
       const { phase } = result;
       return `phase.upsert: ${result.created ? "created" : "updated"} ${phase.phaseId} r${String(phase.revision)} ${phase.mode} ${JSON.stringify(phase.name)}\n`;
+    }
+    case "phase.run":
+    case "phase.status":
+    case "phase.approve":
+    case "phase.reject": {
+      const { run } = result;
+      const outputsLine =
+        run.outputs.length === 0
+          ? ""
+          : `\noutputs: ${run.outputs.map((output) => output.path).join(", ")}`;
+      const graderLine = run.graderVerdict === null ? "" : `\ngrader: ${run.graderVerdict.verdict}`;
+      const outcomeLine =
+        run.outcome === null
+          ? ""
+          : run.outcome.kind === "failed"
+            ? `\noutcome: failed (${run.outcome.code}) ${run.outcome.summary}`
+            : `\noutcome: ${run.outcome.kind}`;
+      return `${result.operation}: ${run.phaseRunId} ${run.phaseId} is ${run.state} (revision ${String(run.revision)})${outputsLine}${graderLine}${outcomeLine}\n`;
+    }
+    case "phase.list": {
+      if (result.page.runs.length === 0) return "no phase runs\n";
+      return `${result.page.runs
+        .map(
+          (run) =>
+            `${run.phaseRunId}\t${run.phaseId}\t${run.projectId}\t${run.state}\tr${String(run.revision)}`,
+        )
+        .join("\n")}\n`;
     }
     case "effects.status": {
       const { counts, pendingOutbox, pump } = result.status;
@@ -1377,6 +1509,43 @@ export async function runCli(
         io.stdout(output);
         return 0;
       }
+      case "phase.run":
+        result = await client.runPhase(
+          {
+            presetId: invocation.command.presetId,
+            phaseId: invocation.command.phaseId,
+            projectId: invocation.command.projectId,
+            inputsOverride: null,
+          },
+          identity,
+        );
+        break;
+      case "phase.status":
+        result = await client.phaseStatus(invocation.command.phaseRunId, identity);
+        break;
+      case "phase.list":
+        result = await client.listPhaseRuns(
+          {
+            projectId: invocation.command.projectId,
+            state: invocation.command.state,
+            after: null,
+            limit: invocation.command.limit,
+          },
+          identity,
+        );
+        break;
+      case "phase.approve":
+        result = await client.approvePhaseRun(
+          { phaseRunId: invocation.command.phaseRunId, reason: invocation.command.reason },
+          identity,
+        );
+        break;
+      case "phase.reject":
+        result = await client.rejectPhaseRun(
+          { phaseRunId: invocation.command.phaseRunId, reason: invocation.command.reason },
+          identity,
+        );
+        break;
       case "effects.status":
         result = await client.effectsStatus(identity);
         break;

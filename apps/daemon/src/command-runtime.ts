@@ -37,6 +37,7 @@ import {
   type ProjectId,
   type ProjectTimelineV1,
   type RoomId,
+  RoomHumanHandleSchema,
   RoomMessageIdSchema,
   type TaskSpecV1,
 } from "@app-factory/contracts";
@@ -73,10 +74,29 @@ import {
 import {
   buildPresetListResultV1,
   loadKnownStandardRuleIdsV1,
+  loadStandardRuleStatementsV1,
   seedIosAppStandardPresetV1,
   upsertPhaseDefinitionV1,
   upsertPhasePresetV1,
 } from "./phase-command-runtime.js";
+import {
+  createPhaseInputsReaderPort,
+  createPhaseOutputMirrorPort,
+  type PhaseOutputMirrorPort,
+} from "./phase-output-mirror.js";
+import {
+  approvePhaseRunV1,
+  buildPhaseListResultV1,
+  buildPhaseStatusResultV1,
+  rejectPhaseRunV1,
+  runPhaseV1,
+  type PhaseRunCommandDependencies,
+} from "./phase-run-command-runtime.js";
+import type {
+  PhaseInputsReaderPort,
+  PhaseParticipantsPort,
+  PhaseRoomPort,
+} from "./phase-run-executor.js";
 import {
   createRunExportMirrorPort,
   executeRunExportCommand,
@@ -112,6 +132,9 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "project.milestone.upsert",
   "preset.upsert",
   "phase.upsert",
+  "phase.run",
+  "phase.approve",
+  "phase.reject",
   "room.create",
   "room.post",
 ]);
@@ -246,6 +269,18 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * tests that want a smaller, controlled rule catalog.
    */
   policySourcePath?: string;
+  /**
+   * Resolves a real (or fake, in tests) `ParticipantAdapter` per cast provider for `phase.run`.
+   * Defaults to a port with no provider configured at all — `phase.run` still works end to end (the
+   * run durably fails closed with `participant-unconfigured`) exactly like a `room.*` roster naming
+   * an unconfigured provider fails only that provider's turns; wiring real Codex/Claude/Ollama
+   * adapters here is the daemon composition layer's job, mirroring `initializeRooms`.
+   */
+  phaseParticipants?: PhaseParticipantsPort;
+  /** Test seam: replaces the default `docs/`-scoped broker-commit port `phase.run` writes outputs through. */
+  phaseOutputMirror?: PhaseOutputMirrorPort;
+  /** Test seam: replaces the default read-only project-mirror reader `phase.run` folds into context. */
+  phaseInputsReader?: PhaseInputsReaderPort;
 }>;
 
 export type DaemonRuntimePaths = Readonly<{
@@ -349,12 +384,16 @@ async function prepareRuntimePaths(paths: DaemonRuntimePaths): Promise<void> {
   }
 }
 
-function deterministicUuid(purpose: DaemonRuntimeIdPurpose, commandId: CommandId): string {
+function deterministicUuidFromParts(...parts: readonly string[]): string {
   const digest = createHash("sha256")
-    .update(`app-factory.daemon.v1\0${purpose}\0${commandId}`)
+    .update(`app-factory.daemon.v1\0${parts.join("\0")}`)
     .digest("hex");
   const variant = ((Number.parseInt(digest.charAt(16), 16) & 0x3) | 0x8).toString(16);
   return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-${variant}${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+}
+
+function deterministicUuid(purpose: DaemonRuntimeIdPurpose, commandId: CommandId): string {
+  return deterministicUuidFromParts(purpose, commandId);
 }
 
 function defaultIdFactory(purpose: DaemonRuntimeIdPurpose, commandId: CommandId): string {
@@ -606,6 +645,11 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "preset.list":
     case "preset.upsert":
     case "phase.upsert":
+    case "phase.run":
+    case "phase.status":
+    case "phase.list":
+    case "phase.approve":
+    case "phase.reject":
     case "effects.status":
     case "effects.list":
     case "room.create":
@@ -826,6 +870,18 @@ function assertKernelCommandIdentity(
     throw new CommandHandlerError(
       "command.identity-conflict",
       "The command ID is already bound to a durable phase preset upsert.",
+      false,
+    );
+  }
+  // Phase runs journal only their creating command (see phase-run-repositories.ts); a commandId
+  // already bound to one may only ever be replayed as that same `phase.run`.
+  if (
+    request.operation !== "phase.run" &&
+    repositories.phaseRuns.findByCommandId(request.commandId) !== null
+  ) {
+    throw new CommandHandlerError(
+      "command.identity-conflict",
+      "The command ID is already bound to a durable phase run.",
       false,
     );
   }
@@ -1337,6 +1393,7 @@ async function executeRequest(
     knownStandardRuleIds: ReadonlySet<string>;
     /** Only used by `studio.assistant.intent.execute` to durably ledger the op it dispatches to. */
     paths: DaemonRuntimePaths;
+    phaseRunCommands: PhaseRunCommandDependencies;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1461,6 +1518,22 @@ async function executeRequest(
         dependencies.observedAt,
         dependencies.knownStandardRuleIds,
       );
+    case "phase.run":
+      return await runPhaseV1(
+        repositories,
+        request,
+        dependencies.observedAt,
+        dependencies.idFactory,
+        dependencies.phaseRunCommands,
+      );
+    case "phase.status":
+      return buildPhaseStatusResultV1(repositories, request);
+    case "phase.list":
+      return buildPhaseListResultV1(repositories, request);
+    case "phase.approve":
+      return approvePhaseRunV1(repositories, request, dependencies.observedAt);
+    case "phase.reject":
+      return rejectPhaseRunV1(repositories, request, dependencies.observedAt);
     case "effects.status":
       return {
         operation: "effects.status",
@@ -1649,6 +1722,63 @@ export async function openDaemonCommandRuntime(
       gitRuntimeRoot: resolveVerifiedLocalExecutionPaths(paths.root).gitRuntimeRoot,
       ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
     });
+  const phaseGitPortOptions = {
+    gitRuntimeRoot: resolveVerifiedLocalExecutionPaths(paths.root).gitRuntimeRoot,
+    ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
+  };
+  const phaseOutputMirror =
+    options.phaseOutputMirror ?? createPhaseOutputMirrorPort(phaseGitPortOptions);
+  const phaseInputsReader =
+    options.phaseInputsReader ?? createPhaseInputsReaderPort(phaseGitPortOptions);
+  // No provider configured by default: see OpenDaemonCommandRuntimeOptions.phaseParticipants's doc
+  // comment. `phase.run` still works end to end; it fails closed per-run instead.
+  const phaseParticipants: PhaseParticipantsPort = options.phaseParticipants ?? {
+    resolve: () => null,
+  };
+  const standardRuleStatements = loadStandardRuleStatementsV1(options.policySourcePath);
+  const phaseRoomPort: PhaseRoomPort = {
+    createPhaseRoom(input) {
+      roomRepository.createRoom(
+        {
+          roomId: input.roomId,
+          title: input.title,
+          projectId: input.projectId,
+          unattendedEnabled: false,
+          agentCooldownEvents: 3,
+          participants: input.participants,
+          budget: {
+            dailyCeilingTokens: 200_000,
+            unattendedDailyCeilingTokens: 0,
+            maxTokensPerReply: 4_000,
+          },
+        },
+        input.now,
+      );
+      // The phase's purpose seeds the transcript as the room's first message, exactly like a human
+      // opening the conversation — Phase Runner itself is not a room participant. Derived from the
+      // room's own (already commandId-derived) ID, so it stays stable across an idempotent replay.
+      const messageId = RoomMessageIdSchema.parse(
+        deterministicUuidFromParts("phase-run-room-message", input.roomId),
+      );
+      roomRepository.appendHumanMessage({
+        roomId: input.roomId,
+        messageId,
+        handle: RoomHumanHandleSchema.parse("phase-runner"),
+        body: input.purpose,
+        now: input.now,
+      });
+    },
+  };
+  const phaseRunCommands: PhaseRunCommandDependencies = {
+    outputMirror: phaseOutputMirror,
+    executionPorts: {
+      participants: phaseParticipants,
+      inputs: phaseInputsReader,
+      rooms: phaseRoomPort,
+      standardRuleStatements,
+    },
+    createTimeoutSignal: (timeoutSeconds) => AbortSignal.timeout(timeoutSeconds * 1_000),
+  };
   const serial = new SerialExecutor();
   let closed = false;
 
@@ -1686,6 +1816,7 @@ export async function openDaemonCommandRuntime(
           roomsStatus: roomsStatusPort,
           knownStandardRuleIds,
           paths,
+          phaseRunCommands,
         }),
       );
       // A human post is the moderator's cue; the wake happens after the

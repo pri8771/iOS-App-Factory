@@ -42,6 +42,7 @@ import {
 } from "./durability-repositories.js";
 import { ProjectMilestoneRepository } from "./milestone-repositories.js";
 import { PhaseDefinitionRepository, PhasePresetRepository } from "./phase-repositories.js";
+import { PhaseRunRepository } from "./phase-run-repositories.js";
 
 type SubmitTaskCommandV1 = Extract<CommandV1, { kind: "task.submit" }>;
 type RetryTaskCommandV1 = Extract<CommandV1, { kind: "task.retry" }>;
@@ -645,6 +646,7 @@ export class FactoryRepositories {
   public readonly milestones: ProjectMilestoneRepository;
   public readonly phaseDefinitions: PhaseDefinitionRepository;
   public readonly phasePresets: PhasePresetRepository;
+  public readonly phaseRuns: PhaseRunRepository;
 
   public constructor(private readonly database: Database.Database) {
     this.commands = new CommandRepository(database);
@@ -660,6 +662,7 @@ export class FactoryRepositories {
     this.milestones = new ProjectMilestoneRepository(database);
     this.phaseDefinitions = new PhaseDefinitionRepository(database);
     this.phasePresets = new PhasePresetRepository(database);
+    this.phaseRuns = new PhaseRunRepository(database);
   }
 
   public createTaskAttempt(input: CreateTaskAttemptInput): CreatedTaskAttempt {

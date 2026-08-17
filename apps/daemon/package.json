@@ -31,6 +31,8 @@
     "@app-factory/project-sdk": "workspace:*",
     "@app-factory/scheduler": "workspace:*",
     "@app-factory/studio-room-adapters": "workspace:*",
-    "@app-factory/studio-rooms": "workspace:*"
+    "@app-factory/studio-rooms": "workspace:*",
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1"
   }
 }

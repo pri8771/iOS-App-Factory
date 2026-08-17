@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 
 import {
+  PhaseDefinitionV1Schema,
   Sha256DigestSchema,
   TaskSpecV1Schema,
+  type PhaseDefinitionV1,
   type Sha256Digest,
   type TaskSpecV1,
 } from "@app-factory/contracts";
@@ -52,5 +54,21 @@ export function computeTaskSpecDigest(taskSpecInput: unknown): Sha256Digest {
   const taskSpec: TaskSpecV1 = TaskSpecV1Schema.parse(taskSpecInput);
   return Sha256DigestSchema.parse(
     `sha256:${createHash("sha256").update(canonicalJson(taskSpec), "utf8").digest("hex")}`,
+  );
+}
+
+/**
+ * The exact-bytes digest a `PhaseRunV1` binds itself to (`phaseSnapshotDigest`): SHA-256 of the
+ * whole `PhaseDefinitionV1` value's canonical JSON, `revision`/`createdAt`/`updatedAt` included —
+ * mirrors `computeTaskSpecDigest` digesting the whole `TaskSpecV1` including its own `createdAt`.
+ * Digesting the full value (not just the draft-shape content fields) is deliberate: "a run is bound
+ * to the exact phase bytes" means the exact revision that was read, so a phase definition upserted
+ * again with byte-identical draft content but a new `revision`/`updatedAt` still yields a new
+ * digest — the run snapshot always names precisely which head it saw.
+ */
+export function computePhaseDefinitionDigest(phaseInput: unknown): Sha256Digest {
+  const phase: PhaseDefinitionV1 = PhaseDefinitionV1Schema.parse(phaseInput);
+  return Sha256DigestSchema.parse(
+    `sha256:${createHash("sha256").update(canonicalJson(phase), "utf8").digest("hex")}`,
   );
 }

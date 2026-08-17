@@ -634,10 +634,35 @@
       ]
     },
     "__schema57": {
+      "additionalProperties": false,
+      "properties": {
+        "phaseRunId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "phaseRunId",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "__schema58": {
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
       "type": "string"
     },
-    "__schema58": {
+    "__schema59": {
       "additionalProperties": false,
       "properties": {
         "displayName": {
@@ -661,20 +686,20 @@
       ],
       "type": "object"
     },
-    "__schema59": {
-      "maximum": 9007199254740991,
-      "minimum": 1,
-      "type": "integer"
-    },
     "__schema6": {
       "pattern": "^[a-z][a-z0-9-]{0,63}$",
       "type": "string"
     },
     "__schema60": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema61": {
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
       "type": "string"
     },
-    "__schema61": {
+    "__schema62": {
       "oneOf": [
         {
           "additionalProperties": false,
@@ -2044,6 +2069,280 @@
               "$ref": "#/$defs/__schema2"
             },
             "operation": {
+              "const": "phase.run",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "inputsOverride": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema38"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "phaseId": {
+                  "$ref": "#/$defs/__schema26"
+                },
+                "presetId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema22"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "projectId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "presetId",
+                "phaseId",
+                "projectId",
+                "inputsOverride"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "phase.status",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "phaseRunId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "phaseRunId"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "phase.list",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "after": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "phaseRunId": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "updatedAt": {
+                          "$ref": "#/$defs/__schema2"
+                        }
+                      },
+                      "required": [
+                        "updatedAt",
+                        "phaseRunId"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "limit": {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "projectId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "state": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "queued",
+                        "running",
+                        "awaiting-human",
+                        "succeeded",
+                        "failed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "projectId",
+                "state",
+                "after",
+                "limit"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "phase.approve",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema57"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "phase.reject",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema57"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
               "const": "effects.status",
               "type": "string"
             },
@@ -2204,10 +2503,10 @@
                   "additionalProperties": false,
                   "properties": {
                     "dailyCeilingTokens": {
-                      "$ref": "#/$defs/__schema59"
+                      "$ref": "#/$defs/__schema60"
                     },
                     "maxTokensPerReply": {
-                      "$ref": "#/$defs/__schema59"
+                      "$ref": "#/$defs/__schema60"
                     },
                     "unattendedDailyCeilingTokens": {
                       "$ref": "#/$defs/__schema11"
@@ -2222,7 +2521,7 @@
                 },
                 "participants": {
                   "items": {
-                    "$ref": "#/$defs/__schema58"
+                    "$ref": "#/$defs/__schema59"
                   },
                   "maxItems": 16,
                   "minItems": 1,
@@ -2239,7 +2538,7 @@
                   ]
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema57"
+                  "$ref": "#/$defs/__schema58"
                 },
                 "title": {
                   "maxLength": 200,
@@ -2344,10 +2643,10 @@
                   "type": "string"
                 },
                 "handle": {
-                  "$ref": "#/$defs/__schema60"
+                  "$ref": "#/$defs/__schema61"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema57"
+                  "$ref": "#/$defs/__schema58"
                 }
               },
               "required": [
@@ -2399,7 +2698,7 @@
                   "type": "integer"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema57"
+                  "$ref": "#/$defs/__schema58"
                 }
               },
               "required": [
@@ -2443,10 +2742,10 @@
               "additionalProperties": false,
               "properties": {
                 "handle": {
-                  "$ref": "#/$defs/__schema60"
+                  "$ref": "#/$defs/__schema61"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema57"
+                  "$ref": "#/$defs/__schema58"
                 },
                 "ttlMs": {
                   "maximum": 30000,
@@ -2596,7 +2895,7 @@
               "additionalProperties": false,
               "properties": {
                 "intent": {
-                  "$ref": "#/$defs/__schema61"
+                  "$ref": "#/$defs/__schema62"
                 },
                 "utterance": {
                   "maxLength": 2000,
@@ -2650,7 +2949,7 @@
                       "$ref": "#/$defs/__schema0"
                     },
                     "payload": {
-                      "$ref": "#/$defs/__schema61"
+                      "$ref": "#/$defs/__schema62"
                     },
                     "proposedAt": {
                       "$ref": "#/$defs/__schema2"

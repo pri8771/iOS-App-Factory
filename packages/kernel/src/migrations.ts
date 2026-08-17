@@ -11,6 +11,7 @@ import { retryAndUnblockCommandsMigration } from "./migrations/0006-retry-and-un
 import { projectMilestonesMigration } from "./migrations/0007-project-milestones.js";
 import { studioRoomsMigration } from "./migrations/0008-studio-rooms.js";
 import { phasePresetsMigration } from "./migrations/0009-phase-presets.js";
+import { phaseRunsMigration } from "./migrations/0010-phase-runs.js";
 import type { SqlMigration } from "./migration-types.js";
 
 export type { SqlMigration } from "./migration-types.js";
@@ -42,6 +43,7 @@ export const FACTORY_MIGRATIONS: readonly SqlMigration[] = [
   projectMilestonesMigration,
   studioRoomsMigration,
   phasePresetsMigration,
+  phaseRunsMigration,
 ];
 
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
