@@ -78,6 +78,7 @@ import {
   RoomIdSchema,
   RoomMessageV1Schema,
   RoomModeratorStatusV1Schema,
+  RoomParticipantsCatalogV1Schema,
   RoomV1Schema,
 } from "./room.js";
 import { RunRecordV1Schema } from "./run-record.js";
@@ -575,6 +576,18 @@ export const RoomTypingCommandRequestV1Schema = z.strictObject({
   }),
 });
 
+/**
+ * Read-only: the wire-safe catalog of the daemon's configured room participants (providers by
+ * key/model, plus the operator's roster) so a client can propose a roster before `room.create`. See
+ * `RoomParticipantsCatalogV1Schema`; answers `enabled: false` + `unavailableReason` (never an error)
+ * when the rooms subsystem is disabled.
+ */
+export const RoomParticipantsListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("room.participants.list"),
+  payload: EmptyPayloadV1Schema,
+});
+
 export const StudioSnapshotCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("studio.snapshot"),
@@ -653,6 +666,7 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   RoomPostCommandRequestV1Schema,
   RoomEventsCommandRequestV1Schema,
   RoomTypingCommandRequestV1Schema,
+  RoomParticipantsListCommandRequestV1Schema,
   StudioSnapshotCommandRequestV1Schema,
   StudioAssistantQueryCommandRequestV1Schema,
   StudioAssistantIntentProposeCommandRequestV1Schema,
@@ -1083,6 +1097,11 @@ export const RoomTypingCommandResultV1Schema = z.strictObject({
   typingUntil: IsoInstantSchema,
 });
 
+export const RoomParticipantsListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("room.participants.list"),
+  catalog: RoomParticipantsCatalogV1Schema,
+});
+
 export const StudioSnapshotCommandResultV1Schema = z.strictObject({
   operation: z.literal("studio.snapshot"),
   snapshot: StudioSnapshotV1Schema,
@@ -1173,6 +1192,7 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   RoomPostCommandResultV1Schema,
   RoomEventsCommandResultV1Schema,
   RoomTypingCommandResultV1Schema,
+  RoomParticipantsListCommandResultV1Schema,
   StudioSnapshotCommandResultV1Schema,
   StudioAssistantQueryCommandResultV1Schema,
   StudioAssistantIntentProposeCommandResultV1Schema,

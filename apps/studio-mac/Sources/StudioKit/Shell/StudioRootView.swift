@@ -62,7 +62,12 @@ public struct StudioRootView: View {
         }
         .background(HUDTheme.void)
         .sheet(isPresented: $showingNewRoom) {
-            NewRoomSheet(knownProjects: store.knownProjects, onCreate: { title, projectId, unattended, participants in
+            NewRoomSheet(knownProjects: store.knownProjects,
+                         catalog: store.rooms.participantsCatalog,
+                         isLoadingCatalog: store.rooms.isLoadingParticipantsCatalog,
+                         catalogError: store.rooms.participantsCatalogError,
+                         onLoadCatalog: { await store.rooms.loadParticipantsCatalog() },
+                         onCreate: { title, projectId, unattended, participants in
                 await store.rooms.createRoom(title: title, projectId: projectId, unattendedEnabled: unattended,
                                              participants: participants)
             }, onDone: { room in

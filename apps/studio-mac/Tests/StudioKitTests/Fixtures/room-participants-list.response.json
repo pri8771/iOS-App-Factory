@@ -1,0 +1,55 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "room.participants.list",
+    "catalog": {
+      "schemaVersion": 1,
+      "enabled": true,
+      "unavailableReason": null,
+      "providers": [
+        {
+          "provider": "codex",
+          "model": "gpt-5-codex",
+          "cliVersion": "0.42.0"
+        },
+        {
+          "provider": "claude",
+          "model": "claude-sonnet-4-5",
+          "cliVersion": null
+        },
+        {
+          "provider": "ollama",
+          "model": "qwen2.5-coder:14b",
+          "cliVersion": null
+        }
+      ],
+      "roster": [
+        {
+          "roomId": "50000001-0000-4000-8000-000000000001",
+          "kind": "research",
+          "charter": "Studio launch review: ship-readiness, not feature ideas.",
+          "participants": [
+            {
+              "persona": "codex",
+              "oneLineCharter": "Drafts checklists from the release docs."
+            },
+            {
+              "persona": "claude",
+              "oneLineCharter": "Reviews the draft for gaps and ordering."
+            }
+          ]
+        },
+        {
+          "roomId": "50000002-0000-4000-8000-000000000002",
+          "kind": "project",
+          "charter": null,
+          "participants": []
+        }
+      ],
+      "sourcedAt": "2026-08-16T18:12:00.000Z",
+      "sourceDigest": "sha256:bb837889aea0f95eca1b70942048bacdf6bb2d05c520fee1c0b4ea74a9ea5199"
+    }
+  }
+}

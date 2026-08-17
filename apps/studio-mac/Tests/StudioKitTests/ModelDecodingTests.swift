@@ -222,8 +222,8 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(String(decoding: try JSONEncoder().encode(EmptyPayload()), as: UTF8.self), "{}")
     }
 
-    func testAllFortyEightOperationsAreNamed() {
-        XCTAssertEqual(CommandOperation.allCases.count, 48)
+    func testAllFortyNineOperationsAreNamed() {
+        XCTAssertEqual(CommandOperation.allCases.count, 49)
         XCTAssertEqual(Set(CommandOperation.allCases.map(\.rawValue)), [
             "doctor", "task.submit", "task.run", "attempt.status", "attempt.events", "attempt.list",
             "attempt.pause", "attempt.resume", "attempt.cancel", "task.retry", "attempt.unblock",
@@ -231,7 +231,7 @@ final class ModelDecodingTests: XCTestCase {
             "project.scan", "project.enroll-plan", "project.apply", "effects.status", "effects.list",
             "studio.snapshot", "studio.assistant.query", "studio.assistant.intent.propose",
             "studio.assistant.intent.execute", "project.milestones.list", "project.milestone.upsert",
-            "room.create", "room.list", "room.post", "room.events", "room.typing",
+            "room.create", "room.list", "room.post", "room.events", "room.typing", "room.participants.list",
             "project.seed", "preset.list", "preset.upsert", "phase.upsert",
             "plan.propose", "plan.edit", "plan.approve", "plan.execute", "plan.approve-gate", "plan.status",
             "plan.tick", "phase.run", "phase.status", "phase.list", "phase.approve", "phase.reject",
@@ -483,6 +483,65 @@ final class ModelDecodingTests: XCTestCase {
         }
         XCTAssertEqual(result.roomId.rawValue, "50000001-0000-4000-8000-000000000001")
         XCTAssertEqual(result.typingUntil.rawValue, "2026-08-16T18:12:03.000Z")
+    }
+
+    // `room.participants.list` — recorded by `scripts/record-room-fixtures.mjs` with a genuine
+    // `sourceDigest` (computed through the real contracts helper), so the client-side re-verification
+    // below is exercised against real bytes, not a hand-typed hash.
+
+    func testRoomParticipantsCatalogModelSourcesProvidersAndRoster() throws {
+        guard case .success(_, .roomParticipantsList(let catalog)) = try decode("room-participants-list.response.json") else {
+            return XCTFail("expected room.participants.list")
+        }
+        XCTAssertTrue(catalog.enabled)
+        XCTAssertNil(catalog.unavailableReason)
+        XCTAssertEqual(catalog.providers.map(\.provider), [.codex, .claude, .ollama])
+        XCTAssertEqual(catalog.providers.map(\.model), ["gpt-5-codex", "claude-sonnet-4-5", "qwen2.5-coder:14b"])
+        XCTAssertEqual(catalog.providers.map(\.cliVersion), ["0.42.0", nil, nil])
+        XCTAssertEqual(catalog.roster.count, 2)
+        let research = catalog.roster[0]
+        XCTAssertEqual(research.roomId, "50000001-0000-4000-8000-000000000001")
+        XCTAssertEqual(research.kind, .research)
+        XCTAssertEqual(research.charter, "Studio launch review: ship-readiness, not feature ideas.")
+        XCTAssertEqual(research.participants.map(\.persona), ["codex", "claude"])
+        XCTAssertEqual(research.participants[1].oneLineCharter, "Reviews the draft for gaps and ordering.")
+        XCTAssertEqual(catalog.roster[1].kind, .project)
+        XCTAssertNil(catalog.roster[1].charter)
+        XCTAssertTrue(catalog.roster[1].participants.isEmpty)
+        XCTAssertEqual(catalog.sourcedAt.rawValue, "2026-08-16T18:12:00.000Z")
+        // The honest default roster for a new room: one seat per configured provider, nothing invented.
+        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.provider.rawValue), ["codex", "claude", "ollama"])
+        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.persona.rawValue), ["codex", "claude", "ollama"])
+        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.displayName), ["Codex", "Claude", "Ollama"])
+    }
+
+    func testRoomParticipantsCatalogDisabledAnswersHonestly() throws {
+        guard case .success(_, .roomParticipantsList(let catalog)) = try decode("room-participants-list-disabled.response.json") else {
+            return XCTFail("expected room.participants.list")
+        }
+        XCTAssertFalse(catalog.enabled)
+        XCTAssertEqual(catalog.unavailableReason,
+                       "rooms subsystem disabled: no room moderator is composed (APP_FACTORY_ROOMS_ENABLED unset), so no participants or roster are configured")
+        XCTAssertTrue(catalog.providers.isEmpty)
+        XCTAssertTrue(catalog.roster.isEmpty)
+        XCTAssertTrue(catalog.defaultParticipantSpecs.isEmpty, "a disabled catalog never proposes seats")
+    }
+
+    func testRoomParticipantsCatalogDigestVerifiesAgainstRecordedFixture() throws {
+        for fixture in ["room-participants-list.response.json", "room-participants-list-disabled.response.json"] {
+            let tree = try JSONValue.parse(Fixtures.data(fixture))
+            let catalog = try XCTUnwrap(tree["result"]?["catalog"])
+            XCTAssertNoThrow(try RoomParticipantsCatalogDigest.verify(catalog), fixture)
+            // The digest binds content, not the read instant.
+            var later = catalog.objectValue!
+            later["sourcedAt"] = "2026-08-17T09:00:00.000Z"
+            XCTAssertNoThrow(try RoomParticipantsCatalogDigest.verify(.object(later)), fixture)
+            // ...and any content change breaks it.
+            var tampered = catalog.objectValue!
+            guard case .bool(let enabled) = catalog["enabled"]! else { return XCTFail("enabled must be a bool") }
+            tampered["enabled"] = .bool(!enabled)
+            XCTAssertThrowsError(try RoomParticipantsCatalogDigest.verify(.object(tampered)), fixture)
+        }
     }
 
     func testRoomCreateSpecEncodesNullProjectIdExplicitly() throws {

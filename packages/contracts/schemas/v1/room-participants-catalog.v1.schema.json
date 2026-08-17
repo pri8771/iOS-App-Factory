@@ -1,0 +1,181 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "type": "boolean"
+    },
+    "__schema2": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema3": {
+      "items": {
+        "$ref": "#/$defs/__schema4"
+      },
+      "maxItems": 3,
+      "type": "array"
+    },
+    "__schema4": {
+      "additionalProperties": false,
+      "properties": {
+        "cliVersion": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "provider": {
+          "enum": [
+            "codex",
+            "claude",
+            "ollama"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "cliVersion"
+      ],
+      "type": "object"
+    },
+    "__schema5": {
+      "items": {
+        "$ref": "#/$defs/__schema6"
+      },
+      "maxItems": 1000,
+      "type": "array"
+    },
+    "__schema6": {
+      "additionalProperties": false,
+      "properties": {
+        "charter": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "research",
+            "project"
+          ],
+          "type": "string"
+        },
+        "participants": {
+          "items": {
+            "$ref": "#/$defs/__schema7"
+          },
+          "maxItems": 64,
+          "type": "array"
+        },
+        "roomId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "roomId",
+        "kind",
+        "charter",
+        "participants"
+      ],
+      "type": "object"
+    },
+    "__schema7": {
+      "additionalProperties": false,
+      "properties": {
+        "oneLineCharter": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "persona": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "persona",
+        "oneLineCharter"
+      ],
+      "type": "object"
+    },
+    "__schema8": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema9": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:room-participants-catalog",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "providers": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "roster": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "sourceDigest": {
+      "$ref": "#/$defs/__schema9"
+    },
+    "sourcedAt": {
+      "$ref": "#/$defs/__schema8"
+    },
+    "unavailableReason": {
+      "$ref": "#/$defs/__schema2"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "enabled",
+    "unavailableReason",
+    "providers",
+    "roster",
+    "sourcedAt",
+    "sourceDigest"
+  ],
+  "type": "object"
+}

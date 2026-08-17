@@ -1,4 +1,5 @@
-// Regenerates Tests/StudioKitTests/Fixtures/room-*.response.json through the real
+// Regenerates Tests/StudioKitTests/Fixtures/room-*.response.json (the five room.* transcript ops
+// plus room.participants.list, enabled and disabled) through the real
 // `@app-factory/contracts` build — same "record through the real contracts" discipline as
 // record-fixtures.mjs (see apps/studio-mac/docs/architecture/0001, decision 5), kept as its own
 // script rather than appended to record-fixtures.mjs because that script's pre-existing
@@ -6,8 +7,12 @@
 // (AttemptListItemV1Schema gained a required `phase` field on a branch this one hasn't reconciled
 // with — unrelated to rooms, and out of scope here). Re-record with:
 //   pnpm --filter @app-factory/contracts build && node apps/studio-mac/scripts/record-room-fixtures.mjs
+import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
-import { CommandResponseV1Schema } from "../../../packages/contracts/dist/index.js";
+import {
+  CommandResponseV1Schema,
+  canonicalRoomParticipantsCatalogDigestInputV1,
+} from "../../../packages/contracts/dist/index.js";
 
 const rid = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
 const ok = (result) =>
@@ -258,7 +263,61 @@ const fixtures = {
     roomId,
     typingUntil: "2026-08-16T18:12:03.000Z",
   }),
+  // `room.participants.list` — the daemon's configured participants, wire-safe (providers by
+  // key/model/pinned CLI version, plus the operator's roster; never executables/paths/base URLs).
+  // `sourceDigest` is computed through the real contracts helper so the Swift client's own
+  // re-verification (`RoomParticipantsCatalogDigest.verify`) is exercised against a genuine digest.
+  "room-participants-list.response.json": ok({
+    operation: "room.participants.list",
+    catalog: participantsCatalog({
+      enabled: true,
+      unavailableReason: null,
+      providers: [
+        { provider: "codex", model: "gpt-5-codex", cliVersion: "0.42.0" },
+        { provider: "claude", model: "claude-sonnet-4-5", cliVersion: null },
+        { provider: "ollama", model: "qwen2.5-coder:14b", cliVersion: null },
+      ],
+      roster: [
+        {
+          roomId,
+          kind: "research",
+          charter: "Studio launch review: ship-readiness, not feature ideas.",
+          participants: [
+            { persona: "codex", oneLineCharter: "Drafts checklists from the release docs." },
+            { persona: "claude", oneLineCharter: "Reviews the draft for gaps and ordering." },
+          ],
+        },
+        {
+          roomId: "50000002-0000-4000-8000-000000000002",
+          kind: "project",
+          charter: null,
+          participants: [],
+        },
+      ],
+    }),
+  }),
+  // The honest answer with the rooms subsystem disabled: no error, no providers, a precise reason.
+  "room-participants-list-disabled.response.json": ok({
+    operation: "room.participants.list",
+    catalog: participantsCatalog({
+      enabled: false,
+      unavailableReason:
+        "rooms subsystem disabled: no room moderator is composed (APP_FACTORY_ROOMS_ENABLED unset), so no participants or roster are configured",
+      providers: [],
+      roster: [],
+    }),
+  }),
 };
+
+function participantsCatalog(input) {
+  const digestInput = { schemaVersion: 1, ...input };
+  const canonical = canonicalRoomParticipantsCatalogDigestInputV1(digestInput);
+  return {
+    ...digestInput,
+    sourcedAt: "2026-08-16T18:12:00.000Z",
+    sourceDigest: `sha256:${createHash("sha256").update(canonical, "utf8").digest("hex")}`,
+  };
+}
 
 const dir = new URL("../Tests/StudioKitTests/Fixtures/", import.meta.url).pathname;
 for (const [name, value] of Object.entries(fixtures)) {

@@ -889,6 +889,14 @@ describe("room moderator subsystem lifecycle", () => {
     expect(events.moderator.enabled).toBe(false);
     expect(events.messages.map((message) => message.kind)).toEqual(["message"]);
     expect(events.room.pendingTrigger?.kind).toBe("human-message");
+    // No moderator composed: the participants catalog answers honestly instead of erroring.
+    const participants = await client.listRoomParticipants();
+    expect(participants.catalog).toMatchObject({
+      enabled: false,
+      unavailableReason: expect.stringContaining("APP_FACTORY_ROOMS_ENABLED") as string,
+      providers: [],
+      roster: [],
+    });
     expect(service.getLastRoomsError()).toBeNull();
     await expect(service.close()).resolves.toBeUndefined();
   });
@@ -941,6 +949,17 @@ describe("room moderator subsystem lifecycle", () => {
           }),
       },
       revalidator: { revalidate: () => Promise.resolve({ decision: "post" as const }) },
+      participantsCatalog: {
+        providers: [{ provider: "ollama" as const, model: "qwen2.5-coder:14b", cliVersion: null }],
+        roster: [
+          {
+            roomId: ROOM_ID,
+            kind: "project" as const,
+            charter: null,
+            participants: [{ persona: "critic", oneLineCharter: "Finds what the plan misses." }],
+          },
+        ],
+      },
     };
     const first = await startFactoryDaemonService({
       runtimeDirectory: root,
@@ -976,6 +995,15 @@ describe("room moderator subsystem lifecycle", () => {
       ),
     ).toEqual(["human", "agent", "system:all-passed"]);
     expect(events.room.budget).toMatchObject({ reservedTokens: 0, spentTokens: 30 });
+    // The composed moderator's catalog is served verbatim over the socket, and the client's own
+    // digest re-verification accepts it.
+    const participants = await client.listRoomParticipants();
+    expect(participants.catalog).toMatchObject({
+      enabled: true,
+      unavailableReason: null,
+      providers: roomsConfig.participantsCatalog.providers,
+      roster: roomsConfig.participantsCatalog.roster,
+    });
     expect(first.getLastRoomsError()).toBeNull();
     await first.close();
 

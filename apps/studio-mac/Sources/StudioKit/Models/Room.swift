@@ -456,3 +456,122 @@ public struct RoomTypingResult: Hashable, Sendable, Codable {
     public var roomId: RoomID
     public var typingUntil: IsoInstant
 }
+
+// MARK: - room.participants.list (RoomParticipantsCatalogV1)
+//
+// The wire-safe catalog of the daemon's configured room participants: which providers exist and
+// which model each speaks, plus the operator's roster (`@app-factory/studio-room-adapters`
+// `RoomRosterConfigV1`, mirrored field for field). `room-participants-config.ts` itself — executables,
+// paths, digests, the Codex home, runner/scratch roots, the Ollama base URL — never crosses the wire;
+// this is exactly what `NewRoomSheet` needs to source its participant defaults from instead of a
+// local suggestion. Answers honestly when the rooms subsystem is disabled: `enabled: false` plus an
+// `unavailableReason`, never an error. `sourceDigest` is re-verified client-side by `DaemonClient`
+// (see `RoomParticipantsCatalogDigest`), mirroring `studio.snapshot`'s `sourceSnapshotDigest`.
+
+/// `RoomCatalogProviderV1` — the three providers `RoomParticipantsConfigV1` can configure an adapter for.
+public enum RoomCatalogProvider: String, Hashable, Sendable, Codable, CaseIterable {
+    case codex, claude, ollama
+
+    /// The display name a fresh roster row defaults to for this provider.
+    public var displayName: String {
+        switch self {
+        case .codex: return "Codex"
+        case .claude: return "Claude"
+        case .ollama: return "Ollama"
+        }
+    }
+}
+
+/// `RoomCatalogProviderEntryV1` — one configured provider: its key, effective model, and (Codex only)
+/// the operator-pinned CLI version.
+public struct RoomCatalogProviderEntry: Hashable, Sendable, Codable, Identifiable {
+    public var provider: RoomCatalogProvider
+    public var model: String
+    public var cliVersion: String?
+
+    public var id: RoomCatalogProvider { provider }
+
+    public init(provider: RoomCatalogProvider, model: String, cliVersion: String?) {
+        self.provider = provider
+        self.model = model
+        self.cliVersion = cliVersion
+    }
+}
+
+/// `RoomRosterKindV1` — "research" rooms may enable web access for their Codex participants;
+/// "project" rooms never do.
+public enum RoomRosterKind: String, Hashable, Sendable, Codable, CaseIterable {
+    case research, project
+}
+
+/// `RoomRosterParticipantV1` — a persona the operator configured for one roster room, with its
+/// one-line charter.
+public struct RoomRosterParticipant: Hashable, Sendable, Codable, Identifiable {
+    public var persona: String
+    public var oneLineCharter: String
+
+    public var id: String { persona }
+
+    public init(persona: String, oneLineCharter: String) {
+        self.persona = persona
+        self.oneLineCharter = oneLineCharter
+    }
+}
+
+/// `RoomRosterEntryCatalogV1` — one roster entry, keyed by the room ID string the operator wrote
+/// (not required to name an existing room).
+public struct RoomRosterEntry: Hashable, Sendable, Codable, Identifiable {
+    public var roomId: String
+    public var kind: RoomRosterKind
+    public var charter: String?
+    public var participants: [RoomRosterParticipant]
+
+    public var id: String { roomId }
+
+    public init(roomId: String, kind: RoomRosterKind, charter: String?, participants: [RoomRosterParticipant]) {
+        self.roomId = roomId
+        self.kind = kind
+        self.charter = charter
+        self.participants = participants
+    }
+}
+
+/// `RoomParticipantsCatalogV1`.
+public struct RoomParticipantsCatalog: Hashable, Sendable, Codable {
+    public var schemaVersion: SchemaVersion1 = .init()
+    public var enabled: Bool
+    /// Present exactly when `enabled` is false: why the daemon has no participants to list.
+    public var unavailableReason: String?
+    public var providers: [RoomCatalogProviderEntry]
+    public var roster: [RoomRosterEntry]
+    public var sourcedAt: IsoInstant
+    /// SHA-256 of the canonical JSON of every field above except `sourcedAt` and this digest.
+    public var sourceDigest: Sha256Digest
+
+    public init(enabled: Bool, unavailableReason: String?, providers: [RoomCatalogProviderEntry],
+                roster: [RoomRosterEntry], sourcedAt: IsoInstant, sourceDigest: Sha256Digest) {
+        self.enabled = enabled
+        self.unavailableReason = unavailableReason
+        self.providers = providers
+        self.roster = roster
+        self.sourcedAt = sourcedAt
+        self.sourceDigest = sourceDigest
+    }
+
+    /// The honest default roster for a brand-new room: one seat per provider the daemon actually
+    /// has an adapter for (persona = provider key, display name = the provider's name). Personas
+    /// and display names are the human's to edit; the *providers* are what the wire vouches for.
+    /// Empty when the subsystem is disabled or nothing is configured — never a local guess.
+    public var defaultParticipantSpecs: [RoomParticipantSpec] {
+        guard enabled else { return [] }
+        return providers.compactMap { entry in
+            guard let persona = try? RoomPersona(entry.provider.rawValue),
+                  let provider = try? RoomProvider(entry.provider.rawValue) else { return nil }
+            return RoomParticipantSpec(persona: persona, provider: provider, displayName: entry.provider.displayName)
+        }
+    }
+}
+
+public struct RoomParticipantsListResult: Hashable, Sendable, Codable {
+    public var catalog: RoomParticipantsCatalog
+}

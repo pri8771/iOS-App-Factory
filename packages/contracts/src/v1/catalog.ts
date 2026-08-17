@@ -28,7 +28,12 @@ import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { ProjectDocsSnapshotV1Schema } from "./project-docs-snapshot.js";
 import { ProjectPlanV1Schema } from "./project-plan.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
-import { RoomGrantV1Schema, RoomMessageV1Schema, RoomV1Schema } from "./room.js";
+import {
+  RoomGrantV1Schema,
+  RoomMessageV1Schema,
+  RoomParticipantsCatalogV1Schema,
+  RoomV1Schema,
+} from "./room.js";
 import {
   AssistantAnswerV1Schema,
   AssistantIntentV1Schema,
@@ -158,6 +163,12 @@ export const contractSchemaCatalogV1 = [
     fileName: "room-grant.v1.schema.json",
     id: "urn:app-factory:contracts:v1:room-grant",
     schema: RoomGrantV1Schema,
+  },
+  {
+    name: "room-participants-catalog",
+    fileName: "room-participants-catalog.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:room-participants-catalog",
+    schema: RoomParticipantsCatalogV1Schema,
   },
   {
     name: "command",

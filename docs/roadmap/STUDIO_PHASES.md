@@ -291,8 +291,12 @@ whole Studio effort and the Gen 4 daemon it runs on:
   path in `packages/studio-rooms/src/moderator.ts`) is implemented and unit
   tested against fakes, but has not been proven live the way the attended
   path's commit messages claim.
-- No `room.*` operation lists the daemon's configured personas; the
-  new-room sheet's participant rows are an honest client-side suggestion,
-  not sourced from the wire (`apps/studio-mac/README.md`'s "Rooms" section,
-  "NOT YET SOURCED").
+- `room.participants.list` (read-only, `RoomParticipantsCatalogV1`) now lists
+  the daemon's configured providers and roster, wire-safe, and the new-room
+  sheet seeds its participant rows from it (`apps/studio-mac/README.md`'s
+  "Rooms" section). With `APP_FACTORY_ROOMS_ENABLED` unset the daemon answers
+  `enabled: false` with a reason and the sheet keeps an honest client-side
+  suggestion badged NOT YET SOURCED — the catalog is served, but its contents
+  have not been read from a live rooms-enabled daemon by this repository's
+  tests (fake ports and recorded fixtures only).
 - Phases 5–6 remain credential-gated as described above.

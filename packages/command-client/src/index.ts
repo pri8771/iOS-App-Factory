@@ -43,6 +43,7 @@ import {
   TaskIdSchema,
   TaskSpecV1Schema,
   canonicalPortfolioReadModelDigestInputV1,
+  canonicalRoomParticipantsCatalogDigestInputV1,
   canonicalStudioSnapshotDigestInputV1,
   type AbsolutePath,
   type AssistantIntentPayloadV1,
@@ -1062,6 +1063,30 @@ export class CommandClient {
       identity,
       signal,
     );
+  }
+
+  /** The daemon's configured room participants (providers/models + roster); never errors when rooms are disabled. */
+  public async listRoomParticipants(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"room.participants.list">> {
+    const result = await this.#request("room.participants.list", {}, identity, signal);
+    const expectedDigest = `sha256:${createHash("sha256")
+      .update(canonicalRoomParticipantsCatalogDigestInputV1(result.catalog), "utf8")
+      .digest("hex")}`;
+    if (
+      !timingSafeEqual(
+        Buffer.from(result.catalog.sourceDigest, "utf8"),
+        Buffer.from(expectedDigest, "utf8"),
+      )
+    ) {
+      throw new CommandClientError(
+        "protocol.room-participants-digest-mismatch",
+        "The room participants catalog source digest does not match its contents.",
+        false,
+      );
+    }
+    return result;
   }
 
   async #request<Operation extends CommandOperationV1>(

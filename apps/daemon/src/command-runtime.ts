@@ -14,6 +14,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import {
   AttemptIdSchema,
   canonicalPortfolioReadModelDigestInputV1,
+  canonicalRoomParticipantsCatalogDigestInputV1,
   CommandIdSchema,
   CommandRequestV1Schema,
   CommandResultV1Schema,
@@ -21,6 +22,7 @@ import {
   IsoInstantSchema,
   PortfolioReadModelV1Schema,
   ProjectTimelineV1Schema,
+  RoomParticipantsCatalogV1Schema,
   Sha256DigestSchema,
   StableKeySchema,
   COMMAND_PROTOCOL_VERSION_V1,
@@ -37,6 +39,7 @@ import {
   type ProjectId,
   type ProjectTimelineV1,
   type RoomId,
+  type RoomParticipantsCatalogV1,
   RoomHumanHandleSchema,
   RoomMessageIdSchema,
   type TaskSpecV1,
@@ -200,7 +203,29 @@ export type RoomsStatusPort = Readonly<{
   /** Dormancy threshold the moderator applies; reported so clients render attendance the same way. */
   dormancyMs: number;
   wake(roomId: RoomId): void;
+  /**
+   * The wire-safe view of the participants config the moderator was composed from, served by
+   * `room.participants.list` (see `RoomParticipantsCatalogSourceV1`). Absent on the inert port and
+   * on a hand-composed moderator with no config: the operation then reports no providers/roster.
+   */
+  participantsCatalog?: RoomParticipantsCatalogSourceV1;
 }>;
+
+/**
+ * What `room.participants.list` serves, minus the envelope the runtime stamps (`enabled`,
+ * `unavailableReason`, `sourcedAt`, `sourceDigest`): providers by key/model/pinned CLI version, and
+ * the operator's roster. Built by `room-participants-config.ts`
+ * (`buildRoomParticipantsCatalogSourceV1`), which is the one place that decides what does NOT cross
+ * the wire (executables, paths, digests, base URLs).
+ */
+export type RoomParticipantsCatalogSourceV1 = Pick<
+  RoomParticipantsCatalogV1,
+  "providers" | "roster"
+>;
+
+/** Why `room.participants.list` has nothing to list when no moderator is composed. */
+export const ROOMS_SUBSYSTEM_DISABLED_REASON_V1 =
+  "rooms subsystem disabled: no room moderator is composed (APP_FACTORY_ROOMS_ENABLED unset), so no participants or roster are configured" as const;
 
 const inertRoomsStatusPort: RoomsStatusPort = {
   enabled: false,
@@ -720,6 +745,7 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "room.post":
     case "room.events":
     case "room.typing":
+    case "room.participants.list":
     case "studio.snapshot":
     case "studio.assistant.query":
     case "studio.assistant.intent.propose":
@@ -740,8 +766,47 @@ function roomErrorToHandlerError(error: unknown): never {
 
 type RoomCommandRequestV1 = Extract<
   CommandRequestV1,
-  { operation: "room.create" | "room.list" | "room.post" | "room.events" | "room.typing" }
+  {
+    operation:
+      | "room.create"
+      | "room.list"
+      | "room.post"
+      | "room.events"
+      | "room.typing"
+      | "room.participants.list";
+  }
 >;
+
+/**
+ * `room.participants.list`: the catalog is read straight off the composed moderator's status port,
+ * stamped `sourcedAt` and digested over its canonical JSON (everything but `sourcedAt`/`sourceDigest`,
+ * `canonicalRoomParticipantsCatalogDigestInputV1`) exactly like `portfolio.snapshot`'s
+ * `sourceSnapshotDigest`. With no moderator composed it answers `enabled: false` plus a precise
+ * reason rather than erroring -- "no participants configured" is a fact, not a failure.
+ */
+function buildRoomParticipantsCatalogV1(
+  roomsStatus: RoomsStatusPort,
+  observedAt: IsoInstant,
+): RoomParticipantsCatalogV1 {
+  const source = roomsStatus.enabled ? roomsStatus.participantsCatalog : undefined;
+  const digestInput = {
+    schemaVersion: 1 as const,
+    enabled: roomsStatus.enabled,
+    unavailableReason: roomsStatus.enabled ? null : ROOMS_SUBSYSTEM_DISABLED_REASON_V1,
+    providers: [...(source?.providers ?? [])],
+    roster: [...(source?.roster ?? [])],
+  };
+  const sourceDigest = Sha256DigestSchema.parse(
+    `sha256:${createHash("sha256")
+      .update(canonicalRoomParticipantsCatalogDigestInputV1(digestInput), "utf8")
+      .digest("hex")}`,
+  );
+  return RoomParticipantsCatalogV1Schema.parse({
+    ...digestInput,
+    sourcedAt: observedAt,
+    sourceDigest,
+  });
+}
 
 /**
  * `room.*` commands are a durable single-writer transcript over the kernel's
@@ -807,6 +872,14 @@ function executeRoomCommand(
         const room = dependencies.rooms.setHumanTyping(request.payload.roomId, typingUntil);
         return { operation: "room.typing", roomId: room.roomId, typingUntil };
       }
+      case "room.participants.list":
+        return {
+          operation: "room.participants.list",
+          catalog: buildRoomParticipantsCatalogV1(
+            dependencies.roomsStatus,
+            dependencies.observedAt,
+          ),
+        };
     }
   } catch (error) {
     roomErrorToHandlerError(error);
@@ -1699,6 +1772,7 @@ async function executeRequest(
     case "room.post":
     case "room.events":
     case "room.typing":
+    case "room.participants.list":
       return executeRoomCommand(request, dependencies);
     case "studio.snapshot":
       return {

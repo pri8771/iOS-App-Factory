@@ -6,6 +6,7 @@ import {
   PositiveSafeIntegerSchema,
   ProjectIdSchema,
   SchemaVersionV1Schema,
+  Sha256DigestSchema,
 } from "./primitives.js";
 
 /**
@@ -336,3 +337,139 @@ export const RoomCreateSpecV1Schema = z.strictObject({
   budget: RoomBudgetPolicyV1Schema,
 });
 export type RoomCreateSpecV1 = z.infer<typeof RoomCreateSpecV1Schema>;
+
+// `room.participants.list`: the wire-safe catalog of the daemon's configured room participants.
+//
+// `apps/daemon/src/room-participants-config.ts` (`RoomParticipantsConfigV1`) is daemon-local
+// configuration: it names executables, absolute paths, executable digests, a Codex home, runner and
+// scratch roots, and an Ollama base URL. NONE of that crosses the wire. This catalog carries exactly
+// what a client needs to propose a roster before `room.create` — which providers exist and which
+// model each speaks, plus the operator's roster (`@app-factory/studio-room-adapters`
+// `RoomRosterConfigV1`, mirrored field for field: `roomId`/`kind`/`charter`/`participants[]`
+// {`persona`, `oneLineCharter`}). When the rooms subsystem is disabled (`APP_FACTORY_ROOMS_ENABLED`
+// unset) the operation still answers, with `enabled: false` and an `unavailableReason` — never an
+// error, so a client can tell "the daemon has no participants" from "the daemon could not answer".
+
+export const MAX_ROOM_ROSTER_ENTRIES_V1 = 1_000 as const;
+export const MAX_ROOM_ROSTER_PARTICIPANTS_V1 = 64 as const;
+/** Mirrors `@app-factory/ollama-scorer`'s `ROOM_CHARTER_MAX_CHARS` (contracts cannot import it). */
+export const MAX_ROOM_ROSTER_CHARTER_LENGTH_V1 = 2_000 as const;
+
+/** The three providers `RoomParticipantsConfigV1` can configure an adapter for. */
+export const RoomCatalogProviderV1Schema = z.enum(["codex", "claude", "ollama"]);
+export type RoomCatalogProviderV1 = z.infer<typeof RoomCatalogProviderV1Schema>;
+
+export const RoomCatalogProviderEntryV1Schema = z.strictObject({
+  provider: RoomCatalogProviderV1Schema,
+  /** The effective model the adapter speaks (the daemon resolves Ollama's default when unset). */
+  model: z.string().min(1).max(200),
+  /** Codex `expectedCliVersion` when the operator pinned one; `null` for every other case. */
+  cliVersion: z.string().min(1).max(100).nullable(),
+});
+export type RoomCatalogProviderEntryV1 = z.infer<typeof RoomCatalogProviderEntryV1Schema>;
+
+/** "Research" rooms may enable web access for their Codex participants; "project" rooms never do. */
+export const RoomRosterKindV1Schema = z.enum(["research", "project"]);
+export type RoomRosterKindV1 = z.infer<typeof RoomRosterKindV1Schema>;
+
+export const RoomRosterParticipantV1Schema = z.strictObject({
+  persona: z.string().min(1).max(64),
+  /** One-line description of this persona's role, fed to every provider as its "personaCharter". */
+  oneLineCharter: z.string().min(1).max(200),
+});
+export type RoomRosterParticipantV1 = z.infer<typeof RoomRosterParticipantV1Schema>;
+
+export const RoomRosterEntryCatalogV1Schema = z.strictObject({
+  /** The roster keys rooms by their `roomId` string; it is not required to name an existing room. */
+  roomId: z.string().min(1).max(200),
+  kind: RoomRosterKindV1Schema,
+  /** Overrides the auto-derived charter (from the room's own title) when present. */
+  charter: z.string().min(1).max(MAX_ROOM_ROSTER_CHARTER_LENGTH_V1).nullable(),
+  participants: z.array(RoomRosterParticipantV1Schema).max(MAX_ROOM_ROSTER_PARTICIPANTS_V1),
+});
+export type RoomRosterEntryCatalogV1 = z.infer<typeof RoomRosterEntryCatalogV1Schema>;
+
+const RoomParticipantsCatalogDigestInputV1Shape = {
+  schemaVersion: SchemaVersionV1Schema,
+  enabled: z.boolean(),
+  /** Present exactly when `enabled` is false: why the daemon has no participants to list. */
+  unavailableReason: z.string().min(1).max(500).nullable(),
+  providers: z.array(RoomCatalogProviderEntryV1Schema).max(3),
+  roster: z.array(RoomRosterEntryCatalogV1Schema).max(MAX_ROOM_ROSTER_ENTRIES_V1),
+};
+
+export const RoomParticipantsCatalogDigestInputV1Schema = z.strictObject(
+  RoomParticipantsCatalogDigestInputV1Shape,
+);
+export type RoomParticipantsCatalogDigestInputV1 = z.infer<
+  typeof RoomParticipantsCatalogDigestInputV1Schema
+>;
+
+export const RoomParticipantsCatalogV1Schema = z
+  .strictObject({
+    ...RoomParticipantsCatalogDigestInputV1Shape,
+    sourcedAt: IsoInstantSchema,
+    /** SHA-256 of the canonical JSON of every field above except `sourcedAt` and this digest. */
+    sourceDigest: Sha256DigestSchema,
+  })
+  .superRefine((catalog, context) => {
+    if (catalog.enabled === (catalog.unavailableReason !== null)) {
+      context.addIssue({
+        code: "custom",
+        path: ["unavailableReason"],
+        message: "unavailableReason must be present exactly when enabled is false",
+      });
+    }
+    if (!catalog.enabled && (catalog.providers.length > 0 || catalog.roster.length > 0)) {
+      context.addIssue({
+        code: "custom",
+        path: ["enabled"],
+        message: "a disabled catalog lists no providers and no roster",
+      });
+    }
+    if (
+      new Set(catalog.providers.map(({ provider }) => provider)).size !== catalog.providers.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["providers"],
+        message: "providers must be unique",
+      });
+    }
+  });
+export type RoomParticipantsCatalogV1 = z.infer<typeof RoomParticipantsCatalogV1Schema>;
+
+/**
+ * The returned object is the complete canonical SHA-256 input. Callers encode it as recursively
+ * key-sorted JSON UTF-8 and exclude `sourcedAt` and `sourceDigest`. Mirrors
+ * `studioSnapshotDigestInputV1`/`canonicalStudioSnapshotDigestInputV1` exactly.
+ */
+export function roomParticipantsCatalogDigestInputV1(
+  catalog: RoomParticipantsCatalogDigestInputV1 | RoomParticipantsCatalogV1,
+): RoomParticipantsCatalogDigestInputV1 {
+  return RoomParticipantsCatalogDigestInputV1Schema.parse({
+    schemaVersion: catalog.schemaVersion,
+    enabled: catalog.enabled,
+    unavailableReason: catalog.unavailableReason,
+    providers: catalog.providers,
+    roster: catalog.roster,
+  });
+}
+
+/** Canonical UTF-8 text to hash for `sourceDigest`. */
+export function canonicalRoomParticipantsCatalogDigestInputV1(
+  catalog: RoomParticipantsCatalogDigestInputV1 | RoomParticipantsCatalogV1,
+): string {
+  const normalize = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(normalize);
+    if (value !== null && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value as Readonly<Record<string, unknown>>)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, child]) => [key, normalize(child)]),
+      );
+    }
+    return value;
+  };
+  return JSON.stringify(normalize(roomParticipantsCatalogDigestInputV1(catalog)));
+}
