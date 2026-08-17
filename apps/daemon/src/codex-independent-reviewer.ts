@@ -692,6 +692,14 @@ export function buildCodexReviewInvocation(options: CodexReviewInvocationOptions
     "exec",
     "--ignore-user-config",
     "--ignore-rules",
+    // Unlike the coding agent's attempt worktree, the reviewer's working
+    // directory is a `git archive` extraction with no `.git` (by design: the
+    // model is never handed a mutable repository). Without this flag the
+    // pinned CLI refuses to start at all -- before any model call -- with
+    // "Not inside a trusted directory and --skip-git-repo-check was not
+    // specified" (observed on the first live smoke, 2026-08-17). The
+    // directory stays `trust_level = "untrusted"` in `projects` above.
+    "--skip-git-repo-check",
     "--ephemeral",
     "--json",
     "--color",
