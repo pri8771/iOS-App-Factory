@@ -1,0 +1,30 @@
+{
+  "name": "@app-factory/studio-room-adapters",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "clean": "tsc -b --clean",
+    "test": "vitest run test"
+  },
+  "dependencies": {
+    "@app-factory/agent-runner": "workspace:*",
+    "@app-factory/contracts": "workspace:*",
+    "@app-factory/kernel": "workspace:*",
+    "@app-factory/ollama-scorer": "workspace:*",
+    "@app-factory/process-supervisor": "workspace:*",
+    "@app-factory/studio-rooms": "workspace:*",
+    "better-sqlite3": "12.11.1",
+    "zod": "4.4.3"
+  }
+}

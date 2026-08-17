@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../agent-runner" },
+    { "path": "../contracts" },
+    { "path": "../kernel" },
+    { "path": "../ollama-scorer" },
+    { "path": "../process-supervisor" },
+    { "path": "../studio-rooms" }
+  ]
+}
