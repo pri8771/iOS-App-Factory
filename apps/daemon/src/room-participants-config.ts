@@ -19,6 +19,7 @@ import {
   type RoomRosterConfigV1,
 } from "@app-factory/studio-room-adapters";
 
+import type { RoomParticipantsCatalogSourceV1 } from "./command-runtime.js";
 import { readPrivateFile, requireOwnerContainmentAttestation } from "./local-execution-profile.js";
 import type { PhaseParticipantsPort } from "./phase-run-executor.js";
 import type { RoomSubsystemConfiguration } from "./room-subsystem.js";
@@ -227,9 +228,50 @@ export function loadRoomParticipantsConfigFile(path: string): RoomParticipantsCo
 }
 
 /**
+ * The wire-safe projection of a parsed participants config that `room.participants.list` serves:
+ * one entry per configured provider carrying ONLY its key, effective model, and (Codex) pinned CLI
+ * version, plus the roster verbatim. Executables, executable digests, `codexHome`, runner/scratch
+ * roots, and the Ollama base URL are daemon-local and are deliberately not projected -- a client
+ * proposing a roster needs to know WHICH providers speak WHICH model, never where they live.
+ */
+export function buildRoomParticipantsCatalogSourceV1(
+  config: RoomParticipantsConfigV1,
+): RoomParticipantsCatalogSourceV1 {
+  const providers: RoomParticipantsCatalogSourceV1["providers"][number][] = [];
+  if (config.codex !== undefined) {
+    providers.push({
+      provider: "codex",
+      model: config.codex.model,
+      cliVersion: config.codex.expectedCliVersion ?? null,
+    });
+  }
+  if (config.claude !== undefined) {
+    providers.push({ provider: "claude", model: config.claude.model, cliVersion: null });
+  }
+  if (config.ollama !== undefined) {
+    providers.push({
+      provider: "ollama",
+      model: config.ollama.model ?? DEFAULT_OLLAMA_MODEL,
+      cliVersion: null,
+    });
+  }
+  const roster = (config.roster?.rooms ?? []).map((entry) => ({
+    roomId: entry.roomId,
+    kind: entry.kind,
+    charter: entry.charter ?? null,
+    participants: entry.participants.map((participant) => ({
+      persona: participant.persona,
+      oneLineCharter: participant.oneLineCharter,
+    })),
+  }));
+  return { providers, roster };
+}
+
+/**
  * Builds every real port `RoomSubsystemConfiguration` needs (`scorer`,
  * `contributor`, `revalidator`, `quotaFactory`) from a parsed participants
- * config. Only the providers present in `config` get a `ParticipantAdapter`
+ * config, plus the wire-safe `participantsCatalog` `room.participants.list`
+ * answers from. Only the providers present in `config` get a `ParticipantAdapter`
  * -- a room whose roster names a provider with no configured adapter simply
  * fails that provider's contributions closed (`error(internal)`) via
  * `createRoomAdapterContributor`, rather than refusing to start the whole
@@ -287,6 +329,7 @@ export function buildRoomSubsystemConfiguration(
     revalidator,
     quotaFactory: (database) =>
       createFactoryAwareQuotaGovernor({ activity: createKernelAttemptActivityPort(database) }),
+    participantsCatalog: buildRoomParticipantsCatalogSourceV1(config),
   };
 }
 

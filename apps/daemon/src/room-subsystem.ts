@@ -15,7 +15,11 @@ import {
   type ScorerPort,
 } from "@app-factory/studio-rooms";
 
-import type { InitializeRoomsContext, RoomsStatusPort } from "./command-runtime.js";
+import type {
+  InitializeRoomsContext,
+  RoomParticipantsCatalogSourceV1,
+  RoomsStatusPort,
+} from "./command-runtime.js";
 
 /**
  * Optional room moderator: `RoomModerator` + a per-room `RoomModeratorLoop`
@@ -43,6 +47,13 @@ export type RoomSubsystemConfiguration = Readonly<{
    * `quota` is already set.
    */
   quotaFactory?: (database: InitializeRoomsContext["database"]) => QuotaGovernorPort;
+  /**
+   * The wire-safe view of the participants config this subsystem was composed from, served
+   * verbatim by `room.participants.list` (see `RoomsStatusPort.participantsCatalog`). Built by
+   * `room-participants-config.ts`; a hand-composed moderator with no config simply omits it and the
+   * operation reports no providers and no roster.
+   */
+  participantsCatalog?: RoomParticipantsCatalogSourceV1;
   process?: RoomProcessPort;
   clock?: RoomClockPort;
   wait?: RoomWaitPort;
@@ -141,6 +152,9 @@ export function createRoomSubsystem(
       wake: (roomId) => {
         loop.wake(roomId);
       },
+      ...(configuration.participantsCatalog === undefined
+        ? {}
+        : { participantsCatalog: configuration.participantsCatalog }),
     },
     start: () => {
       loop.start();

@@ -1,0 +1,17 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "room.participants.list",
+    "catalog": {
+      "schemaVersion": 1,
+      "enabled": false,
+      "unavailableReason": "rooms subsystem disabled: no room moderator is composed (APP_FACTORY_ROOMS_ENABLED unset), so no participants or roster are configured",
+      "providers": [],
+      "roster": [],
+      "sourcedAt": "2026-08-16T18:12:00.000Z",
+      "sourceDigest": "sha256:e208efd1446f274b23c585f1e5cacd2c065c83c31beaebbf7059e7810d258ddb"
+    }
+  }
+}

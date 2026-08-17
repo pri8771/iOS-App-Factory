@@ -10,7 +10,8 @@ import Foundation
 //   * requestId per delivery; commandId + issuedAt are the durable identity a retry keeps
 //   * every retryable failure carries `retryIdentity` so the caller can re-send the same command
 //   * response requestId and operation are checked against what was dispatched
-//   * portfolio.snapshot re-verifies `sourceSnapshotDigest` client-side
+//   * portfolio.snapshot / studio.snapshot / room.participants.list re-verify their source digests
+//     client-side
 
 public actor DaemonClient {
 
@@ -369,6 +370,26 @@ public actor DaemonClient {
             throw DaemonClientError.responseOperationMismatch
         }
         return result
+    }
+
+    /// The daemon's configured room participants — providers by key/model plus the operator's roster
+    /// — so a new room's roster can be sourced from the wire instead of guessed. Never errors when the
+    /// rooms subsystem is disabled (the catalog says `enabled: false` and why). Re-verifies
+    /// `sourceDigest` against the raw wire contents, mirroring `studioSnapshot()`.
+    public func roomParticipants(identity: CommandIdentity? = nil) async throws -> RoomParticipantsCatalog {
+        let exchange = try await request(.roomParticipantsList, EmptyPayload(), identity)
+        guard case .roomParticipantsList(let catalog) = exchange.result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        guard let tree = try? JSONValue.parse(exchange.responseLine),
+              let rawCatalog = tree["result"]?["catalog"]
+        else { throw DaemonClientError.invalidResponse }
+        do {
+            try RoomParticipantsCatalogDigest.verify(rawCatalog)
+        } catch {
+            throw DaemonClientError.roomParticipantsDigestMismatch
+        }
+        return catalog
     }
 
     // MARK: project.seed — the from-scratch entry point for the planner's "seed-repo" template item.

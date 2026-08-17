@@ -9,6 +9,7 @@ import {
 } from "../src/daemon-entrypoint.js";
 import {
   buildPhaseParticipantsPortV1,
+  buildRoomParticipantsCatalogSourceV1,
   buildRoomSubsystemConfiguration,
   parseRoomParticipantsConfigV1,
   RoomParticipantsConfigurationError,
@@ -187,6 +188,92 @@ describe("buildRoomSubsystemConfiguration", () => {
       reportWorkerPid: () => undefined,
     });
     expect(result).toEqual({ kind: "error", code: "internal", retryAfterMs: null });
+  });
+});
+
+describe("buildRoomParticipantsCatalogSourceV1 (room.participants.list)", () => {
+  const FULL_CONFIG = parseRoomParticipantsConfigV1({
+    schemaVersion: 1,
+    codex: {
+      executable: "/usr/bin/true",
+      executableDigest: "sha256:abc",
+      expectedCliVersion: "0.42.0",
+      model: "gpt-test",
+      codexHome: "/tmp/codex-home",
+      runnerRoot: "/tmp/codex-runner",
+      scratchRoot: "/tmp/codex-scratch",
+    },
+    claude: { executable: "/usr/bin/true", model: "sonnet" },
+    ollama: { baseUrl: "http://127.0.0.1:11434", timeoutMs: 120_000 },
+    roster: {
+      schemaVersion: 1,
+      rooms: [
+        {
+          roomId: "e0000000-0000-4000-8000-000000000001",
+          kind: "research",
+          charter: "Plans the launch.",
+          participants: [{ persona: "codex-planner", oneLineCharter: "Plans the work." }],
+        },
+        { roomId: "lounge", kind: "project" },
+      ],
+    },
+  });
+
+  it("projects providers by key/model/pinned CLI version and the roster verbatim", () => {
+    const source = buildRoomParticipantsCatalogSourceV1(FULL_CONFIG);
+    expect(source.providers).toEqual([
+      { provider: "codex", model: "gpt-test", cliVersion: "0.42.0" },
+      { provider: "claude", model: "sonnet", cliVersion: null },
+      // Ollama's model was left unset in the config; the catalog reports the effective default
+      // the adapter actually speaks, never an "unknown".
+      { provider: "ollama", model: expect.stringMatching(/^.+$/) as string, cliVersion: null },
+    ]);
+    expect(source.roster).toEqual([
+      {
+        roomId: "e0000000-0000-4000-8000-000000000001",
+        kind: "research",
+        charter: "Plans the launch.",
+        participants: [{ persona: "codex-planner", oneLineCharter: "Plans the work." }],
+      },
+      { roomId: "lounge", kind: "project", charter: null, participants: [] },
+    ]);
+  });
+
+  it("never leaks executables, paths, digests, base URLs, or timeouts onto the wire", () => {
+    const text = JSON.stringify(buildRoomParticipantsCatalogSourceV1(FULL_CONFIG));
+    for (const secret of [
+      "/usr/bin/true",
+      "sha256:abc",
+      "/tmp/codex-home",
+      "/tmp/codex-runner",
+      "/tmp/codex-scratch",
+      "127.0.0.1",
+      "11434",
+      "120000",
+      "executable",
+      "baseUrl",
+      "codexHome",
+    ]) {
+      expect(text).not.toContain(secret);
+    }
+  });
+
+  it("projects an empty config as no providers and no roster", () => {
+    expect(buildRoomParticipantsCatalogSourceV1({ schemaVersion: 1 })).toEqual({
+      providers: [],
+      roster: [],
+    });
+  });
+
+  it("is carried by buildRoomSubsystemConfiguration so the composed moderator can serve it", () => {
+    const ports = buildRoomSubsystemConfiguration({
+      schemaVersion: 1,
+      ollama: { baseUrl: "http://127.0.0.1:19999", model: "qwen2.5-coder:14b" },
+    });
+    expect(ports.participantsCatalog).toEqual({
+      providers: [{ provider: "ollama", model: "qwen2.5-coder:14b", cliVersion: null }],
+      roster: [],
+    });
   });
 });
 

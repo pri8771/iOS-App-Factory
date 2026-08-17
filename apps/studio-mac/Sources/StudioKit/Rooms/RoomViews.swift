@@ -413,10 +413,12 @@ public struct RoomRosterPanel: View {
 /// only `title`, an optional `projectId`, `unattendedEnabled`, `agentCooldownEvents`, `participants`,
 /// and a budget policy — so this form asks for exactly those, not an invented taxonomy.
 ///
-/// There is also no `room.*` operation that lists the daemon's configured personas/providers
-/// (`room-participants-config.ts` is daemon-local configuration, never on the wire), so the
-/// participant roster cannot be sourced live. The three-row default below is a clearly-labelled local
-/// suggestion the human must confirm or edit — never presented as read from the daemon.
+/// The participant rows are sourced from `room.participants.list` (`RoomParticipantsCatalog`): when
+/// the daemon's rooms subsystem is enabled, the sheet seeds one seat per provider the daemon actually
+/// has an adapter for and badges the editor LIVE; when it is disabled, the daemon says so (its own
+/// `unavailableReason`) and the sheet keeps a clearly-labelled NOT YET SOURCED local suggestion the
+/// human must confirm or edit — never a local guess presented as read from the daemon. Rows the human
+/// has already edited are never overwritten by a later catalog read.
 public struct NewRoomSheet: View {
     public struct ParticipantDraft: Identifiable, Hashable {
         public let id = UUID()
@@ -430,30 +432,102 @@ public struct NewRoomSheet: View {
             self.displayName = displayName
         }
 
+        /// The local suggestion used only while the catalog is unread, unreadable, or reports the
+        /// rooms subsystem disabled — always badged NOT YET SOURCED, never LIVE.
         public static var suggestedDefaults: [ParticipantDraft] {
             [ParticipantDraft(persona: "codex", provider: "codex", displayName: "Codex"),
              ParticipantDraft(persona: "claude", provider: "claude", displayName: "Claude"),
              ParticipantDraft(persona: "ollama", provider: "ollama", displayName: "Ollama")]
         }
+
+        /// What the sheet seeds for a given catalog state: the catalog's own defaults (one seat per
+        /// configured provider) when the daemon has the subsystem enabled, else the local suggestion.
+        public static func seeds(for catalog: RoomParticipantsCatalog?) -> [ParticipantDraft] {
+            guard let catalog, catalog.enabled else { return suggestedDefaults }
+            return catalog.defaultParticipantSpecs.map {
+                ParticipantDraft(persona: $0.persona.rawValue, provider: $0.provider.rawValue, displayName: $0.displayName)
+            }
+        }
+
+        /// Content equality, ignoring the row identity — "has the human changed anything?".
+        static func sameContent(_ lhs: [ParticipantDraft], _ rhs: [ParticipantDraft]) -> Bool {
+            lhs.count == rhs.count && zip(lhs, rhs).allSatisfy {
+                $0.persona == $1.persona && $0.provider == $1.provider && $0.displayName == $1.displayName
+            }
+        }
     }
 
     public var knownProjects: [(id: ProjectID, name: String)]
+    /// `room.participants.list` as last read (`RoomsModel.participantsCatalog`); `nil` until read.
+    public var catalog: RoomParticipantsCatalog?
+    public var isLoadingCatalog: Bool
+    public var catalogError: String?
+    /// Called once when the sheet appears — the "refresh on appear" that keeps the roster current.
+    public var onLoadCatalog: () async -> Void
     public var onCreate: (String, ProjectID?, Bool, [RoomParticipantSpec]) async -> Result<Room, AssistantBackendError>
     public var onDone: (Room?) -> Void
 
     @State private var title = ""
     @State private var selectedProjectId: ProjectID?
     @State private var unattendedEnabled = false
-    @State private var participants = ParticipantDraft.suggestedDefaults
+    @State private var participants: [ParticipantDraft]
+    /// The rows the sheet last seeded itself; only while `participants` still equals these (the human
+    /// has not touched them) does a fresh catalog read replace them.
+    @State private var seededParticipants: [ParticipantDraft]
     @State private var isSubmitting = false
     @State private var errorText: String?
 
     public init(knownProjects: [(id: ProjectID, name: String)] = [],
+                catalog: RoomParticipantsCatalog? = nil, isLoadingCatalog: Bool = false, catalogError: String? = nil,
+                onLoadCatalog: @escaping () async -> Void = {},
                 onCreate: @escaping (String, ProjectID?, Bool, [RoomParticipantSpec]) async -> Result<Room, AssistantBackendError>,
                 onDone: @escaping (Room?) -> Void) {
         self.knownProjects = knownProjects
+        self.catalog = catalog
+        self.isLoadingCatalog = isLoadingCatalog
+        self.catalogError = catalogError
+        self.onLoadCatalog = onLoadCatalog
         self.onCreate = onCreate
         self.onDone = onDone
+        let seeds = ParticipantDraft.seeds(for: catalog)
+        _participants = State(initialValue: seeds)
+        _seededParticipants = State(initialValue: seeds)
+    }
+
+    /// LIVE only when the daemon actually answered with the subsystem enabled; everything else —
+    /// unread, unreadable, or honestly disabled — stays NOT YET SOURCED.
+    var participantsProvenance: Provenance {
+        if let catalog, catalog.enabled { return .live("room.participants.list") }
+        return .notYetSourced
+    }
+
+    /// The caption under the participants label: what the rows are and where they came from.
+    var participantsNote: String {
+        if let catalog {
+            guard catalog.enabled else {
+                return "Rooms subsystem disabled — \(catalog.unavailableReason ?? "no reason given"). These rows are a local suggestion, not read from the daemon; edit them to match your room-participants-config.json."
+            }
+            if catalog.providers.isEmpty {
+                return "The daemon reports no configured providers (room.participants.list); add participants by hand — a provider without an adapter fails closed."
+            }
+            let providers = catalog.providers.map { entry in
+                "\(entry.provider.rawValue) · \(entry.model)" + (entry.cliVersion.map { " (cli \($0))" } ?? "")
+            }.joined(separator: " · ")
+            return "One seat per provider the daemon has configured — \(providers). Personas and display names are yours to edit."
+        }
+        if isLoadingCatalog { return "Reading configured participants (room.participants.list)…" }
+        if let catalogError {
+            return "Could not read configured participants (room.participants.list): \(catalogError). These rows are a local suggestion, not read from the daemon."
+        }
+        return "Configured participants not read yet — these rows are a local suggestion, not read from the daemon."
+    }
+
+    /// Replaces the rows with the catalog's seeds unless the human already edited them.
+    private func reseed(from catalog: RoomParticipantsCatalog?) {
+        let seeds = ParticipantDraft.seeds(for: catalog)
+        guard ParticipantDraft.sameContent(participants, seededParticipants) else { return }
+        participants = seeds
+        seededParticipants = seeds
     }
 
     public var body: some View {
@@ -492,15 +566,18 @@ public struct NewRoomSheet: View {
         .padding(HUDTheme.space.l)
         .frame(width: 460)
         .background(HUDTheme.plate)
+        .task { await onLoadCatalog() }
+        .onChange(of: catalog) { _, next in reseed(from: next) }
     }
 
     private var participantsEditor: some View {
         VStack(alignment: .leading, spacing: HUDTheme.space.xs) {
             HStack(spacing: HUDTheme.space.xxs) {
                 HUDLabel("participants")
-                ProvenanceBadge(.notYetSourced, compact: true)
+                ProvenanceBadge(participantsProvenance, compact: true)
+                if isLoadingCatalog { ProgressView().controlSize(.mini) }
             }
-            Text("The daemon has no operation yet to list configured personas — these are a local suggestion; edit persona/provider to match your room-participants-config.json.")
+            Text(participantsNote)
                 .font(HUDTypography.caption).foregroundStyle(HUDTheme.mute)
                 .fixedSize(horizontal: false, vertical: true)
             ForEach($participants) { $draft in

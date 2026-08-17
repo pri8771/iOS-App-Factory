@@ -4,8 +4,9 @@ import Observation
 // MARK: - RoomsModel
 //
 // The observable state behind the rooms UI: the room list (`room.list`), the selected room's live
-// transcript (`room.events`, cursor-polled), posting (`room.post`), and the debounced typing signal
-// (`room.typing`). Mirrors `StudioStore`'s discipline — `nil`/empty until actually read, per-room
+// transcript (`room.events`, cursor-polled), posting (`room.post`), the debounced typing signal
+// (`room.typing`), and the daemon's configured participants catalog (`room.participants.list`, read
+// whenever the new-room sheet appears so its roster defaults are sourced, not guessed). Mirrors `StudioStore`'s discipline — `nil`/empty until actually read, per-room
 // errors kept rather than swallowed — but stays a separate object because rooms are a distinct wire
 // family from the assistant `ChatModel` conversations, not a variant of them (see Room.swift).
 //
@@ -23,6 +24,12 @@ public final class RoomsModel {
     public private(set) var roomsError: String?
     public private(set) var isCreatingRoom = false
     public private(set) var createRoomError: String?
+
+    /// `room.participants.list` — `nil` until read; the daemon's honest `enabled: false` catalog when
+    /// the rooms subsystem is off (see `NewRoomSheet`).
+    public private(set) var participantsCatalog: RoomParticipantsCatalog?
+    public private(set) var isLoadingParticipantsCatalog = false
+    public private(set) var participantsCatalogError: String?
 
     public private(set) var selectedRoomId: RoomID?
     public private(set) var transcripts: [RoomID: RoomTranscript] = [:]
@@ -73,6 +80,22 @@ public final class RoomsModel {
     public func loadRoomsIfNeeded() async {
         guard rooms.isEmpty, !isLoadingRooms else { return }
         await loadRooms()
+    }
+
+    // MARK: Participants catalog
+
+    /// Reads the daemon's configured participants (`room.participants.list`). Cheap and read-only, so
+    /// callers refresh it on every new-room sheet appearance rather than caching a stale roster.
+    public func loadParticipantsCatalog() async {
+        guard let client else { return }
+        isLoadingParticipantsCatalog = true
+        defer { isLoadingParticipantsCatalog = false }
+        do {
+            participantsCatalog = try await client.roomParticipants()
+            participantsCatalogError = nil
+        } catch {
+            participantsCatalogError = Self.describe(error)
+        }
     }
 
     public static let defaultAgentCooldownEvents = 4

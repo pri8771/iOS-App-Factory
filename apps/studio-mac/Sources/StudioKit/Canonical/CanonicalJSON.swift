@@ -287,3 +287,44 @@ public enum StudioSnapshotDigest {
         }
     }
 }
+
+// MARK: - RoomParticipantsCatalogDigest
+//
+// Client-side re-verification of `RoomParticipantsCatalogV1.sourceDigest`, matching
+// `roomParticipantsCatalogDigestInputV1` / `canonicalRoomParticipantsCatalogDigestInputV1` (room.ts):
+// the same recipe as `StudioSnapshotDigest`, over the catalog's content fields — everything except
+// `sourcedAt` and the digest itself, so a later read of an unchanged configuration re-derives the
+// identical digest.
+
+public enum RoomParticipantsCatalogDigest {
+    private static let inputKeys = ["schemaVersion", "enabled", "unavailableReason", "providers", "roster"]
+
+    public static func digestInput(_ catalog: JSONValue) throws -> JSONValue {
+        guard let object = catalog.objectValue else { throw PortfolioDigest.VerificationError.notAnObject }
+        var input: [String: JSONValue] = [:]
+        for key in inputKeys {
+            guard let value = object[key] else { throw PortfolioDigest.VerificationError.missingField(key) }
+            input[key] = value
+        }
+        return .object(input)
+    }
+
+    public static func canonicalText(_ catalog: JSONValue) throws -> String {
+        CanonicalJSON.serialize(try digestInput(catalog))
+    }
+
+    public static func compute(_ catalog: JSONValue) throws -> Sha256Digest {
+        CanonicalJSON.digest(of: try canonicalText(catalog))
+    }
+
+    /// Throws `.mismatch` when the embedded `sourceDigest` does not match its contents.
+    public static func verify(_ catalog: JSONValue) throws {
+        guard let claimed = catalog["sourceDigest"]?.stringValue else {
+            throw PortfolioDigest.VerificationError.missingField("sourceDigest")
+        }
+        let computed = try compute(catalog)
+        guard PortfolioDigest.constantTimeEqual(claimed, computed.rawValue) else {
+            throw PortfolioDigest.VerificationError.mismatch(expected: Sha256Digest(unchecked: claimed), computed: computed)
+        }
+    }
+}

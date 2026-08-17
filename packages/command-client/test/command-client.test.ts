@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   canonicalPortfolioReadModelDigestInputV1,
+  canonicalRoomParticipantsCatalogDigestInputV1,
   canonicalStudioSnapshotDigestInputV1,
 } from "@app-factory/contracts";
 
@@ -178,6 +179,31 @@ function portfolioResponse(requestId: unknown): Record<string, unknown> {
         ...snapshot,
         sourceSnapshotDigest: `sha256:${createHash("sha256")
           .update(canonicalPortfolioReadModelDigestInputV1(snapshot), "utf8")
+          .digest("hex")}`,
+      },
+    },
+  };
+}
+
+function roomParticipantsResponse(requestId: unknown): Record<string, unknown> {
+  const catalog = {
+    schemaVersion: 1 as const,
+    enabled: true,
+    unavailableReason: null,
+    providers: [{ provider: "ollama" as const, model: "qwen2.5-coder:14b", cliVersion: null }],
+    roster: [],
+  };
+  return {
+    protocolVersion: 1,
+    requestId,
+    ok: true,
+    result: {
+      operation: "room.participants.list",
+      catalog: {
+        ...catalog,
+        sourcedAt: NOW.toISOString(),
+        sourceDigest: `sha256:${createHash("sha256")
+          .update(canonicalRoomParticipantsCatalogDigestInputV1(catalog), "utf8")
           .digest("hex")}`,
       },
     },
@@ -633,6 +659,61 @@ describe("typed command client", () => {
     await expect(client.studioSnapshot(identity())).rejects.toMatchObject<
       Partial<CommandClientError>
     >({ code: "protocol.studio-snapshot-digest-mismatch", retryable: false });
+    client.close();
+  });
+
+  it("lists room participants with an empty payload and verifies the catalog's source digest", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(`${JSON.stringify(roomParticipantsResponse(frame.requestId))}\n`);
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    await expect(client.listRoomParticipants(identity())).resolves.toMatchObject({
+      operation: "room.participants.list",
+      catalog: { enabled: true, providers: [{ provider: "ollama" }] },
+    });
+    expect(received[0]).toMatchObject({
+      request: { operation: "room.participants.list", payload: {} },
+    });
+    client.close();
+  });
+
+  it("rejects a room participants catalog whose source digest is stale", async () => {
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        const response = roomParticipantsResponse(frame.requestId);
+        const result = response.result as Record<string, unknown>;
+        const catalog = result.catalog as Record<string, unknown>;
+        socket.end(
+          `${JSON.stringify({
+            ...response,
+            result: {
+              ...result,
+              catalog: { ...catalog, sourceDigest: `sha256:${"f".repeat(64)}` },
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    await expect(client.listRoomParticipants(identity())).rejects.toMatchObject<
+      Partial<CommandClientError>
+    >({ code: "protocol.room-participants-digest-mismatch", retryable: false });
     client.close();
   });
 

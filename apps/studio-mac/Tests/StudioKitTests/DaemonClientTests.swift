@@ -178,6 +178,50 @@ final class DaemonClientTests: XCTestCase {
         XCTAssertEqual(payload["ttlMs"], 6_000)
     }
 
+    func testRoomParticipantsRoundTripSendsAnEmptyPayloadAndVerifiesTheDigest() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            .reply(try! WireResponse.fixture("room-participants-list.response.json", requestId: frame["requestId"]!.stringValue!))
+        }
+        defer { server.stop() }
+        let client = try makeClient(server)
+        let catalog = try await client.roomParticipants()
+        XCTAssertTrue(catalog.enabled)
+        XCTAssertEqual(catalog.providers.map(\.provider), [.codex, .claude, .ollama])
+        XCTAssertEqual(catalog.roster.count, 2)
+        let request = try XCTUnwrap(server.frames.first?["request"])
+        XCTAssertEqual(request["operation"]?.stringValue, "room.participants.list")
+        XCTAssertEqual(request["payload"], [:])
+    }
+
+    func testRoomParticipantsDisabledIsAnAnswerNotAnError() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            .reply(try! WireResponse.fixture("room-participants-list-disabled.response.json", requestId: frame["requestId"]!.stringValue!))
+        }
+        defer { server.stop() }
+        let client = try makeClient(server)
+        let catalog = try await client.roomParticipants()
+        XCTAssertFalse(catalog.enabled)
+        XCTAssertNotNil(catalog.unavailableReason)
+        XCTAssertTrue(catalog.providers.isEmpty)
+    }
+
+    func testRoomParticipantsRejectsTamperedDigest() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            let response = try! JSONValue.parse(Fixtures.data("room-participants-list.response.json"))
+            var catalog = response["result"]!["catalog"]!.objectValue!
+            var providers = catalog["providers"]!.arrayValue!
+            var codex = providers[0].objectValue!
+            codex["model"] = "gpt-5-codex-mini"
+            providers[0] = .object(codex)
+            catalog["providers"] = .array(providers)
+            return .reply(WireResponse.success(requestId: frame["requestId"]!.stringValue!,
+                                               result: ["operation": "room.participants.list", "catalog": .object(catalog)]))
+        }
+        defer { server.stop() }
+        let client = try makeClient(server)
+        await assertThrows(try await client.roomParticipants(), code: "protocol.room-participants-digest-mismatch", retryable: false)
+    }
+
     // MARK: Remote failures
 
     func testNonRetryableRemoteFailureCarriesNoRetryIdentity() async throws {

@@ -13,11 +13,12 @@ import Foundation
 
 public let commandProtocolVersion = 1
 
-/// The 32 wire operations, verbatim. `studio.snapshot` and `studio.assistant.*` come from
+/// The 49 wire operations, verbatim. `studio.snapshot` and `studio.assistant.*` come from
 /// `studio/service-skeleton` (tip cdfe558); `project.milestones.list` and `project.milestone.upsert`
 /// come from `studio/milestones-and-phase` (tip 3cff9a7) — none of those six has merged to `main` as of
-/// this writing, so `DaemonClient.isUnsupportedOperation` feature-detects them. The five `room.*`
-/// operations (`@app-factory/studio-rooms`) are different: they are unconditionally registered on any
+/// this writing, so `DaemonClient.isUnsupportedOperation` feature-detects them. The six `room.*`
+/// operations (`@app-factory/studio-rooms` — the five transcript ops plus the read-only
+/// `room.participants.list` catalog) are different: they are unconditionally registered on any
 /// daemon built from this contract (a durable transcript even with the moderator disabled — see
 /// Room.swift's doc comment), so no unsupported-operation fallback applies to them.
 public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable {
@@ -53,6 +54,7 @@ public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable 
     case roomPost = "room.post"
     case roomEvents = "room.events"
     case roomTyping = "room.typing"
+    case roomParticipantsList = "room.participants.list"
     case projectSeed = "project.seed"
     // Studio Phase 4 (`preset.*`/`phase.*`) — CRUD over durable, revisioned phase definitions and
     // the presets that bundle them. See `phase.ts`; no phase ever executes through these ops.
@@ -481,6 +483,7 @@ public enum CommandResult: Sendable {
     case roomPost(RoomPostResult)
     case roomEvents(RoomEventsResult)
     case roomTyping(RoomTypingResult)
+    case roomParticipantsList(RoomParticipantsCatalog)
     case projectSeed(ProjectSeedResult)
     case presetList([PhasePreset])
     case presetUpsert(PresetUpsertResult)
@@ -532,6 +535,7 @@ public enum CommandResult: Sendable {
         case .roomPost: return .roomPost
         case .roomEvents: return .roomEvents
         case .roomTyping: return .roomTyping
+        case .roomParticipantsList: return .roomParticipantsList
         case .projectSeed: return .projectSeed
         case .presetList: return .presetList
         case .presetUpsert: return .presetUpsert
@@ -557,7 +561,7 @@ extension CommandResult: Decodable {
         case operation
         case attempt, events, nextAfterSequence, page, snapshot, status, manifest, manifestDigest
         case answer, intent, timeline
-        case presets, run, plan
+        case presets, run, plan, catalog
     }
 
     public init(from decoder: any Decoder) throws {
@@ -599,6 +603,7 @@ extension CommandResult: Decodable {
         case .roomPost: self = .roomPost(try single.decode(RoomPostResult.self))
         case .roomEvents: self = .roomEvents(try single.decode(RoomEventsResult.self))
         case .roomTyping: self = .roomTyping(try single.decode(RoomTypingResult.self))
+        case .roomParticipantsList: self = .roomParticipantsList(try c.decode(RoomParticipantsCatalog.self, forKey: .catalog))
         case .projectSeed: self = .projectSeed(try single.decode(ProjectSeedResult.self))
         case .presetList: self = .presetList(try c.decode([PhasePreset].self, forKey: .presets))
         case .presetUpsert: self = .presetUpsert(try single.decode(PresetUpsertResult.self))

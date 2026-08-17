@@ -11,18 +11,20 @@ apps/studio-mac/
 │   │                             DiamondGate, StatusPill, HUDButton, ProvenanceBadge, HUDGallery
 │   ├── Client/                   DaemonClient (actor, Network.framework), AuthorizationToken,
 │   │                             ExchangeSession, DaemonClientError, DaemonLocator
-│   ├── Models/                   Codable mirrors of packages/contracts v1 (48 operations — the
+│   ├── Models/                   Codable mirrors of packages/contracts v1 (49 operations — the
 │   │                             phase-1 21, Studio Phase 2's studio.snapshot,
 │   │                             studio.assistant.{query,intent.propose,intent.execute},
-│   │                             project.milestones.{list,upsert}, the five room.* ops
-│   │                             (room.create/list/post/events/typing), and Studio Phase 4's
+│   │                             project.milestones.{list,upsert}, the six room.* ops
+│   │                             (room.create/list/post/events/typing + the read-only
+│   │                             room.participants.list catalog), and Studio Phase 4's
 │   │                             preset.{list,upsert}/phase.upsert, phase.{run,status,list,approve,
 │   │                             reject}, plan.{propose,edit,approve,execute,approve-gate,status,
 │   │                             tick}, and project.seed): StudioSnapshot.swift, Assistant.swift,
 │   │                             Milestone.swift, Room.swift, Phase.swift, PhaseRun.swift,
 │   │                             ProjectPlan.swift, ProjectSeed.swift), Provenance/Sourced,
 │   │                             Timeline (ProjectTimeline, DayStamp, fixture loader)
-│   ├── Canonical/                JSONValue, CanonicalJSON, PortfolioDigest, StudioSnapshotDigest
+│   ├── Canonical/                JSONValue, CanonicalJSON, PortfolioDigest, StudioSnapshotDigest,
+│   │                             RoomParticipantsCatalogDigest
 │   ├── Dashboard/                DashboardModel (pure derivations — a phase-1 portfolio.snapshot
 │   │                             branch and a Phase 2 studio.snapshot branch), TimelineView
 │   │                             (Canvas Gantt), PortfolioReticle, GaugeRowView, AwaitingYouList,
@@ -34,9 +36,10 @@ apps/studio-mac/
 │   │                             supplied, and open the Planner when confirming a propose-plan/
 │   │                             execute-plan intent card resolves to a ProjectPlan (see ADR 0004)
 │   ├── Rooms/                    RoomsModel (@Observable — room.list/events polling, room.post,
-│   │                             debounced room.typing), RoomMessageRow (human/agent/system/typed
-│   │                             -error/PASS), RoomTranscriptView, RoomRosterPanel (live state ·
-│   │                             budget meter · mode line), NewRoomSheet
+│   │                             debounced room.typing, room.participants.list on sheet appear),
+│   │                             RoomMessageRow (human/agent/system/typed-error/PASS),
+│   │                             RoomTranscriptView, RoomRosterPanel (live state · budget meter ·
+│   │                             mode line), NewRoomSheet (participants sourced from the catalog)
 │   ├── Phases/                   PhasesModel (@Observable — preset.list, phase.upsert then
 │   │                             preset.upsert on save, phase.run + phase.status polling,
 │   │                             phase.approve/reject, phase.list), PhasesScreen (presets ·
@@ -50,7 +53,8 @@ apps/studio-mac/
 ├── Sources/Studio/StudioApp.swift  the app: locate daemon from env, own the store, one window
 ├── Tests/StudioKitTests/         unit, fake-daemon, snapshot, and live-daemon (skippable) tests
 ├── scripts/record-fixtures.mjs   regenerates Tests/…/Fixtures through the real zod schemas
-├── scripts/record-room-fixtures.mjs   the room.* fixtures, standalone — see the script's own doc
+├── scripts/record-room-fixtures.mjs   the room.* fixtures (transcript ops + room.participants.list,
+│                                 enabled and disabled), standalone — see the script's own doc
 │                                 comment for why it isn't folded into record-fixtures.mjs
 ├── scripts/record-phase4-fixtures.mjs   the preset/phase-run/plan/project.seed fixtures, against
 │                                 this worktree's own built contracts (see ADR 0004)
@@ -155,18 +159,23 @@ the plan with that real ID instead of `nil` whenever `registered` is `true`.
 
 ### Rooms
 
-`room.create/list/post/events/typing` are unconditionally supported by any daemon built from this
-contract — no feature-detection fallback, unlike `studio.snapshot`/`studio.assistant.*` above (see
-`CommandOperation`'s doc comment). Everything the Chat tab's Rooms section and a selected room's
-transcript/roster/budget panel show is **live**, straight off `room.events`: messages (human/agent/
-system), the roster's benched-until state, and the budget meter. "Passed last round" in the roster is
-**derived** from the loaded transcript's most recent system line for that persona. A round in progress
-is shown at room level only (`room.activeGrantId != nil`) — the wire never says _which_ participant
-currently holds the floor, so Studio never attributes it to one. The new-room sheet's participant rows
-are an honest **not yet sourced** local suggestion, editable before creating: no `room.*` operation
-lists the daemon's configured personas (`room-participants-config.ts` is daemon-local configuration,
-never on the wire), and `RoomCreateSpecV1` has no "kind" (research/project/lounge) field to source a
-picker from either.
+`room.create/list/post/events/typing/participants.list` are unconditionally supported by any daemon
+built from this contract — no feature-detection fallback, unlike `studio.snapshot`/`studio.assistant.*`
+above (see `CommandOperation`'s doc comment). Everything the Chat tab's Rooms section and a selected
+room's transcript/roster/budget panel show is **live**, straight off `room.events`: messages (human/
+agent/system), the roster's benched-until state, and the budget meter. "Passed last round" in the
+roster is **derived** from the loaded transcript's most recent system line for that persona. A round in
+progress is shown at room level only (`room.activeGrantId != nil`) — the wire never says _which_
+participant currently holds the floor, so Studio never attributes it to one. The new-room sheet's
+participant rows are sourced from `room.participants.list` (`RoomParticipantsCatalogV1`: the daemon's
+configured providers by key/model/pinned CLI version plus the operator's roster — never executables,
+paths, digests, or base URLs; `sourceDigest` re-verified client-side like `studio.snapshot`), read
+afresh every time the sheet appears: with the rooms subsystem enabled the sheet seeds one **live** seat
+per configured provider (personas/display names editable; rows the human edited are never overwritten
+by a later read); with it disabled the daemon says so (`enabled: false` + its own `unavailableReason`,
+never an error) and the sheet keeps a clearly-labelled **not yet sourced** local suggestion instead.
+`RoomCreateSpecV1` still has no "kind" (research/project/lounge) field to source a picker from — the
+catalog's roster carries the operator's per-room `kind`, but a new room has no roster entry yet.
 
 ## Design rules (non-negotiable)
 

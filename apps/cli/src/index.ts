@@ -1439,6 +1439,37 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
       }\nmoderator: ${result.moderator.enabled ? "enabled" : "disabled"}, room ${result.moderator.attendance}\n`;
     case "room.typing":
       return `room ${result.roomId}: typing until ${result.typingUntil}\n`;
+    case "room.participants.list": {
+      const { catalog } = result;
+      if (!catalog.enabled) {
+        return `room participants: unavailable -- ${catalog.unavailableReason ?? "(no reason)"}\n`;
+      }
+      const providers =
+        catalog.providers.length === 0
+          ? "no providers configured"
+          : catalog.providers
+              .map(
+                (provider) =>
+                  `${provider.provider}\t${provider.model}${
+                    provider.cliVersion === null ? "" : `\tcli ${provider.cliVersion}`
+                  }`,
+              )
+              .join("\n");
+      const roster =
+        catalog.roster.length === 0
+          ? "no roster entries"
+          : catalog.roster
+              .map(
+                (entry) =>
+                  `${entry.roomId}\t${entry.kind}\t${String(entry.participants.length)} persona(s)${
+                    entry.participants.length === 0
+                      ? ""
+                      : `: ${entry.participants.map((participant) => participant.persona).join(", ")}`
+                  }`,
+              )
+              .join("\n");
+      return `${providers}\n${roster}\nsourced ${catalog.sourcedAt} ${catalog.sourceDigest}\n`;
+    }
   }
 }
 

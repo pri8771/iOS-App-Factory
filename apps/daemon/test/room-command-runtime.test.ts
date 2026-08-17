@@ -1,17 +1,25 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
   CommandRequestV1Schema,
+  canonicalRoomParticipantsCatalogDigestInputV1,
   type CommandRequestV1,
   type RoomCreateSpecV1,
   type RoomId,
+  type RoomParticipantsCatalogV1,
 } from "@app-factory/contracts";
 import { RoomModerator, RoomRepository, RoomModeratorLoop } from "@app-factory/studio-rooms";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { openDaemonCommandRuntime, type DaemonCommandRuntime } from "../src/command-runtime.js";
+import {
+  openDaemonCommandRuntime,
+  ROOMS_SUBSYSTEM_DISABLED_REASON_V1,
+  type DaemonCommandRuntime,
+  type RoomParticipantsCatalogSourceV1,
+} from "../src/command-runtime.js";
 import { CommandHandlerError } from "../src/unix-command-server.js";
 
 const T0 = "2026-08-16T12:00:00.000Z";
@@ -243,6 +251,92 @@ describe("room.* command boundary", () => {
       request("room.events", 3, { roomId: ROOM_ID, afterSequence: 0, limit: 10 }),
     );
     expect(events).toMatchObject({ moderator: { enabled: true, attendance: "dormant" } });
+  });
+});
+
+describe("room.participants.list", () => {
+  const CATALOG_SOURCE: RoomParticipantsCatalogSourceV1 = {
+    providers: [
+      { provider: "codex", model: "gpt-5-codex", cliVersion: "0.42.0" },
+      { provider: "ollama", model: "qwen2.5-coder:14b", cliVersion: null },
+    ],
+    roster: [
+      {
+        roomId: ROOM_ID,
+        kind: "research",
+        charter: "Kickoff planning.",
+        participants: [{ persona: "architect", oneLineCharter: "Owns structure and trade-offs." }],
+      },
+    ],
+  };
+
+  function expectedDigest(catalog: RoomParticipantsCatalogV1): string {
+    return `sha256:${createHash("sha256")
+      .update(canonicalRoomParticipantsCatalogDigestInputV1(catalog), "utf8")
+      .digest("hex")}`;
+  }
+
+  it("answers honestly, without erroring, when no moderator is composed", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const result = await invoke(runtime, request("room.participants.list", 1, {}));
+    expect(result).toMatchObject({
+      operation: "room.participants.list",
+      catalog: {
+        schemaVersion: 1,
+        enabled: false,
+        unavailableReason: ROOMS_SUBSYSTEM_DISABLED_REASON_V1,
+        providers: [],
+        roster: [],
+        sourcedAt: T0,
+      },
+    });
+    if (result.operation !== "room.participants.list") throw new Error("unreachable");
+    expect(result.catalog.sourceDigest).toBe(expectedDigest(result.catalog));
+    // Read-only: no durable result is journaled, so a fresh commandId answers identically.
+    expect(await invoke(runtime, request("room.participants.list", 2, {}))).toEqual(result);
+  });
+
+  it("serves the composed moderator's catalog verbatim, digested over its canonical content", async () => {
+    let clock = T0;
+    const runtime = await openRuntime(await makeRoot(), {
+      now: () => clock,
+      initializeRooms: () => ({
+        enabled: true,
+        dormancyMs: 60_000,
+        wake: () => undefined,
+        participantsCatalog: CATALOG_SOURCE,
+      }),
+    });
+    const result = await invoke(runtime, request("room.participants.list", 1, {}));
+    expect(result).toMatchObject({
+      operation: "room.participants.list",
+      catalog: {
+        enabled: true,
+        unavailableReason: null,
+        providers: CATALOG_SOURCE.providers,
+        roster: CATALOG_SOURCE.roster,
+        sourcedAt: T0,
+      },
+    });
+    if (result.operation !== "room.participants.list") throw new Error("unreachable");
+    expect(result.catalog.sourceDigest).toBe(expectedDigest(result.catalog));
+    // The digest binds content, not the instant it was read: a later read of the same
+    // configuration carries a new sourcedAt and the identical sourceDigest.
+    clock = "2026-08-16T12:05:00.000Z";
+    const later = await invoke(runtime, request("room.participants.list", 2, {}));
+    if (later.operation !== "room.participants.list") throw new Error("unreachable");
+    expect(later.catalog.sourcedAt).toBe(clock);
+    expect(later.catalog.sourceDigest).toBe(result.catalog.sourceDigest);
+  });
+
+  it("reports an enabled moderator with nothing configured as enabled and empty, not unavailable", async () => {
+    const runtime = await openRuntime(await makeRoot(), {
+      initializeRooms: () => ({ enabled: true, dormancyMs: 60_000, wake: () => undefined }),
+    });
+    const result = await invoke(runtime, request("room.participants.list", 1, {}));
+    expect(result).toMatchObject({
+      catalog: { enabled: true, unavailableReason: null, providers: [], roster: [] },
+    });
   });
 });
 
