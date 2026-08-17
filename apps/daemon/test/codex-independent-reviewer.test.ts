@@ -602,6 +602,12 @@ describe("buildCodexReviewInvocation", () => {
     expect(invocation.cwd).toBe(realpathSync(fixture.checkoutRoot));
     expect(invocation.args).toContain("--output-schema");
     expect(invocation.args).toContain(fixture.configuration.outputSchemaPath);
+    // The reviewer checkout is a `git archive` extraction with no `.git`, so
+    // the CLI must be told not to refuse a non-repository working directory.
+    expect(invocation.args).toContain("--skip-git-repo-check");
+    expect(invocation.args.indexOf("--skip-git-repo-check")).toBeGreaterThan(
+      invocation.args.indexOf("exec"),
+    );
     expect(invocation.stdin).toBe("Review the candidate.");
 
     const permissionArg = invocation.args.find((arg) => arg.startsWith("permissions."));
