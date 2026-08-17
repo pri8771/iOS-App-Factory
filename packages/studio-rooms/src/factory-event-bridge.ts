@@ -285,12 +285,17 @@ export class RoomFactoryEventBridge {
             deliveries.push({ roomId, messageId: this.#ids.messageId(), body });
           }
         }
+        // A line reporting a kernel event never predates that event: the
+        // scheduler's monotone clock can sit a few ms ahead of the daemon's
+        // wall clock, so the transcript instant is floored at the event's own
+        // `occurredAt` (and the repository floors it again at the room head).
+        const now = this.#now();
         const lines = this.#repository.bridgeFactoryEvent({
           ledgerPosition: transition.ledgerPosition,
           eventId: transition.eventId,
           eventOccurredAt: transition.occurredAt,
           deliveries,
-          now: this.#now(),
+          now: transition.occurredAt > now ? transition.occurredAt : now,
         });
         last = transition.ledgerPosition;
         for (const line of lines) {

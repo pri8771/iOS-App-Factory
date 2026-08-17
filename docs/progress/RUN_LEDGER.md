@@ -221,6 +221,70 @@ reported from a commit message". The unit tests the same commit added
 (`packages/studio-room-adapters/test/*`) still exercise `FakeProcess`/`fakeSupervisor`
 fixtures, not real models.
 
+### 2026-08-17 — unattended rooms live proof (verified against a preserved private runtime)
+
+Until this date the unattended path (`room.unattendedEnabled`, the `dormant`
+attendance branch in `packages/studio-rooms/src/moderator.ts`) was unreachable live:
+a dormant room acts only on `factory-event` triggers, and nothing in the daemon ever
+produced one (`RoomModeratorLoop.notifyFactoryEvent` had no callers). Commit `ccb5898`
+on `studio/room-factory-event-bridge` added the daemon-composed bridge from kernel
+attempt transitions to `factory-event` lines (migration `0013-room-factory-event-cursor`;
+see `packages/studio-rooms/README.md`). The proof below ran against a daemon built from
+that commit; the runtime it ran in was `/private/tmp/af-unattended` and was copied,
+owner-only, to `~/.app-factory-unattended-proof-2026-08-17` (with `results/` holding the
+`room.events` JSON, transcript, `sqlite3` dumps, attempt row, kernel event list, mirror
+refs, and the empty daemon log). Facts below were read from
+`runtime/control-plane.sqlite` there. Participants were Ollama only
+(`qwen2.5-coder:14b`, `127.0.0.1:11434`) — no Codex, no Claude, no paid call — and the
+factory event came from a real kernel attempt over the deterministic
+`swift-greeter-fixture-v1` local execution profile (fixture agent, real trusted
+verifier, real reviewer, real broker commit; no model call on the attempt side).
+
+- Room `e49e190f-57d7-4dee-ba32-71544baa6faf`, "Swift Greeter fixture — unattended
+  proof", `project_id = a3000000-0000-4000-8000-000000000002`,
+  `unattended_enabled = 1`, `agent_cooldown_events 2`; two `room_participants`,
+  `local-scout` and `local-critic`, both provider `ollama`; budget
+  `dailyCeilingTokens 200000`, `unattendedDailyCeilingTokens 20000`,
+  `maxTokensPerReply 2000`.
+- `room_messages`, five rows: #1 human `priyansh` (`2026-08-17T21:41:07.804Z`) → #2
+  `local-scout` (round 1, `21:41:19.191Z`) → #3 `local-critic` (round 2, `21:41:26.243Z`)
+  — attended rounds; then a real ten-minute wait with no human post (no dormancy knob
+  was added; `room.events` at `21:51:42Z` reported `attendance: "dormant"` and
+  `unattendedSpentTokens 0`) → #4 `system`, `system_code = factory-event`
+  (`21:52:00.924Z`): "Factory: attempt 9a557d45 for task "Add a farewell to
+  GreetingFormatter" → succeeded (broker commit b258c769)" → #5 `local-scout`
+  (round 3, `21:52:08.763Z`): "The Factory attempt succeeded, so no action is needed
+  for this round." — a real Ollama reply granted **while dormant**.
+- `room_grants`: rounds 1–3 all `committed`, `tokensUsed` 54 / 63 / 39;
+  `room_budgets`: `spent_tokens 156`, `reserved_tokens 0`,
+  `unattended_spent_tokens 39` (round 3 only — the unattended ceiling was applied).
+- `room_factory_event_cursor`: `ledger_position 13`,
+  `event_id f2b5e0bf-d857-5a35-ab47-89087a361948`,
+  `event_occurred_at 2026-08-17T21:52:00.931Z`, `last_delivered_event_id` the same,
+  `delivered_count 1`.
+- Kernel side: task `c1f4b21a-47aa-4e3c-a9ec-75d5ee968708`, attempt
+  `9a557d45-7152-52e6-87cd-a2714631155d`, submitted with `factory run` at
+  `21:51:55.704Z` (`attempt.created`, events rowid 1), `state = succeeded`,
+  `terminal_at 21:52:00.931Z` (`attempt.state-changed` running→succeeded, rowid 13 —
+  the event the cursor names). Broker commit
+  `b258c769a80c17b7dc2b14ec600fa854e7613567` at
+  `refs/app-factory/attempts/9a557d45-7152-52e6-87cd-a2714631155d` in
+  `runtime/local-execution/git/mirrors/62000000-0000-4000-8000-000000000002.git`
+  (base `c338785817ba8d5ee6056f65c075aec47178c393`, one file changed:
+  `Sources/Greeter/GreetingFormatter.swift`); this row therefore also passes this
+  ledger's mirror recipe, but no `run export` was taken for it.
+
+So the claim — a dormant, unattended-enabled room is triggered by a real factory
+attempt transition, the bridge line names the real broker commit, and a live model reply
+is granted under the unattended ceiling — matches the durable transcript and budget
+rows. What it does not establish: more than one unattended round in one room; anything
+about the scorer's judgment (a live model verdict, not reproducible); portfolio-wide
+rooms (`project_id NULL`) are deliberately not delivered to and were not exercised; the
+delivered line's instant (`21:52:00.924Z`) predates the kernel event it reports by 7 ms
+because the scheduler's monotone clock ran ahead of the daemon clock — the bridge floors
+that at the event's `occurredAt` as of the follow-up commit, which the preserved runtime
+predates. The SQLite copy is a copy; the room has no Git artefact of its own.
+
 ### 2026-08-16 — Phase Runner live runs (partially owner-reported)
 
 Two live-smoke claims accompany the Phase Runner and Project Registry merges:

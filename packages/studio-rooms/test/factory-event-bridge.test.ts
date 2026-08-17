@@ -423,6 +423,11 @@ describe("RoomFactoryEventBridge", () => {
     expect(h.bridge.drain()).toMatchObject({ delivered: 1 });
     const line = h.repository.findMessage(ROOM_ID, 2);
     expect(line?.occurredAt).toBe(later);
+    // ...and never earlier than the kernel event it reports.
+    const ahead = plusMs(later, 7);
+    h.ledger.transition({ to: "failed", occurredAt: ahead });
+    expect(h.bridge.drain()).toMatchObject({ delivered: 1 });
+    expect(h.repository.findMessage(ROOM_ID, 3)?.occurredAt).toBe(ahead);
   });
 
   it("records a failing scan without advancing the cursor and retries on the next drain", () => {

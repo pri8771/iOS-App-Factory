@@ -1146,8 +1146,6 @@ describe("room moderator subsystem lifecycle", () => {
     expect(line.body).toBe(
       `Factory: attempt ${run.attemptId.slice(0, 8)} for task "Daemon service task 90" → succeeded`,
     );
-    // The line's instant is the daemon's clock, never a date the bridge made up.
-    expect(line.occurredAt).toBe(now());
     expect(events.moderator.attendance).toBe("dormant");
     // Spent under the unattended ceiling: the grant was issued while dormant.
     expect(events.room.budget).toMatchObject({ spentTokens: 40, unattendedSpentTokens: 40 });
@@ -1158,6 +1156,10 @@ describe("room moderator subsystem lifecycle", () => {
       (event) => event.type === "attempt.state-changed" && event.data.to === "succeeded",
     );
     expect(terminal).toBeDefined();
+    // The line's instant is durable state only: the daemon clock floored at the kernel event's
+    // own occurredAt (here the scheduler's real clock is far ahead of the test's fake `now`).
+    expect(line.occurredAt).toBe(terminal?.occurredAt);
+    expect(line.occurredAt >= now()).toBe(true);
     expect(events.moderator.factoryBridge).toMatchObject({
       enabled: true,
       cursor: {
