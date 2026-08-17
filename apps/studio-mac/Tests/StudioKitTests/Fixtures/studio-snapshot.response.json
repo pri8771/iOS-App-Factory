@@ -60,9 +60,7 @@
                 "kind": "release",
                 "label": "Store listing + sign-off",
                 "targetDate": "2026-09-05",
-                "dependsOn": [
-                  "70000001-0000-4000-8000-000000000001"
-                ],
+                "dependsOn": ["70000001-0000-4000-8000-000000000001"],
                 "owner": "human",
                 "status": "planned",
                 "evidenceDigest": null,
