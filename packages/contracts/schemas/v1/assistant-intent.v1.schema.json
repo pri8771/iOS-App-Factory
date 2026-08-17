@@ -141,6 +141,11 @@
     "__schema7": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
+    },
+    "__schema8": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
     }
   },
   "$id": "urn:app-factory:contracts:v1:assistant-intent",
@@ -257,6 +262,100 @@
             "kind",
             "attemptId",
             "answer"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "brief": {
+              "additionalProperties": false,
+              "properties": {
+                "constraints": {
+                  "items": {
+                    "$ref": "#/$defs/__schema8"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
+                "oneLiner": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "title": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "oneLiner",
+                "constraints"
+              ],
+              "type": "object"
+            },
+            "kind": {
+              "const": "propose-plan",
+              "type": "string"
+            },
+            "presetId": {
+              "maxLength": 96,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9-]{0,63}(?:\\.[a-z0-9]{1,16}){0,6}$",
+              "type": "string"
+            },
+            "projectId": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repositoryId": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "brief",
+            "presetId",
+            "projectId",
+            "repositoryId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "expectedRevision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "execute-plan",
+              "type": "string"
+            },
+            "planId": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "kind",
+            "planId",
+            "expectedRevision"
           ],
           "type": "object"
         }

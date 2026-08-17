@@ -20,6 +20,7 @@ export * from "./portfolio-read-model.js";
 export * from "./primitives.js";
 export * from "./project.js";
 export * from "./project-docs-snapshot.js";
+export * from "./project-plan.js";
 export * from "./release.js";
 export * from "./room.js";
 export * from "./run-record.js";

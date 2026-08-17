@@ -29,6 +29,12 @@ import {
   ProjectMilestoneOwnerV1Schema,
   ProjectMilestoneStatusV1Schema,
   ProjectMilestoneUpsertV1Schema,
+  ProjectPlanEditBatchV1Schema,
+  ProjectPlanEditV1Schema,
+  ProjectPlanIdSchema,
+  ProjectPlanItemIdSchema,
+  ProjectPlanProposeV1Schema,
+  RepositoryIdSchema,
   Sha256DigestSchema,
   StableKeySchema,
   TaskIdSchema,
@@ -44,6 +50,13 @@ import {
   type PhasePresetId,
   type ProjectId,
   type ProjectMilestoneUpsertV1,
+  type ProjectPlanApproveGateV1,
+  type ProjectPlanApproveV1,
+  type ProjectPlanEditV1,
+  type ProjectPlanExecuteV1,
+  type ProjectPlanId,
+  type ProjectPlanProposeV1,
+  type ProjectPlanV1,
   type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
@@ -107,6 +120,19 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "phases.list" }>
   | Readonly<{ kind: "phases.show"; presetId: PhasePresetId }>
   | Readonly<{ kind: "project.docs.snapshot"; repositoryRoot: string }>
+  | Readonly<{ kind: "project.seed"; targetDirectory: string; name: string }>
+  | Readonly<{ kind: "plan.propose"; propose: ProjectPlanProposeV1 }>
+  | Readonly<{
+      kind: "plan.edit";
+      planId: ProjectPlanId;
+      expectedRevision: number;
+      editsFile: string;
+    }>
+  | Readonly<{ kind: "plan.approve"; approve: ProjectPlanApproveV1 }>
+  | Readonly<{ kind: "plan.execute"; execute: ProjectPlanExecuteV1 }>
+  | Readonly<{ kind: "plan.approve-gate"; approveGate: ProjectPlanApproveGateV1 }>
+  | Readonly<{ kind: "plan.status"; planId: ProjectPlanId }>
+  | Readonly<{ kind: "plan.tick"; planId: ProjectPlanId }>
   | Readonly<{ kind: "effects.status" }>
   | Readonly<{
       kind: "effects.list";
@@ -152,6 +178,27 @@ function parsePresetId(value: string | undefined): PhasePresetId {
   const parsed = PhasePresetIdSchema.safeParse(value);
   if (!parsed.success)
     usageError("The preset ID must be a stable lowercase key, e.g. ios-app-standard-0.4.0.");
+  return parsed.data;
+}
+
+function parsePlanId(value: string | undefined): ProjectPlanId {
+  if (value === undefined) usageError("A plan ID is required.");
+  const parsed = ProjectPlanIdSchema.safeParse(value);
+  if (!parsed.success) usageError("The plan ID must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
+function parseExpectedRevisionOption(value: string | undefined): number {
+  if (value === undefined || !/^(0|[1-9][0-9]*)$/.test(value)) {
+    usageError("--expected-revision is required and must be a non-negative integer.");
+  }
+  return Number(value);
+}
+
+function parseRepositoryIdOption(value: string | undefined): string | null {
+  if (value === undefined) return null;
+  const parsed = RepositoryIdSchema.safeParse(value);
+  if (!parsed.success) usageError("--repository must be a canonical lowercase UUID.");
   return parsed.data;
 }
 
@@ -360,6 +407,23 @@ function consumeFlag(arguments_: string[], flag: string): boolean {
 
 function rejectUnexpected(arguments_: readonly string[]): void {
   if (arguments_.length > 0) usageError(`Unexpected argument: ${arguments_[0]}`);
+}
+
+/** Like {@link consumeOption}, but collects every occurrence of `option` in order (used for
+ * repeatable flags like `plan propose`'s `--constraint`). */
+function consumeRepeated(arguments_: string[], option: string): string[] {
+  const values: string[] = [];
+  for (let index = 0; index < arguments_.length;) {
+    if (arguments_[index] !== option) {
+      index += 1;
+      continue;
+    }
+    const value = arguments_[index + 1];
+    if (value === undefined || value.startsWith("--")) usageError(`${option} requires a value.`);
+    values.push(value);
+    arguments_.splice(index, 2);
+  }
+  return values;
 }
 
 export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation {
@@ -676,7 +740,22 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
       }
       usageError("Project milestone requires: upsert.");
     }
-    usageError("Project requires one of: scan, plan, apply, milestones, milestone.");
+    if (subcommand === "seed") {
+      const targetDirectoryValue = arguments_.shift();
+      if (targetDirectoryValue === undefined || targetDirectoryValue.length === 0) {
+        usageError("A target directory is required.");
+      }
+      const targetDirectory = resolve(targetDirectoryValue);
+      const name = consumeOption(arguments_, "--name");
+      if (name === undefined || name.length === 0) usageError("--name is required.");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "project.seed", targetDirectory, name },
+      };
+    }
+    usageError("Project requires one of: scan, plan, apply, milestones, milestone, seed.");
   }
 
   if (command === "phases") {
@@ -707,7 +786,112 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     usageError("Docs requires: snapshot.");
   }
 
+  if (command === "plan") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "propose") {
+      const presetId = parsePresetId(consumeOption(arguments_, "--preset"));
+      const title = consumeOption(arguments_, "--title");
+      if (title === undefined || title.length === 0) usageError("--title is required.");
+      const oneLiner = consumeOption(arguments_, "--one-liner");
+      if (oneLiner === undefined || oneLiner.length === 0) usageError("--one-liner is required.");
+      const constraints = consumeRepeated(arguments_, "--constraint");
+      const projectValue = consumeOption(arguments_, "--project");
+      const repositoryId = parseRepositoryIdOption(consumeOption(arguments_, "--repository"));
+      rejectUnexpected(arguments_);
+      const propose = ProjectPlanProposeV1Schema.parse({
+        brief: { title, oneLiner, constraints },
+        presetId,
+        projectId: projectValue === undefined ? null : parseProjectId(projectValue),
+        repositoryId,
+        source: null,
+      });
+      return { outputMode, retryIdentity, command: { kind: "plan.propose", propose } };
+    }
+    if (subcommand === "show" || subcommand === "status") {
+      const planId = parsePlanId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "plan.status", planId } };
+    }
+    if (subcommand === "edit") {
+      const planId = parsePlanId(arguments_.shift());
+      const expectedRevision = parseExpectedRevisionOption(
+        consumeOption(arguments_, "--expected-revision"),
+      );
+      const editsFile = consumeOption(arguments_, "--edits");
+      if (editsFile === undefined || editsFile.length === 0) {
+        usageError("--edits (a path to a JSON array of edits) is required.");
+      }
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "plan.edit", planId, expectedRevision, editsFile },
+      };
+    }
+    if (subcommand === "approve") {
+      const planId = parsePlanId(arguments_.shift());
+      const expectedRevision = parseExpectedRevisionOption(
+        consumeOption(arguments_, "--expected-revision"),
+      );
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "plan.approve", approve: { planId, expectedRevision } },
+      };
+    }
+    if (subcommand === "execute") {
+      const planId = parsePlanId(arguments_.shift());
+      const expectedRevision = parseExpectedRevisionOption(
+        consumeOption(arguments_, "--expected-revision"),
+      );
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "plan.execute", execute: { planId, expectedRevision } },
+      };
+    }
+    if (subcommand === "approve-gate") {
+      const planId = parsePlanId(arguments_.shift());
+      const itemIdValue = arguments_.shift();
+      const itemId = ProjectPlanItemIdSchema.safeParse(itemIdValue);
+      if (!itemId.success) usageError("An item ID is required.");
+      const expectedRevision = parseExpectedRevisionOption(
+        consumeOption(arguments_, "--expected-revision"),
+      );
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "plan.approve-gate",
+          approveGate: { planId, itemId: itemId.data, expectedRevision },
+        },
+      };
+    }
+    if (subcommand === "tick") {
+      const planId = parsePlanId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "plan.tick", planId } };
+    }
+    usageError("Plan requires one of: propose, show, edit, approve, execute, approve-gate, tick.");
+  }
+
   usageError(`Unknown command: ${command}`);
+}
+
+/** A skimmable, top-to-bottom item list -- never a graph -- for `plan.*` results. */
+function renderPlan(plan: ProjectPlanV1): string {
+  const header = `plan ${plan.planId} r${String(plan.revision)} ${plan.state} "${plan.brief.title}" (preset ${plan.presetId}, digest ${plan.digest})`;
+  const items = plan.items
+    .map((item, index) => {
+      const marker = item.kind === "gate" ? "◆" : " ";
+      const detail = item.kind === "task" ? "" : ` -- ${item.gate.reason}`;
+      return `${String(index + 1)}. ${marker}[${item.kind}] ${item.itemId}\t${item.status}\t${JSON.stringify(item.title)}${detail}`;
+    })
+    .join("\n");
+  return `${header}\n${items}\n`;
 }
 
 export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode): string {
@@ -950,6 +1134,25 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
       ];
       return `${lines.join("\n")}\n`;
     }
+    case "project.seed": {
+      const lines = [
+        `project.seed: ${result.repositoryRoot}`,
+        `scaffold commit: ${result.scaffoldCommitSha}`,
+        `xcodegen: available=${String(result.xcodegen.available)} generated=${String(result.xcodegen.generated)} built=${String(result.xcodegen.built)} -- ${result.xcodegen.detail}`,
+        `enrollment: branch ${result.enrollment.branchName ?? "(none)"} commit ${result.enrollment.commitSha ?? "(none)"}, applied ${result.enrollment.appliedActionKinds.join(", ") || "none"}`,
+        `convergence: ${result.enrollment.convergence.blocked ? `still blocked (${String(result.enrollment.convergence.blockerIssueIds.length)} blocker(s))` : "clear"}, ${String(result.enrollment.convergence.openIssueCount)} open issue(s)`,
+      ];
+      return `${lines.join("\n")}\n`;
+    }
+    case "plan.propose":
+    case "plan.edit":
+    case "plan.approve":
+    case "plan.execute":
+    case "plan.approve-gate":
+    case "plan.status":
+      return renderPlan(result.plan);
+    case "plan.tick":
+      return `${result.advanced ? "advanced" : "no change"}\n${renderPlan(result.plan)}`;
     case "effects.status": {
       const { counts, pendingOutbox, pump } = result.status;
       const countsLine = (
@@ -1058,6 +1261,22 @@ async function loadTaskSpec(path: string): Promise<TaskSpecV1> {
   }
   const parsed = TaskSpecV1Schema.safeParse(decoded);
   if (!parsed.success) throw new CliUsageError("The task file does not match TaskSpec V1.");
+  return parsed.data;
+}
+
+/** `plan edit --edits <path>`: the file must contain a JSON array of `ProjectPlanEditV1` objects. */
+async function loadPlanEdits(path: string): Promise<readonly ProjectPlanEditV1[]> {
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new CliUsageError("The edits file is not valid JSON.");
+    throw error;
+  }
+  const parsed = ProjectPlanEditV1Schema.array().min(1).safeParse(decoded);
+  if (!parsed.success) {
+    throw new CliUsageError("The edits file must contain a non-empty JSON array of plan edits.");
+  }
   return parsed.data;
 }
 
@@ -1422,6 +1641,43 @@ export async function runCli(
         break;
       case "project.milestone.upsert":
         result = await client.upsertProjectMilestone(invocation.command.upsert, identity);
+        break;
+      case "project.seed":
+        result = await client.seedProject(
+          invocation.command.targetDirectory,
+          invocation.command.name,
+          identity,
+        );
+        break;
+      case "plan.propose":
+        result = await client.proposePlan(invocation.command.propose, identity);
+        break;
+      case "plan.edit": {
+        const edits = await loadPlanEdits(invocation.command.editsFile);
+        result = await client.editPlan(
+          ProjectPlanEditBatchV1Schema.parse({
+            planId: invocation.command.planId,
+            expectedRevision: invocation.command.expectedRevision,
+            edits,
+          }),
+          identity,
+        );
+        break;
+      }
+      case "plan.approve":
+        result = await client.approvePlan(invocation.command.approve, identity);
+        break;
+      case "plan.execute":
+        result = await client.executePlan(invocation.command.execute, identity);
+        break;
+      case "plan.approve-gate":
+        result = await client.approvePlanGate(invocation.command.approveGate, identity);
+        break;
+      case "plan.status":
+        result = await client.planStatus(invocation.command.planId, identity);
+        break;
+      case "plan.tick":
+        result = await client.tickPlan(invocation.command.planId, identity);
         break;
       case "phases.list":
         result = await client.listPresets(identity);

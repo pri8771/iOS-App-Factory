@@ -25,6 +25,7 @@ import { ModuleManifestV1Schema } from "./module.js";
 import { PhaseDefinitionV1Schema, PhasePresetV1Schema } from "./phase.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { ProjectDocsSnapshotV1Schema } from "./project-docs-snapshot.js";
+import { ProjectPlanV1Schema } from "./project-plan.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
 import { RoomGrantV1Schema, RoomMessageV1Schema, RoomV1Schema } from "./room.js";
 import {
@@ -288,6 +289,12 @@ export const contractSchemaCatalogV1 = [
     fileName: "mirror-projection-diff.v1.schema.json",
     id: "urn:app-factory:contracts:v1:mirror-projection-diff",
     schema: MirrorProjectionDiffV1Schema,
+  },
+  {
+    name: "project-plan",
+    fileName: "project-plan.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:project-plan",
+    schema: ProjectPlanV1Schema,
   },
 ] as const satisfies readonly ContractSchemaCatalogEntryV1[];
 

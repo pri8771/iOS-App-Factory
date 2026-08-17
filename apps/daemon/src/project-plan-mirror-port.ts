@@ -1,0 +1,119 @@
+import {
+  GitObjectIdSchema,
+  RepositoryIdSchema,
+  type GitObjectId,
+  type RepositoryId,
+} from "@app-factory/contracts";
+import {
+  GitWorkspaceError,
+  type BrokerCommitRecord,
+  type FactoryMirror,
+  type GitWorkspaceManager,
+  type ImmutableMirrorBinding,
+  type ImmutableMirrorBindingTip,
+} from "@app-factory/git-workspace";
+
+import { CommandHandlerError } from "./unix-command-server.js";
+
+/**
+ * `plan.execute`/`plan.tick`'s seam onto the Factory mirror's base-advance chain
+ * (`GitWorkspaceManager.advanceImmutableMirrorBase`, `packages/git-workspace`) -- this is the
+ * "chained tasks" primitive named in the planner's brief: each task item in a plan submits against
+ * the repository's CURRENT allowed base, and once its attempt succeeds, the base advances to that
+ * attempt's verified broker commit before the next item is submitted, so every task in a plan
+ * builds directly on the previous one's real, verified result rather than racing against a fixed
+ * base. This module owns only the seam; resolving a succeeded attempt's `BrokerCommitRecord` from
+ * evidence is the caller's job (today, no daemon surface does that generically yet -- see the
+ * module doc comment on `project-plan-command-runtime.ts`).
+ */
+
+export type ProjectPlanMirrorBaseV1 = Readonly<{
+  repositoryId: RepositoryId;
+  commit: GitObjectId;
+}>;
+
+export type ProjectPlanMirrorPort = Readonly<{
+  /** The repository + commit the next task item for this repository should build on. */
+  currentBase(repositoryId: RepositoryId): ProjectPlanMirrorBaseV1;
+  /** Advances the mirror to a succeeded attempt's verified broker commit and returns the new base
+   * every later task item in the plan builds on. Idempotent for the same `brokerCommit` (mirrors
+   * `advanceImmutableMirrorBase`'s own idempotent replay). */
+  advanceBase(
+    repositoryId: RepositoryId,
+    brokerCommit: BrokerCommitRecord,
+  ): ProjectPlanMirrorBaseV1;
+}>;
+
+/** The safe default: no mirror is configured, so submitting or advancing a plan's task items fails
+ * closed instead of guessing a base. Daemon composition opts in via
+ * {@link createGitWorkspaceProjectPlanMirrorPortV1} (or a test double). */
+export function createUnconfiguredProjectPlanMirrorPortV1(): ProjectPlanMirrorPort {
+  const fail = (): never => {
+    throw new CommandHandlerError(
+      "plan.mirror-not-configured",
+      "No project-plan mirror port is configured on this daemon; plan task items cannot be submitted or advanced.",
+      false,
+    );
+  };
+  return { currentBase: fail, advanceBase: fail };
+}
+
+/**
+ * A real, git-workspace-backed mirror port. Each repository's binding tip is cached in daemon
+ * process memory, seeded from `resolveRootBinding` on first use and advanced in place by
+ * `GitWorkspaceManager.advanceImmutableMirrorBase` -- the exact primitive
+ * `packages/git-workspace/test/base-advance.test.ts` exercises -- every time a task item's attempt
+ * succeeds.
+ *
+ * v1 scope, documented rather than hidden: the tip lives only in this daemon process's memory
+ * (mirroring `createRunExportMirrorPort`'s own per-process `GitWorkspaceManager` cache in
+ * `run-export-command-runtime.ts`), so a daemon restart mid-plan re-seeds from `resolveRootBinding`
+ * rather than resuming from the last advance. That is safe, not silently wrong:
+ * `advanceImmutableMirrorBase` itself fails closed (`"does not match this mirror's actual binding
+ * chain"`) rather than forking the chain if the binding a caller supplies is stale. A durable,
+ * restart-resumable tip (or a full multi-project mirror registry) is future work, out of this
+ * task's scope.
+ */
+export function createGitWorkspaceProjectPlanMirrorPortV1(options: {
+  gitWorkspace: GitWorkspaceManager;
+  resolveMirror: (repositoryId: RepositoryId) => FactoryMirror;
+  resolveRootBinding: (repositoryId: RepositoryId) => ImmutableMirrorBinding;
+}): ProjectPlanMirrorPort {
+  const tips = new Map<RepositoryId, ImmutableMirrorBindingTip>();
+
+  function tipFor(repositoryIdInput: RepositoryId): ImmutableMirrorBindingTip {
+    const repositoryId = RepositoryIdSchema.parse(repositoryIdInput);
+    const existing = tips.get(repositoryId);
+    if (existing !== undefined) return existing;
+    const root = options.resolveRootBinding(repositoryId);
+    tips.set(repositoryId, root);
+    return root;
+  }
+
+  return {
+    currentBase(repositoryIdInput) {
+      const repositoryId = RepositoryIdSchema.parse(repositoryIdInput);
+      const tip = tipFor(repositoryId);
+      return { repositoryId, commit: GitObjectIdSchema.parse(tip.baseCommit) };
+    },
+    advanceBase(repositoryIdInput, brokerCommit) {
+      const repositoryId = RepositoryIdSchema.parse(repositoryIdInput);
+      const mirror = options.resolveMirror(repositoryId);
+      const tip = tipFor(repositoryId);
+      let advanced: ImmutableMirrorBindingTip;
+      try {
+        advanced = options.gitWorkspace.advanceImmutableMirrorBase(mirror, tip, brokerCommit);
+      } catch (error) {
+        throw new CommandHandlerError(
+          "plan.mirror-advance-failed",
+          `The project-plan mirror for repository ${repositoryId} could not be advanced${
+            error instanceof GitWorkspaceError ? `: ${error.message}` : ""
+          }.`,
+          false,
+        );
+      }
+      tips.set(repositoryId, advanced);
+      return { repositoryId, commit: GitObjectIdSchema.parse(advanced.baseCommit) };
+    },
+  };
+}

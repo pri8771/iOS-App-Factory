@@ -86,6 +86,18 @@ import {
   type RunExportMirrorPort,
 } from "./run-export-command-runtime.js";
 import {
+  approveGateProjectPlanV1,
+  approveProjectPlanV1,
+  editProjectPlanV1,
+  executeProjectPlanV1,
+  proposeProjectPlanV1,
+  statusProjectPlanV1,
+  tickProjectPlanV1,
+  type ProjectPlanExecutionDependencies,
+} from "./project-plan-command-runtime.js";
+import { createUnconfiguredProjectPlanMirrorPortV1 } from "./project-plan-mirror-port.js";
+import { executeProjectSeedCommand } from "./project-seed-command-runtime.js";
+import {
   buildAssistantIntentDispatchRequestV1,
   buildStudioSnapshotV1,
   computeAssistantAnswerV1,
@@ -112,9 +124,16 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "attempt.unblock",
   "daemon.reconcile",
   "project.apply",
+  "project.seed",
   "project.milestone.upsert",
   "preset.upsert",
   "phase.upsert",
+  "plan.propose",
+  "plan.edit",
+  "plan.approve",
+  "plan.execute",
+  "plan.approve-gate",
+  "plan.tick",
   "room.create",
   "room.post",
 ]);
@@ -249,6 +268,15 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * tests that want a smaller, controlled rule catalog.
    */
   policySourcePath?: string;
+  /**
+   * `plan.execute`/`plan.tick`'s mirror-advance and broker-commit-resolution ports plus the
+   * reviewed policy digest plan-submitted tasks carry (`ProjectPlanExecutionDependencies`, see
+   * `project-plan-command-runtime.ts`). Default: an unconfigured mirror port that fails closed
+   * (`plan.mirror-not-configured`) the first time a plan tries to submit or advance a task item, so
+   * `plan.propose`/`plan.edit`/`plan.approve`/`plan.status`/`plan.approve-gate` work with no
+   * configuration at all.
+   */
+  planExecution?: ProjectPlanExecutionDependencies;
 }>;
 
 export type DaemonRuntimePaths = Readonly<{
@@ -611,6 +639,14 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "phase.upsert":
     case "project.docs.snapshot":
     case "mirror.plan":
+    case "project.seed":
+    case "plan.propose":
+    case "plan.edit":
+    case "plan.approve":
+    case "plan.execute":
+    case "plan.approve-gate":
+    case "plan.status":
+    case "plan.tick":
     case "effects.status":
     case "effects.list":
     case "room.create":
@@ -831,6 +867,25 @@ function assertKernelCommandIdentity(
     throw new CommandHandlerError(
       "command.identity-conflict",
       "The command ID is already bound to a durable phase preset upsert.",
+      false,
+    );
+  }
+  // Project plans journal every mutation (propose/edit/approve/execute/approve-gate/tick) in their
+  // own ledger, exactly like milestones and phase presets above.
+  const isPlanOperation =
+    request.operation === "plan.propose" ||
+    request.operation === "plan.edit" ||
+    request.operation === "plan.approve" ||
+    request.operation === "plan.execute" ||
+    request.operation === "plan.approve-gate" ||
+    request.operation === "plan.tick";
+  if (
+    !isPlanOperation &&
+    repositories.projectPlans.findRevisionByCommandId(request.commandId) !== null
+  ) {
+    throw new CommandHandlerError(
+      "command.identity-conflict",
+      "The command ID is already bound to a durable project plan mutation.",
       false,
     );
   }
@@ -1342,6 +1397,7 @@ async function executeRequest(
     knownStandardRuleIds: ReadonlySet<string>;
     /** Only used by `studio.assistant.intent.execute` to durably ledger the op it dispatches to. */
     paths: DaemonRuntimePaths;
+    planExecution: ProjectPlanExecutionDependencies;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1470,6 +1526,37 @@ async function executeRequest(
       return await executeProjectDocsSnapshotCommand(request, dependencies.observedAt);
     case "mirror.plan":
       return await executeMirrorPlanCommand(request, dependencies.observedAt);
+    case "project.seed":
+      return executeProjectSeedCommand(dependencies.evidenceStore, request);
+    case "plan.propose":
+      return proposeProjectPlanV1(
+        repositories,
+        request,
+        dependencies.observedAt,
+        dependencies.idFactory,
+      );
+    case "plan.edit":
+      return editProjectPlanV1(repositories, request, dependencies.observedAt);
+    case "plan.approve":
+      return approveProjectPlanV1(repositories, request, dependencies.observedAt);
+    case "plan.execute":
+      return executeProjectPlanV1(
+        repositories,
+        request,
+        dependencies.planExecution,
+        dependencies.observedAt,
+      );
+    case "plan.approve-gate":
+      return approveGateProjectPlanV1(repositories, request, dependencies.observedAt);
+    case "plan.status":
+      return statusProjectPlanV1(repositories, request);
+    case "plan.tick":
+      return tickProjectPlanV1(
+        repositories,
+        request,
+        dependencies.planExecution,
+        dependencies.observedAt,
+      );
     case "effects.status":
       return {
         operation: "effects.status",
@@ -1575,6 +1662,12 @@ async function executeRequest(
         case "attempt.unblock":
           outcome = { kind: "attempt.unblock", result: innerResult };
           break;
+        case "plan.propose":
+          outcome = { kind: "plan.propose", result: innerResult };
+          break;
+        case "plan.execute":
+          outcome = { kind: "plan.execute", result: innerResult };
+          break;
         default:
           throw new CommandHandlerError(
             "assistant.intent-dispatch-unexpected-operation",
@@ -1662,6 +1755,17 @@ export async function openDaemonCommandRuntime(
       gitRuntimeRoot: resolveVerifiedLocalExecutionPaths(paths.root).gitRuntimeRoot,
       ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
     });
+  const planExecution: ProjectPlanExecutionDependencies = options.planExecution ?? {
+    mirror: createUnconfiguredProjectPlanMirrorPortV1(),
+    resolveBrokerCommit: () => {
+      throw new CommandHandlerError(
+        "plan.mirror-not-configured",
+        "No project-plan mirror port is configured on this daemon; plan task items cannot be submitted or advanced.",
+        false,
+      );
+    },
+    policyDigest: Sha256DigestSchema.parse(`sha256:${"0".repeat(64)}`),
+  };
   const serial = new SerialExecutor();
   let closed = false;
 
@@ -1699,6 +1803,7 @@ export async function openDaemonCommandRuntime(
           roomsStatus: roomsStatusPort,
           knownStandardRuleIds,
           paths,
+          planExecution,
         }),
       );
       // A human post is the moderator's cue; the wake happens after the

@@ -2003,6 +2003,257 @@ describe("runCli phases", () => {
   });
 });
 
+describe("runCli plan", () => {
+  const PLAN_ID = "00000000-0000-4000-8000-000000000031";
+  const REPOSITORY_ID = "00000000-0000-4000-8000-000000000032";
+
+  function samplePlan(overrides: Readonly<Record<string, unknown>> = {}) {
+    return {
+      schemaVersion: 1,
+      planId: PLAN_ID,
+      projectId: PROJECT_ID,
+      repositoryId: REPOSITORY_ID,
+      brief: { title: "Sample App", oneLiner: "A sample app.", constraints: ["local-only"] },
+      presetId: "ios-app-standard-0.4.0",
+      items: [
+        {
+          itemId: "contract",
+          kind: "task",
+          phase: "contract",
+          title: "Contract",
+          detail: null,
+          taskSpecDraft: {
+            objective: "Define the outcome.",
+            acceptanceCriteria: [{ id: "ac-1", statement: "Stated.", verification: "review" }],
+            scope: { paths: ["docs"] },
+            phase: "contract",
+          },
+          dependsOn: [],
+          status: "proposed",
+          taskId: null,
+          attemptId: null,
+        },
+        {
+          itemId: "ready",
+          kind: "gate",
+          phase: "ready",
+          title: "Ready",
+          detail: null,
+          gate: { owner: "human", reason: "Confirm before build." },
+          dependsOn: ["contract"],
+          status: "proposed",
+        },
+      ],
+      state: "draft",
+      revision: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+      digest: `sha256:${"b".repeat(64)}`,
+      ...overrides,
+    };
+  }
+
+  it("proposes a plan from --preset/--title/--one-liner/--constraint", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "plan.propose") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "plan.propose", plan: samplePlan() } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      [
+        "plan",
+        "propose",
+        "--preset",
+        "ios-app-standard-0.4.0",
+        "--title",
+        "Sample App",
+        "--one-liner",
+        "A sample app.",
+        "--constraint",
+        "local-only",
+        "--constraint",
+        "xcodegen",
+      ],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    const lines = captured().stdout.split("\n");
+    expect(lines[0]).toContain(PLAN_ID);
+    expect(lines[0]).toContain("draft");
+    expect(lines[1]).toContain("1.  [task] contract");
+    expect(lines[2]).toContain("2. ◆[gate] ready");
+  });
+
+  it("shows a plan's current state via plan.status", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "plan.status") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: { operation: "plan.status", plan: samplePlan({ state: "approved", revision: 1 }) },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["plan", "show", PLAN_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("approved");
+    expect(captured().stdout).toContain("r1");
+  });
+
+  it("executes a plan with --expected-revision", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "plan.execute") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "plan.execute", plan: samplePlan({ state: "executing" }) } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["plan", "execute", PLAN_ID, "--expected-revision", "0"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("executing");
+  });
+
+  it("approves a pending gate item", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "plan.approve-gate") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "plan.approve-gate",
+          plan: samplePlan({
+            state: "executing",
+            items: [samplePlan().items[0], { ...samplePlan().items[1], status: "approved" }],
+          }),
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["plan", "approve-gate", PLAN_ID, "ready", "--expected-revision", "1"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("2. ◆[gate] ready\tapproved");
+  });
+
+  it("ticks a plan and reports whether it advanced", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "plan.tick") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: { operation: "plan.tick", plan: samplePlan({ state: "complete" }), advanced: true },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["plan", "tick", PLAN_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout.split("\n")[0]).toBe("advanced");
+    expect(captured().stdout).toContain("complete");
+  });
+
+  it("rejects propose without --title before contacting the daemon", async () => {
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["plan", "propose", "--preset", "ios-app-standard-0.4.0", "--one-liner", "x"],
+      {
+        APP_FACTORY_SOCKET: "/private/tmp/does-not-need-to-exist.sock",
+        APP_FACTORY_AUTH_TOKEN: AUTHORIZATION,
+      },
+      io,
+    );
+
+    expect(exitCode).toBe(2);
+    expect(captured().stderr).toContain("--title is required");
+  });
+
+  it("rejects execute without --expected-revision before contacting the daemon", async () => {
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["plan", "execute", PLAN_ID],
+      {
+        APP_FACTORY_SOCKET: "/private/tmp/does-not-need-to-exist.sock",
+        APP_FACTORY_AUTH_TOKEN: AUTHORIZATION,
+      },
+      io,
+    );
+
+    expect(exitCode).toBe(2);
+    expect(captured().stderr).toContain("--expected-revision");
+  });
+});
+
+describe("runCli project seed", () => {
+  it("seeds a new project and reports the scaffold, xcodegen, and enrollment outcome", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.seed") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "project.seed",
+          repositoryRoot: "/tmp/seeded-app",
+          scaffoldCommitSha: "d".repeat(40),
+          planDigest: `sha256:${"c".repeat(64)}`,
+          enrollment: {
+            branchName: "app-factory/enroll-abc123",
+            commitSha: "e".repeat(40),
+            appliedActionKinds: ["declare-project"],
+            convergence: {
+              blocked: false,
+              blockerIssueIds: [],
+              openIssueCount: 0,
+              sourceFingerprint: `sha256:${"f".repeat(64)}`,
+            },
+          },
+          xcodegen: { available: true, generated: true, built: true, detail: "ok" },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "seed", "/tmp/seeded-app", "--name", "Seeded App"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("project.seed: /tmp/seeded-app");
+    expect(captured().stdout).toContain("convergence: clear");
+  });
+
+  it("requires --name before contacting the daemon", async () => {
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "seed", "/tmp/seeded-app"],
+      {
+        APP_FACTORY_SOCKET: "/private/tmp/does-not-need-to-exist.sock",
+        APP_FACTORY_AUTH_TOKEN: AUTHORIZATION,
+      },
+      io,
+    );
+
+    expect(exitCode).toBe(2);
+    expect(captured().stderr).toContain("--name is required");
+  });
+});
+
 describe("runCli studio surface", () => {
   it("fetches and verifies the studio snapshot digest", async () => {
     const snapshot = {

@@ -23,6 +23,12 @@ import {
   PhasePresetUpsertV1Schema,
   ProjectIdSchema,
   ProjectMilestoneUpsertV1Schema,
+  ProjectPlanApproveGateV1Schema,
+  ProjectPlanApproveV1Schema,
+  ProjectPlanEditBatchV1Schema,
+  ProjectPlanExecuteV1Schema,
+  ProjectPlanIdSchema,
+  ProjectPlanProposeV1Schema,
   RequestIdSchema,
   RoomCreateSpecV1Schema,
   RoomHumanHandleSchema,
@@ -54,6 +60,12 @@ import {
   type PhasePresetUpsertV1,
   type ProjectId,
   type ProjectMilestoneUpsertV1,
+  type ProjectPlanApproveGateV1,
+  type ProjectPlanApproveV1,
+  type ProjectPlanEditBatchV1,
+  type ProjectPlanExecuteV1,
+  type ProjectPlanId,
+  type ProjectPlanProposeV1,
   type RequestId,
   type RoomCreateSpecV1,
   type Sha256Digest,
@@ -526,6 +538,25 @@ export class CommandClient {
   }
 
   /**
+   * The from-scratch entry point: seeds a brand-new local repository (Git init, XcodeGen scaffold,
+   * CI workflow, one passing test, README/`docs/STATUS.md`), commits it, and runs enrollment
+   * scan-and-apply on it. `targetDirectory` must not exist or must be empty.
+   */
+  public async seedProject(
+    targetDirectory: AbsolutePath | string,
+    name: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.seed">> {
+    return await this.#request(
+      "project.seed",
+      { targetDirectory: AbsolutePathSchema.parse(targetDirectory), name },
+      identity,
+      signal,
+    );
+  }
+
+  /**
    * The project's Studio timeline: its milestone plan next to the actuals its
    * attempts produced. Read-only; an undated milestone comes back with
    * `targetDate: null` and must be rendered as "won't guess", never defaulted.
@@ -604,6 +635,105 @@ export class CommandClient {
     return await this.#request(
       "phase.upsert",
       PhaseDefinitionUpsertV1Schema.parse(upsert),
+      identity,
+      signal,
+    );
+  }
+
+  /** Builds a plan's item list deterministically from a `PhasePresetV1`. See `plan.propose`. */
+  public async proposePlan(
+    propose: ProjectPlanProposeV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"plan.propose">> {
+    return await this.#request(
+      "plan.propose",
+      ProjectPlanProposeV1Schema.parse(propose),
+      identity,
+      signal,
+    );
+  }
+
+  /** Applies a batch of edits (reorder, defer, retitle, edit-task-spec-draft, add/remove item, or
+   * set-repository) to a plan. Durable and idempotent by command ID. */
+  public async editPlan(
+    edit: ProjectPlanEditBatchV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"plan.edit">> {
+    return await this.#request(
+      "plan.edit",
+      ProjectPlanEditBatchV1Schema.parse(edit),
+      identity,
+      signal,
+    );
+  }
+
+  /** Marks a draft plan approved, ready to execute. */
+  public async approvePlan(
+    approve: ProjectPlanApproveV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"plan.approve">> {
+    return await this.#request(
+      "plan.approve",
+      ProjectPlanApproveV1Schema.parse(approve),
+      identity,
+      signal,
+    );
+  }
+
+  /** Starts (or resumes) a plan's execution chain: submits the first ready item. */
+  public async executePlan(
+    execute: ProjectPlanExecuteV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"plan.execute">> {
+    return await this.#request(
+      "plan.execute",
+      ProjectPlanExecuteV1Schema.parse(execute),
+      identity,
+      signal,
+    );
+  }
+
+  /** Clears a pending gate item, unpausing the chain. */
+  public async approvePlanGate(
+    approveGate: ProjectPlanApproveGateV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"plan.approve-gate">> {
+    return await this.#request(
+      "plan.approve-gate",
+      ProjectPlanApproveGateV1Schema.parse(approveGate),
+      identity,
+      signal,
+    );
+  }
+
+  /** Reads the current head of one plan. */
+  public async planStatus(
+    planId: ProjectPlanId | string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"plan.status">> {
+    return await this.#request(
+      "plan.status",
+      { planId: ProjectPlanIdSchema.parse(planId) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Advances a plan's execution chain by one step (submit-next / settle-current / complete). */
+  public async tickPlan(
+    planId: ProjectPlanId | string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"plan.tick">> {
+    return await this.#request(
+      "plan.tick",
+      { planId: ProjectPlanIdSchema.parse(planId) },
       identity,
       signal,
     );
