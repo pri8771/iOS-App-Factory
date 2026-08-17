@@ -10,6 +10,7 @@
           "schemaVersion": 1,
           "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
           "title": "Demo attempt 3",
+          "phase": "implement",
           "attempt": {
             "schemaVersion": 1,
             "attemptId": "00000003-0000-4000-8000-000000000003",
@@ -32,6 +33,7 @@
           "schemaVersion": 1,
           "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
           "title": "Demo attempt 2",
+          "phase": "verify",
           "attempt": {
             "schemaVersion": 1,
             "attemptId": "00000002-0000-4000-8000-000000000002",
@@ -54,6 +56,7 @@
           "schemaVersion": 1,
           "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
           "title": "Demo attempt 1",
+          "phase": null,
           "attempt": {
             "schemaVersion": 1,
             "attemptId": "00000001-0000-4000-8000-000000000001",
