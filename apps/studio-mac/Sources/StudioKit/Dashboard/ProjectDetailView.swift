@@ -163,14 +163,14 @@ public struct ProjectDetailView: View {
                     HStack(alignment: .top, spacing: HUDTheme.space.xs) {
                         if gates.ownerIsHuman {
                             DiamondGate(state: (gates.state == .satisfied || gates.state == .waived) ? .cleared : .waiting,
-                                       size: 11, label: gates.typed).frame(width: 22, height: 22)
+                                       size: 11, label: gates.typed?.rawValue).frame(width: 22, height: 22)
                         } else {
                             StatusPill(gates.state == .satisfied || gates.state == .waived ? .succeeded : .queued,
                                       label: gates.state.rawValue)
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(gates.typed ?? "gate").font(HUDTypography.bodyStrong).foregroundStyle(HUDTheme.ink)
-                            Text("\(gates.state.rawValue) · owner \(gates.owner ?? "—")").font(HUDTypography.caption).foregroundStyle(HUDTheme.soft)
+                            Text(gates.typed?.rawValue ?? "gate").font(HUDTypography.bodyStrong).foregroundStyle(HUDTheme.ink)
+                            Text("\(gates.state.rawValue) · owner \(gates.owner?.rawValue ?? "—")").font(HUDTypography.caption).foregroundStyle(HUDTheme.soft)
                         }
                     }
                 }

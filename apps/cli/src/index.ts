@@ -23,6 +23,7 @@ import {
   GitBranchNameSchema,
   IsoInstantSchema,
   MilestoneIdSchema,
+  PhasePresetIdSchema,
   ProjectIdSchema,
   ProjectMilestoneKindV1Schema,
   ProjectMilestoneOwnerV1Schema,
@@ -40,6 +41,7 @@ import {
   type ExternalEffectStateV1,
   type ExternalProviderV1,
   type GitBranchName,
+  type PhasePresetId,
   type ProjectId,
   type ProjectMilestoneUpsertV1,
   type Sha256Digest,
@@ -102,6 +104,8 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "project.apply"; planDigest: Sha256Digest; branchName: GitBranchName | null }>
   | Readonly<{ kind: "project.milestones.list"; projectId: ProjectId }>
   | Readonly<{ kind: "project.milestone.upsert"; upsert: ProjectMilestoneUpsertV1 }>
+  | Readonly<{ kind: "phases.list" }>
+  | Readonly<{ kind: "phases.show"; presetId: PhasePresetId }>
   | Readonly<{ kind: "effects.status" }>
   | Readonly<{
       kind: "effects.list";
@@ -139,6 +143,14 @@ function parseProjectId(value: string | undefined): ProjectId {
   if (value === undefined) usageError("A project ID is required.");
   const parsed = ProjectIdSchema.safeParse(value);
   if (!parsed.success) usageError("The project ID must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
+function parsePresetId(value: string | undefined): PhasePresetId {
+  if (value === undefined) usageError("A preset ID is required.");
+  const parsed = PhasePresetIdSchema.safeParse(value);
+  if (!parsed.success)
+    usageError("The preset ID must be a stable lowercase key, e.g. ios-app-standard-0.4.0.");
   return parsed.data;
 }
 
@@ -666,6 +678,20 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     usageError("Project requires one of: scan, plan, apply, milestones, milestone.");
   }
 
+  if (command === "phases") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "list") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "phases.list" } };
+    }
+    if (subcommand === "show") {
+      const presetId = parsePresetId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "phases.show", presetId } };
+    }
+    usageError("Phases requires one of: list, show.");
+  }
+
   usageError(`Unknown command: ${command}`);
 }
 
@@ -847,6 +873,23 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
       return `project.milestone.upsert: ${result.created ? "created" : "updated"} ${milestone.milestoneId} r${String(milestone.revision)} ${milestone.status} ${milestone.kind} ${milestone.phase} target ${
         milestone.targetDate ?? MILESTONE_NO_TARGET_DATE_LABEL
       } ${JSON.stringify(milestone.label)}\n`;
+    }
+    case "preset.list": {
+      if (result.presets.length === 0) return "no presets\n";
+      return `${result.presets
+        .map(
+          (preset) =>
+            `${preset.presetId}\tr${String(preset.revision)}\t${String(preset.phases.length)} phase(s)\t${JSON.stringify(preset.name)}`,
+        )
+        .join("\n")}\n`;
+    }
+    case "preset.upsert": {
+      const { preset } = result;
+      return `preset.upsert: ${result.created ? "created" : "updated"} ${preset.presetId} r${String(preset.revision)} ${String(preset.phases.length)} phase(s) ${JSON.stringify(preset.name)}\n`;
+    }
+    case "phase.upsert": {
+      const { phase } = result;
+      return `phase.upsert: ${result.created ? "created" : "updated"} ${phase.phaseId} r${String(phase.revision)} ${phase.mode} ${JSON.stringify(phase.name)}\n`;
     }
     case "effects.status": {
       const { counts, pendingOutbox, pump } = result.status;
@@ -1073,6 +1116,44 @@ async function diagnoseBlocker(
   return `${lines.join("\n")}\n`;
 }
 
+/**
+ * `phases show <preset>`: there is no dedicated single-preset wire op, so this fetches the full
+ * `preset.list` page and selects the matching entry client-side.
+ */
+async function showPreset(
+  client: CommandClient,
+  presetId: PhasePresetId,
+  mode: CliOutputMode,
+  identity: CommandIdentity,
+): Promise<string> {
+  const { presets } = await client.listPresets(client.createRetryIdentity(identity));
+  const preset = presets.find((candidate) => candidate.presetId === presetId);
+  if (preset === undefined) {
+    throw new CliUsageError(`No preset named ${presetId} exists on this daemon.`);
+  }
+  if (mode === "json") {
+    return `${JSON.stringify({ ok: true, result: { operation: "phases.show", preset } })}\n`;
+  }
+  const header = `${preset.presetId} r${String(preset.revision)} ${JSON.stringify(preset.name)} (applies to: ${
+    preset.appliesTo === null ? "every project kind" : preset.appliesTo.join(", ")
+  })`;
+  const phases = preset.phases
+    .map((phase, index) => {
+      const gate = phase.gates.length > 0 ? ` ◆gate[${phase.gates.join(",")}]` : "";
+      const participants =
+        phase.cast.participants.length === 0
+          ? "(no agent participants)"
+          : phase.cast.participants
+              .map(
+                (participant) => `${participant.provider}/${participant.persona ?? "(no persona)"}`,
+              )
+              .join(", ");
+      return `${String(index + 1)}. ${phase.phaseId}\t${phase.mode}${gate}\t${JSON.stringify(phase.name)}\tcast: ${participants}`;
+    })
+    .join("\n");
+  return `${header}\n${phases}\n`;
+}
+
 /** Finds the step named by the last step.state-changed event that reached the attempt's own terminal step state. */
 function findLastStepIdInState(
   events: readonly EventV1[],
@@ -1283,6 +1364,19 @@ export async function runCli(
       case "project.milestone.upsert":
         result = await client.upsertProjectMilestone(invocation.command.upsert, identity);
         break;
+      case "phases.list":
+        result = await client.listPresets(identity);
+        break;
+      case "phases.show": {
+        const output = await showPreset(
+          client,
+          invocation.command.presetId,
+          invocation.outputMode,
+          identity,
+        );
+        io.stdout(output);
+        return 0;
+      }
       case "effects.status":
         result = await client.effectsStatus(identity);
         break;

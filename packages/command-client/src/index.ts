@@ -18,6 +18,8 @@ import {
   EffectListQueryV1Schema,
   GitBranchNameSchema,
   IsoInstantSchema,
+  PhaseDefinitionUpsertV1Schema,
+  PhasePresetUpsertV1Schema,
   ProjectIdSchema,
   ProjectMilestoneUpsertV1Schema,
   RequestIdSchema,
@@ -46,6 +48,8 @@ import {
   type ExternalProviderV1,
   type GitBranchName,
   type IsoInstant,
+  type PhaseDefinitionUpsertV1,
+  type PhasePresetUpsertV1,
   type ProjectId,
   type ProjectMilestoneUpsertV1,
   type RequestId,
@@ -512,6 +516,54 @@ export class CommandClient {
     return await this.#request(
       "project.milestone.upsert",
       ProjectMilestoneUpsertV1Schema.parse(upsert),
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * The full list of durable Phase Presets (Studio Phase 4). Bounded and unpaginated: presets are
+   * operator-authored and few compared to attempts or events. Never executes a phase — that is the
+   * separate planner task.
+   */
+  public async listPresets(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"preset.list">> {
+    return await this.#request("preset.list", {}, identity, signal);
+  }
+
+  /**
+   * Creates (`expectedRevision: null`) or compare-and-set updates a Phase Preset. Durable and
+   * idempotent by command ID. A preset embeds each phase's full, already-durable value at save
+   * time — see {@link upsertPhase} for the phases it bundles.
+   */
+  public async upsertPreset(
+    upsert: PhasePresetUpsertV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"preset.upsert">> {
+    return await this.#request(
+      "preset.upsert",
+      PhasePresetUpsertV1Schema.parse(upsert),
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * Creates or compare-and-set updates one reusable phase definition in the phase library. Durable
+   * and idempotent by command ID; fails closed if `rules.standard[]` names a ruleId the daemon's
+   * compiled policy source does not declare.
+   */
+  public async upsertPhase(
+    upsert: PhaseDefinitionUpsertV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"phase.upsert">> {
+    return await this.#request(
+      "phase.upsert",
+      PhaseDefinitionUpsertV1Schema.parse(upsert),
       identity,
       signal,
     );

@@ -145,9 +145,9 @@ public enum CalendarDateRule: WireStringRule {
     public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.calendarDate, value) }
 }
 
-/// A plain, non-UUID string brand: `z.string().min(1).max(maxLength).brand()`. Used for the
-/// studio-snapshot placeholder ids (`StudioMilestoneId`, `StudioRoomId`) that predate a real ID
-/// scheme — unlike `MilestoneID` (below), which is a real UUID minted by the milestones service.
+/// A plain, non-UUID string brand: `z.string().min(1).max(maxLength).brand()`. Used for
+/// `StudioRoomId` (a placeholder id for the still-unmerged rooms worktree) — unlike `MilestoneID`
+/// (below), which is a real UUID minted by the milestones service.
 public protocol WireBoundedStringRule: WireStringRule {
     static var maxLength: Int { get }
 }
@@ -209,8 +209,10 @@ public enum ApprovalIDTag: Sendable {}
 public enum EffectIDTag: Sendable {}
 public enum ReleaseIDTag: Sendable {}
 public enum AssistantIntentIDTag: Sendable {}
-/// The real, revisioned milestone concept (`milestone.ts`, `studio/milestones-and-phase`) — a UUID,
-/// unlike the studio-snapshot placeholder's `StudioMilestoneID` (a plain bounded string) below.
+/// The one milestone concept (`milestone.ts`) — a UUID. `studio.snapshot`'s
+/// `projects[].timeline.milestones` and `project.milestones.list`/`.upsert` share this exact type;
+/// there is no second, placeholder milestone shape any more (see `StudioSnapshot.swift`'s doc
+/// comment for the seam this closed).
 public enum MilestoneIDTag: Sendable {}
 
 public typealias ProjectID = WireID<ProjectIDTag>
@@ -237,14 +239,6 @@ public typealias AbsolutePath = WireString<AbsolutePathRule>
 public typealias RelativePath = WireString<RelativePathRule>
 public typealias GitBranchName = WireString<GitBranchNameRule>
 public typealias CalendarDate = WireString<CalendarDateRule>
-
-/// `StudioMilestoneIdV1Schema` (`studio-snapshot.ts`) — the placeholder milestone id nested in
-/// `StudioSnapshotV1`. Not a UUID; unrelated to `MilestoneID`.
-public enum StudioMilestoneIDRule: WireBoundedStringRule {
-    public static let name = "studio milestone id"
-    public static let maxLength = 128
-}
-public typealias StudioMilestoneID = WireString<StudioMilestoneIDRule>
 
 /// `StudioRoomIdV1Schema` (`studio-snapshot.ts`) — always empty (`rooms: []`) until the rooms
 /// worktree merges; modelled for forward compatibility only.

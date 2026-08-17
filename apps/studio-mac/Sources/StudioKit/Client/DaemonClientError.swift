@@ -40,14 +40,15 @@ public struct DaemonClientError: Error, Sendable, Equatable, CustomStringConvert
     /// of a supported one — the feature-detection signal Studio Phase 2 uses to fall back from
     /// `studio.snapshot` / `studio.assistant.*` / `project.milestones.*` to the pre-Phase-2 path.
     ///
-    /// The contract does not name a dedicated code for this yet: a daemon that has never heard of an
-    /// operation rejects the whole request frame at `CommandRequestFrameV1Schema.parse` (today's main
-    /// branch answers `protocol.invalid-request`, indistinguishable from a malformed request).
-    /// `protocol.unknown-operation` is included because it is the more specific code a daemon that
-    /// recognises the frame shape but not this particular operation could reasonably answer with, and
-    /// nothing in `command-protocol.ts` reserves it for another meaning.
+    /// `protocol.unsupported-operation` is the dedicated wire code the daemon now emits for a
+    /// syntactically well-formed frame naming an operation this protocol version does not
+    /// recognize at all (`apps/daemon/src/unix-command-server.ts`), distinct from
+    /// `protocol.invalid-request` (a frame that fails to parse for any other reason — a malformed
+    /// payload for a *known* operation, a bad protocol version, and so on). Earlier revisions of
+    /// this client treated both codes as "unsupported operation" because no dedicated code existed
+    /// yet; grep for `isUnsupportedOperation` to find every call site that depends on this.
     public var isUnsupportedOperation: Bool {
-        isRemote && (code == "protocol.unknown-operation" || code == "protocol.invalid-request")
+        isRemote && code == "protocol.unsupported-operation"
     }
 
     /// The same error with a retry identity attached (only when retryable).

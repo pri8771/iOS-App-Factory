@@ -5,9 +5,11 @@ import {
   AssistantIntentV1Schema,
   CommandRequestV1Schema,
   STUDIO_NOT_YET_WIRED_REASON_V1,
+  STUDIO_NO_GATE_RECORDS_REASON_V1,
   Sha256DigestSchema,
   StudioSnapshotV1Schema,
   canonicalStudioSnapshotDigestInputV1,
+  projectSlugFallbackV1,
   type AssistantAnswerV1,
   type AssistantCannotAnswerReasonV1,
   type AssistantCitationV1,
@@ -47,15 +49,14 @@ import { CommandHandlerError } from "./unix-command-server.js";
  * keyword table in `computeAssistantAnswerV1` without changing the wire contract, because callers
  * only ever see `AssistantAnswerV1`'s `answered`/`cannot-answer` shape, never how it was derived.
  *
- * `milestones`, project `gates`, and portfolio `rooms` are always reported empty with an explicit
- * `unavailableReason` (see `STUDIO_NOT_YET_WIRED_REASON_V1` in `@app-factory/contracts`) because
- * the branches that will populate them (`studio/milestones-and-phase`,
- * `studio/lifecycle-reconciliation`, `studio/policy-engine-scoping`, rooms) are separate, unmerged
- * worktrees as of this writing. Because of that, `computeAssistantAnswerV1` can never honestly
- * answer a "when does X ship" question today: it looks for a milestone with a real `targetDate`,
- * finds none (there are never any milestones yet), and returns `cannotAnswer`. Once those branches
- * merge and this file is reconciled with their real milestone/gate data, the same lookup starts
- * answering for real with no change to the wire contract.
+ * `milestones` are real: sourced from `repositories.milestones` (the durable
+ * `ProjectMilestoneRepository` `studio/milestones-and-phase` merged), the exact same
+ * `ProjectMilestoneV1[]` `project.milestones.list` reads. `computeAssistantAnswerV1`'s
+ * "when does X ship" lookup therefore answers for real whenever a project has an authored
+ * milestone with a target date. `gates` and portfolio `rooms` are still reported empty/unavailable
+ * with an explicit reason: `gates` because no typed-gate persistence exists yet in this daemon
+ * (`STUDIO_NO_GATE_RECORDS_REASON_V1` — an honest "no records", not "not implemented"), `rooms`
+ * because `studio/rooms-core` is a separate, unmerged worktree (`STUDIO_NOT_YET_WIRED_REASON_V1`).
  */
 
 // Bounded per-project attempt sample used to derive latestAttemptSummary, awaitingHuman, timeline
@@ -151,23 +152,28 @@ function buildStudioProject(
       since: attempt.updatedAt,
     }));
 
+  // Mirrors buildLocalPortfolioReadModel's own placeholder slug/displayName in command-runtime.ts:
+  // no project-manifest/display-name source is wired into the local execution profile yet, so the
+  // slug always takes the deterministic projectId-only fallback path today — never a slugified
+  // name, per StudioProjectV1.slug's contract.
+  const milestones = repositories.milestones.listByProject(summary.projectId);
+
   const project: StudioProjectV1 = {
     projectId: summary.projectId,
-    // Mirrors buildLocalPortfolioReadModel's own placeholder displayName in command-runtime.ts:
-    // no project-manifest/display-name source is wired into the local execution profile yet.
+    slug: projectSlugFallbackV1(summary.projectId),
     name: `Project ${summary.projectId}`,
     lifecycleStage: null,
     gates: {
       typed: null,
       owner: null,
       state: "unavailable",
-      unavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+      unavailableReason: STUDIO_NO_GATE_RECORDS_REASON_V1,
     },
     latestAttemptSummary,
     awaitingHuman,
     timeline: {
-      milestones: [],
-      milestonesUnavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+      milestones: [...milestones],
+      milestonesUnavailableReason: null,
       actuals: buildTimelineActuals(repositories, sampledAttempts),
     },
   };
@@ -299,13 +305,13 @@ function answerDateQuestion(
       return {
         kind: "answered",
         schemaVersion: 1,
-        text: `${project.name}'s "${dated.name}" milestone targets ${dated.targetDate}.`,
+        text: `${project.name}'s "${dated.label}" milestone targets ${dated.targetDate}.`,
         citations: [{ kind: "milestone", id: dated.milestoneId }],
       };
     }
   }
-  // Always reached today: `milestones` is always empty until studio/milestones-and-phase merges
-  // (see the module doc comment), so this is the "no honest date" refusal by construction.
+  // Reached whenever no project in the snapshot has an authored milestone with a real target
+  // date yet — an honest refusal, not a placeholder: the assistant never invents one.
   return cannotAnswer(
     "no-milestone-target-date",
     "No milestone with a real target date exists yet in the current snapshot; the assistant does not invent one.",

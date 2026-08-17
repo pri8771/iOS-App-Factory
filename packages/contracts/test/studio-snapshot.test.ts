@@ -3,9 +3,11 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
+  STUDIO_NO_GATE_RECORDS_REASON_V1,
   STUDIO_NOT_YET_WIRED_REASON_V1,
   StudioSnapshotV1Schema,
   canonicalStudioSnapshotDigestInputV1,
+  projectSlugFallbackV1,
   studioSnapshotDigestInputV1,
 } from "../src/index.js";
 
@@ -14,6 +16,7 @@ const PROJECT_A = "76000000-0000-4000-8000-000000000001";
 const PROJECT_B = "76000000-0000-4000-8000-000000000002";
 const ATTEMPT_A = "76000000-0000-4000-8000-000000000010";
 const TASK_A = "76000000-0000-4000-8000-000000000020";
+const MILESTONE_A = "76000000-0000-4000-8000-000000000030";
 const PLACEHOLDER_DIGEST = `sha256:${"0".repeat(64)}`;
 
 function unwiredGates() {
@@ -21,14 +24,34 @@ function unwiredGates() {
     typed: null,
     owner: null,
     state: "unavailable",
-    unavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+    unavailableReason: STUDIO_NO_GATE_RECORDS_REASON_V1,
+  } as const;
+}
+
+function realMilestone(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    schemaVersion: 1,
+    milestoneId: MILESTONE_A,
+    projectId: PROJECT_A,
+    phase: "build",
+    kind: "stage",
+    label: "Beta launch",
+    targetDate: null,
+    dependsOn: [],
+    owner: "human",
+    status: "planned",
+    evidenceDigest: null,
+    revision: 0,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+    ...overrides,
   } as const;
 }
 
 function unwiredTimeline() {
   return {
     milestones: [],
-    milestonesUnavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+    milestonesUnavailableReason: null,
     actuals: [],
   } as const;
 }
@@ -36,6 +59,7 @@ function unwiredTimeline() {
 function project(projectId: string, name: string) {
   return {
     projectId,
+    slug: projectSlugFallbackV1(projectId),
     name,
     lifecycleStage: null,
     gates: unwiredGates(),
@@ -133,7 +157,7 @@ describe("studio snapshot V1", () => {
     ).not.toThrow();
   });
 
-  it("requires an explicit unavailable reason exactly when gates/milestones/rooms are empty or unavailable", () => {
+  it("requires an explicit unavailable reason exactly when gates/rooms are empty or unavailable, and rejects a stale milestones reason", () => {
     const snapshot = localSnapshot();
 
     // Gates reporting "unavailable" but missing the reason string.
@@ -147,7 +171,7 @@ describe("studio snapshot V1", () => {
       }),
     ).toThrow(/unavailableReason is required/);
 
-    // Gates reporting a real state must not still carry typed/owner as null placeholders.
+    // Gates reporting a real, typed state must not still carry typed/owner as null placeholders.
     expect(() =>
       StudioSnapshotV1Schema.parse({
         ...snapshot,
@@ -155,8 +179,8 @@ describe("studio snapshot V1", () => {
           {
             ...snapshot.projects[0],
             gates: {
-              typed: "typed.human-review",
-              owner: "priyansh",
+              typed: "build",
+              owner: "human",
               state: "pending",
               unavailableReason: null,
             },
@@ -166,7 +190,8 @@ describe("studio snapshot V1", () => {
       }),
     ).not.toThrow();
 
-    // Non-empty milestones still carrying a stale unavailable reason.
+    // A real milestone plan (from the milestone repository) is a legitimate, non-error state: an
+    // empty array is no longer required to carry a reason.
     expect(() =>
       StudioSnapshotV1Schema.parse({
         ...snapshot,
@@ -174,27 +199,63 @@ describe("studio snapshot V1", () => {
           {
             ...snapshot.projects[0],
             timeline: {
-              milestones: [
-                {
-                  milestoneId: "beta-launch",
-                  name: "Beta launch",
-                  targetDate: null,
-                  status: "planned",
-                },
-              ],
-              milestonesUnavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+              milestones: [realMilestone()],
+              milestonesUnavailableReason: null,
               actuals: [],
             },
           },
           snapshot.projects[1],
         ],
       }),
-    ).toThrow(/milestonesUnavailableReason must be present exactly when milestones is empty/);
+    ).not.toThrow();
+
+    // Non-empty milestones still carrying a stale unavailable reason is rejected.
+    expect(() =>
+      StudioSnapshotV1Schema.parse({
+        ...snapshot,
+        projects: [
+          {
+            ...snapshot.projects[0],
+            timeline: {
+              milestones: [realMilestone()],
+              milestonesUnavailableReason: "stale reason",
+              actuals: [],
+            },
+          },
+          snapshot.projects[1],
+        ],
+      }),
+    ).toThrow(/milestonesUnavailableReason must be null once milestones are present/);
 
     // Empty rooms without a reason.
     expect(() =>
       StudioSnapshotV1Schema.parse({ ...snapshot, roomsUnavailableReason: null }),
     ).toThrow(/roomsUnavailableReason must be present exactly when rooms is empty/);
+  });
+
+  it("rejects a milestone belonging to a different project than the one carrying it", () => {
+    const snapshot = localSnapshot();
+    expect(() =>
+      StudioSnapshotV1Schema.parse({
+        ...snapshot,
+        projects: [
+          {
+            ...snapshot.projects[0],
+            timeline: {
+              milestones: [realMilestone({ projectId: PROJECT_B })],
+              milestonesUnavailableReason: null,
+              actuals: [],
+            },
+          },
+          snapshot.projects[1],
+        ],
+      }),
+    ).not.toThrow(); // studio-snapshot.ts itself does not cross-check projectId; milestone.ts's own schema does.
+  });
+
+  it("derives a deterministic projectId-only fallback slug, never from displayName", () => {
+    expect(projectSlugFallbackV1(PROJECT_A)).toBe(`project-${PROJECT_A}`);
+    expect(projectSlugFallbackV1(PROJECT_A)).toBe(projectSlugFallbackV1(PROJECT_A));
   });
 
   it("rejects duplicate project IDs and noncanonical project order", () => {

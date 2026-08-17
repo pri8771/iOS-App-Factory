@@ -257,26 +257,33 @@ final class DashboardDerivationTests: XCTestCase {
     /// A hand-built snapshot exercising every unavailableReason field, a matched fixture row (proving
     /// the FIXTURE → LIVE badge flip via a real milestone), a live-only row with a human-owned gate,
     /// and an awaitingHuman item — everything `DashboardDerivation`'s studio-mode branch has to render.
-    private func studioSnapshot(gateState: StudioGateState = .pending, gateOwner: String? = "human") -> StudioSnapshot {
+    private func studioSnapshot(gateState: StudioGateState = .pending, gateOwner: GateOwner? = .human) -> StudioSnapshot {
         let hindsight = StudioProject(
-            projectId: ProjectID(unchecked: "9c8b7a6f-5e4d-4c3b-8a19-0f1e2d3c4b5a"), name: "Hindsight",
+            projectId: ProjectID(unchecked: "9c8b7a6f-5e4d-4c3b-8a19-0f1e2d3c4b5a"), slug: StableKey(unchecked: "hindsight"),
+            name: "Hindsight",
             lifecycleStage: nil,
-            gates: StudioProjectGates(typed: nil, owner: nil, state: .unavailable, unavailableReason: studioNotYetWiredReason),
+            gates: StudioProjectGates(typed: nil, owner: nil, state: .unavailable, unavailableReason: studioNoGateRecordsReason),
             latestAttemptSummary: nil,
             awaitingHuman: [StudioAwaitingHumanItem(kind: .blockedAttempt,
                                                     attemptId: AttemptID(unchecked: "00000004-0000-4000-8000-000000000004"),
                                                     summary: "needs an operator answer",
                                                     since: IsoInstant(unchecked: "2026-08-16T14:00:00.000Z"))],
             timeline: StudioProjectTimeline(
-                milestones: [StudioMilestone(milestoneId: StudioMilestoneID(unchecked: "hindsight-beta"), name: "Beta review",
-                                             targetDate: IsoInstant(unchecked: "2026-08-20T00:00:00.000Z"), status: .planned)],
+                milestones: [ProjectMilestone(milestoneId: MilestoneID(unchecked: "70000000-0000-4000-8000-000000000001"),
+                                              projectId: ProjectID(unchecked: "9c8b7a6f-5e4d-4c3b-8a19-0f1e2d3c4b5a"),
+                                              phase: StableKey(unchecked: "beta"), kind: .gate, label: "Beta review",
+                                              targetDate: CalendarDate(unchecked: "2026-08-20"), dependsOn: [], owner: .human,
+                                              status: .planned, evidenceDigest: nil, revision: 0,
+                                              createdAt: IsoInstant(unchecked: "2026-08-10T09:00:00.000Z"),
+                                              updatedAt: IsoInstant(unchecked: "2026-08-10T09:00:00.000Z"))],
                 milestonesUnavailableReason: nil, actuals: []))
         let zenith = StudioProject(
-            projectId: ProjectID(unchecked: "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5e"), name: "Zenith",
+            projectId: ProjectID(unchecked: "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5e"), slug: StableKey(unchecked: "zenith"),
+            name: "Zenith",
             lifecycleStage: .building,
-            gates: StudioProjectGates(typed: "legal", owner: gateOwner, state: gateState, unavailableReason: nil),
+            gates: StudioProjectGates(typed: .legal, owner: gateOwner, state: gateState, unavailableReason: nil),
             latestAttemptSummary: nil, awaitingHuman: [],
-            timeline: StudioProjectTimeline(milestones: [], milestonesUnavailableReason: studioNotYetWiredReason, actuals: []))
+            timeline: StudioProjectTimeline(milestones: [], milestonesUnavailableReason: "no milestones recorded yet", actuals: []))
         return StudioSnapshot(
             generatedAt: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z"), projects: [hindsight, zenith], rooms: [],
             roomsUnavailableReason: studioNotYetWiredReason,
@@ -337,7 +344,7 @@ final class DashboardDerivationTests: XCTestCase {
         XCTAssertEqual(zenith.timeline.provenance, .live("studio.snapshot"))
         // The fixture's milestonesUnavailableReason is more precise than a generic "no milestones" —
         // studioProjects prefers it when the daemon gave one.
-        XCTAssertEqual(zenith.timeline.note, studioNotYetWiredReason)
+        XCTAssertEqual(zenith.timeline.note, "no milestones recorded yet")
         let gate = try XCTUnwrap(zenith.timeline.bars.first { $0.kind == .gate })
         XCTAssertEqual(gate.gateState, .waiting, "state .pending + human owner is still waiting on you")
         XCTAssertEqual(gate.label, "legal")
@@ -345,7 +352,7 @@ final class DashboardDerivationTests: XCTestCase {
 
     func testStudioGateDrawsNothingWhenMachineOwnedOrUnavailable() throws {
         let machineOwned = DashboardInputs(timeline: try TimelineFixture.loadBundled(),
-                                           studioSnapshot: studioSnapshot(gateOwner: "machine"), now: now)
+                                           studioSnapshot: studioSnapshot(gateOwner: .machine), now: now)
         let machineProjects = DashboardDerivation.projects(machineOwned)
         let machineZenith = try XCTUnwrap(machineProjects.first { $0.slug == "zenith" })
         XCTAssertNil(machineZenith.timeline.bars.first { $0.kind == .gate }, "diamonds are this app's human-gate language only")
@@ -357,10 +364,37 @@ final class DashboardDerivationTests: XCTestCase {
         XCTAssertNil(unavailableZenith.timeline.bars.first { $0.kind == .gate })
     }
 
-    func testSlugifyMatchesSimpleNamesButNotMultiWordOnes() {
-        XCTAssertEqual(DashboardDerivation.slugify("Hindsight"), "hindsight")
-        XCTAssertEqual(DashboardDerivation.slugify("Anjali — Journal"), "anjali-journal")
-        XCTAssertNotEqual(DashboardDerivation.slugify("Anjali — Journal"), "anjali", "no slug field on StudioProjectV1 — see DashboardModel.swift")
+    /// The seam ADR 0003 decision 5 documented: a multi-word `studio.snapshot` display name
+    /// ("Anjali — Journal") used to be merged against the bundled fixture by a best-effort
+    /// slugify-of-name heuristic, which produced "anjali-journal" — not the fixture's curated
+    /// "anjali" slug — and drew a live-only row instead of merging. `StudioProjectV1.slug` closes
+    /// that gap: the merge now keys on the real wire slug directly, so a multi-word display name
+    /// merges correctly as long as its slug matches, exactly like a single-word one always did.
+    func testMultiWordDisplayNameMergesByRealSlugNotASlugifiedName() throws {
+        let project = StudioProject(
+            projectId: ProjectID(unchecked: "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f"), slug: StableKey(unchecked: "anjali"),
+            name: "Anjali — Journal", lifecycleStage: nil,
+            gates: StudioProjectGates(typed: nil, owner: nil, state: .unavailable, unavailableReason: studioNoGateRecordsReason),
+            latestAttemptSummary: nil, awaitingHuman: [],
+            timeline: StudioProjectTimeline(milestones: [], milestonesUnavailableReason: nil, actuals: []))
+        let snapshot = StudioSnapshot(
+            generatedAt: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z"), projects: [project], rooms: [],
+            roomsUnavailableReason: studioNotYetWiredReason,
+            portfolio: StudioPortfolioAggregates(
+                verifiedThisWeek: StudioCountMetric(value: 0, unavailableReason: nil),
+                awaitingYouCount: StudioCountMetric(value: 0, unavailableReason: nil),
+                passRate: StudioRatioMetric(value: nil, unavailableReason: "none"),
+                medianRunSeconds: StudioDurationSecondsMetric(value: nil, unavailableReason: "none"),
+                agentWindowShare: StudioRatioMetric(value: nil, unavailableReason: "none")),
+            sourceSnapshotDigest: Sha256Digest(unchecked: "sha256:" + String(repeating: "0", count: 64)))
+        let inputs = DashboardInputs(timeline: try TimelineFixture.loadBundled(), studioSnapshot: snapshot, now: now)
+        let projects = DashboardDerivation.projects(inputs)
+        let anjali = try XCTUnwrap(projects.first { $0.slug == "anjali" })
+        guard case .fixture(let note) = anjali.timeline.provenance else {
+            return XCTFail("expected the bundled fixture row for slug \"anjali\" to merge with the live studio project, got \(anjali.timeline.provenance)")
+        }
+        XCTAssertTrue(note.hasSuffix("+ live"), "the badge flips FIXTURE → FIXTURE + LIVE once the real slug matches")
+        XCTAssertEqual(anjali.studio?.projectId.rawValue, "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f")
     }
 
     func testRunChecksIncludeVerifiedEvidence() throws {

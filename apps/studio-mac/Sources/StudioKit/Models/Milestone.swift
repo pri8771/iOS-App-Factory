@@ -2,12 +2,11 @@ import Foundation
 
 // MARK: - Project milestones (milestone.ts, `project.milestones.list` / `project.milestone.upsert`)
 //
-// Mirrors `packages/contracts/src/v1/milestone.ts` on `studio/milestones-and-phase` (tip 3cff9a7) — the
-// real, revisioned milestone concept, distinct from `StudioMilestone` (StudioSnapshot.swift), the
-// placeholder shape nested in `studio.snapshot`'s response. See that file's doc comment for how the two
-// differ (`targetDate`: `CalendarDate` here vs `IsoInstant` there; `status`: planned/active/done/
-// abandoned here vs planned/at-risk/met/missed there). Studio's dashboard timeline reads the
-// placeholder; the project-detail milestones panel and editor read and write this one.
+// Mirrors `packages/contracts/src/v1/milestone.ts` — the one milestone concept. `studio.snapshot`'s
+// `projects[].timeline.milestones` (StudioSnapshot.swift) and `project.milestones.list`/`.upsert`
+// both read and write exactly this type; there is no second, placeholder milestone shape any more
+// (see `apps/studio-mac/docs/architecture/0003-studio-phase2-service-integration.md` decision 4
+// for the history of the seam this closed).
 
 public enum ProjectMilestoneKind: String, Hashable, Sendable, Codable, CaseIterable {
     case stage, gate, release

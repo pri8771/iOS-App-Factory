@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
+  COMMAND_OPERATIONS_V1,
   CommandRequestFrameV1Schema,
   CommandRequestV1Schema,
   CommandResponseV1Schema,
@@ -25,6 +26,36 @@ function request(operation: string, payload: unknown): unknown {
     payload,
   };
 }
+
+const PHASE_DRAFT = {
+  phaseId: "contract",
+  name: "Contract",
+  purpose: "Define the user outcome, MVP boundary, and Definition of Done.",
+  mode: "solo",
+  cast: {
+    participants: [{ provider: "claude", persona: "contract-writer", readOnly: true }],
+    coordinator: null,
+    grader: null,
+  },
+  inputs: ["docs"],
+  rules: {
+    standard: ["rule.new.scope-before-breadth"],
+    yours: [],
+    requiredOutput: [],
+    acceptanceChecks: [],
+  },
+  outputs: [{ path: "docs/product/contract.md", schema: null }],
+  gates: [],
+  budget: { estimateMinutes: 20, timeoutSeconds: 1_800 },
+};
+
+const PHASE_DEFINITION = {
+  schemaVersion: 1,
+  ...PHASE_DRAFT,
+  revision: 0,
+  createdAt: NOW,
+  updatedAt: NOW,
+};
 
 describe("command protocol V1", () => {
   it.each([
@@ -89,8 +120,31 @@ describe("command protocol V1", () => {
     ["room.post", { roomId: ROOM_ID, handle: "priyansh", body: "@architect thoughts?" }],
     ["room.events", { roomId: ROOM_ID, afterSequence: 0, limit: 200 }],
     ["room.typing", { roomId: ROOM_ID, handle: "priyansh", ttlMs: 5_000 }],
+    ["preset.list", {}],
+    ["phase.upsert", { phase: PHASE_DRAFT, expectedRevision: null }],
+    [
+      "preset.upsert",
+      {
+        preset: {
+          presetId: "ios-app-standard-0.4.0",
+          name: "iOS App Standard 0.4.0",
+          phases: [PHASE_DEFINITION],
+          appliesTo: ["ios"],
+        },
+        expectedRevision: null,
+      },
+    ],
   ])("accepts the strict %s request", (operation, payload) => {
     expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(true);
+  });
+
+  it("derives COMMAND_OPERATIONS_V1 from the discriminated union with no drift", () => {
+    expect(new Set(COMMAND_OPERATIONS_V1).size).toBe(COMMAND_OPERATIONS_V1.length);
+    expect(COMMAND_OPERATIONS_V1).toContain("preset.list");
+    expect(COMMAND_OPERATIONS_V1).toContain("preset.upsert");
+    expect(COMMAND_OPERATIONS_V1).toContain("phase.upsert");
+    // A syntactically unrecognized operation is absent from the catalog by construction.
+    expect(COMMAND_OPERATIONS_V1).not.toContain("nonexistent.operation");
   });
 
   it("binds an authenticated frame to request and durable command IDs", () => {

@@ -203,6 +203,43 @@ describe("Unix command protocol framing", () => {
     });
   });
 
+  it("distinguishes an unrecognized operation from an otherwise-malformed request", async () => {
+    const socketPath = await createSocketPath();
+    servers.push(
+      await startUnixCommandServer({
+        socketPath,
+        authorization: AUTHORIZATION,
+        handler: () => doctorResult(),
+      }),
+    );
+
+    // A syntactically well-formed frame naming an operation this protocol version has never heard
+    // of gets the dedicated code, distinct from ordinary malformation.
+    const unknownOperationFrame = doctorFrame();
+    (unknownOperationFrame.request as Record<string, unknown>).operation = "studio.teleport";
+    expect(decode(await exchange(socketPath, unknownOperationFrame))).toMatchObject({
+      ok: false,
+      requestId: REQUEST_ID,
+      error: { code: "protocol.unsupported-operation" },
+    });
+
+    // A recognized operation with an invalid payload is still the ordinary invalid-request code.
+    const badPayloadFrame = doctorFrame();
+    (badPayloadFrame.request as Record<string, unknown>).payload = { unexpected: true };
+    expect(decode(await exchange(socketPath, badPayloadFrame))).toMatchObject({
+      ok: false,
+      error: { code: "protocol.invalid-request" },
+    });
+
+    // A frame with no syntactic operation at all falls through to the ordinary path too.
+    expect(
+      decode(await exchange(socketPath, { protocolVersion: 1, requestId: REQUEST_ID })),
+    ).toMatchObject({
+      ok: false,
+      error: { code: "protocol.invalid-request" },
+    });
+  });
+
   it("replaces an oversized handler response with a bounded protocol error", async () => {
     const socketPath = await createSocketPath();
     servers.push(

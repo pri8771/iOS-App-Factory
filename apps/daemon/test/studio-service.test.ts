@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   CommandRequestV1Schema,
   canonicalStudioSnapshotDigestInputV1,
+  projectSlugFallbackV1,
   type CommandRequestV1,
   type ExecutionAttemptV1,
   type TaskSpecV1,
@@ -303,7 +304,7 @@ afterEach(async () => {
 });
 
 describe("studio.snapshot", () => {
-  it("composes an honest snapshot with unavailable gates/milestones/rooms and a verifiable digest", async () => {
+  it("composes an honest snapshot with a real slug, no persisted gates, no authored milestones yet, and unavailable rooms, with a verifiable digest", async () => {
     const runtime = await openRuntime(await makeRoot());
     const run = await invoke(runtime, request("task.run", RUN_COMMAND_ID, { taskSpec }, T0));
     if (run.operation !== "task.run") throw new Error("Unexpected run result");
@@ -317,14 +318,21 @@ describe("studio.snapshot", () => {
     const project = snapshot.projects[0];
     expect(project).toMatchObject({
       projectId: PROJECT_ID,
+      slug: projectSlugFallbackV1(PROJECT_ID),
       lifecycleStage: null,
       gates: { typed: null, owner: null, state: "unavailable" },
       latestAttemptSummary: { attemptId: run.attemptId, taskId: TASK_ID, state: run.state },
       awaitingHuman: [],
     });
-    expect(project?.gates.unavailableReason).toMatch(/not yet wired/);
+    // No persisted typed-gate observation exists yet for this project: an honest "no records",
+    // never the generic "not implemented" stub this daemon used before typed-gate reporting
+    // was wired.
+    expect(project?.gates.unavailableReason).toBe("no gate records for project");
+    // No milestones have been authored for this project yet — a real, non-error empty state now
+    // that milestones are sourced from the durable milestone repository, not the retired
+    // StudioMilestone placeholder.
     expect(project?.timeline.milestones).toEqual([]);
-    expect(project?.timeline.milestonesUnavailableReason).toMatch(/not yet wired/);
+    expect(project?.timeline.milestonesUnavailableReason).toBeNull();
     expect(snapshot.rooms).toEqual([]);
     expect(snapshot.roomsUnavailableReason).toMatch(/not yet wired/);
     // Never a defaulted number: a metric this daemon genuinely cannot compute is unavailable, not 0.
@@ -363,6 +371,62 @@ describe("studio.snapshot", () => {
     expect(result.snapshot.portfolio.awaitingYouCount).toEqual({
       value: 1,
       unavailableReason: null,
+    });
+  });
+
+  it("reflects a real, authored milestone from the milestone repository — the seam project.milestones.list also reads", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const run = await invoke(runtime, request("task.run", RUN_COMMAND_ID, { taskSpec }, T0));
+    if (run.operation !== "task.run") throw new Error("Unexpected run result");
+    const milestoneId = "90000000-0000-4000-8000-000000000101";
+    const upsert = await invoke(
+      runtime,
+      request(
+        "project.milestone.upsert",
+        "90000000-0000-4000-8000-000000000102",
+        {
+          milestone: {
+            milestoneId,
+            projectId: PROJECT_ID,
+            phase: "build",
+            kind: "stage",
+            label: "Beta launch",
+            targetDate: "2026-09-01",
+            dependsOn: [],
+            owner: "human",
+            status: "planned",
+            evidenceDigest: null,
+          },
+          expectedRevision: null,
+        },
+        T1,
+      ),
+    );
+    if (upsert.operation !== "project.milestone.upsert")
+      throw new Error("Unexpected upsert result");
+
+    const result = await invoke(runtime, request("studio.snapshot", SNAPSHOT_COMMAND_ID, {}, T2));
+    if (result.operation !== "studio.snapshot")
+      throw new Error("Unexpected studio.snapshot result");
+    expect(result.snapshot.projects[0]?.timeline.milestones).toEqual([upsert.milestone]);
+    expect(result.snapshot.projects[0]?.timeline.milestonesUnavailableReason).toBeNull();
+
+    // The assistant's "when does X ship" lookup now answers for real from the same snapshot,
+    // instead of the honest refusal the seam's placeholder milestone type forced before.
+    const answer = await invoke(
+      runtime,
+      request(
+        "studio.assistant.query",
+        QUERY_COMMAND_ID,
+        { query: { schemaVersion: 1, question: "When will this project ship?", projectId: null } },
+        T2,
+      ),
+    );
+    if (answer.operation !== "studio.assistant.query") throw new Error("Unexpected query result");
+    expect(answer.answer).toMatchObject({
+      kind: "answered",
+      text: expect.stringContaining("Beta launch"),
+      citations: [{ kind: "milestone", id: milestoneId }],
     });
   });
 });

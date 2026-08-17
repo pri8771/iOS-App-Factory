@@ -89,6 +89,9 @@ importers:
       '@app-factory/ollama-scorer':
         specifier: workspace:*
         version: link:../../packages/ollama-scorer
+      '@app-factory/policy-corpus':
+        specifier: workspace:*
+        version: link:../../packages/policy-corpus
       '@app-factory/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine

@@ -102,18 +102,20 @@ public struct AwaitingItem: Hashable, Sendable, Identifiable {
 }
 
 /// What `studio.snapshot` knows about one project — a narrower read than `PortfolioProject` (no
-/// attempt/active counts, no health, no slug: see `DashboardDerivation.slugify`). Populated only when
-/// the dashboard's data source is `studio.snapshot`.
+/// attempt/active counts, no health). Populated only when the dashboard's data source is
+/// `studio.snapshot`.
 public struct StudioProjectInfo: Hashable, Sendable {
     public var projectId: ProjectID
+    public var slug: StableKey
     public var lifecycleStage: ProjectLifecycleStage?
     public var gates: StudioProjectGates
     public var latestAttemptSummary: StudioAttemptSummary?
     public var awaitingHuman: [StudioAwaitingHumanItem]
 
-    public init(projectId: ProjectID, lifecycleStage: ProjectLifecycleStage?, gates: StudioProjectGates,
+    public init(projectId: ProjectID, slug: StableKey, lifecycleStage: ProjectLifecycleStage?, gates: StudioProjectGates,
                 latestAttemptSummary: StudioAttemptSummary?, awaitingHuman: [StudioAwaitingHumanItem]) {
         self.projectId = projectId
+        self.slug = slug
         self.lifecycleStage = lifecycleStage
         self.gates = gates
         self.latestAttemptSummary = latestAttemptSummary
@@ -371,7 +373,7 @@ public enum DashboardDerivation {
         var items: [AwaitingItem] = []
         if let snapshot = input.studioSnapshot {
             for project in snapshot.projects {
-                let slug = slugify(project.name)
+                let slug = project.slug.rawValue
                 for awaiting in project.awaitingHuman {
                     items.append(AwaitingItem(id: "studio.\(awaiting.id)", title: "\(project.name) · \(awaiting.summary)",
                                               detail: "since \(awaiting.since.rawValue)", slug: slug,
@@ -398,29 +400,6 @@ public enum DashboardDerivation {
             }
         }
         return items
-    }
-
-    /// A deterministic, best-effort project key from a `studio.snapshot` project's display name:
-    /// lowercase, non-alphanumeric runs collapsed to one `-`, edge hyphens trimmed. `studio.snapshot`
-    /// carries no stable slug (`StudioProjectV1` has none — a real gap against `PortfolioProject.slug`
-    /// the two contracts have not yet reconciled), so this is the merge key studio-mode timeline rows
-    /// use against the fixture's slugs; a multi-word display name will not collide with a fixture slug
-    /// coined independently (e.g. "Anjali — Journal" slugifies to "anjali-journal", not the fixture's
-    /// "anjali") and instead draws as a live-only row, which is honest, if not as tidy as a real slug.
-    public static func slugify(_ name: String) -> String {
-        var result = ""
-        var lastWasDash = true // suppress a leading dash
-        for scalar in name.lowercased().unicodeScalars {
-            if CharacterSet.alphanumerics.contains(scalar) {
-                result.unicodeScalars.append(scalar)
-                lastWasDash = false
-            } else if !lastWasDash {
-                result.append("-")
-                lastWasDash = true
-            }
-        }
-        while result.hasSuffix("-") { result.removeLast() }
-        return result
     }
 
     // MARK: Projects + timeline rows
@@ -505,10 +484,11 @@ public enum DashboardDerivation {
     // MARK: studio.snapshot projects + timeline rows
 
     /// Fixture rows first, overlaid with a matched `studio.snapshot` project's real milestones and
-    /// gate (badge flips FIXTURE → FIXTURE + LIVE); then a live-only row for every `studio.snapshot`
-    /// project the fixture's slug does not match (see `slugify`).
+    /// gate (badge flips FIXTURE → FIXTURE + LIVE) by `StudioProject.slug` — the same stable key
+    /// `PortfolioProject.slug` merges on, not a slugified display name; then a live-only row for
+    /// every `studio.snapshot` project the fixture's slug does not match.
     static func studioProjects(_ snapshot: StudioSnapshot, timeline: TimelineFixture?, today: DayStamp) -> [DashboardProject] {
-        let bySlug: [String: StudioProject] = Dictionary(snapshot.projects.map { (slugify($0.name), $0) }, uniquingKeysWith: { a, _ in a })
+        let bySlug: [String: StudioProject] = Dictionary(snapshot.projects.map { ($0.slug.rawValue, $0) }, uniquingKeysWith: { a, _ in a })
         var result: [DashboardProject] = []
         var seen = Set<String>()
         for row in timeline?.projects ?? [] {
@@ -525,10 +505,10 @@ public enum DashboardDerivation {
             seen.insert(row.slug)
         }
         let extras = snapshot.projects
-            .filter { !seen.contains(slugify($0.name)) }
+            .filter { !seen.contains($0.slug.rawValue) }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         for project in extras {
-            let slug = slugify(project.name)
+            let slug = project.slug.rawValue
             let bars = studioMilestoneBars(project, slug: slug) + [studioGateBar(project, slug: slug, today: today)].compactMap { $0 }
             let hasMilestones = !project.timeline.milestones.isEmpty
             let note = project.timeline.milestonesUnavailableReason ?? (hasMilestones ? nil : "no milestones")
@@ -541,24 +521,24 @@ public enum DashboardDerivation {
     }
 
     static func studioInfo(_ project: StudioProject) -> StudioProjectInfo {
-        StudioProjectInfo(projectId: project.projectId, lifecycleStage: project.lifecycleStage, gates: project.gates,
-                          latestAttemptSummary: project.latestAttemptSummary, awaitingHuman: project.awaitingHuman)
+        StudioProjectInfo(projectId: project.projectId, slug: project.slug, lifecycleStage: project.lifecycleStage,
+                          gates: project.gates, latestAttemptSummary: project.latestAttemptSummary,
+                          awaitingHuman: project.awaitingHuman)
     }
 
     /// One bar per dated milestone (`targetDate == nil` — "no honest estimate" — draws nothing rather
-    /// than a guessed date), status mapped onto the existing bar vocabulary: `.met` → done, `.planned`
-    /// / `.atRisk` → planned, `.missed` → won't-guess-honest ("didn't land as planned").
+    /// than a guessed date), status mapped onto the existing bar vocabulary: `.done` → done, `.planned`
+    /// / `.active` → planned, `.abandoned` → won't-guess-honest ("didn't land as planned").
     static func studioMilestoneBars(_ project: StudioProject, slug: String) -> [TimelineBar] {
         project.timeline.milestones.enumerated().compactMap { index, milestone -> TimelineBar? in
-            guard let date = milestone.targetDate?.date else { return nil }
-            let day = DayStamp(date)
+            guard let day = milestone.targetDate?.dayStamp else { return nil }
             let kind: TimelineBarKind
             switch milestone.status {
-            case .met: kind = .done
-            case .planned, .atRisk: kind = .plan
-            case .missed: kind = .unknown
+            case .done: kind = .done
+            case .planned, .active: kind = .plan
+            case .abandoned: kind = .unknown
             }
-            return TimelineBar(id: "studio.\(slug).\(index)", kind: kind, label: milestone.name, start: day, end: day,
+            return TimelineBar(id: "studio.\(slug).\(index)", kind: kind, label: milestone.label, start: day, end: day,
                                provenance: .live("studio.snapshot"))
         }
     }
@@ -575,7 +555,7 @@ public enum DashboardDerivation {
         case .satisfied, .waived: gateState = .cleared
         case .unavailable: return nil
         }
-        let label = gates.typed ?? "gate"
+        let label = gates.typed?.rawValue ?? "gate"
         return TimelineBar(id: "studio.\(slug).gate", kind: .gate, label: label, start: today, end: nil,
                            gateState: gateState, provenance: .live("studio.snapshot"))
     }

@@ -1788,6 +1788,142 @@ describe("runCli project milestones", () => {
   });
 });
 
+describe("runCli phases", () => {
+  const phase = {
+    schemaVersion: 1,
+    phaseId: "contract",
+    name: "Contract",
+    purpose: "Define the user outcome, MVP boundary, and Definition of Done.",
+    mode: "solo",
+    cast: {
+      participants: [{ provider: "claude", persona: "contract-writer", readOnly: true }],
+      coordinator: null,
+      grader: null,
+    },
+    inputs: ["docs"],
+    rules: {
+      standard: ["rule.new.scope-before-breadth"],
+      yours: [],
+      requiredOutput: [],
+      acceptanceChecks: [],
+    },
+    outputs: [{ path: "docs/product/contract.md", schema: null }],
+    gates: [],
+    budget: { estimateMinutes: 20, timeoutSeconds: 1_800 },
+    revision: 0,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+  const gatePhase = {
+    ...phase,
+    phaseId: "ready",
+    name: "Ready",
+    mode: "chat",
+    cast: { participants: [], coordinator: null, grader: null },
+    gates: ["build", "tests"],
+  };
+  const preset = {
+    schemaVersion: 1,
+    presetId: "ios-app-standard-0.4.0",
+    name: "iOS App Standard 0.4.0",
+    phases: [phase, gatePhase],
+    appliesTo: ["ios"],
+    revision: 0,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+
+  it("lists every preset", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "preset.list") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "preset.list", presets: [preset] } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phases", "list"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toBe(
+      'ios-app-standard-0.4.0\tr0\t2 phase(s)\t"iOS App Standard 0.4.0"\n',
+    );
+  });
+
+  it("reports no presets honestly rather than an empty table", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "preset.list") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "preset.list", presets: [] } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phases", "list"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toBe("no presets\n");
+  });
+
+  it("shows one preset's ordered phases, fetched via preset.list and filtered client-side", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "preset.list") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "preset.list", presets: [preset] } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phases", "show", "ios-app-standard-0.4.0"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    const lines = captured().stdout.split("\n");
+    expect(lines[0]).toBe('ios-app-standard-0.4.0 r0 "iOS App Standard 0.4.0" (applies to: ios)');
+    expect(lines[1]).toBe('1. contract\tsolo\t"Contract"\tcast: claude/contract-writer');
+    expect(lines[2]).toBe(
+      '2. ready\tchat ◆gate[build,tests]\t"Ready"\tcast: (no agent participants)',
+    );
+  });
+
+  it("fails clearly when the named preset does not exist", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "preset.list") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "preset.list", presets: [preset] } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phases", "show", "no-such-preset"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(2);
+    expect(captured().stderr).toContain("No preset named no-such-preset exists");
+  });
+
+  it("rejects an invalid preset ID before contacting the daemon", async () => {
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["phases", "show", "Not A Valid Id"],
+      {
+        APP_FACTORY_SOCKET: "/private/tmp/does-not-need-to-exist.sock",
+        APP_FACTORY_AUTH_TOKEN: AUTHORIZATION,
+      },
+      io,
+    );
+
+    expect(exitCode).toBe(2);
+    expect(captured().stderr).toContain("preset ID must be a stable lowercase key");
+  });
+});
+
 describe("runCli studio surface", () => {
   it("fetches and verifies the studio snapshot digest", async () => {
     const snapshot = {
