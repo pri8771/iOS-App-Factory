@@ -150,7 +150,24 @@ const fixtures = {
       participants: roomParticipants,
       budget: roomBudget,
     },
-    moderator: { enabled: true, attendance: "attended" },
+    moderator: {
+      enabled: true,
+      attendance: "attended",
+      // The daemon-composed factory-event bridge (kernel attempt transitions -> `factory-event`
+      // lines, migration 0013): its durable cursor sits on the kernel event that produced #2.
+      factoryBridge: {
+        enabled: true,
+        cursor: {
+          ledgerPosition: 41,
+          eventId: "52000001-0000-4000-8000-000000000041",
+          eventOccurredAt: "2026-08-16T18:03:00.000Z",
+          lastDeliveredEventId: "52000001-0000-4000-8000-000000000041",
+          lastDeliveredAt: "2026-08-16T18:03:00.000Z",
+          deliveredCount: 1,
+          updatedAt: "2026-08-16T18:03:00.000Z",
+        },
+      },
+    },
     messages: [
       {
         schemaVersion: 1,

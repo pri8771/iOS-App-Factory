@@ -14,6 +14,7 @@ import { phasePresetsMigration } from "./migrations/0009-phase-presets.js";
 import { projectPlansMigration } from "./migrations/0010-project-plans.js";
 import { phaseRunsMigration } from "./migrations/0011-phase-runs.js";
 import { projectRegistryMigration } from "./migrations/0012-project-registry.js";
+import { roomFactoryEventCursorMigration } from "./migrations/0013-room-factory-event-cursor.js";
 import type { SqlMigration } from "./migration-types.js";
 
 export type { SqlMigration } from "./migration-types.js";
@@ -48,6 +49,7 @@ export const FACTORY_MIGRATIONS: readonly SqlMigration[] = [
   projectPlansMigration,
   phaseRunsMigration,
   projectRegistryMigration,
+  roomFactoryEventCursorMigration,
 ];
 
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;

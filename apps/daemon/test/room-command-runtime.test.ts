@@ -26,6 +26,7 @@ const T0 = "2026-08-16T12:00:00.000Z";
 const REQUEST_ID = "20000000-0000-4000-8000-000000000012";
 const ROOM_ID = "30000000-0000-4000-8000-000000000001";
 const PROJECT_ID = "30000000-0000-4000-8000-000000000010";
+const noBridge = () => ({ enabled: false as const, cursor: null });
 
 const roots: string[] = [];
 const runtimes: DaemonCommandRuntime[] = [];
@@ -157,7 +158,11 @@ describe("room.* command boundary", () => {
     );
     expect(events).toMatchObject({
       operation: "room.events",
-      moderator: { enabled: false, attendance: "attended" },
+      moderator: {
+        enabled: false,
+        attendance: "attended",
+        factoryBridge: { enabled: false, cursor: null },
+      },
       messages: [{ sequence: 1, kind: "message" }],
       nextAfterSequence: 1,
       room: { headSequence: 1, humanTypingUntil: "2026-08-16T12:00:04.000Z" },
@@ -200,7 +205,7 @@ describe("room.* command boundary", () => {
     const runtime = await openRuntime(await makeRoot(), {
       initializeRooms: (context) => {
         seenRepository = context.rooms;
-        return { enabled: true, dormancyMs: 60_000, wake };
+        return { enabled: true, dormancyMs: 60_000, wake, factoryBridge: noBridge };
       },
     });
     expect(seenRepository).toBeInstanceOf(RoomRepository);
@@ -225,7 +230,7 @@ describe("room.* command boundary", () => {
     let clock = T0;
     const runtime = await openRuntime(await makeRoot(), {
       now: () => clock,
-      initializeRooms: () => ({ enabled: true, dormancyMs: 60_000, wake }),
+      initializeRooms: () => ({ enabled: true, dormancyMs: 60_000, wake, factoryBridge: noBridge }),
       commandResultLedgerBoundary: ({ request: entry }) => {
         if (entry.operation === "room.post" && boundaryFailures > 0) {
           boundaryFailures -= 1;
@@ -304,6 +309,7 @@ describe("room.participants.list", () => {
         enabled: true,
         dormancyMs: 60_000,
         wake: () => undefined,
+        factoryBridge: noBridge,
         participantsCatalog: CATALOG_SOURCE,
       }),
     });
@@ -331,7 +337,12 @@ describe("room.participants.list", () => {
 
   it("reports an enabled moderator with nothing configured as enabled and empty, not unavailable", async () => {
     const runtime = await openRuntime(await makeRoot(), {
-      initializeRooms: () => ({ enabled: true, dormancyMs: 60_000, wake: () => undefined }),
+      initializeRooms: () => ({
+        enabled: true,
+        dormancyMs: 60_000,
+        wake: () => undefined,
+        factoryBridge: noBridge,
+      }),
     });
     const result = await invoke(runtime, request("room.participants.list", 1, {}));
     expect(result).toMatchObject({
@@ -384,6 +395,7 @@ describe("room moderator composed against the runtime database", () => {
           enabled: true,
           dormancyMs: moderator.dormancyMs,
           wake: (roomId) => loop?.wake(roomId),
+          factoryBridge: noBridge,
         };
       },
     });

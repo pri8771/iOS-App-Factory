@@ -1,12 +1,15 @@
-import type { RoomId } from "@app-factory/contracts";
+import type { RoomFactoryBridgeStatusV1, RoomId } from "@app-factory/contracts";
 import {
+  RoomFactoryEventBridge,
   RoomModerator,
   RoomModeratorLoop,
   type ContributorPort,
+  type FactoryEventSourcePort,
   type QuotaGovernorPort,
   type RevalidatePort,
   type RoomBenchPolicy,
   type RoomClockPort,
+  type RoomFactoryEventBridgeDrainReport,
   type RoomProcessPort,
   type RoomRandomPort,
   type RoomRepository,
@@ -66,13 +69,26 @@ export type RoomSubsystemConfiguration = Readonly<{
   benchPolicy?: RoomBenchPolicy;
   onError?: (error: unknown) => void;
   onRound?: (roomId: RoomId, outcome: RoomRoundOutcome) => void;
+  /**
+   * The kernel-ledger source the factory-event bridge scans (built by the
+   * daemon over the same `FactoryDatabase` handle; see
+   * `room-factory-event-source.ts`). Composed here whenever rooms are
+   * enabled: the bridge is the only producer of `factory-event` lines, i.e.
+   * of the unattended path's admissible trigger. A composition that omits it
+   * (hand-built harnesses) gets no bridge and reports `enabled: false`.
+   */
+  factoryEventSource?: FactoryEventSourcePort;
 }>;
 
 export type RoomSubsystem = Readonly<{
   moderator: RoomModerator;
   loop: RoomModeratorLoop;
+  /** Null when no `factoryEventSource` was composed. */
+  bridge: RoomFactoryEventBridge | null;
   statusPort: RoomsStatusPort;
   start(): void;
+  /** One bridge pass; the daemon calls this after every scheduler tick. No-op without a bridge. */
+  drainFactoryEvents(): RoomFactoryEventBridgeDrainReport | null;
   stop(): Promise<void>;
 }>;
 
@@ -143,22 +159,42 @@ export function createRoomSubsystem(
     ...(configuration.onError === undefined ? {} : { onError: configuration.onError }),
     ...(configuration.onRound === undefined ? {} : { onRound: configuration.onRound }),
   });
+  const bridge =
+    configuration.factoryEventSource === undefined
+      ? null
+      : new RoomFactoryEventBridge({
+          repository,
+          source: configuration.factoryEventSource,
+          wake: loop,
+          ...(configuration.clock === undefined ? {} : { clock: configuration.clock }),
+          ...(configuration.onError === undefined ? {} : { onError: configuration.onError }),
+        });
+  const factoryBridge = (): RoomFactoryBridgeStatusV1 =>
+    bridge === null ? { enabled: false, cursor: null } : { enabled: true, cursor: bridge.cursor };
   return {
     moderator,
     loop,
+    bridge,
     statusPort: {
       enabled: true,
       dormancyMs: moderator.dormancyMs,
       wake: (roomId) => {
         loop.wake(roomId);
       },
+      factoryBridge,
       ...(configuration.participantsCatalog === undefined
         ? {}
         : { participantsCatalog: configuration.participantsCatalog }),
     },
     start: () => {
+      // The bridge anchors (or re-anchors) its durable cursor before the loop
+      // resumes pending rooms, and drains once so transitions the previous
+      // daemon never reached are bridged before the first tick.
+      bridge?.start();
       loop.start();
+      bridge?.drain();
     },
+    drainFactoryEvents: () => bridge?.drain() ?? null,
     stop: () => loop.stop(),
   };
 }

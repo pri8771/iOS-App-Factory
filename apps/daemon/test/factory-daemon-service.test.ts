@@ -987,7 +987,16 @@ describe("room moderator subsystem lifecycle", () => {
     await eventually(async () => (await client.roomEvents(ROOM_ID)).room.headSequence >= 3);
     let events = await client.roomEvents(ROOM_ID);
     expect(events.room).toMatchObject({ pendingTrigger: null, activeGrantId: null });
-    expect(events.moderator).toEqual({ enabled: true, attendance: "attended" });
+    expect(events.moderator).toMatchObject({
+      enabled: true,
+      attendance: "attended",
+      // The real daemon composes the factory-event bridge whenever rooms are on; it anchored on
+      // an empty kernel ledger (no attempt yet), so the cursor is at position 0 with no event.
+      factoryBridge: {
+        enabled: true,
+        cursor: { ledgerPosition: 0, eventId: null, deliveredCount: 0 },
+      },
+    });
     // critic answered; the chain then found architect (urgency 0) only, so it passed legibly.
     expect(
       events.messages.map((message) =>
@@ -1037,5 +1046,195 @@ describe("room moderator subsystem lifecycle", () => {
     expect(typing.typingUntil).toBe(new Date(clock + 5_000).toISOString());
     expect(second.getLastRoomsError()).toBeNull();
     await expect(second.close()).resolves.toBeUndefined();
+  });
+
+  it("bridges a real kernel attempt transition into every room bound to the task's project, and only there", async () => {
+    const root = await makeRoot();
+    let clock = Date.parse("2026-08-17T09:00:00.000Z");
+    const now = () => new Date(clock).toISOString();
+    const scored: string[][] = [];
+    const roomsConfig = {
+      enabled: true,
+      scorer: {
+        score: (request: { candidates: readonly { persona: string }[] }) => {
+          scored.push(request.candidates.map((candidate) => candidate.persona));
+          return Promise.resolve(
+            Object.fromEntries(
+              request.candidates.map((candidate) => [
+                candidate.persona,
+                candidate.persona === "critic" ? 3 : 0,
+              ]),
+            ),
+          );
+        },
+      },
+      contributor: {
+        contribute: (request: { participant: { persona: string } }) =>
+          Promise.resolve({
+            kind: "message" as const,
+            body: `${request.participant.persona}: noted the factory result`,
+            tokensUsed: 40,
+          }),
+      },
+      revalidator: { revalidate: () => Promise.resolve({ decision: "post" as const }) },
+    };
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.5.0-rooms-bridge",
+      pollIntervalMs: 5,
+      now,
+      rooms: roomsConfig,
+    });
+    services.push(service);
+    const client = createCommandClient({
+      socketPath: service.socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => new Date(clock),
+    });
+    clients.push(client);
+    const BOUND_ROOM = "30000000-0000-4000-8000-000000000011";
+    const OTHER_ROOM = "30000000-0000-4000-8000-000000000012";
+    const PORTFOLIO_ROOM = "30000000-0000-4000-8000-000000000013";
+    // Never attended by a human: dormant from birth, so ONLY a factory-event may run a round, and
+    // only under the unattended ceiling.
+    const bound = {
+      ...roomSpec,
+      roomId: BOUND_ROOM,
+      projectId: taskSpec(90).projectId,
+      unattendedEnabled: true,
+      // Room for exactly two unattended replies (500 reserved per grant) across the restart below.
+      budget: {
+        dailyCeilingTokens: 5_000,
+        unattendedDailyCeilingTokens: 1_000,
+        maxTokensPerReply: 500,
+      },
+    };
+    await client.createRoom(bound);
+    await client.createRoom({
+      ...roomSpec,
+      roomId: OTHER_ROOM,
+      projectId: "51000000-0000-4000-8000-0000000000ff",
+      unattendedEnabled: true,
+    });
+    await client.createRoom({ ...roomSpec, roomId: PORTFOLIO_ROOM, unattendedEnabled: true });
+    const before = await client.roomEvents(BOUND_ROOM);
+    expect(before.moderator.factoryBridge).toMatchObject({
+      enabled: true,
+      cursor: { ledgerPosition: 0, eventId: null, deliveredCount: 0 },
+    });
+
+    // A REAL kernel attempt over the deterministic fake executor: queued -> running -> succeeded,
+    // committed to the kernel `events` ledger by the scheduler on the daemon's own tick loop.
+    clock += 1_000;
+    const run = await client.run(taskSpec(90));
+    await eventually(
+      async () => (await client.status(run.attemptId)).attempt.state === "succeeded",
+    );
+    // The bridge drains after every tick: the terminal transition reaches the bound room, whose
+    // dormant-but-unattended-enabled moderator then runs exactly one round on that trigger.
+    await eventually(async () => (await client.roomEvents(BOUND_ROOM)).room.headSequence >= 2);
+    const events = await client.roomEvents(BOUND_ROOM);
+    expect(
+      events.messages.map((message) =>
+        message.kind === "system" ? `system:${message.code}` : `agent:${message.author.kind}`,
+      ),
+    ).toEqual(["system:factory-event", "agent:agent"]);
+    const line = events.messages[0];
+    if (line === undefined || line.kind !== "system") throw new Error("expected a system line");
+    expect(line.body).toBe(
+      `Factory: attempt ${run.attemptId.slice(0, 8)} for task "Daemon service task 90" → succeeded`,
+    );
+    // The line's instant is the daemon's clock, never a date the bridge made up.
+    expect(line.occurredAt).toBe(now());
+    expect(events.moderator.attendance).toBe("dormant");
+    // Spent under the unattended ceiling: the grant was issued while dormant.
+    expect(events.room.budget).toMatchObject({ spentTokens: 40, unattendedSpentTokens: 40 });
+    expect(scored).toEqual([["architect", "critic"]]);
+    // The bridge cursor moved to the kernel event that produced the line.
+    const kernelEvents = await client.events(run.attemptId);
+    const terminal = kernelEvents.events.findLast(
+      (event) => event.type === "attempt.state-changed" && event.data.to === "succeeded",
+    );
+    expect(terminal).toBeDefined();
+    expect(events.moderator.factoryBridge).toMatchObject({
+      enabled: true,
+      cursor: {
+        eventId: terminal?.eventId,
+        lastDeliveredEventId: terminal?.eventId,
+        deliveredCount: 1,
+      },
+    });
+    expect(events.moderator.factoryBridge.cursor?.ledgerPosition).toBeGreaterThan(0);
+    // Other-project and portfolio-wide rooms received nothing.
+    expect((await client.roomEvents(OTHER_ROOM)).messages).toEqual([]);
+    expect((await client.roomEvents(PORTFOLIO_ROOM)).messages).toEqual([]);
+    expect(service.getLastRoomsError()).toBeNull();
+    await service.close();
+
+    // Restart over the same database: the durable cursor means the same kernel event is never
+    // bridged twice, and a transition that happens after the restart is bridged exactly once.
+    const second = await startFactoryDaemonService({
+      runtimeDirectory: root,
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.5.0-rooms-bridge-restart",
+      pollIntervalMs: 5,
+      now,
+      rooms: roomsConfig,
+    });
+    services.push(second);
+    const client2 = createCommandClient({
+      socketPath: second.socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => new Date(clock),
+    });
+    clients.push(client2);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect((await client2.roomEvents(BOUND_ROOM)).room.headSequence).toBe(2);
+    clock += 1_000;
+    const run2 = await client2.run(taskSpec(91));
+    await eventually(
+      async () => (await client2.status(run2.attemptId)).attempt.state === "succeeded",
+    );
+    await eventually(async () => (await client2.roomEvents(BOUND_ROOM)).room.headSequence >= 4);
+    const after = await client2.roomEvents(BOUND_ROOM, { afterSequence: 2 });
+    expect(
+      after.messages.map((message) => (message.kind === "system" ? message.code : "chat")),
+    ).toEqual(["factory-event", "chat"]);
+    expect(after.moderator.factoryBridge.cursor).toMatchObject({ deliveredCount: 2 });
+    expect(second.getLastRoomsError()).toBeNull();
+    await expect(second.close()).resolves.toBeUndefined();
+  });
+
+  it("bridges nothing and keeps no cursor when rooms are disabled", async () => {
+    const service = await startFactoryDaemonService({
+      runtimeDirectory: await makeRoot(),
+      authorization: AUTHORIZATION,
+      daemonVersion: "0.5.0-rooms-off-no-bridge",
+      pollIntervalMs: 5,
+    });
+    services.push(service);
+    const client = clientFor(service);
+    await client.createRoom({
+      ...roomSpec,
+      projectId: taskSpec(92).projectId,
+      unattendedEnabled: true,
+    });
+    const run = await client.run(taskSpec(92));
+    await eventually(
+      async () => (await client.status(run.attemptId)).attempt.state === "succeeded",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const events = await client.roomEvents(ROOM_ID);
+    expect(events.messages).toEqual([]);
+    expect(events.moderator).toEqual({
+      enabled: false,
+      attendance: "dormant",
+      factoryBridge: { enabled: false, cursor: null },
+    });
+    expect(service.getLastRoomsError()).toBeNull();
+    await expect(service.close()).resolves.toBeUndefined();
   });
 });

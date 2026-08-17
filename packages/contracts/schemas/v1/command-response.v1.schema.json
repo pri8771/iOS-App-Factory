@@ -7885,11 +7885,96 @@
                     },
                     "enabled": {
                       "type": "boolean"
+                    },
+                    "factoryBridge": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "deliveredCount": {
+                                  "$ref": "#/$defs/__schema12"
+                                },
+                                "eventId": {
+                                  "anyOf": [
+                                    {
+                                      "$ref": "#/$defs/__schema1"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "eventOccurredAt": {
+                                  "anyOf": [
+                                    {
+                                      "$ref": "#/$defs/__schema2"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "lastDeliveredAt": {
+                                  "anyOf": [
+                                    {
+                                      "$ref": "#/$defs/__schema2"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "lastDeliveredEventId": {
+                                  "anyOf": [
+                                    {
+                                      "$ref": "#/$defs/__schema1"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "ledgerPosition": {
+                                  "$ref": "#/$defs/__schema12"
+                                },
+                                "updatedAt": {
+                                  "$ref": "#/$defs/__schema2"
+                                }
+                              },
+                              "required": [
+                                "ledgerPosition",
+                                "eventId",
+                                "eventOccurredAt",
+                                "lastDeliveredEventId",
+                                "lastDeliveredAt",
+                                "deliveredCount",
+                                "updatedAt"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "cursor"
+                      ],
+                      "type": "object"
                     }
                   },
                   "required": [
                     "enabled",
-                    "attendance"
+                    "attendance",
+                    "factoryBridge"
                   ],
                   "type": "object"
                 },

@@ -38,6 +38,7 @@ import {
   type PortfolioReadModelV1,
   type ProjectId,
   type ProjectTimelineV1,
+  type RoomFactoryBridgeStatusV1,
   type RoomId,
   type RoomParticipantsCatalogV1,
   RoomHumanHandleSchema,
@@ -204,6 +205,12 @@ export type RoomsStatusPort = Readonly<{
   dormancyMs: number;
   wake(roomId: RoomId): void;
   /**
+   * Live view of the factory-event bridge (kernel attempt transitions -> `factory-event` room
+   * lines): whether one is composed and its durable cursor. Served in `room.events`'
+   * `moderator.factoryBridge` so an operator can see the bridge advance.
+   */
+  factoryBridge(): RoomFactoryBridgeStatusV1;
+  /**
    * The wire-safe view of the participants config the moderator was composed from, served by
    * `room.participants.list` (see `RoomParticipantsCatalogSourceV1`). Absent on the inert port and
    * on a hand-composed moderator with no config: the operation then reports no providers/roster.
@@ -231,12 +238,15 @@ const inertRoomsStatusPort: RoomsStatusPort = {
   enabled: false,
   dormancyMs: DEFAULT_ROOM_DORMANCY_MS,
   wake: () => undefined,
+  factoryBridge: () => ({ enabled: false, cursor: null }),
 };
 
 export type InitializeRoomsContext = Readonly<{
   database: FactoryDatabase;
   /** The exact repository instance the `room.*` commands read and write. */
   rooms: RoomRepository;
+  /** The daemon's evidence store, so the factory-event bridge can name a succeeded attempt's broker commit. */
+  evidenceStore: EvidenceStore;
 }>;
 
 /**
@@ -860,6 +870,7 @@ function executeRoomCommand(
               dependencies.observedAt,
               dependencies.roomsStatus.dormancyMs,
             ),
+            factoryBridge: dependencies.roomsStatus.factoryBridge(),
           },
           messages: [...messages],
           nextAfterSequence: messages.at(-1)?.sequence ?? request.payload.afterSequence,
@@ -1949,7 +1960,8 @@ export async function openDaemonCommandRuntime(
         evidenceStore,
       }) ?? inertEffectPumpStatusPort;
     roomsStatusPort =
-      options.initializeRooms?.({ database, rooms: roomRepository }) ?? inertRoomsStatusPort;
+      options.initializeRooms?.({ database, rooms: roomRepository, evidenceStore }) ??
+      inertRoomsStatusPort;
   } catch (error) {
     database.close();
     throw error;
