@@ -5,10 +5,18 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { CommandRequestV1Schema, type CommandRequestV1 } from "@app-factory/contracts";
+import { EvidenceStore } from "@app-factory/evidence-store";
 import { GitWorkspaceManager } from "@app-factory/git-workspace";
+import {
+  createFactoryRepositories,
+  openMigratedFactoryDatabase,
+  type FactoryRepositories,
+} from "@app-factory/kernel";
+import { scanExistingProject } from "@app-factory/project-sdk";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { openDaemonCommandRuntime, type DaemonCommandRuntime } from "../src/command-runtime.js";
+import { registerConvergedSeedV1 } from "../src/project-registry-command-runtime.js";
 
 /**
  * End-to-end tests for Seam (a) of the project-registry task: `project.register`/`project.list`/
@@ -319,5 +327,74 @@ describe("project.list / project.show", () => {
         }),
       ),
     ).rejects.toMatchObject({ code: "project.not-found" });
+  });
+});
+
+describe("registerConvergedSeedV1 (project.seed's registration step)", () => {
+  async function makeDependencies(): Promise<{
+    dependencies: {
+      repositories: FactoryRepositories;
+      evidenceStore: EvidenceStore;
+      gitWorkspace: GitWorkspaceManager;
+      gitRuntimeRoot: string;
+    };
+    close: () => void;
+  }> {
+    const root = await makeRuntimeRoot();
+    mkdirSync(join(root, "evidence"), { recursive: true, mode: 0o700 });
+    const gitRuntimeRoot = join(root, "local-execution", "git");
+    mkdirSync(gitRuntimeRoot, { recursive: true, mode: 0o700 });
+    const database = openMigratedFactoryDatabase(join(root, "factory.sqlite"));
+    const dependencies = {
+      repositories: createFactoryRepositories(database),
+      evidenceStore: new EvidenceStore(join(root, "evidence")),
+      gitWorkspace: new GitWorkspaceManager(),
+      gitRuntimeRoot,
+    };
+    return { dependencies, close: () => database.close() };
+  }
+
+  it("registers a converged, blocker-free scan and returns the real project", async () => {
+    const repositoryRoot = createFixtureRepository({ "README.md": "# Seeded, converged\n" });
+    const { dependencies, close } = await makeDependencies();
+    const scan = scanExistingProject({ repositoryRoot });
+
+    const result = registerConvergedSeedV1(
+      dependencies,
+      scan,
+      { displayName: "Seeded App" },
+      T0,
+      "system",
+    );
+
+    expect(result.registered).toBe(true);
+    expect(result.project?.displayName).toBe("Seeded App");
+    expect(result.project?.sourceRepositoryPath).toBe(repositoryRoot);
+    expect(result.project?.repositoryId).toBe(result.project?.projectId);
+    close();
+  });
+
+  it("does not throw and reports registered:false when the scan carries a rules.* blocker", async () => {
+    const repositoryRoot = createFixtureRepository({
+      // Same trigger as "refuses to register a repository with an unresolved rules.* blocker"
+      // above: an orphan CLAUDE.md with no authority binding.
+      "CLAUDE.md": "Some ad hoc instructions with no authority binding.\n",
+    });
+    const { dependencies, close } = await makeDependencies();
+    const scan = scanExistingProject({ repositoryRoot });
+
+    const result = registerConvergedSeedV1(
+      dependencies,
+      scan,
+      { displayName: "Blocked Seed" },
+      T0,
+      "system",
+    );
+
+    expect(result.registered).toBe(false);
+    expect(result.project).toBeNull();
+    // Nothing was written to the registry.
+    expect(dependencies.repositories.projectRegistry.listAll()).toEqual([]);
+    close();
   });
 });

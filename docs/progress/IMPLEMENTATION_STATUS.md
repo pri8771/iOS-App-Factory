@@ -1,9 +1,12 @@
 # Implementation status
 
-Updated: 2026-08-16 (adds the "Studio (Mac app)" section below; the
-docs/truth-sweep re-verification pass against `integration/t3-t7` tip
-`34917e5` described next remains the last full-repository verification run,
-dated 2026-08-14 — this update did not repeat it)
+Updated: 2026-08-17 (rewrites the "Studio (Mac app)" section below against
+`integration/studio-wave1`, verifying every claim against code and tests
+rather than trusting the prior entry — Studio Phases 1–4 are merged and this
+is now the authoritative status for them; the docs/truth-sweep
+re-verification pass against `integration/t3-t7` tip `34917e5` described
+further down remains the last full-repository `pnpm verify` run, dated
+2026-08-14 — this update did not repeat it)
 
 This ledger maps the originally planned Weeks 1–16 capabilities (see the
 2026-08-14 re-baseline note in
@@ -132,81 +135,100 @@ here because the 2026-08-16 owner decision
 [`docs/roadmap/STUDIO_PHASES.md`](../roadmap/STUDIO_PHASES.md)) makes it the
 Gen 5 product target and demotes `apps/dashboard` to a debug surface.
 
-**Honest status: Phase 1 (shell) is in progress on branch `studio/phase1`,
-built in a separate worktree. Nothing is merged into this branch and nothing
-is verified.** No Studio capability described in ADR 0004 or
-`STUDIO_PHASES.md` exists in this repository yet. `apps/` here is still
-exactly the four listed in [`README.md`](../../README.md): `cli`, `daemon`,
-`dashboard`, `mcp`.
+**Honest status as of 2026-08-17: Phases 1–4 are merged into
+`integration/studio-wave1` and this branch. `apps/studio-mac` is a real,
+fifth app in this repository** (`ls apps/`: `cli`, `daemon`, `dashboard`,
+`mcp`, `studio-mac`) **— not a separate, unmerged worktree, which is what
+the prior entry recorded and which is now stale.** The daemon's wire surface
+is 54 distinct operations (counted from `apps/daemon/src/command-runtime.ts`'s
+dispatch switch), all real. Phase-by-phase detail, including the one claim
+that could not be independently verified, is in
+[`docs/roadmap/STUDIO_PHASES.md`](../roadmap/STUDIO_PHASES.md); this entry
+gives the same read at a glance:
 
-**Rooms core (Studio phase 2/3 groundwork), branch `studio/rooms-core`:**
-[`packages/studio-rooms`](../../packages/studio-rooms) adds the daemon-owned
-room engine — a deterministic moderator over a single-writer, append-only
-transcript in the kernel control plane (migration
-[`0007-studio-rooms`](../../packages/kernel/src/migrations/0007-studio-rooms.ts):
-`rooms`, `room_participants`, `room_messages`, `room_grants`,
-`room_budgets`). Implemented and tested: Tier 0 deterministic admission
-(author exclusion, `@mention` forced invite, per-agent cooldown, the hard cap
-of three consecutive agent messages, budget and shared-quota gates), Tier 1
-one `ScorerPort` call per round, Tier 2 admitted-agent `pass`, head-stamped
-wall-clock grant leases with compare-and-swap commit and `RevalidatePort`
-hold when the human posted meanwhile, budget reservations, a priority
-`QuotaGovernorPort` (factory > rooms), unattended-mode dormancy, typed
-`limit|timeout|capacity|internal` failure events with bench-until (never a
-hold), and an orphan sweep on start/wake. Wire ops `room.create`,
-`room.list`, `room.post`, `room.events`, `room.typing` are in
-`packages/contracts`, the daemon command runtime, `command-client`, and the
-CLI renderer. The daemon composes the moderator only when
-`startFactoryDaemonService({ rooms: { enabled: true, scorer, contributor,
-revalidator } })` is given all three ports; **no LLM adapter exists in this
-repository** (the Ollama adapter is a separate task), so in production the
-`room.*` commands are today a durable transcript with the moderator inert.
+- **Phase 1 (shell + daemon client) — Implemented.** `apps/studio-mac`'s
+  `StudioKit`/`Studio` SwiftPM package, a real `DaemonClient` over
+  `NWConnection` speaking the daemon's existing Unix-socket protocol, and a
+  dashboard reading `portfolio.snapshot` live. `swift build && swift test`
+  passes (190/190 as of this entry).
+- **Phase 2 (studio.snapshot / studio.assistant / milestones / phase field /
+  policy scoping) — Implemented.** `studio.snapshot` and
+  `studio.assistant.{query,intent.propose,intent.execute}` are unconditional
+  operations in `CommandRequestFrameV1Schema`'s discriminated union, not
+  feature-gated. `packages/contracts/src/v1/milestone.ts`'s
+  `ProjectMilestoneV1Schema` is persisted by kernel migration
+  [`0007-project-milestones.ts`](../../packages/kernel/src/migrations/0007-project-milestones.ts).
+  `packages/contracts/src/v1/task-spec.ts`'s `TaskSpecV1Schema` carries
+  `phase: StableKeySchema.optional()`, distinct from the two pre-existing
+  unrelated uses of the word. `packages/policy-engine/src/index.ts` now has
+  `RuleScopeV1Schema` (`appliesTo`), `WaiverV1Schema`, a `PolicyOwnerV1Schema`
+  owner field, and `RequiredCheckV1Schema` (the check registry) — **this
+  corrects the prior entry, which said none of these existed; they do, and
+  are wired into the daemon's task-intake policy gate
+  (`assertTaskPolicyBinding`/`decideTaskPolicyBinding` in
+  `apps/daemon/src/command-runtime.ts`, tested in
+  `apps/daemon/test/task-policy-gate.test.ts`) and into phase/preset upsert
+  validation (`apps/daemon/src/phase-command-runtime.ts`'s
+  `loadKnownStandardRuleIdsV1`) against the compiled corpus
+  ([`docs/policy/ios-app-factory-policy-source.v1.json`](../policy/ios-app-factory-policy-source.v1.json),
+  compiled by [`packages/policy-corpus`](../../packages/policy-corpus)).**
+  Dormant / not wired: [ADR 0005](../architecture/0005-lifecycle-reconciliation.md)'s
+  `ProjectLifecycleStateV1` machine (`packages/contracts/src/v1/lifecycle.ts`)
+  is contracts-only by the ADR's own "Non-goals" section — no kernel table,
+  daemon command, or lifecycle event persists or consumes it yet; Studio
+  still reads project lifecycle from the older, separate
+  `ProjectManifestV1.lifecycleStage` enum in repo docs.
+- **Phase 3 (chat + rooms) — Implemented for the code path; the specific
+  claim of a live, real-model round is owner-reported, not independently
+  verifiable from this repository.** `packages/studio-rooms` (moderator,
+  admission, quota governor — kernel migration
+  [`0008-studio-rooms.ts`](../../packages/kernel/src/migrations/0008-studio-rooms.ts))
+  and `packages/studio-room-adapters` (real Codex/Claude/Ollama participant
+  adapters) both exist, tested, non-stub.
+  `room.create`/`room.list`/`room.post`/`room.events`/`room.typing` are
+  unconditional wire operations.
+  `apps/studio-mac/Sources/StudioKit/Rooms/` is wired into the chat tab and
+  corner chat. Commit `513fb39`'s message
+  claims a live round ran with real Codex, Claude, and a local Ollama model,
+  chaining through the 3-consecutive-agent-message cap; **this could not be
+  verified**: every test that commit added exercises a `FakeProcess`
+  fixture, no evidence blob or transcript for it exists anywhere in this
+  repository, and — unlike a task attempt — a room round leaves no
+  Git-backed mirror/broker-commit a reader could check the way
+  [`RUN_LEDGER.md`](RUN_LEDGER.md) checks everything else. See that file's
+  new entry for the same caveat spelled out.
+- **Phase 4 (presets, planner, phase runner, project registry, PHASES tab,
+  planner UI) — Implemented, including two wire gaps this pass closed.**
+  Contracts (`phase.ts`, `phase-run.ts`, `project-plan.ts`,
+  `project-registry.ts`), daemon command-runtime modules, kernel migrations
+  [`0009`](../../packages/kernel/src/migrations/0009-phase-presets.ts)–[`0012`](../../packages/kernel/src/migrations/0012-project-registry.ts),
+  and StudioKit's `Phases/`/`Planner/` directories are all real, not stubs.
+  [`apps/studio-mac/docs/architecture/0004-studio-phase4-presets-planner.md`](../../apps/studio-mac/docs/architecture/0004-studio-phase4-presets-planner.md)
+  recorded two honest gaps the wire had; both are closed as of this entry:
+  `plan.edit` gained an `edit-brief` kind (contracts + daemon handler +
+  tests), so the Planner's brief is no longer read-only; and `project.seed`
+  now registers a converged seed into the Project Registry and returns
+  `{registered, projectId, repositoryId, slug}`, so a seeded project can be
+  planned against without an operator manually wiring an ID.
 
-Open gaps this decision carries, none scheduled by this entry:
+**Still not done, independent of the phase-by-phase read above:**
 
-- No `milestones[]` schema exists anywhere under `packages/` (verified
-  2026-08-16: zero matches for "milestone").
-- `packages/contracts/src/v1/task-spec.ts` has no `phase` field. The word
-  "phase" is already used for two unrelated concepts elsewhere in contracts —
-  `AgentProgressEventV1Schema.data.phase` (a free-form label for a step
-  inside one running agent) and `EnrollmentPlanActionV1Schema.phase` (a
-  six-value enrollment-action category) — neither of which is a Studio Phase
-  Preset stage.
-- Four lifecycle vocabularies disagreed: the separately versioned rules
-  corpus's 14-stage lifecycle, a mission-control `gates.md`, this
-  repository's own project-manifest lifecycle, and the 8-stage
-  `ReleaseManifestV1` machine (ADR 0003). **Reconciled by
-  [ADR 0005](../architecture/0005-lifecycle-reconciliation.md)** at the
-  contracts level: `gates.md`'s six stages and seven typed gates are the
-  project lifecycle (`ProjectLifecycleStageV1`, `TypedGateV1`,
-  `ProjectLifecycleStateV1`, and the pure `advanceProjectLifecycleStage` /
-  `applyProjectLifecycleGate` / `evaluateProjectLifecycleV1` in
-  [`packages/contracts/src/v1/lifecycle.ts`](../../packages/contracts/src/v1/lifecycle.ts)),
-  ADR 0003's eight stages are the release sub-lifecycle beneath
-  `launch-prep -> live`, the corpus's fourteen are a mapping table, and the
-  legacy manifest enum stays accepted as `LegacyProjectLifecycleStageV1`
-  (deprecated). Not yet persisted or wired: no kernel table, daemon
-  command, or lifecycle event consumes the new state; the in-progress
-  studio-ios preset (not in this branch) must bind to it.
-- The separately versioned rules corpus is reported pinned at three
-  different versions depending on consumer (0.2.0 local, 0.4.0 upstream,
-  0.5.0 CLI); this repository's own `packages/policy-engine` uses an
-  unrelated integer `policyVersion`, not this semver string. As of
-  2026-08-16 the local 0.2.0 corpus is compiled into
-  [`docs/policy/ios-app-factory-policy-source.v1.json`](../policy/ios-app-factory-policy-source.v1.json)
-  by [`packages/policy-corpus`](../../packages/policy-corpus); the 0.4.0 and
-  0.5.0 pins remain unfetched/unlocated (see
-  [`docs/policy/RULES_CORPUS_RECONCILIATION.md`](../policy/RULES_CORPUS_RECONCILIATION.md)).
-- `packages/policy-engine/src/index.ts` has no rule scoping (`appliesTo` a
-  phase), waivers, a human-only owner field, or a check registry (verified
-  2026-08-16: zero matches for `appliesTo`, `waiver`, or `scope` in that
-  file). The compiled corpus carries those fields in a sidecar JSON until
-  the engine schema gains them. Since 2026-08-16 the compiler does emit
-  scanner-parsable `factory-rule:` declarations and adapter digest bindings
-  (`packages/policy-engine/src/declarations.ts`); without them a compiled
-  bundle reintroduced the `rules.canonical-unverifiable` and
-  `rules.adapter-nonconforming` enrollment blockers on a Hindsight scratch
-  clone.
+- No live Jira, GitHub, or App Store Connect call has ever been made from
+  this repository's code (row 7/8 above; the effect pump ships default-off
+  with an empty adapter registry).
+- The read-only Codex independent-reviewer adapter has never made a live
+  model call — fake-executable tests only (row 3 above).
+- No quality gate, certification, archive, upload, or TestFlight build has
+  run from this daemon (rows 10–14 above).
+- Unattended rooms mode (`room.unattendedEnabled`) is implemented and unit
+  tested against fakes but not proven live.
+- No `room.*` operation lists the daemon's configured personas; the
+  new-room sheet's participant rows are an honest client-side suggestion,
+  labeled **NOT YET SOURCED** in the UI, not sourced from the wire.
+- Phases 5 (Jira/Notion mirrors, analytics) and 6 (release rail) remain not
+  started, blocked on the same external/protected gates rows 7, 8, and 13
+  above already describe — see `STUDIO_PHASES.md` for the phase-by-phase
+  gate detail.
 
 See [ADR 0004](../architecture/0004-studio-mac-app.md) for the full decision
 and [`docs/roadmap/STUDIO_PHASES.md`](../roadmap/STUDIO_PHASES.md) for the

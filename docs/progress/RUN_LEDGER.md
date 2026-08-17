@@ -1,6 +1,6 @@
 # Run ledger
 
-Updated: 2026-08-15
+Updated: 2026-08-17
 
 Every real-model Factory run, with the evidence needed to verify it independently.
 
@@ -98,6 +98,86 @@ blocker` reused one request identity across three daemon calls and tripped the r
 guard, and `agentLimits.maxTurns` was hardcoded to 1, making multi-turn runs
 unreachable through configuration.
 
+### 2026-08-16 — first live Studio rooms round (owner-reported, not independently verifiable)
+
+Commit `513fb39` ("studio-rooms: real Codex/Claude/Ollama participants, live-model
+wiring") and its merge `620b1fb` claim a research room ran with real Codex, Claude,
+and a local Ollama model (`qwen2.5-coder:14b`) participating live: value-gated
+admission, an `@mention` forced invite, and the moderator chaining through the
+3-consecutive-agent-message cap were all "observed on real CLIs" per the merge
+message.
+
+This entry cannot be verified the way every row above it is verified. A room round
+has no Git-backed mirror or broker commit — its transcript lives only in the
+daemon's private kernel SQLite database (`rooms`/`room_messages`), which this
+repository never version-controls, so there is no `git show`-style command a reader
+could run to check it, unlike a task attempt. Every test the same commit added
+(`packages/studio-room-adapters/test/*`) exercises a `FakeProcess`/`fakeSupervisor`
+fixture, not a real model call. **Recorded here as owner-reported, per the commit
+message, not as independently verified fact** — this is exactly the gap this
+ledger's own introduction describes, and it is being named rather than silently
+carried forward as an implicit claim.
+
+### 2026-08-16 — Phase Runner live runs (partially owner-reported)
+
+Two live-smoke claims accompany the Phase Runner and Project Registry merges:
+
+- **Synthetic repo, commit `401bb45`, grader pass.** `git log --all -S"401bb45"`
+  and a full-tree `grep` for that string return nothing anywhere in this repository
+  — no commit message, no diff, no doc. **Could not be verified from this repository
+  at all; recorded as owner-reported only**, and even that provenance is thin (it
+  may reference a commit inside a scratch repository never linked from here).
+- **Hindsight scratch clone via the Project Registry, `Docs/product/research.md`
+  committed `9f1f4bb2`, grader pass.** This one has a citable anchor: the
+  `studio/project-registry` merge commit in this repository's own history
+  (`d757bea`) states: "registered a dedicated scratch clone of Hindsight
+  (`factory/pilot-1.1`, never the real checkout) via `project.register`... then ran
+  the research phase of `ios-app-standard-0.4.0` (cast swapped to the composed
+  Ollama roster, `qwen2.5-coder:14b`) against it end to end: a real writer turn, a
+  real grader verdict (pass), and the committed output landing at exactly
+  `Docs/product/research.md`." That merge commit is real and its diff implements
+  exactly the described mechanism (`project.register`'s case-aware `docsDir`
+  resolution, the composed Ollama roster). **This is stronger than the synthetic-repo
+  claim — it is textually anchored in this repository's own version-controlled
+  history — but it is still not independently re-verified here**: the Hindsight
+  scratch clone and its mirror are outside this repository, so `commit 9f1f4bb2`
+  itself was not re-`git show`n. Treat it as recorded-in-commit-message, not as a
+  row this ledger's own verification recipe (mirror path + `git show`) was run
+  against.
+- **`gemma3:4b` grader failed closed.** Not found anywhere in this repository —
+  the only occurrence of `gemma3:4b` at all is as an example model name in a code
+  comment in `packages/studio-room-adapters/src/contribution-schema.ts`, unrelated
+  to any grading run. **Could not be verified; recorded as owner-reported only.**
+
+### Portfolio events referenced but out of this ledger's scope
+
+Two claims accompanying this sweep are not Factory runs at all, and are noted here
+only to explain why no row was added for them:
+
+- **"Roam 1.0(4) upload, 2026-08-16."** A `grep -ri roam` across `docs/` finds only
+  a synthetic test fixture (`packages/project-docs/test/fixtures/roam-ios/`) used to
+  unit-test the docs-as-truth parser — fictional data, not a real event record. An
+  App Store Connect build upload is an external, manual Xcode-archive action (see
+  the operator's own iOS release conventions) with no trace in this repository's
+  code, tests, or git history. **Not verifiable from this repository; not a Factory
+  run in the first place, so it does not belong in this ledger as a row** — noted
+  here only so the claim isn't silently dropped.
+- **"Hindsight issue #1 blocked after 2 attempts (a log-content plan caught a false
+  `TEST SUCCEEDED`)."** This does not match what this repository's own records say.
+  [`HINDSIGHT_ENROLLMENT_STATUS.md`](HINDSIGHT_ENROLLMENT_STATUS.md) documents
+  Hindsight's enrollment as blocked by three _rule/legacy_ findings
+  (`compatibility.legacy-factory-layout`, `rules.canonical-unverifiable`,
+  `rules.adapter-nonconforming`) and a deterministic UI-test crash — not an "issue
+  #1" pilot task, and no false-success/log-content-grader event. This same file's
+  own Hindsight pilot section above (2026-08-15) documents a _different_ two-attempt
+  failure on the `DecisionDetailView` change: an honest `blocked` report caused by
+  the agent sandbox denying `dlopen` of `CoreSimulator.framework`, not a false
+  `TEST SUCCEEDED` a grader caught. A repo-wide search for the literal string
+  `"TEST SUCCEEDED"` finds exactly one match, inside an unrelated synthetic test
+  fixture (`packages/project-docs/test/fixtures/Japa/docs/STATUS.md`). **Not
+  verifiable from this repository, and the claim as stated conflicts with what is
+  actually recorded here — flagged rather than entered as a row.**
+
 ## What these runs do not establish
 
 - No provider HTTP call has ever been made; the effect pump ships default-off with an
@@ -107,4 +187,12 @@ unreachable through configuration.
   run against a live model.
 - No quality gate, certification, archive, upload, or TestFlight build has run.
 - UI-test verification is not part of any passing plan yet.
-- No second application has been enrolled.
+- A second application (Hindsight, via a scratch clone) has been registered and had
+  one phase run against it (see above); it has not been through the full pilot loop
+  a task attempt gets, and no application has had a Factory-produced change merged
+  or shipped.
+- Unattended rooms mode (`room.unattendedEnabled`) has passed only fake-participant
+  tests; it has not been proven live.
+- The Studio rooms round and both Phase Runner live-run claims above rest on commit
+  messages, not on this ledger's own mirror-plus-broker-commit verification recipe —
+  see the sections above for exactly what is and isn't checkable.

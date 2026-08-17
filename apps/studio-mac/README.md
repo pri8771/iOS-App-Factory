@@ -129,11 +129,11 @@ corner chat are sourced from it; against a phase-1-only daemon (or none), everyt
 - **Fixture** (`timeline-fixture.json`, TODO milestones schema): the six timeline rows and their
   lifecycle tracks, ◆ gates in awaiting-you, phase rings, reticle fallback.
 - **Static / stub**: budget 38%, the scripted assistant — now only the fallback path when
-  `studio.assistant.query`/`.intent.propose` is unsupported or fails (see docs/architecture/0003); the
-  Planner's brief panel (no `plan.edit` kind edits it — see ADR 0004 decision 4).
+  `studio.assistant.query`/`.intent.propose` is unsupported or fails (see docs/architecture/0003).
 - **Not yet sourced**: min / release (no Phase 2 aggregate names it — see 0003); agent window until the
   daemon actually computes `agentWindowShare` (today it always reports `unavailableReason`); a
-  proposed plan's `repositoryId` right after `project.seed` (see ADR 0004 decision 5).
+  proposed plan's `repositoryId`/`projectId` when `project.seed` did not register (rare — only when the
+  post-seed rescan still carries a `rules.*` blocker; see ADR 0004 decision 5, closed).
 
 ### Phases and the Planner
 
@@ -141,8 +141,14 @@ corner chat are sourced from it; against a phase-1-only daemon (or none), everyt
 feature-detection fallback (see ADR 0004). Everything the PHASES tab and the Planner show is **live**:
 the preset list and the selected phase's fields, a launched run's state (polled via `phase.status`
 while it is not terminal), the recent-runs panel (`phase.list`), and the punch list (`plan.status`,
-polled while `executing`). The one exception is the Planner's brief, which is **static** — there is no
-`plan.edit` kind that changes it (ADR 0004 decision 4).
+polled while `executing`), including the brief at the top of the punch list — `plan.edit` gained an
+`edit-brief` kind (ADR 0004 decision 4, closed), so the brief is ordinary live plan data now, not a
+provenance-badged exception. `PlannerModel.editBrief(_:)` calls it; `PlannerScreen` does not yet draw
+an edit affordance for it (nor for retitle/edit-task-spec-draft/add-item/remove-item/set-repository —
+those are wired at the model level too, with no UI here either), but it no longer claims the daemon
+lacks the capability. `project.seed` also now registers a converged seed into the Project Registry and
+returns a real `repositoryId`/`projectId` (ADR 0004 decision 5, closed); `SeedProjectSheet` proposes
+the plan with that real ID instead of `nil` whenever `registered` is `true`.
 
 ### Rooms
 

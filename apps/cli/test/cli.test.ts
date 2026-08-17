@@ -2584,6 +2584,10 @@ describe("runCli project seed", () => {
             },
           },
           xcodegen: { available: true, generated: true, built: true, detail: "ok" },
+          registered: true,
+          projectId: "82000000-0000-4000-8000-000000000001",
+          repositoryId: "82000000-0000-4000-8000-000000000001",
+          slug: "seeded-app",
         },
       };
     });

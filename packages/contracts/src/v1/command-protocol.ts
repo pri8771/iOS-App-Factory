@@ -59,6 +59,7 @@ import {
   ProjectIdSchema,
   ProjectPlanIdSchema,
   RelativePathSchema,
+  RepositoryIdSchema,
   RequestIdSchema,
   SchemaVersionV1Schema,
   Sha256DigestSchema,
@@ -891,6 +892,15 @@ export const ProjectSeedToolchainStepV1Schema = z.strictObject({
 });
 export type ProjectSeedToolchainStepV1 = z.infer<typeof ProjectSeedToolchainStepV1Schema>;
 
+/**
+ * `registered` is `true` only when the post-seed rescan carried zero `rules.*` blockers and the
+ * seeded repository was therefore registered into the Project Registry (`project.register`'s own
+ * gate, applied here to the same rescan `enrollment.convergence` already reports) -- the same
+ * "only ever a real registration, never a fabricated ID" discipline `project-registry-command-
+ * runtime.ts`'s module doc comment describes. `projectId`/`repositoryId`/`slug` are non-null iff
+ * `registered` is `true`, so a caller (the Planner's `plan.propose repositoryId`, notably) can
+ * check `registered` once rather than null-checking three fields independently.
+ */
 export const ProjectSeedCommandResultV1Schema = z.strictObject({
   operation: z.literal("project.seed"),
   repositoryRoot: AbsolutePathSchema,
@@ -903,6 +913,10 @@ export const ProjectSeedCommandResultV1Schema = z.strictObject({
     convergence: ProjectApplyConvergenceV1Schema,
   }),
   xcodegen: ProjectSeedToolchainStepV1Schema,
+  registered: z.boolean(),
+  projectId: ProjectIdSchema.nullable(),
+  repositoryId: RepositoryIdSchema.nullable(),
+  slug: StableKeySchema.nullable(),
 });
 
 /**

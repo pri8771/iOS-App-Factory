@@ -1327,6 +1327,9 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
         `xcodegen: available=${String(result.xcodegen.available)} generated=${String(result.xcodegen.generated)} built=${String(result.xcodegen.built)} -- ${result.xcodegen.detail}`,
         `enrollment: branch ${result.enrollment.branchName ?? "(none)"} commit ${result.enrollment.commitSha ?? "(none)"}, applied ${result.enrollment.appliedActionKinds.join(", ") || "none"}`,
         `convergence: ${result.enrollment.convergence.blocked ? `still blocked (${String(result.enrollment.convergence.blockerIssueIds.length)} blocker(s))` : "clear"}, ${String(result.enrollment.convergence.openIssueCount)} open issue(s)`,
+        result.registered
+          ? `registered: projectId ${result.projectId ?? "(none)"} repositoryId ${result.repositoryId ?? "(none)"} slug ${result.slug ?? "(none)"}`
+          : "registered: false (not registered into the project registry)",
       ];
       return `${lines.join("\n")}\n`;
     }

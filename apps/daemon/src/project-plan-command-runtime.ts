@@ -435,6 +435,9 @@ function applyProjectPlanEditV1(
     case "set-repository":
       // Handled at the plan level (draft.repositoryId), not per-item; see editProjectPlanV1.
       return [...items];
+    case "edit-brief":
+      // Handled at the plan level (draft.brief), not per-item; see editProjectPlanV1.
+      return [...items];
   }
 }
 
@@ -446,11 +449,13 @@ export function editProjectPlanV1(
   const existing = requirePlan(repositories, request.payload.planId);
   let items = existing.items;
   let repositoryId = existing.repositoryId;
+  let brief = existing.brief;
   for (const edit of request.payload.edits) {
     items = applyProjectPlanEditV1(items, edit);
     if (edit.kind === "set-repository") repositoryId = edit.repositoryId;
+    if (edit.kind === "edit-brief") brief = edit.brief;
   }
-  const draft = draftOf(existing, { items: [...items], repositoryId });
+  const draft = draftOf(existing, { items: [...items], repositoryId, brief });
   const recordedAt = nextInstant(observedAt, existing.updatedAt);
 
   try {

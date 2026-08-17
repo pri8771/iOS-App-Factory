@@ -564,6 +564,9 @@ writeFileSync(
 // project.seed
 // ---------------------------------------------------------------------------
 
+// Registration is minted at project.seed time now: repositoryId always equals projectId for a
+// freshly registered project (project-registry-command-runtime.ts's own minting convention).
+const seededProjectId = uuid(199);
 const seedResult = ProjectSeedCommandResultV1Schema.parse({
   operation: "project.seed",
   repositoryRoot: "/Users/example/code/workout-tracker",
@@ -591,6 +594,10 @@ const seedResult = ProjectSeedCommandResultV1Schema.parse({
     built: true,
     detail: "xcodegen generate succeeded; xcodebuild build succeeded.",
   },
+  registered: true,
+  projectId: seededProjectId,
+  repositoryId: seededProjectId,
+  slug: "workout-tracker",
 });
 writeFileSync(dir + "project-seed.response.json", JSON.stringify(ok(seedResult), null, 2) + "\n");
 

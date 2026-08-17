@@ -357,6 +357,77 @@ describe("plan.edit", () => {
     );
     expect(restored.plan.items.map((item) => item.itemId)).toEqual(originalOrder);
   });
+
+  it("edits the plan's brief (title/oneLiner/constraints) and round-trips the change, CAS-checked like every other edit", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    await upsertSmallPreset(runtime, "small-preset-edit-brief");
+    const proposed = unwrap(
+      await invoke(
+        runtime,
+        request("plan.propose", commandId(1), {
+          brief: { title: "Original Title", oneLiner: "Original one-liner.", constraints: ["x"] },
+          presetId: "small-preset-edit-brief",
+          projectId: null,
+          repositoryId: null,
+          source: null,
+        }),
+      ),
+      "plan.propose",
+    );
+    const originalItems = proposed.plan.items.map((item) => item.itemId);
+
+    // A stale expectedRevision is rejected exactly like any other plan.edit.
+    await expect(
+      invoke(
+        runtime,
+        request("plan.edit", commandId(2), {
+          planId: proposed.plan.planId,
+          expectedRevision: 5,
+          edits: [
+            {
+              kind: "edit-brief",
+              brief: { title: "Stale", oneLiner: "Stale.", constraints: [] },
+            },
+          ],
+        }),
+      ),
+    ).rejects.toThrow();
+
+    const edited = unwrap(
+      await invoke(
+        runtime,
+        request("plan.edit", commandId(3), {
+          planId: proposed.plan.planId,
+          expectedRevision: 0,
+          edits: [
+            {
+              kind: "edit-brief",
+              brief: {
+                title: "Revised Title",
+                oneLiner: "Revised one-liner.",
+                constraints: ["local-only", "xcodegen"],
+              },
+            },
+          ],
+        }),
+      ),
+      "plan.edit",
+    );
+    expect(edited.plan.brief).toEqual({
+      title: "Revised Title",
+      oneLiner: "Revised one-liner.",
+      constraints: ["local-only", "xcodegen"],
+    });
+    expect(edited.plan.revision).toBe(1);
+    // The brief edit does not touch the item list.
+    expect(edited.plan.items.map((item) => item.itemId)).toEqual(originalItems);
+
+    const status = unwrap(
+      await invoke(runtime, request("plan.status", commandId(4), { planId: proposed.plan.planId })),
+      "plan.status",
+    );
+    expect(status.plan.brief.title).toBe("Revised Title");
+  });
 });
 
 // ---------------------------------------------------------------------------

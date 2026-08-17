@@ -473,7 +473,7 @@ public struct ProjectPlanPropose: Hashable, Sendable, Codable {
     }
 }
 
-/// `ProjectPlanEditV1` — a `kind`-discriminated union of the seven single-edit shapes `plan.edit` batches.
+/// `ProjectPlanEditV1` — a `kind`-discriminated union of the eight single-edit shapes `plan.edit` batches.
 public enum ProjectPlanEdit: Hashable, Sendable {
     /// The complete new item order, by ID; must be a permutation of the plan's current item IDs.
     case reorder(order: [ProjectPlanItemId])
@@ -484,11 +484,14 @@ public enum ProjectPlanEdit: Hashable, Sendable {
     case addItem(afterItemId: ProjectPlanItemId?, item: ProjectPlanItemDraft)
     case removeItem(itemId: ProjectPlanItemId)
     case setRepository(repositoryId: RepositoryID)
+    /// A full replacement of the plan's brief (title/oneLiner/constraints) -- see
+    /// `ProjectPlanBrief`. Closes decision 4 of ADR 0004: the Planner's brief is no longer read-only.
+    case editBrief(brief: ProjectPlanBrief)
 }
 
 extension ProjectPlanEdit: Codable {
     private enum CodingKeys: String, CodingKey {
-        case kind, order, itemId, title, taskSpecDraft, afterItemId, item, repositoryId
+        case kind, order, itemId, title, taskSpecDraft, afterItemId, item, repositoryId, brief
     }
 
     public init(from decoder: any Decoder) throws {
@@ -507,6 +510,7 @@ extension ProjectPlanEdit: Codable {
                             item: try c.decode(ProjectPlanItemDraft.self, forKey: .item))
         case "remove-item": self = .removeItem(itemId: try c.decode(ProjectPlanItemId.self, forKey: .itemId))
         case "set-repository": self = .setRepository(repositoryId: try c.decode(RepositoryID.self, forKey: .repositoryId))
+        case "edit-brief": self = .editBrief(brief: try c.decode(ProjectPlanBrief.self, forKey: .brief))
         case let kind:
             throw DecodingError.dataCorruptedError(forKey: .kind, in: c, debugDescription: "Unknown plan edit kind \(kind)")
         }
@@ -539,6 +543,9 @@ extension ProjectPlanEdit: Codable {
         case .setRepository(let repositoryId):
             try c.encode("set-repository", forKey: .kind)
             try c.encode(repositoryId, forKey: .repositoryId)
+        case .editBrief(let brief):
+            try c.encode("edit-brief", forKey: .kind)
+            try c.encode(brief, forKey: .brief)
         }
     }
 }

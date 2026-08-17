@@ -93,7 +93,7 @@ final class Phase4SnapshotTests: XCTestCase {
 
     func testSeedProjectSheet() {
         let sheet = SeedProjectSheet(presets: presets, isSeeding: false, seedError: nil,
-                                     onSeed: { _, _ in nil }, onProposePlan: { _, _ in nil }, onDone: { _ in })
+                                     onSeed: { _, _ in nil }, onProposePlan: { _, _, _, _ in nil }, onDone: { _ in })
         let framed = ZStack { HUDTheme.void; sheet }.frame(maxWidth: .infinity, maxHeight: .infinity)
         assertHUD(framed, size: CGSize(width: 460, height: 560), named: "seed-project-sheet")
     }

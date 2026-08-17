@@ -6,9 +6,13 @@ import SwiftUI
 // reorder + "defer" (→ `plan.edit`), status per item, the brief at top, Approve (gold, →
 // `plan.approve`), Execute (→ `plan.execute`), gate cards with Approve gate (gold, →
 // `plan.approve-gate`). Never a graph — `dependsOn` only ever points earlier in the list, so the flat
-// order is the whole story. The brief itself has no `plan.edit` kind on the wire (see
-// `project-plan.ts`'s `ProjectPlanEditV1` union) — it renders read-only rather than offering an edit
-// the daemon cannot honour.
+// order is the whole story. `plan.edit` now carries an `edit-brief` kind (`ProjectPlanEdit
+// .editBrief`, `project-plan.ts`'s `ProjectPlanEditV1` union), so the brief renders as ordinary live
+// plan data here, exactly like every item below it — no per-field provenance badge, the same as
+// `title`/`detail` on an item row. This screen does not yet offer an edit AFFORDANCE for the brief
+// (nor for retitle/edit-task-spec-draft/add-item/remove-item/set-repository — those are wired at the
+// `PlannerModel` level but have no UI here either); it no longer claims the daemon lacks the
+// capability, which is the gap this screen must stay honest about.
 
 public struct PlannerScreen: View {
     public var plan: ProjectPlan
@@ -86,10 +90,7 @@ public struct PlannerScreen: View {
 
     private var briefPanel: some View {
         VStack(alignment: .leading, spacing: HUDTheme.space.xxs) {
-            HStack(spacing: HUDTheme.space.xxs) {
-                Text(plan.brief.title).font(HUDTypography.displaySubheading).foregroundStyle(HUDTheme.ink)
-                ProvenanceBadge(.staticValue("no plan.edit kind for the brief yet"), compact: true)
-            }
+            Text(plan.brief.title).font(HUDTypography.displaySubheading).foregroundStyle(HUDTheme.ink)
             Text(plan.brief.oneLiner).font(HUDTypography.body).foregroundStyle(HUDTheme.soft)
             if !plan.brief.constraints.isEmpty {
                 HStack(spacing: HUDTheme.space.xxs) {

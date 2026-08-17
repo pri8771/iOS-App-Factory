@@ -1625,7 +1625,16 @@ async function executeRequest(
     case "mirror.plan":
       return await executeMirrorPlanCommand(request, dependencies.observedAt);
     case "project.seed":
-      return executeProjectSeedCommand(dependencies.evidenceStore, request);
+      return executeProjectSeedCommand(
+        {
+          repositories,
+          evidenceStore: dependencies.evidenceStore,
+          gitWorkspace: dependencies.projectRegistryGitWorkspace,
+          gitRuntimeRoot: dependencies.gitRuntimeRoot,
+        },
+        request,
+        dependencies.observedAt,
+      );
     case "plan.propose":
       return proposeProjectPlanV1(
         repositories,
