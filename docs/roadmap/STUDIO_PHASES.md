@@ -287,10 +287,11 @@ whole Studio effort and the Gen 4 daemon it runs on:
   model call; it has passed only fake-executable tests.
 - No quality gate, certification, archive, upload, or TestFlight build has
   run from this daemon.
-- Unattended rooms mode (`room.unattendedEnabled`, the `dormant` attendance
-  path in `packages/studio-rooms/src/moderator.ts`) is implemented and unit
-  tested against fakes, but has not been proven live the way the attended
-  path's commit messages claim.
+- ~~Unattended rooms mode not proven live.~~ Closed 2026-08-17: the daemon
+  bridges kernel attempt transitions into `factory-event` room lines
+  (`packages/studio-rooms/src/factory-event-bridge.ts`, migration 0013);
+  a live Ollama-only proof is recorded in
+  [`docs/progress/RUN_LEDGER.md`](../progress/RUN_LEDGER.md).
 - `room.participants.list` (read-only, `RoomParticipantsCatalogV1`) now lists
   the daemon's configured providers and roster, wire-safe, and the new-room
   sheet seeds its participant rows from it (`apps/studio-mac/README.md`'s

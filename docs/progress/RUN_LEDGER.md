@@ -356,8 +356,11 @@ original wording named.
   one phase run against it (see above); it has not been through the full pilot loop
   a task attempt gets, and no application has had a Factory-produced change merged
   or shipped.
-- Unattended rooms mode (`room.unattendedEnabled`) has passed only fake-participant
-  tests; it has not been proven live.
+- Unattended rooms mode (`room.unattendedEnabled`) was proven live on 2026-08-17 (one
+  dormant round, Ollama-only, triggered by a real fixture attempt — see the section
+  above); the bridge that makes it reachable landed the same day (migration 0013). Not
+  yet exercised: more than one unattended round, portfolio-wide rooms, real Codex/Claude
+  participants while dormant.
 - Both Phase Runner live-run claims above still rest on commit messages: the scratch
   runtimes and clones they ran in no longer exist (checked 2026-08-17 — no
   `phase_runs` row and neither `9f1f4bb2` nor `401bb45` in any repository under

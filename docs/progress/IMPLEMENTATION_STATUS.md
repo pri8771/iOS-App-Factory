@@ -228,8 +228,13 @@ gives the same read at a glance:
   `RUN_LEDGER.md` all used the project's configured reviewer (row 3 above).
 - No quality gate, certification, archive, upload, or TestFlight build has
   run from this daemon (rows 10–14 above).
-- Unattended rooms mode (`room.unattendedEnabled`) is implemented and unit
-  tested against fakes but not proven live.
+- ~~Unattended rooms mode not proven live.~~ Closed 2026-08-17: the daemon
+  now bridges kernel attempt transitions into `factory-event` room lines
+  (`packages/studio-rooms/src/factory-event-bridge.ts`, kernel migration
+  `0013-room-factory-event-cursor`, exactly-once across restart), which is
+  what a dormant room acts on; a live Ollama-only proof against a preserved
+  runtime is recorded in `RUN_LEDGER.md`. Portfolio-wide (`projectId` null)
+  rooms are deliberately not delivered to.
 - ~~No `room.*` operation lists the daemon's configured personas.~~ Closed
   2026-08-17: `room.participants.list` returns the daemon's configured
   providers (provider/model/CLI version only — never executables, paths,
