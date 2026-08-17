@@ -13,11 +13,13 @@ import Foundation
 
 public let commandProtocolVersion = 1
 
-/// The 27 wire operations, verbatim. The last 6 are Studio Phase 2: `studio.snapshot` and
-/// `studio.assistant.*` come from `studio/service-skeleton` (tip cdfe558); `project.milestones.list`
-/// and `project.milestone.upsert` come from `studio/milestones-and-phase` (tip 3cff9a7). Neither branch
-/// has merged to `main` as of this writing — see `DaemonClient.isUnsupportedOperation` for how the
-/// client feature-detects them against a daemon that does not know these operations yet.
+/// The 32 wire operations, verbatim. `studio.snapshot` and `studio.assistant.*` come from
+/// `studio/service-skeleton` (tip cdfe558); `project.milestones.list` and `project.milestone.upsert`
+/// come from `studio/milestones-and-phase` (tip 3cff9a7) — none of those six has merged to `main` as of
+/// this writing, so `DaemonClient.isUnsupportedOperation` feature-detects them. The five `room.*`
+/// operations (`@app-factory/studio-rooms`) are different: they are unconditionally registered on any
+/// daemon built from this contract (a durable transcript even with the moderator disabled — see
+/// Room.swift's doc comment), so no unsupported-operation fallback applies to them.
 public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable {
     case doctor
     case taskSubmit = "task.submit"
@@ -46,6 +48,11 @@ public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable 
     case studioAssistantIntentExecute = "studio.assistant.intent.execute"
     case projectMilestonesList = "project.milestones.list"
     case projectMilestoneUpsert = "project.milestone.upsert"
+    case roomCreate = "room.create"
+    case roomList = "room.list"
+    case roomPost = "room.post"
+    case roomEvents = "room.events"
+    case roomTyping = "room.typing"
 }
 
 /// `CommandOriginV1Schema` — there is no "studio" origin on the wire yet; Studio speaks as
@@ -275,6 +282,51 @@ public struct ProjectMilestonesListPayload: Encodable, Sendable, Hashable {
 /// `encode(to:)` its nullable `expectedRevision` needs.
 public typealias ProjectMilestoneUpsertPayload = ProjectMilestoneUpsert
 
+// MARK: room.* payloads
+//
+// `room.create`'s payload IS `RoomCreateSpecV1` directly (not nested), mirroring
+// `project.milestone.upsert` above — `RoomCreateSpec` already has the hand-written `encode(to:)` its
+// nullable `projectId` needs.
+public typealias RoomCreatePayload = RoomCreateSpec
+
+public struct RoomListPayload: Encodable, Sendable, Hashable {
+    public var limit: Int
+    public init(limit: Int = 50) { self.limit = limit }
+}
+
+public struct RoomPostPayload: Encodable, Sendable, Hashable {
+    public var roomId: RoomID
+    public var handle: RoomHumanHandle
+    public var body: String
+    public init(roomId: RoomID, handle: RoomHumanHandle, body: String) {
+        self.roomId = roomId
+        self.handle = handle
+        self.body = body
+    }
+}
+
+public struct RoomEventsPayload: Encodable, Sendable, Hashable {
+    public var roomId: RoomID
+    public var afterSequence: Int
+    public var limit: Int
+    public init(roomId: RoomID, afterSequence: Int = 0, limit: Int = 200) {
+        self.roomId = roomId
+        self.afterSequence = afterSequence
+        self.limit = limit
+    }
+}
+
+public struct RoomTypingPayload: Encodable, Sendable, Hashable {
+    public var roomId: RoomID
+    public var handle: RoomHumanHandle
+    public var ttlMs: Int
+    public init(roomId: RoomID, handle: RoomHumanHandle, ttlMs: Int) {
+        self.roomId = roomId
+        self.handle = handle
+        self.ttlMs = ttlMs
+    }
+}
+
 // MARK: Results
 
 public enum DaemonReadiness: String, Hashable, Sendable, Codable, CaseIterable {
@@ -361,6 +413,11 @@ public enum CommandResult: Sendable {
     case studioAssistantIntentExecute(StudioAssistantIntentExecuteResult)
     case projectMilestonesList(ProjectMilestoneTimeline)
     case projectMilestoneUpsert(ProjectMilestoneUpsertResult)
+    case roomCreate(RoomCreateResult)
+    case roomList(RoomListResult)
+    case roomPost(RoomPostResult)
+    case roomEvents(RoomEventsResult)
+    case roomTyping(RoomTypingResult)
 
     public var operation: CommandOperation {
         switch self {
@@ -391,6 +448,11 @@ public enum CommandResult: Sendable {
         case .studioAssistantIntentExecute: return .studioAssistantIntentExecute
         case .projectMilestonesList: return .projectMilestonesList
         case .projectMilestoneUpsert: return .projectMilestoneUpsert
+        case .roomCreate: return .roomCreate
+        case .roomList: return .roomList
+        case .roomPost: return .roomPost
+        case .roomEvents: return .roomEvents
+        case .roomTyping: return .roomTyping
         }
     }
 }
@@ -436,6 +498,11 @@ extension CommandResult: Decodable {
         case .studioAssistantIntentExecute: self = .studioAssistantIntentExecute(try single.decode(StudioAssistantIntentExecuteResult.self))
         case .projectMilestonesList: self = .projectMilestonesList(try c.decode(ProjectMilestoneTimeline.self, forKey: .timeline))
         case .projectMilestoneUpsert: self = .projectMilestoneUpsert(try single.decode(ProjectMilestoneUpsertResult.self))
+        case .roomCreate: self = .roomCreate(try single.decode(RoomCreateResult.self))
+        case .roomList: self = .roomList(try single.decode(RoomListResult.self))
+        case .roomPost: self = .roomPost(try single.decode(RoomPostResult.self))
+        case .roomEvents: self = .roomEvents(try single.decode(RoomEventsResult.self))
+        case .roomTyping: self = .roomTyping(try single.decode(RoomTypingResult.self))
         }
     }
 }

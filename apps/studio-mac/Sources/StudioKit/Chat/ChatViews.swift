@@ -214,29 +214,71 @@ public struct ConversationView: View {
     }
 }
 
-/// The header's conversation switcher: a menu of conversations plus "New conversation".
+/// The header's conversation switcher: a menu of assistant conversations plus — when `rooms` is
+/// supplied — a Rooms section and "New room…". Selecting a room calls `rooms.select(_:)`, which owns
+/// starting/stopping that room's poll loop; selecting a conversation deselects any room
+/// (`rooms?.select(nil)`) so the two "what's showing" states never disagree with each other.
 public struct ConversationSwitcher: View {
     @Bindable public var chat: ChatModel
+    public var rooms: RoomsModel?
+    public var onNewRoom: (() -> Void)?
 
-    public init(chat: ChatModel) { self.chat = chat }
+    public init(chat: ChatModel, rooms: RoomsModel? = nil, onNewRoom: (() -> Void)? = nil) {
+        self.chat = chat
+        self.rooms = rooms
+        self.onNewRoom = onNewRoom
+    }
+
+    private var selectedRoom: Room? {
+        guard let rooms, let id = rooms.selectedRoomId else { return nil }
+        return rooms.room(id)
+    }
+
+    private var selectedTitle: String { selectedRoom?.title ?? chat.selected?.title ?? "Chat" }
 
     public var body: some View {
         Menu {
-            ForEach(chat.conversations) { conversation in
-                Button {
-                    chat.select(conversation.id)
-                } label: {
-                    if conversation.id == chat.selectedId {
-                        Label(conversation.title, systemImage: "checkmark")
-                    } else {
-                        Text(conversation.title)
+            Section("Assistant") {
+                ForEach(chat.conversations) { conversation in
+                    Button {
+                        rooms?.select(nil)
+                        chat.select(conversation.id)
+                    } label: {
+                        if selectedRoom == nil, conversation.id == chat.selectedId {
+                            Label(conversation.title, systemImage: "checkmark")
+                        } else {
+                            Text(conversation.title)
+                        }
+                    }
+                }
+                Button("New conversation") {
+                    rooms?.select(nil)
+                    chat.newConversation(title: "Untitled \(chat.conversations.count + 1)")
+                }
+            }
+            if let rooms {
+                Section("Rooms") {
+                    if rooms.rooms.isEmpty {
+                        Text(rooms.isConnected ? "No rooms yet" : "Rooms need a daemon connection")
+                    }
+                    ForEach(rooms.rooms) { room in
+                        Button {
+                            rooms.select(room.roomId)
+                        } label: {
+                            if rooms.selectedRoomId == room.roomId {
+                                Label(room.title, systemImage: "checkmark")
+                            } else {
+                                Text(room.title)
+                            }
+                        }
+                    }
+                    if let onNewRoom {
+                        Button("New room…", action: onNewRoom)
                     }
                 }
             }
-            Divider()
-            Button("New conversation") { chat.newConversation(title: "Untitled \(chat.conversations.count + 1)") }
         } label: {
-            Text(chat.selected?.title ?? "Chat")
+            Text(selectedTitle)
                 .font(HUDTypography.displaySubheading)
                 .foregroundStyle(HUDTheme.ink)
                 .lineLimit(1)
@@ -244,7 +286,7 @@ public struct ConversationSwitcher: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .accessibilityLabel("Conversation: \(chat.selected?.title ?? "Chat"). Switch conversation")
+        .accessibilityLabel("Conversation: \(selectedTitle). Switch conversation or room")
     }
 }
 
@@ -254,16 +296,23 @@ public struct CornerChatView: View {
     public var chat: ChatModel
     public var context: () -> AssistantContext
     public var backend: (() -> AssistantBackend?)?
+    /// `nil` keeps the phase-1/2 assistant-only behaviour; StudioRootView supplies `store.rooms` so
+    /// the switcher gains a Rooms section and the panel can show a room's transcript.
+    public var rooms: RoomsModel?
+    public var onNewRoom: (() -> Void)?
     @Binding public var minimized: Bool
     public var onExpand: (() -> Void)?
 
     public static let panelSize = CGSize(width: 372, height: 460)
 
     public init(chat: ChatModel, context: @escaping () -> AssistantContext, backend: (() -> AssistantBackend?)? = nil,
+                rooms: RoomsModel? = nil, onNewRoom: (() -> Void)? = nil,
                 minimized: Binding<Bool>, onExpand: (() -> Void)? = nil) {
         self.chat = chat
         self.context = context
         self.backend = backend
+        self.rooms = rooms
+        self.onNewRoom = onNewRoom
         self._minimized = minimized
         self.onExpand = onExpand
     }
@@ -302,7 +351,7 @@ public struct CornerChatView: View {
         VStack(spacing: 0) {
             HStack(spacing: HUDTheme.space.xs) {
                 BreathingDot(color: HUDTheme.arc)
-                ConversationSwitcher(chat: chat)
+                ConversationSwitcher(chat: chat, rooms: rooms, onNewRoom: onNewRoom)
                 Spacer()
                 if let onExpand {
                     Button(action: onExpand) {
@@ -329,7 +378,7 @@ public struct CornerChatView: View {
             .padding(.vertical, HUDTheme.space.xs)
             .background(HUDTheme.hull)
             Rectangle().fill(HUDTheme.hairline).frame(height: 1)
-            ConversationView(chat: chat, context: context, backend: backend, compact: true)
+            panelContent
         }
         .frame(width: Self.panelSize.width, height: Self.panelSize.height)
         .background(HUDTheme.plate)
@@ -338,6 +387,16 @@ public struct CornerChatView: View {
         .shadow(color: Color.black.opacity(0.45), radius: 18, y: 8)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Chat panel")
+        .task { await rooms?.loadRoomsIfNeeded() }
+    }
+
+    @ViewBuilder
+    private var panelContent: some View {
+        if let rooms, let roomId = rooms.selectedRoomId {
+            RoomTranscriptView(rooms: rooms, roomId: roomId, compact: true)
+        } else {
+            ConversationView(chat: chat, context: context, backend: backend, compact: true)
+        }
     }
 }
 
@@ -347,70 +406,173 @@ public struct ChatScreen: View {
     public var chat: ChatModel
     public var context: () -> AssistantContext
     public var backend: (() -> AssistantBackend?)?
+    /// `nil` keeps the phase-1/2 assistant-only screen; StudioRootView supplies `store.rooms` so the
+    /// sidebar gains a live Rooms section and selecting one shows its transcript + roster panel.
+    public var rooms: RoomsModel?
+    public var onNewRoom: (() -> Void)?
 
-    public init(chat: ChatModel, context: @escaping () -> AssistantContext, backend: (() -> AssistantBackend?)? = nil) {
+    public init(chat: ChatModel, context: @escaping () -> AssistantContext, backend: (() -> AssistantBackend?)? = nil,
+                rooms: RoomsModel? = nil, onNewRoom: (() -> Void)? = nil) {
         self.chat = chat
         self.context = context
         self.backend = backend
+        self.rooms = rooms
+        self.onNewRoom = onNewRoom
     }
+
+    private var selectedRoomId: RoomID? { rooms?.selectedRoomId }
 
     public var body: some View {
         HStack(spacing: 0) {
             sidebar
             Rectangle().fill(HUDTheme.hairline).frame(width: 1)
             VStack(spacing: 0) {
-                HStack(spacing: HUDTheme.space.s) {
-                    ConversationSwitcher(chat: chat)
-                    Spacer()
-                    HUDLabel("assistant")
-                    Text(backend == nil ? ScriptedAssistant.name : "studio assistant")
-                        .font(HUDTypography.monoLabel).textCase(.uppercase).tracking(1.0)
-                        .foregroundStyle(HUDTheme.mute)
-                    ProvenanceBadge(backend == nil ? .staticValue("phase 1") : .live("studio.assistant.query"), compact: true)
-                }
-                .padding(.horizontal, HUDTheme.space.m)
-                .padding(.vertical, HUDTheme.space.s)
-                .background(HUDTheme.hull)
+                topBar
                 Rectangle().fill(HUDTheme.hairline).frame(height: 1)
-                ConversationView(chat: chat, context: context, backend: backend)
+                content
             }
         }
         .background(HUDTheme.void)
+        .task { await rooms?.loadRoomsIfNeeded() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let rooms, let roomId = selectedRoomId {
+            HStack(spacing: 0) {
+                RoomTranscriptView(rooms: rooms, roomId: roomId)
+                Rectangle().fill(HUDTheme.hairline).frame(width: 1)
+                ScrollView {
+                    RoomRosterPanel(room: rooms.room(roomId), messages: rooms.transcripts[roomId]?.messages ?? [],
+                                   now: rooms.now())
+                        .padding(HUDTheme.space.s)
+                }
+                .frame(width: 280)
+                .background(HUDTheme.hull)
+            }
+        } else {
+            ConversationView(chat: chat, context: context, backend: backend)
+        }
+    }
+
+    private var topBar: some View {
+        HStack(spacing: HUDTheme.space.s) {
+            ConversationSwitcher(chat: chat, rooms: rooms, onNewRoom: onNewRoom)
+            Spacer()
+            if selectedRoomId == nil {
+                HUDLabel("assistant")
+                Text(backend == nil ? ScriptedAssistant.name : "studio assistant")
+                    .font(HUDTypography.monoLabel).textCase(.uppercase).tracking(1.0)
+                    .foregroundStyle(HUDTheme.mute)
+                ProvenanceBadge(backend == nil ? .staticValue("phase 1") : .live("studio.assistant.query"), compact: true)
+            }
+        }
+        .padding(.horizontal, HUDTheme.space.m)
+        .padding(.vertical, HUDTheme.space.s)
+        .background(HUDTheme.hull)
     }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: HUDTheme.space.xxs) {
             HUDLabel("conversations").padding(.horizontal, HUDTheme.space.s).padding(.top, HUDTheme.space.s)
             ForEach(chat.conversations) { conversation in
-                Button { chat.select(conversation.id) } label: {
-                    HStack {
-                        Text(conversation.title).font(HUDTypography.bodyStrong).foregroundStyle(HUDTheme.ink).lineLimit(1)
-                        Spacer()
-                        Text("\(conversation.messages.count)").font(HUDTypography.monoLabel).foregroundStyle(HUDTheme.mute)
-                    }
-                    .padding(.horizontal, HUDTheme.space.s)
-                    .padding(.vertical, HUDTheme.space.xs)
-                    .background(conversation.id == chat.selectedId ? HUDTheme.raised : Color.clear)
-                    .overlay(alignment: .leading) {
-                        if conversation.id == chat.selectedId { Rectangle().fill(HUDTheme.arc).frame(width: 2) }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(conversation.id == chat.selectedId ? .isSelected : [])
+                conversationRow(conversation)
             }
             HUDButton("New", systemImage: "plus", variant: .ghost, compact: true) {
+                rooms?.select(nil)
                 chat.newConversation(title: "Untitled \(chat.conversations.count + 1)")
             }
             .padding(.horizontal, HUDTheme.space.xs)
+            Rectangle().fill(HUDTheme.hairline).frame(height: 1).padding(.vertical, HUDTheme.space.xs)
+            roomsSection
             Spacer()
-            Text("Rooms and persistence arrive with the studio service (phase 2/3).")
-                .font(HUDTypography.caption).foregroundStyle(HUDTheme.mute)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(HUDTheme.space.s)
         }
         .frame(width: 220)
         .background(HUDTheme.hull)
+    }
+
+    private func conversationRow(_ conversation: Conversation) -> some View {
+        let isSelected = selectedRoomId == nil && conversation.id == chat.selectedId
+        return Button {
+            rooms?.select(nil)
+            chat.select(conversation.id)
+        } label: {
+            HStack {
+                Text(conversation.title).font(HUDTypography.bodyStrong).foregroundStyle(HUDTheme.ink).lineLimit(1)
+                Spacer()
+                Text("\(conversation.messages.count)").font(HUDTypography.monoLabel).foregroundStyle(HUDTheme.mute)
+            }
+            .padding(.horizontal, HUDTheme.space.s)
+            .padding(.vertical, HUDTheme.space.xs)
+            .background(isSelected ? HUDTheme.raised : Color.clear)
+            .overlay(alignment: .leading) {
+                if isSelected { Rectangle().fill(HUDTheme.arc).frame(width: 2) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var roomsSection: some View {
+        HStack(spacing: HUDTheme.space.xxs) {
+            HUDLabel("rooms")
+            if let rooms {
+                ProvenanceBadge(.live("room.list"), compact: true)
+                if rooms.isLoadingRooms { ProgressView().controlSize(.small) }
+            } else {
+                ProvenanceBadge(.notYetSourced, compact: true)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, HUDTheme.space.s)
+        if let rooms {
+            if rooms.rooms.isEmpty, !rooms.isLoadingRooms {
+                Text(rooms.isConnected ? "No rooms yet." : "Rooms need a daemon connection.")
+                    .font(HUDTypography.caption).foregroundStyle(HUDTheme.mute)
+                    .padding(.horizontal, HUDTheme.space.s)
+            }
+            ForEach(rooms.rooms) { room in
+                roomRow(room, rooms: rooms)
+            }
+            if let error = rooms.roomsError {
+                Text(error).font(HUDTypography.caption).foregroundStyle(HUDTheme.alert)
+                    .padding(.horizontal, HUDTheme.space.s)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let onNewRoom {
+                HUDButton("New room", systemImage: "plus", variant: .ghost, compact: true, action: onNewRoom)
+                    .padding(.horizontal, HUDTheme.space.xs)
+            }
+        } else {
+            Text("Rooms need a daemon connection.")
+                .font(HUDTypography.caption).foregroundStyle(HUDTheme.mute)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, HUDTheme.space.s)
+        }
+    }
+
+    private func roomRow(_ room: Room, rooms: RoomsModel) -> some View {
+        let isSelected = rooms.selectedRoomId == room.roomId
+        return Button {
+            rooms.select(room.roomId)
+        } label: {
+            HStack(spacing: HUDTheme.space.xxs) {
+                if room.roundInProgress { BreathingDot(color: HUDTheme.arc) }
+                Text(room.title).font(HUDTypography.bodyStrong).foregroundStyle(HUDTheme.ink).lineLimit(1)
+                Spacer()
+            }
+            .padding(.horizontal, HUDTheme.space.s)
+            .padding(.vertical, HUDTheme.space.xs)
+            .background(isSelected ? HUDTheme.raised : Color.clear)
+            .overlay(alignment: .leading) {
+                if isSelected { Rectangle().fill(HUDTheme.arc).frame(width: 2) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

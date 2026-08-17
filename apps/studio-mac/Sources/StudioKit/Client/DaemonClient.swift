@@ -317,6 +317,60 @@ public actor DaemonClient {
         return result
     }
 
+    // MARK: Studio rooms (room.ts, @app-factory/studio-rooms) — unconditionally supported, no
+    // unsupported-operation fallback (see CommandOperation's doc comment).
+
+    /// Creates a room. `duplicate: true` on the result means the same `roomId` was already created
+    /// with an identical spec (idempotent by command ID at the wire level too, but this is the
+    /// application-level signal).
+    public func createRoom(_ spec: RoomCreateSpec, identity: CommandIdentity? = nil) async throws -> RoomCreateResult {
+        guard case .roomCreate(let result) = try await request(.roomCreate, spec, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    /// Most-recently-updated rooms first (the daemon's own ordering).
+    public func listRooms(limit: Int = 50, identity: CommandIdentity? = nil) async throws -> [Room] {
+        guard case .roomList(let result) = try await request(.roomList, RoomListPayload(limit: limit), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result.rooms
+    }
+
+    /// Appends a human message to the room's single-writer transcript.
+    public func postToRoom(roomId: RoomID, handle: RoomHumanHandle, body: String,
+                           identity: CommandIdentity? = nil) async throws -> RoomPostResult {
+        let payload = RoomPostPayload(roomId: roomId, handle: handle, body: body)
+        guard case .roomPost(let result) = try await request(.roomPost, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    /// Cursor-paginated transcript read: `afterSequence: 0` for the whole history, or the previous
+    /// call's `nextAfterSequence` to poll forward. Also returns the room record and moderator status,
+    /// so a poll loop never needs a second call to notice a bench, a budget change, or a new grant.
+    public func roomEvents(roomId: RoomID, afterSequence: Int = 0, limit: Int = 200,
+                           identity: CommandIdentity? = nil) async throws -> RoomEventsResult {
+        let payload = RoomEventsPayload(roomId: roomId, afterSequence: afterSequence, limit: limit)
+        guard case .roomEvents(let result) = try await request(.roomEvents, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    /// Signals that `handle` is composing, so the moderator defers an agent chain while the human is
+    /// typing. Fire-and-forget from the UI's perspective; callers should debounce keystrokes.
+    public func signalRoomTyping(roomId: RoomID, handle: RoomHumanHandle, ttlMs: Int,
+                                 identity: CommandIdentity? = nil) async throws -> RoomTypingResult {
+        let payload = RoomTypingPayload(roomId: roomId, handle: handle, ttlMs: ttlMs)
+        guard case .roomTyping(let result) = try await request(.roomTyping, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
     // MARK: Core
 
     struct Exchange: Sendable {

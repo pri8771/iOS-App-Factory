@@ -12,11 +12,17 @@ public struct StudioRootView: View {
     /// The corner chat starts as the FAB so the dashboard's right column is visible on launch; one
     /// click opens the panel.
     @State private var chatMinimized = true
+    @State private var showingNewRoom = false
 
     /// Phase 1: the budget gauge is a static placeholder and says so.
     public static let staticBudget = Sourced(0.38, .staticValue("phase 1 placeholder"))
 
     public init() {}
+
+    /// Rooms are visible exactly when the corner panel is open or the full chat tab is showing —
+    /// this is the single "poll while visible, stop when hidden" decision; `RoomsModel` itself does
+    /// not know which screen is on top.
+    private var roomsVisible: Bool { tab == .chat || !chatMinimized }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -28,6 +34,7 @@ public struct StudioRootView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 if tab != .chat {
                     CornerChatView(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend,
+                                   rooms: roomsModel, onNewRoom: { showingNewRoom = true },
                                    minimized: $chatMinimized) {
                         tab = .chat
                     }
@@ -36,6 +43,26 @@ public struct StudioRootView: View {
             }
         }
         .background(HUDTheme.void)
+        .sheet(isPresented: $showingNewRoom) {
+            NewRoomSheet(knownProjects: store.knownProjects, onCreate: { title, projectId, unattended, participants in
+                await store.rooms.createRoom(title: title, projectId: projectId, unattendedEnabled: unattended,
+                                             participants: participants)
+            }, onDone: { room in
+                showingNewRoom = false
+                if room != nil { tab = .chat }
+            })
+        }
+        .task { updateRoomsVisibility() }
+        .onChange(of: tab) { _, _ in updateRoomsVisibility() }
+        .onChange(of: chatMinimized) { _, _ in updateRoomsVisibility() }
+    }
+
+    /// `nil` until the store has a client at all, mirroring `assistantBackend` below — rooms need a
+    /// daemon exactly like the assistant backend does.
+    private var roomsModel: RoomsModel? { store.socketPath != nil ? store.rooms : nil }
+
+    private func updateRoomsVisibility() {
+        if roomsVisible { store.rooms.resumePollingSelected() } else { store.rooms.stopPolling() }
     }
 
     @ViewBuilder
@@ -58,7 +85,8 @@ public struct StudioRootView: View {
                     .transition(.opacity)
             }
         case .chat:
-            ChatScreen(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend)
+            ChatScreen(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend,
+                      rooms: roomsModel, onNewRoom: { showingNewRoom = true })
         case .phases:
             PhasesScreen()
         }

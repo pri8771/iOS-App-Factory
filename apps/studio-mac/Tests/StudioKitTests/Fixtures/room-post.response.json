@@ -1,0 +1,76 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "room.post",
+    "message": {
+      "schemaVersion": 1,
+      "roomId": "50000001-0000-4000-8000-000000000001",
+      "messageId": "51000001-0000-4000-8000-000000000001",
+      "sequence": 1,
+      "occurredAt": "2026-08-16T18:01:00.000Z",
+      "roundNumber": null,
+      "grantId": null,
+      "kind": "message",
+      "author": {
+        "kind": "human",
+        "handle": "priyansh"
+      },
+      "body": "Let's plan the launch checklist.",
+      "mentions": []
+    },
+    "room": {
+      "schemaVersion": 1,
+      "roomId": "50000001-0000-4000-8000-000000000001",
+      "title": "Studio launch review",
+      "projectId": null,
+      "createdAt": "2026-08-16T18:00:00.000Z",
+      "updatedAt": "2026-08-16T18:00:00.000Z",
+      "unattendedEnabled": false,
+      "headSequence": 1,
+      "headMessageId": "51000001-0000-4000-8000-000000000001",
+      "lastHumanAt": "2026-08-16T18:01:00.000Z",
+      "humanTypingUntil": null,
+      "roundCounter": 0,
+      "activeGrantId": null,
+      "pendingTrigger": null,
+      "agentCooldownEvents": 4,
+      "participants": [
+        {
+          "persona": "codex",
+          "provider": "codex",
+          "displayName": "Codex",
+          "position": 0,
+          "benchedUntil": null,
+          "benchReason": null
+        },
+        {
+          "persona": "claude",
+          "provider": "claude",
+          "displayName": "Claude",
+          "position": 1,
+          "benchedUntil": null,
+          "benchReason": null
+        },
+        {
+          "persona": "ollama",
+          "provider": "ollama",
+          "displayName": "Ollama",
+          "position": 2,
+          "benchedUntil": null,
+          "benchReason": null
+        }
+      ],
+      "budget": {
+        "dayKey": "2026-08-16",
+        "dailyCeilingTokens": 200000,
+        "unattendedDailyCeilingTokens": 0,
+        "maxTokensPerReply": 4000,
+        "spentTokens": 0,
+        "reservedTokens": 0,
+        "unattendedSpentTokens": 0
+      }
+    }
+  }
+}
