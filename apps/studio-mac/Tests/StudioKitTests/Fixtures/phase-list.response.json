@@ -1,0 +1,164 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "phase.list",
+    "page": {
+      "runs": [
+        {
+          "schemaVersion": 1,
+          "phaseRunId": "00000101-0000-4000-8000-000000000101",
+          "presetId": "ios-app-standard-0.4.0",
+          "phaseId": "ready",
+          "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+          "phaseSnapshotDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "phaseSnapshot": {
+            "schemaVersion": 1,
+            "phaseId": "ready",
+            "name": "Ready",
+            "purpose": "Human gate: confirm the plan and design are ready before implementation begins.",
+            "mode": "chat",
+            "cast": {
+              "participants": [],
+              "coordinator": null,
+              "grader": null
+            },
+            "inputs": [
+              "docs",
+              "evidence"
+            ],
+            "rules": {
+              "standard": [
+                "rule.dod.verification",
+                "rule.dod.experience-coverage"
+              ],
+              "yours": [],
+              "requiredOutput": [],
+              "acceptanceChecks": []
+            },
+            "outputs": [],
+            "gates": [
+              "build",
+              "tests"
+            ],
+            "budget": {
+              "estimateMinutes": null,
+              "timeoutSeconds": 900
+            },
+            "revision": 0,
+            "createdAt": "2026-08-16T22:00:00.000Z",
+            "updatedAt": "2026-08-16T22:00:00.000Z"
+          },
+          "state": "awaiting-human",
+          "revision": 3,
+          "roomId": null,
+          "outputs": [],
+          "graderVerdict": null,
+          "tokenUsage": {
+            "totalTokens": 4200
+          },
+          "outcome": null,
+          "createdAt": "2026-08-16T20:00:00.000Z",
+          "startedAt": "2026-08-16T20:00:05.000Z",
+          "finishedAt": null,
+          "updatedAt": "2026-08-16T20:04:00.000Z"
+        },
+        {
+          "schemaVersion": 1,
+          "phaseRunId": "00000102-0000-4000-8000-000000000102",
+          "presetId": "ios-app-standard-0.4.0",
+          "phaseId": "architecture",
+          "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+          "phaseSnapshotDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "phaseSnapshot": {
+            "schemaVersion": 1,
+            "phaseId": "architecture",
+            "name": "Architecture",
+            "purpose": "Decide the technical approach; a distinct grader breaks ties between proposals.",
+            "mode": "debate",
+            "cast": {
+              "participants": [
+                {
+                  "provider": "codex",
+                  "persona": "architecture-proposer-a",
+                  "readOnly": true
+                },
+                {
+                  "provider": "cursor",
+                  "persona": "architecture-proposer-b",
+                  "readOnly": true
+                }
+              ],
+              "coordinator": null,
+              "grader": {
+                "provider": "claude",
+                "persona": "architecture-grader"
+              }
+            },
+            "inputs": [
+              "docs",
+              "source-readonly",
+              "evidence"
+            ],
+            "rules": {
+              "standard": [
+                "rule.existing.no-rescaffold-without-decision",
+                "rule.dependencies.justified"
+              ],
+              "yours": [],
+              "requiredOutput": [],
+              "acceptanceChecks": []
+            },
+            "outputs": [
+              {
+                "path": "docs/architecture/decision.md",
+                "schema": null
+              }
+            ],
+            "gates": [],
+            "budget": {
+              "estimateMinutes": 45,
+              "timeoutSeconds": 3600
+            },
+            "revision": 0,
+            "createdAt": "2026-08-16T22:00:00.000Z",
+            "updatedAt": "2026-08-16T22:00:00.000Z"
+          },
+          "state": "succeeded",
+          "revision": 6,
+          "roomId": null,
+          "outputs": [
+            {
+              "path": "docs/architecture/decision.md",
+              "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+              "evidence": {
+                "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "branch": "factory/phase/architecture/run-2"
+              }
+            }
+          ],
+          "graderVerdict": {
+            "verdict": "pass",
+            "findings": [
+              "Proposal A chosen: fits the existing module boundary."
+            ]
+          },
+          "tokenUsage": {
+            "totalTokens": 18400
+          },
+          "outcome": {
+            "kind": "succeeded"
+          },
+          "createdAt": "2026-08-16T18:00:00.000Z",
+          "startedAt": "2026-08-16T18:00:05.000Z",
+          "finishedAt": "2026-08-16T18:41:00.000Z",
+          "updatedAt": "2026-08-16T18:41:00.000Z"
+        }
+      ],
+      "nextAfter": null,
+      "hasMore": false
+    }
+  }
+}

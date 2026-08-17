@@ -1,0 +1,160 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "plan.tick",
+    "plan": {
+      "schemaVersion": 1,
+      "planId": "00000201-0000-4000-8000-000000000201",
+      "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+      "repositoryId": "a1b2c3d4-5e6f-4a7b-9c8d-0e1f2a3b4c5d",
+      "brief": {
+        "title": "Workout Tracker",
+        "oneLiner": "A minimal iOS app for logging sets and rest timers.",
+        "constraints": [
+          "local-only",
+          "xcodegen"
+        ]
+      },
+      "presetId": "ios-app-standard-0.4.0",
+      "items": [
+        {
+          "itemId": "contract",
+          "phase": "contract",
+          "title": "Contract",
+          "detail": null,
+          "dependsOn": [],
+          "kind": "task",
+          "taskSpecDraft": {
+            "objective": "Write the contract doc.",
+            "acceptanceCriteria": [
+              {
+                "id": "correctness",
+                "statement": "Behaves as described.",
+                "verification": "review"
+              }
+            ],
+            "scope": {
+              "paths": [
+                "Sources"
+              ]
+            },
+            "phase": "contract"
+          },
+          "status": "done",
+          "taskId": "00000311-0000-4000-8000-000000000311",
+          "attemptId": "00000411-0000-4000-8000-000000000411"
+        },
+        {
+          "itemId": "architecture",
+          "phase": "architecture",
+          "title": "Architecture",
+          "detail": null,
+          "dependsOn": [
+            "contract"
+          ],
+          "kind": "task",
+          "taskSpecDraft": {
+            "objective": "Decide the technical approach.",
+            "acceptanceCriteria": [
+              {
+                "id": "correctness",
+                "statement": "Behaves as described.",
+                "verification": "review"
+              }
+            ],
+            "scope": {
+              "paths": [
+                "Sources"
+              ]
+            },
+            "phase": "architecture"
+          },
+          "status": "running",
+          "taskId": "00000312-0000-4000-8000-000000000312",
+          "attemptId": "00000412-0000-4000-8000-000000000412"
+        },
+        {
+          "itemId": "ready",
+          "phase": "ready",
+          "title": "Ready",
+          "detail": null,
+          "dependsOn": [
+            "architecture"
+          ],
+          "kind": "gate",
+          "gate": {
+            "owner": "human",
+            "reason": "Confirm plan and design before implementation begins."
+          },
+          "status": "approved"
+        },
+        {
+          "itemId": "build",
+          "phase": "build",
+          "title": "Build",
+          "detail": null,
+          "dependsOn": [
+            "ready"
+          ],
+          "kind": "task",
+          "taskSpecDraft": {
+            "objective": "Implement the planned change.",
+            "acceptanceCriteria": [
+              {
+                "id": "correctness",
+                "statement": "Behaves as described.",
+                "verification": "review"
+              }
+            ],
+            "scope": {
+              "paths": [
+                "Sources"
+              ]
+            },
+            "phase": "build"
+          },
+          "status": "running",
+          "taskId": "00000313-0000-4000-8000-000000000313",
+          "attemptId": "00000413-0000-4000-8000-000000000413"
+        },
+        {
+          "itemId": "review",
+          "phase": "review",
+          "title": "Review",
+          "detail": "Deferred until after the beta.",
+          "dependsOn": [
+            "build"
+          ],
+          "kind": "task",
+          "taskSpecDraft": {
+            "objective": "Independently review the build.",
+            "acceptanceCriteria": [
+              {
+                "id": "correctness",
+                "statement": "Behaves as described.",
+                "verification": "review"
+              }
+            ],
+            "scope": {
+              "paths": [
+                "Sources"
+              ]
+            },
+            "phase": "review"
+          },
+          "status": "deferred",
+          "taskId": null,
+          "attemptId": null
+        }
+      ],
+      "state": "executing",
+      "revision": 6,
+      "createdAt": "2026-08-16T22:00:00.000Z",
+      "updatedAt": "2026-08-16T22:50:00.000Z",
+      "digest": "sha256:0a423be2f5f598ba0747e10c7a6635ff4de7956e33cc5c25b6982f22638b23c7"
+    },
+    "advanced": true
+  }
+}

@@ -371,6 +371,160 @@ public actor DaemonClient {
         return result
     }
 
+    // MARK: project.seed — the from-scratch entry point for the planner's "seed-repo" template item.
+
+    /// Scaffolds a brand-new local repository at `targetDirectory` (which must not exist or be
+    /// empty), commits it, then converges it through the same scan/apply enrollment path an
+    /// existing repository goes through.
+    public func seedProject(targetDirectory: AbsolutePath, name: String, identity: CommandIdentity? = nil) async throws -> ProjectSeedResult {
+        let payload = ProjectSeedRequestPayload(targetDirectory: targetDirectory, name: name)
+        guard case .projectSeed(let result) = try await request(.projectSeed, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    // MARK: Studio Phase 4 (`preset.*`/`phase.*`) — durable, revisioned phase definitions and the
+    // presets that bundle them. Unconditionally supported (merged to this contract's `main`, unlike
+    // the still-feature-detected `studio.snapshot`/`studio.assistant.*` above).
+
+    /// Every phase preset the daemon knows about — bounded, unpaginated (presets are
+    /// operator-authored and few).
+    public func listPresets(identity: CommandIdentity? = nil) async throws -> [PhasePreset] {
+        guard case .presetList(let presets) = try await request(.presetList, EmptyPayload(), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return presets
+    }
+
+    /// Creates (`expectedRevision: nil`) or compare-and-set updates a preset.
+    public func upsertPreset(_ preset: PhasePresetDraft, expectedRevision: Int?, identity: CommandIdentity? = nil) async throws -> PresetUpsertResult {
+        let payload = PresetUpsertPayload(preset: preset, expectedRevision: expectedRevision)
+        guard case .presetUpsert(let result) = try await request(.presetUpsert, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    /// Creates (`expectedRevision: nil`) or compare-and-set updates a phase definition.
+    public func upsertPhase(_ phase: PhaseDefinitionDraft, expectedRevision: Int?, identity: CommandIdentity? = nil) async throws -> PhaseUpsertResult {
+        let payload = PhaseUpsertPayload(phase: phase, expectedRevision: expectedRevision)
+        guard case .phaseUpsert(let result) = try await request(.phaseUpsert, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    // MARK: Phase Runner (`phase.run`/`phase.status`/`phase.list`/`phase.approve`/`phase.reject`) —
+    // the one place a phase actually executes.
+
+    /// Launches a run of `phaseId` (optionally from a named preset) against `projectId`.
+    public func runPhase(presetId: PhasePresetId?, phaseId: PhaseId, projectId: ProjectID,
+                         inputsOverride: [PhaseInputKind]? = nil, identity: CommandIdentity? = nil) async throws -> PhaseRun {
+        let payload = PhaseRunRequestPayload(presetId: presetId, phaseId: phaseId, projectId: projectId, inputsOverride: inputsOverride)
+        guard case .phaseRun(let run) = try await request(.phaseRun, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return run
+    }
+
+    public func phaseRunStatus(_ phaseRunId: PhaseRunID, identity: CommandIdentity? = nil) async throws -> PhaseRun {
+        guard case .phaseStatus(let run) = try await request(.phaseStatus, PhaseStatusPayload(phaseRunId: phaseRunId), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return run
+    }
+
+    public func listPhaseRuns(_ query: PhaseRunListQuery = PhaseRunListQuery(), identity: CommandIdentity? = nil) async throws -> PhaseRunListPage {
+        guard case .phaseList(let page) = try await request(.phaseList, query, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return page
+    }
+
+    /// Clears an `awaiting-human` run to proceed. `reason` is optional for an approval.
+    public func approvePhaseRun(_ phaseRunId: PhaseRunID, reason: String? = nil, identity: CommandIdentity? = nil) async throws -> PhaseRun {
+        guard case .phaseApprove(let run) = try await request(.phaseApprove, PhaseDecisionPayload(phaseRunId: phaseRunId, reason: reason), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return run
+    }
+
+    /// Declines an `awaiting-human` run. `reason` is required for a rejection.
+    public func rejectPhaseRun(_ phaseRunId: PhaseRunID, reason: String, identity: CommandIdentity? = nil) async throws -> PhaseRun {
+        guard case .phaseReject(let run) = try await request(.phaseReject, PhaseDecisionPayload(phaseRunId: phaseRunId, reason: reason), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return run
+    }
+
+    // MARK: The Planner (`plan.*`) — an ordered, editable punch list built from a preset's phases.
+
+    /// Deterministically builds a `ProjectPlan` from `presetId`'s phases.
+    public func proposePlan(brief: ProjectPlanBrief, presetId: PhasePresetId, projectId: ProjectID?,
+                            repositoryId: RepositoryID?, source: ProjectPlanSourceRef? = nil,
+                            identity: CommandIdentity? = nil) async throws -> ProjectPlan {
+        let payload = PlanProposePayload(brief: brief, presetId: presetId, projectId: projectId, repositoryId: repositoryId, source: source)
+        guard case .planPropose(let plan) = try await request(.planPropose, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return plan
+    }
+
+    /// Applies one or more edits (reorder, defer, retitle, edit a task spec draft, add/remove an
+    /// item, set the target repository) as a single compare-and-set batch.
+    public func editPlan(_ planId: ProjectPlanID, expectedRevision: Int, edits: [ProjectPlanEdit],
+                         identity: CommandIdentity? = nil) async throws -> ProjectPlan {
+        let payload = PlanEditPayload(planId: planId, expectedRevision: expectedRevision, edits: edits)
+        guard case .planEdit(let plan) = try await request(.planEdit, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return plan
+    }
+
+    public func approvePlan(_ planId: ProjectPlanID, expectedRevision: Int, identity: CommandIdentity? = nil) async throws -> ProjectPlan {
+        let payload = PlanApprovePayload(planId: planId, expectedRevision: expectedRevision)
+        guard case .planApprove(let plan) = try await request(.planApprove, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return plan
+    }
+
+    /// Starts the first ready item; `plan.tick` (below) advances the chain afterward.
+    public func executePlan(_ planId: ProjectPlanID, expectedRevision: Int, identity: CommandIdentity? = nil) async throws -> ProjectPlan {
+        let payload = PlanExecutePayload(planId: planId, expectedRevision: expectedRevision)
+        guard case .planExecute(let plan) = try await request(.planExecute, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return plan
+    }
+
+    /// Clears a gate item so the chain can resume past it.
+    public func approvePlanGate(_ planId: ProjectPlanID, itemId: ProjectPlanItemId, expectedRevision: Int,
+                                identity: CommandIdentity? = nil) async throws -> ProjectPlan {
+        let payload = PlanApproveGatePayload(planId: planId, itemId: itemId, expectedRevision: expectedRevision)
+        guard case .planApproveGate(let plan) = try await request(.planApproveGate, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return plan
+    }
+
+    public func planStatus(_ planId: ProjectPlanID, identity: CommandIdentity? = nil) async throws -> ProjectPlan {
+        guard case .planStatus(let plan) = try await request(.planStatus, PlanStatusPayload(planId: planId), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return plan
+    }
+
+    /// Advances the chain as each task attempt reaches a terminal state. `advanced` is false when a
+    /// poll found nothing new to do (still running, or paused at a gate).
+    public func tickPlan(_ planId: ProjectPlanID, identity: CommandIdentity? = nil) async throws -> ProjectPlanTickResult {
+        guard case .planTick(let result) = try await request(.planTick, PlanTickPayload(planId: planId), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
     // MARK: Core
 
     struct Exchange: Sendable {

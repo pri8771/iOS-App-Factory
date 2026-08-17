@@ -201,12 +201,11 @@ final class DashboardSnapshotTests: XCTestCase {
         }.padding(24).background(HUDTheme.void), size: CGSize(width: 520, height: 520), named: "corner-chat")
     }
 
-    func testChatScreenAndPhases() async {
+    func testChatScreen() async {
         let chat = ChatModel()
         await chat.send("what's blocked?", context: AssistantContext(link: "offline", timeline: fixture, now: today.date))
         assertHUD(ChatScreen(chat: chat, context: { AssistantContext(link: "offline") }),
                   size: CGSize(width: 900, height: 420), named: "chat-screen")
-        assertHUD(PhasesScreen().background(HUDTheme.void), size: CGSize(width: 800, height: 300), named: "phases")
     }
 
     func testTitleBar() {

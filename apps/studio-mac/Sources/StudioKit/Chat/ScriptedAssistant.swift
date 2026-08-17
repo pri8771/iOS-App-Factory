@@ -362,20 +362,26 @@ public final class ChatModel {
     }
 
     /// The human confirms: calls `studio.assistant.intent.execute` and records the outcome (the
-    /// resulting attempt id when the outcome has one) on the same card.
-    public func confirmIntent(_ messageId: UUID, backend: AssistantBackend) async {
-        guard let (ci, mi) = location(of: messageId), var card = conversations[ci].messages[mi].intentCard else { return }
+    /// resulting attempt id when the outcome has one) on the same card. Returns the outcome so a
+    /// caller can react to it further — most notably, `propose-plan`/`execute-plan` outcomes carry a
+    /// `ProjectPlan` the confirmation card's caller opens the planner on (see `outcome.plan`).
+    @discardableResult
+    public func confirmIntent(_ messageId: UUID, backend: AssistantBackend) async -> AssistantIntentExecutionOutcome? {
+        guard let (ci, mi) = location(of: messageId), var card = conversations[ci].messages[mi].intentCard else { return nil }
         card.status = .executing
         conversations[ci].messages[mi].intentCard = card
         let result = await backend.executeIntent(card.intent)
-        guard let (ci2, mi2) = location(of: messageId) else { return }
+        guard let (ci2, mi2) = location(of: messageId) else { return nil }
         var updated = conversations[ci2].messages[mi2].intentCard ?? card
         switch result {
         case .success(let outcome):
-            updated.status = .executed(summary: outcome.attemptId.map { "attempt \($0.rawValue)" } ?? "done — no attempt id")
+            updated.status = .executed(summary: outcome.attemptId.map { "attempt \($0.rawValue)" } ?? outcome.plan.map { "plan \($0.brief.title)" } ?? "done")
+            conversations[ci2].messages[mi2].intentCard = updated
+            return outcome
         case .failure(let error):
             updated.status = .failed(error.description)
+            conversations[ci2].messages[mi2].intentCard = updated
+            return nil
         }
-        conversations[ci2].messages[mi2].intentCard = updated
     }
 }

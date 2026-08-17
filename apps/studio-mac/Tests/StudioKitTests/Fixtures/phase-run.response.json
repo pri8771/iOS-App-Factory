@@ -1,0 +1,81 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "phase.run",
+    "run": {
+      "schemaVersion": 1,
+      "phaseRunId": "00000103-0000-4000-8000-000000000103",
+      "presetId": "ios-app-standard-0.4.0",
+      "phaseId": "build",
+      "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+      "phaseSnapshotDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "phaseSnapshot": {
+        "schemaVersion": 1,
+        "phaseId": "build",
+        "name": "Build",
+        "purpose": "Implement the planned change and its required non-happy-path coverage.",
+        "mode": "panel",
+        "cast": {
+          "participants": [
+            {
+              "provider": "codex",
+              "persona": "build-lead",
+              "readOnly": true
+            },
+            {
+              "provider": "claude",
+              "persona": "build-reviewer",
+              "readOnly": true
+            }
+          ],
+          "coordinator": null,
+          "grader": null
+        },
+        "inputs": [
+          "docs",
+          "source-readonly",
+          "issues"
+        ],
+        "rules": {
+          "standard": [
+            "rule.dod.verification",
+            "rule.data.no-fake-fallback",
+            "rule.ui.no-decorative-controls"
+          ],
+          "yours": [],
+          "requiredOutput": [],
+          "acceptanceChecks": []
+        },
+        "outputs": [
+          {
+            "path": "docs/progress/build-notes.md",
+            "schema": null
+          }
+        ],
+        "gates": [],
+        "budget": {
+          "estimateMinutes": 60,
+          "timeoutSeconds": 7200
+        },
+        "revision": 0,
+        "createdAt": "2026-08-16T22:00:00.000Z",
+        "updatedAt": "2026-08-16T22:00:00.000Z"
+      },
+      "state": "queued",
+      "revision": 0,
+      "roomId": null,
+      "outputs": [],
+      "graderVerdict": null,
+      "tokenUsage": {
+        "totalTokens": 0
+      },
+      "outcome": null,
+      "createdAt": "2026-08-16T22:00:00.000Z",
+      "startedAt": null,
+      "finishedAt": null,
+      "updatedAt": "2026-08-16T22:00:00.000Z"
+    }
+  }
+}

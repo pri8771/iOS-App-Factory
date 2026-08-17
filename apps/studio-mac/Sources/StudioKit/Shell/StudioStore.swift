@@ -59,6 +59,8 @@ public final class StudioStore {
     public let timelineLoadError: String?
     public let chat = ChatModel()
     public let rooms: RoomsModel
+    public let phases: PhasesModel
+    public let planner: PlannerModel
 
     /// Injectable clock so derivations (and snapshots) are deterministic.
     public var now: @Sendable () -> Date
@@ -74,6 +76,8 @@ public final class StudioStore {
         self.timelineLoadError = timelineLoadError
         self.now = now
         self.rooms = RoomsModel(client: client, now: now)
+        self.phases = PhasesModel(client: client, now: now)
+        self.planner = PlannerModel(client: client, now: now)
     }
 
     /// Locates the daemon from the environment (`APP_FACTORY_SOCKET` / `APP_FACTORY_RUNTIME_DIR`,
