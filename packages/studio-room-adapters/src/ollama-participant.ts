@@ -13,7 +13,10 @@ import {
 } from "@app-factory/ollama-scorer";
 
 import { classifyFailureText } from "./failure-text.js";
-import { ROOM_CONTRIBUTION_JSON_SCHEMA_V1, parseRoomContribution } from "./contribution-schema.js";
+import {
+  ROOM_CONTRIBUTION_OLLAMA_FORMAT_V1,
+  parseRoomContribution,
+} from "./contribution-schema.js";
 import type {
   ParticipantAdapter,
   ParticipantContext,
@@ -105,7 +108,7 @@ export function createOllamaParticipant(
         system: renderParticipantInstruction(context),
         prompt: "Respond now with the JSON object described above.",
         stream: false,
-        format: ROOM_CONTRIBUTION_JSON_SCHEMA_V1,
+        format: ROOM_CONTRIBUTION_OLLAMA_FORMAT_V1,
         options: { temperature: 0, num_ctx: validated.contextTokens, num_predict: numPredict },
         keep_alive: validated.keepAlive,
       };
