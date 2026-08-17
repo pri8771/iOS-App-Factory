@@ -141,9 +141,11 @@ async function resolveScan(
 /**
  * Every issue this scan reports at BLOCKER severity whose code starts with `rules.` -- the only
  * category that refuses registration. Other blocker-severity issues (most importantly
- * `safety.secret-material-detected`) are surfaced separately, never here.
+ * `safety.secret-material-detected`) are surfaced separately, never here. Exported so
+ * `project-seed-command-runtime.ts` can apply the SAME gate before deciding whether a freshly
+ * seeded project converged enough to register, rather than reimplementing it.
  */
-function rulesBlockers(scan: EnrollmentScanV1): readonly EnrollmentBlockerV1[] {
+export function rulesBlockers(scan: EnrollmentScanV1): readonly EnrollmentBlockerV1[] {
   return scan.issues
     .filter((issue) => issue.severity === "blocker" && issue.code.startsWith("rules."))
     .map((issue) => ({
@@ -342,23 +344,20 @@ function upsertProjectRegistryRecord(
   }
 }
 
-export async function executeProjectRegisterCommand(
+/**
+ * The core registration write, shared by `project.register` and `project.seed`'s "register when
+ * converged" step (decision 5 of `apps/studio-mac/docs/architecture/0004-studio-phase4-presets-
+ * planner.md`): seals (or reuses) a Factory mirror and upserts the registry record for an ALREADY-
+ * SCANNED repository. Callers decide separately what to do about `rules.*` blockers (`rulesBlockers`
+ * above) before calling this -- it assumes registration should proceed.
+ */
+function registerScanV1(
   dependencies: ProjectRegistryCommandDependencies,
-  request: Extract<CommandRequestV1, { operation: "project.register" }>,
-  observedAt: IsoInstant,
-): Promise<CommandResultV1> {
-  const scan = await resolveScan(dependencies, request);
-  const blockers = rulesBlockers(scan);
-  if (blockers.length > 0) {
-    throw new CommandHandlerError(
-      "project.register-blocked",
-      `The repository at ${scan.repositoryRoot} has unresolved rules.* blocker(s): ${blockers
-        .map((blocker) => blocker.summary)
-        .join("; ")}`,
-      false,
-    );
-  }
-
+  scan: EnrollmentScanV1,
+  requested: Readonly<{ displayName: string | null; slug: string | null }>,
+  recordedAt: IsoInstant,
+  origin: CommandOriginV1,
+): Readonly<{ project: ProjectRegistryV1; created: boolean }> {
   const sourceRepositoryPath = AbsolutePathSchema.parse(scan.repositoryRoot);
   const docsDir = resolveDocsDirectoryName(sourceRepositoryPath);
   const existing =
@@ -379,13 +378,12 @@ export async function executeProjectRegisterCommand(
     projectId,
     // `slug` is an immutable identity column once registered (see
     // `project-registry-repositories.ts`): a re-registration always keeps the existing slug,
-    // regardless of what this request's payload named, exactly like `repositoryId` and
-    // `sourceRepositoryPath` below.
+    // regardless of what this request named, exactly like `repositoryId` and `sourceRepositoryPath`
+    // below.
     slug:
       existing?.slug ??
-      StableKeySchema.parse(request.payload.slug ?? slugFromRepositoryPath(sourceRepositoryPath)),
-    displayName:
-      request.payload.displayName ?? existing?.displayName ?? basename(sourceRepositoryPath),
+      StableKeySchema.parse(requested.slug ?? slugFromRepositoryPath(sourceRepositoryPath)),
+    displayName: requested.displayName ?? existing?.displayName ?? basename(sourceRepositoryPath),
     sourceRepositoryPath,
     repositoryId,
     standardVersion: existing?.standardVersion ?? null,
@@ -393,10 +391,65 @@ export async function executeProjectRegisterCommand(
     docsLayout: { docsDir: docsDir === "absent" ? "docs" : docsDir },
   };
 
-  const { project, created } = upsertProjectRegistryRecord(
+  return upsertProjectRegistryRecord(
     dependencies.repositories,
     existing,
     draft,
+    recordedAt,
+    origin,
+  );
+}
+
+/**
+ * `project.seed`'s "register when converged" step (`project-seed-command-runtime.ts`): applies the
+ * SAME `rules.*`-blocker gate `project.register` enforces, and either registers the freshly seeded,
+ * already-scanned repository or reports honestly that it did not. Never throws on a blocked scan --
+ * an operator's from-scratch seed should not fail outright just because registration's own gate
+ * (unrelated to the scaffold itself) did not clear; the caller sees `registered: false` and a null
+ * `projectId`/`repositoryId`/`slug` instead.
+ */
+export function registerConvergedSeedV1(
+  dependencies: ProjectRegistryCommandDependencies,
+  scan: EnrollmentScanV1,
+  requested: Readonly<{ displayName: string | null }>,
+  recordedAt: IsoInstant,
+  origin: CommandOriginV1,
+): Readonly<{
+  registered: boolean;
+  project: ProjectRegistryV1 | null;
+}> {
+  if (rulesBlockers(scan).length > 0) return { registered: false, project: null };
+  const { project } = registerScanV1(
+    dependencies,
+    scan,
+    { displayName: requested.displayName, slug: null },
+    recordedAt,
+    origin,
+  );
+  return { registered: true, project };
+}
+
+export async function executeProjectRegisterCommand(
+  dependencies: ProjectRegistryCommandDependencies,
+  request: Extract<CommandRequestV1, { operation: "project.register" }>,
+  observedAt: IsoInstant,
+): Promise<CommandResultV1> {
+  const scan = await resolveScan(dependencies, request);
+  const blockers = rulesBlockers(scan);
+  if (blockers.length > 0) {
+    throw new CommandHandlerError(
+      "project.register-blocked",
+      `The repository at ${scan.repositoryRoot} has unresolved rules.* blocker(s): ${blockers
+        .map((blocker) => blocker.summary)
+        .join("; ")}`,
+      false,
+    );
+  }
+
+  const { project, created } = registerScanV1(
+    dependencies,
+    scan,
+    { displayName: request.payload.displayName, slug: request.payload.slug },
     observedAt,
     request.origin,
   );

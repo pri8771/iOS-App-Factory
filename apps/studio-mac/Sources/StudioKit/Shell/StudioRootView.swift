@@ -74,8 +74,8 @@ public struct StudioRootView: View {
             SeedProjectSheet(
                 presets: store.phases.presets, isSeeding: store.planner.isSeeding, seedError: store.planner.seedError,
                 onSeed: { directory, name in await store.planner.seedProject(targetDirectory: directory, name: name) },
-                onProposePlan: { brief, presetId in
-                    await store.planner.propose(brief: brief, presetId: presetId, projectId: nil, repositoryId: nil)
+                onProposePlan: { brief, presetId, projectId, repositoryId in
+                    await store.planner.propose(brief: brief, presetId: presetId, projectId: projectId, repositoryId: repositoryId)
                 },
                 onDone: { plan in
                     showingSeedSheet = false

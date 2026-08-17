@@ -426,6 +426,7 @@ export const ProjectPlanEditV1Schema = z.discriminatedUnion("kind", [
   }),
   z.strictObject({ kind: z.literal("remove-item"), itemId: ProjectPlanItemIdSchema }),
   z.strictObject({ kind: z.literal("set-repository"), repositoryId: RepositoryIdSchema }),
+  z.strictObject({ kind: z.literal("edit-brief"), brief: ProjectPlanBriefV1Schema }),
 ]);
 export type ProjectPlanEditV1 = z.infer<typeof ProjectPlanEditV1Schema>;
 

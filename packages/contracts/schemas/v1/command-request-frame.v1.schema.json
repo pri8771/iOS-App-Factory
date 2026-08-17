@@ -969,6 +969,23 @@
             "repositoryId"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "brief": {
+              "$ref": "#/$defs/__schema60"
+            },
+            "kind": {
+              "const": "edit-brief",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "brief"
+          ],
+          "type": "object"
         }
       ]
     },

@@ -95,6 +95,9 @@ public final class PlannerModel {
     public func reorder(_ order: [ProjectPlanItemId]) async { await applyEdits([.reorder(order: order)]) }
     public func defer_(_ itemId: ProjectPlanItemId) async { await applyEdits([.defer_(itemId: itemId)]) }
     public func retitle(_ itemId: ProjectPlanItemId, title: String) async { await applyEdits([.retitle(itemId: itemId, title: title)]) }
+    /// Full replacement of the plan's brief — `plan.edit`'s `edit-brief` kind (ADR 0004 decision 4,
+    /// closed: the brief is no longer read-only on the wire).
+    public func editBrief(_ brief: ProjectPlanBrief) async { await applyEdits([.editBrief(brief: brief)]) }
 
     // MARK: plan.approve / plan.execute / plan.approve-gate
 

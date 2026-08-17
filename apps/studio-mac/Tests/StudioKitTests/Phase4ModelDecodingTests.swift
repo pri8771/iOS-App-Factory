@@ -218,6 +218,19 @@ final class Phase4ModelDecodingTests: XCTestCase {
         XCTAssertEqual(decoded, edit)
     }
 
+    func testProjectPlanEditBriefRoundTrips() throws {
+        let edit = ProjectPlanEdit.editBrief(brief: ProjectPlanBrief(
+            title: "Revised Title", oneLiner: "Revised one-liner.", constraints: ["local-only"]))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let text = String(decoding: try encoder.encode(edit), as: UTF8.self)
+        XCTAssertEqual(
+            text,
+            #"{"brief":{"constraints":["local-only"],"oneLiner":"Revised one-liner.","title":"Revised Title"},"kind":"edit-brief"}"#)
+        let decoded = try JSONDecoder().decode(ProjectPlanEdit.self, from: Data(text.utf8))
+        XCTAssertEqual(decoded, edit)
+    }
+
     func testProjectPlanEditAddItemRoundTripsWithNullAfterItemId() throws {
         let draft = ProjectPlanTaskItemDraft(
             itemId: try ProjectPlanItemId("extra"), phase: try StableKey("build"), title: "Extra", detail: nil,
@@ -246,6 +259,12 @@ final class Phase4ModelDecodingTests: XCTestCase {
         XCTAssertTrue(result.xcodegen.built)
         XCTAssertEqual(result.enrollment.appliedActionKinds.count, 4)
         XCTAssertFalse(result.enrollment.convergence.blocked)
+        // Convergence with zero rules.* blockers means the seed was also registered: a real
+        // projectId/repositoryId/slug, not nils (decision 5 of ADR 0004, closed).
+        XCTAssertTrue(result.registered)
+        XCTAssertNotNil(result.projectId)
+        XCTAssertEqual(result.repositoryId?.rawValue, result.projectId?.rawValue)
+        XCTAssertEqual(result.slug?.rawValue, "workout-tracker")
     }
 
     func testProjectSeedPayloadEncodes() throws {

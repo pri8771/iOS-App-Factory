@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ProjectPlanEditV1Schema,
   ProjectPlanV1Schema,
   canonicalProjectPlanDigestInputV1,
   projectPlanGateDensityIssuesV1,
@@ -194,6 +195,23 @@ describe("ProjectPlanV1", () => {
         ]),
       ),
     ).not.toThrow();
+  });
+
+  it("ProjectPlanEditV1Schema accepts an edit-brief edit carrying a full replacement brief", () => {
+    const parsed = ProjectPlanEditV1Schema.parse({
+      kind: "edit-brief",
+      brief: { title: "New Title", oneLiner: "New one-liner.", constraints: ["local-only"] },
+    });
+    expect(parsed).toEqual({
+      kind: "edit-brief",
+      brief: { title: "New Title", oneLiner: "New one-liner.", constraints: ["local-only"] },
+    });
+  });
+
+  it("ProjectPlanEditV1Schema rejects an edit-brief edit missing brief fields", () => {
+    expect(() =>
+      ProjectPlanEditV1Schema.parse({ kind: "edit-brief", brief: { title: "Only a title" } }),
+    ).toThrow();
   });
 
   it("canonicalProjectPlanDigestInputV1 excludes the digest field and is stable across key order", () => {

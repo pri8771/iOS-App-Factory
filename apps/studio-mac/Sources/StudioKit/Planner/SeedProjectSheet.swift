@@ -3,19 +3,20 @@ import SwiftUI
 
 // MARK: - SeedProjectSheet
 //
-// The from-scratch entry point: name + directory → `project.seed` (scaffolds, commits, and
-// converges enrollment), then proposes a plan for it (`plan.propose`). `project.seed`'s result names
-// no `RepositoryID`/`ProjectID` on the wire (only a path, a scaffold commit, and enrollment digests —
-// see `ProjectSeedResult`), so the plan this sheet proposes carries `repositoryId: nil` honestly;
-// `plan.execute` will refuse to submit a task item until something sets one (`ProjectPlanEdit
-// .setRepository`), which is a real, documented gap in this wire family, not a Studio omission.
+// The from-scratch entry point: name + directory → `project.seed` (scaffolds, commits, converges
+// enrollment, and registers the result into the Project Registry when that convergence carries zero
+// rules.* blockers), then proposes a plan for it (`plan.propose`) with the seed's real
+// `repositoryId` when `ProjectSeedResult.registered` is `true`. On the rare unregistered path
+// (`registered == false`), this sheet still proposes the plan but honestly with `repositoryId: nil`
+// — `plan.execute` will refuse to submit a task item until something sets one (`ProjectPlanEdit
+// .setRepository`), a real, documented gap in this wire family, not a Studio omission.
 
 public struct SeedProjectSheet: View {
     public var presets: [PhasePreset]
     public var isSeeding: Bool
     public var seedError: String?
     public var onSeed: (AbsolutePath, String) async -> ProjectSeedResult?
-    public var onProposePlan: (ProjectPlanBrief, PhasePresetId) async -> ProjectPlan?
+    public var onProposePlan: (ProjectPlanBrief, PhasePresetId, ProjectID?, RepositoryID?) async -> ProjectPlan?
     public var onDone: (ProjectPlan?) -> Void
 
     @State private var name = ""
@@ -29,7 +30,7 @@ public struct SeedProjectSheet: View {
 
     public init(presets: [PhasePreset], isSeeding: Bool, seedError: String?,
                onSeed: @escaping (AbsolutePath, String) async -> ProjectSeedResult?,
-               onProposePlan: @escaping (ProjectPlanBrief, PhasePresetId) async -> ProjectPlan?,
+               onProposePlan: @escaping (ProjectPlanBrief, PhasePresetId, ProjectID?, RepositoryID?) async -> ProjectPlan?,
                onDone: @escaping (ProjectPlan?) -> Void) {
         self.presets = presets
         self.isSeeding = isSeeding
@@ -61,7 +62,7 @@ public struct SeedProjectSheet: View {
                 Text("No presets loaded yet — the phase preset picks the plan's phases.")
                     .font(HUDTypography.caption).foregroundStyle(HUDTheme.mute)
             }
-            Text("The seeded repository's ID isn't returned by project.seed yet, so the proposed plan starts with no target repository set — plan.execute will hold on the first task until that's wired.")
+            Text("If the seeded repository doesn't converge cleanly it won't be registered yet, and the proposed plan starts with no target repository set — plan.execute will hold on the first task until one is set.")
                 .font(HUDTypography.caption).foregroundStyle(HUDTheme.mute)
                 .fixedSize(horizontal: false, vertical: true)
             if let text = errorText ?? seedError {
@@ -121,7 +122,8 @@ public struct SeedProjectSheet: View {
         stage = .proposing
         let brief = ProjectPlanBrief(title: name, oneLiner: oneLiner.isEmpty ? "Seeded at \(seeded.repositoryRoot.rawValue)." : oneLiner,
                                      constraints: [])
-        let plan = await onProposePlan(brief, presetId)
+        let plan = await onProposePlan(brief, presetId, seeded.registered ? seeded.projectId : nil,
+                                       seeded.registered ? seeded.repositoryId : nil)
         stage = .form
         onDone(plan)
     }

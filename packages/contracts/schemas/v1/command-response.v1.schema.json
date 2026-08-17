@@ -6835,11 +6835,44 @@
                 "planDigest": {
                   "$ref": "#/$defs/__schema9"
                 },
+                "projectId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "registered": {
+                  "type": "boolean"
+                },
+                "repositoryId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "repositoryRoot": {
                   "$ref": "#/$defs/__schema54"
                 },
                 "scaffoldCommitSha": {
                   "$ref": "#/$defs/__schema20"
+                },
+                "slug": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema23"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "xcodegen": {
                   "additionalProperties": false,
@@ -6874,7 +6907,11 @@
                 "scaffoldCommitSha",
                 "planDigest",
                 "enrollment",
-                "xcodegen"
+                "xcodegen",
+                "registered",
+                "projectId",
+                "repositoryId",
+                "slug"
               ],
               "type": "object"
             },

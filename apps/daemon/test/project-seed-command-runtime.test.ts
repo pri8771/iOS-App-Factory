@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -27,7 +27,11 @@ function xcodegenAvailable(): boolean {
 }
 
 async function makeRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "app-factory-project-seed-"));
+  // Real-path resolved: since `project.seed` now also registers a converged seed into the Project
+  // Registry, it seals a real git-workspace Factory mirror under this root -- git-workspace refuses
+  // a runtime root reached through a symlink (macOS's tmpdir is itself `/var` -> `/private/var`),
+  // exactly like `project-registry-command-runtime.test.ts`'s own `makeRuntimeRoot`.
+  const root = await realpath(await mkdtemp(join(tmpdir(), "app-factory-project-seed-")));
   roots.push(root);
   return root;
 }
@@ -86,6 +90,16 @@ describe("project.seed", () => {
     expect(result.enrollment.convergence.blocked).toBe(false);
     expect(result.enrollment.appliedActionKinds).toContain("declare-project");
     expect(result.enrollment.commitSha).toMatch(/^[0-9a-f]{40}$/u);
+
+    // Convergence with zero rules.* blockers means the seed also registered into the Project
+    // Registry: a real projectId/repositoryId/slug come back, not nulls, so the Planner can target
+    // this project immediately (`plan.propose repositoryId`).
+    expect(result.registered).toBe(true);
+    expect(result.projectId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu,
+    );
+    expect(result.repositoryId).toBe(result.projectId);
+    expect(result.slug).toBe("sampleapp");
 
     const available = xcodegenAvailable();
     expect(result.xcodegen.available).toBe(available);

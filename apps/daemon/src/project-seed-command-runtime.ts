@@ -8,6 +8,7 @@ import {
   Sha256DigestSchema,
   type CommandRequestV1,
   type CommandResultV1,
+  type IsoInstant,
 } from "@app-factory/contracts";
 import { canonicalJson } from "@app-factory/kernel";
 import {
@@ -20,6 +21,10 @@ import {
   scanExistingProject,
 } from "@app-factory/project-sdk";
 
+import {
+  registerConvergedSeedV1,
+  type ProjectRegistryCommandDependencies,
+} from "./project-registry-command-runtime.js";
 import { CommandHandlerError } from "./unix-command-server.js";
 
 /**
@@ -30,7 +35,12 @@ import { CommandHandlerError } from "./unix-command-server.js";
  * repository), commits it on the default branch, then runs the SAME enrollment scan-and-apply
  * `project.scan`/`project.apply` already perform (`@app-factory/project-sdk`) so the result is a
  * converged enrolled project -- not just a pile of scaffold files -- ready for `plan.execute`'s
- * `build-seed-repo` item to build on top of.
+ * `build-seed-repo` item to build on top of. When that convergence carries zero `rules.*` blockers,
+ * the seeded repository is ALSO registered into the Project Registry
+ * (`project-registry-command-runtime.ts`'s `registerConvergedSeedV1`, the same gate
+ * `project.register` itself enforces), so the result's `projectId`/`repositoryId` are real and the
+ * Planner (`plan.propose`) can target this project immediately -- decision 5 of
+ * `apps/studio-mac/docs/architecture/0004-studio-phase4-presets-planner.md`, closed.
  */
 
 export type ProjectSeedCommandRequestV1 = Extract<CommandRequestV1, { operation: "project.seed" }>;
@@ -248,9 +258,11 @@ function xcodegenAvailable(): boolean {
 }
 
 export function executeProjectSeedCommand(
-  evidenceStore: { putBlob(bytes: Buffer): string },
+  dependencies: ProjectRegistryCommandDependencies,
   request: ProjectSeedCommandRequestV1,
+  observedAt: IsoInstant,
 ): CommandResultV1 {
+  const evidenceStore = dependencies.evidenceStore;
   const targetDirectory = request.payload.targetDirectory;
   const displayName = request.payload.name;
   const moduleName = slugFromName(displayName);
@@ -349,11 +361,28 @@ export function executeProjectSeedCommand(
   }
   evidenceStore.putBlob(Buffer.from(canonicalJson(applied), "utf8"));
 
+  // Register the seeded, now-converged repository into the Project Registry -- the same rules.*
+  // blocker gate `project.register` itself enforces, applied here to `applied.rescan` (the same
+  // post-apply scan `enrollment.convergence` below reports) rather than re-scanning. Never throws
+  // on a blocked rescan: the seed itself already succeeded, so registration not clearing its own
+  // gate is reported honestly (`registered: false`, no fabricated IDs), not a seed failure.
+  const registration = registerConvergedSeedV1(
+    dependencies,
+    applied.rescan,
+    { displayName },
+    observedAt,
+    request.origin,
+  );
+
   return {
     operation: "project.seed",
     repositoryRoot: targetDirectory,
     scaffoldCommitSha,
     planDigest,
+    registered: registration.registered,
+    projectId: registration.project?.projectId ?? null,
+    repositoryId: registration.project?.repositoryId ?? null,
+    slug: registration.project?.slug ?? null,
     enrollment: {
       branchName:
         applied.branchName === null ? null : GitBranchNameSchema.parse(applied.branchName),

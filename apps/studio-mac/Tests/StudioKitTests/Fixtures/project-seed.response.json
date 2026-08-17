@@ -28,6 +28,10 @@
       "generated": true,
       "built": true,
       "detail": "xcodegen generate succeeded; xcodebuild build succeeded."
-    }
+    },
+    "registered": true,
+    "projectId": "00000199-0000-4000-8000-000000000199",
+    "repositoryId": "00000199-0000-4000-8000-000000000199",
+    "slug": "workout-tracker"
   }
 }
