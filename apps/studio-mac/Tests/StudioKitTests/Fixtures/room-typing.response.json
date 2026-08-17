@@ -1,0 +1,10 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "room.typing",
+    "roomId": "50000001-0000-4000-8000-000000000001",
+    "typingUntil": "2026-08-16T18:12:03.000Z"
+  }
+}

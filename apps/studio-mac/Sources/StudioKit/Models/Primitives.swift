@@ -75,6 +75,15 @@ enum WirePatterns {
     /// calendar-invalid date (Feb 30) is a daemon bug, not a wire violation, so this does not check it.
     static let calendarDate = try! NSRegularExpression(
         pattern: "\\A[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])\\z")
+    // Room wire primitives (room.ts) — persona/provider share one pattern (mirroring the TS source's
+    // own ROOM_PERSONA_PATTERN / ROOM_PROVIDER_PATTERN, which are byte-identical but kept as separate
+    // constants for the type distinction), human handle allows dots/underscores/hyphens after the
+    // first alphanumeric, and the day key is a bare UTC calendar day (no time component, unlike
+    // `calendarDate` above which this is deliberately not unified with — different wire concepts).
+    static let roomPersona = try! NSRegularExpression(pattern: "\\A[a-z][a-z0-9-]{0,63}\\z")
+    static let roomProvider = try! NSRegularExpression(pattern: "\\A[a-z][a-z0-9-]{0,63}\\z")
+    static let roomHumanHandle = try! NSRegularExpression(pattern: "\\A[A-Za-z0-9][A-Za-z0-9._-]{0,63}\\z")
+    static let roomDayKey = try! NSRegularExpression(pattern: "\\A[0-9]{4}-[0-9]{2}-[0-9]{2}\\z")
 
     static func matches(_ regex: NSRegularExpression, _ value: String) -> Bool {
         let range = NSRange(value.startIndex..<value.endIndex, in: value)
@@ -145,6 +154,27 @@ public enum CalendarDateRule: WireStringRule {
     public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.calendarDate, value) }
 }
 
+// MARK: Room wire primitives (room.ts, `room.*` — @app-factory/studio-rooms)
+
+public enum RoomPersonaRule: WireStringRule {
+    public static let name = "room persona"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.roomPersona, value) }
+}
+public enum RoomProviderRule: WireStringRule {
+    public static let name = "room provider"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.roomProvider, value) }
+}
+public enum RoomHumanHandleRule: WireStringRule {
+    public static let name = "room human handle"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.roomHumanHandle, value) }
+}
+/// `RoomDayKeySchema` — a UTC calendar day with no time component. Deliberately not unified with
+/// `CalendarDate` above: different wire concept (a budget ledger key, not a milestone target date).
+public enum RoomDayKeyRule: WireStringRule {
+    public static let name = "room day key (UTC calendar day)"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.roomDayKey, value) }
+}
+
 /// A plain, non-UUID string brand: `z.string().min(1).max(maxLength).brand()`. Used for the
 /// studio-snapshot placeholder ids (`StudioMilestoneId`, `StudioRoomId`) that predate a real ID
 /// scheme — unlike `MilestoneID` (below), which is a real UUID minted by the milestones service.
@@ -212,6 +242,11 @@ public enum AssistantIntentIDTag: Sendable {}
 /// The real, revisioned milestone concept (`milestone.ts`, `studio/milestones-and-phase`) — a UUID,
 /// unlike the studio-snapshot placeholder's `StudioMilestoneID` (a plain bounded string) below.
 public enum MilestoneIDTag: Sendable {}
+/// The real `room.*` operation family (room.ts) — distinct from `StudioRoomID` above, the unrelated
+/// bounded-string placeholder nested in `studio.snapshot`'s (still always-empty) `rooms` field.
+public enum RoomIDTag: Sendable {}
+public enum RoomMessageIDTag: Sendable {}
+public enum RoomGrantIDTag: Sendable {}
 
 public typealias ProjectID = WireID<ProjectIDTag>
 public typealias RepositoryID = WireID<RepositoryIDTag>
@@ -228,6 +263,9 @@ public typealias EffectID = WireID<EffectIDTag>
 public typealias ReleaseID = WireID<ReleaseIDTag>
 public typealias AssistantIntentID = WireID<AssistantIntentIDTag>
 public typealias MilestoneID = WireID<MilestoneIDTag>
+public typealias RoomID = WireID<RoomIDTag>
+public typealias RoomMessageID = WireID<RoomMessageIDTag>
+public typealias RoomGrantID = WireID<RoomGrantIDTag>
 
 public typealias Sha256Digest = WireString<Sha256DigestRule>
 public typealias GitObjectID = WireString<GitObjectIDRule>
@@ -237,6 +275,10 @@ public typealias AbsolutePath = WireString<AbsolutePathRule>
 public typealias RelativePath = WireString<RelativePathRule>
 public typealias GitBranchName = WireString<GitBranchNameRule>
 public typealias CalendarDate = WireString<CalendarDateRule>
+public typealias RoomPersona = WireString<RoomPersonaRule>
+public typealias RoomProvider = WireString<RoomProviderRule>
+public typealias RoomHumanHandle = WireString<RoomHumanHandleRule>
+public typealias RoomDayKey = WireString<RoomDayKeyRule>
 
 /// `StudioMilestoneIdV1Schema` (`studio-snapshot.ts`) — the placeholder milestone id nested in
 /// `StudioSnapshotV1`. Not a UUID; unrelated to `MilestoneID`.

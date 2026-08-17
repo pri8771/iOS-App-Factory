@@ -11,11 +11,12 @@ apps/studio-mac/
 │   │                             DiamondGate, StatusPill, HUDButton, ProvenanceBadge, HUDGallery
 │   ├── Client/                   DaemonClient (actor, Network.framework), AuthorizationToken,
 │   │                             ExchangeSession, DaemonClientError, DaemonLocator
-│   ├── Models/                   Codable mirrors of packages/contracts v1 (27 operations — the
-│   │                             phase-1 21 plus Studio Phase 2's studio.snapshot,
+│   ├── Models/                   Codable mirrors of packages/contracts v1 (32 operations — the
+│   │                             phase-1 21, Studio Phase 2's studio.snapshot,
 │   │                             studio.assistant.{query,intent.propose,intent.execute},
-│   │                             project.milestones.{list,upsert}: StudioSnapshot.swift,
-│   │                             Assistant.swift, Milestone.swift), Provenance/Sourced,
+│   │                             project.milestones.{list,upsert}, and the five room.* ops
+│   │                             (room.create/list/post/events/typing): StudioSnapshot.swift,
+│   │                             Assistant.swift, Milestone.swift, Room.swift), Provenance/Sourced,
 │   │                             Timeline (ProjectTimeline, DayStamp, fixture loader)
 │   ├── Canonical/                JSONValue, CanonicalJSON, PortfolioDigest, StudioSnapshotDigest
 │   ├── Dashboard/                DashboardModel (pure derivations — a phase-1 portfolio.snapshot
@@ -25,13 +26,19 @@ apps/studio-mac/
 │   │                             MilestoneEditorView
 │   ├── Chat/                     ScriptedAssistant (stub fallback) + DaemonAssistant
 │   │                             (AssistantBackend, IntentRecognizer) + ChatModel, CornerChatView,
-│   │                             ChatScreen
-│   ├── Shell/                    StudioStore (@Observable), StudioTitleBar, DashboardScreen,
-│   │                             StudioRootView, PhasesScreen
+│   │                             ChatScreen — both gain a Rooms section when a RoomsModel is supplied
+│   ├── Rooms/                    RoomsModel (@Observable — room.list/events polling, room.post,
+│   │                             debounced room.typing), RoomMessageRow (human/agent/system/typed
+│   │                             -error/PASS), RoomTranscriptView, RoomRosterPanel (live state ·
+│   │                             budget meter · mode line), NewRoomSheet
+│   ├── Shell/                    StudioStore (@Observable, owns a RoomsModel), StudioTitleBar,
+│   │                             DashboardScreen, StudioRootView, PhasesScreen
 │   └── Resources/timeline-fixture.json   FIXTURE rows for the six apps (see docs 0002)
 ├── Sources/Studio/StudioApp.swift  the app: locate daemon from env, own the store, one window
 ├── Tests/StudioKitTests/         unit, fake-daemon, snapshot, and live-daemon (skippable) tests
 ├── scripts/record-fixtures.mjs   regenerates Tests/…/Fixtures through the real zod schemas
+├── scripts/record-room-fixtures.mjs   the room.* fixtures, standalone — see the script's own doc
+│                                 comment for why it isn't folded into record-fixtures.mjs
 └── docs/architecture/            0001 foundations · 0002 dashboard provenance + fixture timeline ·
                                    0003 Studio Phase 2 (studio.snapshot, assistant, milestones)
 ```
@@ -109,6 +116,21 @@ corner chat are sourced from it; against a phase-1-only daemon (or none), everyt
   when `studio.assistant.query`/`.intent.propose` is unsupported or fails (see docs/architecture/0003).
 - **Not yet sourced**: min / release (no Phase 2 aggregate names it — see 0003); agent window until the
   daemon actually computes `agentWindowShare` (today it always reports `unavailableReason`).
+
+### Rooms
+
+`room.create/list/post/events/typing` are unconditionally supported by any daemon built from this
+contract — no feature-detection fallback, unlike `studio.snapshot`/`studio.assistant.*` above (see
+`CommandOperation`'s doc comment). Everything the Chat tab's Rooms section and a selected room's
+transcript/roster/budget panel show is **live**, straight off `room.events`: messages (human/agent/
+system), the roster's benched-until state, and the budget meter. "Passed last round" in the roster is
+**derived** from the loaded transcript's most recent system line for that persona. A round in progress
+is shown at room level only (`room.activeGrantId != nil`) — the wire never says *which* participant
+currently holds the floor, so Studio never attributes it to one. The new-room sheet's participant rows
+are an honest **not yet sourced** local suggestion, editable before creating: no `room.*` operation
+lists the daemon's configured personas (`room-participants-config.ts` is daemon-local configuration,
+never on the wire), and `RoomCreateSpecV1` has no "kind" (research/project/lounge) field to source a
+picker from either.
 
 ## Design rules (non-negotiable)
 

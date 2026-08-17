@@ -58,6 +58,7 @@ public final class StudioStore {
     public let timeline: TimelineFixture?
     public let timelineLoadError: String?
     public let chat = ChatModel()
+    public let rooms: RoomsModel
 
     /// Injectable clock so derivations (and snapshots) are deterministic.
     public var now: @Sendable () -> Date
@@ -72,6 +73,7 @@ public final class StudioStore {
         self.timeline = timeline
         self.timelineLoadError = timelineLoadError
         self.now = now
+        self.rooms = RoomsModel(client: client, now: now)
     }
 
     /// Locates the daemon from the environment (`APP_FACTORY_SOCKET` / `APP_FACTORY_RUNTIME_DIR`,
@@ -114,6 +116,21 @@ public final class StudioStore {
     }
 
     public var isConnected: Bool { link.doctor != nil }
+
+    /// Every project id + name Studio currently knows about, from whichever snapshot sourced the
+    /// dashboard — for the new-room sheet's optional project picker. Not itself a new read: it only
+    /// re-presents `portfolio`/`studioSnapshot`, already fetched by `refresh()`.
+    public var knownProjects: [(id: ProjectID, name: String)] {
+        var seen = Set<ProjectID>()
+        var result: [(id: ProjectID, name: String)] = []
+        for project in portfolio?.projects ?? [] where seen.insert(project.projectId).inserted {
+            result.append((project.projectId, project.displayName))
+        }
+        for project in studioSnapshot?.projects ?? [] where seen.insert(project.projectId).inserted {
+            result.append((project.projectId, project.name))
+        }
+        return result
+    }
 
     // MARK: Wire
 

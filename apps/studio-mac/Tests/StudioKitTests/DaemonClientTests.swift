@@ -87,6 +87,97 @@ final class DaemonClientTests: XCTestCase {
         await assertThrows(try await client.portfolioSnapshot(), code: "protocol.portfolio-digest-mismatch", retryable: false)
     }
 
+    // MARK: Studio rooms — room.* round trips
+
+    func testCreateRoomRoundTrip() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            .reply(try! WireResponse.fixture("room-create.response.json", requestId: frame["requestId"]!.stringValue!))
+        }
+        defer { server.stop() }
+        let client = try makeClient(server)
+        let spec = RoomCreateSpec(
+            roomId: RoomID(unchecked: "50000001-0000-4000-8000-000000000001"), title: "Studio launch review",
+            projectId: nil, unattendedEnabled: false, agentCooldownEvents: 4,
+            participants: [RoomParticipantSpec(persona: try RoomPersona("codex"), provider: try RoomProvider("codex"), displayName: "Codex")],
+            budget: RoomBudgetPolicy(dailyCeilingTokens: 200_000, unattendedDailyCeilingTokens: 0, maxTokensPerReply: 4_000))
+        let result = try await client.createRoom(spec)
+        XCTAssertFalse(result.duplicate)
+        XCTAssertEqual(result.room.title, "Studio launch review")
+        let payload = try XCTUnwrap(server.frames.first?["request"]?["payload"])
+        XCTAssertEqual(payload["projectId"], .null, "nullable fields are always emitted, never omitted")
+        XCTAssertEqual(payload["roomId"]?.stringValue, "50000001-0000-4000-8000-000000000001")
+    }
+
+    func testListRoomsReturnsMostRecentlyUpdatedFirst() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            .reply(try! WireResponse.fixture("room-list.response.json", requestId: frame["requestId"]!.stringValue!))
+        }
+        defer { server.stop() }
+        let client = try makeClient(server)
+        let rooms = try await client.listRooms(limit: 10)
+        XCTAssertEqual(rooms.count, 2)
+        XCTAssertEqual(rooms[1].title, "Portfolio triage")
+        XCTAssertTrue(rooms[1].roundInProgress)
+        let payload = try XCTUnwrap(server.frames.first?["request"]?["payload"])
+        XCTAssertEqual(payload, ["limit": 10])
+    }
+
+    /// The core rooms flow: `room.post` appends a human message, then `room.events` reads the whole
+    /// transcript back — including a plain system line (never silence) and a typed agent error with a
+    /// bench, both of which the transcript view must render, never swallow.
+    func testRoomPostThenEventsRoundTripIncludesASystemLineAndATypedError() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            let requestId = frame["requestId"]?.stringValue ?? ""
+            let operation = frame["request"]?["operation"]?.stringValue ?? ""
+            switch operation {
+            case "room.post":
+                return .reply(try! WireResponse.fixture("room-post.response.json", requestId: requestId))
+            case "room.events":
+                return .reply(try! WireResponse.fixture("room-events.response.json", requestId: requestId))
+            default:
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unknown-operation", message: operation, retryable: false))
+            }
+        }
+        defer { server.stop() }
+        let client = try makeClient(server)
+        let roomId = RoomID(unchecked: "50000001-0000-4000-8000-000000000001")
+        let handle = try RoomHumanHandle("priyansh")
+
+        let posted = try await client.postToRoom(roomId: roomId, handle: handle, body: "Let's plan the launch checklist.")
+        XCTAssertEqual(posted.message.body, "Let's plan the launch checklist.")
+        XCTAssertEqual(posted.room.headSequence, 1)
+
+        let events = try await client.roomEvents(roomId: roomId, afterSequence: 0, limit: 200)
+        XCTAssertEqual(events.messages.count, 7)
+        guard case .system(let factoryEvent) = events.messages[1] else { return XCTFail("expected a plain system line") }
+        XCTAssertEqual(factoryEvent.code, .factoryEvent)
+        XCTAssertFalse(factoryEvent.body.isEmpty)
+        guard case .system(let typedError) = events.messages[4] else { return XCTFail("expected a typed agent error") }
+        XCTAssertEqual(typedError.code, .agentError)
+        XCTAssertEqual(typedError.errorCode, .limit)
+        XCTAssertNotNil(typedError.benchedUntil)
+
+        let postPayload = try XCTUnwrap(server.frames.first?["request"]?["payload"])
+        XCTAssertEqual(postPayload["roomId"]?.stringValue, roomId.rawValue)
+        XCTAssertEqual(postPayload["handle"]?.stringValue, "priyansh")
+        let eventsPayload = try XCTUnwrap(server.frames.last?["request"]?["payload"])
+        XCTAssertEqual(eventsPayload["afterSequence"], 0)
+        XCTAssertEqual(eventsPayload["limit"], 200)
+    }
+
+    func testSignalRoomTypingRoundTrip() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            .reply(try! WireResponse.fixture("room-typing.response.json", requestId: frame["requestId"]!.stringValue!))
+        }
+        defer { server.stop() }
+        let client = try makeClient(server)
+        let roomId = RoomID(unchecked: "50000001-0000-4000-8000-000000000001")
+        let result = try await client.signalRoomTyping(roomId: roomId, handle: try RoomHumanHandle("priyansh"), ttlMs: 6_000)
+        XCTAssertEqual(result.typingUntil.rawValue, "2026-08-16T18:12:03.000Z")
+        let payload = try XCTUnwrap(server.frames.first?["request"]?["payload"])
+        XCTAssertEqual(payload["ttlMs"], 6_000)
+    }
+
     // MARK: Remote failures
 
     func testNonRetryableRemoteFailureCarriesNoRetryIdentity() async throws {

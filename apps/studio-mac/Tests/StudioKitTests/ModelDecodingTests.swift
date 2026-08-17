@@ -222,8 +222,8 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(String(decoding: try JSONEncoder().encode(EmptyPayload()), as: UTF8.self), "{}")
     }
 
-    func testAllTwentySevenOperationsAreNamed() {
-        XCTAssertEqual(CommandOperation.allCases.count, 27)
+    func testAllThirtyTwoOperationsAreNamed() {
+        XCTAssertEqual(CommandOperation.allCases.count, 32)
         XCTAssertEqual(Set(CommandOperation.allCases.map(\.rawValue)), [
             "doctor", "task.submit", "task.run", "attempt.status", "attempt.events", "attempt.list",
             "attempt.pause", "attempt.resume", "attempt.cancel", "task.retry", "attempt.unblock",
@@ -231,6 +231,7 @@ final class ModelDecodingTests: XCTestCase {
             "project.scan", "project.enroll-plan", "project.apply", "effects.status", "effects.list",
             "studio.snapshot", "studio.assistant.query", "studio.assistant.intent.propose",
             "studio.assistant.intent.execute", "project.milestones.list", "project.milestone.upsert",
+            "room.create", "room.list", "room.post", "room.events", "room.typing",
         ])
     }
 
@@ -363,5 +364,136 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNoThrow(try CalendarDate("2026-08-20"))
         XCTAssertThrowsError(try CalendarDate("2026-08-20T00:00:00.000Z"), "an instant is not a calendar date")
         XCTAssertThrowsError(try CalendarDate("2026-08-20\n"), "ICU `$` must not accept a trailing newline")
+    }
+
+    // MARK: Studio rooms — room.* (@app-factory/studio-rooms)
+    //
+    // Every fixture below was produced by `scripts/record-room-fixtures.mjs` validating real data
+    // through this worktree's own `@app-factory/contracts` build (room.ts merged to
+    // integration/studio-wave1 — unconditionally supported, unlike the Phase 2 fixtures above).
+
+    func testRoomCreateModel() throws {
+        guard case .success(_, .roomCreate(let result)) = try decode("room-create.response.json") else {
+            return XCTFail("expected room.create")
+        }
+        XCTAssertFalse(result.duplicate)
+        XCTAssertEqual(result.room.title, "Studio launch review")
+        XCTAssertNil(result.room.projectId)
+        XCTAssertEqual(result.room.participants.map(\.persona.rawValue), ["codex", "claude", "ollama"])
+        XCTAssertNil(result.room.activeGrantId)
+        XCTAssertFalse(result.room.roundInProgress)
+        XCTAssertEqual(result.room.budget.dayKey.rawValue, "2026-08-16")
+        XCTAssertEqual(result.room.budget.fraction, 0)
+    }
+
+    func testRoomListModelCarriesARoundInProgress() throws {
+        guard case .success(_, .roomList(let result)) = try decode("room-list.response.json") else {
+            return XCTFail("expected room.list")
+        }
+        XCTAssertEqual(result.rooms.count, 2)
+        XCTAssertEqual(result.rooms[0].title, "Studio launch review")
+        let triage = result.rooms[1]
+        XCTAssertEqual(triage.title, "Portfolio triage")
+        XCTAssertNotNil(triage.activeGrantId)
+        XCTAssertTrue(triage.roundInProgress, "activeGrantId != nil is the only honest 'a round is running' signal")
+        XCTAssertTrue(triage.unattendedEnabled)
+    }
+
+    func testRoomPostModelAppendsAHumanMessage() throws {
+        guard case .success(_, .roomPost(let result)) = try decode("room-post.response.json") else {
+            return XCTFail("expected room.post")
+        }
+        guard case .human(let handle) = result.message.author else { return XCTFail("expected a human author") }
+        XCTAssertEqual(handle.rawValue, "priyansh")
+        XCTAssertEqual(result.message.body, "Let's plan the launch checklist.")
+        XCTAssertTrue(result.message.mentions.isEmpty)
+        XCTAssertEqual(result.room.headSequence, 1)
+    }
+
+    /// One fixture, every message/event shape the transcript view renders: a human message, a plain
+    /// system line, an agent message, a PASS, a typed error with a bench, a mentioning agent message,
+    /// and the chain-cap livelock line.
+    func testRoomEventsModelCarriesEveryMessageShape() throws {
+        guard case .success(_, .roomEvents(let result)) = try decode("room-events.response.json") else {
+            return XCTFail("expected room.events")
+        }
+        XCTAssertEqual(result.messages.count, 7)
+        XCTAssertEqual(result.nextAfterSequence, 7)
+        XCTAssertTrue(result.moderator.enabled)
+        XCTAssertEqual(result.moderator.attendance, .attended)
+
+        guard case .message(let human) = result.messages[0], case .human(let handle) = human.author else {
+            return XCTFail("expected a human message first")
+        }
+        XCTAssertEqual(handle.rawValue, "priyansh")
+        XCTAssertNil(human.roundNumber)
+
+        guard case .system(let factoryEvent) = result.messages[1] else { return XCTFail("expected a system line") }
+        XCTAssertEqual(factoryEvent.code, .factoryEvent)
+        XCTAssertNil(factoryEvent.persona)
+        XCTAssertFalse(factoryEvent.body.isEmpty)
+
+        guard case .message(let codexMessage) = result.messages[2], case .agent(let codexPersona) = codexMessage.author else {
+            return XCTFail("expected an agent message")
+        }
+        XCTAssertEqual(codexPersona.rawValue, "codex")
+        XCTAssertEqual(codexMessage.roundNumber, 1)
+
+        guard case .system(let passed) = result.messages[3] else { return XCTFail("expected an agent-passed line") }
+        XCTAssertEqual(passed.code, .agentPassed)
+        XCTAssertEqual(passed.persona?.rawValue, "claude")
+
+        guard case .system(let error) = result.messages[4] else { return XCTFail("expected a typed error") }
+        XCTAssertEqual(error.code, .agentError)
+        XCTAssertEqual(error.errorCode, .limit)
+        XCTAssertEqual(error.errorCode?.label, "rate limit")
+        XCTAssertEqual(error.persona?.rawValue, "ollama")
+        XCTAssertNotNil(error.benchedUntil)
+        XCTAssertNotNil(error.retryAt)
+
+        guard case .message(let claudeMessage) = result.messages[5] else { return XCTFail("expected an agent message") }
+        XCTAssertEqual(claudeMessage.mentions.map(\.rawValue), ["codex"])
+
+        guard case .system(let chainCap) = result.messages[6] else { return XCTFail("expected the chain-cap line") }
+        XCTAssertEqual(chainCap.code, .chainCap)
+        XCTAssertNil(chainCap.persona)
+
+        let ollamaParticipant = try XCTUnwrap(result.room.participants.first { $0.persona.rawValue == "ollama" })
+        XCTAssertEqual(ollamaParticipant.benchReason, .limit)
+        XCTAssertTrue(ollamaParticipant.isBenched(at: IsoInstant(unchecked: "2026-08-16T18:30:00.000Z").date!))
+        XCTAssertFalse(ollamaParticipant.isBenched(at: IsoInstant(unchecked: "2026-08-16T20:00:00.000Z").date!))
+        XCTAssertEqual(result.room.budget.spentTokens, 3_200)
+        XCTAssertEqual(result.room.budget.fraction ?? -1, 0.02, accuracy: 0.0001)
+    }
+
+    func testRoomTypingModel() throws {
+        guard case .success(_, .roomTyping(let result)) = try decode("room-typing.response.json") else {
+            return XCTFail("expected room.typing")
+        }
+        XCTAssertEqual(result.roomId.rawValue, "50000001-0000-4000-8000-000000000001")
+        XCTAssertEqual(result.typingUntil.rawValue, "2026-08-16T18:12:03.000Z")
+    }
+
+    func testRoomCreateSpecEncodesNullProjectIdExplicitly() throws {
+        let spec = RoomCreateSpec(
+            roomId: RoomID(unchecked: "50000003-0000-4000-8000-000000000003"), title: "Test room", projectId: nil,
+            unattendedEnabled: false, agentCooldownEvents: 4,
+            participants: [RoomParticipantSpec(persona: try RoomPersona("codex"), provider: try RoomProvider("codex"),
+                                               displayName: "Codex")],
+            budget: RoomBudgetPolicy(dailyCeilingTokens: 1_000, unattendedDailyCeilingTokens: 0, maxTokensPerReply: 100))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let text = String(decoding: try encoder.encode(spec), as: UTF8.self)
+        XCTAssertTrue(text.contains("\"projectId\":null"), text)
+    }
+
+    func testRoomWirePrimitivesRejectMalformedValues() {
+        XCTAssertThrowsError(try RoomPersona("Codex"), "uppercase is not a lowercase persona key")
+        XCTAssertNoThrow(try RoomPersona("codex"))
+        XCTAssertThrowsError(try RoomProvider(""), "empty is not a provider key")
+        XCTAssertThrowsError(try RoomHumanHandle(""))
+        XCTAssertNoThrow(try RoomHumanHandle("priyansh.chordia"))
+        XCTAssertThrowsError(try RoomDayKey("2026-8-16"), "day key must be zero-padded")
+        XCTAssertNoThrow(try RoomDayKey("2026-08-16"))
     }
 }
