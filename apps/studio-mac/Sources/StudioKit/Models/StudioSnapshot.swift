@@ -213,10 +213,46 @@ public struct StudioProjectTimeline: Hashable, Sendable, Codable {
     }
 }
 
-/// `StudioProjectV1`. `lifecycleStage` is the pre-existing legacy 8-value stage
-/// (`ProjectLifecycleStage`, `project.ts`) — studio-snapshot.ts imports that schema, not the new
-/// 6-stage `ProjectLifecycleStageV1` `studio/lifecycle-reconciliation` defines, because this file
-/// predates that branch's merge too.
+/// `owner-doctrine` badge data: which enrolled/observed repository this project's docs-derived
+/// fields were read from, and, per the corpus's own authority order
+/// (`governance/DOCUMENTATION_POLICY.md`: code -> feature contracts -> decision records ->
+/// completion reports -> the central standard) as applied here, whether `lifecycleStage` ultimately
+/// came from this repository's own kernel/gate evidence (`factoryEvidence`) or from its repo docs
+/// (`repoDocs`) — `factoryEvidence` wins whenever both exist. `nil` on the whole field means no
+/// repo-docs source is configured for this project at all, not "repo docs were checked and had
+/// nothing." Mirrors `StudioProjectDocsProvenanceV1` (`studio-snapshot.ts`).
+public enum StudioProjectDocsSourceKind: String, Hashable, Sendable, Codable, CaseIterable {
+    case enrolled, observed
+}
+
+/// `StudioFieldSourceV1` (`studio-snapshot.ts`).
+public enum StudioFieldSource: String, Hashable, Sendable, Codable, CaseIterable {
+    case repoDocs = "repo-docs"
+    case factoryEvidence = "factory-evidence"
+    case milestone
+}
+
+public struct StudioProjectDocsProvenance: Hashable, Sendable, Codable {
+    public var sourceKind: StudioProjectDocsSourceKind
+    public var repositoryRoot: AbsolutePath
+    public var docsSnapshotDigest: Sha256Digest
+    public var lifecycleStageSource: StudioFieldSource?
+    public var awaitingHumanFromDocsCount: Int
+
+    public init(sourceKind: StudioProjectDocsSourceKind, repositoryRoot: AbsolutePath, docsSnapshotDigest: Sha256Digest,
+                lifecycleStageSource: StudioFieldSource?, awaitingHumanFromDocsCount: Int) {
+        self.sourceKind = sourceKind
+        self.repositoryRoot = repositoryRoot
+        self.docsSnapshotDigest = docsSnapshotDigest
+        self.lifecycleStageSource = lifecycleStageSource
+        self.awaitingHumanFromDocsCount = awaitingHumanFromDocsCount
+    }
+}
+
+/// `StudioProjectV1`. `lifecycleStage` is the canonical six-stage `ProjectLifecycleStage`
+/// (`ProjectLifecycleStageV1`, `lifecycle.ts`, ADR 0005) — real as of the `studio/repo-docs-truth`
+/// merge (previously always `nil`; see `ProjectLifecycleStage`'s own doc comment for how it shares
+/// its Swift type, and legacy-value decoding fallback, with `PortfolioProject.lifecycleStage`).
 public struct StudioProject: Hashable, Sendable, Codable, Identifiable {
     public var projectId: ProjectID
     /// A stable, `StableKey`-shaped identifier: from the enrolled project/manifest when known,
@@ -231,12 +267,17 @@ public struct StudioProject: Hashable, Sendable, Codable, Identifiable {
     public var latestAttemptSummary: StudioAttemptSummary?
     public var awaitingHuman: [StudioAwaitingHumanItem]
     public var timeline: StudioProjectTimeline
+    /// Present exactly when a repo-docs source is configured for this project
+    /// (`APP_FACTORY_PROJECT_DOCS_SOURCES`); `nil` for a project with none configured, which looks
+    /// exactly as it did before the daemon's repo-docs wiring existed.
+    public var docsProvenance: StudioProjectDocsProvenance?
 
     public var id: ProjectID { projectId }
 
     public init(projectId: ProjectID, slug: StableKey, name: String, lifecycleStage: ProjectLifecycleStage?,
                 gates: StudioProjectGates, latestAttemptSummary: StudioAttemptSummary?,
-                awaitingHuman: [StudioAwaitingHumanItem], timeline: StudioProjectTimeline) {
+                awaitingHuman: [StudioAwaitingHumanItem], timeline: StudioProjectTimeline,
+                docsProvenance: StudioProjectDocsProvenance? = nil) {
         self.projectId = projectId
         self.slug = slug
         self.name = name
@@ -245,6 +286,7 @@ public struct StudioProject: Hashable, Sendable, Codable, Identifiable {
         self.latestAttemptSummary = latestAttemptSummary
         self.awaitingHuman = awaitingHuman
         self.timeline = timeline
+        self.docsProvenance = docsProvenance
     }
 }
 

@@ -214,7 +214,7 @@ final class DashboardDerivationTests: XCTestCase {
             let steps = DashboardDerivation.lifecycle(for: stage)
             XCTAssertEqual(steps.first { $0.phase == .deviceSmoke }?.state, .unknown, stage.rawValue)
         }
-        XCTAssertEqual(DashboardDerivation.lifecycle(for: .released).map(\.state), [.done, .done, .done, .done, .unknown, .done])
+        XCTAssertEqual(DashboardDerivation.lifecycle(for: .live).map(\.state), [.done, .done, .done, .done, .unknown, .done])
         XCTAssertEqual(DashboardDerivation.lifecycle(for: nil).map(\.state), Array(repeating: .unknown, count: 6))
     }
 

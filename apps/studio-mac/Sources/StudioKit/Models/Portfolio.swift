@@ -2,10 +2,56 @@ import Foundation
 
 // MARK: - Portfolio read model (portfolio-read-model.ts, project.ts)
 
-public enum ProjectLifecycleStage: String, Hashable, Sendable, Codable, CaseIterable {
-    case exploring, planned, building, qa
-    case internalTestflight = "internal-testflight"
-    case released, paused, archived
+/// ADR 0005 (`docs/architecture/0005-lifecycle-reconciliation.md`) canonical six-stage lifecycle
+/// vocabulary — `ProjectLifecycleStageV1` (`lifecycle.ts`). `StudioProject.lifecycleStage` sends this
+/// vocabulary for real as of the `studio/repo-docs-truth` merge (previously always `null`).
+/// `PortfolioProject.lifecycleStage` still comes from the daemon's legacy 8-value
+/// `ProjectManifestV1.lifecycleStage` (`LegacyProjectLifecycleStageV1Schema`, `project.ts`) — decoding
+/// folds any of those raw values onto its canonical stage below via `legacyMap`, which mirrors
+/// `LEGACY_PROJECT_LIFECYCLE_STAGE_MAP_V1` (`lifecycle.ts`) verbatim, so both fields — and any older
+/// recorded fixture still carrying a legacy raw value — decode into one shared vocabulary.
+public enum ProjectLifecycleStage: String, Hashable, Sendable, CaseIterable {
+    case idea, building, qa
+    case launchPrep = "launch-prep"
+    case live, frozen
+}
+
+extension ProjectLifecycleStage: Codable {
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        if let canonical = ProjectLifecycleStage(rawValue: raw) {
+            self = canonical
+            return
+        }
+        if let legacy = ProjectLifecycleStage.legacyMap[raw] {
+            self = legacy
+            return
+        }
+        throw DecodingError.dataCorruptedError(
+            in: container, debugDescription: "Unrecognized ProjectLifecycleStage value: \(raw)")
+    }
+
+    /// Always the canonical raw value — a decoded legacy value re-encodes as its canonical stage,
+    /// never round-trips back to the legacy string it was folded from.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    /// `LEGACY_PROJECT_LIFECYCLE_STAGE_MAP_V1` (`lifecycle.ts`), verbatim: `planned` is still `idea`
+    /// (nothing built, no gate can hold); `internal-testflight` is `launch-prep` (the release
+    /// sub-lifecycle, ADR 0003, runs there).
+    private static let legacyMap: [String: ProjectLifecycleStage] = [
+        "exploring": .idea,
+        "planned": .idea,
+        "building": .building,
+        "qa": .qa,
+        "internal-testflight": .launchPrep,
+        "released": .live,
+        "paused": .frozen,
+        "archived": .frozen,
+    ]
 }
 
 public enum PortfolioSourceAvailability: String, Hashable, Sendable, Codable, CaseIterable {

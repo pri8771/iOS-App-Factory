@@ -1,10 +1,15 @@
 // Regenerates studio-snapshot.response.json (+ .canonical.txt / .digest.txt) through the real,
 // built `@app-factory/contracts` — the seam fixes in apps/studio-mac/docs/architecture/
 // 0003-studio-phase2-service-integration.md decisions 4-6 (unified ProjectMilestoneV1, a real
-// `slug`, typed gates). Kept as its own script rather than folded into record-fixtures.mjs: that
-// script's own "attempt-list.response.json" generation already throws (AttemptListItemV1 gained a
-// required `phase` field in a later, unrelated merge that script was never updated for), which
-// would block this fixture from being written too. See the flagged follow-up task for that.
+// `slug`, typed gates), and — as of the `studio/repo-docs-truth` merge — the real, canonical
+// `ProjectLifecycleStageV1` on `lifecycleStage` (ADR 0005) plus the new `docsProvenance` field:
+// Anjali carries a populated provenance (an "enrolled" repo-docs source backing its
+// `lifecycleStage`), Hindsight carries `null` (no repo-docs source configured for it), exercising
+// both shapes `StudioProjectDocsProvenanceV1Schema.nullable()` allows. Kept as its own script
+// rather than folded into record-fixtures.mjs: that script's own "attempt-list.response.json"
+// generation already throws (AttemptListItemV1 gained a required `phase` field in a later,
+// unrelated merge that script was never updated for), which would block this fixture from being
+// written too. See the flagged follow-up task for that.
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import {
@@ -102,6 +107,13 @@ const envelope = {
           },
         ],
       },
+      docsProvenance: {
+        sourceKind: "enrolled",
+        repositoryRoot: "/Users/example/code/anjali",
+        docsSnapshotDigest: `sha256:${"a".repeat(64)}`,
+        lifecycleStageSource: "repo-docs",
+        awaitingHumanFromDocsCount: 0,
+      },
     },
     {
       projectId: projectBId,
@@ -118,6 +130,9 @@ const envelope = {
       awaitingHuman: [],
       // A real, non-error empty state: Hindsight has no authored milestones yet.
       timeline: { milestones: [], milestonesUnavailableReason: null, actuals: [] },
+      // No repo-docs source is configured for Hindsight — an honest `null`, not a fabricated
+      // provenance record.
+      docsProvenance: null,
     },
   ],
   rooms: [],

@@ -326,16 +326,15 @@ public enum DashboardDerivation {
 
     // MARK: Reticle
 
-    /// Progress of a daemon lifecycle stage toward `released` (0…1). Paused/archived make no claim.
+    /// Progress of a daemon lifecycle stage toward `live` (0…1). `frozen` makes no claim.
     static func stageProgress(_ stage: ProjectLifecycleStage) -> Double? {
         switch stage {
-        case .exploring: return 0
-        case .planned: return 0.2
+        case .idea: return 0
         case .building: return 0.4
         case .qa: return 0.6
-        case .internalTestflight: return 0.8
-        case .released: return 1
-        case .paused, .archived: return nil
+        case .launchPrep: return 0.8
+        case .live: return 1
+        case .frozen: return nil
         }
     }
 
@@ -566,18 +565,18 @@ public enum DashboardDerivation {
         let order: [LifecyclePhase] = LifecyclePhase.allCases
         let activeIndex: Int?
         switch stage {
-        case .none, .paused?, .archived?: activeIndex = nil
-        case .exploring?, .planned?: activeIndex = 0
+        case .none, .frozen?: activeIndex = nil
+        case .idea?: activeIndex = 0
         case .building?: activeIndex = 1
         case .qa?: activeIndex = 2
-        case .internalTestflight?: activeIndex = 3
-        case .released?: activeIndex = 5
+        case .launchPrep?: activeIndex = 3
+        case .live?: activeIndex = 5
         }
         return order.enumerated().map { index, phase in
             if phase.isHumanGate { return LifecycleStep(phase, .unknown) }
             guard let activeIndex else { return LifecycleStep(phase, .unknown) }
             if index < activeIndex { return LifecycleStep(phase, .done) }
-            if index == activeIndex { return LifecycleStep(phase, stage == .released ? .done : .active) }
+            if index == activeIndex { return LifecycleStep(phase, stage == .live ? .done : .active) }
             return LifecycleStep(phase, .planned)
         }
     }
