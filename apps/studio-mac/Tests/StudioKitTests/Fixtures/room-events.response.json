@@ -155,9 +155,7 @@
           "persona": "claude"
         },
         "body": "Here's a draft checklist: 1) verify build 2) confirm store listing 3) notify support.",
-        "mentions": [
-          "codex"
-        ]
+        "mentions": ["codex"]
       },
       {
         "schemaVersion": 1,

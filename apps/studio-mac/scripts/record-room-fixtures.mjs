@@ -10,7 +10,8 @@ import { writeFileSync } from "node:fs";
 import { CommandResponseV1Schema } from "../../../packages/contracts/dist/index.js";
 
 const rid = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
-const ok = (result) => CommandResponseV1Schema.parse({ protocolVersion: 1, requestId: rid, ok: true, result });
+const ok = (result) =>
+  CommandResponseV1Schema.parse({ protocolVersion: 1, requestId: rid, ok: true, result });
 
 // One room ("Studio launch review") carries every message/event shape Studio's rooms UI renders: a
 // human message, two different agent personas replying, a plain system line (factory-event), a PASS
@@ -20,8 +21,22 @@ const ok = (result) => CommandResponseV1Schema.parse({ protocolVersion: 1, reque
 
 const roomId = "50000001-0000-4000-8000-000000000001";
 const roomParticipants = [
-  { persona: "codex", provider: "codex", displayName: "Codex", position: 0, benchedUntil: null, benchReason: null },
-  { persona: "claude", provider: "claude", displayName: "Claude", position: 1, benchedUntil: null, benchReason: null },
+  {
+    persona: "codex",
+    provider: "codex",
+    displayName: "Codex",
+    position: 0,
+    benchedUntil: null,
+    benchReason: null,
+  },
+  {
+    persona: "claude",
+    provider: "claude",
+    displayName: "Claude",
+    position: 1,
+    benchedUntil: null,
+    benchReason: null,
+  },
   {
     persona: "ollama",
     provider: "ollama",
@@ -65,7 +80,13 @@ const fixtures = {
   "room-list.response.json": ok({
     operation: "room.list",
     rooms: [
-      { ...freshRoom, updatedAt: "2026-08-16T18:31:00.000Z", headSequence: 7, roundCounter: 2, budget: roomBudget },
+      {
+        ...freshRoom,
+        updatedAt: "2026-08-16T18:31:00.000Z",
+        headSequence: 7,
+        roundCounter: 2,
+        budget: roomBudget,
+      },
       {
         schemaVersion: 1,
         roomId: "50000002-0000-4000-8000-000000000002",

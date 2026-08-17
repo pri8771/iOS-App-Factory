@@ -125,7 +125,7 @@ contract — no feature-detection fallback, unlike `studio.snapshot`/`studio.ass
 transcript/roster/budget panel show is **live**, straight off `room.events`: messages (human/agent/
 system), the roster's benched-until state, and the budget meter. "Passed last round" in the roster is
 **derived** from the loaded transcript's most recent system line for that persona. A round in progress
-is shown at room level only (`room.activeGrantId != nil`) — the wire never says *which* participant
+is shown at room level only (`room.activeGrantId != nil`) — the wire never says _which_ participant
 currently holds the floor, so Studio never attributes it to one. The new-room sheet's participant rows
 are an honest **not yet sourced** local suggestion, editable before creating: no `room.*` operation
 lists the daemon's configured personas (`room-participants-config.ts` is daemon-local configuration,
