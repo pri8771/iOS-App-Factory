@@ -1,0 +1,13 @@
+# Assumptions
+
+| ID | Assumption | Evidence | Validation plan / task | Status |
+|---|---|---|---|---|
+| ASM-001 | Bundle ID `com.primandir.svara` and team `796XH483R4` match the intended App Store record. | App Store Connect Apple ID `6785557134`; accepted cloud-signed upload | Reverified by `TF-004` and `TF-011` on 2026-07-30. | verified |
+| ASM-002 | Dormant IAP identifiers and reference prices may be candidates for a future monetized build. | Current owner-testing build disables Plus under `DEC-006`. | Reconfirm every product, price, and territory in `TF-005` before reactivation. | deferred |
+| ASM-003 | GitHub Pages URLs are the intended production legal and support destinations, and the corrected repository copy will be deployed there. | URLs returned HTTP 200, but the served copy was stale on 2026-07-29. | Deploy and content-check the exact URLs in `TF-006`. | verification_pending |
+| ASM-004 | iPhone-only target family is intentional. | `TARGETED_DEVICE_FAMILY = 1`; `DEC-005` | Product owner confirmed in `TF-001`. | verified |
+| ASM-005 | The app uses no non-exempt encryption. | No network/crypto dependency; Info.plist flag | Reconfirm exact final dependency inventory in `TF-009` and signed build in `TF-011`. | verified_local |
+| ASM-006 | The full five-tab build, rather than `FeatureFlags.betaScope`, is the intended external beta scope. | Shipping code uses the full free surface; `DEC-005`/`DEC-006` | Product owner confirmed in `TF-001`. | verified |
+| ASM-007 | The dormant one-week introductory offers may be intended for a future Plus release. | Local StoreKit fixture contains them; current free build does not expose StoreKit. | Product owner explicitly accepts/removes trials during future `TF-005`. | deferred |
+| ASM-008 | The primary language, SKU, review-contact source, tester cohorts, and stop authority are known; public App Store territories remain deferred. | `DEC-005`; App Store Connect record; `AppStore/metadata.md` | Reconfirm external TestFlight metadata and group controls in `TF-008`/`TF-014`. | verified_testflight_scope |
+| ASM-009 | A future opt-in cloud-Pro tier (chanting pronunciation feedback via a cloud speech model, personalized practice curation) may be worth building — portfolio-wide direction discussed 2026-08-14, not Svara-specific yet. | None — undecided; free on-device product ships and is disclosed as-is until this is explicitly actioned. | Any cloud-generated or cloud-curated content requires the same human cultural/religious sign-off already required for the current release (see the open cultural sign-off gate); privacy label and disclosure must be re-verified before any cloud call ships. | deferred |

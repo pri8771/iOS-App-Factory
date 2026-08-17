@@ -28,6 +28,7 @@
     "@app-factory/policy-corpus": "workspace:*",
     "@app-factory/policy-engine": "workspace:*",
     "@app-factory/process-supervisor": "workspace:*",
+    "@app-factory/project-docs": "workspace:*",
     "@app-factory/project-sdk": "workspace:*",
     "@app-factory/scheduler": "workspace:*",
     "@app-factory/studio-room-adapters": "workspace:*",

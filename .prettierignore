@@ -4,3 +4,7 @@ node_modules/
 packages/contracts/schemas/
 pnpm-lock.yaml
 .build/
+# Read-only, byte-verbatim copies of real repositories' documentation, cut for
+# packages/project-docs's fixture tests. Never reformat: their exact bytes (including per-repo
+# inconsistencies) are the point.
+packages/project-docs/test/fixtures/

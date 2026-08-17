@@ -65,11 +65,14 @@ import {
 
 import type { DaemonRuntimeIdFactory, DaemonRuntimeIdPurpose } from "./daemon-runtime-ids.js";
 import { executeEvidenceCommand } from "./evidence-command-runtime.js";
+import { executeMirrorPlanCommand } from "./mirror-command-runtime.js";
 import {
   executeProjectApplyCommand,
   executeProjectEnrollPlanCommand,
   executeProjectScanCommand,
 } from "./project-command-runtime.js";
+import { executeProjectDocsSnapshotCommand } from "./project-docs-command-runtime.js";
+import { loadProjectDocsSourcesV1 } from "./project-docs-sources.js";
 import {
   buildPresetListResultV1,
   loadKnownStandardRuleIdsV1,
@@ -606,6 +609,8 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "preset.list":
     case "preset.upsert":
     case "phase.upsert":
+    case "project.docs.snapshot":
+    case "mirror.plan":
     case "effects.status":
     case "effects.list":
     case "room.create":
@@ -1461,6 +1466,10 @@ async function executeRequest(
         dependencies.observedAt,
         dependencies.knownStandardRuleIds,
       );
+    case "project.docs.snapshot":
+      return await executeProjectDocsSnapshotCommand(request, dependencies.observedAt);
+    case "mirror.plan":
+      return await executeMirrorPlanCommand(request, dependencies.observedAt);
     case "effects.status":
       return {
         operation: "effects.status",
@@ -1484,13 +1493,17 @@ async function executeRequest(
     case "studio.snapshot":
       return {
         operation: "studio.snapshot",
-        snapshot: buildStudioSnapshotV1(repositories, dependencies.observedAt),
+        snapshot: buildStudioSnapshotV1(
+          repositories,
+          dependencies.observedAt,
+          loadProjectDocsSourcesV1(),
+        ),
       };
     case "studio.assistant.query":
       return {
         operation: "studio.assistant.query",
         answer: computeAssistantAnswerV1(
-          buildStudioSnapshotV1(repositories, dependencies.observedAt),
+          buildStudioSnapshotV1(repositories, dependencies.observedAt, loadProjectDocsSourcesV1()),
           request.payload.query,
         ),
       };

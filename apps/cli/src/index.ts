@@ -106,6 +106,7 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "project.milestone.upsert"; upsert: ProjectMilestoneUpsertV1 }>
   | Readonly<{ kind: "phases.list" }>
   | Readonly<{ kind: "phases.show"; presetId: PhasePresetId }>
+  | Readonly<{ kind: "project.docs.snapshot"; repositoryRoot: string }>
   | Readonly<{ kind: "effects.status" }>
   | Readonly<{
       kind: "effects.list";
@@ -692,6 +693,20 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     usageError("Phases requires one of: list, show.");
   }
 
+  if (command === "docs") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "snapshot") {
+      const repositoryRoot = parseRepositoryPath(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "project.docs.snapshot", repositoryRoot },
+      };
+    }
+    usageError("Docs requires: snapshot.");
+  }
+
   usageError(`Unknown command: ${command}`);
 }
 
@@ -890,6 +905,50 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
     case "phase.upsert": {
       const { phase } = result;
       return `phase.upsert: ${result.created ? "created" : "updated"} ${phase.phaseId} r${String(phase.revision)} ${phase.mode} ${JSON.stringify(phase.name)}\n`;
+    }
+    case "project.docs.snapshot": {
+      const { snapshot } = result;
+      const availability = (value: unknown, unavailableReason: string | null): string =>
+        value === null ? `unavailable (${unavailableReason ?? "unknown"})` : "available";
+      const missingDocs = snapshot.docs.filter((doc) => !doc.present).map((doc) => doc.key);
+      const lines = [
+        `project.docs.snapshot: ${snapshot.repositoryRoot} (layout: ${snapshot.layout}, digest ${snapshot.snapshotDigest})`,
+        `lifecycle status: ${snapshot.lifecycleStatus.value ?? availability(snapshot.lifecycleStatus.value, snapshot.lifecycleStatus.unavailableReason)}`,
+        `last verified: ${snapshot.lastVerifiedAt.value ?? availability(snapshot.lastVerifiedAt.value, snapshot.lastVerifiedAt.unavailableReason)}`,
+        `release checklist: ${
+          snapshot.releaseChecklist.value === null
+            ? availability(null, snapshot.releaseChecklist.unavailableReason)
+            : `${String(snapshot.releaseChecklist.value.checkedItems)}/${String(snapshot.releaseChecklist.value.totalItems)} checked`
+        }`,
+        `open bugs: ${
+          snapshot.openBugs.value === null
+            ? availability(null, snapshot.openBugs.unavailableReason)
+            : `${String(snapshot.openBugs.value.openCount)}/${String(snapshot.openBugs.value.totalCount)}`
+        }`,
+        `open risks: ${
+          snapshot.openRisks.value === null
+            ? availability(null, snapshot.openRisks.unavailableReason)
+            : `${String(snapshot.openRisks.value.openCount)}/${String(snapshot.openRisks.value.totalCount)}`
+        }`,
+        missingDocs.length === 0
+          ? "all mandated docs present"
+          : `missing docs: ${missingDocs.join(", ")}`,
+      ];
+      return `${lines.join("\n")}\n`;
+    }
+    case "mirror.plan": {
+      const { projection, diff } = result;
+      const lines = [
+        `mirror.plan: project ${projection.projectId}, projection ${projection.projectionDigest}`,
+        `lifecycle status: ${projection.lifecycleStatus ?? "unavailable"}`,
+        `open bugs: ${String(projection.openBugs.length)}, open risks: ${String(projection.openRisks.length)}, milestones: ${String(projection.milestones.length)}`,
+        diff.changed
+          ? `${String(diff.changes.length)} change(s) vs previous projection ${diff.previousProjectionDigest ?? "(none)"}:\n${diff.changes
+              .map((change) => `  ${change.changeKind}\t${change.field}`)
+              .join("\n")}`
+          : "no change vs previous projection",
+      ];
+      return `${lines.join("\n")}\n`;
     }
     case "effects.status": {
       const { counts, pendingOutbox, pump } = result.status;
@@ -1377,6 +1436,9 @@ export async function runCli(
         io.stdout(output);
         return 0;
       }
+      case "project.docs.snapshot":
+        result = await client.docsSnapshot(invocation.command.repositoryRoot, identity);
+        break;
       case "effects.status":
         result = await client.effectsStatus(identity);
         break;

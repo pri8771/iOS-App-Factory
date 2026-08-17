@@ -286,6 +286,60 @@
           "maxItems": 100,
           "type": "array"
         },
+        "docsProvenance": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "awaitingHumanFromDocsCount": {
+                  "$ref": "#/$defs/__schema24"
+                },
+                "docsSnapshotDigest": {
+                  "$ref": "#/$defs/__schema23"
+                },
+                "lifecycleStageSource": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "repo-docs",
+                        "factory-evidence",
+                        "milestone"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "repositoryRoot": {
+                  "maxLength": 4096,
+                  "minLength": 2,
+                  "pattern": "^\\/(?!.*\\/\\/)(?!.*\\\\)(?!.*\\0).+$",
+                  "type": "string"
+                },
+                "sourceKind": {
+                  "enum": [
+                    "enrolled",
+                    "observed"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sourceKind",
+                "repositoryRoot",
+                "docsSnapshotDigest",
+                "lifecycleStageSource",
+                "awaitingHumanFromDocsCount"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "gates": {
           "additionalProperties": false,
           "properties": {
@@ -461,7 +515,8 @@
         "gates",
         "latestAttemptSummary",
         "awaitingHuman",
-        "timeline"
+        "timeline",
+        "docsProvenance"
       ],
       "type": "object"
     },

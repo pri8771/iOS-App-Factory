@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/completion-report.schema.json",
+  "taskId": "AURA-TESTFLIGHT-TASK-PLANS-2026-07-29",
+  "featureId": "FEAT-006",
+  "status": "code_complete",
+  "implemented": [
+    "Created one canonical execution file for each of the 26 TestFlight readiness tasks",
+    "Converted 179 ordered actions into stable nested subtask IDs",
+    "Added concise what why expected-result and exact-how descriptions to every task and subtask",
+    "Added explicit execution evidence and failure-handling blocks to every subtask",
+    "Centralized shared lower-model safety status and evidence rules",
+    "Converted the readiness document into a canonical index linking to focused task plans",
+    "Updated repository routing and Jira/Notion mirror metadata to canonical task-file paths",
+    "Added a standard-library Ruby validator for task metadata structure IDs evidence and mirror parity"
+  ],
+  "verification": [
+    {
+      "check": "Canonical task-plan validator",
+      "result": "26 task plans and 179 contiguous unique subtasks passed"
+    },
+    {
+      "check": "Mirror parity",
+      "result": "26 unique parent rows with canonical task paths and subtask counts passed"
+    },
+    {
+      "check": "App Factory project-registration verifier",
+      "result": "passed",
+      "standardVersion": "0.4.0"
+    },
+    {
+      "check": "JSON parsing whitespace and git diff checks",
+      "result": "passed"
+    }
+  ],
+  "checksNotRun": [
+    "Apple account and App Store Connect external-state verification",
+    "Physical-device camera accessibility performance and storage matrices",
+    "StoreKit sandbox and TestFlight purchase matrix",
+    "Signed archive upload processing and beta distribution",
+    "Jira and Notion external mirror creation"
+  ],
+  "placeholdersRemaining": [
+    "Owner-controlled Apple account and app-record values",
+    "Public support privacy and reviewer-image URLs",
+    "Review contact and feedback email",
+    "Approved prices territories offers and StoreKit product state",
+    "Physical-device sandbox signing upload and TestFlight evidence",
+    "Jira project key and AuraFit Notion target"
+  ],
+  "fakeDataUsedInProduction": false,
+  "knownIssues": [
+    "The execution plans are complete but externally blocked tasks remain unverified",
+    "External Jira and Notion mirrors cannot be created without owner-selected targets"
+  ],
+  "documentationUpdated": [
+    ".factory/repository-map.json",
+    "docs/README.md",
+    "docs/TESTFLIGHT_READINESS.md",
+    "docs/testflight/tasks/",
+    "docs/mirrors/README.md",
+    "docs/mirrors/TESTFLIGHT_BACKLOG.csv",
+    "scripts/testflight_task_docs.rb"
+  ],
+  "humanReviewRequired": [
+    "Supply the OWNER_REQUIRED values called out by the selected task plans",
+    "Execute owner hardware and Apple-system subtasks with task-scoped evidence",
+    "Select Jira and Notion targets before external mirroring",
+    "Do not advance release status until each gate's evidence exists"
+  ]
+}

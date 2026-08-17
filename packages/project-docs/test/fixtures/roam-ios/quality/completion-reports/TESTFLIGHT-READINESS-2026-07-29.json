@@ -1,0 +1,117 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/completion-report.schema.json",
+  "taskId": "TESTFLIGHT-READINESS-2026-07-29",
+  "featureId": "FEAT-004",
+  "status": "verification_pending",
+  "implemented": [
+    "Updated local App Factory registration and quality standard from 0.2.0 to 0.4.0.",
+    "Added repository navigation, library catalog, reuse record, feature contracts, and release evidence.",
+    "Removed project-level code-signing disable and made bundle versions derive from build settings.",
+    "Added a fail-closed Release resource phase for six production SQLite bundles and sample-fixture removal.",
+    "Restricted sample services, geometry fallback, and tracking permission to DEBUG builds.",
+    "Added persistent-store recovery UI and blocked tracking during temporary in-memory recovery.",
+    "Added journaled app-controlled deletion for SwiftData history/settings, saved exports, MetricKit diagnostics, and transient state, with atomic rollback/forward recovery for ordinary interruptions, fallback-store refusal, late-writer fencing, and reset after confirmed success.",
+    "Corrected privacy, terms, support links, and current-product documentation.",
+    "Resolved earlier compile-time Swift concurrency diagnostics and the MapKit/SwiftUI state-publication runtime warning; deferred SwiftData processor-context construction to actor-isolated first use and recorded a focused warning-free local result.",
+    "Added TestFlight export options and automated readiness checks.",
+    "Defined the repository-canonical 14-task, 95-subtask TestFlight backlog with dependencies, implementation procedures, acceptance criteria, and evidence paths.",
+    "Added one detailed execution packet per parent task, with lower-model-safe descriptions for all 95 subtasks and automated validation/export tooling for repository-to-mirror synchronization.",
+    "Synchronized descriptions and canonical paths for 110 unique Notion mirror rows, then synchronized and re-queried Status plus Implementation progress for the epic and 12 locally changed slices (13 rows).",
+    "Made project.yml the strict generated marketing-version/build-number authority and proved deterministic generation with two focused tests.",
+    "Removed workstation-specific geometry-builder defaults and proved checkout-relative and explicit-path behavior with three focused tests.",
+    "Removed the guessed Roam Plus price; added an injected production adapter, exact localized product loading, one explicit state model, verified exact-product entitlement checks, pending/duplicate guards, and truthful paywall states; all 13 fake-backed tests pass.",
+    "Added honest single-location-manager callback provenance with legacy/unknown decoding and focused mapping coverage.",
+    "Stopped new diagnostic coordinate persistence/interpolation, hard-redacted legacy coordinate export fields, and added idempotent cleanup that leaves visit history unchanged.",
+    "Added finite structured location diagnostics, deterministic primary-save failure recovery with no raw error payload, disabled-logging/pruning tests, actor-owned SwiftData context creation, confirmed-save-before-publication ordering, and a deletion-generation fence for late location/diagnostic/end-visit callbacks.",
+    "Made Settings exports attempt-specific so failed retries cannot share an older successful file.",
+    "Added ten deterministic automated accessibility audit surfaces with no blanket handler and bounded exact framework handlers; the current run passes Onboarding and fails nine surfaces, so no accessibility pass is claimed.",
+    "Fixed and guarded release-critical source/archive Info.plist declarations, excluded the test-only StoreKit configuration from the app archive, and produced an exact-current unsigned structural archive with 29 preflight passes, 0 failures, and 1 expected unsigned warning.",
+    "Added App Store Connect metadata and staged TestFlight operations runbooks based on Apple requirements verified 2026-07-29."
+  ],
+  "verification": [
+    {
+      "check": "App Factory registration",
+      "result": "passed",
+      "evidence": "quality/evidence/testflight-readiness-2026-07-29.json"
+    },
+    {
+      "check": "Production bundle integrity and provenance",
+      "result": "passed for local artifacts",
+      "evidence": "quality/evidence/boundary-bundles-2026-07-29.json"
+    },
+    {
+      "check": "Automated tests",
+      "result": "pre-Wave-1 full-scheme baseline: 89 passed, 0 failed, 0 skipped; focused UI smoke passed",
+      "evidence": "quality/evidence/testflight-readiness-2026-07-29.json"
+    },
+    {
+      "check": "Wave 1 focused implementation tests",
+      "result": "The exact-current RoamTests target excluding only StoreKitIntegrationTests passed 127/127 with 0 failures and 0 skips; result Roam-Final-Units-No-StoreKitIntegration-20260729-1941.xcresult, deterministic aggregate SHA-256 d00e17cd8fd6ec667c5700d6ac821adc885005d5550e5f90190b042c3f76d586. Focused hardening passed 33/33 and processor privacy/save-order/deletion-fence coverage passed 11/11.",
+      "evidence": "quality/evidence/testflight/TF-002/, TF-004/, TF-006/, TF-008/, TF-009/, and TF-010/findings-and-reruns.md"
+    },
+    {
+      "check": "Automated accessibility audit infrastructure",
+      "result": "Current third pass: 10 surfaces executed, 1 passed (Onboarding), 9 failed, 0 skipped; result Roam-A11y-ThirdPass-20260729-1936.xcresult, aggregate SHA-256 07e887a364ccbdfdeb8bdf690eea4bf817dbc4d3423c5addae58216e9de6f856; verification pending",
+      "evidence": "quality/evidence/testflight/TF-010/automated-audits.md and findings-and-reruns.md"
+    },
+    {
+      "check": "Release build, analysis, and structural archive",
+      "result": "structural only: build/analyze/archive completed with 0 errors and 0 warnings; preflight 29 passed, 0 failed, 1 expected unsigned warning; six SQLite bundles and privacy manifest present, .storekit absent; archive SHA-256 2121089cc9cd7a4a09c59c2445d3ecd4c251cb40c965fb19898bee719d7987b1",
+      "evidence": "quality/evidence/testflight/TF-012/structural-release-verification.md"
+    },
+    {
+      "check": "App Store Connect export",
+      "result": "blocked: host has 0 valid signing identities and no provisioning profiles; the structural archive is unsigned and not exportable or uploadable",
+      "evidence": "quality/evidence/testflight/TF-012/structural-release-verification.md"
+    }
+  ],
+  "checksNotRun": [
+    "Full scheme including UI tests after all Wave 1 binary changes; the post-Wave-1 RoamTests unit target was run separately",
+    "Physical-device background, battery, persistence, and migration scenarios",
+    "Accessibility and supported-layout human review",
+    "National performance budgets",
+    "App Store Connect metadata, privacy, product, tester, and review configuration"
+  ],
+  "placeholdersRemaining": [
+    "External App Store Connect release configuration and reviewer metadata",
+    "Reproducible restore/publication mechanism for generated production SQLite artifacts"
+  ],
+  "fakeDataUsedInProduction": false,
+  "knownIssues": [
+    "No App Store distribution provisioning profile is available for com.localfirst.roam.",
+    "Strict local verification of the development-signed archive reports CSSMERR_TP_NOT_TRUSTED.",
+    "The production geometry artifacts remain gitignored and lack an owner-approved manifest, restore/build entry point, atomic install, and clean-checkout proof; portable builder defaults alone do not resolve this.",
+    "Owner-approved marketing version/build policy and archive/processed-build identity reconciliation remain despite the fixed canonical generator.",
+    "Honest single-manager callback provenance, finite structured diagnostics, coordinate/free-form legacy redaction, deterministic save-failure recovery, and local processor-context remediation are implemented; overhead proof, real persistent-store fault coverage, and physical-device location evidence remain incomplete.",
+    "Delete All Data now covers app-controlled history/settings, exports, diagnostics, and writer coordination for ordinary interrupted operations, but real SwiftData/file-system failures, power-loss durability or an approved narrower guarantee, on-disk relaunch/migration, exact-candidate/device, and backup/file-protection evidence remain.",
+    "The archived app is 207 MB and lacks approved device performance/download budgets.",
+    "Roam Plus has an injected production path, explicit purchase/restore/revocation states, and 13 passing fake-backed tests, but the six-case StoreKit integration suite is red on Xcode 26.6/iOS 26.5 because the exact product is absent and direct SKTestSession purchase returns StoreKitError.notEntitled; App Store Connect and physical sandbox proof remain.",
+    "The current automated accessibility run passes only Onboarding. Delete native-label Dynamic Type, Export clipping, History day-header near-contrast, Home Recent contrast, Map native-label near-contrast, Privacy contrast, Progress contrast, Roam Plus perk contrast, and Settings contrast remain; three clean runs and physical-device accessibility/layout evidence are missing.",
+    "Owner decisions and external verification remain for App Store Connect metadata, privacy/support URLs, IAP, device matrices, and tester rollout.",
+    "The Jira mirror is pending because the connected workspace has no Roam project and unrelated projects are out of scope."
+  ],
+  "documentationUpdated": [
+    "docs/README.md",
+    "docs/STATUS.md",
+    "docs/ARCHITECTURE.md",
+    "docs/FEATURES.md",
+    "docs/BUGS.md",
+    "docs/RISKS.md",
+    "docs/TEST_PLAN.md",
+    "docs/RELEASE_CHECKLIST.md",
+    "docs/TESTFLIGHT_READINESS_PLAN.md",
+    "docs/tasks/testflight/README.md and TF-001.md through TF-014.md",
+    "docs/APP_STORE_CONNECT_METADATA.md",
+    "docs/TESTFLIGHT_OPERATIONS.md",
+    "docs/HANDOFF.md",
+    "docs/REUSABLE_COMPONENTS.md",
+    "PRIVACY_POLICY.md",
+    "TERMS_OF_SERVICE.md"
+  ],
+  "humanReviewRequired": [
+    "Execute TF-001 through TF-014 in dependency order.",
+    "Resolve every OWNER_REQUIRED field and numeric budget without inventing product, legal, privacy, or account decisions.",
+    "Complete the physical-device, accessibility, persistence, StoreKit sandbox, performance, App Store Connect, and Beta App Review evidence.",
+    "Merge and verify published privacy/support URLs before external beta."
+  ]
+}

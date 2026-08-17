@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/quality-manifest.schema.json",
+  "application": {
+    "name": "Mala",
+    "projectType": "existing",
+    "platforms": [
+      "ios"
+    ]
+  },
+  "requirements": {
+    "accessibility": true,
+    "responsiveLayoutTests": false,
+    "darkMode": true,
+    "persistenceRelaunchTests": true,
+    "fakeDataIsolation": true,
+    "completionEvidence": true
+  },
+  "requiredTestSuites": [
+    "unit",
+    "integration",
+    "ui-smoke"
+  ],
+  "notes": {
+    "responsiveLayoutTests": "Disabled for v1 — iPhone-only (DEC-003). Re-enable if iPad is added.",
+    "accessibility": "Code present; user validation still pending before launch."
+  },
+  "qualityStandardVersion": "0.4.0"
+}

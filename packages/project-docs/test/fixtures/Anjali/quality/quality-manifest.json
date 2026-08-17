@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/quality-manifest.schema.json",
+  "application": {
+    "name": "Anjali",
+    "projectType": "existing",
+    "platforms": [
+      "ios"
+    ]
+  },
+  "requirements": {
+    "accessibility": true,
+    "responsiveLayoutTests": true,
+    "darkMode": true,
+    "persistenceRelaunchTests": true,
+    "fakeDataIsolation": true,
+    "completionEvidence": true
+  },
+  "requiredTestSuites": [
+    "unit",
+    "integration",
+    "ui-smoke",
+    "release-build",
+    "manual-accessibility"
+  ],
+  "qualityStandardVersion": "0.2.0",
+  "notes": [
+    "Responsive coverage is established by running the UI suite on an iPhone and iPad destination.",
+    "Persistence integration coverage saves a prayer, terminates the process, relaunches, and verifies the saved record.",
+    "Manual VoiceOver, contrast, notification delivery, and real-device TestFlight checks remain release gates."
+  ]
+}

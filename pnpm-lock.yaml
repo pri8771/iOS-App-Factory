@@ -98,6 +98,9 @@ importers:
       '@app-factory/process-supervisor':
         specifier: workspace:*
         version: link:../../packages/process-supervisor
+      '@app-factory/project-docs':
+        specifier: workspace:*
+        version: link:../../packages/project-docs
       '@app-factory/project-sdk':
         specifier: workspace:*
         version: link:../../packages/project-sdk
@@ -296,6 +299,15 @@ importers:
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../contracts
+
+  packages/project-docs:
+    dependencies:
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
 
   packages/project-sdk:
     dependencies:

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/completion-report.schema.json",
+  "taskId": "AURA-TESTFLIGHT-PLANNING-2026-07-29",
+  "featureId": "FEAT-006",
+  "status": "code_complete",
+  "implemented": [
+    "Created the canonical dependency-ordered TestFlight execution plan with 26 task packets",
+    "Separated upload eligibility, internal TestFlight, external TestFlight, and later App Store submission gates",
+    "Specified owner boundaries, acceptance criteria, evidence paths, stop conditions, and invalidation rules for each task",
+    "Added repository-authoritative TestFlight beta description, What to Test, review-notes, and feedback-question drafts",
+    "Added a redacted task-evidence convention and a stable-ID Jira/Notion import CSV",
+    "Recorded official Apple prerequisite research and distinguished technical Apple requirements from AuraFit product gates",
+    "Updated the documentation index, program plan, status, release checklist, test plan, handoff, assumptions, risks, privacy policy, feature inventory, and repository map"
+  ],
+  "verification": [
+    {
+      "check": "JSON syntax and repository document-link validation",
+      "result": "passed"
+    },
+    {
+      "check": "Task summary to detailed-packet coverage",
+      "result": "26 task IDs represented"
+    },
+    {
+      "check": "Apple prerequisite research",
+      "result": "official Apple Developer and App Store Connect documentation recorded",
+      "researchedOn": "2026-07-29"
+    }
+  ],
+  "checksNotRun": [
+    "Apple Developer and App Store Connect account-state verification",
+    "Signed physical-device build and final archive validation",
+    "Physical-device, accessibility, performance, and StoreKit sandbox matrices",
+    "App Store Connect upload and processing",
+    "Internal TestFlight install and external TestFlight App Review",
+    "Jira and Notion import"
+  ],
+  "placeholdersRemaining": [
+    "Owner review contact name email and phone",
+    "Monitored beta feedback email",
+    "Public privacy policy support and rights-cleared reviewer-image URLs",
+    "Verified Apple account app record StoreKit catalog and build number values"
+  ],
+  "fakeDataUsedInProduction": false,
+  "knownIssues": [
+    "The planning artifact is complete but all external release gates remain unverified",
+    "Jira and Notion are intentionally not updated until the repository backlog is approved and imported"
+  ],
+  "documentationUpdated": [
+    "README.md",
+    ".factory/repository-map.json",
+    "docs/README.md",
+    "docs/TESTFLIGHT_READINESS.md",
+    "docs/PLAN.md",
+    "docs/STATUS.md",
+    "docs/RELEASE_CHECKLIST.md",
+    "docs/TEST_PLAN.md",
+    "docs/HANDOFF.md",
+    "docs/ASSUMPTIONS.md",
+    "docs/RISKS.md",
+    "docs/PRIVACY_POLICY.md",
+    "docs/FEATURES.md",
+    "docs/release/",
+    "docs/mirrors/TESTFLIGHT_BACKLOG.csv",
+    "quality/feature-contracts/FEAT-006.json",
+    "quality/evidence/testflight-readiness-2026-07-29.md",
+    "quality/evidence/testflight/README.md"
+  ],
+  "humanReviewRequired": [
+    "Approve the canonical backlog and owner boundaries",
+    "Supply only the external values called out as OWNER_REQUIRED",
+    "Execute each external task and attach task-scoped evidence before changing release status",
+    "Import the approved CSV into Jira and Notion as one-way mirrors"
+  ]
+}

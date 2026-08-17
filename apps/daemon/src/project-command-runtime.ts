@@ -60,7 +60,7 @@ function isNodeError(error: unknown, code: string): error is NodeJS.ErrnoExcepti
   return error instanceof Error && "code" in error && error.code === code;
 }
 
-async function assertRepositoryPathIsUsable(repositoryRoot: string): Promise<void> {
+export async function assertRepositoryPathIsUsable(repositoryRoot: string): Promise<void> {
   if (resolve(repositoryRoot) !== repositoryRoot) {
     throw new CommandHandlerError(
       "project.invalid-repository-path",

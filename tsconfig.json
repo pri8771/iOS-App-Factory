@@ -18,6 +18,7 @@
     { "path": "./packages/policy-corpus" },
     { "path": "./packages/policy-engine" },
     { "path": "./packages/portfolio" },
+    { "path": "./packages/project-docs" },
     { "path": "./packages/provider-http-adapters" },
     { "path": "./packages/provider-transport" },
     { "path": "./packages/agent-runner" },

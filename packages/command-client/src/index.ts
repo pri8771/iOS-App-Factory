@@ -18,6 +18,7 @@ import {
   EffectListQueryV1Schema,
   GitBranchNameSchema,
   IsoInstantSchema,
+  MirrorProjectionV1Schema,
   PhaseDefinitionUpsertV1Schema,
   PhasePresetUpsertV1Schema,
   ProjectIdSchema,
@@ -48,6 +49,7 @@ import {
   type ExternalProviderV1,
   type GitBranchName,
   type IsoInstant,
+  type MirrorProjectionV1,
   type PhaseDefinitionUpsertV1,
   type PhasePresetUpsertV1,
   type ProjectId,
@@ -448,6 +450,44 @@ export class CommandClient {
     return await this.#request(
       "project.scan",
       { repositoryRoot: AbsolutePathSchema.parse(repositoryRoot) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Reads one repository's mandated docs (STATUS/RELEASE_CHECKLIST/BUGS/RISKS/DECISIONS/quality)
+   * read-only, off disk. Owner doctrine: the repository's own docs are the source of truth. */
+  public async docsSnapshot(
+    repositoryRoot: AbsolutePath | string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.docs.snapshot">> {
+    return await this.#request(
+      "project.docs.snapshot",
+      { repositoryRoot: AbsolutePathSchema.parse(repositoryRoot) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Mirror direction (contract only, no live provider calls): projects a project's current repo
+   * docs onto the bounded `MirrorProjectionV1` a Jira/Notion adapter may receive, and diffs it
+   * against a caller-supplied previous projection (`null` for "no previous projection yet"). */
+  public async mirrorPlan(
+    projectId: ProjectId | string,
+    repositoryRoot: AbsolutePath | string,
+    previousProjection: MirrorProjectionV1 | null,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"mirror.plan">> {
+    return await this.#request(
+      "mirror.plan",
+      {
+        projectId: ProjectIdSchema.parse(projectId),
+        repositoryRoot: AbsolutePathSchema.parse(repositoryRoot),
+        previousProjection:
+          previousProjection === null ? null : MirrorProjectionV1Schema.parse(previousProjection),
+      },
       identity,
       signal,
     );

@@ -72,6 +72,7 @@ function project(projectId: string, name: string) {
     },
     awaitingHuman: [],
     timeline: unwiredTimeline(),
+    docsProvenance: null,
   } as const;
 }
 
