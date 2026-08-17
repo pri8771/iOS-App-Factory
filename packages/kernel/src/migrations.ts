@@ -63,6 +63,34 @@ function checksumMigration(migration: SqlMigration): string {
     .digest("hex")}`;
 }
 
+/**
+ * The checksum formula every Factory build before migration 0006
+ * (`retry-and-unblock-commands`, 2026-08-14) recorded: version, name and SQL
+ * only. That build could not express `disableForeignKeysDuringApply`, so a
+ * ledger row carrying this checksum can only ever describe a migration whose
+ * flag is unset -- which is exactly the condition under which it is accepted
+ * (see `assertLedgerMatchesPlan`). Runtimes recorded before that build (the
+ * first real-model run's runtime among them) would otherwise be rejected by
+ * every later daemon as "does not match its recorded name/checksum", making
+ * their evidence unexportable. Rows written from 0006 onwards always carry the
+ * current formula; this legacy form is never written, only recognised.
+ */
+function legacyChecksumMigration(migration: SqlMigration): string {
+  return `sha256:${createHash("sha256")
+    .update(`${migration.version}\0${migration.name}\0${migration.sql}`, "utf8")
+    .digest("hex")}`;
+}
+
+function ledgerChecksumMatches(record: AppliedMigration, planned: SqlMigration): boolean {
+  if (record.checksum === checksumMigration(planned)) {
+    return true;
+  }
+  return (
+    (planned.disableForeignKeysDuringApply ?? false) === false &&
+    record.checksum === legacyChecksumMigration(planned)
+  );
+}
+
 function assertMigrationPlan(migrations: readonly SqlMigration[]): void {
   const names = new Set<string>();
   for (let index = 0; index < migrations.length; index += 1) {
@@ -126,8 +154,7 @@ function assertLedgerMatchesPlan(
     if (planned === undefined) {
       throw new Error(`Database migration ${record.version} is newer than this Factory build`);
     }
-    const expectedChecksum = checksumMigration(planned);
-    if (record.name !== planned.name || record.checksum !== expectedChecksum) {
+    if (record.name !== planned.name || !ledgerChecksumMatches(record, planned)) {
       throw new Error(`Migration ${record.version} does not match its recorded name/checksum`);
     }
     expectedVersion += 1;

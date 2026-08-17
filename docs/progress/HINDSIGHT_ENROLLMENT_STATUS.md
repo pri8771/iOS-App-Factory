@@ -87,6 +87,18 @@ Legacy-layout migration, rule-authority changes, the deterministic crash, and
 the separate SwiftData store-lifetime diagnostics remain reviewed follow-up
 work before enrollment or release.
 
+## Scope note: pilot task attempts are recorded elsewhere
+
+This file describes the 2026-08-11 enrollment scan of the real checkout and the
+2026-08-16 rules-corpus proof below. It does not, and never did, record the
+Factory task attempts run against the `factory/pilot-1.1` pilot line under the
+`enrolled-codex-v1` profile (runtime `~/.app-factory-hindsight`, 2026-08-15 and
+2026-08-16) — four verified changes, two sandbox-blocked attempts, one protocol
+error, and the two failed attempts on pilot issue #1 (SwiftData store lifetime,
+`SampleData.swift`). Those live, with export digests and the exact durable-state
+queries, in [`RUN_LEDGER.md`](RUN_LEDGER.md). A 2026-08-16 note treated the two
+sources as contradicting each other; they cover different events.
+
 ## 2026-08-16 compiled rules-corpus proof (scratch clone only)
 
 The compiled iOS App Factory policy

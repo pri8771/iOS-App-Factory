@@ -1,0 +1,304 @@
+{
+  "recordDigest": "sha256:1e4cd1a959baad5c2fe69899c6cf5078b6e7134d00e948f87a0454a40714bc8f",
+  "record": {
+    "schemaVersion": 1,
+    "attemptId": "40139cdb-48d6-50fc-a14e-773fd17e89c6",
+    "taskId": "bd9e8f47-c470-495e-bb60-8cb6abf65fb8",
+    "attemptNumber": 1,
+    "state": "succeeded",
+    "implementingRunId": "e553b1cc-1dd0-524c-864f-de7c370f9d0d",
+    "repositoryId": "c9ddcfcc-609b-4f91-a5d7-46bc58eba90b",
+    "taskSpecDigest": "sha256:c14bf7ba3fc8ee956e1feaf4edf95339099f0ae8fa8b014446001f156c99224e",
+    "policyDigest": "sha256:5088a29320b9f6f6a369ab1f5345f700cab8640d9d9e2c8e3f8ce16ce1e76a5f",
+    "baseCommit": "10cc1b13b568e6cce8fdea8907d56d3a80402c71",
+    "candidateTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+    "fence": 1,
+    "brokerCommit": {
+      "commit": "cfa45c33c8a9fb3f532527d95415b8bda4680926",
+      "tree": "e6b71988ed068e2319c6a07065658631f84234b5",
+      "commitDigest": "sha256:9c2960a41b1f62d0749141a87625bdc38ac403cb7bd4776d3a6f4c245450e441",
+      "attemptMarker": "40139cdb-48d6-50fc-a14e-773fd17e89c6"
+    },
+    "verification": [
+      {
+        "checkId": "build.hindsight",
+        "argv": [
+          "/usr/bin/xcodebuild",
+          "build",
+          "-scheme",
+          "Hindsight",
+          "-destination",
+          "generic/platform=iOS Simulator",
+          "-derivedDataPath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/40139cdb-48d6-50fc-a14e-773fd17e89c6/fence-1/build.hindsight-de9c5816-25b3-42ae-b6a1-e012a2918376/derived-data"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:49:39.092Z",
+        "finishedAt": "2026-08-15T03:49:51.636Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "test.hindsight-unit",
+        "argv": [
+          "/usr/bin/xcodebuild",
+          "test",
+          "-scheme",
+          "Hindsight",
+          "-only-testing:HindsightTests",
+          "-destination",
+          "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest",
+          "-derivedDataPath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/40139cdb-48d6-50fc-a14e-773fd17e89c6/fence-1/test.hindsight-unit-de9c5816-25b3-42ae-b6a1-e012a2918376/derived-data",
+          "-resultBundlePath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/40139cdb-48d6-50fc-a14e-773fd17e89c6/fence-1/test.hindsight-unit-de9c5816-25b3-42ae-b6a1-e012a2918376/result.xcresult"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:49:51.733Z",
+        "finishedAt": "2026-08-15T03:50:27.907Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.insightshistory-file-hero",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "insights.signalGarden.hero",
+          "HindsightUITests/InsightsHistoryUITests.swift"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.012Z",
+        "finishedAt": "2026-08-15T03:50:28.015Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.insightshistory-confidence-bands",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "insights.confidenceBands",
+          "HindsightUITests/InsightsHistoryUITests.swift"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.100Z",
+        "finishedAt": "2026-08-15T03:50:28.102Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.insightshistory-personal-signals",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "insights.personalSignals",
+          "HindsightUITests/InsightsHistoryUITests.swift"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.185Z",
+        "finishedAt": "2026-08-15T03:50:28.187Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.insightshistory-methodology",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "insights.methodology",
+          "HindsightUITests/InsightsHistoryUITests.swift"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.268Z",
+        "finishedAt": "2026-08-15T03:50:28.271Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.insightshistory-timeline",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "history.timeline",
+          "HindsightUITests/InsightsHistoryUITests.swift"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.347Z",
+        "finishedAt": "2026-08-15T03:50:28.350Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.insightshistory-entry-prefix",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "history.entry.",
+          "HindsightUITests/InsightsHistoryUITests.swift"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.426Z",
+        "finishedAt": "2026-08-15T03:50:28.428Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.insightshistory-outcome-filter",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "history.outcomeFilter",
+          "HindsightUITests/InsightsHistoryUITests.swift"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.509Z",
+        "finishedAt": "2026-08-15T03:50:28.511Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.insightshistory-has-assertions",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "XCTAssert",
+          "HindsightUITests/InsightsHistoryUITests.swift"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.587Z",
+        "finishedAt": "2026-08-15T03:50:28.590Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "test.hindsight-ui",
+        "argv": [
+          "/usr/bin/xcodebuild",
+          "test",
+          "-scheme",
+          "Hindsight",
+          "-only-testing:HindsightUITests",
+          "-destination",
+          "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest",
+          "-derivedDataPath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/40139cdb-48d6-50fc-a14e-773fd17e89c6/fence-1/test.hindsight-ui-de9c5816-25b3-42ae-b6a1-e012a2918376/derived-data",
+          "-resultBundlePath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/40139cdb-48d6-50fc-a14e-773fd17e89c6/fence-1/test.hindsight-ui-de9c5816-25b3-42ae-b6a1-e012a2918376/result.xcresult"
+        ],
+        "checkoutTree": "e6b71988ed068e2319c6a07065658631f84234b5",
+        "startedAt": "2026-08-15T03:50:28.667Z",
+        "finishedAt": "2026-08-15T03:53:51.176Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      }
+    ],
+    "review": {
+      "reviewerId": "hindsight.generic-review",
+      "reviewerVersion": "v1",
+      "reviewerRunId": "2ebb8b1d-0044-5b50-9567-6ab5e7e0f8a9",
+      "verdict": "pass",
+      "findingCount": 0,
+      "reviewInputDigest": "sha256:b52e28d103c41900878f43e673436074425c3aff07664bdcb5df694c36bc8193"
+    },
+    "evidence": {
+      "manifestDigest": "sha256:e375c83c470740fd66cd1035751ff2a4cddbf296cee5fc87586ca63e5c5d59af",
+      "indexDigest": "sha256:f2df38d04cd1979729bba40d92775b36326a30d5af178b978a33307b773715f3",
+      "entryCount": 15,
+      "artifactCount": 54
+    },
+    "agent": {
+      "adapterId": "openai.codex",
+      "adapterVersion": "1.0.0",
+      "cliVersion": "0.148.0-alpha.9",
+      "model": "gpt-5.6-sol",
+      "executableDigest": "sha256:059bd8ccf7c9ff335cacd0c41f1847354f5eb5ee8fcdad9e17565ec82523ea00",
+      "usage": {
+        "inputTokens": 176561,
+        "outputTokens": 3167,
+        "cachedInputTokens": 115456
+      }
+    },
+    "timings": {
+      "attemptCreatedAt": "2026-08-15T03:48:17.090Z",
+      "attemptTerminalAt": "2026-08-15T03:53:52.163Z",
+      "agentStartedAt": "2026-08-15T03:48:17.719Z",
+      "agentFinishedAt": "2026-08-15T03:49:37.916Z",
+      "evidenceCreatedAt": "2026-08-15T03:49:38.816Z"
+    }
+  }
+}

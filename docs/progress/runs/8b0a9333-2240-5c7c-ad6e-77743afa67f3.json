@@ -1,0 +1,214 @@
+{
+  "recordDigest": "sha256:425e948d6626249a6a4c8dd2767087237290387d254560be6cf250b155c64a39",
+  "record": {
+    "schemaVersion": 1,
+    "attemptId": "8b0a9333-2240-5c7c-ad6e-77743afa67f3",
+    "taskId": "1c78d303-893c-4f48-abaa-3e9a9aed4d6e",
+    "attemptNumber": 1,
+    "state": "succeeded",
+    "implementingRunId": "4bf8b556-ea67-5b80-9199-87329a2ed279",
+    "repositoryId": "c9ddcfcc-609b-4f91-a5d7-46bc58eba90b",
+    "taskSpecDigest": "sha256:2789925d880edec0fa41c5dab30120a7de9eb49663b15c3e73598213a076e957",
+    "policyDigest": "sha256:2c3b745089d0a600c0e516e94436c2872defad6a22584df1c5c92d6f7d6f29c9",
+    "baseCommit": "10cc1b13b568e6cce8fdea8907d56d3a80402c71",
+    "candidateTree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+    "fence": 1,
+    "brokerCommit": {
+      "commit": "5d732c250287a2b7afd652de89851fc63f691542",
+      "tree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+      "commitDigest": "sha256:87d6c091aae2853feaf03b4c5d8cb2a2e0ab658d81cf758a825f91aee56fcaa1",
+      "attemptMarker": "8b0a9333-2240-5c7c-ad6e-77743afa67f3"
+    },
+    "verification": [
+      {
+        "checkId": "build.hindsight",
+        "argv": [
+          "/usr/bin/xcodebuild",
+          "build",
+          "-scheme",
+          "Hindsight",
+          "-destination",
+          "generic/platform=iOS Simulator",
+          "-derivedDataPath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/8b0a9333-2240-5c7c-ad6e-77743afa67f3/fence-1/build.hindsight-3c1e5527-944f-4c37-aa5b-ac34a33118ae/derived-data"
+        ],
+        "checkoutTree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+        "startedAt": "2026-08-15T03:12:58.573Z",
+        "finishedAt": "2026-08-15T03:13:09.058Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "test.hindsight-unit",
+        "argv": [
+          "/usr/bin/xcodebuild",
+          "test",
+          "-scheme",
+          "Hindsight",
+          "-only-testing:HindsightTests",
+          "-destination",
+          "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest",
+          "-derivedDataPath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/8b0a9333-2240-5c7c-ad6e-77743afa67f3/fence-1/test.hindsight-unit-3c1e5527-944f-4c37-aa5b-ac34a33118ae/derived-data",
+          "-resultBundlePath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/8b0a9333-2240-5c7c-ad6e-77743afa67f3/fence-1/test.hindsight-unit-3c1e5527-944f-4c37-aa5b-ac34a33118ae/result.xcresult"
+        ],
+        "checkoutTree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+        "startedAt": "2026-08-15T03:13:09.157Z",
+        "finishedAt": "2026-08-15T03:13:51.929Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.splashview-gradient-tokens",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "colors: [HindsightTheme.Colors.splashGradientTop, HindsightTheme.Colors.splashGradientMid, HindsightTheme.Colors.splashGradientBottom],",
+          "Hindsight/Views/SplashView.swift"
+        ],
+        "checkoutTree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+        "startedAt": "2026-08-15T03:13:52.050Z",
+        "finishedAt": "2026-08-15T03:13:52.054Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.splashview-glow-primary-token",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "fill(HindsightTheme.Colors.splashGlowPrimary.opacity(0.34))",
+          "Hindsight/Views/SplashView.swift"
+        ],
+        "checkoutTree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+        "startedAt": "2026-08-15T03:13:52.124Z",
+        "finishedAt": "2026-08-15T03:13:52.126Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.splashview-glow-secondary-token",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "fill(HindsightTheme.Colors.splashGlowSecondary.opacity(0.16))",
+          "Hindsight/Views/SplashView.swift"
+        ],
+        "checkoutTree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+        "startedAt": "2026-08-15T03:13:52.191Z",
+        "finishedAt": "2026-08-15T03:13:52.192Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.splashview-shadow-token",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "shadow(color: HindsightTheme.Colors.splashIconGlow.opacity(0.55)",
+          "Hindsight/Views/SplashView.swift"
+        ],
+        "checkoutTree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+        "startedAt": "2026-08-15T03:13:52.252Z",
+        "finishedAt": "2026-08-15T03:13:52.254Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.splashview-theme-tokens-defined",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-F",
+          "static let splashIconGlow = Color(hex: \"8B5CF6\")",
+          "Hindsight/Theme/HindsightTheme.swift"
+        ],
+        "checkoutTree": "f29482a2b5bbeffa75147c38a19bd7c69cd97f1b",
+        "startedAt": "2026-08-15T03:13:52.313Z",
+        "finishedAt": "2026-08-15T03:13:52.315Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      }
+    ],
+    "review": {
+      "reviewerId": "hindsight.generic-review",
+      "reviewerVersion": "v1",
+      "reviewerRunId": "ec13d77e-0fe1-5a77-984f-551c808a5cd3",
+      "verdict": "pass",
+      "findingCount": 0,
+      "reviewInputDigest": "sha256:8c78c0a363d65890826fca9edb31725673bea9ebdaa417ea09bf859fd283ee33"
+    },
+    "evidence": {
+      "manifestDigest": "sha256:67ba7a44ef6b31544ea62794669f020c44c78e80bbf35767494e1fe513906db8",
+      "indexDigest": "sha256:233f6e34728c0d33be0ade1e4b1f56bc9d50355dcb48fd34add0fecaf0937a39",
+      "entryCount": 11,
+      "artifactCount": 42
+    },
+    "agent": {
+      "adapterId": "openai.codex",
+      "adapterVersion": "1.0.0",
+      "cliVersion": "0.148.0-alpha.9",
+      "model": "gpt-5.6-sol",
+      "executableDigest": "sha256:059bd8ccf7c9ff335cacd0c41f1847354f5eb5ee8fcdad9e17565ec82523ea00",
+      "usage": {
+        "inputTokens": 91263,
+        "outputTokens": 1576,
+        "cachedInputTokens": 67584
+      }
+    },
+    "timings": {
+      "attemptCreatedAt": "2026-08-15T03:12:11.348Z",
+      "attemptTerminalAt": "2026-08-15T03:13:53.012Z",
+      "agentStartedAt": "2026-08-15T03:12:11.906Z",
+      "agentFinishedAt": "2026-08-15T03:12:57.442Z",
+      "evidenceCreatedAt": "2026-08-15T03:12:58.338Z"
+    }
+  }
+}
