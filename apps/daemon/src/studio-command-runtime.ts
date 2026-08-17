@@ -24,6 +24,7 @@ import {
   type ExecutionAttemptV1,
   type IsoInstant,
   type ProjectLifecycleStageV1,
+  type ProjectRegistryV1,
   type StudioAttemptSummaryV1,
   type StudioAwaitingHumanItemV1,
   type StudioFieldSourceV1,
@@ -178,6 +179,7 @@ function resolveLifecycleStage(
 function buildDocsAugmentation(
   source: ProjectDocsSourceV1,
   observedAt: IsoInstant,
+  registered: boolean,
 ): DocsAugmentationV1 | null {
   let docsSnapshot;
   try {
@@ -204,7 +206,10 @@ function buildDocsAugmentation(
     lifecycleStage: stage,
     extraAwaitingHuman,
     docsProvenance: {
-      sourceKind: source.enrolled ? "enrolled" : "observed",
+      // Registry membership (Seam (a) of the project-registry task) is now the source of truth for
+      // "enrolled" vs "observed", not `project-docs-sources.ts`'s hand-set config flag: a project
+      // only ever badges "enrolled" once it is actually registered.
+      sourceKind: registered ? "enrolled" : "observed",
       repositoryRoot: source.repositoryRoot,
       docsSnapshotDigest: docsSnapshot.snapshotDigest,
       lifecycleStageSource,
@@ -229,7 +234,9 @@ function buildObservedStudioProject(
   source: ProjectDocsSourceV1,
   observedAt: IsoInstant,
 ): StudioProjectBuild | null {
-  const augmentation = buildDocsAugmentation(source, observedAt);
+  // Only ever called for a source that is NOT in the project registry (see
+  // `buildStudioSnapshotV1`'s filter below) -- unconditionally unregistered/"observed".
+  const augmentation = buildDocsAugmentation(source, observedAt, false);
   if (augmentation === null) return null;
   const project: StudioProjectV1 = {
     projectId: source.projectId,
@@ -259,6 +266,7 @@ function buildStudioProject(
   summary: LocalPortfolioProjectSummary,
   docsSource: ProjectDocsSourceV1 | undefined,
   observedAt: IsoInstant,
+  registeredProject: ProjectRegistryV1 | undefined,
 ): StudioProjectBuild {
   const page = repositories.attempts.list({
     scope: "all",
@@ -298,18 +306,20 @@ function buildStudioProject(
       since: run.updatedAt,
     }));
 
-  // Mirrors buildLocalPortfolioReadModel's own placeholder slug/displayName in command-runtime.ts:
-  // no project-manifest/display-name source is wired into the local execution profile yet, so the
-  // slug always takes the deterministic projectId-only fallback path today — never a slugified
-  // name, per StudioProjectV1.slug's contract.
+  // A registered project (Seam (a) of the project-registry task) has a real, operator-set
+  // slug/displayName; one with kernel attempt history but no registry record (pre-registry data,
+  // or a project registered under a different daemon/runtime) falls back to the same deterministic
+  // projectId-only placeholder `buildLocalPortfolioReadModel` uses in `command-runtime.ts`.
   const milestones = repositories.milestones.listByProject(summary.projectId);
   const augmentation =
-    docsSource === undefined ? null : buildDocsAugmentation(docsSource, observedAt);
+    docsSource === undefined
+      ? null
+      : buildDocsAugmentation(docsSource, observedAt, registeredProject !== undefined);
 
   const project: StudioProjectV1 = {
     projectId: summary.projectId,
-    slug: projectSlugFallbackV1(summary.projectId),
-    name: `Project ${summary.projectId}`,
+    slug: registeredProject?.slug ?? projectSlugFallbackV1(summary.projectId),
+    name: registeredProject?.displayName ?? `Project ${summary.projectId}`,
     lifecycleStage: augmentation?.lifecycleStage ?? null,
     gates: {
       typed: null,
@@ -396,13 +406,35 @@ function computePortfolioAggregates(
   };
 }
 
+/** Zero-attempt-history placeholder for a registered project: every field
+ * `buildStudioProject` actually reads from a `LocalPortfolioProjectSummary` beyond `projectId` is
+ * genuinely "nothing observed yet" for a project the registry knows about but the kernel has never
+ * run an attempt for -- honest, not fabricated. */
+function placeholderProjectSummaryV1(
+  projectId: LocalPortfolioProjectSummary["projectId"],
+  observedAt: IsoInstant,
+): LocalPortfolioProjectSummary {
+  return {
+    projectId,
+    attemptCount: 0,
+    activeAttemptCount: 0,
+    blockerCount: 0,
+    lastActivityAt: observedAt,
+    lastSuccessfulAttemptAt: null,
+  };
+}
+
 /**
- * `docsSources` names every project (enrolled or merely observed) whose repository docs should be
- * folded into this snapshot -- see `loadProjectDocsSourcesV1` (`project-docs-sources.ts`). A source
- * whose `projectId` already has kernel attempt history augments that project's normal build; a
- * source with none synthesizes a full, honestly-empty-elsewhere `StudioProjectV1` entry (an
- * "observed" project the factory knows about but has not enrolled), so the dashboard can show every
- * configured project rather than silently omitting the ones with no attempts yet.
+ * The Project Registry (Seam (a) of the project-registry task) is now the source of truth for
+ * "which projects are real": every registered project gets a row, whether or not it has kernel
+ * attempt history yet. `docsSources` (see `loadProjectDocsSourcesV1`, `project-docs-sources.ts`)
+ * names every project (registered or merely observed) whose repository docs should be folded into
+ * this snapshot; a source whose `projectId` is NOT registered (and has no kernel attempt history
+ * either) synthesizes a full, honestly-empty-elsewhere `StudioProjectV1` entry badged "observed" —
+ * a project the factory knows about but has not registered — so the dashboard can show every
+ * configured project rather than silently omitting the ones with no attempts yet. A project with
+ * kernel attempt history but no registry record (pre-registry data) still gets a real row too:
+ * attempt history is undeniable factory-observed truth, registration or not.
  */
 export function buildStudioSnapshotV1(
   repositories: FactoryRepositories,
@@ -410,28 +442,52 @@ export function buildStudioSnapshotV1(
   docsSources: readonly ProjectDocsSourceV1[] = [],
 ): StudioSnapshotV1 {
   const summaries = repositories.portfolio.listProjectSummaries();
-  const summaryProjectIds = new Set(summaries.map((summary) => summary.projectId));
+  const summaryByProjectId = new Map(
+    summaries.map((summary) => [summary.projectId, summary] as const),
+  );
+  const registeredProjects = repositories.projectRegistry.listAll();
+  const registeredProjectByProjectId = new Map(
+    registeredProjects.map((project) => [project.projectId, project] as const),
+  );
   const docsSourceByProjectId = new Map(
     docsSources.map((source) => [source.projectId, source] as const),
   );
 
-  const enrolledBuilds = summaries.map((summary) =>
+  const registeredBuilds = registeredProjects.map((registeredProject) =>
     buildStudioProject(
       repositories,
-      summary,
-      docsSourceByProjectId.get(summary.projectId),
+      summaryByProjectId.get(registeredProject.projectId) ??
+        placeholderProjectSummaryV1(registeredProject.projectId, observedAt),
+      docsSourceByProjectId.get(registeredProject.projectId),
       observedAt,
+      registeredProject,
     ),
   );
+  const unregisteredHistoryBuilds = summaries
+    .filter((summary) => !registeredProjectByProjectId.has(summary.projectId))
+    .map((summary) =>
+      buildStudioProject(
+        repositories,
+        summary,
+        docsSourceByProjectId.get(summary.projectId),
+        observedAt,
+        undefined,
+      ),
+    );
   const observedBuilds = docsSources
-    .filter((source) => !summaryProjectIds.has(source.projectId))
+    .filter(
+      (source) =>
+        !registeredProjectByProjectId.has(source.projectId) &&
+        !summaryByProjectId.has(source.projectId),
+    )
     .map((source) => buildObservedStudioProject(source, observedAt))
     .filter((build): build is StudioProjectBuild => build !== null);
 
-  const builds = [...enrolledBuilds, ...observedBuilds].sort((left, right) =>
-    `${left.project.name.toLowerCase()} ${left.project.projectId}`.localeCompare(
-      `${right.project.name.toLowerCase()} ${right.project.projectId}`,
-    ),
+  const builds = [...registeredBuilds, ...unregisteredHistoryBuilds, ...observedBuilds].sort(
+    (left, right) =>
+      `${left.project.name.toLowerCase()} ${left.project.projectId}`.localeCompare(
+        `${right.project.name.toLowerCase()} ${right.project.projectId}`,
+      ),
   );
 
   const activityTimestamps = builds.flatMap((build) => [

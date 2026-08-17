@@ -8,6 +8,7 @@ import {
   type DaemonProcessEnvironment,
 } from "../src/daemon-entrypoint.js";
 import {
+  buildPhaseParticipantsPortV1,
   buildRoomSubsystemConfiguration,
   parseRoomParticipantsConfigV1,
   RoomParticipantsConfigurationError,
@@ -186,6 +187,55 @@ describe("buildRoomSubsystemConfiguration", () => {
       reportWorkerPid: () => undefined,
     });
     expect(result).toEqual({ kind: "error", code: "internal", retryAfterMs: null });
+  });
+});
+
+describe("buildPhaseParticipantsPortV1 (Seam (b): phase.run's composed roster)", () => {
+  it("resolves a configured provider's adapter and null for an unconfigured one", async () => {
+    const directory = await root();
+    const codexHome = join(directory, "codex-home");
+    await mkdir(codexHome, { mode: 0o700 });
+    const port = buildPhaseParticipantsPortV1({
+      schemaVersion: 1,
+      codex: {
+        executable: "/usr/bin/true",
+        model: "gpt-test",
+        codexHome,
+        runnerRoot: join(directory, "codex-runner"),
+        scratchRoot: join(directory, "codex-scratch"),
+      },
+      claude: { executable: "/usr/bin/true", model: "sonnet" },
+    });
+
+    const codexAdapter = port.resolve("codex" as never);
+    expect(codexAdapter).not.toBeNull();
+    expect(codexAdapter?.provider).toBe("codex");
+
+    const claudeAdapter = port.resolve("claude" as never);
+    expect(claudeAdapter).not.toBeNull();
+    expect(claudeAdapter?.provider).toBe("claude");
+
+    // "ollama" was never configured on this port -- resolves closed (null), never a fabricated
+    // adapter, exactly like a room roster naming an unconfigured provider only fails that
+    // provider's own turns.
+    expect(port.resolve("ollama" as never)).toBeNull();
+  });
+
+  it("resolves nothing at all from an empty participants config", () => {
+    const port = buildPhaseParticipantsPortV1({ schemaVersion: 1 });
+    expect(port.resolve("codex" as never)).toBeNull();
+    expect(port.resolve("claude" as never)).toBeNull();
+    expect(port.resolve("ollama" as never)).toBeNull();
+  });
+
+  it("builds the ollama adapter without contacting a real server (construction only)", () => {
+    const port = buildPhaseParticipantsPortV1({
+      schemaVersion: 1,
+      ollama: { baseUrl: "http://127.0.0.1:19999", model: "qwen2.5-coder:14b" },
+    });
+    const adapter = port.resolve("ollama" as never);
+    expect(adapter).not.toBeNull();
+    expect(adapter?.provider).toBe("ollama");
   });
 });
 

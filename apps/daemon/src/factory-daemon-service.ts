@@ -103,6 +103,11 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   effects?: EffectSubsystemConfiguration;
   /** Default OFF: omit or pass `{ enabled: false }` to keep the room moderator inert. */
   rooms?: RoomSubsystemConfiguration;
+  /** Seam (b) of the project-registry task: resolves a real `ParticipantAdapter` per cast provider
+   * for `phase.run`, built from the SAME room roster config `rooms` (above) uses
+   * (`room-participants-config.ts`'s `loadPhaseParticipantsPortV1`). Default: `phase.run` fails
+   * closed per-run (`participant-unconfigured`) exactly like `rooms` omitted. */
+  phaseParticipants?: OpenDaemonCommandRuntimeOptions["phaseParticipants"];
 }>;
 
 export type FactoryDaemonService = Readonly<{
@@ -482,6 +487,21 @@ export async function startFactoryDaemonService(
       ...(options.localExecution?.gitExecutable === undefined
         ? {}
         : { gitExecutable: options.localExecution.gitExecutable }),
+      // Seam (a) of the project-registry task: whichever single project the local execution
+      // profile prepared a mirror for self-registers idempotently at every daemon start. `null`
+      // when no local execution profile is configured (the deterministic fake executor path).
+      selfRegisterProject: (() => {
+        const project = options.localExecution?.projects[0];
+        return project === undefined
+          ? null
+          : {
+              repositoryId: project.repositoryId,
+              sourceRepositoryPath: project.sourceRepositoryPath,
+            };
+      })(),
+      ...(options.phaseParticipants === undefined
+        ? {}
+        : { phaseParticipants: options.phaseParticipants }),
       initializeDatabase: (database) => {
         const executor: StartupRecoverableExecutor =
           options.executor ??

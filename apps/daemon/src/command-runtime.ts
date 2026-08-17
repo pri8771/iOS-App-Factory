@@ -55,6 +55,7 @@ import {
   type FactoryRepositories,
 } from "@app-factory/kernel";
 import { verifyCanonicalObservationAttestation } from "@app-factory/effect-worker";
+import { GitWorkspaceManager } from "@app-factory/git-workspace";
 import { EvidenceStore } from "@app-factory/evidence-store";
 import { decideTaskPolicyBinding } from "@app-factory/policy-engine";
 import {
@@ -74,6 +75,12 @@ import {
 } from "./project-command-runtime.js";
 import { executeProjectDocsSnapshotCommand } from "./project-docs-command-runtime.js";
 import { loadProjectDocsSourcesV1 } from "./project-docs-sources.js";
+import {
+  buildProjectListResultV1,
+  buildProjectShowResultV1,
+  executeProjectRegisterCommand,
+  registerOrReconcileEnrolledProjectV1,
+} from "./project-registry-command-runtime.js";
 import {
   buildPresetListResultV1,
   loadKnownStandardRuleIdsV1,
@@ -115,7 +122,8 @@ import {
   tickProjectPlanV1,
   type ProjectPlanExecutionDependencies,
 } from "./project-plan-command-runtime.js";
-import { createUnconfiguredProjectPlanMirrorPortV1 } from "./project-plan-mirror-port.js";
+import { createEvidenceBrokerCommitResolverV1 } from "./project-plan-broker-commit-resolver.js";
+import { createRegistryBackedProjectPlanMirrorPortV1 } from "./project-plan-mirror-port.js";
 import { executeProjectSeedCommand } from "./project-seed-command-runtime.js";
 import {
   buildAssistantIntentDispatchRequestV1,
@@ -146,6 +154,7 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "project.apply",
   "project.seed",
   "project.milestone.upsert",
+  "project.register",
   "preset.upsert",
   "phase.upsert",
   "plan.propose",
@@ -294,12 +303,22 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
   /**
    * `plan.execute`/`plan.tick`'s mirror-advance and broker-commit-resolution ports plus the
    * reviewed policy digest plan-submitted tasks carry (`ProjectPlanExecutionDependencies`, see
-   * `project-plan-command-runtime.ts`). Default: an unconfigured mirror port that fails closed
-   * (`plan.mirror-not-configured`) the first time a plan tries to submit or advance a task item, so
-   * `plan.propose`/`plan.edit`/`plan.approve`/`plan.status`/`plan.approve-gate` work with no
-   * configuration at all.
+   * `project-plan-command-runtime.ts`). Default (Seam (b) of the project-registry task): a REAL,
+   * Project-Registry-backed mirror port (`createRegistryBackedProjectPlanMirrorPortV1`) plus an
+   * evidence-backed broker-commit resolver (`createEvidenceBrokerCommitResolverV1`) — a plan whose
+   * `repositoryId` is not a registered project's mirror binding still fails closed
+   * (`plan.mirror-not-registered`), but a registered one now actually chains task items end to end
+   * with no extra configuration.
    */
   planExecution?: ProjectPlanExecutionDependencies;
+  /**
+   * Idempotently self-registers the single project the configured local execution profile prepared
+   * a Factory mirror for into the Project Registry at every daemon start (Seam (a) of the
+   * project-registry task), so `studio.snapshot`/`plan.execute`/`phase.run` see it as a real
+   * registered project with no separate `project.register` call required. `null`/absent when no
+   * local execution profile is configured — nothing to self-register.
+   */
+  selfRegisterProject?: Readonly<{ repositoryId: string; sourceRepositoryPath: string }> | null;
   /**
    * Resolves a real (or fake, in tests) `ParticipantAdapter` per cast provider for `phase.run`.
    * Defaults to a port with no provider configured at all — `phase.run` still works end to end (the
@@ -673,6 +692,9 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "project.apply":
     case "project.milestones.list":
     case "project.milestone.upsert":
+    case "project.register":
+    case "project.list":
+    case "project.show":
     case "preset.list":
     case "preset.upsert":
     case "phase.upsert":
@@ -1455,6 +1477,10 @@ async function executeRequest(
     paths: DaemonRuntimePaths;
     planExecution: ProjectPlanExecutionDependencies;
     phaseRunCommands: PhaseRunCommandDependencies;
+    /** `project.register`'s own `GitWorkspaceManager`/runtime root, used to seal a freshly
+     * registered project's Factory mirror. */
+    projectRegistryGitWorkspace: GitWorkspaceManager;
+    gitRuntimeRoot: string;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1563,6 +1589,21 @@ async function executeRequest(
       };
     case "project.milestone.upsert":
       return upsertProjectMilestone(repositories, request, dependencies.observedAt);
+    case "project.register":
+      return await executeProjectRegisterCommand(
+        {
+          repositories,
+          evidenceStore: dependencies.evidenceStore,
+          gitWorkspace: dependencies.projectRegistryGitWorkspace,
+          gitRuntimeRoot: dependencies.gitRuntimeRoot,
+        },
+        request,
+        dependencies.observedAt,
+      );
+    case "project.list":
+      return buildProjectListResultV1(repositories);
+    case "project.show":
+      return buildProjectShowResultV1(repositories, request);
     case "preset.list":
       return buildPresetListResultV1(repositories);
     case "preset.upsert":
@@ -1787,6 +1828,14 @@ export async function openDaemonCommandRuntime(
     await chmod(paths.database, 0o600);
     await assertPrivateRegularFile(paths.database);
     repositories = createFactoryRepositories(database);
+    // Seam (a) of the project-registry task: idempotent at every daemon start (a call whose content
+    // already matches the registry's head is a complete no-op), so a daemon configured with a local
+    // execution profile always sees its one project as a real registered project, with no separate
+    // `project.register` call required and nothing that used to work through the pre-registry
+    // single-enrolled-project path regressing.
+    if (options.selfRegisterProject !== undefined && options.selfRegisterProject !== null) {
+      registerOrReconcileEnrolledProjectV1(repositories, options.selfRegisterProject, startedAt);
+    }
     knownStandardRuleIds = loadKnownStandardRuleIdsV1(options.policySourcePath);
     // Idempotent by a fixed command ID: a no-op after the first daemon start ever ensures it.
     // Best-effort: a caller-configured `policySourcePath` that does not declare this preset's own
@@ -1822,25 +1871,40 @@ export async function openDaemonCommandRuntime(
     database.close();
     throw error;
   }
+  const gitRuntimeRoot = resolveVerifiedLocalExecutionPaths(paths.root).gitRuntimeRoot;
+  // `project.register` (and every other git-workspace-backed port composed below) must be able to
+  // seal a Factory mirror even when no local execution profile is configured at all -- unlike the
+  // enrolled-project-execution.ts path, nothing else guarantees this directory chain exists yet.
+  await mkdir(gitRuntimeRoot, { recursive: true, mode: 0o700 });
   const runExportMirrors =
     options.runExportMirrors ??
     createRunExportMirrorPort({
-      gitRuntimeRoot: resolveVerifiedLocalExecutionPaths(paths.root).gitRuntimeRoot,
+      gitRuntimeRoot,
       ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
     });
+  // Shared across `project.register`, `plan.execute`'s mirror port, and its broker-commit resolver:
+  // `GitWorkspaceManager` is stateless beyond validating its own executable at construction, so one
+  // instance is safe to reuse for every git-workspace-backed composition below.
+  const projectRegistryGitWorkspace = new GitWorkspaceManager(
+    options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable },
+  );
   const planExecution: ProjectPlanExecutionDependencies = options.planExecution ?? {
-    mirror: createUnconfiguredProjectPlanMirrorPortV1(),
-    resolveBrokerCommit: () => {
-      throw new CommandHandlerError(
-        "plan.mirror-not-configured",
-        "No project-plan mirror port is configured on this daemon; plan task items cannot be submitted or advanced.",
-        false,
-      );
-    },
+    mirror: createRegistryBackedProjectPlanMirrorPortV1({
+      gitWorkspace: projectRegistryGitWorkspace,
+      gitRuntimeRoot,
+      projectRegistry: repositories.projectRegistry,
+    }),
+    resolveBrokerCommit: createEvidenceBrokerCommitResolverV1({
+      repositories,
+      evidenceStore,
+      gitRuntimeRoot,
+      ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
+    }),
     policyDigest: Sha256DigestSchema.parse(`sha256:${"0".repeat(64)}`),
   };
   const phaseGitPortOptions = {
-    gitRuntimeRoot: resolveVerifiedLocalExecutionPaths(paths.root).gitRuntimeRoot,
+    gitRuntimeRoot,
+    projectRegistry: repositories.projectRegistry,
     ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
   };
   const phaseOutputMirror =
@@ -1935,6 +1999,8 @@ export async function openDaemonCommandRuntime(
           paths,
           planExecution,
           phaseRunCommands,
+          projectRegistryGitWorkspace,
+          gitRuntimeRoot,
         }),
       );
       // A human post is the moderator's cue; the wake happens after the

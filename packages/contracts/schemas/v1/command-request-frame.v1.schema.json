@@ -2409,6 +2409,182 @@
               "$ref": "#/$defs/__schema2"
             },
             "operation": {
+              "const": "project.register",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "displayName": {
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "slug": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "source": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "const": "scan",
+                          "type": "string"
+                        },
+                        "planDigest": {
+                          "$ref": "#/$defs/__schema9"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "planDigest"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "const": "path",
+                          "type": "string"
+                        },
+                        "repositoryRoot": {
+                          "$ref": "#/$defs/__schema13"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "repositoryRoot"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "source",
+                "displayName",
+                "slug"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "project.list",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "project.show",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "projectId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "projectId"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
               "const": "preset.list",
               "type": "string"
             },

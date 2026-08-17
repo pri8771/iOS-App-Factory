@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import {
   CommandRequestV1Schema,
+  RepositoryIdSchema,
   type CommandRequestV1,
   type CommandResultV1,
   type ExecutionAttemptV1,
@@ -16,11 +17,19 @@ import {
   type FactoryMirror,
   type ImmutableMirrorBinding,
 } from "@app-factory/git-workspace";
-import { createFactoryRepositories, type FactoryRepositories } from "@app-factory/kernel";
+import {
+  createFactoryRepositories,
+  openMigratedFactoryDatabase,
+  ProjectRegistryRepository,
+  type FactoryRepositories,
+} from "@app-factory/kernel";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { openDaemonCommandRuntime, type DaemonCommandRuntime } from "../src/command-runtime.js";
-import { createGitWorkspaceProjectPlanMirrorPortV1 } from "../src/project-plan-mirror-port.js";
+import {
+  createGitWorkspaceProjectPlanMirrorPortV1,
+  createRegistryBackedProjectPlanMirrorPortV1,
+} from "../src/project-plan-mirror-port.js";
 
 /**
  * The Planner (`plan.propose`/`plan.edit`/`plan.approve`/`plan.execute`/`plan.approve-gate`/
@@ -759,6 +768,239 @@ describe("plan.execute chaining", () => {
     );
     expect(ticked4.advanced).toBe(false);
     expect(ticked4.plan.state).toBe("complete");
+  });
+
+  it("chains 2 tasks + 1 gate through the REAL Project-Registry-backed mirror port (Seam (b))", async () => {
+    // Identical fixture/flow to the test above, except the mirror port is
+    // `createRegistryBackedProjectPlanMirrorPortV1` (Seam (b) of the project-registry task) instead
+    // of a hand-rolled `resolveMirror`/`resolveRootBinding` closure -- proving `plan.execute`/
+    // `plan.tick` actually resolve the target project's mirror FROM THE REGISTRY, and refuse an
+    // unregistered repositoryId, rather than merely composing the generic git-workspace port in the
+    // abstract.
+    const fixture = sealChainFixture();
+    const registryRoot = await makeRoot();
+    const registryDatabase = openMigratedFactoryDatabase(join(registryRoot, "registry.sqlite"));
+    const projectRegistry = new ProjectRegistryRepository(registryDatabase);
+
+    // The registry-backed port refuses an unregistered repositoryId before this project is
+    // registered (`plan.mirror-not-registered`) -- proving the registry is consulted as an
+    // authorization gate, not bypassed.
+    const unregisteredPort = createRegistryBackedProjectPlanMirrorPortV1({
+      gitWorkspace: fixture.gitWorkspace,
+      gitRuntimeRoot: fixture.mirror.runtimeRoot,
+      projectRegistry,
+    });
+    expect(() => unregisteredPort.currentBase(RepositoryIdSchema.parse(REPOSITORY_ID))).toThrow(
+      /no registered project claims|mirror-not-registered/iu,
+    );
+
+    projectRegistry.upsert({
+      command: {
+        schemaVersion: 1,
+        commandId: "aa000000-0000-4000-8000-0000000000e1",
+        issuedAt: T0,
+        origin: "system",
+        kind: "project.register",
+        register: {
+          project: {
+            projectId: PROJECT_ID,
+            slug: "chain-registry-project",
+            displayName: "Chain Registry Project",
+            sourceRepositoryPath: fixture.source,
+            repositoryId: REPOSITORY_ID,
+            standardVersion: null,
+            policyLockDigest: null,
+            docsLayout: { docsDir: "docs" },
+          },
+          expectedRevision: null,
+        },
+      },
+      recordedAt: T0,
+    });
+
+    const brokerCommits = new Map<string, BrokerCommitRecord>();
+    const mirrorPort = createRegistryBackedProjectPlanMirrorPortV1({
+      gitWorkspace: fixture.gitWorkspace,
+      gitRuntimeRoot: fixture.mirror.runtimeRoot,
+      projectRegistry,
+    });
+
+    let repositories: FactoryRepositories | undefined;
+    const root = await makeRoot();
+    const runtime = await openDaemonCommandRuntime({
+      runtimeDirectory: root,
+      daemonVersion: "0.1.0-test",
+      startedAt: T0,
+      now: () => T0,
+      initializeDatabase: (database) => {
+        repositories = createFactoryRepositories(database);
+      },
+      planExecution: {
+        mirror: mirrorPort,
+        resolveBrokerCommit: (attempt: ExecutionAttemptV1) => {
+          const found = brokerCommits.get(attempt.attemptId);
+          if (found === undefined)
+            throw new Error(`no fake broker commit recorded for ${attempt.attemptId}`);
+          return found;
+        },
+        policyDigest: `sha256:${"1".repeat(64)}` as never,
+      },
+    });
+    runtimes.push(runtime);
+    if (repositories === undefined) throw new Error("repositories not captured");
+    const repos = repositories;
+
+    await upsertSmallPreset(runtime, "small-preset-chain-registry");
+    const proposed = unwrap(
+      await invoke(
+        runtime,
+        request("plan.propose", commandId(101), {
+          brief: {
+            title: "Registry Chain Test",
+            oneLiner: "Two tasks, one gate.",
+            constraints: [],
+          },
+          presetId: "small-preset-chain-registry",
+          projectId: PROJECT_ID,
+          repositoryId: REPOSITORY_ID,
+          source: null,
+        }),
+      ),
+      "plan.propose",
+    );
+    expect(proposed.plan.items.map((item) => item.itemId)).toEqual(["alpha", "ready"]);
+
+    const withBeta = unwrap(
+      await invoke(
+        runtime,
+        request("plan.edit", commandId(102), {
+          planId: proposed.plan.planId,
+          expectedRevision: 0,
+          edits: [
+            {
+              kind: "add-item",
+              afterItemId: "ready",
+              item: {
+                itemId: "beta",
+                kind: "task",
+                phase: "beta",
+                title: "Beta",
+                detail: null,
+                taskSpecDraft: {
+                  objective: "Do the second task.",
+                  acceptanceCriteria: [
+                    { id: "ac-1", statement: "It works.", verification: "review" },
+                  ],
+                  scope: { paths: ["src"] },
+                  phase: "beta",
+                },
+                dependsOn: ["ready"],
+              },
+            },
+          ],
+        }),
+      ),
+      "plan.edit",
+    );
+    expect(withBeta.plan.items.map((item) => item.itemId)).toEqual(["alpha", "ready", "beta"]);
+
+    const approved = unwrap(
+      await invoke(
+        runtime,
+        request("plan.approve", commandId(103), {
+          planId: proposed.plan.planId,
+          expectedRevision: 1,
+        }),
+      ),
+      "plan.approve",
+    );
+    expect(approved.plan.state).toBe("approved");
+
+    // plan.execute: currentBase is resolved through the REAL registry-backed port.
+    const executed1 = unwrap(
+      await invoke(
+        runtime,
+        request("plan.execute", commandId(104), {
+          planId: proposed.plan.planId,
+          expectedRevision: 2,
+        }),
+      ),
+      "plan.execute",
+    );
+    expect(executed1.plan.state).toBe("executing");
+    const alphaItem = executed1.plan.items.find((item) => item.itemId === "alpha");
+    if (alphaItem === undefined || alphaItem.kind !== "task" || alphaItem.attemptId === null) {
+      throw new Error("alpha item was not submitted");
+    }
+    expect(alphaItem.status).toBe("running");
+    const alphaTaskSpec = repos.taskSnapshots.findById(alphaItem.taskId as never);
+    expect(alphaTaskSpec?.base.commit).toBe(fixture.rootBinding.baseCommit);
+
+    driveAttemptToSucceeded(repos, alphaItem.attemptId, "registry-alpha");
+    const alphaBroker = fakeVerifiedAttempt(
+      fixture,
+      alphaItem.attemptId,
+      fixture.rootBinding.baseCommit,
+      "v1\n",
+    );
+    brokerCommits.set(alphaItem.attemptId, alphaBroker);
+
+    // plan.tick: base advances through the REAL registry-backed port's advanceBase.
+    const ticked1 = unwrap(
+      await invoke(runtime, request("plan.tick", commandId(105), { planId: proposed.plan.planId })),
+      "plan.tick",
+    );
+    expect(ticked1.advanced).toBe(true);
+    expect(ticked1.plan.items.find((item) => item.itemId === "alpha")?.status).toBe("done");
+    expect(ticked1.plan.state).toBe("executing");
+
+    const gateApproved = unwrap(
+      await invoke(
+        runtime,
+        request("plan.approve-gate", commandId(106), {
+          planId: ticked1.plan.planId,
+          itemId: "ready",
+          expectedRevision: ticked1.plan.revision,
+        }),
+      ),
+      "plan.approve-gate",
+    );
+    expect(gateApproved.plan.items.find((item) => item.itemId === "ready")?.status).toBe(
+      "approved",
+    );
+
+    const ticked2 = unwrap(
+      await invoke(
+        runtime,
+        request("plan.tick", commandId(107), { planId: gateApproved.plan.planId }),
+      ),
+      "plan.tick",
+    );
+    expect(ticked2.advanced).toBe(true);
+    const betaItem = ticked2.plan.items.find((item) => item.itemId === "beta");
+    if (betaItem === undefined || betaItem.kind !== "task" || betaItem.attemptId === null) {
+      throw new Error("beta item was not submitted");
+    }
+    // beta's base is alpha's ADVANCED broker commit -- re-derived from the registry-resolved mirror.
+    const betaTaskSpec = repos.taskSnapshots.findById(betaItem.taskId as never);
+    expect(betaTaskSpec?.base.commit).toBe(alphaBroker.commitSha);
+
+    driveAttemptToSucceeded(repos, betaItem.attemptId, "registry-beta");
+    const betaBroker = fakeVerifiedAttempt(
+      fixture,
+      betaItem.attemptId,
+      alphaBroker.commitSha,
+      "v2\n",
+    );
+    brokerCommits.set(betaItem.attemptId, betaBroker);
+
+    const ticked3 = unwrap(
+      await invoke(runtime, request("plan.tick", commandId(108), { planId: ticked2.plan.planId })),
+      "plan.tick",
+    );
+    expect(ticked3.advanced).toBe(true);
+    expect(ticked3.plan.state).toBe("complete");
+    registryDatabase.close();
   });
 
   it("halts the plan (no auto-retry) when a task item's attempt fails", async () => {

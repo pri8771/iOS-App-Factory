@@ -12,6 +12,7 @@ import {
   type ImmutableMirrorBinding,
   type ImmutableMirrorBindingTip,
 } from "@app-factory/git-workspace";
+import type { ProjectRegistryRepository } from "@app-factory/kernel";
 
 import { CommandHandlerError } from "./unix-command-server.js";
 
@@ -116,4 +117,43 @@ export function createGitWorkspaceProjectPlanMirrorPortV1(options: {
       return { repositoryId, commit: GitObjectIdSchema.parse(advanced.baseCommit) };
     },
   };
+}
+
+/**
+ * The production composition Seam (b) of the project-registry task wires in: identical to
+ * {@link createGitWorkspaceProjectPlanMirrorPortV1} except `resolveMirror`/`resolveRootBinding` are
+ * generated from the Project Registry (`ProjectRegistryRepository`) instead of being supplied ad
+ * hoc by the caller. A plan's target `repositoryId` must be a registered project's own mirror
+ * binding ref (`ProjectRegistryRepository.findByRepositoryId`) before its mirror is ever touched —
+ * this is what "resolves the target project's mirror from the registry" means: the registry is
+ * consulted as the authorization/lookup layer in front of `GitWorkspaceManager`, not merely a
+ * naming table. A plan whose `repositoryId` no project has registered fails closed
+ * (`plan.mirror-not-registered`) rather than guessing at an unregistered mirror.
+ */
+export function createRegistryBackedProjectPlanMirrorPortV1(options: {
+  gitWorkspace: GitWorkspaceManager;
+  gitRuntimeRoot: string;
+  projectRegistry: ProjectRegistryRepository;
+}): ProjectPlanMirrorPort {
+  function requireRegisteredMirror(repositoryId: RepositoryId): FactoryMirror {
+    const project = options.projectRegistry.findByRepositoryId(repositoryId);
+    if (project === null) {
+      throw new CommandHandlerError(
+        "plan.mirror-not-registered",
+        `No registered project claims mirror binding ${repositoryId}; run project.register first.`,
+        false,
+      );
+    }
+    return options.gitWorkspace.openExistingMirror({
+      runtimeRoot: options.gitRuntimeRoot,
+      repositoryId,
+    });
+  }
+
+  return createGitWorkspaceProjectPlanMirrorPortV1({
+    gitWorkspace: options.gitWorkspace,
+    resolveMirror: requireRegisteredMirror,
+    resolveRootBinding: (repositoryId) =>
+      options.gitWorkspace.readSealedRootBinding(requireRegisteredMirror(repositoryId)),
+  });
 }

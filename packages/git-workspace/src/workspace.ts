@@ -2265,6 +2265,19 @@ export class GitWorkspaceManager {
     return record;
   }
 
+  /**
+   * Public counterpart to `#readSealedRootBinding`, for callers (e.g. a daemon-side
+   * `ProjectPlanMirrorPort` composition) that need to read a prepared-immutable mirror's ORIGINAL
+   * sealed enrollment binding from nothing but the mirror itself, without re-supplying the full
+   * `PrepareImmutableMirrorInput` used to create it. Mirrors `inspectBrokerCommit`'s role as a public
+   * wrapper around a private, read-only accessor. Never mutates; fails closed if no sealed binding
+   * exists (`prepareImmutableMirror` must run before this).
+   */
+  readSealedRootBinding(mirrorInput: FactoryMirror): ImmutableMirrorBinding {
+    const mirror = this.#validateMirror(mirrorInput);
+    return this.#readSealedRootBinding(mirror);
+  }
+
   createTrustedVerificationCheckout(
     mirror: FactoryMirror,
     attemptRecord: FactoryWorkspaceRecord,

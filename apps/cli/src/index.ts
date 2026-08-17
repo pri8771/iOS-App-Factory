@@ -14,6 +14,7 @@ import {
   type RetryableCommandIdentity,
 } from "@app-factory/command-client";
 import {
+  AbsolutePathSchema,
   AttemptIdSchema,
   CalendarDateSchema,
   CommandIdSchema,
@@ -63,6 +64,7 @@ import {
   type ProjectPlanId,
   type ProjectPlanProposeV1,
   type ProjectPlanV1,
+  type ProjectRegisterSourceV1,
   type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
@@ -123,6 +125,14 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "project.apply"; planDigest: Sha256Digest; branchName: GitBranchName | null }>
   | Readonly<{ kind: "project.milestones.list"; projectId: ProjectId }>
   | Readonly<{ kind: "project.milestone.upsert"; upsert: ProjectMilestoneUpsertV1 }>
+  | Readonly<{
+      kind: "project.register";
+      source: ProjectRegisterSourceV1;
+      displayName: string | null;
+      slug: string | null;
+    }>
+  | Readonly<{ kind: "project.list" }>
+  | Readonly<{ kind: "project.show"; projectId: ProjectId }>
   | Readonly<{ kind: "phases.list" }>
   | Readonly<{ kind: "phases.show"; presetId: PhasePresetId }>
   | Readonly<{ kind: "project.docs.snapshot"; repositoryRoot: string }>
@@ -804,7 +814,39 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
         command: { kind: "project.seed", targetDirectory, name },
       };
     }
-    usageError("Project requires one of: scan, plan, apply, milestones, milestone, seed.");
+    if (subcommand === "register") {
+      // `project register <path>` scans a bare repository path itself; `project register --from-scan
+      // <planDigest>` reuses a previously persisted `project scan` result -- mirroring `project
+      // plan`/`project apply`'s own `planDigest` reuse.
+      const fromScan = consumeOption(arguments_, "--from-scan");
+      const name = consumeOption(arguments_, "--name") ?? null;
+      const slug = consumeOption(arguments_, "--slug") ?? null;
+      const source: ProjectRegisterSourceV1 =
+        fromScan === undefined
+          ? {
+              kind: "path",
+              repositoryRoot: AbsolutePathSchema.parse(parseRepositoryPath(arguments_.shift())),
+            }
+          : { kind: "scan", planDigest: parsePlanDigest(fromScan) };
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "project.register", source, displayName: name, slug },
+      };
+    }
+    if (subcommand === "list") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "project.list" } };
+    }
+    if (subcommand === "show") {
+      const projectId = parseProjectId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "project.show", projectId } };
+    }
+    usageError(
+      "Project requires one of: scan, plan, apply, milestones, milestone, seed, register, list, show.",
+    );
   }
 
   if (command === "phases") {
@@ -1177,6 +1219,45 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
       return `project.milestone.upsert: ${result.created ? "created" : "updated"} ${milestone.milestoneId} r${String(milestone.revision)} ${milestone.status} ${milestone.kind} ${milestone.phase} target ${
         milestone.targetDate ?? MILESTONE_NO_TARGET_DATE_LABEL
       } ${JSON.stringify(milestone.label)}\n`;
+    }
+    case "project.register": {
+      const { project } = result;
+      const lines = [
+        `project.register: ${result.created ? "registered" : "already registered"} ${project.projectId} (${project.slug}) ${JSON.stringify(project.displayName)}`,
+        `  source: ${project.sourceRepositoryPath}`,
+        `  mirror binding ref: ${project.repositoryId}`,
+        `  docs layout: ${project.docsLayout.docsDir}/`,
+        `  revision: r${String(project.revision)}`,
+        result.secretFindings.length === 0
+          ? "  secret findings: none"
+          : `  secret findings (owner review, not blocking): ${String(result.secretFindings.length)}\n${result.secretFindings
+              .map((finding) => `    ${finding.issueId}\t${finding.code}\t${finding.summary}`)
+              .join("\n")}`,
+      ];
+      return `${lines.join("\n")}\n`;
+    }
+    case "project.list": {
+      if (result.projects.length === 0) return "no registered projects\n";
+      return `${result.projects
+        .map(
+          (project) =>
+            `${project.projectId}\t${project.slug}\t${project.docsLayout.docsDir}/\tr${String(project.revision)}\t${JSON.stringify(project.displayName)}`,
+        )
+        .join("\n")}\n`;
+    }
+    case "project.show": {
+      const { project } = result;
+      const lines = [
+        `project.show: ${project.projectId} (${project.slug}) ${JSON.stringify(project.displayName)}`,
+        `  source: ${project.sourceRepositoryPath}`,
+        `  mirror binding ref: ${project.repositoryId}`,
+        `  docs layout: ${project.docsLayout.docsDir}/`,
+        `  standard version: ${project.standardVersion ?? "(none)"}`,
+        `  policy lock digest: ${project.policyLockDigest ?? "(none)"}`,
+        `  enrolled at: ${project.enrolledAt}`,
+        `  revision: r${String(project.revision)}, updated ${project.updatedAt}`,
+      ];
+      return `${lines.join("\n")}\n`;
     }
     case "preset.list": {
       if (result.presets.length === 0) return "no presets\n";
@@ -1773,6 +1854,19 @@ export async function runCli(
         break;
       case "project.milestone.upsert":
         result = await client.upsertProjectMilestone(invocation.command.upsert, identity);
+        break;
+      case "project.register":
+        result = await client.registerProject(
+          invocation.command.source,
+          { displayName: invocation.command.displayName, slug: invocation.command.slug },
+          identity,
+        );
+        break;
+      case "project.list":
+        result = await client.listProjects(identity);
+        break;
+      case "project.show":
+        result = await client.showProject(invocation.command.projectId, identity);
         break;
       case "project.seed":
         result = await client.seedProject(

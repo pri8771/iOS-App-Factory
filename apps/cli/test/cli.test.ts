@@ -229,6 +229,35 @@ describe("CLI argument parser", () => {
       },
     ],
     [
+      ["project", "register", "/repo/app"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "project.register",
+          source: { kind: "path", repositoryRoot: "/repo/app" },
+          displayName: null,
+          slug: null,
+        },
+      },
+    ],
+    [
+      ["project", "register", "--from-scan", PLAN_DIGEST, "--name", "App", "--slug", "app"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "project.register",
+          source: { kind: "scan", planDigest: PLAN_DIGEST },
+          displayName: "App",
+          slug: "app",
+        },
+      },
+    ],
+    [["project", "list"], { outputMode: "human", command: { kind: "project.list" } }],
+    [
+      ["project", "show", PROJECT_ID],
+      { outputMode: "human", command: { kind: "project.show", projectId: PROJECT_ID } },
+    ],
+    [
       ["--json", "project", "apply", PLAN_DIGEST, "--branch", "app-factory/enroll-abc123"],
       {
         outputMode: "json",
@@ -1748,6 +1777,110 @@ describe("runCli project enrollment", () => {
       ok: false,
       error: { code: "project.apply-fingerprint-drift", retryable: false },
     });
+  });
+});
+
+describe("runCli project register / list / show", () => {
+  const REGISTERED_PROJECT = {
+    schemaVersion: 1,
+    projectId: PROJECT_ID,
+    slug: "app",
+    displayName: "App",
+    sourceRepositoryPath: "/repo/app",
+    repositoryId: PROJECT_ID,
+    standardVersion: null,
+    policyLockDigest: null,
+    docsLayout: { docsDir: "docs" },
+    enrolledAt: "2026-08-16T09:00:00.000Z",
+    revision: 0,
+    updatedAt: "2026-08-16T09:00:00.000Z",
+  };
+
+  it("registers a project from a bare repository path", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.register") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "project.register",
+          project: REGISTERED_PROJECT,
+          created: true,
+          secretFindings: [],
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "register", "/repo/app"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain(`project.register: registered ${PROJECT_ID}`);
+    expect(captured().stdout).toContain("secret findings: none");
+  });
+
+  it("surfaces a rules.* blocker refusal as a distinct, non-retryable error code", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.register") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        error: {
+          code: "project.register-blocked",
+          message: "The repository has unresolved rules.* blocker(s): ...",
+          retryable: false,
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["--json", "project", "register", "/repo/app"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(1);
+    expect(JSON.parse(captured().stderr)).toMatchObject({
+      ok: false,
+      error: { code: "project.register-blocked", retryable: false },
+    });
+  });
+
+  it("lists every registered project", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.list") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "project.list", projects: [REGISTERED_PROJECT] } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "list"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain(PROJECT_ID);
+    expect(captured().stdout).toContain("app");
+  });
+
+  it("shows one registered project by ID", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "project.show") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "project.show", project: REGISTERED_PROJECT } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["project", "show", PROJECT_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain(`project.show: ${PROJECT_ID}`);
+    expect(captured().stdout).toContain("docs layout: docs/");
   });
 });
 

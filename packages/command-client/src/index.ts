@@ -33,11 +33,13 @@ import {
   ProjectPlanExecuteV1Schema,
   ProjectPlanIdSchema,
   ProjectPlanProposeV1Schema,
+  ProjectRegisterSourceV1Schema,
   RequestIdSchema,
   RoomCreateSpecV1Schema,
   RoomHumanHandleSchema,
   RoomIdSchema,
   Sha256DigestSchema,
+  StableKeySchema,
   TaskIdSchema,
   TaskSpecV1Schema,
   canonicalPortfolioReadModelDigestInputV1,
@@ -74,6 +76,7 @@ import {
   type ProjectPlanExecuteV1,
   type ProjectPlanId,
   type ProjectPlanProposeV1,
+  type ProjectRegisterSourceV1,
   type RequestId,
   type RoomCreateSpecV1,
   type Sha256Digest,
@@ -610,6 +613,59 @@ export class CommandClient {
     signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"preset.list">> {
     return await this.#request("preset.list", {}, identity, signal);
+  }
+
+  /**
+   * Registers a project into the durable Project Registry (Seam (a) of the project-registry task):
+   * either from a previously persisted `project.scan` result (`source.kind: "scan"`, the same
+   * `planDigest` {@link getEnrollmentPlan}/{@link applyEnrollmentPlan} accept) or a bare repository
+   * path (`source.kind: "path"`, which runs the scanner itself first). Requires zero `rules.*`
+   * blockers; `safety.secret-material-detected` findings are surfaced on the result but never block
+   * registration. Durable and idempotent: re-registering an already-registered repository path
+   * reuses its existing identity rather than duplicating it.
+   */
+  public async registerProject(
+    source: ProjectRegisterSourceV1,
+    options: Readonly<{ displayName?: string | null; slug?: string | null }> = {},
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.register">> {
+    return await this.#request(
+      "project.register",
+      {
+        source: ProjectRegisterSourceV1Schema.parse(source),
+        displayName: options.displayName ?? null,
+        slug:
+          options.slug === undefined || options.slug === null
+            ? null
+            : StableKeySchema.parse(options.slug),
+      },
+      identity,
+      signal,
+    );
+  }
+
+  /** Every registered project's head revision. Bounded, unpaginated: registered projects are
+   * operator-initiated and few compared to attempts or events, exactly like {@link listPresets}. */
+  public async listProjects(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.list">> {
+    return await this.#request("project.list", {}, identity, signal);
+  }
+
+  /** One registered project's full head record by ID. */
+  public async showProject(
+    projectId: ProjectId | string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"project.show">> {
+    return await this.#request(
+      "project.show",
+      { projectId: ProjectIdSchema.parse(projectId) },
+      identity,
+      signal,
+    );
   }
 
   /**
