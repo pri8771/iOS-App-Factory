@@ -1,0 +1,131 @@
+{
+  "recordDigest": "sha256:799214d222ab186a4f39add6e0a93a1ae72d31cab1d2de4d4592a324cbff5445",
+  "record": {
+    "schemaVersion": 1,
+    "attemptId": "1930791b-75be-533c-9471-f814e4000516",
+    "taskId": "bd5049b3-1408-429c-baa6-39a564f7e974",
+    "attemptNumber": 1,
+    "state": "succeeded",
+    "implementingRunId": "4d3eec30-d9a1-54ef-8212-df422f877ae0",
+    "repositoryId": "c9ddcfcc-609b-4f91-a5d7-46bc58eba90b",
+    "taskSpecDigest": "sha256:8dd67208ae021455efc5a3a812998d5cedfb8bdd6738a26f9a4fd5a60efb370e",
+    "policyDigest": "sha256:2c3b745089d0a600c0e516e94436c2872defad6a22584df1c5c92d6f7d6f29c9",
+    "baseCommit": "10cc1b13b568e6cce8fdea8907d56d3a80402c71",
+    "candidateTree": "d867f9e6af5722e59e29832118392e886b01f79f",
+    "fence": 1,
+    "brokerCommit": {
+      "commit": "1b65f20628ea6360b24bc2e9543bae0b1a06f447",
+      "tree": "d867f9e6af5722e59e29832118392e886b01f79f",
+      "commitDigest": "sha256:c745351a9e91ba7f5e5c0bdb4184f74cbdb086863abd6e843be13862add40d41",
+      "attemptMarker": "1930791b-75be-533c-9471-f814e4000516"
+    },
+    "verification": [
+      {
+        "checkId": "build.hindsight",
+        "argv": [
+          "/usr/bin/xcodebuild",
+          "build",
+          "-scheme",
+          "Hindsight",
+          "-destination",
+          "generic/platform=iOS Simulator",
+          "-derivedDataPath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/1930791b-75be-533c-9471-f814e4000516/fence-1/build.hindsight-fca2736d-1c20-4053-8626-18c177a10163/derived-data"
+        ],
+        "checkoutTree": "d867f9e6af5722e59e29832118392e886b01f79f",
+        "startedAt": "2026-08-15T02:40:23.079Z",
+        "finishedAt": "2026-08-15T02:40:33.732Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "test.hindsight-unit",
+        "argv": [
+          "/usr/bin/xcodebuild",
+          "test",
+          "-scheme",
+          "Hindsight",
+          "-only-testing:HindsightTests",
+          "-destination",
+          "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest",
+          "-derivedDataPath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/1930791b-75be-533c-9471-f814e4000516/fence-1/test.hindsight-unit-fca2736d-1c20-4053-8626-18c177a10163/derived-data",
+          "-resultBundlePath",
+          "/Users/pchordia/.app-factory-hindsight/runtime/local-execution/git/verification-scratch/1930791b-75be-533c-9471-f814e4000516/fence-1/test.hindsight-unit-fca2736d-1c20-4053-8626-18c177a10163/result.xcresult"
+        ],
+        "checkoutTree": "d867f9e6af5722e59e29832118392e886b01f79f",
+        "startedAt": "2026-08-15T02:40:33.827Z",
+        "finishedAt": "2026-08-15T02:41:17.078Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "grep.due-prediction-ondismiss",
+        "argv": [
+          "/usr/bin/grep",
+          "-n",
+          "-A2",
+          "-E",
+          "\\$showDuePredictionStack.*onDismiss:",
+          "Hindsight/Views/DecisionDetailView.swift"
+        ],
+        "checkoutTree": "d867f9e6af5722e59e29832118392e886b01f79f",
+        "startedAt": "2026-08-15T02:41:17.164Z",
+        "finishedAt": "2026-08-15T02:41:17.166Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "BSD grep 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      }
+    ],
+    "review": {
+      "reviewerId": "hindsight.generic-review",
+      "reviewerVersion": "v1",
+      "reviewerRunId": "c8f0a3cc-3b54-58d7-91cc-e9d0b7bb6264",
+      "verdict": "pass",
+      "findingCount": 0,
+      "reviewInputDigest": "sha256:377423811c60a08787dcb9ea2f2f8e6cf811a1d2010954aeedcfadcad21be817"
+    },
+    "evidence": {
+      "manifestDigest": "sha256:8c69b62a0193cc53ab369389cefdff62120e6b7e4c50310a30196dd253bbade3",
+      "indexDigest": "sha256:6e985cc667e7c0527e290f4741a6ef6de35507bc32f3c6fdc1b0cd41987bd510",
+      "entryCount": 7,
+      "artifactCount": 30
+    },
+    "agent": {
+      "adapterId": "openai.codex",
+      "adapterVersion": "1.0.0",
+      "cliVersion": "0.148.0-alpha.9",
+      "model": "gpt-5.6-sol",
+      "executableDigest": "sha256:059bd8ccf7c9ff335cacd0c41f1847354f5eb5ee8fcdad9e17565ec82523ea00",
+      "usage": {
+        "inputTokens": 74204,
+        "outputTokens": 755,
+        "cachedInputTokens": 56320
+      }
+    },
+    "timings": {
+      "attemptCreatedAt": "2026-08-15T02:39:51.640Z",
+      "attemptTerminalAt": "2026-08-15T02:41:17.718Z",
+      "agentStartedAt": "2026-08-15T02:39:52.119Z",
+      "agentFinishedAt": "2026-08-15T02:40:22.252Z",
+      "evidenceCreatedAt": "2026-08-15T02:40:22.883Z"
+    }
+  }
+}

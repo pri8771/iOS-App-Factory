@@ -1,0 +1,120 @@
+{
+  "recordDigest": "sha256:1cf9f112b6d24db86f668e747fd159899878fe35366c3b2bc36340772fab70aa",
+  "record": {
+    "schemaVersion": 1,
+    "attemptId": "2b4d6cde-d020-5f9e-baa4-8636f66edbf8",
+    "taskId": "a3000000-0000-4000-8000-000000000003",
+    "attemptNumber": 1,
+    "state": "succeeded",
+    "implementingRunId": "859e5331-11f5-5dd8-85b2-639de8f64958",
+    "repositoryId": "62000000-0000-4000-8000-000000000002",
+    "taskSpecDigest": "sha256:d724749da8029b7c3d62e6127da2c8d1641bbe2b1bcb17a6ce25a61680a34ef2",
+    "policyDigest": "sha256:5b3fc101268944545582d87aee3985c5c23bfbfa77fd0efa9980c72db60631dc",
+    "baseCommit": "d0cbc6183f3657090ab5840035fc9e79bcd2927e",
+    "candidateTree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+    "fence": 1,
+    "brokerCommit": {
+      "commit": "3add1e34e0a02b7b1ecb33aeb43b9ffd84fdee34",
+      "tree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+      "commitDigest": "sha256:bc3b5ee0dd236663349fbd7c65a58d9a425181f35f7dad22dd41efc7651ec3bd",
+      "attemptMarker": "2b4d6cde-d020-5f9e-baa4-8636f66edbf8"
+    },
+    "verification": [
+      {
+        "checkId": "tests.swift",
+        "argv": [
+          "/usr/bin/swift",
+          "test",
+          "--scratch-path",
+          "/Users/pchordia/.app-factory-a3-r2/runtime/local-execution/git/verification-scratch/2b4d6cde-d020-5f9e-baa4-8636f66edbf8/fence-1/tests.swift-1de540d8-1ab0-4e6b-8065-57538f045b26/swiftpm-build"
+        ],
+        "checkoutTree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+        "startedAt": "2026-08-14T21:14:55.785Z",
+        "finishedAt": "2026-08-14T21:14:59.223Z",
+        "toolVersions": [
+          {
+            "name": "swift",
+            "version": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "acceptance.signature",
+        "argv": [
+          "/usr/bin/grep",
+          "-F",
+          "--",
+          "public func farewell(for name: String) -> String {",
+          "Sources/Greeter/GreetingFormatter.swift"
+        ],
+        "checkoutTree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+        "startedAt": "2026-08-14T21:14:59.299Z",
+        "finishedAt": "2026-08-14T21:14:59.303Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "grep (BSD grep, GNU compatible) 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "acceptance.behavior",
+        "argv": [
+          "/usr/bin/grep",
+          "-F",
+          "--",
+          "\"Goodbye, \\(name)!\"",
+          "Sources/Greeter/GreetingFormatter.swift"
+        ],
+        "checkoutTree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+        "startedAt": "2026-08-14T21:14:59.372Z",
+        "finishedAt": "2026-08-14T21:14:59.374Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "grep (BSD grep, GNU compatible) 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      }
+    ],
+    "review": {
+      "reviewerId": "fixture.swift-greeter-reviewer",
+      "reviewerVersion": "1.0.0",
+      "reviewerRunId": "107050dc-c9ac-570b-ab9a-5430adbbd21c",
+      "verdict": "pass",
+      "findingCount": 0,
+      "reviewInputDigest": "sha256:04e725b0e4dc7f38f341c804cb3e4440e13304a8220653c691db01523d208d9e"
+    },
+    "evidence": {
+      "manifestDigest": "sha256:d89d1be720a63f22ad2e19202983a5f3f851a920b4664674ed3c375cf3a47585",
+      "indexDigest": "sha256:b4ca657f83b062629aba6ba29df40af66608bdabd27470fc9efd4479ed03cd03",
+      "entryCount": 7,
+      "artifactCount": 30
+    },
+    "agent": {
+      "adapterId": "openai.codex",
+      "adapterVersion": "1.0.0",
+      "cliVersion": "0.148.0-alpha.9",
+      "model": "gpt-5.6-sol",
+      "executableDigest": "sha256:059bd8ccf7c9ff335cacd0c41f1847354f5eb5ee8fcdad9e17565ec82523ea00",
+      "usage": {
+        "inputTokens": 71953,
+        "outputTokens": 923,
+        "cachedInputTokens": 53248
+      }
+    },
+    "timings": {
+      "attemptCreatedAt": "2026-08-14T21:14:05.900Z",
+      "attemptTerminalAt": "2026-08-14T21:14:59.952Z",
+      "agentStartedAt": "2026-08-14T21:14:06.348Z",
+      "agentFinishedAt": "2026-08-14T21:14:54.915Z",
+      "evidenceCreatedAt": "2026-08-14T21:14:55.603Z"
+    }
+  }
+}
