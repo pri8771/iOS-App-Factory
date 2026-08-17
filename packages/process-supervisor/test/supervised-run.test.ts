@@ -10,6 +10,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -38,6 +40,7 @@ const COMPILED_ENTRYPOINT = join(
   process.cwd(),
   "packages/process-supervisor/dist/supervised-entrypoint.js",
 );
+const COMPILED_INDEX = join(process.cwd(), "packages/process-supervisor/dist/index.js");
 const temporaryDirectories: string[] = [];
 
 function makeRoot(): string {
@@ -578,6 +581,76 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
       expect(terminal.receipt.outcome).toBe("cancelled");
       expect(terminal.receipt.terminationOrigin).toBe("cancellation");
     }, 15_000);
+
+    // Regression test for a real, reproduced race: `probe.signalProcessGroup` (a plain
+    // `kill(-pgid, …)`) can throw even immediately after the target's identity was validated as
+    // live and matching -- observed in practice as a transient `EPERM`, apparently racing the
+    // target's own concurrent exit. The controller's termination-failure path used to report that
+    // failure to its outer settlement race *immediately*, with no wait at all, while a clean
+    // termination attempt was given a bounded grace window to let the real "exit" event arrive
+    // first. That asymmetry meant a single thrown signaling error could beat -- and so discard --
+    // an already in-flight, already-owned real exit event, aborting the controller before it ever
+    // published a receipt even though the target went on to exit on its own moments later. This
+    // test forces that exact failure by injecting a `signalProcessGroup` that always throws, on a
+    // target that is left to exit on its own shortly after the (never-delivered) termination
+    // signal was attempted, and asserts a terminal receipt is still published.
+    it("still publishes a terminal receipt when identity-safe signaling errors but the target exits on its own moments later", async () => {
+      const prepared = prepare({
+        runKey: "signal-error-receipt-one",
+        argv: ["-e", "setTimeout(()=>{}, 300)"],
+        limits: {
+          timeoutMs: 50,
+          graceMs: 5_000,
+          forceWaitMs: 5_000,
+          // pollMs also sizes the controller's post-termination-attempt grace window (see the fix
+          // in supervised-controller.ts: Math.max(250, pollMs * 4)) -- 500 gives a 2s window for
+          // the target's natural exit to be observed after the injected signaling error, well
+          // clear of the 300ms self-exit above even under heavy CPU contention (parallel package
+          // tests during `pnpm verify`).
+          pollMs: 500,
+          maxOutputBytesPerStream: 1_024,
+        },
+      });
+      const launch = launchPreparedSupervisedRun(prepared, {
+        controllerEntrypointPath: COMPILED_ENTRYPOINT,
+        // The durable launch claim is all this test needs from the built-in launcher; the actual
+        // controller below is spawned by hand so it can run with an injected, fault-throwing probe.
+        spawnController: () => ({ pid: 999_999, exitCode: null, signalCode: null, unref: vi.fn() }),
+      });
+      expect(launch.outcome).toBe("launch-requested");
+
+      const distIndexHref = pathToFileURL(COMPILED_INDEX).href;
+      const controllerScript = [
+        "(async () => {",
+        `  const mod = await import(${JSON.stringify(distIndexHref)});`,
+        "  const realProbe = mod.createSystemPlatformProbe();",
+        "  const flakyProbe = {",
+        "    ...realProbe,",
+        "    signalProcessGroup: () => {",
+        '      throw Object.assign(new Error("kill EPERM"), { code: "EPERM" });',
+        "    },",
+        "  };",
+        `  await mod.runSupervisedController(${JSON.stringify(prepared.paths.intentPath)}, {`,
+        "    probe: flakyProbe,",
+        "  });",
+        "})().catch(() => {",
+        "  process.exitCode = 70;",
+        "});",
+      ].join("\n");
+      const controllerProcess = spawn(process.execPath, ["-e", controllerScript], {
+        cwd: prepared.paths.runDirectory,
+        detached: true,
+        stdio: "ignore",
+      });
+      controllerProcess.unref();
+
+      const terminal = await waitForTerminal(prepared);
+      // The termination origin is "timeout" because beginTermination("timeout") fired and the
+      // injected probe never let a real signal through -- the target only ever exited on its own.
+      expect(terminal.receipt.terminationOrigin).toBe("timeout");
+      expect(terminal.receipt.outcome).toBe("timed-out");
+      expect(terminal.receipt.process).toEqual({ exitCode: 0, signal: null });
+    }, 20_000);
 
     it("retains a proven target after its controller is killed and never fabricates a receipt", async () => {
       const root = makeRoot();

@@ -254,6 +254,18 @@ export async function runSupervisedController(
     terminationStarted = true;
     terminationOrigin = origin;
     void (async () => {
+      // A failed, blocked, timed-out, or even thrown-error identity-safe termination attempt does
+      // not by itself prove the target never exited. This controller directly spawned `child` and
+      // already holds its authoritative OS "exit" event independently of whatever the identity
+      // probe reports; that probe's own process-group signaling can spuriously fail (observed in
+      // practice: `probe.signalProcessGroup` throwing EPERM from the platform's `kill(-pgid, …)`
+      // immediately after the identity was validated as live and matching, apparently racing the
+      // target's own concurrent death) even though the signal was delivered and the target is
+      // already dying. Treating every attempt outcome -- clean success, a "blocked"/"timed-out"
+      // result, or a thrown error alike -- with the same bounded wait for the real exit event
+      // prevents a transient signaling hiccup from winning the settlement race and abandoning the
+      // run (and its receipt) out from under a target that is in fact already exiting.
+      let failureReason: string | null = null;
       try {
         const result = await terminateProcessGroup(
           identity,
@@ -266,15 +278,15 @@ export async function runSupervisedController(
           clock,
         );
         if (result.outcome === "blocked" || result.outcome === "timed-out") {
-          reportTerminationFailure(`identity-safe-termination-${result.outcome}`);
-          return;
-        }
-        await clock.sleep(Math.max(250, intent.limits.pollMs * 4));
-        if (!exitObserved) {
-          reportTerminationFailure("target-exit-was-not-observed-after-termination");
+          failureReason = `identity-safe-termination-${result.outcome}`;
         }
       } catch (error) {
-        reportTerminationFailure(`identity-safe-termination-error:${(error as Error).message}`);
+        failureReason = `identity-safe-termination-error:${(error as Error).message}`;
+      }
+      const postTerminationWaitMs = Math.max(250, intent.limits.pollMs * 4);
+      await clock.sleep(postTerminationWaitMs);
+      if (!exitObserved) {
+        reportTerminationFailure(failureReason ?? "target-exit-was-not-observed-after-termination");
       }
     })();
   };
