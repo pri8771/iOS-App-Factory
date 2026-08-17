@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/completion-report.schema.json",
+  "taskId": "PHASE1",
+  "featureId": "PHASE1-TRUST",
+  "status": "code_complete",
+  "implemented": [
+    "T2: Kill preselected-Correct verdict (OutcomeReviewView :185 seed, :214 persist) — predictions seed nil, stay .pending on ungraded save",
+    "T3: Demo-data identity by UUID only (SampleData.swift :21, :165, :173) — isDemoDecision matches stable demo UUIDs; legacyDecisionTitles deleted",
+    "T4: Recoverable store open (HindsightApp :20–:27, new StoreBootstrap.swift, StoreRecoveryView.swift) — fatalError replaced, failure shows recovery screen",
+    "T5: Persistence boundary protocol (new Persisting.swift, all save sites routed) — zero try? context.save() in Hindsight/, success effects gated",
+    "T6: Cold-launch deep link (MainTabView :45–:53, shared route(to:) helper) — tappedDecisionID consumed in .task, not only .onChange"
+  ],
+  "verification": [
+    "Unit test: testResolution_newCallHasNoPreselectedVerdict — PASS",
+    "Unit test: testResolution_allowsOneTerminalChoice — PASS",
+    "Unit test: testDemoCleanup_deletesOnlyExplicitDemoProvenance — PASS",
+    "Unit test: testStoreOpenFailureIsRecoverable (injected failing config) — PASS",
+    "Unit test: testPersistence_failurePreservesDraft — PASS",
+    "Unit test: testPersistence_failureCancelsNoSideEffects — PASS",
+    "Grep verification: zero uncaught try? save() sites in Hindsight/ — PASS",
+    "Build verification: clean Xcode build (arm64 simulator) — PASS",
+    "Test suite: 59/59 unit tests passed on iPhone 17 Pro simulator (2026-07-27) — PASS"
+  ],
+  "checksNotRun": [
+    "UI smoke tests (HindsightUITests exist but not part of phase 1 gate)",
+    "Physical-device notification QA (logic reviewed; device test deferred)",
+    "VoiceOver/accessibility audit (phase 6 T21)",
+    "Cold-launch deep-link manual test on device (logic reviewed; simulator/device manual test deferred)"
+  ],
+  "placeholdersRemaining": [],
+  "fakeDataUsedInProduction": false,
+  "knownIssues": [],
+  "documentationUpdated": [
+    "Docs/STATUS.md: moved phase 1 fixes to Verified section, updated device QA to Verification pending",
+    "Docs/BUGS.md: HIND-B02 resolved (test target now exists); added row for preselected-Correct + title-deletion fixes"
+  ],
+  "humanReviewRequired": [
+    "PR review of feature-contract + completion-report + T1–T6 commits before merge to qa"
+  ]
+}

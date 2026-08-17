@@ -19,6 +19,8 @@ import {
   ProjectMilestoneV1Schema,
   ProjectTimelineV1Schema,
 } from "./milestone.js";
+import { MirrorProjectionDiffV1Schema, MirrorProjectionV1Schema } from "./mirror-projection.js";
+import { ProjectDocsSnapshotV1Schema } from "./project-docs-snapshot.js";
 import {
   AbsolutePathSchema,
   AssistantIntentIdSchema,
@@ -312,6 +314,37 @@ export const ProjectMilestoneUpsertCommandRequestV1Schema = z.strictObject({
   payload: ProjectMilestoneUpsertV1Schema,
 });
 
+/**
+ * Owner doctrine (`docs/policy/RULES_CORPUS_RECONCILIATION.md` §1): reads one enrolled or observed
+ * project repository's mandated docs (`STATUS.md`, `RELEASE_CHECKLIST.md`, `BUGS.md`, `RISKS.md`,
+ * `DECISIONS.md`, `quality/**`) read-only, off disk, via `@app-factory/project-docs`. Never mutates
+ * anything; the CLI verb `docs snapshot <path>` maps onto this operation the same way `project.scan`
+ * maps onto `project scan <path>`.
+ */
+export const ProjectDocsSnapshotCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.docs.snapshot"),
+  payload: z.strictObject({ repositoryRoot: AbsolutePathSchema }),
+});
+
+/**
+ * Mirror direction (contract only, no live provider calls, no credentials): builds the
+ * `MirrorProjectionV1` a future Jira/Notion push adapter would send for this project's current repo
+ * docs, and diffs it against a caller-supplied `previousProjection` (or `null` for "no previous
+ * projection exists yet"). The daemon does not persist "the last projection" anywhere; the caller
+ * owns that state, so a retried or repeated call with the same `previousProjection` is naturally
+ * idempotent without this operation needing its own durable ledger entry.
+ */
+export const MirrorPlanCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("mirror.plan"),
+  payload: z.strictObject({
+    projectId: ProjectIdSchema,
+    repositoryRoot: AbsolutePathSchema,
+    previousProjection: MirrorProjectionV1Schema.nullable(),
+  }),
+});
+
 // Studio rooms (`room.*`) wire types. The moderator is daemon-owned deterministic code
 // (`@app-factory/studio-rooms`); these commands only create rooms, append human messages
 // (the single-writer transcript is CAS-appended by the daemon), read events, and signal
@@ -408,6 +441,8 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProjectApplyCommandRequestV1Schema,
   ProjectMilestonesListCommandRequestV1Schema,
   ProjectMilestoneUpsertCommandRequestV1Schema,
+  ProjectDocsSnapshotCommandRequestV1Schema,
+  MirrorPlanCommandRequestV1Schema,
   EffectsStatusCommandRequestV1Schema,
   EffectsListCommandRequestV1Schema,
   RoomCreateCommandRequestV1Schema,
@@ -647,6 +682,17 @@ export const ProjectMilestoneUpsertCommandResultV1Schema = z.strictObject({
   created: z.boolean(),
 });
 
+export const ProjectDocsSnapshotCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.docs.snapshot"),
+  snapshot: ProjectDocsSnapshotV1Schema,
+});
+
+export const MirrorPlanCommandResultV1Schema = z.strictObject({
+  operation: z.literal("mirror.plan"),
+  projection: MirrorProjectionV1Schema,
+  diff: MirrorProjectionDiffV1Schema,
+});
+
 export const RoomCreateCommandResultV1Schema = z.strictObject({
   operation: z.literal("room.create"),
   room: RoomV1Schema,
@@ -739,6 +785,8 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProjectApplyCommandResultV1Schema,
   ProjectMilestonesListCommandResultV1Schema,
   ProjectMilestoneUpsertCommandResultV1Schema,
+  ProjectDocsSnapshotCommandResultV1Schema,
+  MirrorPlanCommandResultV1Schema,
   EffectsStatusCommandResultV1Schema,
   EffectsListCommandResultV1Schema,
   RoomCreateCommandResultV1Schema,

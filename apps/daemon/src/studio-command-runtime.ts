@@ -21,16 +21,24 @@ import {
   type EventV1,
   type ExecutionAttemptV1,
   type IsoInstant,
+  type ProjectLifecycleStageV1,
   type StudioAttemptSummaryV1,
   type StudioAwaitingHumanItemV1,
+  type StudioFieldSourceV1,
   type StudioPortfolioAggregatesV1,
+  type StudioProjectDocsProvenanceV1,
   type StudioProjectV1,
   type StudioSnapshotV1,
   type StudioTimelineActualV1,
 } from "@app-factory/contracts";
 import type { FactoryRepositories, LocalPortfolioProjectSummary } from "@app-factory/kernel";
+import {
+  mapCorpusLifecycleStageToCanonicalV1,
+  readProjectDocsSnapshot,
+} from "@app-factory/project-docs";
 
 import type { DaemonRuntimeIdFactory } from "./daemon-runtime-ids.js";
+import type { ProjectDocsSourceV1 } from "./project-docs-sources.js";
 import { CommandHandlerError } from "./unix-command-server.js";
 
 /**
@@ -49,13 +57,26 @@ import { CommandHandlerError } from "./unix-command-server.js";
  *
  * `milestones`, project `gates`, and portfolio `rooms` are always reported empty with an explicit
  * `unavailableReason` (see `STUDIO_NOT_YET_WIRED_REASON_V1` in `@app-factory/contracts`) because
- * the branches that will populate them (`studio/milestones-and-phase`,
- * `studio/lifecycle-reconciliation`, `studio/policy-engine-scoping`, rooms) are separate, unmerged
- * worktrees as of this writing. Because of that, `computeAssistantAnswerV1` can never honestly
- * answer a "when does X ship" question today: it looks for a milestone with a real `targetDate`,
- * finds none (there are never any milestones yet), and returns `cannotAnswer`. Once those branches
- * merge and this file is reconciled with their real milestone/gate data, the same lookup starts
- * answering for real with no change to the wire contract.
+ * the branches that will populate them (`studio/policy-engine-scoping`'s typed gates, rooms) are
+ * separate, unmerged worktrees as of this writing. Because of that, `computeAssistantAnswerV1` can
+ * never honestly answer a "when does X ship" question today: it looks for a milestone with a real
+ * `targetDate`, finds none (there are never any milestones yet), and returns `cannotAnswer`. Once
+ * those branches merge and this file is reconciled with their real milestone/gate data, the same
+ * lookup starts answering for real with no change to the wire contract.
+ *
+ * `lifecycleStage` and part of `awaitingHuman`, by contrast, ARE wired for real today, for any
+ * project `loadProjectDocsSourcesV1` (`project-docs-sources.ts`) names: they come from that
+ * project's own repository docs via `@app-factory/project-docs`, per owner doctrine (the repo is the
+ * source of truth). Per the corpus's own authority order
+ * (`governance/DOCUMENTATION_POLICY.md`: code is authoritative for current behavior, ahead of
+ * feature contracts, decision records, completion reports, and the central standard in that order),
+ * `lifecycleStage` prefers real kernel/gate evidence over repo docs whenever both exist --
+ * `resolveLifecycleStage` below encodes that precedence, even though no kernel-side source exists to
+ * outrank repo docs yet (`studio/lifecycle-reconciliation`'s `TypedGateV1` observations are not
+ * persisted anywhere in this daemon), so repo docs win by default in practice today. Every project
+ * with a configured source carries a non-null `docsProvenance` recording exactly which source
+ * populated it; a project with none configured looks exactly as it did before this file's repo-docs
+ * wiring existed.
  */
 
 // Bounded per-project attempt sample used to derive latestAttemptSummary, awaitingHuman, timeline
@@ -114,14 +135,126 @@ function buildTimelineActuals(
   return actuals.slice(0, STUDIO_TIMELINE_ACTUAL_LIMIT_V1);
 }
 
+// Docs-derived awaitingHuman items (RELEASE_CHECKLIST.md items still unchecked) are bounded so one
+// sparse checklist cannot flood the "awaiting you" list; the checklist's real totals are still fully
+// reported in `project.docs.snapshot` for anyone who wants the complete list.
+const MAX_DOCS_AWAITING_HUMAN_ITEMS_V1 = 10;
+
+type DocsAugmentationV1 = Readonly<{
+  lifecycleStage: ProjectLifecycleStageV1 | null;
+  extraAwaitingHuman: StudioAwaitingHumanItemV1[];
+  docsProvenance: StudioProjectDocsProvenanceV1;
+}>;
+
+/**
+ * Precedence: real kernel/gate evidence for this project's lifecycle stage outranks its repo docs
+ * whenever both exist (the corpus's "code is authoritative" ordering, applied to `lifecycleStage`
+ * specifically). `factoryEvidenceStage` is always `null` today -- no kernel table persists
+ * `TypedGateV1`/`ProjectLifecycleStateV1` observations yet -- so repo docs win in practice, but the
+ * precedence itself is real code, not just a comment, and needs no change when that kernel wiring
+ * eventually lands.
+ */
+function resolveLifecycleStage(
+  factoryEvidenceStage: ProjectLifecycleStageV1 | null,
+  docsLifecycleStatusRaw: string | null,
+): Readonly<{ stage: ProjectLifecycleStageV1 | null; source: StudioFieldSourceV1 | null }> {
+  if (factoryEvidenceStage !== null) {
+    return { stage: factoryEvidenceStage, source: "factory-evidence" };
+  }
+  if (docsLifecycleStatusRaw !== null) {
+    const mapped = mapCorpusLifecycleStageToCanonicalV1(docsLifecycleStatusRaw);
+    if (mapped !== null) return { stage: mapped, source: "repo-docs" };
+  }
+  return { stage: null, source: null };
+}
+
+/**
+ * Reads `source`'s repository docs and derives the fields `buildStudioProject`/
+ * `buildObservedStudioProject` fold in. Fails soft (returns `null`), never throws: one
+ * unreadable/misconfigured repository must never take the whole portfolio snapshot down.
+ */
+function buildDocsAugmentation(
+  source: ProjectDocsSourceV1,
+  observedAt: IsoInstant,
+): DocsAugmentationV1 | null {
+  let docsSnapshot;
+  try {
+    docsSnapshot = readProjectDocsSnapshot(source.repositoryRoot, observedAt);
+  } catch {
+    return null;
+  }
+  const { stage, source: lifecycleStageSource } = resolveLifecycleStage(
+    null,
+    docsSnapshot.lifecycleStatus.value,
+  );
+  const extraAwaitingHuman: StudioAwaitingHumanItemV1[] = (
+    docsSnapshot.releaseChecklist.value?.items.filter((item) => !item.checked) ?? []
+  )
+    .slice(0, MAX_DOCS_AWAITING_HUMAN_ITEMS_V1)
+    .map((item) => ({
+      kind: "gate-approval",
+      attemptId: null,
+      summary: item.text,
+      since: docsSnapshot.generatedAt,
+    }));
+  return {
+    lifecycleStage: stage,
+    extraAwaitingHuman,
+    docsProvenance: {
+      sourceKind: source.enrolled ? "enrolled" : "observed",
+      repositoryRoot: source.repositoryRoot,
+      docsSnapshotDigest: docsSnapshot.snapshotDigest,
+      lifecycleStageSource,
+      awaitingHumanFromDocsCount: extraAwaitingHuman.length,
+    },
+  };
+}
+
 type StudioProjectBuild = Readonly<{
   project: StudioProjectV1;
   sampledAttempts: readonly ExecutionAttemptV1[];
 }>;
 
+/**
+ * Builds a full `StudioProjectV1` for a repo-docs source that has no kernel attempt history at all
+ * (an "observed" project: known to the factory, not yet enrolled). Every attempt/gate/milestone
+ * field is honestly empty/unavailable -- there is genuinely nothing there yet -- while
+ * `lifecycleStage`/`awaitingHuman`/`docsProvenance` are real, read from the repository the same way
+ * an enrolled project's are.
+ */
+function buildObservedStudioProject(
+  source: ProjectDocsSourceV1,
+  observedAt: IsoInstant,
+): StudioProjectBuild | null {
+  const augmentation = buildDocsAugmentation(source, observedAt);
+  if (augmentation === null) return null;
+  const project: StudioProjectV1 = {
+    projectId: source.projectId,
+    name: source.name,
+    lifecycleStage: augmentation.lifecycleStage,
+    gates: {
+      typed: null,
+      owner: null,
+      state: "unavailable",
+      unavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+    },
+    latestAttemptSummary: null,
+    awaitingHuman: augmentation.extraAwaitingHuman,
+    timeline: {
+      milestones: [],
+      milestonesUnavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+      actuals: [],
+    },
+    docsProvenance: augmentation.docsProvenance,
+  };
+  return { project, sampledAttempts: [] };
+}
+
 function buildStudioProject(
   repositories: FactoryRepositories,
   summary: LocalPortfolioProjectSummary,
+  docsSource: ProjectDocsSourceV1 | undefined,
+  observedAt: IsoInstant,
 ): StudioProjectBuild {
   const page = repositories.attempts.list({
     scope: "all",
@@ -142,7 +275,7 @@ function buildStudioProject(
           updatedAt: latest.updatedAt,
           blocker: latest.blocker,
         };
-  const awaitingHuman: StudioAwaitingHumanItemV1[] = sampledAttempts
+  const blockedAttemptItems: StudioAwaitingHumanItemV1[] = sampledAttempts
     .filter((attempt) => attempt.state === "blocked")
     .map((attempt) => ({
       kind: "blocked-attempt",
@@ -151,12 +284,15 @@ function buildStudioProject(
       since: attempt.updatedAt,
     }));
 
+  const augmentation =
+    docsSource === undefined ? null : buildDocsAugmentation(docsSource, observedAt);
+
   const project: StudioProjectV1 = {
     projectId: summary.projectId,
     // Mirrors buildLocalPortfolioReadModel's own placeholder displayName in command-runtime.ts:
     // no project-manifest/display-name source is wired into the local execution profile yet.
     name: `Project ${summary.projectId}`,
-    lifecycleStage: null,
+    lifecycleStage: augmentation?.lifecycleStage ?? null,
     gates: {
       typed: null,
       owner: null,
@@ -164,12 +300,13 @@ function buildStudioProject(
       unavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
     },
     latestAttemptSummary,
-    awaitingHuman,
+    awaitingHuman: [...blockedAttemptItems, ...(augmentation?.extraAwaitingHuman ?? [])],
     timeline: {
       milestones: [],
       milestonesUnavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
       actuals: buildTimelineActuals(repositories, sampledAttempts),
     },
+    docsProvenance: augmentation?.docsProvenance ?? null,
   };
   return { project, sampledAttempts };
 }
@@ -237,18 +374,43 @@ function computePortfolioAggregates(
   };
 }
 
+/**
+ * `docsSources` names every project (enrolled or merely observed) whose repository docs should be
+ * folded into this snapshot -- see `loadProjectDocsSourcesV1` (`project-docs-sources.ts`). A source
+ * whose `projectId` already has kernel attempt history augments that project's normal build; a
+ * source with none synthesizes a full, honestly-empty-elsewhere `StudioProjectV1` entry (an
+ * "observed" project the factory knows about but has not enrolled), so the dashboard can show every
+ * configured project rather than silently omitting the ones with no attempts yet.
+ */
 export function buildStudioSnapshotV1(
   repositories: FactoryRepositories,
   observedAt: IsoInstant,
+  docsSources: readonly ProjectDocsSourceV1[] = [],
 ): StudioSnapshotV1 {
   const summaries = repositories.portfolio.listProjectSummaries();
-  const builds = summaries
-    .map((summary) => buildStudioProject(repositories, summary))
-    .sort((left, right) =>
-      `${left.project.name.toLowerCase()} ${left.project.projectId}`.localeCompare(
-        `${right.project.name.toLowerCase()} ${right.project.projectId}`,
-      ),
-    );
+  const summaryProjectIds = new Set(summaries.map((summary) => summary.projectId));
+  const docsSourceByProjectId = new Map(
+    docsSources.map((source) => [source.projectId, source] as const),
+  );
+
+  const enrolledBuilds = summaries.map((summary) =>
+    buildStudioProject(
+      repositories,
+      summary,
+      docsSourceByProjectId.get(summary.projectId),
+      observedAt,
+    ),
+  );
+  const observedBuilds = docsSources
+    .filter((source) => !summaryProjectIds.has(source.projectId))
+    .map((source) => buildObservedStudioProject(source, observedAt))
+    .filter((build): build is StudioProjectBuild => build !== null);
+
+  const builds = [...enrolledBuilds, ...observedBuilds].sort((left, right) =>
+    `${left.project.name.toLowerCase()} ${left.project.projectId}`.localeCompare(
+      `${right.project.name.toLowerCase()} ${right.project.projectId}`,
+    ),
+  );
 
   const activityTimestamps = builds.flatMap((build) => [
     ...(build.project.latestAttemptSummary === null

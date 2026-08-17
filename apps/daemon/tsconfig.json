@@ -22,6 +22,7 @@
     { "path": "../../packages/ollama-scorer" },
     { "path": "../../packages/policy-engine" },
     { "path": "../../packages/process-supervisor" },
+    { "path": "../../packages/project-docs" },
     { "path": "../../packages/project-sdk" },
     { "path": "../../packages/scheduler" },
     { "path": "../../packages/studio-room-adapters" },

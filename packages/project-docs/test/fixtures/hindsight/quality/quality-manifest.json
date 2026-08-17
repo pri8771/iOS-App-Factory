@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/quality-manifest.schema.json",
+  "application": {
+    "name": "Hindsight",
+    "projectType": "existing",
+    "platforms": [
+      "ios"
+    ]
+  },
+  "requirements": {
+    "accessibility": true,
+    "responsiveLayoutTests": true,
+    "darkMode": true,
+    "persistenceRelaunchTests": true,
+    "fakeDataIsolation": true,
+    "completionEvidence": true
+  },
+  "requiredTestSuites": [
+    "unit",
+    "integration",
+    "ui-smoke"
+  ],
+  "qualityStandardVersion": "0.2.0"
+}

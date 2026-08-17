@@ -1,0 +1,139 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/completion-report.schema.json",
+  "taskId": "REGISTER-JAPA-001",
+  "featureId": "FEAT-000",
+  "scopeNote": "This report covers the App Factory registration/onboarding-upgrade mission itself (standard 0.2.0 -> 0.4.0), not a single product feature. FEAT-000 is a synthetic id for that reason — no such feature contract exists.",
+  "status": "human_review_required",
+  "repository": "pri8771/Japa",
+  "projectClassification": "existing",
+  "branch": "Dev",
+  "installedCentralVersion": { "from": "0.2.0", "to": "0.4.0" },
+  "repositoryMapVersion": "1.0.0",
+  "libraryCatalogVersion": "0.1.0",
+  "implemented": [
+    "Verified repository identity (pri8771/Japa), branch (Dev), and prior partial-registration state before making any change",
+    "Read the actual remote-init.sh / bootstrap-project.sh / verify-project-registration.sh scripts before executing anything (did not blindly curl|bash); confirmed bootstrap-project.sh hard-guards against re-running on an already-registered project (exit 3), so used manual, non-destructive reconciliation instead",
+    "Created the 4 missing registration files: .factory/repository-map.json (real Japa source/test/build paths, 12 task routes), .factory/library-catalog.json (mirrors central empty registry), docs/README.md (navigation index + full documentation-authority reconciliation), docs/REUSABLE_COMPONENTS.md (10-candidate reuse audit)",
+    "Upgraded .factory/standard-lock.json (0.2.0->0.4.0, added repositoryMapVersion/Path, libraryCatalogVersion/Path, upgradeHistory), .factory/project-context.json (added required libraryDiscovery block, expanded requiredReading), quality/quality-manifest.json (qualityStandardVersion 0.2.0->0.4.0)",
+    "Replaced AGENTS.md, CLAUDE.md, GEMINI.md, .github/copilot-instructions.md, .cursor/rules/app-factory.mdc, .factory/AGENTS.factory.md with current 0.4.0 central template content (all were 100% generic boilerplate with zero prior Japa-specific customization, confirmed by diff before replacing)",
+    "Added compact metadata frontmatter to docs/README.md, STATUS.md, ARCHITECTURE.md, FEATURES.md, BUGS.md, DECISIONS.md, TEST_PLAN.md, HANDOFF.md without rewriting their existing content",
+    "Ran a 5-agent parallel audit (architecture cross-check, feature-reality audit, feature-contract coverage audit, reusable-code audit, documentation-authority sweep) against real source and tests before writing any of the above",
+    "Corrected docs/BUGS.md B-A11Y during registration: prior text implied Dynamic Type was 'coded but not validated'; source audit at that time showed Dynamic Type was not implemented, only VoiceOver labeling was coded. Follow-up on 2026-07-17 implemented Dynamic Type and added smoke coverage.",
+    "Added docs/ARCHITECTURE.md 'Potential Improvements — Not Approved' section (5 items) per section 12's separation requirement; zero factual deltas found between the doc and source",
+    "Extended quality/feature-contracts/FEAT-001-practice-advance-undo-complete.json to explicitly require haptic/tone completion-vs-tick distinctness and silent-switch fallback, and added a verificationGaps field documenting that no automated test currently spies on HapticFeedback/TonePlaying to verify it",
+    "Recorded DEC-004 in docs/DECISIONS.md documenting the upgrade decision and why bootstrap couldn't be re-run automatically",
+    "Regenerated the Xcode project (xcodegen generate) and ran a full build + test baseline"
+  ],
+  "verification": [
+    { "check": "xcodegen generate", "result": "success", "notes": "Regenerated Japa.xcodeproj from project.yml, exit 0" },
+    { "check": "xcodebuild -list", "result": "success", "notes": "Confirms Japa/JapaTests/JapaUITests targets and Japa scheme" },
+    { "check": "xcodebuild build (iPhone 17 Pro, iOS 26.5 simulator)", "result": "success", "notes": "BUILD SUCCEEDED" },
+    { "check": "xcodebuild test (iPhone 17 Pro, iOS 26.5 simulator)", "result": "success", "notes": "Registration baseline: 53/53 tests passed, 0 failures (46 unit/flow + 7 UI, confirmed by xcresulttool summary). Follow-up verification on 2026-07-17 passed 56/56 after mala-style + Dynamic Type changes." },
+    { "check": "verify-project-registration.sh (read-only)", "result": "success", "notes": "All required files present; all cross-file version/name/type consistency checks pass; 0 registered libraries (central registry is empty)" },
+    { "check": "JSON validity of all created/edited .factory and quality files", "result": "success", "notes": "python3 json.load on repository-map.json, library-catalog.json, standard-lock.json, project-context.json, quality-manifest.json, FEAT-001 contract" }
+  ],
+  "checksNotRun": [
+    "Physical-device Release build (Release simulator build passed 2026-07-17; signing remains disabled)",
+    "Physical-device build (CODE_SIGNING_ALLOWED: NO, empty DEVELOPMENT_TEAM in project.yml blocks this — B-SIGN)",
+    "On-device haptic perceptibility / distinctness testing (B-HAPT — Simulator cannot exercise Core Haptics hardware)",
+    "VoiceOver / Dynamic Type user validation on physical devices (B-A11Y; Dynamic Type implementation + simulator smoke now exists)",
+    "Any automated spy/mock test asserting HapticFeedback.tick() vs .completion() call sites or TonePlaying.play() invocation (new verificationGaps entry in FEAT-001)"
+  ],
+  "placeholdersRemaining": [
+    "docs/CONTENT_REVIEW.md sign-off checklist is unchecked (B6) — mantra content is implemented in code but not human-approved",
+    "Human/device launch evidence is still pending for content sign-off, haptic validation, and signed TestFlight/device builds"
+  ],
+  "fakeDataUsedInProduction": false,
+  "knownIssues": [
+    "B6 (high): seed mantra content not human-signed off",
+    "B-SIGN (high): code signing disabled, blocks device/TestFlight builds",
+    "B-A11Y (medium): VoiceOver coded but unvalidated with users; Dynamic Type implemented and smoke-tested on 2026-07-17",
+    "B-HAPT (high): eyes-free completion distinctness unvalidated on hardware; also now lacks any automated spy-based test (see FEAT-001 verificationGaps)",
+    "B-DOC (low): resolved 2026-07-17; README.md, docs/PROJECT_DOCUMENTATION.md, and LAUNCH_READINESS.md now state the verified 47+9=56 test count",
+    "B-CI (medium): resolved 2026-07-17; .github/workflows/ios-ci.yml now runs XcodeGen, Release build, and tests",
+    "Two non-reconciled bug-tracking schemes exist (docs/BUGS.md vs LAUNCH_READINESS.md §7) with no 1:1 mapping",
+    "docs/RELEASE_CHECKLIST.md is reconciled as of 2026-07-17; keep it aligned with LAUNCH_READINESS.md §9 when launch gates change"
+  ],
+  "documentationUpdated": [
+    "docs/README.md (created)",
+    "docs/REUSABLE_COMPONENTS.md (created)",
+    "docs/STATUS.md (frontmatter + standard-version line + fresh build/test verification line)",
+    "docs/ARCHITECTURE.md (frontmatter + cross-check date + Potential Improvements section)",
+    "docs/FEATURES.md (frontmatter only, no content change needed)",
+    "docs/BUGS.md (frontmatter + B-A11Y correction + B-DOC wording + B-HAPT cross-reference)",
+    "docs/DECISIONS.md (frontmatter + DEC-004 added)",
+    "docs/TEST_PLAN.md (frontmatter + fresh baseline-check line)",
+    "docs/HANDOFF.md (frontmatter + updated standard version + read-first order)",
+    "quality/feature-contracts/FEAT-001-practice-advance-undo-complete.json (userOutcome, accessibilityRequirements, prohibitedBehavior extended; verificationGaps field added)",
+    "AGENTS.md, CLAUDE.md, GEMINI.md, .github/copilot-instructions.md, .cursor/rules/app-factory.mdc, .factory/AGENTS.factory.md (replaced with 0.4.0 template content)"
+  ],
+  "humanReviewRequired": [
+    "Decide whether to add spy-based tests for FEAT-001's new completion-signaling requirements (HapticFeedback/TonePlaying call verification) — a real product-code change, not attempted in this registration pass",
+    "Human sign-off on docs/CONTENT_REVIEW.md (B6)",
+    "Enable code signing / DEVELOPMENT_TEAM for device and TestFlight builds (B-SIGN)",
+    "On-device haptic and accessibility (VoiceOver + Dynamic Type user) validation across >=2 iPhone classes (B-HAPT, B-A11Y)",
+    "Keep docs/RELEASE_CHECKLIST.md aligned with LAUNCH_READINESS.md §9 as launch gates close",
+    "Keep the two parallel bug-ID schemes (docs/BUGS.md vs LAUNCH_READINESS.md §7) aligned as issues are added or closed",
+    "Decide whether to pursue any of the reusable-code candidates in docs/REUSABLE_COMPONENTS.md now, or wait for a second consumer app as recommended"
+  ],
+  "existingFilesPreserved": [
+    "README.md", "LAUNCH_READINESS.md", "docs/PROJECT_DOCUMENTATION.md", "docs/CONTENT_REVIEW.md",
+    "docs/RISKS.md", "docs/ASSUMPTIONS.md", "docs/RELEASE_CHECKLIST.md", "docs/PROMPT_LOG.md", "docs/JIRA_SYNC_PENDING.md",
+    "quality/feature-contracts/FEAT-002-interruption-resume.json", "quality/feature-contracts/FEAT-003-engine-round-contract.json",
+    "quality/feature-contracts/EXAMPLE.json", "quality/evidence/README.md", "quality/waivers/README.md", "quality/completion-reports/EXAMPLE.json",
+    "all Japa/ Swift source", "all JapaTests/ and JapaUITests/ source", "project.yml"
+  ],
+  "reusableCodeCandidates": {
+    "summary": "10 candidates evaluated; see docs/REUSABLE_COMPONENTS.md for full detail.",
+    "proposedFutureLibrary": ["Codable file-storage primitives (Persistence.swift)"],
+    "refactorBoundaryOnly": ["Haptic fallback/retry behavior (HapticPlayer.swift)", "Completion-tone WAV synthesis (CompletionTone.swift)"],
+    "remainLocal": ["Active-session write-behind storage", "Lifecycle flush-on-background hook", "Persistence test helpers (also flagged as a same-repo DRY cleanup)"],
+    "notReusable": ["Atomic file replacement (single stdlib flag)", "Haptic capability detection (single system call)", "\"Async/error primitives\" (not a distinct capability from active-session storage)"]
+  },
+  "globalGapCandidates": [
+    {
+      "problem": "bootstrap-project.sh has no mode to upgrade or reconcile an already-registered project — it hard-guards on .factory/project-context.json existing and exits 3, forcing every product repo that falls behind the central standard to reconcile manually (as this report's own work required).",
+      "japaEvidence": "Japa was registered at standard 0.2.0 on 2026-07-16; central advanced to 0.3.0 then 0.4.0 on 2026-07-17. Running remote-init.sh/bootstrap-project.sh against Japa today would exit 3 immediately with no path forward other than manual file-by-file reconciliation.",
+      "whyUniversal": "Any product repository registered before a central standard bump will hit this exact wall; the fix is expressible with no Japa-specific facts.",
+      "centralFileOrComponentAffected": "scripts/bootstrap-project.sh, scripts/remote-init.sh",
+      "proposedCentralChange": "Add a --mode upgrade (or --mode reconcile) that, for an already-registered project, only creates files/fields missing relative to the current template/schema version (same [[ -e ... ]] || cp pattern already used for individual files) and bumps standardVersion/qualityStandardVersion, without requiring a full re-bootstrap.",
+      "compatibilityImpact": "Additive only — new flag, no change to existing new/existing bootstrap behavior.",
+      "testRequired": "A CI test that registers a project at an older simulated standard version, then runs --mode upgrade and asserts verify-project-registration.sh passes afterward with no pre-existing Japa-specific files touched.",
+      "japaDependsOnChange": false
+    },
+    {
+      "problem": "There is no version-drift detection tool. A registered product's standard-lock.json can silently fall behind the central VERSION file indefinitely with nothing surfacing the drift, since verify-project-registration.sh only checks internal cross-file consistency, not currency against the live central VERSION.",
+      "japaEvidence": "Japa sat at 0.2.0 for a full day while central moved to 0.3.0 then 0.4.0, discovered only because this onboarding prompt explicitly stated expectedMinimumCentralVersion: 0.4.0 and I happened to fetch and compare the central VERSION file.",
+      "whyUniversal": "Every registered product repository is subject to the same silent-drift risk; the fix requires no product-specific knowledge.",
+      "centralFileOrComponentAffected": "scripts/verify-project-registration.sh (or a new scripts/check-standard-version.sh)",
+      "proposedCentralChange": "Have verify-project-registration.sh optionally fetch (or accept as a parameter) the central repository's current VERSION and warn/fail if the local standardVersion is behind it, distinct from its existing internal-consistency checks.",
+      "compatibilityImpact": "Should default to a warning, not a hard failure, so it does not break existing CI that doesn't expect network access during verification.",
+      "testRequired": "A test that pins a stale standardVersion locally and asserts the tool reports drift against a mocked/fixture 'current' VERSION.",
+      "japaDependsOnChange": false
+    }
+  ],
+  "centralPrDependencies": "None opened. Both global gap candidates above are documented here only — no changes were made to pri8771/iOS_app_factory_rules in this pass; that repository was read-only (fetched via raw.githubusercontent.com) throughout. Central-repo changes were out of scope for this session's authorization (which covered only pri8771/Japa, branch Dev, direct push, no PR).",
+  "postReportAddendum": {
+    "date": "2026-07-17",
+    "implemented": [
+      "Implemented Dynamic Type support for app typography through semantic SwiftUI text styles",
+      "Added JapaUITests.testPrimaryFlowAtAccessibilityTextSize",
+      "Added .github/workflows/ios-ci.yml for XcodeGen, Release simulator build, and tests",
+      "Recorded concrete evidence in quality/evidence/2026-07-17-change-mala-dynamic-type-ci.md"
+    ],
+    "verification": [
+      "xcodegen generate passed",
+      "Release simulator build passed with CODE_SIGNING_ALLOWED=NO",
+      "Full xcodebuild test passed 56/56 on iPhone 17 Pro, iOS 26.5",
+      "Compact-phone accessibility text-size smoke passed on iPhone 17e"
+    ],
+    "remainingHumanOrExternalGates": [
+      "Seed mantra content sign-off",
+      "On-device haptic feel/distinctness validation",
+      "VoiceOver/accessibility user validation",
+      "Apple signing/TestFlight/App Store metadata"
+    ]
+  },
+  "recommendedNextTask": "Close the remaining human/device/release blockers in docs/BUGS.md in priority order: B6 content sign-off, B-SIGN code signing/TestFlight, B-HAPT device haptic validation, and B-A11Y VoiceOver/accessibility user validation. The repo-local build/test/CI/Dynamic-Type work is verified.",
+  "finalLifecycleStatus": "onboarding_existing"
+}

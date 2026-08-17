@@ -20,8 +20,10 @@ import {
 import { LessonV1Schema, LifecycleEventV1Schema } from "./learning.js";
 import { ProjectLifecycleStateV1Schema, TypedGateV1Schema } from "./lifecycle.js";
 import { ProjectMilestoneV1Schema, ProjectTimelineV1Schema } from "./milestone.js";
+import { MirrorProjectionDiffV1Schema, MirrorProjectionV1Schema } from "./mirror-projection.js";
 import { ModuleManifestV1Schema } from "./module.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
+import { ProjectDocsSnapshotV1Schema } from "./project-docs-snapshot.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
 import { RoomGrantV1Schema, RoomMessageV1Schema, RoomV1Schema } from "./room.js";
 import {
@@ -255,6 +257,24 @@ export const contractSchemaCatalogV1 = [
     fileName: "assistant-intent.v1.schema.json",
     id: "urn:app-factory:contracts:v1:assistant-intent",
     schema: AssistantIntentV1Schema,
+  },
+  {
+    name: "project-docs-snapshot",
+    fileName: "project-docs-snapshot.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:project-docs-snapshot",
+    schema: ProjectDocsSnapshotV1Schema,
+  },
+  {
+    name: "mirror-projection",
+    fileName: "mirror-projection.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:mirror-projection",
+    schema: MirrorProjectionV1Schema,
+  },
+  {
+    name: "mirror-projection-diff",
+    fileName: "mirror-projection-diff.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:mirror-projection-diff",
+    schema: MirrorProjectionDiffV1Schema,
   },
 ] as const satisfies readonly ContractSchemaCatalogEntryV1[];
 

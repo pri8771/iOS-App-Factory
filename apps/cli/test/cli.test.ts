@@ -210,6 +210,13 @@ describe("CLI argument parser", () => {
       { outputMode: "human", command: { kind: "project.scan", repositoryRoot: "/repo/app" } },
     ],
     [
+      ["docs", "snapshot", "/repo/app"],
+      {
+        outputMode: "human",
+        command: { kind: "project.docs.snapshot", repositoryRoot: "/repo/app" },
+      },
+    ],
+    [
       ["project", "plan", PLAN_DIGEST],
       { outputMode: "human", command: { kind: "project.enroll-plan", planDigest: PLAN_DIGEST } },
     ],
@@ -736,6 +743,78 @@ describe("CLI output renderer", () => {
       ),
     ).toBe(
       `project.scan: /repo/app\nplan digest: ${PLAN_DIGEST}\nfingerprint: ${PLAN_DIGEST}\ninventory digest: ${PLAN_DIGEST}\nblocked by 1 issue(s):\n  esi-000000000000000000000001\tsafety.secret-material-detected\tA file matches secret-shaped-file detection heuristics.\n`,
+    );
+
+    expect(
+      renderCommandResult(
+        {
+          operation: "project.docs.snapshot",
+          snapshot: {
+            schemaVersion: 1,
+            repositoryRoot: "/repo/app",
+            generatedAt: NOW,
+            layout: "docs",
+            docs: (
+              [
+                "status",
+                "architecture",
+                "features",
+                "bugs",
+                "decisions",
+                "risks",
+                "assumptions",
+                "testPlan",
+                "releaseChecklist",
+                "handoff",
+              ] as const
+            ).map((key) => ({
+              key,
+              present: key !== "handoff",
+              source:
+                key === "handoff"
+                  ? null
+                  : { path: `docs/${key.toUpperCase()}.md`, sha256: PLAN_DIGEST, lineRange: null },
+              legacySourced: false,
+              looksSuperseded: false,
+            })),
+            lifecycleStatus: { value: "beta", unavailableReason: null, sources: [] },
+            lastVerifiedAt: {
+              value: null,
+              unavailableReason: "no Last verified line",
+              sources: [],
+            },
+            statusDatedEntries: { value: null, unavailableReason: "no dated entries", sources: [] },
+            releaseChecklist: {
+              value: { items: [], totalItems: 4, checkedItems: 3 },
+              unavailableReason: null,
+              sources: [],
+            },
+            openBugs: {
+              value: { rows: [], totalCount: 5, openCount: 1 },
+              unavailableReason: null,
+              sources: [],
+            },
+            openRisks: { value: null, unavailableReason: "no RISKS.md table", sources: [] },
+            decisions: { value: null, unavailableReason: "no DECISIONS.md entries", sources: [] },
+            qualityManifest: { value: null, unavailableReason: "no quality manifest", sources: [] },
+            completionReports: {
+              value: null,
+              unavailableReason: "no completion reports",
+              sources: [],
+            },
+            snapshotDigest: PLAN_DIGEST,
+          },
+        },
+        "human",
+      ),
+    ).toBe(
+      `project.docs.snapshot: /repo/app (layout: docs, digest ${PLAN_DIGEST})\n` +
+        "lifecycle status: beta\n" +
+        "last verified: unavailable (no Last verified line)\n" +
+        "release checklist: 3/4 checked\n" +
+        "open bugs: 1/5\n" +
+        "open risks: unavailable (no RISKS.md table)\n" +
+        "missing docs: handoff\n",
     );
 
     expect(

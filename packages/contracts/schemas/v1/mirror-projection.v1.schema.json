@@ -1,0 +1,204 @@
+{
+  "$defs": {
+    "__schema0": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema1": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string"
+    },
+    "__schema3": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema4": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "summary",
+        "status"
+      ],
+      "type": "object"
+    },
+    "__schema5": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "milestoneId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "active",
+            "done",
+            "abandoned"
+          ],
+          "type": "string"
+        },
+        "targetDate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "milestoneId",
+        "label",
+        "targetDate",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:mirror-projection",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "generatedAt": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "lastVerifiedAt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema2"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lifecycleStatus": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "milestones": {
+      "items": {
+        "$ref": "#/$defs/__schema5"
+      },
+      "maxItems": 200,
+      "type": "array"
+    },
+    "openBugs": {
+      "items": {
+        "$ref": "#/$defs/__schema4"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "openRisks": {
+      "items": {
+        "$ref": "#/$defs/__schema4"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "projectionDigest": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "releaseChecklistProgress": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "checkedItems": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "totalItems": {
+              "$ref": "#/$defs/__schema3"
+            }
+          },
+          "required": [
+            "totalItems",
+            "checkedItems"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "sourceSnapshotDigest": {
+      "$ref": "#/$defs/__schema1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "generatedAt",
+    "sourceSnapshotDigest",
+    "lifecycleStatus",
+    "lastVerifiedAt",
+    "releaseChecklistProgress",
+    "openBugs",
+    "openRisks",
+    "milestones",
+    "projectionDigest"
+  ],
+  "type": "object"
+}

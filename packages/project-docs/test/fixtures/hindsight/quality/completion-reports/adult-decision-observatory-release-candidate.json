@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/completion-report.schema.json",
+  "taskId": "ADO-1.0.4-RC",
+  "featureId": "ADULT-DECISION-OBSERVATORY-1.0.4",
+  "status": "verification_pending",
+  "implemented": [
+    "Current candidate scope is documented as Today, History, center Capture action, Insights, and Settings.",
+    "Capture requires an intentional 0–100 confidence selection; sample-safe deterministic analytics and fail-closed social behavior are release requirements.",
+    "Final integrity fixes cover explicit detailed confidence, optional rating presence, due-date analytics eligibility, sample-safe reminders, coherent fast resolution, durable notes, and transaction-safe deletion/new-decision retry.",
+    "The exact 1.0 (4) source completed the automated release preflight, privacy/appearance/manifest/test-registration validation, unsigned Release build, distribution archive/export, and App Store Connect upload."
+  ],
+  "verification": [
+    "2026-08-10: final Scripts/personal_release_candidate_check.sh passed against the exact candidate source; 127/127 tests passed, 0 failed, 0 skipped on iPhone 17 Pro simulator / iOS 26.4.1. Privacy, appearance, manifest, test-registration, and unsigned Release checks passed. Result: /private/tmp/hindsight-personal-release-20260810-build4-final/Logs/Test/Test-Hindsight-2026.08.10_13-07-48--0400.xcresult.",
+    "2026-08-10: the exact build-4 simulator product installed and launched normally as com.pchordia.hindsight; /private/tmp/hindsight-build4-final-launch.png records the rendered Today surface.",
+    "2026-08-10: responsive visual smoke passed in light and dark on iPhone 17 Pro, on narrow iPhone 17e, and on iPad mini.",
+    "Historical: build 3 signed Debug install previously succeeded on physical iPhone 16 Pro Max. The device is now unavailable; this is not build-4 runtime evidence.",
+    "2026-08-10: signed archive /private/tmp/Hindsight-1.0-4.xcarchive succeeded; exported IPA /private/tmp/Hindsight-1.0-4-export/Hindsight.ipa is 3.1 MB, bundle com.pchordia.hindsight, minimum iOS 17, arm64.",
+    "2026-08-10 17:15:06Z: App Store Connect upload for build 1.0 (4) succeeded and is PROCESSING; app ID 6796111127, delivery UUID f572a99b-eb57-4cd6-8757-4e41db82310a, delivery log /var/folders/fg/lmdhrms177s93m879bkgvjzr0000gn/T/Hindsight_2026-08-10_13-13-49.866.xcdistributionlogs/ContentDelivery.log."
+  ],
+  "checksNotRun": [
+    "App Store Connect processing completion, TestFlight availability, and intended tester/review confirmation for build 4",
+    "Build-4 physical-device install/launch, capture-to-resolution core loop, notification/deep-link, export/share, deletion/reset, and relaunch checks; the paired iPhone 16 Pro Max is unavailable",
+    "Manual VoiceOver, notification-permission, largest Dynamic Type, contrast, and reduced-motion review"
+  ],
+  "placeholdersRemaining": [
+    "Public support email",
+    "Published privacy-policy and support URLs",
+    "Approved App Store privacy answers, terms, age rating, and screenshots"
+  ],
+  "fakeDataUsedInProduction": false,
+  "knownIssues": [
+    "App Store Connect upload for build 4 succeeded, but package processing and TestFlight availability are not yet confirmed.",
+    "Build 3 is superseded/historical. The paired iPhone 16 Pro Max had build 3 previously installed but is now unavailable, so build-4 device verification remains manual.",
+    "No social path is eligible for release; social controls must remain hidden or truthfully unavailable and fail closed."
+  ],
+  "documentationUpdated": [
+    "Docs/ADULT_DECISION_OBSERVATORY_PRODUCT_CONTRACT.md",
+    "Docs/STATUS.md",
+    "Docs/RELEASE_CHECKLIST.md",
+    "Docs/DEFERRED_EXTERNAL_ACTIONS.md",
+    "quality/feature-contracts/future-postcards-v3-personal-core.json",
+    "quality/evidence/adult-decision-observatory-release-candidate-2026-08-10.md"
+  ],
+  "humanReviewRequired": [
+    "Confirm App Store Connect processing, TestFlight availability, and intended tester/review state for build 4.",
+    "Use an available physical device to complete build-4 core-loop, notification, export/share, deletion/reset, relaunch, and manual accessibility review.",
+    "Provide and approve the public support contact, privacy/support URLs, App Store privacy answers, Terms, age rating, and screenshots."
+  ]
+}

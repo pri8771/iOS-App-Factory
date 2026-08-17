@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AttemptStateV1Schema } from "./execution.js";
 import { ProjectLifecycleStageV1Schema } from "./lifecycle.js";
 import {
+  AbsolutePathSchema,
   AttemptIdSchema,
   BlockerV1Schema,
   IsoInstantSchema,
@@ -223,6 +224,31 @@ export const StudioProjectTimelineV1Schema = z
   });
 export type StudioProjectTimelineV1 = z.infer<typeof StudioProjectTimelineV1Schema>;
 
+/**
+ * `owner-doctrine` badge data: which enrolled/observed repository this project's docs-derived
+ * fields were read from, and, per the corpus's own authority order (`governance/DOCUMENTATION_POLICY.md`:
+ * code -> feature contracts -> decision records -> completion reports -> the central standard) as
+ * applied here, whether `lifecycleStage` ultimately came from this repository's own kernel/gate
+ * evidence (`factory-evidence`) or from its repo docs (`repo-docs`) -- `factory-evidence` wins
+ * whenever both exist. `null` on the whole field means no repo-docs source is configured for this
+ * project at all (today's default for anything outside `APP_FACTORY_PROJECT_DOCS_SOURCES`), not
+ * "repo docs were checked and had nothing."
+ */
+export const StudioFieldSourceV1Schema = z.enum(["repo-docs", "factory-evidence", "milestone"]);
+export type StudioFieldSourceV1 = z.infer<typeof StudioFieldSourceV1Schema>;
+
+export const StudioProjectDocsSourceKindV1Schema = z.enum(["enrolled", "observed"]);
+export type StudioProjectDocsSourceKindV1 = z.infer<typeof StudioProjectDocsSourceKindV1Schema>;
+
+export const StudioProjectDocsProvenanceV1Schema = z.strictObject({
+  sourceKind: StudioProjectDocsSourceKindV1Schema,
+  repositoryRoot: AbsolutePathSchema,
+  docsSnapshotDigest: Sha256DigestSchema,
+  lifecycleStageSource: StudioFieldSourceV1Schema.nullable(),
+  awaitingHumanFromDocsCount: NonNegativeSafeIntegerSchema,
+});
+export type StudioProjectDocsProvenanceV1 = z.infer<typeof StudioProjectDocsProvenanceV1Schema>;
+
 export const StudioProjectV1Schema = z.strictObject({
   projectId: ProjectIdSchema,
   name: z.string().min(1).max(200),
@@ -231,6 +257,7 @@ export const StudioProjectV1Schema = z.strictObject({
   latestAttemptSummary: StudioAttemptSummaryV1Schema.nullable(),
   awaitingHuman: z.array(StudioAwaitingHumanItemV1Schema).max(100),
   timeline: StudioProjectTimelineV1Schema,
+  docsProvenance: StudioProjectDocsProvenanceV1Schema.nullable(),
 });
 export type StudioProjectV1 = z.infer<typeof StudioProjectV1Schema>;
 

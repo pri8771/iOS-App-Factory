@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/completion-report.schema.json",
+  "taskId": "M1-TF",
+  "featureId": "BUILD1-TESTFLIGHT",
+  "status": "verification_pending",
+  "implemented": [
+    "M1.1-M1.5: one-sheet Quick Capture with explicit confidence chips, review-horizon chips, one-time short-horizon nudge, primary Today routing, retained Add detail wizard, and neutral context language",
+    "M1.6: direct Today and decision-detail due-prediction stack with exact-once persistence, rollback, retry, and quick-capture closeout",
+    "M1.7-M1.8: resolved-only 80%+ confidence insight with minimum-sample gate and factual, non-shaming review/reveal copy",
+    "Integrity: pending predictions are never auto-graded; future pending reminders survive early full review and reminder rescheduling",
+    "Privacy: local notification bodies no longer include journal text; privacy manifest remains bundled and valid",
+    "Release hardening: Release ignores -uiTestReset, excludes preview assets, declares no non-exempt encryption, and uses opaque App Store icons",
+    "Apple identity: registered com.pchordia.hindsight and created App Store Connect record Hindsight — Decision Journal (Apple ID 6796111127)"
+  ],
+  "verification": [
+    "Full Xcode suite revalidation: 73/73 passed, 0 failed, 0 skipped on dedicated iPhone 17 Pro simulator / iOS 26.5 — PASS",
+    "UI smoke: Quick Capture primary path — PASS",
+    "UI smoke: Quick Capture at accessibility XXXL with keyboard-safe controls — PASS",
+    "UI smoke: retained detailed-decision wizard and review path — PASS",
+    "Generic iOS Release build with signing disabled — PASS",
+    "Final Release archive creation — PASS",
+    "codesign --verify --deep --strict and designated requirement — PASS",
+    "Archived Info.plist: com.pchordia.hindsight, version 1.0, build 1, ITSAppUsesNonExemptEncryption=false — PASS",
+    "Archived PrivacyInfo.xcprivacy plist validation — PASS",
+    "Every AppIcon PNG reports hasAlpha=no — PASS",
+    "Development-signed Release app installed on paired iPhone 16 Pro Max — PASS"
+  ],
+  "checksNotRun": [
+    "Physical-device launch and core-loop interaction pass; device was locked when launch was attempted",
+    "Manual VoiceOver pass on Quick Capture, Today resolution, and Insights",
+    "Manual largest Dynamic Type visual pass on Today resolution and Insights; automated Quick Capture accessibility XXXL passed",
+    "Physical notification delivery and terminated-launch deep link",
+    "Physical JSON/PDF export, clear-all, and relaunch pass",
+    "Distribution-signed IPA export/upload; Xcode reports No Accounts and no App Store provisioning profile",
+    "App Store privacy-answer submission; browser session requires re-authentication",
+    "External TestFlight Beta App Review"
+  ],
+  "placeholdersRemaining": [
+    "Public support email",
+    "Published HTTPS privacy-policy URL"
+  ],
+  "fakeDataUsedInProduction": false,
+  "knownIssues": [
+    "The pre-release bundle identity changed from com.hindsight.pchordia.app on a different Apple team to com.pchordia.hindsight on the active paid team. The old development install remains a separate app sandbox; this does not migrate local test data.",
+    "Xcode has development signing identities but no configured App Store account/distribution profile for export."
+  ],
+  "documentationUpdated": [
+    "Docs/STATUS.md",
+    "Docs/PLAN_TRACKING.md",
+    "Docs/TESTFLIGHT_RELEASE_METADATA.md",
+    "Docs/LOCAL_DEVICE_TESTING.md",
+    "Docs/JIRA_BACKLOG_M1_TESTFLIGHT.md",
+    "Docs/PRIVACY_POLICY_DRAFT.md",
+    "quality/feature-contracts/build1-testflight.json",
+    "quality/evidence/build1-testflight-2026-07-29.md"
+  ],
+  "humanReviewRequired": [
+    "Unlock the paired iPhone and complete the physical-device/accessibility checklist.",
+    "Approve a public support email and publish the privacy policy.",
+    "Add the 796XH483R4 account in Xcode or install an Apple Distribution certificate/profile.",
+    "Review App Store privacy answers before upload and tester invitations."
+  ]
+}

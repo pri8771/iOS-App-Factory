@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pri8771/iOS_app_factory_rules/main/schemas/quality-manifest.schema.json",
+  "application": {
+    "name": "Svara",
+    "projectType": "existing",
+    "platforms": ["ios"]
+  },
+  "requirements": {
+    "accessibility": true,
+    "responsiveLayoutTests": true,
+    "darkMode": true,
+    "persistenceRelaunchTests": true,
+    "fakeDataIsolation": true,
+    "completionEvidence": true,
+    "contentHumanReview": true,
+    "audioRightsReview": true,
+    "storeKitEntitlementVerification": true,
+    "releaseArchiveInspection": true
+  },
+  "requiredTestSuites": [
+    "unit",
+    "integration",
+    "ui-smoke",
+    "release-build",
+    "archive-inspection"
+  ],
+  "canonicalTaskBacklog": "docs/TESTFLIGHT_TASKS.md",
+  "testFlightRequirements": "docs/APPLE_TESTFLIGHT_REQUIREMENTS.md",
+  "qualityStandardVersion": "0.4.0"
+}

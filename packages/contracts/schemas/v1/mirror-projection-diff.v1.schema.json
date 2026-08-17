@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema3"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema3": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema4": {
+      "type": "boolean"
+    },
+    "__schema5": {
+      "items": {
+        "$ref": "#/$defs/__schema6"
+      },
+      "maxItems": 500,
+      "type": "array"
+    },
+    "__schema6": {
+      "additionalProperties": false,
+      "properties": {
+        "changeKind": {
+          "enum": [
+            "added",
+            "removed",
+            "changed"
+          ],
+          "type": "string"
+        },
+        "field": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "nextValue": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "previousValue": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "field",
+        "changeKind",
+        "previousValue",
+        "nextValue"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:mirror-projection-diff",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "changed": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "changes": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "nextProjectionDigest": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "previousProjectionDigest": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "previousProjectionDigest",
+    "nextProjectionDigest",
+    "changed",
+    "changes"
+  ],
+  "type": "object"
+}

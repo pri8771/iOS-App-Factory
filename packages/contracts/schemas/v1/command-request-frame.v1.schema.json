@@ -78,9 +78,7 @@
     "__schema17": {
       "anyOf": [
         {
-          "format": "date",
-          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-          "type": "string"
+          "$ref": "#/$defs/__schema18"
         },
         {
           "type": "null"
@@ -88,18 +86,16 @@
       ]
     },
     "__schema18": {
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+      "type": "string"
+    },
+    "__schema19": {
       "items": {
         "$ref": "#/$defs/__schema0"
       },
       "maxItems": 50,
       "type": "array"
-    },
-    "__schema19": {
-      "enum": [
-        "human",
-        "machine"
-      ],
-      "type": "string"
     },
     "__schema2": {
       "format": "date-time",
@@ -108,6 +104,13 @@
     },
     "__schema20": {
       "enum": [
+        "human",
+        "machine"
+      ],
+      "type": "string"
+    },
+    "__schema21": {
+      "enum": [
         "planned",
         "active",
         "done",
@@ -115,7 +118,7 @@
       ],
       "type": "string"
     },
-    "__schema21": {
+    "__schema22": {
       "anyOf": [
         {
           "$ref": "#/$defs/__schema9"
@@ -125,11 +128,84 @@
         }
       ]
     },
-    "__schema22": {
+    "__schema23": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "summary",
+        "status"
+      ],
+      "type": "object"
+    },
+    "__schema24": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "milestoneId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "status": {
+          "$ref": "#/$defs/__schema21"
+        },
+        "targetDate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema18"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "milestoneId",
+        "label",
+        "targetDate",
+        "status"
+      ],
+      "type": "object"
+    },
+    "__schema25": {
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
       "type": "string"
     },
-    "__schema23": {
+    "__schema26": {
       "additionalProperties": false,
       "properties": {
         "displayName": {
@@ -153,16 +229,16 @@
       ],
       "type": "object"
     },
-    "__schema24": {
+    "__schema27": {
       "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
     },
-    "__schema25": {
+    "__schema28": {
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
       "type": "string"
     },
-    "__schema26": {
+    "__schema29": {
       "oneOf": [
         {
           "additionalProperties": false,
@@ -1358,10 +1434,10 @@
                   "additionalProperties": false,
                   "properties": {
                     "dependsOn": {
-                      "$ref": "#/$defs/__schema18"
+                      "$ref": "#/$defs/__schema19"
                     },
                     "evidenceDigest": {
-                      "$ref": "#/$defs/__schema21"
+                      "$ref": "#/$defs/__schema22"
                     },
                     "kind": {
                       "$ref": "#/$defs/__schema15"
@@ -1373,7 +1449,7 @@
                       "$ref": "#/$defs/__schema0"
                     },
                     "owner": {
-                      "$ref": "#/$defs/__schema19"
+                      "$ref": "#/$defs/__schema20"
                     },
                     "phase": {
                       "$ref": "#/$defs/__schema6"
@@ -1382,7 +1458,7 @@
                       "$ref": "#/$defs/__schema0"
                     },
                     "status": {
-                      "$ref": "#/$defs/__schema20"
+                      "$ref": "#/$defs/__schema21"
                     },
                     "targetDate": {
                       "$ref": "#/$defs/__schema17"
@@ -1406,6 +1482,202 @@
               "required": [
                 "milestone",
                 "expectedRevision"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "project.docs.snapshot",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "repositoryRoot": {
+                  "$ref": "#/$defs/__schema13"
+                }
+              },
+              "required": [
+                "repositoryRoot"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "mirror.plan",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "previousProjection": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "generatedAt": {
+                          "$ref": "#/$defs/__schema2"
+                        },
+                        "lastVerifiedAt": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/$defs/__schema18"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "lifecycleStatus": {
+                          "anyOf": [
+                            {
+                              "maxLength": 200,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "milestones": {
+                          "items": {
+                            "$ref": "#/$defs/__schema24"
+                          },
+                          "maxItems": 200,
+                          "type": "array"
+                        },
+                        "openBugs": {
+                          "items": {
+                            "$ref": "#/$defs/__schema23"
+                          },
+                          "maxItems": 50,
+                          "type": "array"
+                        },
+                        "openRisks": {
+                          "items": {
+                            "$ref": "#/$defs/__schema23"
+                          },
+                          "maxItems": 50,
+                          "type": "array"
+                        },
+                        "projectId": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "projectionDigest": {
+                          "$ref": "#/$defs/__schema9"
+                        },
+                        "releaseChecklistProgress": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "checkedItems": {
+                                  "$ref": "#/$defs/__schema11"
+                                },
+                                "totalItems": {
+                                  "$ref": "#/$defs/__schema11"
+                                }
+                              },
+                              "required": [
+                                "totalItems",
+                                "checkedItems"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "schemaVersion": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "sourceSnapshotDigest": {
+                          "$ref": "#/$defs/__schema9"
+                        }
+                      },
+                      "required": [
+                        "schemaVersion",
+                        "projectId",
+                        "generatedAt",
+                        "sourceSnapshotDigest",
+                        "lifecycleStatus",
+                        "lastVerifiedAt",
+                        "releaseChecklistProgress",
+                        "openBugs",
+                        "openRisks",
+                        "milestones",
+                        "projectionDigest"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "projectId": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "repositoryRoot": {
+                  "$ref": "#/$defs/__schema13"
+                }
+              },
+              "required": [
+                "projectId",
+                "repositoryRoot",
+                "previousProjection"
               ],
               "type": "object"
             },
@@ -1593,10 +1865,10 @@
                   "additionalProperties": false,
                   "properties": {
                     "dailyCeilingTokens": {
-                      "$ref": "#/$defs/__schema24"
+                      "$ref": "#/$defs/__schema27"
                     },
                     "maxTokensPerReply": {
-                      "$ref": "#/$defs/__schema24"
+                      "$ref": "#/$defs/__schema27"
                     },
                     "unattendedDailyCeilingTokens": {
                       "$ref": "#/$defs/__schema11"
@@ -1611,7 +1883,7 @@
                 },
                 "participants": {
                   "items": {
-                    "$ref": "#/$defs/__schema23"
+                    "$ref": "#/$defs/__schema26"
                   },
                   "maxItems": 16,
                   "minItems": 1,
@@ -1628,7 +1900,7 @@
                   ]
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema22"
+                  "$ref": "#/$defs/__schema25"
                 },
                 "title": {
                   "maxLength": 200,
@@ -1733,10 +2005,10 @@
                   "type": "string"
                 },
                 "handle": {
-                  "$ref": "#/$defs/__schema25"
+                  "$ref": "#/$defs/__schema28"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema22"
+                  "$ref": "#/$defs/__schema25"
                 }
               },
               "required": [
@@ -1788,7 +2060,7 @@
                   "type": "integer"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema22"
+                  "$ref": "#/$defs/__schema25"
                 }
               },
               "required": [
@@ -1832,10 +2104,10 @@
               "additionalProperties": false,
               "properties": {
                 "handle": {
-                  "$ref": "#/$defs/__schema25"
+                  "$ref": "#/$defs/__schema28"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema22"
+                  "$ref": "#/$defs/__schema25"
                 },
                 "ttlMs": {
                   "maximum": 30000,
@@ -1985,7 +2257,7 @@
               "additionalProperties": false,
               "properties": {
                 "intent": {
-                  "$ref": "#/$defs/__schema26"
+                  "$ref": "#/$defs/__schema29"
                 },
                 "utterance": {
                   "maxLength": 2000,
@@ -2039,7 +2311,7 @@
                       "$ref": "#/$defs/__schema0"
                     },
                     "payload": {
-                      "$ref": "#/$defs/__schema26"
+                      "$ref": "#/$defs/__schema29"
                     },
                     "proposedAt": {
                       "$ref": "#/$defs/__schema2"
