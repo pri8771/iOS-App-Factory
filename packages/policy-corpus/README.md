@@ -14,7 +14,8 @@ when writing. `materializePolicyBundle` re-verifies every written byte with
 ## Files
 
 - `docs/policy/ios-app-factory-policy-source.v1.json` — the compiled source
-  (`CanonicalPolicySourceV1`: 28 principles, 32 rules, 9 protected surfaces).
+  (`CanonicalPolicySourceV1`: 33 principles, 34 rules, 9 protected surfaces;
+  `policyVersion` 2, compiled from corpus 0.4.0 @ upstream `4b8b12e`).
 - `docs/policy/ios-app-factory-policy-source.v1.sidecar.json` — provenance
   digests, per-rule sources, `humanOnly` / `appliesTo`, and the check registry;
   fields the engine schema does not have yet. `crossCheckSidecar` and the

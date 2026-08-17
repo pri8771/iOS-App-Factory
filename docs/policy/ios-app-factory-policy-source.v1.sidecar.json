@@ -1,24 +1,32 @@
 {
   "schemaVersion": 1,
   "policyId": "ios-app-factory.rules",
-  "policyVersion": 1,
+  "policyVersion": 2,
   "corpus": {
     "repository": "pri8771/iOS_app_factory_rules",
     "localPath": "~/Documents/other/studio_ops/iOS_app_factory_rules",
-    "version": "0.2.0",
-    "commit": "89ce224",
+    "version": "0.4.0",
+    "commit": "4b8b12e",
     "files": [
       {
         "path": "VERSION",
-        "sha256": "sha256:1f930dd1f133c1f97a94fe3acb8db34372cf4c01ffdb2b3ff4ca72f9494121e9"
+        "sha256": "sha256:40b8eb4000a913a7791090535f291d3d369874162a89ef3c9e3d4e887a1b9e79"
+      },
+      {
+        "path": "CHANGELOG.md",
+        "sha256": "sha256:4421e470f0edf8281d17c918f17e074224ed05bad05ad46dedb13f6527042bc0"
       },
       {
         "path": "AGENTS.md",
-        "sha256": "sha256:93e77cdc56a14b300f0f473a4ebfdd2427f6a9ed768b9c7afc99b3a11e07d184"
+        "sha256": "sha256:eae1b856a39168fedd665eb0a131a4aa4cb44b4631b1a10630e7d1f6236b5e3f"
+      },
+      {
+        "path": "LLM_START_HERE.md",
+        "sha256": "sha256:fc9642ad6e3c3e07ec06ac3e6f1c4737a6e2761d0c33636215308348c1a68bd6"
       },
       {
         "path": "governance/STUDIO_PRINCIPLES.md",
-        "sha256": "sha256:2058f8c50af6e2820fc505f53496e4021ae55f98996412a5d0e46a181b7f3cd7"
+        "sha256": "sha256:881bf6586b104e0830fecb637e67e5911765e4fb93806c04c7ea3c27a00b97eb"
       },
       {
         "path": "governance/DEFINITION_OF_DONE.md",
@@ -26,11 +34,23 @@
       },
       {
         "path": "governance/DOCUMENTATION_POLICY.md",
-        "sha256": "sha256:5d9b2228b1d280331e81252e59903045b2fd670d5a21dcddbed74e70ffc591f0"
+        "sha256": "sha256:6d5ba4f28d30d8deb01da6feb8c2c55013d8d7cc29fd54c07c4e195337d2350e"
       },
       {
         "path": "governance/PROJECT_LIFECYCLE.md",
         "sha256": "sha256:0f48933e847f4846644a15aecd62daa6d6f3dd588c39ccc3a380f77d03a9ee2d"
+      },
+      {
+        "path": "governance/REPOSITORY_MODEL.md",
+        "sha256": "sha256:3d3d74a949a2fbb8c20f613bd0fb489cb3af52b950d20eb4d0b41cd9fbf92157"
+      },
+      {
+        "path": "governance/CROSS_IDE_OPERATING_MODEL.md",
+        "sha256": "sha256:300788f7f9b9be16702d7219f11c2a6f1b3398aaeb9591449503b72c06125499"
+      },
+      {
+        "path": "governance/STUDIO_OS_INTEGRATION.md",
+        "sha256": "sha256:cc3ddb16d083aa2211e63a4ee1236c0b97d633424e2875d7623d61d7be04a9ca"
       },
       {
         "path": "standards/quality/VIBE_CODING_QUALITY_RULEBOOK.md",
@@ -38,7 +58,7 @@
       },
       {
         "path": "standards/ai/AI_CODING_AGENT_STANDARD.md",
-        "sha256": "sha256:c1cd4359cc60afdab5c8c0fb4983cd3a558678da29d86bfa3c0f9f95e4580b1c"
+        "sha256": "sha256:9907791501f57cc5141ecd276a9d75a8e92b4a3ba8217e7a581ef0a05a817cce"
       },
       {
         "path": "standards/platforms/APPLE_STANDARD.md",
@@ -46,11 +66,79 @@
       },
       {
         "path": "standards/engineering/ARCHITECTURE_STANDARD.md",
-        "sha256": "sha256:e8cec13515958928b09fc32c18fbf45a42b2abbb2a5e3c0de19d1879c2b6cf59"
+        "sha256": "sha256:abe172ed1cd5b67bda0a9f3fd786147b664ce7c11440b89e9a5d468add131c3e"
+      },
+      {
+        "path": "standards/engineering/MODULAR_LIBRARY_STANDARD.md",
+        "sha256": "sha256:3027e7f9116c21eeba422a9be28a6d6631c69734a9d21d6bd2f9bf629108dffa"
+      },
+      {
+        "path": "standards/engineering/REUSE_FIRST_WORKFLOW.md",
+        "sha256": "sha256:87d29ab04787964d90a0002797e9f82ba35fa03aba197a2bc3802dcc6eb52d5b"
+      },
+      {
+        "path": "standards/documentation/LLM_DOCUMENTATION_STANDARD.md",
+        "sha256": "sha256:24b6b87f5b572fa1566aa69834ad1becc74711684db1d2b306e3a8457de543fe"
+      },
+      {
+        "path": "standards/testing/AUTOMATED_UI_TESTING_STANDARD.md",
+        "sha256": "sha256:b65996719f10a5de13a1bd6b2356b30c749f58038d3980d0f2cb10a14beba607"
       },
       {
         "path": "playbooks/REGISTER_EXISTING_PROJECT.md",
-        "sha256": "sha256:1ba8df285d10cfa7abed97005adc7ad791273d94464aa001231f133f2bd38a5f"
+        "sha256": "sha256:4fb1048e8ee8b7dd35efef6bed3e5e2c1399fea63be8f54e36119fb172af16a9"
+      },
+      {
+        "path": "playbooks/START_NEW_PROJECT.md",
+        "sha256": "sha256:4ddb3baba97c4d270279005bed8f93690751937ef582618b904211c8c6007936"
+      },
+      {
+        "path": "playbooks/PROMOTE_CODE_TO_SHARED_LIBRARY.md",
+        "sha256": "sha256:e76b67dc1e83e7944036c7eea9a4d43b542f873d4fa9e4386edd0c1394ea0f07"
+      },
+      {
+        "path": "playbooks/CREATE_NEW_PRODUCT_REPOSITORY.md",
+        "sha256": "sha256:d738b5dc8f30655c784955197374ce9c5b99691628ca29f26f31d93c190f211e"
+      },
+      {
+        "path": "playbooks/ENROLL_AND_HANDOFF_EXISTING_PROJECT.md",
+        "sha256": "sha256:c2de1f5f5dfbc61e33c904a560bf967e86962eacaa412ca6a095fb0efe239890"
+      },
+      {
+        "path": "templates/project/AGENTS.md",
+        "sha256": "sha256:469e7bf5743f4a3fbfa4de311b1f1da56c89a506fb7fdaf3e4d815f2d302c82d"
+      },
+      {
+        "path": "templates/project/.factory/project-context.json",
+        "sha256": "sha256:d33ca2c2835eee776847872041dce4d686dc2b9dfbcb86a596d78ff031c91185"
+      },
+      {
+        "path": "templates/project/.factory/standard-lock.json",
+        "sha256": "sha256:a7527b6088fa4734d4c65f2382a81e8cfd3f0903728a6fd51d20502858ba5353"
+      },
+      {
+        "path": "templates/project/.factory/repository-map.json",
+        "sha256": "sha256:753b0305c47271050f3d63f09e0abfe94f0690a2e9391e0a305073d415afd078"
+      },
+      {
+        "path": "templates/project/.factory/library-catalog.json",
+        "sha256": "sha256:31f756b36585e0bb3967547986d18c02c6eb1ed9f4707d8d9cc2d3f0e8a56684"
+      },
+      {
+        "path": "schemas/repository-map.schema.json",
+        "sha256": "sha256:d1b870486ec2ca273f86616b8f2851ab5ad933536486e06c52ab785be53180c5"
+      },
+      {
+        "path": "schemas/library-catalog.schema.json",
+        "sha256": "sha256:9efb278d84fa3ea58f307f4afb7d4922bfae667a810b732484fcd294c8a1fe68"
+      },
+      {
+        "path": "factory_cli/cli.py",
+        "sha256": "sha256:e90558123500b7131a91311f2b3f9f32a8ccdf7214d60a85b30cec4c3808a87a"
+      },
+      {
+        "path": "pyproject.toml",
+        "sha256": "sha256:60900b42b5dfe6d76bfa5a00b3354832be68c6a2181d05bf4d74f4d1daa637f7"
       }
     ],
     "additionalSources": [
@@ -68,16 +156,25 @@
     ],
     "otherObservedVersions": [
       {
-        "version": "0.4.0",
-        "observedAt": "studio-ios/registry/standards.yaml, studio-ios/standards/domains/IOS_APP_FACTORY.md, studio/conduit/.factory/standard-lock.json (all under ~/Documents/other/studio_ops); upstream pri8771/iOS_app_factory_rules not fetched",
-        "fetched": false
-      },
-      {
         "version": "0.5.0",
-        "observedAt": "reported as the CLI-pinned version by docs/architecture/0004-studio-mac-app.md; no local artifact carrying 0.5.0 was located during this task",
-        "fetched": false
+        "observedAt": "(1) origin/main factory_cli/cli.py RULES_VERSION = \"0.5.0\", factory_cli/__init__.py __version__, and pyproject.toml version = \"0.5.0\": the Python `factory` CLI's own package version, written into .factory/standard-lock.json as rulesVersion 0.5.0 / compatibilityRange >=0.5.0 <1.0.0 by `factory enroll`, while VERSION on the same commit is 0.4.0 (upstream inconsistency); (2) unmerged branch origin/claude/app-factory-standard-maintenance-xuxxve @ 5eeceee (VERSION 0.5.0, bump commit 5d92a2f 2026-07-17, forked from origin/main at 809b5d2, not merged into origin/main as of 4b8b12e). No 0.5.0 tag exists; the repository has no tags at all. This is the CLI-pinned version ADR 0004 reports; it is not the corpus VERSION on origin/main and is not compiled from.",
+        "fetched": true,
+        "ref": "origin/claude/app-factory-standard-maintenance-xuxxve",
+        "commit": "5eeceee"
       }
-    ]
+    ],
+    "upstream": {
+      "remote": "https://github.com/pri8771/iOS_app_factory_rules.git",
+      "ref": "origin/main",
+      "commit": "4b8b12ea87d78d392485ea8a73440a17ee50bba9",
+      "committedAt": "2026-07-19T21:20:11Z",
+      "fetchedAt": "2026-08-17",
+      "readVia": "git fetch origin; git show origin/main:<path> (remote-tracking refs only; the clone's working tree and local main stayed at 89ce224 / 0.2.0)",
+      "previous": {
+        "version": "0.2.0",
+        "commit": "89ce224"
+      }
+    }
   },
   "principleSources": [
     {
@@ -101,16 +198,22 @@
         "AI_CODING_AGENT_STANDARD.md#during-implementation"
       ]
     },
-    { "index": 3, "sources": ["STUDIO_PRINCIPLES.md#4"] },
+    {
+      "index": 3,
+      "sources": ["STUDIO_PRINCIPLES.md#4"]
+    },
     {
       "index": 4,
       "sources": [
         "STUDIO_PRINCIPLES.md#5",
         "APPLE_STANDARD.md#shared-requirements",
-        "ARCHITECTURE_STANDARD.md#rules"
+        "ARCHITECTURE_STANDARD.md#rules (0.4.0: version, compatibility range)"
       ]
     },
-    { "index": 5, "sources": ["STUDIO_PRINCIPLES.md#6"] },
+    {
+      "index": 5,
+      "sources": ["STUDIO_PRINCIPLES.md#6"]
+    },
     {
       "index": 6,
       "sources": ["STUDIO_PRINCIPLES.md#7", "AI_CODING_AGENT_STANDARD.md#new-projects"]
@@ -145,7 +248,8 @@
       "sources": [
         "STUDIO_PRINCIPLES.md#11",
         "AI_CODING_AGENT_STANDARD.md#existing-projects",
-        "ARCHITECTURE_STANDARD.md#existing-projects"
+        "ARCHITECTURE_STANDARD.md#existing-projects",
+        "REGISTER_EXISTING_PROJECT.md#existing-reusable-code"
       ]
     },
     {
@@ -176,7 +280,10 @@
         "DEFINITION_OF_DONE.md#state"
       ]
     },
-    { "index": 15, "sources": ["VIBE_CODING_QUALITY_RULEBOOK.md#error-handling"] },
+    {
+      "index": 15,
+      "sources": ["VIBE_CODING_QUALITY_RULEBOOK.md#error-handling"]
+    },
     {
       "index": 16,
       "sources": [
@@ -200,16 +307,28 @@
         "app-factory AGENTS.md#required-behavior"
       ]
     },
-    { "index": 19, "sources": ["VIBE_CODING_QUALITY_RULEBOOK.md#ai-features"] },
-    { "index": 20, "sources": ["DOCUMENTATION_POLICY.md#authority"] },
+    {
+      "index": 19,
+      "sources": ["VIBE_CODING_QUALITY_RULEBOOK.md#ai-features"]
+    },
+    {
+      "index": 20,
+      "sources": ["DOCUMENTATION_POLICY.md#authority"]
+    },
     {
       "index": 21,
       "sources": [
         "DOCUMENTATION_POLICY.md#maintenance",
+        "LLM_DOCUMENTATION_STANDARD.md#one-topic-one-canonical-owner",
+        "LLM_DOCUMENTATION_STANDARD.md#facts-decisions-assumptions-and-proposals",
+        "LLM_DOCUMENTATION_STANDARD.md#document-metadata",
         "studio_ops consolidation-plan 2026-07-21 (GitHub is the source of truth; Notion/Jira are read-only mirrors)"
       ]
     },
-    { "index": 22, "sources": ["app-factory AGENTS.md#required-behavior"] },
+    {
+      "index": 22,
+      "sources": ["app-factory AGENTS.md#required-behavior"]
+    },
     {
       "index": 23,
       "sources": [
@@ -221,7 +340,10 @@
       "index": 24,
       "sources": ["app-factory AGENTS.md#required-behavior", "gates.md#stage-advance-rules"]
     },
-    { "index": 25, "sources": ["gates.md#owners", "gates.md#gates-and-their-states"] },
+    {
+      "index": 25,
+      "sources": ["gates.md#owners", "gates.md#gates-and-their-states"]
+    },
     {
       "index": 26,
       "sources": [
@@ -229,7 +351,58 @@
         "DEFINITION_OF_DONE.md#verification"
       ]
     },
-    { "index": 27, "sources": ["APPLE_STANDARD.md#verification"] }
+    {
+      "index": 27,
+      "sources": ["APPLE_STANDARD.md#verification"]
+    },
+    {
+      "index": 28,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#13",
+        "REPOSITORY_MODEL.md#core-rule",
+        "REPOSITORY_MODEL.md#repository-types",
+        "DOCUMENTATION_POLICY.md#central-rules-repository",
+        "AGENTS.md#repository-identity"
+      ]
+    },
+    {
+      "index": 29,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#14",
+        "MODULAR_LIBRARY_STANDARD.md#principle",
+        "ARCHITECTURE_STANDARD.md#product-and-library-boundaries",
+        "AI_CODING_AGENT_STANDARD.md#before-changing-code"
+      ]
+    },
+    {
+      "index": 30,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#15",
+        "ARCHITECTURE_STANDARD.md#rules",
+        "MODULAR_LIBRARY_STANDARD.md#adoption-rules",
+        "REUSE_FIRST_WORKFLOW.md#4-reuse-through-an-adapter",
+        "AI_CODING_AGENT_STANDARD.md#reuse-first-behavior"
+      ]
+    },
+    {
+      "index": 31,
+      "sources": [
+        "STUDIO_PRINCIPLES.md#16",
+        "REPOSITORY_MODEL.md#cross-repository-changes",
+        "AGENTS.md#reusable-library-contributions",
+        "AGENTS.md#change-rules",
+        "AI_CODING_AGENT_STANDARD.md#during-implementation",
+        "PROMOTE_CODE_TO_SHARED_LIBRARY.md#cross-repository-safety"
+      ]
+    },
+    {
+      "index": 32,
+      "sources": [
+        "CROSS_IDE_OPERATING_MODEL.md#principle",
+        "CROSS_IDE_OPERATING_MODEL.md#request-routing",
+        "CROSS_IDE_OPERATING_MODEL.md#model-and-effort-evidence"
+      ]
+    }
   ],
   "ruleSources": [
     {
@@ -297,7 +470,11 @@
       "ruleId": "rule.scope.declared-paths",
       "sources": [
         "app-factory AGENTS.md#required-behavior",
-        "AI_CODING_AGENT_STANDARD.md#existing-projects"
+        "AI_CODING_AGENT_STANDARD.md#existing-projects",
+        "AI_CODING_AGENT_STANDARD.md#during-implementation",
+        "AGENTS.md#change-rules",
+        "DOCUMENTATION_POLICY.md#maintenance",
+        "REPOSITORY_MODEL.md#cross-repository-changes"
       ],
       "humanOnly": false,
       "appliesTo": ["building"]
@@ -335,7 +512,8 @@
       "ruleId": "rule.docs.same-change",
       "sources": [
         "DOCUMENTATION_POLICY.md#maintenance",
-        "AI_CODING_AGENT_STANDARD.md#during-implementation"
+        "AI_CODING_AGENT_STANDARD.md#during-implementation",
+        "LLM_DOCUMENTATION_STANDARD.md#change-discipline"
       ],
       "humanOnly": false,
       "appliesTo": ["building"]
@@ -435,14 +613,20 @@
       "sources": [
         "STUDIO_PRINCIPLES.md#11",
         "AI_CODING_AGENT_STANDARD.md#existing-projects",
-        "REGISTER_EXISTING_PROJECT.md#baseline-before-restructuring"
+        "REGISTER_EXISTING_PROJECT.md#baseline-before-restructuring",
+        "REGISTER_EXISTING_PROJECT.md#existing-reusable-code"
       ],
       "humanOnly": false,
       "appliesTo": ["idea", "building"]
     },
     {
       "ruleId": "rule.new.scope-before-breadth",
-      "sources": ["STUDIO_PRINCIPLES.md#12", "AI_CODING_AGENT_STANDARD.md#new-projects"],
+      "sources": [
+        "STUDIO_PRINCIPLES.md#12",
+        "AI_CODING_AGENT_STANDARD.md#new-projects",
+        "START_NEW_PROJECT.md#reusable-infrastructure",
+        "AGENTS.md#product-repository-detection-contract"
+      ],
       "humanOnly": false,
       "appliesTo": ["idea", "building"]
     },
@@ -450,7 +634,8 @@
       "ruleId": "rule.existing.no-rescaffold-without-decision",
       "sources": [
         "AI_CODING_AGENT_STANDARD.md#existing-projects",
-        "ARCHITECTURE_STANDARD.md#existing-projects"
+        "ARCHITECTURE_STANDARD.md#existing-projects",
+        "REGISTER_EXISTING_PROJECT.md#existing-reusable-code"
       ],
       "humanOnly": true,
       "appliesTo": ["building"]
@@ -464,6 +649,36 @@
       ],
       "humanOnly": false,
       "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.reuse.catalog-before-infrastructure",
+      "sources": [
+        "STUDIO_PRINCIPLES.md#14",
+        "STUDIO_PRINCIPLES.md#15",
+        "AI_CODING_AGENT_STANDARD.md#reuse-first-behavior",
+        "MODULAR_LIBRARY_STANDARD.md#adoption-rules",
+        "MODULAR_LIBRARY_STANDARD.md#prohibited-shortcuts",
+        "REUSE_FIRST_WORKFLOW.md#1-classify-the-capability",
+        "REUSE_FIRST_WORKFLOW.md#5-when-no-library-fits",
+        "ARCHITECTURE_STANDARD.md#product-and-library-boundaries",
+        "AGENTS.md#product-repository-detection-contract"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building"]
+    },
+    {
+      "ruleId": "rule.reuse.upstream-generic-fixes",
+      "sources": [
+        "STUDIO_PRINCIPLES.md#16",
+        "AI_CODING_AGENT_STANDARD.md#reuse-first-behavior",
+        "REPOSITORY_MODEL.md#cross-repository-changes",
+        "REUSE_FIRST_WORKFLOW.md#7-feed-generic-edge-cases-upstream",
+        "PROMOTE_CODE_TO_SHARED_LIBRARY.md#generic-edge-case-contribution",
+        "PROMOTE_CODE_TO_SHARED_LIBRARY.md#cross-repository-safety",
+        "AGENTS.md#reusable-library-contributions"
+      ],
+      "humanOnly": false,
+      "appliesTo": ["building", "qa"]
     },
     {
       "ruleId": "rule.accessibility.primary-workflow",
@@ -662,6 +877,12 @@
       "status": "planned"
     },
     {
+      "check": "review.reuse-first",
+      "kind": "review",
+      "executor": "independent review rubric item: catalog consulted, adapter-vs-copy, app-local module boundary, upstream contribution separated; no executor exists yet",
+      "status": "planned"
+    },
+    {
       "check": "review.accessibility",
       "kind": "review",
       "executor": "independent review rubric item",
@@ -677,7 +898,7 @@
   "protectedSurfaceNotes": [
     {
       "path": ".factory/**",
-      "note": "Legacy 0.2.0 authority layout. Protected so a parallel legacy layout cannot be reintroduced silently after migration to .app-factory/ (Hindsight factory/pilot-1.1 archived it under .app-factory/legacy/)."
+      "note": "Legacy 0.2.0 authority layout, and the layout upstream 0.4.0 still bootstraps (.factory/project-context.json, standard-lock.json, AGENTS.factory.md, plus 0.4.0's repository-map.json and library-catalog.json; the 0.4.0 factory CLI additionally writes .factory/project-context.yaml, current-state.yaml, scope-lock.yaml, agent-policy.yaml, runs/). Protected so a parallel legacy layout cannot be reintroduced silently after migration to .app-factory/ (Hindsight factory/pilot-1.1 archived it under .app-factory/legacy/). The compiler does not emit any .factory/ artifact; see RULES_CORPUS_RECONCILIATION.md §2."
     },
     {
       "path": ".app-factory/**",
@@ -691,7 +912,10 @@
       "path": "**/*.entitlements",
       "note": "Signing surface; glob semantics are a broker concern, not the schema's."
     },
-    { "path": "**/ExportOptions.plist", "note": "Signing/export surface." },
+    {
+      "path": "**/ExportOptions.plist",
+      "note": "Signing/export surface."
+    },
     {
       "path": "docs/RELEASE_CHECKLIST.md",
       "note": "Hindsight keeps this file at Docs/RELEASE_CHECKLIST.md (capital D); a per-project override or case-insensitive surface match is needed before the compiled lock can protect it there."
@@ -719,19 +943,24 @@
       "note": "The engine stores surface paths verbatim; whether **, *, and case-insensitivity are honored is undefined until the broker's matcher is specified."
     },
     {
-      "field": "source.corpus provenance",
-      "branch": "studio/policy-engine-scoping",
-      "note": "The engine's integer policyVersion is unrelated to the corpus semver; the corpus version, commit, and file digests live only in this sidecar."
-    },
-    {
       "field": "project-local preamble",
       "branch": "studio/policy-engine-scoping",
       "note": "The compiled AGENTS.md replaces the whole file, so Hindsight's project-specific reading order (.app-factory/project.json, quality/quality-manifest.json, Docs/*) has no home in the compiled authority; it belongs in the project manifest or a nested AGENTS.md scope."
     },
     {
+      "field": "source.corpus provenance",
+      "branch": "studio/policy-engine-scoping",
+      "note": "The engine's integer policyVersion (now 2) is unrelated to the corpus semver (0.4.0 @ 4b8b12e); the corpus version, commit, and file digests live only in this sidecar."
+    },
+    {
+      "field": "0.4.0 navigation artifacts",
+      "branch": "studio/policy-engine-scoping",
+      "note": "Upstream 0.4.0 requires .factory/repository-map.json (schemaVersion 1.0.0), .factory/library-catalog.json (catalogVersion 0.1.0), docs/README.md, and docs/REUSABLE_COMPONENTS.md in every registered product and locks repositoryMapVersion/libraryCatalogVersion in .factory/standard-lock.json. This repository's scanner treats .factory/ as the legacy layout and enrolls through .app-factory/ manifests, so the compiler does not emit them; whether an .app-factory/ equivalent (repository map, library catalog) is added, and which side owns docs/README.md, is an open decision recorded in RULES_CORPUS_RECONCILIATION.md §6."
+    },
+    {
       "field": "copilot adapter",
       "branch": "studio/policy-engine-scoping",
-      "note": "The corpus lists .github/copilot-instructions.md as a supported entry point but PolicyClient and ProjectManifestV1.rules.clientEntrypoints.client do not include copilot; an existing copilot adapter stays bound to the pre-bundle AGENTS.md digest and trips rules.adapter-nonconforming plus rules.conflicting-declaration until it is regenerated or removed."
+      "note": "The corpus lists .github/copilot-instructions.md as a supported entry point. PolicyClientV1 and ProjectManifestV1.rules.clientEntrypoints.client now include copilot and CanonicalPolicySourceV1.clients is optional, but this compiled source still declares no clients (legacy default claude/cursor/antigravity), so the bundle set is unchanged and an existing copilot adapter stays bound to the pre-bundle AGENTS.md digest (rules.adapter-nonconforming + rules.conflicting-declaration until repair-rule-adapter rebinds it). Adding copilot to clients is a bundle-set decision, not corpus drift; see RULES_CORPUS_RECONCILIATION.md §6 item 1."
     }
   ]
 }

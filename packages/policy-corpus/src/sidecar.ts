@@ -41,13 +41,34 @@ export const PolicySourceSidecarV1Schema = z
           }),
         )
         .max(20),
+      /**
+       * The upstream ref the corpus files were read from, when the compiled bytes came from a fetched
+       * remote-tracking ref rather than a local checkout. `commit` is the full sha of that ref.
+       */
+      upstream: z
+        .strictObject({
+          remote: z.string().min(1).max(500),
+          ref: z.string().min(1).max(200),
+          commit: z.string().regex(/^[0-9a-f]{40}$/),
+          committedAt: z.string().min(1).max(100),
+          fetchedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          readVia: z.string().min(1).max(1_000),
+          previous: z.strictObject({
+            version: z.string().regex(/^\d+\.\d+\.\d+$/),
+            commit: ShortCommitSchema,
+          }),
+        })
+        .optional(),
       /** Versions reported elsewhere but not compiled from; see RULES_CORPUS_RECONCILIATION.md. */
       otherObservedVersions: z
         .array(
           z.strictObject({
             version: z.string().regex(/^\d+\.\d+\.\d+$/),
-            observedAt: z.string().min(1).max(500),
-            fetched: z.literal(false),
+            observedAt: z.string().min(1).max(2_000),
+            /** True when the ref carrying this version was fetched and read; it is still not compiled from. */
+            fetched: z.boolean(),
+            ref: z.string().min(1).max(200).optional(),
+            commit: ShortCommitSchema.optional(),
           }),
         )
         .max(20),

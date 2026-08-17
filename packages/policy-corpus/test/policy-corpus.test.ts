@@ -97,7 +97,7 @@ describe("iOS App Factory rules corpus policy source", () => {
   it("validates against the current policy-engine schema with the agreed enforcement mappings", () => {
     const source = loadPolicySource(SOURCE_PATH);
     expect(source.policyId).toBe("ios-app-factory.rules");
-    expect(source.policyVersion).toBe(1);
+    expect(source.policyVersion).toBe(2);
     expect(source.principles.length).toBeGreaterThanOrEqual(20);
     expect(source.principles.length).toBeLessThanOrEqual(40);
     expect(new Set(source.principles).size).toBe(source.principles.length);
@@ -133,6 +133,27 @@ describe("iOS App Factory rules corpus policy source", () => {
     // Docs in repo are truth; Jira/Notion are mirrors → principle + broker rule.
     expect(rule("rule.docs.repo-is-truth").enforcement).toBe("broker");
     expect(source.principles.some((item) => /read-only mirrors/u.test(item))).toBe(true);
+    // Corpus 0.4.0 (upstream 4b8b12e): reuse-first / repository-model text → review rules
+    // plus principles; cross-repository separation folds into the broker scope rule.
+    for (const ruleId of [
+      "rule.reuse.catalog-before-infrastructure",
+      "rule.reuse.upstream-generic-fixes",
+    ]) {
+      expect(rule(ruleId)).toMatchObject({
+        enforcement: "review",
+        requiredCheck: "review.reuse-first",
+      });
+    }
+    expect(rule("rule.dependencies.justified").statement).toMatch(/version, compatibility range/u);
+    expect(rule("rule.scope.declared-paths").statement).toMatch(
+      /merely because access is available/u,
+    );
+    expect(rule("rule.dod.completion-report").statement).toMatch(/shared libraries considered/u);
+    expect(source.principles.some((item) => /own repository/u.test(item))).toBe(true);
+    expect(source.principles.some((item) => /copy-paste reuse/u.test(item))).toBe(true);
+    expect(source.principles.some((item) => /question is not authorization/u.test(item))).toBe(
+      true,
+    );
 
     expect(source.protectedSurfaces.map((surface) => surface.path)).toEqual(
       expect.arrayContaining([
@@ -159,12 +180,29 @@ describe("iOS App Factory rules corpus policy source", () => {
     const source = loadPolicySource(SOURCE_PATH);
     const sidecar = loadPolicySidecar(SIDECAR_PATH);
     expect(crossCheckSidecar(source, sidecar)).toEqual([]);
-    expect(sidecar.corpus.version).toBe("0.2.0");
-    expect(sidecar.corpus.otherObservedVersions.map((entry) => entry.version)).toEqual([
-      "0.4.0",
-      "0.5.0",
+    expect(sidecar.corpus.version).toBe("0.4.0");
+    expect(sidecar.corpus.commit).toBe("4b8b12e");
+    expect(sidecar.corpus.upstream).toMatchObject({
+      ref: "origin/main",
+      commit: "4b8b12ea87d78d392485ea8a73440a17ee50bba9",
+      previous: { version: "0.2.0", commit: "89ce224" },
+    });
+    expect(sidecar.corpus.files.map((file) => file.path)).toEqual(
+      expect.arrayContaining([
+        "VERSION",
+        "governance/STUDIO_PRINCIPLES.md",
+        "governance/REPOSITORY_MODEL.md",
+        "standards/engineering/MODULAR_LIBRARY_STANDARD.md",
+        "standards/engineering/REUSE_FIRST_WORKFLOW.md",
+        "templates/project/.factory/repository-map.json",
+        "templates/project/.factory/library-catalog.json",
+      ]),
+    );
+    // 0.5.0 is a fetched-but-unmerged branch plus the Python CLI's package version, never
+    // origin/main's VERSION; it stays observed, not compiled.
+    expect(sidecar.corpus.otherObservedVersions).toEqual([
+      expect.objectContaining({ version: "0.5.0", fetched: true, commit: "5eeceee" }),
     ]);
-    for (const entry of sidecar.corpus.otherObservedVersions) expect(entry.fetched).toBe(false);
     const humanOnly = sidecar.ruleSources.filter((entry) => entry.humanOnly).map((e) => e.ruleId);
     expect(humanOnly).toEqual(
       expect.arrayContaining([
