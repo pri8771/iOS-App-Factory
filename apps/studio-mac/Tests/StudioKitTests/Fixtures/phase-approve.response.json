@@ -22,24 +22,15 @@
           "coordinator": null,
           "grader": null
         },
-        "inputs": [
-          "docs",
-          "evidence"
-        ],
+        "inputs": ["docs", "evidence"],
         "rules": {
-          "standard": [
-            "rule.dod.verification",
-            "rule.dod.experience-coverage"
-          ],
+          "standard": ["rule.dod.verification", "rule.dod.experience-coverage"],
           "yours": [],
           "requiredOutput": [],
           "acceptanceChecks": []
         },
         "outputs": [],
-        "gates": [
-          "build",
-          "tests"
-        ],
+        "gates": ["build", "tests"],
         "budget": {
           "estimateMinutes": null,
           "timeoutSeconds": 900

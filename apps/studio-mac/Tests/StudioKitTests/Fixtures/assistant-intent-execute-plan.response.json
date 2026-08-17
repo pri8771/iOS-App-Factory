@@ -17,10 +17,7 @@
           "brief": {
             "title": "Workout Tracker",
             "oneLiner": "A minimal iOS app for logging sets and rest timers.",
-            "constraints": [
-              "local-only",
-              "xcodegen"
-            ]
+            "constraints": ["local-only", "xcodegen"]
           },
           "presetId": "ios-app-standard-0.4.0",
           "items": [
@@ -41,9 +38,7 @@
                   }
                 ],
                 "scope": {
-                  "paths": [
-                    "Sources"
-                  ]
+                  "paths": ["Sources"]
                 },
                 "phase": "contract"
               },
@@ -56,9 +51,7 @@
               "phase": "architecture",
               "title": "Architecture",
               "detail": null,
-              "dependsOn": [
-                "contract"
-              ],
+              "dependsOn": ["contract"],
               "kind": "task",
               "taskSpecDraft": {
                 "objective": "Decide the technical approach.",
@@ -70,9 +63,7 @@
                   }
                 ],
                 "scope": {
-                  "paths": [
-                    "Sources"
-                  ]
+                  "paths": ["Sources"]
                 },
                 "phase": "architecture"
               },
@@ -85,9 +76,7 @@
               "phase": "ready",
               "title": "Ready",
               "detail": null,
-              "dependsOn": [
-                "architecture"
-              ],
+              "dependsOn": ["architecture"],
               "kind": "gate",
               "gate": {
                 "owner": "human",
@@ -100,9 +89,7 @@
               "phase": "build",
               "title": "Build",
               "detail": null,
-              "dependsOn": [
-                "ready"
-              ],
+              "dependsOn": ["ready"],
               "kind": "task",
               "taskSpecDraft": {
                 "objective": "Implement the planned change.",
@@ -114,9 +101,7 @@
                   }
                 ],
                 "scope": {
-                  "paths": [
-                    "Sources"
-                  ]
+                  "paths": ["Sources"]
                 },
                 "phase": "build"
               },

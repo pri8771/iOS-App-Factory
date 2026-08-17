@@ -63,7 +63,11 @@ const contractPhase = phase({
   name: "Contract",
   purpose: "Define the user outcome, MVP boundary, constraints, and Definition of Done.",
   mode: "solo",
-  cast: { participants: [{ provider: "claude", persona: "contract-writer", readOnly: true }], coordinator: null, grader: null },
+  cast: {
+    participants: [{ provider: "claude", persona: "contract-writer", readOnly: true }],
+    coordinator: null,
+    grader: null,
+  },
   inputs: ["docs", "issues"],
   rules: {
     standard: ["rule.new.scope-before-breadth"],
@@ -105,7 +109,11 @@ const buildPhase = phase({
   purpose: "Implement the planned change and its required non-happy-path coverage.",
   inputs: ["docs", "source-readonly", "issues"],
   rules: {
-    standard: ["rule.dod.verification", "rule.data.no-fake-fallback", "rule.ui.no-decorative-controls"],
+    standard: [
+      "rule.dod.verification",
+      "rule.data.no-fake-fallback",
+      "rule.ui.no-decorative-controls",
+    ],
     yours: [],
     requiredOutput: [],
     acceptanceChecks: [],
@@ -143,10 +151,14 @@ const seedPreset = PhasePresetV1Schema.parse({
   updatedAt: T,
 });
 
-writeFileSync(dir + "preset-list.response.json", JSON.stringify(ok({ operation: "preset.list", presets: [seedPreset] }), null, 2) + "\n");
+writeFileSync(
+  dir + "preset-list.response.json",
+  JSON.stringify(ok({ operation: "preset.list", presets: [seedPreset] }), null, 2) + "\n",
+);
 writeFileSync(
   dir + "phase-upsert.response.json",
-  JSON.stringify(ok({ operation: "phase.upsert", phase: buildPhase, created: false }), null, 2) + "\n",
+  JSON.stringify(ok({ operation: "phase.upsert", phase: buildPhase, created: false }), null, 2) +
+    "\n",
 );
 
 // ---------------------------------------------------------------------------
@@ -191,10 +203,17 @@ const succeededRun = PhaseRunV1Schema.parse({
     {
       path: "docs/architecture/decision.md",
       digest: sha("33"),
-      evidence: { commit: "a".repeat(40), tree: "b".repeat(40), branch: "factory/phase/architecture/run-2" },
+      evidence: {
+        commit: "a".repeat(40),
+        tree: "b".repeat(40),
+        branch: "factory/phase/architecture/run-2",
+      },
     },
   ],
-  graderVerdict: { verdict: "pass", findings: ["Proposal A chosen: fits the existing module boundary."] },
+  graderVerdict: {
+    verdict: "pass",
+    findings: ["Proposal A chosen: fits the existing module boundary."],
+  },
   tokenUsage: { totalTokens: 18_400 },
   outcome: { kind: "succeeded" },
   createdAt: "2026-08-16T18:00:00.000Z",
@@ -224,36 +243,63 @@ const queuedRun = PhaseRunV1Schema.parse({
   updatedAt: T,
 });
 
-writeFileSync(dir + "phase-run.response.json", JSON.stringify(ok({ operation: "phase.run", run: queuedRun }), null, 2) + "\n");
-writeFileSync(dir + "phase-status.response.json", JSON.stringify(ok({ operation: "phase.status", run: awaitingRun }), null, 2) + "\n");
+writeFileSync(
+  dir + "phase-run.response.json",
+  JSON.stringify(ok({ operation: "phase.run", run: queuedRun }), null, 2) + "\n",
+);
+writeFileSync(
+  dir + "phase-status.response.json",
+  JSON.stringify(ok({ operation: "phase.status", run: awaitingRun }), null, 2) + "\n",
+);
 writeFileSync(
   dir + "phase-list.response.json",
   JSON.stringify(
     ok({
       operation: "phase.list",
-      page: PhaseRunListPageV1Schema.parse({ runs: [awaitingRun, succeededRun], nextAfter: null, hasMore: false }),
+      page: PhaseRunListPageV1Schema.parse({
+        runs: [awaitingRun, succeededRun],
+        nextAfter: null,
+        hasMore: false,
+      }),
     }),
     null,
     2,
   ) + "\n",
 );
 
-const approvedRun = { ...awaitingRun, state: "running", revision: 4, updatedAt: "2026-08-16T20:10:00.000Z" };
+const approvedRun = {
+  ...awaitingRun,
+  state: "running",
+  revision: 4,
+  updatedAt: "2026-08-16T20:10:00.000Z",
+};
 writeFileSync(
   dir + "phase-approve.response.json",
-  JSON.stringify(ok({ operation: "phase.approve", run: PhaseRunV1Schema.parse(approvedRun) }), null, 2) + "\n",
+  JSON.stringify(
+    ok({ operation: "phase.approve", run: PhaseRunV1Schema.parse(approvedRun) }),
+    null,
+    2,
+  ) + "\n",
 );
 const rejectedRun = {
   ...awaitingRun,
   state: "failed",
   revision: 4,
-  outcome: { kind: "failed", code: "rejected", summary: "Declined: needs a legal review pass first." },
+  outcome: {
+    kind: "failed",
+    code: "rejected",
+    summary: "Declined: needs a legal review pass first.",
+  },
   finishedAt: "2026-08-16T20:10:00.000Z",
   updatedAt: "2026-08-16T20:10:00.000Z",
 };
 writeFileSync(
   dir + "phase-reject.response.json",
-  JSON.stringify(ok({ operation: "phase.reject", run: PhaseRunV1Schema.parse(rejectedRun) }), null, 2) + "\n",
+  JSON.stringify(
+    ok({ operation: "phase.reject", run: PhaseRunV1Schema.parse(rejectedRun) }),
+    null,
+    2,
+  ) + "\n",
 );
 
 // ---------------------------------------------------------------------------
@@ -285,11 +331,17 @@ function stampPlan(fields) {
 }
 
 const planId = uuid(201);
-const brief = { title: "Workout Tracker", oneLiner: "A minimal iOS app for logging sets and rest timers.", constraints: ["local-only", "xcodegen"] };
+const brief = {
+  title: "Workout Tracker",
+  oneLiner: "A minimal iOS app for logging sets and rest timers.",
+  constraints: ["local-only", "xcodegen"],
+};
 
 const taskSpecDraft = (phaseKey, objective) => ({
   objective,
-  acceptanceCriteria: [{ id: "correctness", statement: "Behaves as described.", verification: "review" }],
+  acceptanceCriteria: [
+    { id: "correctness", statement: "Behaves as described.", verification: "review" },
+  ],
   scope: { paths: ["Sources"] },
   phase: phaseKey,
 });
@@ -341,7 +393,10 @@ const proposedPlan = stampPlan({
     }),
   ],
 });
-writeFileSync(dir + "plan-propose.response.json", JSON.stringify(ok({ operation: "plan.propose", plan: proposedPlan }), null, 2) + "\n");
+writeFileSync(
+  dir + "plan-propose.response.json",
+  JSON.stringify(ok({ operation: "plan.propose", plan: proposedPlan }), null, 2) + "\n",
+);
 
 const repositoryId = "a1b2c3d4-5e6f-4a7b-9c8d-0e1f2a3b4c5d";
 const executingItems = [
@@ -405,7 +460,10 @@ const executingPlan = stampPlan({
   updatedAt: "2026-08-16T22:40:00.000Z",
   items: executingItems,
 });
-writeFileSync(dir + "plan-status.response.json", JSON.stringify(ok({ operation: "plan.status", plan: executingPlan }), null, 2) + "\n");
+writeFileSync(
+  dir + "plan-status.response.json",
+  JSON.stringify(ok({ operation: "plan.status", plan: executingPlan }), null, 2) + "\n",
+);
 
 const editedPlan = stampPlan({
   planId,
@@ -421,10 +479,24 @@ const editedPlan = stampPlan({
     { ...proposedPlan.items[3], status: "deferred" },
   ],
 });
-writeFileSync(dir + "plan-edit.response.json", JSON.stringify(ok({ operation: "plan.edit", plan: editedPlan }), null, 2) + "\n");
+writeFileSync(
+  dir + "plan-edit.response.json",
+  JSON.stringify(ok({ operation: "plan.edit", plan: editedPlan }), null, 2) + "\n",
+);
 
-const approvedPlan = stampPlan({ planId, brief, state: "approved", revision: 2, createdAt: T, updatedAt: "2026-08-16T22:06:00.000Z", items: proposedPlan.items });
-writeFileSync(dir + "plan-approve.response.json", JSON.stringify(ok({ operation: "plan.approve", plan: approvedPlan }), null, 2) + "\n");
+const approvedPlan = stampPlan({
+  planId,
+  brief,
+  state: "approved",
+  revision: 2,
+  createdAt: T,
+  updatedAt: "2026-08-16T22:06:00.000Z",
+  items: proposedPlan.items,
+});
+writeFileSync(
+  dir + "plan-approve.response.json",
+  JSON.stringify(ok({ operation: "plan.approve", plan: approvedPlan }), null, 2) + "\n",
+);
 
 const executeItems = [
   { ...proposedPlan.items[0], status: "running", taskId: uuid(311), attemptId: uuid(411) },
@@ -432,18 +504,57 @@ const executeItems = [
   proposedPlan.items[2],
   proposedPlan.items[3],
 ];
-const executedPlan = stampPlan({ planId, projectId, repositoryId, brief, state: "executing", revision: 3, createdAt: T, updatedAt: "2026-08-16T22:10:00.000Z", items: executeItems });
-writeFileSync(dir + "plan-execute.response.json", JSON.stringify(ok({ operation: "plan.execute", plan: executedPlan }), null, 2) + "\n");
+const executedPlan = stampPlan({
+  planId,
+  projectId,
+  repositoryId,
+  brief,
+  state: "executing",
+  revision: 3,
+  createdAt: T,
+  updatedAt: "2026-08-16T22:10:00.000Z",
+  items: executeItems,
+});
+writeFileSync(
+  dir + "plan-execute.response.json",
+  JSON.stringify(ok({ operation: "plan.execute", plan: executedPlan }), null, 2) + "\n",
+);
 
-const gateApprovedItems = executingItems.map((item) => (item.itemId === "ready" ? { ...item, status: "approved" } : item));
-const gateApprovedPlan = stampPlan({ planId, projectId, repositoryId, brief, state: "executing", revision: 5, createdAt: T, updatedAt: "2026-08-16T22:45:00.000Z", items: gateApprovedItems });
+const gateApprovedItems = executingItems.map((item) =>
+  item.itemId === "ready" ? { ...item, status: "approved" } : item,
+);
+const gateApprovedPlan = stampPlan({
+  planId,
+  projectId,
+  repositoryId,
+  brief,
+  state: "executing",
+  revision: 5,
+  createdAt: T,
+  updatedAt: "2026-08-16T22:45:00.000Z",
+  items: gateApprovedItems,
+});
 writeFileSync(
   dir + "plan-approve-gate.response.json",
   JSON.stringify(ok({ operation: "plan.approve-gate", plan: gateApprovedPlan }), null, 2) + "\n",
 );
 
-const tickedItems = gateApprovedItems.map((item) => (item.itemId === "build" ? { ...item, status: "running", taskId: uuid(313), attemptId: uuid(413) } : item));
-const tickedPlan = stampPlan({ planId, projectId, repositoryId, brief, state: "executing", revision: 6, createdAt: T, updatedAt: "2026-08-16T22:50:00.000Z", items: tickedItems });
+const tickedItems = gateApprovedItems.map((item) =>
+  item.itemId === "build"
+    ? { ...item, status: "running", taskId: uuid(313), attemptId: uuid(413) }
+    : item,
+);
+const tickedPlan = stampPlan({
+  planId,
+  projectId,
+  repositoryId,
+  brief,
+  state: "executing",
+  revision: 6,
+  createdAt: T,
+  updatedAt: "2026-08-16T22:50:00.000Z",
+  items: tickedItems,
+});
 writeFileSync(
   dir + "plan-tick.response.json",
   JSON.stringify(ok({ operation: "plan.tick", plan: tickedPlan, advanced: true }), null, 2) + "\n",
@@ -461,10 +572,25 @@ const seedResult = ProjectSeedCommandResultV1Schema.parse({
   enrollment: {
     branchName: "factory/enroll/workout-tracker",
     commitSha: "d".repeat(40),
-    appliedActionKinds: ["declare-project", "create-xcode-container", "add-test-target", "add-ci-verification"],
-    convergence: { blocked: false, blockerIssueIds: [], openIssueCount: 0, sourceFingerprint: sha("66") },
+    appliedActionKinds: [
+      "declare-project",
+      "create-xcode-container",
+      "add-test-target",
+      "add-ci-verification",
+    ],
+    convergence: {
+      blocked: false,
+      blockerIssueIds: [],
+      openIssueCount: 0,
+      sourceFingerprint: sha("66"),
+    },
   },
-  xcodegen: { available: true, generated: true, built: true, detail: "xcodegen generate succeeded; xcodebuild build succeeded." },
+  xcodegen: {
+    available: true,
+    generated: true,
+    built: true,
+    detail: "xcodegen generate succeeded; xcodebuild build succeeded.",
+  },
 });
 writeFileSync(dir + "project-seed.response.json", JSON.stringify(ok(seedResult), null, 2) + "\n");
 
@@ -476,14 +602,24 @@ const proposePlanIntent = AssistantIntentV1Schema.parse({
   schemaVersion: 1,
   intentId: uuid(521),
   utterance: `propose ${brief.title}`,
-  payload: { kind: "propose-plan", brief, presetId: "ios-app-standard-0.4.0", projectId: null, repositoryId: null },
+  payload: {
+    kind: "propose-plan",
+    brief,
+    presetId: "ios-app-standard-0.4.0",
+    projectId: null,
+    repositoryId: null,
+  },
   summary: `Propose a plan "${brief.title}" using preset ios-app-standard-0.4.0.`,
   requiresConfirmation: true,
   proposedAt: T,
 });
 writeFileSync(
   dir + "assistant-intent-propose-plan.response.json",
-  JSON.stringify(ok({ operation: "studio.assistant.intent.propose", intent: proposePlanIntent }), null, 2) + "\n",
+  JSON.stringify(
+    ok({ operation: "studio.assistant.intent.propose", intent: proposePlanIntent }),
+    null,
+    2,
+  ) + "\n",
 );
 
 writeFileSync(

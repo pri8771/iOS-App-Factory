@@ -24,24 +24,15 @@
               "coordinator": null,
               "grader": null
             },
-            "inputs": [
-              "docs",
-              "evidence"
-            ],
+            "inputs": ["docs", "evidence"],
             "rules": {
-              "standard": [
-                "rule.dod.verification",
-                "rule.dod.experience-coverage"
-              ],
+              "standard": ["rule.dod.verification", "rule.dod.experience-coverage"],
               "yours": [],
               "requiredOutput": [],
               "acceptanceChecks": []
             },
             "outputs": [],
-            "gates": [
-              "build",
-              "tests"
-            ],
+            "gates": ["build", "tests"],
             "budget": {
               "estimateMinutes": null,
               "timeoutSeconds": 900
@@ -96,11 +87,7 @@
                 "persona": "architecture-grader"
               }
             },
-            "inputs": [
-              "docs",
-              "source-readonly",
-              "evidence"
-            ],
+            "inputs": ["docs", "source-readonly", "evidence"],
             "rules": {
               "standard": [
                 "rule.existing.no-rescaffold-without-decision",
@@ -141,9 +128,7 @@
           ],
           "graderVerdict": {
             "verdict": "pass",
-            "findings": [
-              "Proposal A chosen: fits the existing module boundary."
-            ]
+            "findings": ["Proposal A chosen: fits the existing module boundary."]
           },
           "tokenUsage": {
             "totalTokens": 18400

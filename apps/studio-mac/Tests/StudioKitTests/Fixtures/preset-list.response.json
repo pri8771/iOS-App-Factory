@@ -27,20 +27,11 @@
               "coordinator": null,
               "grader": null
             },
-            "inputs": [
-              "docs",
-              "issues"
-            ],
+            "inputs": ["docs", "issues"],
             "rules": {
-              "standard": [
-                "rule.new.scope-before-breadth"
-              ],
-              "yours": [
-                "Keep the MVP boundary to a single core loop."
-              ],
-              "requiredOutput": [
-                "State the user outcome, MVP boundary, and Definition of Done."
-              ],
+              "standard": ["rule.new.scope-before-breadth"],
+              "yours": ["Keep the MVP boundary to a single core loop."],
+              "requiredOutput": ["State the user outcome, MVP boundary, and Definition of Done."],
               "acceptanceChecks": [
                 "Contract names a concrete user outcome and explicit MVP boundary."
               ]
@@ -85,11 +76,7 @@
                 "persona": "architecture-grader"
               }
             },
-            "inputs": [
-              "docs",
-              "source-readonly",
-              "evidence"
-            ],
+            "inputs": ["docs", "source-readonly", "evidence"],
             "rules": {
               "standard": [
                 "rule.existing.no-rescaffold-without-decision",
@@ -125,24 +112,15 @@
               "coordinator": null,
               "grader": null
             },
-            "inputs": [
-              "docs",
-              "evidence"
-            ],
+            "inputs": ["docs", "evidence"],
             "rules": {
-              "standard": [
-                "rule.dod.verification",
-                "rule.dod.experience-coverage"
-              ],
+              "standard": ["rule.dod.verification", "rule.dod.experience-coverage"],
               "yours": [],
               "requiredOutput": [],
               "acceptanceChecks": []
             },
             "outputs": [],
-            "gates": [
-              "build",
-              "tests"
-            ],
+            "gates": ["build", "tests"],
             "budget": {
               "estimateMinutes": null,
               "timeoutSeconds": 900
@@ -173,11 +151,7 @@
               "coordinator": null,
               "grader": null
             },
-            "inputs": [
-              "docs",
-              "source-readonly",
-              "issues"
-            ],
+            "inputs": ["docs", "source-readonly", "issues"],
             "rules": {
               "standard": [
                 "rule.dod.verification",
@@ -204,9 +178,7 @@
             "updatedAt": "2026-08-16T22:00:00.000Z"
           }
         ],
-        "appliesTo": [
-          "ios"
-        ],
+        "appliesTo": ["ios"],
         "revision": 0,
         "createdAt": "2026-08-16T22:00:00.000Z",
         "updatedAt": "2026-08-16T22:00:00.000Z"

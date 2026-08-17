@@ -27,7 +27,7 @@ wire, not `.optional()`).
 
 `ProjectPlanItemDraft`/`ProjectPlanItem` (task vs. gate) and their draft counterparts follow
 `RoomMessage`'s pattern over `RoomChatMessage`/`RoomSystemMessage` exactly: the child struct's own
-`CodingKeys` never mentions `kind`, and the wrapping enum writes `kind` into the *same* encoder/
+`CodingKeys` never mentions `kind`, and the wrapping enum writes `kind` into the _same_ encoder/
 decoder its case's payload reads and writes its own fields from. A struct's own `CodingKeys`
 mentioning a key with no matching stored property breaks Swift's synthesized `Decodable` outright —
 this is the concrete failure this pattern avoids.
@@ -48,7 +48,7 @@ one `phaseRunStatusPill(for:)` helper instead of two copies.
 `add-item`, `remove-item`, `set-repository`. None edits `brief`. `PlannerScreen` renders the brief
 with a `staticValue` provenance badge explaining this rather than drawing an edit affordance that
 would call an operation the wire does not have — the same "never claim a capability the daemon
-doesn't back" discipline as every ADR before this one, applied to a case where the *daemon itself*
+doesn't back" discipline as every ADR before this one, applied to a case where the _daemon itself_
 (not just Studio) has the gap.
 
 ### 5. `project.seed`'s result names no `RepositoryID`/`ProjectID` — the seed sheet proposes with both `nil`

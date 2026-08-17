@@ -26,11 +26,7 @@
         "coordinator": null,
         "grader": null
       },
-      "inputs": [
-        "docs",
-        "source-readonly",
-        "issues"
-      ],
+      "inputs": ["docs", "source-readonly", "issues"],
       "rules": {
         "standard": [
           "rule.dod.verification",

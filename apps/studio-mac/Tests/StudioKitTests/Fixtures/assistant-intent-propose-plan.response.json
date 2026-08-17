@@ -13,10 +13,7 @@
         "brief": {
           "title": "Workout Tracker",
           "oneLiner": "A minimal iOS app for logging sets and rest timers.",
-          "constraints": [
-            "local-only",
-            "xcodegen"
-          ]
+          "constraints": ["local-only", "xcodegen"]
         },
         "presetId": "ios-app-standard-0.4.0",
         "projectId": null,
