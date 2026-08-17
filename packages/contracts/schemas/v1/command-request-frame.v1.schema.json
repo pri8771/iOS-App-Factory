@@ -634,10 +634,371 @@
       ]
     },
     "__schema57": {
+      "additionalProperties": false,
+      "properties": {
+        "constraints": {
+          "items": {
+            "$ref": "#/$defs/__schema58"
+          },
+          "maxItems": 20,
+          "type": "array"
+        },
+        "oneLiner": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "oneLiner",
+        "constraints"
+      ],
+      "type": "object"
+    },
+    "__schema58": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema59": {
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
       "type": "string"
     },
-    "__schema58": {
+    "__schema6": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema60": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reorder",
+              "type": "string"
+            },
+            "order": {
+              "items": {
+                "$ref": "#/$defs/__schema61"
+              },
+              "maxItems": 100,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "order"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "itemId": {
+              "$ref": "#/$defs/__schema61"
+            },
+            "kind": {
+              "const": "defer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "itemId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "itemId": {
+              "$ref": "#/$defs/__schema61"
+            },
+            "kind": {
+              "const": "retitle",
+              "type": "string"
+            },
+            "title": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "itemId",
+            "title"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "itemId": {
+              "$ref": "#/$defs/__schema61"
+            },
+            "kind": {
+              "const": "edit-task-spec-draft",
+              "type": "string"
+            },
+            "taskSpecDraft": {
+              "$ref": "#/$defs/__schema62"
+            }
+          },
+          "required": [
+            "kind",
+            "itemId",
+            "taskSpecDraft"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "afterItemId": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema61"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "item": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "dependsOn": {
+                      "$ref": "#/$defs/__schema65"
+                    },
+                    "detail": {
+                      "$ref": "#/$defs/__schema64"
+                    },
+                    "itemId": {
+                      "$ref": "#/$defs/__schema61"
+                    },
+                    "kind": {
+                      "$ref": "#/$defs/__schema66"
+                    },
+                    "phase": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "taskSpecDraft": {
+                      "$ref": "#/$defs/__schema62"
+                    },
+                    "title": {
+                      "$ref": "#/$defs/__schema63"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "phase",
+                    "title",
+                    "detail",
+                    "dependsOn",
+                    "kind",
+                    "taskSpecDraft"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "dependsOn": {
+                      "$ref": "#/$defs/__schema65"
+                    },
+                    "detail": {
+                      "$ref": "#/$defs/__schema64"
+                    },
+                    "gate": {
+                      "$ref": "#/$defs/__schema68"
+                    },
+                    "itemId": {
+                      "$ref": "#/$defs/__schema61"
+                    },
+                    "kind": {
+                      "$ref": "#/$defs/__schema67"
+                    },
+                    "phase": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "title": {
+                      "$ref": "#/$defs/__schema63"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "phase",
+                    "title",
+                    "detail",
+                    "dependsOn",
+                    "kind",
+                    "gate"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "kind": {
+              "const": "add-item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "afterItemId",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "itemId": {
+              "$ref": "#/$defs/__schema61"
+            },
+            "kind": {
+              "const": "remove-item",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "itemId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "set-repository",
+              "type": "string"
+            },
+            "repositoryId": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "kind",
+            "repositoryId"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "__schema61": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema62": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptanceCriteria": {
+          "items": {
+            "$ref": "#/$defs/__schema7"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "type": "array"
+        },
+        "objective": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "scope": {
+          "additionalProperties": false,
+          "properties": {
+            "paths": {
+              "items": {
+                "$ref": "#/$defs/__schema8"
+              },
+              "maxItems": 50,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "paths"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "objective",
+        "acceptanceCriteria",
+        "scope",
+        "phase"
+      ],
+      "type": "object"
+    },
+    "__schema63": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema64": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema65": {
+      "items": {
+        "$ref": "#/$defs/__schema61"
+      },
+      "maxItems": 10,
+      "type": "array"
+    },
+    "__schema66": {
+      "const": "task",
+      "type": "string"
+    },
+    "__schema67": {
+      "const": "gate",
+      "type": "string"
+    },
+    "__schema68": {
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "const": "human",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "__schema69": {
       "additionalProperties": false,
       "properties": {
         "displayName": {
@@ -661,20 +1022,43 @@
       ],
       "type": "object"
     },
-    "__schema59": {
+    "__schema7": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "statement": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "verification": {
+          "enum": [
+            "automated",
+            "review",
+            "operator"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "statement",
+        "verification"
+      ],
+      "type": "object"
+    },
+    "__schema70": {
       "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
     },
-    "__schema6": {
-      "pattern": "^[a-z][a-z0-9-]{0,63}$",
-      "type": "string"
-    },
-    "__schema60": {
+    "__schema71": {
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
       "type": "string"
     },
-    "__schema61": {
+    "__schema72": {
       "oneOf": [
         {
           "additionalProperties": false,
@@ -777,35 +1161,72 @@
             "answer"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "brief": {
+              "$ref": "#/$defs/__schema57"
+            },
+            "kind": {
+              "const": "propose-plan",
+              "type": "string"
+            },
+            "presetId": {
+              "$ref": "#/$defs/__schema22"
+            },
+            "projectId": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema0"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repositoryId": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema0"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "brief",
+            "presetId",
+            "projectId",
+            "repositoryId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "expectedRevision": {
+              "$ref": "#/$defs/__schema11"
+            },
+            "kind": {
+              "const": "execute-plan",
+              "type": "string"
+            },
+            "planId": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "kind",
+            "planId",
+            "expectedRevision"
+          ],
+          "type": "object"
         }
       ]
-    },
-    "__schema7": {
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/__schema6"
-        },
-        "statement": {
-          "maxLength": 2000,
-          "minLength": 1,
-          "type": "string"
-        },
-        "verification": {
-          "enum": [
-            "automated",
-            "review",
-            "operator"
-          ],
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "statement",
-        "verification"
-      ],
-      "type": "object"
     },
     "__schema8": {
       "maxLength": 1024,
@@ -1699,6 +2120,54 @@
               "$ref": "#/$defs/__schema2"
             },
             "operation": {
+              "const": "project.seed",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "targetDirectory": {
+                  "$ref": "#/$defs/__schema13"
+                }
+              },
+              "required": [
+                "targetDirectory",
+                "name"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
               "const": "project.milestones.list",
               "type": "string"
             },
@@ -2044,6 +2513,387 @@
               "$ref": "#/$defs/__schema2"
             },
             "operation": {
+              "const": "plan.propose",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "brief": {
+                  "$ref": "#/$defs/__schema57"
+                },
+                "presetId": {
+                  "$ref": "#/$defs/__schema22"
+                },
+                "projectId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "repositoryId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "messageId": {
+                          "anyOf": [
+                            {
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "roomId": {
+                          "$ref": "#/$defs/__schema59"
+                        }
+                      },
+                      "required": [
+                        "roomId",
+                        "messageId"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "brief",
+                "presetId",
+                "projectId",
+                "repositoryId",
+                "source"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "plan.edit",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "edits": {
+                  "items": {
+                    "$ref": "#/$defs/__schema60"
+                  },
+                  "maxItems": 20,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "expectedRevision": {
+                  "$ref": "#/$defs/__schema11"
+                },
+                "planId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "planId",
+                "expectedRevision",
+                "edits"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "plan.approve",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "expectedRevision": {
+                  "$ref": "#/$defs/__schema11"
+                },
+                "planId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "planId",
+                "expectedRevision"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "plan.execute",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "expectedRevision": {
+                  "$ref": "#/$defs/__schema11"
+                },
+                "planId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "planId",
+                "expectedRevision"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "plan.approve-gate",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "expectedRevision": {
+                  "$ref": "#/$defs/__schema11"
+                },
+                "itemId": {
+                  "$ref": "#/$defs/__schema61"
+                },
+                "planId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "planId",
+                "itemId",
+                "expectedRevision"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "plan.status",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "planId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "planId"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "plan.tick",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "planId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "planId"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
               "const": "effects.status",
               "type": "string"
             },
@@ -2204,10 +3054,10 @@
                   "additionalProperties": false,
                   "properties": {
                     "dailyCeilingTokens": {
-                      "$ref": "#/$defs/__schema59"
+                      "$ref": "#/$defs/__schema70"
                     },
                     "maxTokensPerReply": {
-                      "$ref": "#/$defs/__schema59"
+                      "$ref": "#/$defs/__schema70"
                     },
                     "unattendedDailyCeilingTokens": {
                       "$ref": "#/$defs/__schema11"
@@ -2222,7 +3072,7 @@
                 },
                 "participants": {
                   "items": {
-                    "$ref": "#/$defs/__schema58"
+                    "$ref": "#/$defs/__schema69"
                   },
                   "maxItems": 16,
                   "minItems": 1,
@@ -2239,7 +3089,7 @@
                   ]
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema57"
+                  "$ref": "#/$defs/__schema59"
                 },
                 "title": {
                   "maxLength": 200,
@@ -2344,10 +3194,10 @@
                   "type": "string"
                 },
                 "handle": {
-                  "$ref": "#/$defs/__schema60"
+                  "$ref": "#/$defs/__schema71"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema57"
+                  "$ref": "#/$defs/__schema59"
                 }
               },
               "required": [
@@ -2399,7 +3249,7 @@
                   "type": "integer"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema57"
+                  "$ref": "#/$defs/__schema59"
                 }
               },
               "required": [
@@ -2443,10 +3293,10 @@
               "additionalProperties": false,
               "properties": {
                 "handle": {
-                  "$ref": "#/$defs/__schema60"
+                  "$ref": "#/$defs/__schema71"
                 },
                 "roomId": {
-                  "$ref": "#/$defs/__schema57"
+                  "$ref": "#/$defs/__schema59"
                 },
                 "ttlMs": {
                   "maximum": 30000,
@@ -2596,7 +3446,7 @@
               "additionalProperties": false,
               "properties": {
                 "intent": {
-                  "$ref": "#/$defs/__schema61"
+                  "$ref": "#/$defs/__schema72"
                 },
                 "utterance": {
                   "maxLength": 2000,
@@ -2650,7 +3500,7 @@
                       "$ref": "#/$defs/__schema0"
                     },
                     "payload": {
-                      "$ref": "#/$defs/__schema61"
+                      "$ref": "#/$defs/__schema72"
                     },
                     "proposedAt": {
                       "$ref": "#/$defs/__schema2"

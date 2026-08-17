@@ -26,6 +26,15 @@ import {
   PhasePresetV1Schema,
 } from "./phase.js";
 import {
+  ProjectPlanApproveGateV1Schema,
+  ProjectPlanApproveV1Schema,
+  ProjectPlanEditBatchV1Schema,
+  ProjectPlanExecuteV1Schema,
+  ProjectPlanProposeV1Schema,
+  ProjectPlanTickV1Schema,
+  ProjectPlanV1Schema,
+} from "./project-plan.js";
+import {
   AbsolutePathSchema,
   AssistantIntentIdSchema,
   AttemptIdSchema,
@@ -37,6 +46,7 @@ import {
   NamespacedCodeSchema,
   NonNegativeSafeIntegerSchema,
   ProjectIdSchema,
+  ProjectPlanIdSchema,
   RelativePathSchema,
   RequestIdSchema,
   SchemaVersionV1Schema,
@@ -306,6 +316,23 @@ export const ProjectApplyCommandRequestV1Schema = z.strictObject({
   }),
 });
 
+/**
+ * `project.seed`: the from-scratch entry point for the planner's `seed-repo` template item. Given
+ * a target directory that must not exist or be empty, creates a brand-new local repository (Git
+ * init, an XcodeGen `project.yml` for an iOS app target plus a unit test target, a GitHub Actions
+ * workflow, one passing XCTest, README, `docs/STATUS.md`, `.app-factory/project.json`), commits
+ * it, then runs the same enrollment scan-and-apply `project.scan`/`project.apply` already perform
+ * on it so the result is a converged enrolled project, not just a pile of files.
+ */
+export const ProjectSeedCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.seed"),
+  payload: z.strictObject({
+    targetDirectory: AbsolutePathSchema,
+    name: z.string().min(1).max(200),
+  }),
+});
+
 export const ProjectMilestonesListCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("project.milestones.list"),
@@ -339,6 +366,53 @@ export const PhaseUpsertCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("phase.upsert"),
   payload: PhaseDefinitionUpsertV1Schema,
+});
+
+// The Planner (`plan.*`): see `project-plan.ts`'s module doc comment. `plan.propose` builds a
+// `ProjectPlanV1` deterministically from a `PhasePresetV1`; `plan.edit`/`plan.approve` are pure CAS
+// mutations; `plan.execute` starts the first ready item and `plan.tick` advances the chain as each
+// task attempt reaches a terminal state (a human-owned gate item pauses the chain for
+// `plan.approve-gate`). Durable and idempotent by command ID like every other CAS-upsert op here.
+export const PlanProposeCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("plan.propose"),
+  payload: ProjectPlanProposeV1Schema,
+});
+
+export const PlanEditCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("plan.edit"),
+  payload: ProjectPlanEditBatchV1Schema,
+});
+
+export const PlanApproveCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("plan.approve"),
+  payload: ProjectPlanApproveV1Schema,
+});
+
+export const PlanExecuteCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("plan.execute"),
+  payload: ProjectPlanExecuteV1Schema,
+});
+
+export const PlanApproveGateCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("plan.approve-gate"),
+  payload: ProjectPlanApproveGateV1Schema,
+});
+
+export const PlanStatusCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("plan.status"),
+  payload: z.strictObject({ planId: ProjectPlanIdSchema }),
+});
+
+export const PlanTickCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("plan.tick"),
+  payload: ProjectPlanTickV1Schema,
 });
 
 // Studio rooms (`room.*`) wire types. The moderator is daemon-owned deterministic code
@@ -435,11 +509,19 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProjectScanCommandRequestV1Schema,
   ProjectEnrollPlanCommandRequestV1Schema,
   ProjectApplyCommandRequestV1Schema,
+  ProjectSeedCommandRequestV1Schema,
   ProjectMilestonesListCommandRequestV1Schema,
   ProjectMilestoneUpsertCommandRequestV1Schema,
   PresetListCommandRequestV1Schema,
   PresetUpsertCommandRequestV1Schema,
   PhaseUpsertCommandRequestV1Schema,
+  PlanProposeCommandRequestV1Schema,
+  PlanEditCommandRequestV1Schema,
+  PlanApproveCommandRequestV1Schema,
+  PlanExecuteCommandRequestV1Schema,
+  PlanApproveGateCommandRequestV1Schema,
+  PlanStatusCommandRequestV1Schema,
+  PlanTickCommandRequestV1Schema,
   EffectsStatusCommandRequestV1Schema,
   EffectsListCommandRequestV1Schema,
   RoomCreateCommandRequestV1Schema,
@@ -675,6 +757,32 @@ export const ProjectApplyCommandResultV1Schema = z.strictObject({
 });
 
 /**
+ * `xcodegen` reflects `which xcodegen`: when unavailable, `generated`/`built` are both `false` and
+ * `detail` says so plainly rather than silently skipping the step. Nothing is ever installed.
+ */
+export const ProjectSeedToolchainStepV1Schema = z.strictObject({
+  available: z.boolean(),
+  generated: z.boolean(),
+  built: z.boolean(),
+  detail: z.string().min(1).max(1_000),
+});
+export type ProjectSeedToolchainStepV1 = z.infer<typeof ProjectSeedToolchainStepV1Schema>;
+
+export const ProjectSeedCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.seed"),
+  repositoryRoot: AbsolutePathSchema,
+  scaffoldCommitSha: GitObjectIdSchema,
+  planDigest: Sha256DigestSchema,
+  enrollment: z.strictObject({
+    branchName: GitBranchNameSchema.nullable(),
+    commitSha: GitObjectIdSchema.nullable(),
+    appliedActionKinds: z.array(EnrollmentActionKindV1Schema).max(1_000),
+    convergence: ProjectApplyConvergenceV1Schema,
+  }),
+  xcodegen: ProjectSeedToolchainStepV1Schema,
+});
+
+/**
  * `project.milestones.list` answers with the whole `ProjectTimelineV1` (the
  * project's milestones plus the actuals derived from its attempts) rather
  * than a bare list, so a Studio timeline never has to stitch plan and actuals
@@ -707,6 +815,45 @@ export const PhaseUpsertCommandResultV1Schema = z.strictObject({
   operation: z.literal("phase.upsert"),
   phase: PhaseDefinitionV1Schema,
   created: z.boolean(),
+});
+
+export const PlanProposeCommandResultV1Schema = z.strictObject({
+  operation: z.literal("plan.propose"),
+  plan: ProjectPlanV1Schema,
+});
+
+export const PlanEditCommandResultV1Schema = z.strictObject({
+  operation: z.literal("plan.edit"),
+  plan: ProjectPlanV1Schema,
+});
+
+export const PlanApproveCommandResultV1Schema = z.strictObject({
+  operation: z.literal("plan.approve"),
+  plan: ProjectPlanV1Schema,
+});
+
+export const PlanExecuteCommandResultV1Schema = z.strictObject({
+  operation: z.literal("plan.execute"),
+  plan: ProjectPlanV1Schema,
+});
+
+export const PlanApproveGateCommandResultV1Schema = z.strictObject({
+  operation: z.literal("plan.approve-gate"),
+  plan: ProjectPlanV1Schema,
+});
+
+export const PlanStatusCommandResultV1Schema = z.strictObject({
+  operation: z.literal("plan.status"),
+  plan: ProjectPlanV1Schema,
+});
+
+/** `advanced` is true when this tick moved the plan forward (submitted the next item, advanced the
+ * mirror base, or completed the plan); false when there was nothing new to do (still running, or
+ * paused at a gate awaiting `plan.approve-gate`). */
+export const PlanTickCommandResultV1Schema = z.strictObject({
+  operation: z.literal("plan.tick"),
+  plan: ProjectPlanV1Schema,
+  advanced: z.boolean(),
 });
 
 export const RoomCreateCommandResultV1Schema = z.strictObject({
@@ -767,6 +914,8 @@ export const AssistantIntentExecutionOutcomeV1Schema = z.discriminatedUnion("kin
   z.strictObject({ kind: z.literal("project.scan"), result: ProjectScanCommandResultV1Schema }),
   z.strictObject({ kind: z.literal("project.apply"), result: ProjectApplyCommandResultV1Schema }),
   z.strictObject({ kind: z.literal("attempt.unblock"), result: UnblockCommandResultV1Schema }),
+  z.strictObject({ kind: z.literal("plan.propose"), result: PlanProposeCommandResultV1Schema }),
+  z.strictObject({ kind: z.literal("plan.execute"), result: PlanExecuteCommandResultV1Schema }),
 ]);
 export type AssistantIntentExecutionOutcomeV1 = z.infer<
   typeof AssistantIntentExecutionOutcomeV1Schema
@@ -799,11 +948,19 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProjectScanCommandResultV1Schema,
   ProjectEnrollPlanCommandResultV1Schema,
   ProjectApplyCommandResultV1Schema,
+  ProjectSeedCommandResultV1Schema,
   ProjectMilestonesListCommandResultV1Schema,
   ProjectMilestoneUpsertCommandResultV1Schema,
   PresetListCommandResultV1Schema,
   PresetUpsertCommandResultV1Schema,
   PhaseUpsertCommandResultV1Schema,
+  PlanProposeCommandResultV1Schema,
+  PlanEditCommandResultV1Schema,
+  PlanApproveCommandResultV1Schema,
+  PlanExecuteCommandResultV1Schema,
+  PlanApproveGateCommandResultV1Schema,
+  PlanStatusCommandResultV1Schema,
+  PlanTickCommandResultV1Schema,
   EffectsStatusCommandResultV1Schema,
   EffectsListCommandResultV1Schema,
   RoomCreateCommandResultV1Schema,

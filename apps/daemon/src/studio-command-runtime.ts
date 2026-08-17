@@ -401,6 +401,8 @@ const INTENT_PHRASE_PREFIX_V1: Readonly<Record<AssistantIntentPayloadV1["kind"],
   "scan-project": "scan ",
   "enroll-project": "enroll ",
   "approve-attempt": "approve ",
+  "propose-plan": "propose ",
+  "execute-plan": "execute ",
 };
 
 function identifiersOf(payload: AssistantIntentPayloadV1): readonly string[] {
@@ -414,6 +416,10 @@ function identifiersOf(payload: AssistantIntentPayloadV1): readonly string[] {
       return [payload.planDigest];
     case "approve-attempt":
       return [payload.attemptId];
+    case "propose-plan":
+      return [payload.brief.title];
+    case "execute-plan":
+      return [payload.planId];
   }
 }
 
@@ -461,6 +467,10 @@ function summarizeIntentPayloadV1(payload: AssistantIntentPayloadV1): string {
       }.`;
     case "approve-attempt":
       return `Approve attempt ${payload.attemptId} and resume it with the given answer.`;
+    case "propose-plan":
+      return `Propose a plan "${payload.brief.title}" using preset ${payload.presetId}.`;
+    case "execute-plan":
+      return `Execute plan ${payload.planId} (from revision ${String(payload.expectedRevision)}).`;
   }
 }
 
@@ -538,6 +548,27 @@ export function buildAssistantIntentDispatchRequestV1(
         ...base,
         operation: "attempt.unblock",
         payload: { attemptId: intent.payload.attemptId, answer: intent.payload.answer },
+      });
+    case "propose-plan":
+      return CommandRequestV1Schema.parse({
+        ...base,
+        operation: "plan.propose",
+        payload: {
+          brief: intent.payload.brief,
+          presetId: intent.payload.presetId,
+          projectId: intent.payload.projectId,
+          repositoryId: intent.payload.repositoryId,
+          source: null,
+        },
+      });
+    case "execute-plan":
+      return CommandRequestV1Schema.parse({
+        ...base,
+        operation: "plan.execute",
+        payload: {
+          planId: intent.payload.planId,
+          expectedRevision: intent.payload.expectedRevision,
+        },
       });
   }
 }

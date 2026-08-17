@@ -44,6 +44,23 @@ payload is identical. `task new` accepts `--phase KEY` to tag the task with the
 Studio phase it belongs to; omitting it leaves the spec without a `phase` key,
 so its digest is unchanged.
 
+The Planner turns a brief into a skimmable, editable task list and executes
+it. `plan propose --preset ID --title TEXT --one-liner TEXT
+[--constraint TEXT]... [--project UUID] [--repository UUID]` builds the item
+list deterministically from a Phase Preset's phases. `plan show <plan-id>`
+(alias `plan status`) prints the current head. `plan edit <plan-id>
+--expected-revision N --edits <path>` applies a JSON array of edits (reorder,
+defer, retitle, edit-task-spec-draft, add-item, remove-item, set-repository)
+read from a file. `plan approve <plan-id> --expected-revision N` and `plan
+execute <plan-id> --expected-revision N` move a plan from draft to approved to
+executing, submitting its first ready task item. `plan approve-gate <plan-id>
+<item-id> --expected-revision N` clears a pending human checkpoint. `plan tick
+<plan-id>` advances the chain by one step (settle the running item, advance
+the repository's base, submit the next item, or complete). `project seed
+<absolute-path> --name TEXT` is the from-scratch entry point: it creates a new
+Git repository with an XcodeGen scaffold, a GitHub Actions workflow, and one
+passing test, commits it, and runs enrollment scan-and-apply on it.
+
 Every invocation creates an explicit durable command identity. If delivery is
 ambiguous after dispatch, human output prints a recovery command and JSON
 output includes `error.retryIdentity`. Retry the same operation and payload

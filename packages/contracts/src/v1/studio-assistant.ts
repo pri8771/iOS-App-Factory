@@ -1,15 +1,20 @@
 import { z } from "zod";
 
+import { PhasePresetIdSchema } from "./phase.js";
 import {
   AbsolutePathSchema,
   AssistantIntentIdSchema,
   AttemptIdSchema,
   GitBranchNameSchema,
   IsoInstantSchema,
+  NonNegativeSafeIntegerSchema,
   ProjectIdSchema,
+  ProjectPlanIdSchema,
+  RepositoryIdSchema,
   SchemaVersionV1Schema,
   Sha256DigestSchema,
 } from "./primitives.js";
+import { ProjectPlanBriefV1Schema } from "./project-plan.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
 /**
@@ -78,6 +83,8 @@ export const AssistantIntentKindV1Schema = z.enum([
   "scan-project",
   "enroll-project",
   "approve-attempt",
+  "propose-plan",
+  "execute-plan",
 ]);
 export type AssistantIntentKindV1 = z.infer<typeof AssistantIntentKindV1Schema>;
 
@@ -109,6 +116,20 @@ export const AssistantIntentPayloadV1Schema = z.discriminatedUnion("kind", [
     kind: z.literal("approve-attempt"),
     attemptId: AttemptIdSchema,
     answer: z.string().min(1).max(2_000),
+  }),
+  // -> plan.propose. "build me X" / "start a new project" / "turn this into a project" in chat.
+  z.strictObject({
+    kind: z.literal("propose-plan"),
+    brief: ProjectPlanBriefV1Schema,
+    presetId: PhasePresetIdSchema,
+    projectId: ProjectIdSchema.nullable(),
+    repositoryId: RepositoryIdSchema.nullable(),
+  }),
+  // -> plan.execute. "go" after a proposed plan has been reviewed/approved.
+  z.strictObject({
+    kind: z.literal("execute-plan"),
+    planId: ProjectPlanIdSchema,
+    expectedRevision: NonNegativeSafeIntegerSchema,
   }),
 ]);
 export type AssistantIntentPayloadV1 = z.infer<typeof AssistantIntentPayloadV1Schema>;
