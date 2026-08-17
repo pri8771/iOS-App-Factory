@@ -1,6 +1,7 @@
 # Implementation status
 
-Updated: 2026-08-17 (rewrites the "Studio (Mac app)" section below against
+Updated: 2026-08-17 evening (Studio bullets refreshed after the run-export, roster,
+corpus 0.4.0, and reviewer-live-smoke merges; the earlier same-day pass rewrote the "Studio (Mac app)" section below against
 `integration/studio-wave1`, verifying every claim against code and tests
 rather than trusting the prior entry — Studio Phases 1–4 are merged and this
 is now the authoritative status for them; the docs/truth-sweep
@@ -150,7 +151,7 @@ gives the same read at a glance:
   `StudioKit`/`Studio` SwiftPM package, a real `DaemonClient` over
   `NWConnection` speaking the daemon's existing Unix-socket protocol, and a
   dashboard reading `portfolio.snapshot` live. `swift build && swift test`
-  passes (190/190 as of this entry).
+  passes (212/212 as of 2026-08-17 evening).
 - **Phase 2 (studio.snapshot / studio.assistant / milestones / phase field /
   policy scoping) — Implemented.** `studio.snapshot` and
   `studio.assistant.{query,intent.propose,intent.execute}` are unconditional
@@ -190,13 +191,15 @@ gives the same read at a glance:
   `apps/studio-mac/Sources/StudioKit/Rooms/` is wired into the chat tab and
   corner chat. Commit `513fb39`'s message
   claims a live round ran with real Codex, Claude, and a local Ollama model,
-  chaining through the 3-consecutive-agent-message cap; **this could not be
-  verified**: every test that commit added exercises a `FakeProcess`
-  fixture, no evidence blob or transcript for it exists anywhere in this
-  repository, and — unlike a task attempt — a room round leaves no
-  Git-backed mirror/broker-commit a reader could check the way
-  [`RUN_LEDGER.md`](RUN_LEDGER.md) checks everything else. See that file's
-  new entry for the same caveat spelled out.
+  chaining through the 3-consecutive-agent-message cap; on 2026-08-17 that
+  round's private runtime was found still on disk, read (room `c73ea169…`,
+  seven `room_messages`, `chain-cap` system line, 517 tokens) and preserved
+  owner-only at `~/.app-factory-room-smoke-2026-08-16` — so the claim is now
+  **checked against the runtime by a second session**, though still not by
+  the Git-backed mirror/broker-commit recipe [`RUN_LEDGER.md`](RUN_LEDGER.md)
+  applies to task attempts (a room round has no such artefact). Every test
+  the commit added still exercises a `FakeProcess` fixture. `room.participants.list`
+  (2026-08-17) now sources the new-room sheet's roster from the daemon.
 - **Phase 4 (presets, planner, phase runner, project registry, PHASES tab,
   planner UI) — Implemented, including two wire gaps this pass closed.**
   Contracts (`phase.ts`, `phase-run.ts`, `project-plan.ts`,
@@ -216,15 +219,30 @@ gives the same read at a glance:
 - No live Jira, GitHub, or App Store Connect call has ever been made from
   this repository's code (row 7/8 above; the effect pump ships default-off
   with an empty adapter registry).
-- The read-only Codex independent-reviewer adapter has never made a live
-  model call — fake-executable tests only (row 3 above).
+- The read-only Codex independent-reviewer adapter made its first live model
+  calls on 2026-08-17 (two invocations by hand: one refused pre-model by the
+  CLI, fixed with `--skip-git-repo-check`; one completed, verdict
+  `changes-required`, one correct P1 —
+  [`docs/operations/llm-independent-review.md`](../operations/llm-independent-review.md)).
+  It has not yet reviewed a real Factory attempt; the pilot rows in
+  `RUN_LEDGER.md` all used the project's configured reviewer (row 3 above).
 - No quality gate, certification, archive, upload, or TestFlight build has
   run from this daemon (rows 10–14 above).
 - Unattended rooms mode (`room.unattendedEnabled`) is implemented and unit
   tested against fakes but not proven live.
-- No `room.*` operation lists the daemon's configured personas; the
-  new-room sheet's participant rows are an honest client-side suggestion,
-  labeled **NOT YET SOURCED** in the UI, not sourced from the wire.
+- ~~No `room.*` operation lists the daemon's configured personas.~~ Closed
+  2026-08-17: `room.participants.list` returns the daemon's configured
+  providers (provider/model/CLI version only — never executables, paths,
+  digests, or endpoints) and roster personas, digest-bound; the new-room
+  sheet seeds its rows from it with a LIVE provenance badge, or shows the
+  daemon's `unavailableReason` when rooms are disabled.
+- Every verified Factory run now has a committed `factory run export`
+  record (`docs/progress/runs/*.json`, digests repeated in `RUN_LEDGER.md`);
+  the pre-0006 migration-checksum defect that had made the first run's
+  runtime unopenable is fixed in `packages/kernel/src/migrations.ts`.
+- The compiled iOS App Factory policy is reconciled against upstream corpus
+  0.4.0 (`4b8b12e`, policyVersion 2; `docs/policy/RULES_CORPUS_RECONCILIATION.md`);
+  the "0.5.0 pin" is an upstream CLI/VERSION inconsistency, not a release.
 - Phases 5 (Jira/Notion mirrors, analytics) and 6 (release rail) remain not
   started, blocked on the same external/protected gates rows 7, 8, and 13
   above already describe — see `STUDIO_PHASES.md` for the phase-by-phase

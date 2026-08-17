@@ -278,9 +278,13 @@ original wording named.
 
 - No provider HTTP call has ever been made; the effect pump ships default-off with an
   empty adapter registry.
-- The independent reviewer used here is the project's configured reviewer. The
-  read-only Codex reviewer adapter has passed only fake-executable tests and has never
-  run against a live model.
+- The independent reviewer used in every row above is the project's configured
+  reviewer. The read-only Codex reviewer adapter made its first live model calls on
+  2026-08-17 (two invocations, by hand, outside CI: the first refused pre-model by the
+  CLI and fixed with `--skip-git-repo-check`, the second completed with a correct
+  `changes-required` verdict; results under `~/.app-factory-reviewer-smoke/results/`,
+  write-up in [`docs/operations/llm-independent-review.md`](../operations/llm-independent-review.md)).
+  It has still never reviewed a real Factory attempt — no row above used it.
 - No quality gate, certification, archive, upload, or TestFlight build has run.
 - UI-test verification has been part of exactly one passing plan
   (`test.hindsight-ui`, attempt `40139cdb…`); it is not yet routine.
