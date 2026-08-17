@@ -73,12 +73,24 @@ function prepare(
 
 async function waitUntil<T>(observe: () => T | null, timeoutMs = 8_000): Promise<T> {
   const deadline = performance.now() + timeoutMs;
+  let lastError: unknown;
   do {
-    const result = observe();
-    if (result !== null) return result;
+    try {
+      const result = observe();
+      lastError = undefined;
+      if (result !== null) return result;
+    } catch (error) {
+      // A concurrently running controller/gate process can leave a durable artifact
+      // transiently mid-publish (e.g. the narrow link()-then-unlink() window while its
+      // exclusive-create is being finalized under real CPU contention). That is not a final
+      // answer, just a state this poll hasn't caught up with yet -- keep polling instead of
+      // failing on the very first observation. The last error is attached as the cause if the
+      // deadline is reached without ever observing the condition.
+      lastError = error;
+    }
     await new Promise((resolve) => setTimeout(resolve, 10));
   } while (performance.now() < deadline);
-  throw new Error("Condition was not observed before the polling deadline");
+  throw new Error("Condition was not observed before the polling deadline", { cause: lastError });
 }
 
 async function launchAndWait(prepared: PreparedSupervisedRun) {
@@ -426,6 +438,18 @@ describe("supervised run contracts", () => {
   });
 });
 
+// Per-test timeouts below (measured on Node 24.18 / Apple M5 Pro, 2026-08-16): every test in this
+// block spawns real controller/gate/target processes and polls durable artifacts through helpers
+// with their own internal deadlines -- launchAndWait's registration wait defaults to 5_000 ms and
+// each waitForTerminal/waitUntil call defaults to 8_000 ms. Those are the helpers' own bounded
+// budgets for a slow-but-correct machine to still observe the right outcome; they are deliberately
+// wider than vitest's implicit 5_000 ms per-test default, so under real CPU contention (parallel
+// package tests during `pnpm verify`) the outer test was being killed by vitest's default timeout
+// before the inner helper's own, more informative deadline (or the operation itself) had a chance
+// to resolve -- observed directly as "Test timed out in 5000ms" with no assertion failure at all.
+// Each explicit timeout below is sized to the worst-case sum of the internal helper deadlines the
+// test can hit, plus headroom; normal runs finish in well under 1 second (see baseline timings in
+// the flake-fix commit message).
 describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
   "compiled supervised controller integration",
   () => {
@@ -474,7 +498,7 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
         }),
       ).toMatchObject({ outcome: "already-terminal" });
       expect(spawnController).not.toHaveBeenCalled();
-    });
+    }, 20_000);
 
     it("bounds an uncooperative target with timeout and forced process-group termination", async () => {
       // Timing budget (measured on Node 24.18 / Apple M5 Pro, 2026-08-16):
@@ -509,7 +533,7 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
       expect(terminal.receipt.outcome).toBe("timed-out");
       expect(terminal.receipt.terminationOrigin).toBe("timeout");
       expect(terminal.receipt.process.signal).toBe("SIGKILL");
-    });
+    }, 20_000);
 
     it("bounds output, records truncation, and classifies overflow", async () => {
       const prepared = prepare({
@@ -533,7 +557,7 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
       });
       expect(terminal.receipt.stdout.observedByteLength).toBeGreaterThan(64);
       expect(readFileSync(prepared.paths.stdoutPath).byteLength).toBe(64);
-    });
+    }, 20_000);
 
     it("cancels a registered target identity-safely and emits a cancellation receipt", async () => {
       const prepared = prepare({
@@ -596,7 +620,7 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
         return observation.state === "blocked" ? true : null;
       });
       expect(existsSync(prepared.paths.receiptPath)).toBe(false);
-    });
+    }, 30_000);
 
     it("fsyncs the terminal receipt before state removal and exposes a stale-lock blocker", async () => {
       const prepared = prepare({
@@ -632,6 +656,6 @@ describe.runIf(existsSync(COMPILED_ENTRYPOINT))(
         outcome: "blocked",
         reason: expect.stringContaining("operator must verify the mutation lock"),
       });
-    });
+    }, 30_000);
   },
 );
