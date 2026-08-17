@@ -1,0 +1,23 @@
+{
+  "canonical": ["idea", "building", "qa", "launch-prep", "live", "frozen"],
+  "legacy": [
+    "exploring",
+    "planned",
+    "building",
+    "qa",
+    "internal-testflight",
+    "released",
+    "paused",
+    "archived"
+  ],
+  "legacyMap": {
+    "exploring": "idea",
+    "planned": "idea",
+    "building": "building",
+    "qa": "qa",
+    "internal-testflight": "launch-prep",
+    "released": "live",
+    "paused": "frozen",
+    "archived": "frozen"
+  }
+}
