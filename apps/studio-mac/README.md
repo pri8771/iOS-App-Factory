@@ -11,12 +11,16 @@ apps/studio-mac/
 │   │                             DiamondGate, StatusPill, HUDButton, ProvenanceBadge, HUDGallery
 │   ├── Client/                   DaemonClient (actor, Network.framework), AuthorizationToken,
 │   │                             ExchangeSession, DaemonClientError, DaemonLocator
-│   ├── Models/                   Codable mirrors of packages/contracts v1 (32 operations — the
+│   ├── Models/                   Codable mirrors of packages/contracts v1 (48 operations — the
 │   │                             phase-1 21, Studio Phase 2's studio.snapshot,
 │   │                             studio.assistant.{query,intent.propose,intent.execute},
-│   │                             project.milestones.{list,upsert}, and the five room.* ops
-│   │                             (room.create/list/post/events/typing): StudioSnapshot.swift,
-│   │                             Assistant.swift, Milestone.swift, Room.swift), Provenance/Sourced,
+│   │                             project.milestones.{list,upsert}, the five room.* ops
+│   │                             (room.create/list/post/events/typing), and Studio Phase 4's
+│   │                             preset.{list,upsert}/phase.upsert, phase.{run,status,list,approve,
+│   │                             reject}, plan.{propose,edit,approve,execute,approve-gate,status,
+│   │                             tick}, and project.seed): StudioSnapshot.swift, Assistant.swift,
+│   │                             Milestone.swift, Room.swift, Phase.swift, PhaseRun.swift,
+│   │                             ProjectPlan.swift, ProjectSeed.swift), Provenance/Sourced,
 │   │                             Timeline (ProjectTimeline, DayStamp, fixture loader)
 │   ├── Canonical/                JSONValue, CanonicalJSON, PortfolioDigest, StudioSnapshotDigest
 │   ├── Dashboard/                DashboardModel (pure derivations — a phase-1 portfolio.snapshot
@@ -26,21 +30,33 @@ apps/studio-mac/
 │   │                             MilestoneEditorView
 │   ├── Chat/                     ScriptedAssistant (stub fallback) + DaemonAssistant
 │   │                             (AssistantBackend, IntentRecognizer) + ChatModel, CornerChatView,
-│   │                             ChatScreen — both gain a Rooms section when a RoomsModel is supplied
+│   │                             ChatScreen — both gain a Rooms section when a RoomsModel is
+│   │                             supplied, and open the Planner when confirming a propose-plan/
+│   │                             execute-plan intent card resolves to a ProjectPlan (see ADR 0004)
 │   ├── Rooms/                    RoomsModel (@Observable — room.list/events polling, room.post,
 │   │                             debounced room.typing), RoomMessageRow (human/agent/system/typed
 │   │                             -error/PASS), RoomTranscriptView, RoomRosterPanel (live state ·
 │   │                             budget meter · mode line), NewRoomSheet
-│   ├── Shell/                    StudioStore (@Observable, owns a RoomsModel), StudioTitleBar,
-│   │                             DashboardScreen, StudioRootView, PhasesScreen
+│   ├── Phases/                   PhasesModel (@Observable — preset.list, phase.upsert then
+│   │                             preset.upsert on save, phase.run + phase.status polling,
+│   │                             phase.approve/reject, phase.list), PhasesScreen (presets ·
+│   │                             editor · recent runs), PhaseEditorView, PhaseRunStatusStrip
+│   ├── Planner/                  PlannerModel (@Observable — plan.propose/edit/approve/execute/
+│   │                             approve-gate, plan.status polling while executing,
+│   │                             project.seed), PlannerScreen (the punch list), SeedProjectSheet
+│   ├── Shell/                    StudioStore (@Observable, owns a RoomsModel/PhasesModel/
+│   │                             PlannerModel), StudioTitleBar, DashboardScreen, StudioRootView
 │   └── Resources/timeline-fixture.json   FIXTURE rows for the six apps (see docs 0002)
 ├── Sources/Studio/StudioApp.swift  the app: locate daemon from env, own the store, one window
 ├── Tests/StudioKitTests/         unit, fake-daemon, snapshot, and live-daemon (skippable) tests
 ├── scripts/record-fixtures.mjs   regenerates Tests/…/Fixtures through the real zod schemas
 ├── scripts/record-room-fixtures.mjs   the room.* fixtures, standalone — see the script's own doc
 │                                 comment for why it isn't folded into record-fixtures.mjs
+├── scripts/record-phase4-fixtures.mjs   the preset/phase-run/plan/project.seed fixtures, against
+│                                 this worktree's own built contracts (see ADR 0004)
 └── docs/architecture/            0001 foundations · 0002 dashboard provenance + fixture timeline ·
-                                   0003 Studio Phase 2 (studio.snapshot, assistant, milestones)
+                                   0003 Studio Phase 2 (studio.snapshot, assistant, milestones) ·
+                                   0004 Studio Phase 4 (presets, the Phase Runner, the Planner)
 ```
 
 ## Build & test
@@ -112,10 +128,21 @@ corner chat are sourced from it; against a phase-1-only daemon (or none), everyt
   `StudioPortfolioAggregates.verifiedThisWeek`).
 - **Fixture** (`timeline-fixture.json`, TODO milestones schema): the six timeline rows and their
   lifecycle tracks, ◆ gates in awaiting-you, phase rings, reticle fallback.
-- **Static / stub**: budget 38%, the Phases tab, the scripted assistant — now only the fallback path
-  when `studio.assistant.query`/`.intent.propose` is unsupported or fails (see docs/architecture/0003).
+- **Static / stub**: budget 38%, the scripted assistant — now only the fallback path when
+  `studio.assistant.query`/`.intent.propose` is unsupported or fails (see docs/architecture/0003); the
+  Planner's brief panel (no `plan.edit` kind edits it — see ADR 0004 decision 4).
 - **Not yet sourced**: min / release (no Phase 2 aggregate names it — see 0003); agent window until the
-  daemon actually computes `agentWindowShare` (today it always reports `unavailableReason`).
+  daemon actually computes `agentWindowShare` (today it always reports `unavailableReason`); a
+  proposed plan's `repositoryId` right after `project.seed` (see ADR 0004 decision 5).
+
+### Phases and the Planner
+
+`preset.*`/`phase.*`/`plan.*`/`project.seed` are unconditionally supported, like `room.*` below — no
+feature-detection fallback (see ADR 0004). Everything the PHASES tab and the Planner show is **live**:
+the preset list and the selected phase's fields, a launched run's state (polled via `phase.status`
+while it is not terminal), the recent-runs panel (`phase.list`), and the punch list (`plan.status`,
+polled while `executing`). The one exception is the Planner's brief, which is **static** — there is no
+`plan.edit` kind that changes it (ADR 0004 decision 4).
 
 ### Rooms
 

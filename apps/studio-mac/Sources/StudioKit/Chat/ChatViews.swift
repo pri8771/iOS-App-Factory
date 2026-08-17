@@ -147,15 +147,19 @@ public struct ConversationView: View {
     /// `store.assistantBackend` so real messages try the daemon assistant first.
     public var backend: (() -> AssistantBackend?)?
     public var compact: Bool
+    /// Called when confirming an intent produces a `ProjectPlan` (`propose-plan`/`execute-plan`
+    /// outcomes) — StudioRootView opens the planner on it.
+    public var onPlanReady: ((ProjectPlan) -> Void)?
 
     @FocusState private var focused: Bool
 
     public init(chat: ChatModel, context: @escaping () -> AssistantContext, backend: (() -> AssistantBackend?)? = nil,
-                compact: Bool = false) {
+                compact: Bool = false, onPlanReady: ((ProjectPlan) -> Void)? = nil) {
         self.chat = chat
         self.context = context
         self.backend = backend
         self.compact = compact
+        self.onPlanReady = onPlanReady
     }
 
     public var body: some View {
@@ -210,7 +214,10 @@ public struct ConversationView: View {
 
     private func confirm(_ messageId: UUID) {
         guard let backend = backend?() else { return }
-        Task { await chat.confirmIntent(messageId, backend: backend) }
+        Task {
+            let outcome = await chat.confirmIntent(messageId, backend: backend)
+            if let plan = outcome?.plan { onPlanReady?(plan) }
+        }
     }
 }
 
@@ -302,12 +309,14 @@ public struct CornerChatView: View {
     public var onNewRoom: (() -> Void)?
     @Binding public var minimized: Bool
     public var onExpand: (() -> Void)?
+    /// Called when confirming an intent produces a `ProjectPlan` — StudioRootView opens the planner.
+    public var onPlanReady: ((ProjectPlan) -> Void)?
 
     public static let panelSize = CGSize(width: 372, height: 460)
 
     public init(chat: ChatModel, context: @escaping () -> AssistantContext, backend: (() -> AssistantBackend?)? = nil,
                 rooms: RoomsModel? = nil, onNewRoom: (() -> Void)? = nil,
-                minimized: Binding<Bool>, onExpand: (() -> Void)? = nil) {
+                minimized: Binding<Bool>, onExpand: (() -> Void)? = nil, onPlanReady: ((ProjectPlan) -> Void)? = nil) {
         self.chat = chat
         self.context = context
         self.backend = backend
@@ -315,6 +324,7 @@ public struct CornerChatView: View {
         self.onNewRoom = onNewRoom
         self._minimized = minimized
         self.onExpand = onExpand
+        self.onPlanReady = onPlanReady
     }
 
     public var body: some View {
@@ -395,7 +405,7 @@ public struct CornerChatView: View {
         if let rooms, let roomId = rooms.selectedRoomId {
             RoomTranscriptView(rooms: rooms, roomId: roomId, compact: true)
         } else {
-            ConversationView(chat: chat, context: context, backend: backend, compact: true)
+            ConversationView(chat: chat, context: context, backend: backend, compact: true, onPlanReady: onPlanReady)
         }
     }
 }
@@ -410,14 +420,17 @@ public struct ChatScreen: View {
     /// sidebar gains a live Rooms section and selecting one shows its transcript + roster panel.
     public var rooms: RoomsModel?
     public var onNewRoom: (() -> Void)?
+    /// Called when confirming an intent produces a `ProjectPlan` — StudioRootView opens the planner.
+    public var onPlanReady: ((ProjectPlan) -> Void)?
 
     public init(chat: ChatModel, context: @escaping () -> AssistantContext, backend: (() -> AssistantBackend?)? = nil,
-                rooms: RoomsModel? = nil, onNewRoom: (() -> Void)? = nil) {
+                rooms: RoomsModel? = nil, onNewRoom: (() -> Void)? = nil, onPlanReady: ((ProjectPlan) -> Void)? = nil) {
         self.chat = chat
         self.context = context
         self.backend = backend
         self.rooms = rooms
         self.onNewRoom = onNewRoom
+        self.onPlanReady = onPlanReady
     }
 
     private var selectedRoomId: RoomID? { rooms?.selectedRoomId }
@@ -451,7 +464,7 @@ public struct ChatScreen: View {
                 .background(HUDTheme.hull)
             }
         } else {
-            ConversationView(chat: chat, context: context, backend: backend)
+            ConversationView(chat: chat, context: context, backend: backend, onPlanReady: onPlanReady)
         }
     }
 

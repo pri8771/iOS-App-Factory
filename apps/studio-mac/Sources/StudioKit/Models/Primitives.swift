@@ -175,6 +175,64 @@ public enum RoomDayKeyRule: WireStringRule {
     public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.roomDayKey, value) }
 }
 
+// MARK: Phase / Preset / Plan wire primitives (phase.ts, project-plan.ts — Studio Phase 4)
+
+/// `PHASE_ID_PATTERN` (phase.ts) — byte-identical to `StableKeyRule`'s pattern, kept as its own
+/// rule so `PhaseId` stays a distinct branded type from a generic `StableKey`.
+public enum PhaseIdRule: WireStringRule {
+    public static let name = "phase id"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.stableKey, value) }
+}
+/// `PHASE_PRESET_ID_PATTERN` — a stable lowercase key, optionally dot-versioned (e.g.
+/// "ios-app-standard-0.4.0" — the version segments themselves match `[a-z0-9]{1,16}`, so a numeric
+/// segment like "4" is valid).
+public enum PhasePresetIdRule: WireStringRule {
+    public static let name = "phase preset id"
+    private static let pattern = try! NSRegularExpression(
+        pattern: "\\A[a-z][a-z0-9-]{0,63}(?:\\.[a-z0-9]{1,16}){0,6}\\z")
+    public static func isValid(_ value: String) -> Bool {
+        value.count >= 1 && value.count <= 96 && WirePatterns.matches(pattern, value)
+    }
+}
+/// `PHASE_PROVIDER_PATTERN` — byte-identical to `PhaseIdRule`, kept distinct for the type brand.
+public enum PhaseProviderRule: WireStringRule {
+    public static let name = "phase provider"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.stableKey, value) }
+}
+/// `PHASE_PERSONA_PATTERN` — byte-identical to `PhaseIdRule`, kept distinct for the type brand.
+public enum PhasePersonaRule: WireStringRule {
+    public static let name = "phase persona"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.stableKey, value) }
+}
+/// `PROJECT_PLAN_ITEM_ID_PATTERN` (project-plan.ts) — byte-identical pattern to `PhaseIdRule`, whose
+/// `{0,63}` tail already bounds the same 64-character `max(64)` the wire schema declares.
+public enum ProjectPlanItemIdRule: WireStringRule {
+    public static let name = "project plan item id"
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(WirePatterns.stableKey, value) }
+}
+
+/// `PhaseOutputV1Schema.shape.path` — repo-relative, always rooted under `docs/`, no `..` segments.
+/// Deliberately not `RelativePathRule`: the zod refinement here is simpler (no leading-dot or
+/// trailing-slash checks) and stricter in one way (`docs/`-rooted), so this is its own rule.
+public enum PhaseOutputPathRule: WireStringRule {
+    public static let name = "phase output path (docs/-rooted)"
+    public static func isValid(_ value: String) -> Bool {
+        value.count >= 1 && value.count <= 1_024 && value.hasPrefix("docs/") && !value.contains("..")
+    }
+}
+
+public typealias PhaseId = WireString<PhaseIdRule>
+public typealias PhasePresetId = WireString<PhasePresetIdRule>
+public typealias PhaseProvider = WireString<PhaseProviderRule>
+public typealias PhasePersona = WireString<PhasePersonaRule>
+public typealias ProjectPlanItemId = WireString<ProjectPlanItemIdRule>
+public typealias PhaseOutputPath = WireString<PhaseOutputPathRule>
+
+public enum PhaseRunIDTag: Sendable {}
+public enum ProjectPlanIDTag: Sendable {}
+public typealias PhaseRunID = WireID<PhaseRunIDTag>
+public typealias ProjectPlanID = WireID<ProjectPlanIDTag>
+
 /// A plain, non-UUID string brand: `z.string().min(1).max(maxLength).brand()`. Used for
 /// `StudioRoomId` (a placeholder id for the still-unmerged rooms worktree) — unlike `MilestoneID`
 /// (below), which is a real UUID minted by the milestones service.

@@ -53,6 +53,27 @@ public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable 
     case roomPost = "room.post"
     case roomEvents = "room.events"
     case roomTyping = "room.typing"
+    case projectSeed = "project.seed"
+    // Studio Phase 4 (`preset.*`/`phase.*`) — CRUD over durable, revisioned phase definitions and
+    // the presets that bundle them. See `phase.ts`; no phase ever executes through these ops.
+    case presetList = "preset.list"
+    case presetUpsert = "preset.upsert"
+    case phaseUpsert = "phase.upsert"
+    // The Planner (`plan.*`) — see `project-plan.ts`.
+    case planPropose = "plan.propose"
+    case planEdit = "plan.edit"
+    case planApprove = "plan.approve"
+    case planExecute = "plan.execute"
+    case planApproveGate = "plan.approve-gate"
+    case planStatus = "plan.status"
+    case planTick = "plan.tick"
+    // Phase Runner (`phase.run`/`phase.status`/`phase.list`/`phase.approve`/`phase.reject`) — see
+    // `phase-run.ts`; the one place a phase actually executes.
+    case phaseRun = "phase.run"
+    case phaseStatus = "phase.status"
+    case phaseList = "phase.list"
+    case phaseApprove = "phase.approve"
+    case phaseReject = "phase.reject"
 }
 
 /// `CommandOriginV1Schema` — there is no "studio" origin on the wire yet; Studio speaks as
@@ -327,6 +348,48 @@ public struct RoomTypingPayload: Encodable, Sendable, Hashable {
     }
 }
 
+// MARK: project.seed payload
+
+/// `project.seed`'s payload IS `ProjectSeedPayload` directly — no nullable fields, so the default
+/// synthesized `Encodable` conformance (ProjectSeed.swift) is already exact.
+public typealias ProjectSeedRequestPayload = ProjectSeedPayload
+
+// MARK: Studio Phase 4 (`preset.*`/`phase.*`) payloads — phase.ts
+
+/// `preset.upsert`'s payload IS `PhasePresetUpsert` directly, mirroring `project.milestone.upsert`.
+public typealias PresetUpsertPayload = PhasePresetUpsert
+/// `phase.upsert`'s payload IS `PhaseDefinitionUpsert` directly.
+public typealias PhaseUpsertPayload = PhaseDefinitionUpsert
+
+// MARK: The Planner (`plan.*`) payloads — project-plan.ts
+
+public typealias PlanProposePayload = ProjectPlanPropose
+public typealias PlanEditPayload = ProjectPlanEditBatch
+public typealias PlanApprovePayload = ProjectPlanApprove
+public typealias PlanExecutePayload = ProjectPlanExecute
+public typealias PlanApproveGatePayload = ProjectPlanApproveGate
+public typealias PlanTickPayload = ProjectPlanTick
+
+public struct PlanStatusPayload: Encodable, Sendable, Hashable {
+    public var planId: ProjectPlanID
+    public init(planId: ProjectPlanID) { self.planId = planId }
+}
+
+// MARK: Phase Runner (`phase.run`/`phase.status`/`phase.list`/`phase.approve`/`phase.reject`)
+// payloads — phase-run.ts
+
+/// `phase.run`'s payload IS `PhaseRunCreate` directly.
+public typealias PhaseRunRequestPayload = PhaseRunCreate
+/// `phase.list`'s payload IS `PhaseRunListQuery` directly.
+public typealias PhaseListPayload = PhaseRunListQuery
+/// `phase.approve`/`phase.reject` share the same payload shape.
+public typealias PhaseDecisionPayload = PhaseRunDecision
+
+public struct PhaseStatusPayload: Encodable, Sendable, Hashable {
+    public var phaseRunId: PhaseRunID
+    public init(phaseRunId: PhaseRunID) { self.phaseRunId = phaseRunId }
+}
+
 // MARK: Results
 
 public enum DaemonReadiness: String, Hashable, Sendable, Codable, CaseIterable {
@@ -418,6 +481,22 @@ public enum CommandResult: Sendable {
     case roomPost(RoomPostResult)
     case roomEvents(RoomEventsResult)
     case roomTyping(RoomTypingResult)
+    case projectSeed(ProjectSeedResult)
+    case presetList([PhasePreset])
+    case presetUpsert(PresetUpsertResult)
+    case phaseUpsert(PhaseUpsertResult)
+    case planPropose(ProjectPlan)
+    case planEdit(ProjectPlan)
+    case planApprove(ProjectPlan)
+    case planExecute(ProjectPlan)
+    case planApproveGate(ProjectPlan)
+    case planStatus(ProjectPlan)
+    case planTick(ProjectPlanTickResult)
+    case phaseRun(PhaseRun)
+    case phaseStatus(PhaseRun)
+    case phaseList(PhaseRunListPage)
+    case phaseApprove(PhaseRun)
+    case phaseReject(PhaseRun)
 
     public var operation: CommandOperation {
         switch self {
@@ -453,6 +532,22 @@ public enum CommandResult: Sendable {
         case .roomPost: return .roomPost
         case .roomEvents: return .roomEvents
         case .roomTyping: return .roomTyping
+        case .projectSeed: return .projectSeed
+        case .presetList: return .presetList
+        case .presetUpsert: return .presetUpsert
+        case .phaseUpsert: return .phaseUpsert
+        case .planPropose: return .planPropose
+        case .planEdit: return .planEdit
+        case .planApprove: return .planApprove
+        case .planExecute: return .planExecute
+        case .planApproveGate: return .planApproveGate
+        case .planStatus: return .planStatus
+        case .planTick: return .planTick
+        case .phaseRun: return .phaseRun
+        case .phaseStatus: return .phaseStatus
+        case .phaseList: return .phaseList
+        case .phaseApprove: return .phaseApprove
+        case .phaseReject: return .phaseReject
         }
     }
 }
@@ -462,6 +557,7 @@ extension CommandResult: Decodable {
         case operation
         case attempt, events, nextAfterSequence, page, snapshot, status, manifest, manifestDigest
         case answer, intent, timeline
+        case presets, run, plan
     }
 
     public init(from decoder: any Decoder) throws {
@@ -503,6 +599,22 @@ extension CommandResult: Decodable {
         case .roomPost: self = .roomPost(try single.decode(RoomPostResult.self))
         case .roomEvents: self = .roomEvents(try single.decode(RoomEventsResult.self))
         case .roomTyping: self = .roomTyping(try single.decode(RoomTypingResult.self))
+        case .projectSeed: self = .projectSeed(try single.decode(ProjectSeedResult.self))
+        case .presetList: self = .presetList(try c.decode([PhasePreset].self, forKey: .presets))
+        case .presetUpsert: self = .presetUpsert(try single.decode(PresetUpsertResult.self))
+        case .phaseUpsert: self = .phaseUpsert(try single.decode(PhaseUpsertResult.self))
+        case .planPropose: self = .planPropose(try c.decode(ProjectPlan.self, forKey: .plan))
+        case .planEdit: self = .planEdit(try c.decode(ProjectPlan.self, forKey: .plan))
+        case .planApprove: self = .planApprove(try c.decode(ProjectPlan.self, forKey: .plan))
+        case .planExecute: self = .planExecute(try c.decode(ProjectPlan.self, forKey: .plan))
+        case .planApproveGate: self = .planApproveGate(try c.decode(ProjectPlan.self, forKey: .plan))
+        case .planStatus: self = .planStatus(try c.decode(ProjectPlan.self, forKey: .plan))
+        case .planTick: self = .planTick(try single.decode(ProjectPlanTickResult.self))
+        case .phaseRun: self = .phaseRun(try c.decode(PhaseRun.self, forKey: .run))
+        case .phaseStatus: self = .phaseStatus(try c.decode(PhaseRun.self, forKey: .run))
+        case .phaseList: self = .phaseList(try c.decode(PhaseRunListPage.self, forKey: .page))
+        case .phaseApprove: self = .phaseApprove(try c.decode(PhaseRun.self, forKey: .run))
+        case .phaseReject: self = .phaseReject(try c.decode(PhaseRun.self, forKey: .run))
         }
     }
 }

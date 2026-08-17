@@ -1,0 +1,30 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "studio.assistant.intent.propose",
+    "intent": {
+      "schemaVersion": 1,
+      "intentId": "00000521-0000-4000-8000-000000000521",
+      "utterance": "propose Workout Tracker",
+      "payload": {
+        "kind": "propose-plan",
+        "brief": {
+          "title": "Workout Tracker",
+          "oneLiner": "A minimal iOS app for logging sets and rest timers.",
+          "constraints": [
+            "local-only",
+            "xcodegen"
+          ]
+        },
+        "presetId": "ios-app-standard-0.4.0",
+        "projectId": null,
+        "repositoryId": null
+      },
+      "summary": "Propose a plan \"Workout Tracker\" using preset ios-app-standard-0.4.0.",
+      "requiresConfirmation": true,
+      "proposedAt": "2026-08-16T22:00:00.000Z"
+    }
+  }
+}

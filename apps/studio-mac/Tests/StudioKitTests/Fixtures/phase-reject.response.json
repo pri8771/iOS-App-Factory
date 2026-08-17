@@ -1,0 +1,70 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "phase.reject",
+    "run": {
+      "schemaVersion": 1,
+      "phaseRunId": "00000101-0000-4000-8000-000000000101",
+      "presetId": "ios-app-standard-0.4.0",
+      "phaseId": "ready",
+      "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+      "phaseSnapshotDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "phaseSnapshot": {
+        "schemaVersion": 1,
+        "phaseId": "ready",
+        "name": "Ready",
+        "purpose": "Human gate: confirm the plan and design are ready before implementation begins.",
+        "mode": "chat",
+        "cast": {
+          "participants": [],
+          "coordinator": null,
+          "grader": null
+        },
+        "inputs": [
+          "docs",
+          "evidence"
+        ],
+        "rules": {
+          "standard": [
+            "rule.dod.verification",
+            "rule.dod.experience-coverage"
+          ],
+          "yours": [],
+          "requiredOutput": [],
+          "acceptanceChecks": []
+        },
+        "outputs": [],
+        "gates": [
+          "build",
+          "tests"
+        ],
+        "budget": {
+          "estimateMinutes": null,
+          "timeoutSeconds": 900
+        },
+        "revision": 0,
+        "createdAt": "2026-08-16T22:00:00.000Z",
+        "updatedAt": "2026-08-16T22:00:00.000Z"
+      },
+      "state": "failed",
+      "revision": 4,
+      "roomId": null,
+      "outputs": [],
+      "graderVerdict": null,
+      "tokenUsage": {
+        "totalTokens": 4200
+      },
+      "outcome": {
+        "kind": "failed",
+        "code": "rejected",
+        "summary": "Declined: needs a legal review pass first."
+      },
+      "createdAt": "2026-08-16T20:00:00.000Z",
+      "startedAt": "2026-08-16T20:00:05.000Z",
+      "finishedAt": "2026-08-16T20:10:00.000Z",
+      "updatedAt": "2026-08-16T20:10:00.000Z"
+    }
+  }
+}

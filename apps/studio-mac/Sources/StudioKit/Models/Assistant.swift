@@ -103,6 +103,8 @@ public enum AssistantIntentKind: String, Hashable, Sendable, Codable, CaseIterab
     case scanProject = "scan-project"
     case enrollProject = "enroll-project"
     case approveAttempt = "approve-attempt"
+    case proposePlan = "propose-plan"
+    case executePlan = "execute-plan"
 }
 
 /// `AssistantIntentPayloadV1` — `kind`-discriminated; each arm's fields are exactly the payload of
@@ -118,6 +120,10 @@ public enum AssistantIntentPayload: Hashable, Sendable {
     case enrollProject(planDigest: Sha256Digest, branchName: GitBranchName?)
     /// -> attempt.unblock
     case approveAttempt(attemptId: AttemptID, answer: String)
+    /// -> plan.propose
+    case proposePlan(brief: ProjectPlanBrief, presetId: PhasePresetId, projectId: ProjectID?, repositoryId: RepositoryID?)
+    /// -> plan.execute
+    case executePlan(planId: ProjectPlanID, expectedRevision: Int)
 
     public var kind: AssistantIntentKind {
         switch self {
@@ -126,6 +132,8 @@ public enum AssistantIntentPayload: Hashable, Sendable {
         case .scanProject: return .scanProject
         case .enrollProject: return .enrollProject
         case .approveAttempt: return .approveAttempt
+        case .proposePlan: return .proposePlan
+        case .executePlan: return .executePlan
         }
     }
 
@@ -137,6 +145,8 @@ public enum AssistantIntentPayload: Hashable, Sendable {
         case .scanProject(let repositoryRoot): return [repositoryRoot.rawValue]
         case .enrollProject(let planDigest, _): return [planDigest.rawValue]
         case .approveAttempt(let attemptId, _): return [attemptId.rawValue]
+        case .proposePlan(let brief, _, _, _): return [brief.title]
+        case .executePlan(let planId, _): return [planId.rawValue]
         }
     }
 
@@ -149,12 +159,17 @@ public enum AssistantIntentPayload: Hashable, Sendable {
         case .scanProject: return "scan "
         case .enrollProject: return "enroll "
         case .approveAttempt: return "approve "
+        case .proposePlan: return "propose "
+        case .executePlan: return "execute "
         }
     }
 }
 
 extension AssistantIntentPayload: Codable {
-    private enum CodingKeys: String, CodingKey { case kind, taskSpec, repositoryRoot, planDigest, branchName, attemptId, answer }
+    private enum CodingKeys: String, CodingKey {
+        case kind, taskSpec, repositoryRoot, planDigest, branchName, attemptId, answer, brief, presetId, projectId,
+             repositoryId, planId, expectedRevision
+    }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -169,6 +184,14 @@ extension AssistantIntentPayload: Codable {
         case .approveAttempt:
             self = .approveAttempt(attemptId: try c.decode(AttemptID.self, forKey: .attemptId),
                                    answer: try c.decode(String.self, forKey: .answer))
+        case .proposePlan:
+            self = .proposePlan(brief: try c.decode(ProjectPlanBrief.self, forKey: .brief),
+                                presetId: try c.decode(PhasePresetId.self, forKey: .presetId),
+                                projectId: try c.decodeIfPresent(ProjectID.self, forKey: .projectId),
+                                repositoryId: try c.decodeIfPresent(RepositoryID.self, forKey: .repositoryId))
+        case .executePlan:
+            self = .executePlan(planId: try c.decode(ProjectPlanID.self, forKey: .planId),
+                                expectedRevision: try c.decode(Int.self, forKey: .expectedRevision))
         }
     }
 
@@ -186,6 +209,14 @@ extension AssistantIntentPayload: Codable {
         case let .approveAttempt(attemptId, answer):
             try c.encode(attemptId, forKey: .attemptId)
             try c.encode(answer, forKey: .answer)
+        case let .proposePlan(brief, presetId, projectId, repositoryId):
+            try c.encode(brief, forKey: .brief)
+            try c.encode(presetId, forKey: .presetId)
+            try c.encode(projectId, forKey: .projectId)
+            try c.encode(repositoryId, forKey: .repositoryId)
+        case let .executePlan(planId, expectedRevision):
+            try c.encode(planId, forKey: .planId)
+            try c.encode(expectedRevision, forKey: .expectedRevision)
         }
     }
 }
@@ -217,20 +248,32 @@ public struct AssistantIntent: Hashable, Sendable, Codable, Identifiable {
 
 /// `AssistantIntentExecutionOutcomeV1` — tags which existing daemon operation
 /// `studio.assistant.intent.execute` actually dispatched to, and embeds that operation's own result
-/// verbatim. Only the three kinds with an `attemptId` in their result carry one here; scan/enroll do not.
+/// verbatim. Only the three kinds with an `attemptId` in their result carry one here; scan/enroll/
+/// plan.propose/plan.execute do not.
 public enum AssistantIntentExecutionOutcome: Hashable, Sendable {
     case taskSubmit(AcceptedAttemptResult)
     case taskRun(AcceptedAttemptResult)
     case projectScan(ProjectScanResult)
     case projectApply(ProjectApplyResult)
     case attemptUnblock(UnblockResult)
+    case planPropose(ProjectPlanResult)
+    case planExecute(ProjectPlanResult)
 
     /// The resulting attempt id, when this outcome produced one.
     public var attemptId: AttemptID? {
         switch self {
         case .taskSubmit(let r), .taskRun(let r): return r.attemptId
         case .attemptUnblock(let r): return r.attemptId
-        case .projectScan, .projectApply: return nil
+        case .projectScan, .projectApply, .planPropose, .planExecute: return nil
+        }
+    }
+
+    /// The resulting plan, when this outcome is `plan.propose`/`plan.execute` — what the corner
+    /// chat's confirmation card uses to open the planner on confirm.
+    public var plan: ProjectPlan? {
+        switch self {
+        case .planPropose(let r), .planExecute(let r): return r.plan
+        default: return nil
         }
     }
 }
@@ -247,6 +290,8 @@ extension AssistantIntentExecutionOutcome: Codable {
         case "project.scan": self = .projectScan(try c.decode(ProjectScanResult.self, forKey: .result))
         case "project.apply": self = .projectApply(try c.decode(ProjectApplyResult.self, forKey: .result))
         case "attempt.unblock": self = .attemptUnblock(try c.decode(UnblockResult.self, forKey: .result))
+        case "plan.propose": self = .planPropose(try c.decode(ProjectPlanResult.self, forKey: .result))
+        case "plan.execute": self = .planExecute(try c.decode(ProjectPlanResult.self, forKey: .result))
         default:
             throw DecodingError.dataCorruptedError(forKey: .kind, in: c, debugDescription: "Unknown intent execution outcome kind \(kind)")
         }
@@ -260,6 +305,8 @@ extension AssistantIntentExecutionOutcome: Codable {
         case .projectScan(let r): try c.encode("project.scan", forKey: .kind); try c.encode(r, forKey: .result)
         case .projectApply(let r): try c.encode("project.apply", forKey: .kind); try c.encode(r, forKey: .result)
         case .attemptUnblock(let r): try c.encode("attempt.unblock", forKey: .kind); try c.encode(r, forKey: .result)
+        case .planPropose(let r): try c.encode("plan.propose", forKey: .kind); try c.encode(r, forKey: .result)
+        case .planExecute(let r): try c.encode("plan.execute", forKey: .kind); try c.encode(r, forKey: .result)
         }
     }
 }

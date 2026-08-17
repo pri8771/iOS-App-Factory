@@ -18,19 +18,30 @@ public struct DashboardScreen: View {
     public var timelineNote: String?
     public var selectedSlug: String?
     public var onSelectProject: ((String) -> Void)?
+    /// "Seed new project" — the from-scratch entry point into the Planner (`project.seed` then
+    /// `plan.propose`). `nil` when the shell has no daemon-backed planner to hand off to yet.
+    public var onNewProject: (() -> Void)?
 
     public init(snapshot: DashboardSnapshot, errors: [String: String] = [:], timelineNote: String? = nil,
-                selectedSlug: String? = nil, onSelectProject: ((String) -> Void)? = nil) {
+                selectedSlug: String? = nil, onSelectProject: ((String) -> Void)? = nil,
+                onNewProject: (() -> Void)? = nil) {
         self.snapshot = snapshot
         self.errors = errors
         self.timelineNote = timelineNote
         self.selectedSlug = selectedSlug
         self.onSelectProject = onSelectProject
+        self.onNewProject = onNewProject
     }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: HUDTheme.space.m) {
+                if let onNewProject {
+                    HStack {
+                        Spacer()
+                        HUDButton("New project", systemImage: "plus", variant: .arc, compact: true, action: onNewProject)
+                    }
+                }
                 gaugeRow
                 HStack(alignment: .top, spacing: HUDTheme.space.m) {
                     timeline

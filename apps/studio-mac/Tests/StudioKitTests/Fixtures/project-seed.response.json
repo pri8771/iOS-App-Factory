@@ -1,0 +1,33 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "project.seed",
+    "repositoryRoot": "/Users/example/code/workout-tracker",
+    "scaffoldCommitSha": "cccccccccccccccccccccccccccccccccccccccc",
+    "planDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "enrollment": {
+      "branchName": "factory/enroll/workout-tracker",
+      "commitSha": "dddddddddddddddddddddddddddddddddddddddd",
+      "appliedActionKinds": [
+        "declare-project",
+        "create-xcode-container",
+        "add-test-target",
+        "add-ci-verification"
+      ],
+      "convergence": {
+        "blocked": false,
+        "blockerIssueIds": [],
+        "openIssueCount": 0,
+        "sourceFingerprint": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      }
+    },
+    "xcodegen": {
+      "available": true,
+      "generated": true,
+      "built": true,
+      "detail": "xcodegen generate succeeded; xcodebuild build succeeded."
+    }
+  }
+}

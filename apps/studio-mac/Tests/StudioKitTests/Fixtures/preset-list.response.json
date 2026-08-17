@@ -1,0 +1,216 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "preset.list",
+    "presets": [
+      {
+        "schemaVersion": 1,
+        "presetId": "ios-app-standard-0.4.0",
+        "name": "iOS App Standard 0.4.0",
+        "phases": [
+          {
+            "schemaVersion": 1,
+            "phaseId": "contract",
+            "name": "Contract",
+            "purpose": "Define the user outcome, MVP boundary, constraints, and Definition of Done.",
+            "mode": "solo",
+            "cast": {
+              "participants": [
+                {
+                  "provider": "claude",
+                  "persona": "contract-writer",
+                  "readOnly": true
+                }
+              ],
+              "coordinator": null,
+              "grader": null
+            },
+            "inputs": [
+              "docs",
+              "issues"
+            ],
+            "rules": {
+              "standard": [
+                "rule.new.scope-before-breadth"
+              ],
+              "yours": [
+                "Keep the MVP boundary to a single core loop."
+              ],
+              "requiredOutput": [
+                "State the user outcome, MVP boundary, and Definition of Done."
+              ],
+              "acceptanceChecks": [
+                "Contract names a concrete user outcome and explicit MVP boundary."
+              ]
+            },
+            "outputs": [
+              {
+                "path": "docs/product/contract.md",
+                "schema": null
+              }
+            ],
+            "gates": [],
+            "budget": {
+              "estimateMinutes": 20,
+              "timeoutSeconds": 1800
+            },
+            "revision": 0,
+            "createdAt": "2026-08-16T22:00:00.000Z",
+            "updatedAt": "2026-08-16T22:00:00.000Z"
+          },
+          {
+            "schemaVersion": 1,
+            "phaseId": "architecture",
+            "name": "Architecture",
+            "purpose": "Decide the technical approach; a distinct grader breaks ties between proposals.",
+            "mode": "debate",
+            "cast": {
+              "participants": [
+                {
+                  "provider": "codex",
+                  "persona": "architecture-proposer-a",
+                  "readOnly": true
+                },
+                {
+                  "provider": "cursor",
+                  "persona": "architecture-proposer-b",
+                  "readOnly": true
+                }
+              ],
+              "coordinator": null,
+              "grader": {
+                "provider": "claude",
+                "persona": "architecture-grader"
+              }
+            },
+            "inputs": [
+              "docs",
+              "source-readonly",
+              "evidence"
+            ],
+            "rules": {
+              "standard": [
+                "rule.existing.no-rescaffold-without-decision",
+                "rule.dependencies.justified"
+              ],
+              "yours": [],
+              "requiredOutput": [],
+              "acceptanceChecks": []
+            },
+            "outputs": [
+              {
+                "path": "docs/architecture/decision.md",
+                "schema": null
+              }
+            ],
+            "gates": [],
+            "budget": {
+              "estimateMinutes": 45,
+              "timeoutSeconds": 3600
+            },
+            "revision": 0,
+            "createdAt": "2026-08-16T22:00:00.000Z",
+            "updatedAt": "2026-08-16T22:00:00.000Z"
+          },
+          {
+            "schemaVersion": 1,
+            "phaseId": "ready",
+            "name": "Ready",
+            "purpose": "Human gate: confirm the plan and design are ready before implementation begins.",
+            "mode": "chat",
+            "cast": {
+              "participants": [],
+              "coordinator": null,
+              "grader": null
+            },
+            "inputs": [
+              "docs",
+              "evidence"
+            ],
+            "rules": {
+              "standard": [
+                "rule.dod.verification",
+                "rule.dod.experience-coverage"
+              ],
+              "yours": [],
+              "requiredOutput": [],
+              "acceptanceChecks": []
+            },
+            "outputs": [],
+            "gates": [
+              "build",
+              "tests"
+            ],
+            "budget": {
+              "estimateMinutes": null,
+              "timeoutSeconds": 900
+            },
+            "revision": 0,
+            "createdAt": "2026-08-16T22:00:00.000Z",
+            "updatedAt": "2026-08-16T22:00:00.000Z"
+          },
+          {
+            "schemaVersion": 1,
+            "phaseId": "build",
+            "name": "Build",
+            "purpose": "Implement the planned change and its required non-happy-path coverage.",
+            "mode": "panel",
+            "cast": {
+              "participants": [
+                {
+                  "provider": "codex",
+                  "persona": "build-lead",
+                  "readOnly": true
+                },
+                {
+                  "provider": "claude",
+                  "persona": "build-reviewer",
+                  "readOnly": true
+                }
+              ],
+              "coordinator": null,
+              "grader": null
+            },
+            "inputs": [
+              "docs",
+              "source-readonly",
+              "issues"
+            ],
+            "rules": {
+              "standard": [
+                "rule.dod.verification",
+                "rule.data.no-fake-fallback",
+                "rule.ui.no-decorative-controls"
+              ],
+              "yours": [],
+              "requiredOutput": [],
+              "acceptanceChecks": []
+            },
+            "outputs": [
+              {
+                "path": "docs/progress/build-notes.md",
+                "schema": null
+              }
+            ],
+            "gates": [],
+            "budget": {
+              "estimateMinutes": 60,
+              "timeoutSeconds": 7200
+            },
+            "revision": 0,
+            "createdAt": "2026-08-16T22:00:00.000Z",
+            "updatedAt": "2026-08-16T22:00:00.000Z"
+          }
+        ],
+        "appliesTo": [
+          "ios"
+        ],
+        "revision": 0,
+        "createdAt": "2026-08-16T22:00:00.000Z",
+        "updatedAt": "2026-08-16T22:00:00.000Z"
+      }
+    ]
+  }
+}

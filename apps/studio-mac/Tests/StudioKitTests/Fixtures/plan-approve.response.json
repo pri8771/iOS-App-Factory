@@ -1,0 +1,130 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "plan.approve",
+    "plan": {
+      "schemaVersion": 1,
+      "planId": "00000201-0000-4000-8000-000000000201",
+      "projectId": null,
+      "repositoryId": null,
+      "brief": {
+        "title": "Workout Tracker",
+        "oneLiner": "A minimal iOS app for logging sets and rest timers.",
+        "constraints": [
+          "local-only",
+          "xcodegen"
+        ]
+      },
+      "presetId": "ios-app-standard-0.4.0",
+      "items": [
+        {
+          "itemId": "contract",
+          "phase": "contract",
+          "title": "Contract",
+          "detail": null,
+          "dependsOn": [],
+          "kind": "task",
+          "taskSpecDraft": {
+            "objective": "Write the contract doc.",
+            "acceptanceCriteria": [
+              {
+                "id": "correctness",
+                "statement": "Behaves as described.",
+                "verification": "review"
+              }
+            ],
+            "scope": {
+              "paths": [
+                "Sources"
+              ]
+            },
+            "phase": "contract"
+          },
+          "status": "proposed",
+          "taskId": null,
+          "attemptId": null
+        },
+        {
+          "itemId": "architecture",
+          "phase": "architecture",
+          "title": "Architecture",
+          "detail": null,
+          "dependsOn": [
+            "contract"
+          ],
+          "kind": "task",
+          "taskSpecDraft": {
+            "objective": "Decide the technical approach.",
+            "acceptanceCriteria": [
+              {
+                "id": "correctness",
+                "statement": "Behaves as described.",
+                "verification": "review"
+              }
+            ],
+            "scope": {
+              "paths": [
+                "Sources"
+              ]
+            },
+            "phase": "architecture"
+          },
+          "status": "proposed",
+          "taskId": null,
+          "attemptId": null
+        },
+        {
+          "itemId": "ready",
+          "phase": "ready",
+          "title": "Ready",
+          "detail": null,
+          "dependsOn": [
+            "architecture"
+          ],
+          "kind": "gate",
+          "gate": {
+            "owner": "human",
+            "reason": "Confirm plan and design before implementation begins."
+          },
+          "status": "proposed"
+        },
+        {
+          "itemId": "build",
+          "phase": "build",
+          "title": "Build",
+          "detail": null,
+          "dependsOn": [
+            "ready"
+          ],
+          "kind": "task",
+          "taskSpecDraft": {
+            "objective": "Implement the planned change.",
+            "acceptanceCriteria": [
+              {
+                "id": "correctness",
+                "statement": "Behaves as described.",
+                "verification": "review"
+              }
+            ],
+            "scope": {
+              "paths": [
+                "Sources"
+              ]
+            },
+            "phase": "build"
+          },
+          "status": "proposed",
+          "taskId": null,
+          "attemptId": null
+        }
+      ],
+      "state": "approved",
+      "revision": 2,
+      "createdAt": "2026-08-16T22:00:00.000Z",
+      "updatedAt": "2026-08-16T22:06:00.000Z",
+      "digest": "sha256:a1e1b233dbc883dc5311164ac822a8ef02f6759c89b53973e2f22c764a23b204"
+    }
+  }
+}
