@@ -21,6 +21,7 @@ import {
 } from "./milestone.js";
 import { MirrorProjectionDiffV1Schema, MirrorProjectionV1Schema } from "./mirror-projection.js";
 import { ProjectDocsSnapshotV1Schema } from "./project-docs-snapshot.js";
+import { ProjectRegistryV1Schema } from "./project-registry.js";
 import {
   PhaseDefinitionUpsertV1Schema,
   PhaseDefinitionV1Schema,
@@ -61,6 +62,7 @@ import {
   RequestIdSchema,
   SchemaVersionV1Schema,
   Sha256DigestSchema,
+  StableKeySchema,
   TaskIdSchema,
 } from "./primitives.js";
 import { PortfolioReadModelV1Schema } from "./portfolio-read-model.js";
@@ -355,6 +357,44 @@ export const ProjectMilestoneUpsertCommandRequestV1Schema = z.strictObject({
   payload: ProjectMilestoneUpsertV1Schema,
 });
 
+// The Project Registry (`project.register`/`project.list`/`project.show`): see
+// `project-registry.ts`'s module doc comment. `project.register` accepts EITHER a previously
+// persisted `project.scan` result (`source.kind: "scan"`, the same `planDigest` `project.enroll-
+// plan`/`project.apply` accept) OR a bare repository path (`source.kind: "path"`, which runs the
+// scanner itself first) -- either way it requires zero `rules.*` blockers before registering;
+// `safety.secret-material-detected` findings are surfaced on the result but never block
+// registration, since they are owner-reviewed. `displayName`/`slug` default to values derived from
+// the repository path when omitted.
+export const ProjectRegisterSourceV1Schema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("scan"), planDigest: Sha256DigestSchema }),
+  z.strictObject({ kind: z.literal("path"), repositoryRoot: AbsolutePathSchema }),
+]);
+export type ProjectRegisterSourceV1 = z.infer<typeof ProjectRegisterSourceV1Schema>;
+
+export const ProjectRegisterCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.register"),
+  payload: z.strictObject({
+    source: ProjectRegisterSourceV1Schema,
+    displayName: z.string().min(1).max(200).nullable(),
+    slug: StableKeySchema.nullable(),
+  }),
+});
+
+export const MAX_PROJECT_LIST_ITEMS_V1 = 500 as const;
+
+export const ProjectListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.list"),
+  payload: EmptyPayloadV1Schema,
+});
+
+export const ProjectShowCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("project.show"),
+  payload: z.strictObject({ projectId: ProjectIdSchema }),
+});
+
 // Studio Phase 4 (`preset.*`/`phase.*`) wire types. See `phase.ts` for the shapes; no phase ever
 // executes through these ops (that is the separate planner task) — this is CRUD over durable,
 // revisioned phase definitions and the presets that bundle them.
@@ -585,6 +625,9 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProjectSeedCommandRequestV1Schema,
   ProjectMilestonesListCommandRequestV1Schema,
   ProjectMilestoneUpsertCommandRequestV1Schema,
+  ProjectRegisterCommandRequestV1Schema,
+  ProjectListCommandRequestV1Schema,
+  ProjectShowCommandRequestV1Schema,
   PresetListCommandRequestV1Schema,
   PresetUpsertCommandRequestV1Schema,
   PhaseUpsertCommandRequestV1Schema,
@@ -879,6 +922,28 @@ export const ProjectMilestoneUpsertCommandResultV1Schema = z.strictObject({
   created: z.boolean(),
 });
 
+/** `secretFindings` is always the FULL list of `safety.secret-material-detected` scan issues for
+ * this repository, surfaced for the operator to review -- never a reason `project.register` itself
+ * failed (only an unresolved `rules.*` blocker refuses registration, as a thrown protocol error). */
+export const ProjectRegisterCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.register"),
+  project: ProjectRegistryV1Schema,
+  created: z.boolean(),
+  secretFindings: z.array(EnrollmentBlockerV1Schema).max(1_000),
+});
+
+/** Bounded, unpaginated: registered projects are operator-initiated and few compared to attempts or
+ * events, exactly like `preset.list`. */
+export const ProjectListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.list"),
+  projects: z.array(ProjectRegistryV1Schema).max(MAX_PROJECT_LIST_ITEMS_V1),
+});
+
+export const ProjectShowCommandResultV1Schema = z.strictObject({
+  operation: z.literal("project.show"),
+  project: ProjectRegistryV1Schema,
+});
+
 /** Bounded, unpaginated: presets are operator-authored and few compared to attempts or events. */
 export const PresetListCommandResultV1Schema = z.strictObject({
   operation: z.literal("preset.list"),
@@ -1067,6 +1132,9 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProjectSeedCommandResultV1Schema,
   ProjectMilestonesListCommandResultV1Schema,
   ProjectMilestoneUpsertCommandResultV1Schema,
+  ProjectRegisterCommandResultV1Schema,
+  ProjectListCommandResultV1Schema,
+  ProjectShowCommandResultV1Schema,
   PresetListCommandResultV1Schema,
   PresetUpsertCommandResultV1Schema,
   PhaseUpsertCommandResultV1Schema,

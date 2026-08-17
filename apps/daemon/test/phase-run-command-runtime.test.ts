@@ -93,8 +93,43 @@ function harness() {
   const repositories = createFactoryRepositories(database);
   const roomRepository = new RoomRepository(database);
 
-  const outputMirror = createPhaseOutputMirrorPort({ gitRuntimeRoot, gitExecutable: GIT });
-  const inputs = createPhaseInputsReaderPort({ gitRuntimeRoot, gitExecutable: GIT });
+  // Seam (c) of the project-registry task: `createPhaseOutputMirrorPort`/`createPhaseInputsReaderPort`
+  // resolve a project's docs directory and mirror binding from the Project Registry, so the fixture
+  // project must actually be registered before any phase.run test can commit or read its outputs.
+  repositories.projectRegistry.upsert({
+    command: {
+      schemaVersion: 1,
+      commandId: "90000000-0000-4000-8000-0000000000f1",
+      issuedAt: NOW,
+      origin: "system",
+      kind: "project.register",
+      register: {
+        project: {
+          projectId: PROJECT_ID,
+          slug: "test-project",
+          displayName: "Test Project",
+          sourceRepositoryPath: sourceRoot,
+          repositoryId: PROJECT_ID,
+          standardVersion: null,
+          policyLockDigest: null,
+          docsLayout: { docsDir: "docs" },
+        },
+        expectedRevision: null,
+      },
+    },
+    recordedAt: NOW,
+  });
+
+  const outputMirror = createPhaseOutputMirrorPort({
+    gitRuntimeRoot,
+    gitExecutable: GIT,
+    projectRegistry: repositories.projectRegistry,
+  });
+  const inputs = createPhaseInputsReaderPort({
+    gitRuntimeRoot,
+    gitExecutable: GIT,
+    projectRegistry: repositories.projectRegistry,
+  });
 
   return { root, gitRuntimeRoot, database, repositories, roomRepository, outputMirror, inputs };
 }

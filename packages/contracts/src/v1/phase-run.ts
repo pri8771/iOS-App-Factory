@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-import {
-  PhaseDefinitionV1Schema,
-  PhaseIdSchema,
-  PhaseOutputV1Schema,
-  PhasePresetIdSchema,
-} from "./phase.js";
+import { PhaseDefinitionV1Schema, PhaseIdSchema, PhasePresetIdSchema } from "./phase.js";
 import {
   GitBranchNameSchema,
   GitObjectIdSchema,
@@ -84,9 +79,30 @@ export const PhaseRunOutputEvidenceV1Schema = z.strictObject({
 });
 export type PhaseRunOutputEvidenceV1 = z.infer<typeof PhaseRunOutputEvidenceV1Schema>;
 
-/** One committed output. `path` reuses `PhaseOutputV1`'s own `docs/`-rooted path shape verbatim. */
+/**
+ * The exact repo-relative path one committed output actually landed at in the project's mirror.
+ * Deliberately its OWN schema rather than reusing `PhaseOutputV1`'s `path` verbatim (Seam (c) of the
+ * project-registry task): a `PhaseDefinitionV1`'s declared `outputs[].path` is a project-agnostic
+ * preset template that always names the canonical lowercase `docs/` convention, but the project a
+ * run actually executes against may be registered under the capitalized `Docs/` convention instead
+ * (`ProjectRegistryDocsDirV1Schema`) -- and on a case-insensitive storage volume, a write to the
+ * declared `docs/...` path can genuinely land at `Docs/...` in the committed tree (APFS folds the
+ * two, Git does not). This path must name where the file REALLY is, so evidence built from it (a
+ * `git show <tree>:<path>` read-back) actually resolves -- reporting the declared, possibly-wrong-
+ * case path here would silently produce evidence nothing can read back.
+ */
+export const PhaseRunOutputPathV1Schema = z
+  .string()
+  .min(1)
+  .max(1_024)
+  .refine(
+    (value) => (value.startsWith("docs/") || value.startsWith("Docs/")) && !value.includes(".."),
+    "output path must be repo-relative under the project's registered docs directory (docs/ or Docs/)",
+  );
+
+/** One committed output. */
 export const PhaseRunOutputV1Schema = z.strictObject({
-  path: PhaseOutputV1Schema.shape.path,
+  path: PhaseRunOutputPathV1Schema,
   digest: Sha256DigestSchema,
   evidence: PhaseRunOutputEvidenceV1Schema,
 });

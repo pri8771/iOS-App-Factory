@@ -14,7 +14,9 @@ import {
   loadLocalExecutionProfile,
   type LocalExecutionProfileDependencies,
 } from "./local-execution-profile.js";
+import type { PhaseParticipantsPort } from "./phase-run-executor.js";
 import {
+  loadPhaseParticipantsPortV1,
   loadRoomsSubsystemConfiguration,
   RoomParticipantsConfigurationError,
 } from "./room-participants-config.js";
@@ -59,6 +61,7 @@ export type DaemonProcessConfiguration = Readonly<{
   localExecution?: VerifiedLocalExecutionConfiguration;
   effects?: EffectSubsystemConfiguration;
   rooms?: RoomSubsystemConfiguration;
+  phaseParticipants?: PhaseParticipantsPort;
 }>;
 
 export type DaemonProcessIo = Readonly<{
@@ -308,6 +311,7 @@ export async function loadDaemonProcessConfiguration(
     environment.APP_FACTORY_ROOMS_ENABLED,
   );
   let rooms: RoomSubsystemConfiguration | undefined;
+  let phaseParticipants: PhaseParticipantsPort | undefined;
   if (roomsEnabled) {
     const participantsConfigPath = absolutePath(
       environment.APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG,
@@ -315,6 +319,13 @@ export async function loadDaemonProcessConfiguration(
     );
     try {
       rooms = loadRoomsSubsystemConfiguration({
+        participantsConfigPath,
+        ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
+      });
+      // Seam (b) of the project-registry task: `phase.run`'s participant pool is built from the
+      // SAME participants config file and the SAME containment attestation gate `rooms` (above)
+      // just loaded -- never a second, independently configured pool.
+      phaseParticipants = loadPhaseParticipantsPortV1({
         participantsConfigPath,
         ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
       });
@@ -338,6 +349,7 @@ export async function loadDaemonProcessConfiguration(
     // leaving disabled subsystems out of the resolved configuration.
     ...(effectsPumpEnabled ? { effects: { enabled: true } } : {}),
     ...(rooms === undefined ? {} : { rooms }),
+    ...(phaseParticipants === undefined ? {} : { phaseParticipants }),
   };
 }
 

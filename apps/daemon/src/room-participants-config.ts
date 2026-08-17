@@ -20,6 +20,7 @@ import {
 } from "@app-factory/studio-room-adapters";
 
 import { readPrivateFile, requireOwnerContainmentAttestation } from "./local-execution-profile.js";
+import type { PhaseParticipantsPort } from "./phase-run-executor.js";
 import type { RoomSubsystemConfiguration } from "./room-subsystem.js";
 
 /**
@@ -98,6 +99,10 @@ export type RoomClaudeParticipantConfigV1 = Readonly<{
 export type RoomOllamaParticipantConfigV1 = Readonly<{
   baseUrl?: string;
   model?: string;
+  /** Per-turn HTTP timeout for the Ollama participant adapter; `createOllamaParticipant`'s own
+   * default (60s) targets a small, already-warm model. A heavier local model (e.g. a 14B coder
+   * model) processing a large `docs/` context routinely needs more than that. */
+  timeoutMs?: number;
 }>;
 
 export type RoomParticipantsConfigV1 = Readonly<{
@@ -153,9 +158,23 @@ function parseClaudeParticipantConfig(value: unknown): RoomClaudeParticipantConf
   };
 }
 
+function boundedTimeoutMs(value: unknown, label: string): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 1_000 ||
+    value > 10 * 60_000
+  ) {
+    configurationError(
+      `${label} must be an integer number of milliseconds between 1000 and 600000.`,
+    );
+  }
+  return value;
+}
+
 function parseOllamaParticipantConfig(value: unknown): RoomOllamaParticipantConfigV1 {
   if (!isRecord(value)) configurationError("ollama participant configuration must be an object.");
-  allowedKeys(value, ["baseUrl", "model"], "ollama participant configuration");
+  allowedKeys(value, ["baseUrl", "model", "timeoutMs"], "ollama participant configuration");
   return {
     ...(value.baseUrl === undefined
       ? {}
@@ -163,6 +182,9 @@ function parseOllamaParticipantConfig(value: unknown): RoomOllamaParticipantConf
     ...(value.model === undefined
       ? {}
       : { model: boundedString(value.model, "ollama.model", 128) }),
+    ...(value.timeoutMs === undefined
+      ? {}
+      : { timeoutMs: boundedTimeoutMs(value.timeoutMs, "ollama.timeoutMs") }),
   };
 }
 
@@ -233,6 +255,7 @@ export function buildRoomSubsystemConfiguration(
         transport: ollamaTransport,
         baseUrl: ollamaBaseUrl,
         model: ollamaModel,
+        ...(ollamaConfig.timeoutMs === undefined ? {} : { timeoutMs: ollamaConfig.timeoutMs }),
       }),
     );
   }
@@ -289,4 +312,60 @@ export function loadRoomsSubsystemConfiguration(
   );
   const config = loadRoomParticipantsConfigFile(options.participantsConfigPath);
   return { enabled: true, ...buildRoomSubsystemConfiguration(config) };
+}
+
+/**
+ * Seam (b) of the project-registry task: `phase.run`'s `phaseParticipants` port, built from the
+ * SAME `RoomParticipantsConfigV1` (`config.codex`/`config.claude`/`config.ollama`) and the SAME
+ * `ParticipantAdapter` factories (`createCodexParticipant`/`createClaudeParticipant`/
+ * `createOllamaParticipant`) {@link buildRoomSubsystemConfiguration} already builds its room
+ * adapters from -- a phase cast and a room roster draw from one identical pool of configured
+ * providers, never two independently configured ones. `PhaseDefinitionV1["cast"].participants[].provider`
+ * (`PhaseProvider`) and `ParticipantAdapter.provider` (`RoomProvider`) are distinct branded string
+ * types over the same underlying provider keys (`"codex"`/`"claude"`/`"ollama"`), so the lookup below
+ * compares them as plain strings rather than forcing a brand match.
+ */
+export function buildPhaseParticipantsPortV1(
+  config: RoomParticipantsConfigV1,
+): PhaseParticipantsPort {
+  const adapters = new Map<string, ParticipantAdapter>();
+  if (config.codex !== undefined) {
+    const adapter = createCodexParticipant(config.codex);
+    adapters.set(String(adapter.provider), adapter);
+  }
+  if (config.claude !== undefined) {
+    const adapter = createClaudeParticipant(config.claude);
+    adapters.set(String(adapter.provider), adapter);
+  }
+  if (config.ollama !== undefined) {
+    const ollamaConfig = config.ollama;
+    const adapter = createOllamaParticipant({
+      transport: createFetchOllamaTransport(),
+      baseUrl: ollamaConfig.baseUrl ?? DEFAULT_OLLAMA_BASE_URL,
+      model: ollamaConfig.model ?? DEFAULT_OLLAMA_MODEL,
+      ...(ollamaConfig.timeoutMs === undefined ? {} : { timeoutMs: ollamaConfig.timeoutMs }),
+    });
+    adapters.set(String(adapter.provider), adapter);
+  }
+  return { resolve: (provider) => adapters.get(String(provider)) ?? null };
+}
+
+export type LoadPhaseParticipantsPortOptions = LoadRoomsSubsystemConfigurationOptions;
+
+/**
+ * Top-level daemon entrypoint hook mirroring {@link loadRoomsSubsystemConfiguration} exactly --
+ * SAME containment attestation gate (`requireOwnerContainmentAttestation`,
+ * `STUDIO_ROOMS_ATTESTATION_MODE`; never a second gate), SAME participants config file -- but
+ * returning a `PhaseParticipantsPort` for `phase.run` instead of a `RoomSubsystemConfiguration` for
+ * the rooms moderator.
+ */
+export function loadPhaseParticipantsPortV1(
+  options: LoadPhaseParticipantsPortOptions,
+): PhaseParticipantsPort {
+  requireOwnerContainmentAttestation(
+    options.containmentAttestationPath,
+    STUDIO_ROOMS_ATTESTATION_MODE,
+  );
+  const config = loadRoomParticipantsConfigFile(options.participantsConfigPath);
+  return buildPhaseParticipantsPortV1(config);
 }
