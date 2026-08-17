@@ -258,9 +258,16 @@ node packages/policy-corpus/dist/cli.js scan --root /private/tmp/af-corpus-hinds
 5. **Which lifecycle vocabulary `appliesTo` binds to** (§2).
 6. **0.4.0 text drift and the 0.5.0 pin** — fetch upstream and diff before
    bumping `policyVersion`.
-7. **`project-sdk` `repair-rule-adapter` on an already-bound adapter** appends
+7. ~~**`project-sdk` `repair-rule-adapter` on an already-bound adapter** appends
    rather than replaces `authority.digest` and would create the conflict
-   observed in stage B.
+   observed in stage B.~~ **Resolved 2026-08-16** by
+   `claude/eloquent-chebyshev-cb2b57` (merged into `integration/studio-wave1`):
+   `bindAdapterContent` now rewrites `authority.import`/`authority.digest` in
+   place, and the convergence check fails closed on any `rules.*` blocker the
+   baseline scan lacked. Verified on a scratch `factory/pilot-1.1` clone:
+   `applyEnrollmentPlan` repaired the copilot adapter (one line), the rescan
+   reported zero `rules.*` issues, and all three rule blockers cleared — the
+   manual stage C above is now automatic.
 
 ## 7. Not modified
 
