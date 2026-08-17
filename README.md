@@ -22,9 +22,9 @@ chat / CLI / dashboard
 
 ## Repository layout
 
-This is a full listing of `apps/` (4) and `packages/` (29), one line each,
-regenerated from the current tree, plus one planned app not yet present in
-this tree — see [`docs/progress/IMPLEMENTATION_STATUS.md`](docs/progress/IMPLEMENTATION_STATUS.md)
+This is a full listing of `apps/` (5) and `packages/` (35), one line each,
+regenerated from the current tree — see
+[`docs/progress/IMPLEMENTATION_STATUS.md`](docs/progress/IMPLEMENTATION_STATUS.md)
 for which of these are wired into a runnable path versus dormant/contracts-only,
 and [`docs/architecture/0004-studio-mac-app.md`](docs/architecture/0004-studio-mac-app.md)
 for the Studio Mac app product decision.
@@ -36,8 +36,10 @@ apps/
   dashboard/   local web debug surface over the command client (not the
                product — see docs/architecture/0004-studio-mac-app.md)
   mcp/         stdio MCP bridge for Claude, Codex, Cursor, and other hosts
-  studio-mac/  planned — native Mac app, the Gen 5 product target; in
-               progress on branch studio/phase1, not yet merged here
+  studio-mac/  native macOS app, the Gen 5 product target — Phases 1-4
+               merged (shell/daemon client, studio.snapshot/assistant,
+               rooms, phase presets/runner/planner/project registry); see
+               docs/roadmap/STUDIO_PHASES.md
 packages/
   adapter-sdk/                 provider-neutral effect-adapter boundary and capability preflight
   agent-runner/                credential-isolated headless Codex/Claude process adapters
@@ -55,17 +57,23 @@ packages/
   oci-runner/                  Factory-owned coding-plane containment primitive (no-network slice)
   ollama-scorer/               loopback-Ollama urgency scorer + rolling summarizer for Studio rooms
   policy-corpus/               compiles the iOS App Factory rules corpus and proves it against the scanner
-  policy-engine/               compiles versioned policy into AGENTS.md and a digest-bound lock
+  policy-engine/               compiles versioned policy into AGENTS.md and a digest-bound lock; also
+                                the rule-scoping/waiver/check-registry schema the daemon's task-intake
+                                policy gate enforces
   portfolio/                   provider-neutral multi-project read model and work scheduler
   process-supervisor/          per-attempt process fencing, events, and orphan recovery
+  project-docs/                reads a project's own repo docs as the truth; refuses to write back
+                                (Jira/Notion are one-way mirrors, never the reverse)
   project-sdk/                 read-only discovery and enrollment planning for existing projects
   provider-http-adapters/      strict Jira Cloud REST / GitHub GraphQL adapters
   provider-transport/          fetch-based HTTP transport enforcing credential scope and deadlines
   quality/                     deterministic verification, evidence indexes, release certification
   recovery-manager/            integrity-bound control-plane recovery bundle create/restore
+  retention-manager/           GC and OS-metadata tolerance for checkpoint/evidence scans
   scheduler/                   restart-safe prepare/execute/verify attempt scheduler
   service-manager/             deterministic macOS LaunchAgent plan for the Factory daemon
   simulator-runner/            plans and executes lease-bound iOS Simulator test sessions
+  studio-room-adapters/        live Codex/Claude/Ollama participant adapters for Studio rooms
   studio-rooms/                Studio room engine: deterministic moderator over a single-writer transcript
   testkit/                     shared fixtures/harnesses for crash, fake-effect, and conformance tests
   trusted-verifier/            runs a pre-approved deterministic check in a separate clean checkout
@@ -78,6 +86,26 @@ docs/
   progress/        current implementation and enrollment status ledgers
   roadmap/         capability-staged delivery plan and historical planning baseline
 ```
+
+## Run Studio (the Mac app) + daemon locally
+
+```sh
+# terminal A — the daemon, on a private local runtime
+RT="$TMPDIR/afrt"; mkdir -p "$RT/runtime" "$RT/etc"; chmod 700 "$RT" "$RT/runtime" "$RT/etc"
+(umask 077; head -c 32 /dev/urandom | xxd -p -c 64 | tr -d '\n' > "$RT/etc/auth.token")
+APP_FACTORY_RUNTIME_DIR="$RT/runtime" APP_FACTORY_AUTH_FILE="$RT/etc/auth.token" \
+APP_FACTORY_DAEMON_VERSION=0.1.0-local node apps/daemon/dist/main.js
+
+# terminal B — the app, pointed at the same runtime
+cd apps/studio-mac && swift build
+APP_FACTORY_SOCKET="$RT/runtime/daemon.sock" APP_FACTORY_AUTH_FILE="$RT/etc/auth.token" \
+swift run Studio
+```
+
+See [`apps/studio-mac/README.md`](apps/studio-mac/README.md) for the full
+recipe (including seeding fake attempts to see a populated dashboard, the
+release-binary variant, and how live-daemon Swift tests find a socket) and
+[`docs/OPERATOR_RUNBOOK.md`](docs/OPERATOR_RUNBOOK.md) for the CLI/MCP path.
 
 ## Runtime principles
 
