@@ -143,13 +143,17 @@ public struct AttemptListItem: Hashable, Sendable, Codable, Identifiable {
     public var schemaVersion: SchemaVersion1 = .init()
     public var projectId: ProjectID
     public var title: String
+    /// The task's Studio phase (`AttemptListItemV1.phase`, a StableKey), or nil when the task spec
+    /// declared none — the wire sends an explicit `null`, never omits the key.
+    public var phase: StableKey?
     public var attempt: ExecutionAttempt
 
     public var id: AttemptID { attempt.attemptId }
 
-    public init(projectId: ProjectID, title: String, attempt: ExecutionAttempt) {
+    public init(projectId: ProjectID, title: String, phase: StableKey? = nil, attempt: ExecutionAttempt) {
         self.projectId = projectId
         self.title = title
+        self.phase = phase
         self.attempt = attempt
     }
 }

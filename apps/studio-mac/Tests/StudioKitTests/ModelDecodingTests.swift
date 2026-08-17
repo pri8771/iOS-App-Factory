@@ -37,6 +37,8 @@ final class ModelDecodingTests: XCTestCase {
             XCTAssertNotNil(item.attempt.terminalAt)
         }
         XCTAssertEqual(page.attempts.map(\.title), ["Demo attempt 3", "Demo attempt 2", "Demo attempt 1"])
+        // `phase` is required on the wire (nullable StableKey) — recorded as two real keys and one null.
+        XCTAssertEqual(page.attempts.map { $0.phase?.rawValue }, ["implement", "verify", nil])
         XCTAssertEqual(page.attempts.first?.attempt.attemptId.rawValue, "00000003-0000-4000-8000-000000000003")
     }
 

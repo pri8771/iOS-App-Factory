@@ -272,6 +272,9 @@ const fixtures = {
         schemaVersion: 1,
         projectId: "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
         title: `Demo attempt ${n}`,
+        // AttemptListItemV1.phase (since 3cff9a7): the task's Studio phase, or null when the task
+        // spec declared none. Two real keys and one null so the Swift decoder sees both branches.
+        phase: n === 1 ? null : n === 2 ? "verify" : "implement",
         attempt: attempt(n, "succeeded"),
       })),
       nextAfter: null,
