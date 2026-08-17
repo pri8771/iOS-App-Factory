@@ -3,9 +3,11 @@ import { MAX_ROOM_MESSAGE_BODY_LENGTH_V1 } from "@app-factory/contracts";
 /**
  * The structured-output contract every real-model adapter enforces on its
  * provider: exactly one JSON object, `kind: "message" | "pass"`, `text`
- * present (bounded) for a message and `null` for a pass. Shared across
- * Codex's `--output-schema`, Claude's `--json-schema`, and Ollama's
- * `format`, so the three adapters agree on one wire contract and one parser.
+ * present (bounded) for a message and `null` for a pass. Sent as-is to
+ * Codex's `--output-schema` and Claude's `--json-schema`; Ollama's `format`
+ * instead gets {@link ROOM_CONTRIBUTION_OLLAMA_FORMAT_V1}, a wire variant
+ * loosened for its structured-output compiler (see that constant's doc).
+ * All three adapters still agree on one parser: {@link parseRoomContribution}.
  */
 export const ROOM_CONTRIBUTION_JSON_SCHEMA_V1 = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -26,6 +28,41 @@ export const ROOM_CONTRIBUTION_JSON_SCHEMA_V1 = {
 export function serializeRoomContributionJsonSchemaV1(): string {
   return `${JSON.stringify(ROOM_CONTRIBUTION_JSON_SCHEMA_V1, null, 2)}\n`;
 }
+
+/**
+ * Ollama-only wire variant of {@link ROOM_CONTRIBUTION_JSON_SCHEMA_V1}: the
+ * `text` property's `maxLength` is dropped.
+ *
+ * Observed live against local Ollama 0.21.0 (`POST /api/generate` with
+ * `format`, every locally available model -- gemma3:4b, qwen3.5:9b, etc.):
+ * a `string`/`["string","null"]` property carrying `maxLength` above ~2,000
+ * makes the whole request fail with HTTP 500 `"failed to load model
+ * vocabulary required for format"` before generation even starts (verified
+ * by bisection: 2,000 succeeds, 2,001 fails, independent of `num_predict`
+ * and of which model is loaded). `MAX_ROOM_MESSAGE_BODY_LENGTH_V1` is
+ * 20,000, an order of magnitude past that ceiling, and unlike Codex's
+ * `uniqueItems`/lookaround rejections (see `agent-runner/src/codex.ts`)
+ * there is no smaller-but-still-useful `maxLength` to fall back to here:
+ * `OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS` (150) already bounds a
+ * well-behaved model's output far below either ceiling, so the bound is
+ * simply dropped from the wire schema rather than narrowed. Every other
+ * keyword in {@link ROOM_CONTRIBUTION_JSON_SCHEMA_V1} -- `additionalProperties:
+ * false`, `const`, `enum`, the `["string","null"]` union, `minLength` --
+ * was individually verified live to compile fine. `parseRoomContribution`
+ * is unweakened and remains the sole authority on the true 20,000-char
+ * bound for every provider, Ollama included.
+ */
+export const ROOM_CONTRIBUTION_OLLAMA_FORMAT_V1 = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  type: "object",
+  additionalProperties: false,
+  required: ["schemaVersion", "kind", "text"],
+  properties: {
+    schemaVersion: { type: "integer", const: 1 },
+    kind: { type: "string", enum: ["message", "pass"] },
+    text: { type: ["string", "null"], minLength: 1 },
+  },
+} as const;
 
 export type ParsedRoomContribution =
   Readonly<{ kind: "message"; text: string }> | Readonly<{ kind: "pass" }>;

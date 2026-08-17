@@ -1,7 +1,11 @@
 import { RoomPersonaSchema } from "@app-factory/contracts";
 import { describe, expect, it } from "vitest";
 
-import { createOllamaParticipant, OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS } from "../src/index.js";
+import {
+  createOllamaParticipant,
+  OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS,
+  ROOM_CONTRIBUTION_OLLAMA_FORMAT_V1,
+} from "../src/index.js";
 import type { ParticipantContext } from "../src/index.js";
 import { fakeOllamaTransport, neverAbortedSignal, ollamaGenerateEnvelope } from "./helpers.js";
 
@@ -38,6 +42,22 @@ describe("createOllamaParticipant", () => {
     expect((body?.options as { num_predict: number }).num_predict).toBe(
       OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS,
     );
+  });
+
+  it("sends the Ollama-loosened wire schema (no maxLength) as `format`, never the shared strict one", async () => {
+    // Regression guard for the live finding: Ollama 0.21.0 rejects a `format`
+    // whose `text` carries `maxLength` (HTTP 500 "failed to load model
+    // vocabulary required for format" above ~2,000). See
+    // `ROOM_CONTRIBUTION_OLLAMA_FORMAT_V1`'s doc comment for the bisection.
+    const transport = fakeOllamaTransport(async () => ({
+      status: 200,
+      body: ollamaGenerateEnvelope({ schemaVersion: 1, kind: "pass", text: null }),
+    }));
+    const participant = createOllamaParticipant({ transport });
+    await participant.contribute(context());
+    const body = transport.requests[0]?.body;
+    expect(body?.format).toEqual(ROOM_CONTRIBUTION_OLLAMA_FORMAT_V1);
+    expect(JSON.stringify(body?.format)).not.toContain("maxLength");
   });
 
   it("caps num_predict below the historical guard when the room's own budget is smaller", async () => {
