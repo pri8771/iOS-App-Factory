@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -419,6 +420,72 @@ describe("migration runner", () => {
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'must_rollback'")
         .get(),
     ).toBeUndefined();
+    database.close();
+  });
+
+  it("upgrades a v5 database whose ledger was written by a pre-0006 build (legacy checksum formula)", () => {
+    // Before migration 0006 (`retry-and-unblock-commands`) the runner recorded
+    // `sha256(version\0name\0sql)`; 0006 added `\0<disableForeignKeysDuringApply>`
+    // to the formula, which silently orphaned every runtime recorded earlier --
+    // ~/.app-factory-a3-r2, the first real-model run's runtime, was rejected with
+    // "Migration 1 does not match its recorded name/checksum" and became
+    // unexportable. Rebuild exactly such a ledger and prove the current runner
+    // accepts and upgrades it.
+    const database = openFactoryDatabase(makeDatabasePath());
+    const preSix = FACTORY_MIGRATIONS.slice(0, 5);
+    expect(runMigrations(database, { migrations: preSix, now: () => new Date(NOW) })).toEqual({
+      currentVersion: 5,
+      newlyAppliedVersions: [1, 2, 3, 4, 5],
+    });
+    const legacyChecksum = (migration: SqlMigration): string =>
+      `sha256:${createHash("sha256")
+        .update(`${migration.version}\0${migration.name}\0${migration.sql}`, "utf8")
+        .digest("hex")}`;
+    const rewrite = database.prepare("UPDATE schema_migrations SET checksum = ? WHERE version = ?");
+    for (const migration of preSix) {
+      rewrite.run(legacyChecksum(migration), migration.version);
+    }
+    expect(listAppliedMigrations(database).map((migration) => migration.checksum)).toEqual(
+      preSix.map(legacyChecksum),
+    );
+
+    expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
+      currentVersion: 12,
+      newlyAppliedVersions: [6, 7, 8, 9, 10, 11, 12],
+    });
+    // Recognised, never rewritten: the legacy rows stay as recorded and every
+    // row from 0006 onwards carries the current formula (idempotent re-open).
+    expect(
+      listAppliedMigrations(database)
+        .slice(0, 5)
+        .map((migration) => migration.checksum),
+    ).toEqual(preSix.map(legacyChecksum));
+    expect(runMigrations(database, { now: () => new Date(LATER) })).toEqual({
+      currentVersion: 12,
+      newlyAppliedVersions: [],
+    });
+    expect(database.pragma("foreign_key_check")).toEqual([]);
+    database.close();
+  });
+
+  it("still rejects a legacy-formula checksum for a migration that disables foreign keys", () => {
+    // The legacy formula could not encode `disableForeignKeysDuringApply`, so it
+    // is only ever accepted where that flag is unset. Migration 0006 is the first
+    // (and currently only) flagged migration; a ledger row for it carrying the
+    // legacy formula cannot have been written by any real build and must fail.
+    const database = openFactoryDatabase(makeDatabasePath());
+    runMigrations(database, { now: () => new Date(NOW) });
+    const six = FACTORY_MIGRATIONS[5];
+    if (six === undefined || six.disableForeignKeysDuringApply !== true) {
+      throw new Error("Expected migration 0006 to disable foreign keys during apply");
+    }
+    const legacy = `sha256:${createHash("sha256")
+      .update(`${six.version}\0${six.name}\0${six.sql}`, "utf8")
+      .digest("hex")}`;
+    database.prepare("UPDATE schema_migrations SET checksum = ? WHERE version = 6").run(legacy);
+    expect(() => runMigrations(database, { now: () => new Date(LATER) })).toThrow(
+      /Migration 6 does not match its recorded name\/checksum/,
+    );
     database.close();
   });
 
