@@ -10,6 +10,7 @@
       "projects": [
         {
           "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+          "slug": "anjali",
           "name": "Anjali — Journal",
           "lifecycleStage": "building",
           "gates": {
@@ -36,16 +37,36 @@
           "timeline": {
             "milestones": [
               {
-                "milestoneId": "anjali-beta",
-                "name": "Beta review",
-                "targetDate": "2026-08-20T00:00:00.000Z",
-                "status": "at-risk"
+                "schemaVersion": 1,
+                "milestoneId": "70000001-0000-4000-8000-000000000001",
+                "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+                "phase": "beta",
+                "kind": "gate",
+                "label": "Beta review",
+                "targetDate": "2026-08-20",
+                "dependsOn": [],
+                "owner": "human",
+                "status": "planned",
+                "evidenceDigest": null,
+                "revision": 0,
+                "createdAt": "2026-08-10T09:00:00.000Z",
+                "updatedAt": "2026-08-10T09:00:00.000Z"
               },
               {
-                "milestoneId": "anjali-listing",
-                "name": "Store listing + sign-off",
-                "targetDate": "2026-09-05T00:00:00.000Z",
-                "status": "planned"
+                "schemaVersion": 1,
+                "milestoneId": "70000002-0000-4000-8000-000000000002",
+                "projectId": "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f",
+                "phase": "launch",
+                "kind": "release",
+                "label": "Store listing + sign-off",
+                "targetDate": "2026-09-05",
+                "dependsOn": ["70000001-0000-4000-8000-000000000001"],
+                "owner": "human",
+                "status": "planned",
+                "evidenceDigest": null,
+                "revision": 1,
+                "createdAt": "2026-08-10T09:05:00.000Z",
+                "updatedAt": "2026-08-15T10:00:00.000Z"
               }
             ],
             "milestonesUnavailableReason": null,
@@ -65,25 +86,26 @@
         },
         {
           "projectId": "9c8b7a6f-5e4d-4c3b-8a19-0f1e2d3c4b5a",
+          "slug": "hindsight",
           "name": "Hindsight",
           "lifecycleStage": null,
           "gates": {
             "typed": null,
             "owner": null,
             "state": "unavailable",
-            "unavailableReason": "not yet wired (studio/milestones-and-phase pending)"
+            "unavailableReason": "no gate records for project"
           },
           "latestAttemptSummary": null,
           "awaitingHuman": [],
           "timeline": {
             "milestones": [],
-            "milestonesUnavailableReason": "not yet wired (studio/milestones-and-phase pending)",
+            "milestonesUnavailableReason": null,
             "actuals": []
           }
         }
       ],
       "rooms": [],
-      "roomsUnavailableReason": "not yet wired (studio/milestones-and-phase pending)",
+      "roomsUnavailableReason": "not yet wired (studio/rooms-core pending)",
       "portfolio": {
         "verifiedThisWeek": {
           "value": 2,
@@ -106,7 +128,7 @@
           "unavailableReason": "not yet computed: step-level timing is not aggregated into an agent-active-window ratio"
         }
       },
-      "sourceSnapshotDigest": "sha256:5566d7f7b039fcb97cb7c6a8d57e803dcf0507298aa1e96bd4c0ef9130cea4fe"
+      "sourceSnapshotDigest": "sha256:138e35a25997ce79733b0ba6811fa74e9a0a680a9ae958ef2c263510a3f12fc0"
     }
   }
 }

@@ -10,13 +10,37 @@
       "type": "string"
     },
     "__schema10": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/__schema12"
+        },
+        "kind": {
+          "$ref": "#/$defs/__schema11"
+        },
+        "since": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "summary": {
+          "$ref": "#/$defs/__schema13"
+        }
+      },
+      "required": [
+        "kind",
+        "attemptId",
+        "summary",
+        "since"
+      ],
+      "type": "object"
+    },
+    "__schema11": {
       "enum": [
         "blocked-attempt",
         "gate-approval"
       ],
       "type": "string"
     },
-    "__schema11": {
+    "__schema12": {
       "anyOf": [
         {
           "$ref": "#/$defs/__schema4"
@@ -26,60 +50,157 @@
         }
       ]
     },
-    "__schema12": {
+    "__schema13": {
       "maxLength": 1000,
       "minLength": 1,
       "type": "string"
     },
-    "__schema13": {
+    "__schema14": {
       "items": {
-        "$ref": "#/$defs/__schema14"
+        "$ref": "#/$defs/__schema15"
       },
-      "maxItems": 200,
+      "maxItems": 500,
       "type": "array"
     },
-    "__schema14": {
+    "__schema15": {
       "additionalProperties": false,
       "properties": {
-        "milestoneId": {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
+        "createdAt": {
+          "$ref": "#/$defs/__schema1"
         },
-        "name": {
-          "maxLength": 200,
-          "minLength": 1,
-          "type": "string"
+        "dependsOn": {
+          "$ref": "#/$defs/__schema19"
+        },
+        "evidenceDigest": {
+          "$ref": "#/$defs/__schema22"
+        },
+        "kind": {
+          "$ref": "#/$defs/__schema16"
+        },
+        "label": {
+          "$ref": "#/$defs/__schema17"
+        },
+        "milestoneId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema20"
+        },
+        "phase": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "projectId": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "revision": {
+          "$ref": "#/$defs/__schema24"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
         },
         "status": {
-          "enum": [
-            "planned",
-            "at-risk",
-            "met",
-            "missed"
-          ],
-          "type": "string"
+          "$ref": "#/$defs/__schema21"
         },
         "targetDate": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/__schema1"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "$ref": "#/$defs/__schema18"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/__schema1"
         }
       },
       "required": [
+        "schemaVersion",
         "milestoneId",
-        "name",
+        "projectId",
+        "phase",
+        "kind",
+        "label",
         "targetDate",
-        "status"
+        "dependsOn",
+        "owner",
+        "status",
+        "evidenceDigest",
+        "revision",
+        "createdAt",
+        "updatedAt"
       ],
       "type": "object"
     },
-    "__schema15": {
+    "__schema16": {
+      "enum": [
+        "stage",
+        "gate",
+        "release"
+      ],
+      "type": "string"
+    },
+    "__schema17": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema18": {
+      "anyOf": [
+        {
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema19": {
+      "items": {
+        "$ref": "#/$defs/__schema4"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "__schema2": {
+      "items": {
+        "$ref": "#/$defs/__schema3"
+      },
+      "maxItems": 1000,
+      "type": "array"
+    },
+    "__schema20": {
+      "enum": [
+        "human",
+        "machine"
+      ],
+      "type": "string"
+    },
+    "__schema21": {
+      "enum": [
+        "planned",
+        "active",
+        "done",
+        "abandoned"
+      ],
+      "type": "string"
+    },
+    "__schema22": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema23"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema23": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema24": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema25": {
       "anyOf": [
         {
           "maxLength": 500,
@@ -91,14 +212,14 @@
         }
       ]
     },
-    "__schema16": {
+    "__schema26": {
       "items": {
-        "$ref": "#/$defs/__schema17"
+        "$ref": "#/$defs/__schema27"
       },
       "maxItems": 1000,
       "type": "array"
     },
-    "__schema17": {
+    "__schema27": {
       "additionalProperties": false,
       "properties": {
         "attemptId": {
@@ -120,14 +241,14 @@
       ],
       "type": "object"
     },
-    "__schema18": {
+    "__schema28": {
       "items": {
-        "$ref": "#/$defs/__schema19"
+        "$ref": "#/$defs/__schema29"
       },
       "maxItems": 1000,
       "type": "array"
     },
-    "__schema19": {
+    "__schema29": {
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -155,175 +276,12 @@
       ],
       "type": "object"
     },
-    "__schema2": {
-      "items": {
-        "$ref": "#/$defs/__schema3"
-      },
-      "maxItems": 1000,
-      "type": "array"
-    },
-    "__schema20": {
-      "anyOf": [
-        {
-          "maxLength": 500,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "__schema21": {
-      "additionalProperties": false,
-      "properties": {
-        "agentWindowShare": {
-          "$ref": "#/$defs/__schema25"
-        },
-        "awaitingYouCount": {
-          "$ref": "#/$defs/__schema22"
-        },
-        "medianRunSeconds": {
-          "additionalProperties": false,
-          "properties": {
-            "unavailableReason": {
-              "$ref": "#/$defs/__schema29"
-            },
-            "value": {
-              "$ref": "#/$defs/__schema28"
-            }
-          },
-          "required": [
-            "value",
-            "unavailableReason"
-          ],
-          "type": "object"
-        },
-        "passRate": {
-          "$ref": "#/$defs/__schema25"
-        },
-        "verifiedThisWeek": {
-          "$ref": "#/$defs/__schema22"
-        }
-      },
-      "required": [
-        "verifiedThisWeek",
-        "awaitingYouCount",
-        "passRate",
-        "medianRunSeconds",
-        "agentWindowShare"
-      ],
-      "type": "object"
-    },
-    "__schema22": {
-      "additionalProperties": false,
-      "properties": {
-        "unavailableReason": {
-          "$ref": "#/$defs/__schema24"
-        },
-        "value": {
-          "$ref": "#/$defs/__schema23"
-        }
-      },
-      "required": [
-        "value",
-        "unavailableReason"
-      ],
-      "type": "object"
-    },
-    "__schema23": {
-      "anyOf": [
-        {
-          "maximum": 9007199254740991,
-          "minimum": 0,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "__schema24": {
-      "anyOf": [
-        {
-          "maxLength": 500,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "__schema25": {
-      "additionalProperties": false,
-      "properties": {
-        "unavailableReason": {
-          "$ref": "#/$defs/__schema27"
-        },
-        "value": {
-          "$ref": "#/$defs/__schema26"
-        }
-      },
-      "required": [
-        "value",
-        "unavailableReason"
-      ],
-      "type": "object"
-    },
-    "__schema26": {
-      "anyOf": [
-        {
-          "maximum": 1,
-          "minimum": 0,
-          "type": "number"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "__schema27": {
-      "anyOf": [
-        {
-          "maxLength": 500,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "__schema28": {
-      "anyOf": [
-        {
-          "minimum": 0,
-          "type": "number"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "__schema29": {
-      "anyOf": [
-        {
-          "maxLength": 500,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "__schema3": {
       "additionalProperties": false,
       "properties": {
         "awaitingHuman": {
           "items": {
-            "$ref": "#/$defs/__schema9"
+            "$ref": "#/$defs/__schema10"
           },
           "maxItems": 100,
           "type": "array"
@@ -332,16 +290,16 @@
           "additionalProperties": false,
           "properties": {
             "owner": {
-              "$ref": "#/$defs/__schema6"
-            },
-            "state": {
               "$ref": "#/$defs/__schema7"
             },
+            "state": {
+              "$ref": "#/$defs/__schema8"
+            },
             "typed": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             },
             "unavailableReason": {
-              "$ref": "#/$defs/__schema8"
+              "$ref": "#/$defs/__schema9"
             }
           },
           "required": [
@@ -471,17 +429,20 @@
         "projectId": {
           "$ref": "#/$defs/__schema4"
         },
+        "slug": {
+          "$ref": "#/$defs/__schema5"
+        },
         "timeline": {
           "additionalProperties": false,
           "properties": {
             "actuals": {
-              "$ref": "#/$defs/__schema16"
+              "$ref": "#/$defs/__schema26"
             },
             "milestones": {
-              "$ref": "#/$defs/__schema13"
+              "$ref": "#/$defs/__schema14"
             },
             "milestonesUnavailableReason": {
-              "$ref": "#/$defs/__schema15"
+              "$ref": "#/$defs/__schema25"
             }
           },
           "required": [
@@ -494,6 +455,7 @@
       },
       "required": [
         "projectId",
+        "slug",
         "name",
         "lifecycleStage",
         "gates",
@@ -504,48 +466,6 @@
       "type": "object"
     },
     "__schema30": {
-      "pattern": "^sha256:[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "__schema4": {
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-      "type": "string"
-    },
-    "__schema5": {
-      "anyOf": [
-        {
-          "maxLength": 200,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "__schema6": {
-      "anyOf": [
-        {
-          "maxLength": 200,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "__schema7": {
-      "enum": [
-        "pending",
-        "satisfied",
-        "waived",
-        "blocked",
-        "unavailable"
-      ],
-      "type": "string"
-    },
-    "__schema8": {
       "anyOf": [
         {
           "maxLength": 500,
@@ -557,29 +477,210 @@
         }
       ]
     },
-    "__schema9": {
+    "__schema31": {
       "additionalProperties": false,
       "properties": {
-        "attemptId": {
-          "$ref": "#/$defs/__schema11"
+        "agentWindowShare": {
+          "$ref": "#/$defs/__schema35"
         },
-        "kind": {
-          "$ref": "#/$defs/__schema10"
+        "awaitingYouCount": {
+          "$ref": "#/$defs/__schema32"
         },
-        "since": {
-          "$ref": "#/$defs/__schema1"
+        "medianRunSeconds": {
+          "additionalProperties": false,
+          "properties": {
+            "unavailableReason": {
+              "$ref": "#/$defs/__schema39"
+            },
+            "value": {
+              "$ref": "#/$defs/__schema38"
+            }
+          },
+          "required": [
+            "value",
+            "unavailableReason"
+          ],
+          "type": "object"
         },
-        "summary": {
-          "$ref": "#/$defs/__schema12"
+        "passRate": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "verifiedThisWeek": {
+          "$ref": "#/$defs/__schema32"
         }
       },
       "required": [
-        "kind",
-        "attemptId",
-        "summary",
-        "since"
+        "verifiedThisWeek",
+        "awaitingYouCount",
+        "passRate",
+        "medianRunSeconds",
+        "agentWindowShare"
       ],
       "type": "object"
+    },
+    "__schema32": {
+      "additionalProperties": false,
+      "properties": {
+        "unavailableReason": {
+          "$ref": "#/$defs/__schema34"
+        },
+        "value": {
+          "$ref": "#/$defs/__schema33"
+        }
+      },
+      "required": [
+        "value",
+        "unavailableReason"
+      ],
+      "type": "object"
+    },
+    "__schema33": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema24"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema34": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema35": {
+      "additionalProperties": false,
+      "properties": {
+        "unavailableReason": {
+          "$ref": "#/$defs/__schema37"
+        },
+        "value": {
+          "$ref": "#/$defs/__schema36"
+        }
+      },
+      "required": [
+        "value",
+        "unavailableReason"
+      ],
+      "type": "object"
+    },
+    "__schema36": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema37": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema38": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema39": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema4": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema5": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema6": {
+      "anyOf": [
+        {
+          "enum": [
+            "build",
+            "tests",
+            "visual",
+            "device",
+            "legal",
+            "store",
+            "market"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema7": {
+      "anyOf": [
+        {
+          "enum": [
+            "human",
+            "machine"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema8": {
+      "enum": [
+        "pending",
+        "satisfied",
+        "waived",
+        "blocked",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "__schema9": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "$id": "urn:app-factory:contracts:v1:studio-snapshot",
@@ -590,22 +691,22 @@
       "$ref": "#/$defs/__schema1"
     },
     "portfolio": {
-      "$ref": "#/$defs/__schema21"
+      "$ref": "#/$defs/__schema31"
     },
     "projects": {
       "$ref": "#/$defs/__schema2"
     },
     "rooms": {
-      "$ref": "#/$defs/__schema18"
+      "$ref": "#/$defs/__schema28"
     },
     "roomsUnavailableReason": {
-      "$ref": "#/$defs/__schema20"
+      "$ref": "#/$defs/__schema30"
     },
     "schemaVersion": {
       "$ref": "#/$defs/__schema0"
     },
     "sourceSnapshotDigest": {
-      "$ref": "#/$defs/__schema30"
+      "$ref": "#/$defs/__schema23"
     }
   },
   "required": [

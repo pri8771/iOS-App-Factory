@@ -23,7 +23,7 @@ final class StudioStoreTests: XCTestCase {
             case "evidence.list": file = "evidence-list.response.json"
             case "attempt.events": file = "attempt-events.response.json"
             default:
-                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unknown-operation", message: operation, retryable: false))
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unsupported-operation", message: operation, retryable: false))
             }
             return .reply(try! WireResponse.fixture(file, requestId: requestId))
         }
@@ -62,9 +62,9 @@ final class StudioStoreTests: XCTestCase {
         XCTAssertEqual(store.assistantContext.link, "connected · daemon 0.1.0-ui-demo ready")
 
         let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
-        // `fixtureServer()` does not answer studio.snapshot (falls to "protocol.unknown-operation" in
-        // its default case), so `refresh()` probes it first and falls back to the phase-1 sequence —
-        // exactly what a today's-main daemon that has never heard of Studio Phase 2 looks like.
+        // `fixtureServer()` does not answer studio.snapshot (falls to "protocol.unsupported-operation"
+        // in its default case), so `refresh()` probes it first and falls back to the phase-1 sequence —
+        // exactly what a daemon that has never heard of a given operation looks like.
         XCTAssertEqual(operations, ["doctor", "studio.snapshot", "portfolio.snapshot", "attempt.list", "evidence.list"])
         XCTAssertEqual(server.frames[3]["request"]?["payload"], ["scope": "all", "projectId": nil, "after": nil, "limit": 100])
     }
@@ -82,7 +82,7 @@ final class StudioStoreTests: XCTestCase {
             case "studio.snapshot": file = "studio-snapshot.response.json"
             case "evidence.list": file = "evidence-list.response.json"
             default:
-                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unknown-operation", message: operation, retryable: false))
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unsupported-operation", message: operation, retryable: false))
             }
             return .reply(try! WireResponse.fixture(file, requestId: requestId))
         }
@@ -165,7 +165,7 @@ final class StudioStoreTests: XCTestCase {
             case "project.milestone.upsert":
                 return .reply(try! WireResponse.fixture("project-milestone-upsert.response.json", requestId: requestId))
             default:
-                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unknown-operation", message: operation, retryable: false))
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unsupported-operation", message: operation, retryable: false))
             }
         }
         defer { server.stop() }

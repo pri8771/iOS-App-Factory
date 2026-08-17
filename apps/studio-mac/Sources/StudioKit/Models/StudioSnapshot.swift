@@ -2,23 +2,28 @@ import Foundation
 
 // MARK: - Studio snapshot (studio-snapshot.ts, `studio.snapshot`)
 //
-// Mirrors `packages/contracts/src/v1/studio-snapshot.ts` on `studio/service-skeleton` (tip cdfe558).
-// The daemon composes this today from attempts/events/the local portfolio projection; `milestones`,
-// project `gates`, and portfolio `rooms` are concepts three separate, still-unmerged worktrees own, so
-// the daemon in that branch always reports them with an explicit `unavailableReason` rather than a
-// fabricated value. `STUDIO_NOT_YET_WIRED_REASON` is that reason, verbatim, so every "not wired yet"
-// surface here is grep-able.
+// Mirrors `packages/contracts/src/v1/studio-snapshot.ts`. The daemon composes this from
+// attempts/events/the local portfolio projection and — since the `studio/milestones-and-phase`
+// merge — the durable milestone repository; portfolio `rooms` is a concept a separate,
+// still-unmerged worktree (`studio/rooms-core`) owns, so the daemon reports it with an explicit
+// `unavailableReason` rather than a fabricated value. `studioNotYetWiredReason` is that reason,
+// verbatim, so every "not wired yet" surface here is grep-able. Project `gates` are real typed
+// values (`TypedGateName`/`GateOwner` below) backed by no persisted observation yet in this
+// daemon; `studioNoGateRecordsReason` explains that specific, different kind of absence.
 //
-// `StudioMilestone` below is this file's own placeholder milestone shape — `targetDate` is an
-// `IsoInstant`, `status` is planned/at-risk/met/missed. It is NOT the same type as `ProjectMilestone`
-// (Milestone.swift, the real, revisioned concept `project.milestones.list` / `.upsert` read and write):
-// that one's `targetDate` is a `CalendarDate` and `status` is planned/active/done/abandoned. The two
-// worktrees drifted independently; `computeAssistantAnswerV1` on the daemon even says as much — this
-// type "is exercised only by round-trip/type tests until [milestones-and-phase] merges and this type is
-// reconciled with the real one." Studio's dashboard timeline reads `StudioProject.timeline.milestones`
-// (this file); the project-detail milestones panel and editor read/write the real `ProjectMilestone`.
+// `projects[].timeline.milestones` is `[ProjectMilestone]` (Milestone.swift) — the exact same
+// durable, revisioned type `project.milestones.list`/`.upsert` read and write. Earlier revisions
+// of this file defined a second, incompatible `StudioMilestone` placeholder shape (`targetDate` an
+// `IsoInstant`, `status` planned/at-risk/met/missed — a vocabulary `ProjectMilestone`'s own status
+// rejects outright). See `apps/studio-mac/docs/architecture/
+// 0003-studio-phase2-service-integration.md` decision 4 for that history; the seam is closed now,
+// so the dashboard timeline and the project-detail milestones panel read and decode one model.
 
-public let studioNotYetWiredReason = "not yet wired (studio/milestones-and-phase pending)"
+public let studioNotYetWiredReason = "not yet wired (studio/rooms-core pending)"
+
+/// Reported on `gates.unavailableReason` for a project with no persisted typed-gate observation
+/// yet — an honest fact about that project, not a missing daemon capability.
+public let studioNoGateRecordsReason = "no gate records for project"
 
 // MARK: Metrics — "exactly one of value or unavailableReason"
 
@@ -77,18 +82,27 @@ public enum StudioGateState: String, Hashable, Sendable, Codable, CaseIterable {
     case pending, satisfied, waived, blocked, unavailable
 }
 
-/// `typed`/`owner` mirror the typed-lifecycle-gate and human-only-owner-field concepts
-/// `studio/lifecycle-reconciliation` (`TypedGateNameV1`: build/tests/visual/device/legal/store/market)
-/// and `studio/policy-engine-scoping` (`GateOwnerV1`: human/machine) will introduce — plain strings on
-/// this wire shape, not those branches' enums, because this file predates their merge. Today's daemon
-/// always reports `state: .unavailable` with `typed`/`owner` both `nil`.
+/// `TypedGateNameV1` (`lifecycle.ts`) — the seven typed lifecycle gates.
+public enum TypedGateName: String, Hashable, Sendable, Codable, CaseIterable {
+    case build, tests, visual, device, legal, store, market
+}
+
+/// `GateOwnerV1` (`lifecycle.ts`).
+public enum GateOwner: String, Hashable, Sendable, Codable, CaseIterable {
+    case human, machine
+}
+
+/// `typed`/`owner` are the real typed-lifecycle-gate vocabulary, not placeholder strings: a project
+/// whose gate state is a real, persisted `TypedGateV1` observation reports it here verbatim. A
+/// project with no persisted gate observation yet reports `state: .unavailable` with `typed`/`owner`
+/// both `nil` and `unavailableReason` set to `studioNoGateRecordsReason`.
 public struct StudioProjectGates: Hashable, Sendable, Codable {
-    public var typed: String?
-    public var owner: String?
+    public var typed: TypedGateName?
+    public var owner: GateOwner?
     public var state: StudioGateState
     public var unavailableReason: String?
 
-    public init(typed: String?, owner: String?, state: StudioGateState, unavailableReason: String?) {
+    public init(typed: TypedGateName?, owner: GateOwner?, state: StudioGateState, unavailableReason: String?) {
         self.typed = typed
         self.owner = owner
         self.state = state
@@ -106,7 +120,7 @@ public struct StudioProjectGates: Hashable, Sendable, Codable {
     }
 
     /// The one gold rule reaches gates too: a gate only glows gold when a human, not the machine, owns it.
-    public var ownerIsHuman: Bool { owner == "human" }
+    public var ownerIsHuman: Bool { owner == .human }
 }
 
 public struct StudioAttemptSummary: Hashable, Sendable, Codable {
@@ -159,31 +173,6 @@ public struct StudioAwaitingHumanItem: Hashable, Sendable, Codable, Identifiable
     }
 }
 
-// MARK: Placeholder milestones (studio-snapshot.ts's own shape — see the file doc comment)
-
-public enum StudioMilestoneStatus: String, Hashable, Sendable, Codable, CaseIterable {
-    case planned
-    case atRisk = "at-risk"
-    case met, missed
-}
-
-/// `StudioMilestoneV1`. `targetDate: nil` means no honest target date exists yet; nothing may invent one.
-public struct StudioMilestone: Hashable, Sendable, Codable, Identifiable {
-    public var milestoneId: StudioMilestoneID
-    public var name: String
-    public var targetDate: IsoInstant?
-    public var status: StudioMilestoneStatus
-
-    public var id: StudioMilestoneID { milestoneId }
-
-    public init(milestoneId: StudioMilestoneID, name: String, targetDate: IsoInstant?, status: StudioMilestoneStatus) {
-        self.milestoneId = milestoneId
-        self.name = name
-        self.targetDate = targetDate
-        self.status = status
-    }
-}
-
 public struct StudioTimelineActual: Hashable, Sendable, Codable, Identifiable {
     public var attemptId: AttemptID
     public var label: String
@@ -198,15 +187,17 @@ public struct StudioTimelineActual: Hashable, Sendable, Codable, Identifiable {
     }
 }
 
-/// `actuals` is real, derived from this project's own attempt/event history. `milestones` is always
-/// empty today; `milestonesUnavailableReason` explains why exactly when `milestones` is empty, so an
-/// empty array never reads as "on schedule with zero milestones."
+/// `actuals` is real, derived from this project's own attempt/event history. `milestones` is the
+/// project's real, revisioned milestone plan (`[ProjectMilestone]`) — the exact type
+/// `project.milestones.list`/`.upsert` read and write. An empty array is a legitimate real state (a
+/// project with no authored milestones yet); `milestonesUnavailableReason` may be non-`nil` only
+/// while `milestones` is empty, and must be `nil` once any milestone is present.
 public struct StudioProjectTimeline: Hashable, Sendable, Codable {
-    public var milestones: [StudioMilestone]
+    public var milestones: [ProjectMilestone]
     public var milestonesUnavailableReason: String?
     public var actuals: [StudioTimelineActual]
 
-    public init(milestones: [StudioMilestone], milestonesUnavailableReason: String?, actuals: [StudioTimelineActual]) {
+    public init(milestones: [ProjectMilestone], milestonesUnavailableReason: String?, actuals: [StudioTimelineActual]) {
         self.milestones = milestones
         self.milestonesUnavailableReason = milestonesUnavailableReason
         self.actuals = actuals
@@ -228,6 +219,12 @@ public struct StudioProjectTimeline: Hashable, Sendable, Codable {
 /// predates that branch's merge too.
 public struct StudioProject: Hashable, Sendable, Codable, Identifiable {
     public var projectId: ProjectID
+    /// A stable, `StableKey`-shaped identifier: from the enrolled project/manifest when known,
+    /// otherwise a deterministic fallback derived only from `projectId` — never from `name`. Lets
+    /// the dashboard merge a studio.snapshot row with the fixture/portfolio slug it already keys
+    /// on via this field directly, replacing a best-effort slugify-of-name heuristic that could
+    /// (and did) diverge from the curated slug.
+    public var slug: StableKey
     public var name: String
     public var lifecycleStage: ProjectLifecycleStage?
     public var gates: StudioProjectGates
@@ -237,10 +234,11 @@ public struct StudioProject: Hashable, Sendable, Codable, Identifiable {
 
     public var id: ProjectID { projectId }
 
-    public init(projectId: ProjectID, name: String, lifecycleStage: ProjectLifecycleStage?, gates: StudioProjectGates,
-                latestAttemptSummary: StudioAttemptSummary?, awaitingHuman: [StudioAwaitingHumanItem],
-                timeline: StudioProjectTimeline) {
+    public init(projectId: ProjectID, slug: StableKey, name: String, lifecycleStage: ProjectLifecycleStage?,
+                gates: StudioProjectGates, latestAttemptSummary: StudioAttemptSummary?,
+                awaitingHuman: [StudioAwaitingHumanItem], timeline: StudioProjectTimeline) {
         self.projectId = projectId
+        self.slug = slug
         self.name = name
         self.lifecycleStage = lifecycleStage
         self.gates = gates

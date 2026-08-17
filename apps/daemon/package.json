@@ -24,6 +24,7 @@
     "@app-factory/independent-review": "workspace:*",
     "@app-factory/kernel": "workspace:*",
     "@app-factory/oci-runner": "workspace:*",
+    "@app-factory/policy-corpus": "workspace:*",
     "@app-factory/policy-engine": "workspace:*",
     "@app-factory/process-supervisor": "workspace:*",
     "@app-factory/project-sdk": "workspace:*",

@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 import { AttemptStateV1Schema } from "./execution.js";
-import { ProjectLifecycleStageV1Schema } from "./lifecycle.js";
+import {
+  GateOwnerV1Schema,
+  ProjectLifecycleStageV1Schema,
+  TypedGateNameV1Schema,
+} from "./lifecycle.js";
+import { MAX_PROJECT_MILESTONES_V1, ProjectMilestoneV1Schema } from "./milestone.js";
 import {
   AttemptIdSchema,
   BlockerV1Schema,
@@ -10,35 +15,49 @@ import {
   ProjectIdSchema,
   SchemaVersionV1Schema,
   Sha256DigestSchema,
+  StableKeySchema,
   TaskIdSchema,
+  type StableKey,
 } from "./primitives.js";
 
 /**
  * Studio Phase 2 read model: the single call
  * (`studio.snapshot`/`StudioSnapshotCommandRequestV1`) the Studio Mac app's dashboard makes on
- * open, per `docs/roadmap/STUDIO_PHASES.md` Phase 2. It composes today from repositories that
- * already exist in this repository (attempts, events, the local portfolio projection); the
- * milestones/gates/rooms concepts named in the shape below belong to three separate,
- * still-unmerged worktrees (`studio/milestones-and-phase`, `studio/lifecycle-reconciliation` +
- * `studio/policy-engine-scoping`, and rooms — a later phase). Every field those worktrees will
- * eventually own is present in the wire shape now, so the app can code against its final contract
- * today, but the daemon in *this* repository always reports it empty with an explicit
- * `unavailableReason` string rather than a fabricated value — see
- * `STUDIO_NOT_YET_WIRED_REASON_V1` below. This mirrors, field for field, the
+ * open, per `docs/roadmap/STUDIO_PHASES.md` Phase 2. It composes from repositories that already
+ * exist in this repository (attempts, events, the local portfolio projection, and — as of the
+ * `studio/milestones-and-phase` merge — the durable milestone repository). `rooms` and typed
+ * `gates` still belong to worktrees not reconciled here yet; every field those own is present in
+ * the wire shape now, so the app can code against its final contract today, but the daemon
+ * reports each one empty with an explicit `unavailableReason` string rather than a fabricated
+ * value — see `STUDIO_NOT_YET_WIRED_REASON_V1` below. This mirrors, field for field, the
  * "never a defaulted number for a source you don't have" discipline `portfolio-read-model.ts`
  * already established for the pre-existing portfolio snapshot.
+ *
+ * `projects[].timeline.milestones` is `ProjectMilestoneV1[]` — the same revisioned type
+ * `project.milestones.list`/`project.milestone.upsert` read and write (`milestone.ts`). Earlier
+ * revisions of this file defined a second, incompatible `StudioMilestone` placeholder shape
+ * (different status vocabulary: `at-risk` was valid there and rejected here) — see ADR
+ * `apps/studio-mac/docs/architecture/0003-studio-phase2-service-integration.md` decision 4 for
+ * the history. That seam is closed: there is exactly one milestone vocabulary now.
  */
 
 export const MAX_STUDIO_PROJECTS_V1 = 1_000 as const;
 
 /**
- * The literal reason string the daemon reports for every studio concept
- * (`milestones`, project `gates`, and portfolio `rooms`) that a parallel, unmerged worktree owns.
- * Kept as one shared constant, not per-field prose, so every "not wired yet" surface in a snapshot
- * is byte-identical and grep-able.
+ * The literal reason string the daemon reports for every studio concept (portfolio `rooms`,
+ * still a separate unmerged worktree) that a parallel worktree owns and this daemon cannot
+ * populate yet. Kept as one shared constant, not per-field prose, so every "not wired yet"
+ * surface in a snapshot is byte-identical and grep-able.
  */
-export const STUDIO_NOT_YET_WIRED_REASON_V1 =
-  "not yet wired (studio/milestones-and-phase pending)" as const;
+export const STUDIO_NOT_YET_WIRED_REASON_V1 = "not yet wired (studio/rooms-core pending)" as const;
+
+/**
+ * Reported on `gates.unavailableReason` for a project with no persisted typed-gate observation
+ * yet. Distinct from `STUDIO_NOT_YET_WIRED_REASON_V1`: gate persistence itself now exists
+ * (`lifecycle.ts`'s `TypedGateV1`); this project simply has no recorded gate yet, which is an
+ * honest fact about the project, not a missing daemon capability.
+ */
+export const STUDIO_NO_GATE_RECORDS_REASON_V1 = "no gate records for project" as const;
 
 /**
  * Shared invariant for every nullable portfolio metric below: exactly one of `value` or
@@ -102,14 +121,17 @@ export const StudioGateStateV1Schema = z.enum([
 export type StudioGateStateV1 = z.infer<typeof StudioGateStateV1Schema>;
 
 /**
- * `typed`/`owner` mirror the typed-lifecycle-gate and human-only-owner-field concepts
- * `studio/lifecycle-reconciliation` and `studio/policy-engine-scoping` will introduce. Until those
- * branches merge, `state` is always `"unavailable"` and `typed`/`owner` are always `null`.
+ * `typed`/`owner` are the real typed-lifecycle-gate vocabulary (`lifecycle.ts`'s
+ * `TypedGateNameV1`/`GateOwnerV1`), not placeholder strings: a project whose gate state is a real,
+ * persisted `TypedGateV1` observation reports it here verbatim. A project with no persisted gate
+ * observation yet reports `state: "unavailable"` with `typed`/`owner` both `null` and
+ * `unavailableReason` set to `STUDIO_NO_GATE_RECORDS_REASON_V1` — an honest fact about that
+ * project, not a missing daemon capability.
  */
 export const StudioProjectGatesV1Schema = z
   .strictObject({
-    typed: z.string().min(1).max(200).nullable(),
-    owner: z.string().min(1).max(200).nullable(),
+    typed: TypedGateNameV1Schema.nullable(),
+    owner: GateOwnerV1Schema.nullable(),
     state: StudioGateStateV1Schema,
     unavailableReason: z.string().min(1).max(500).nullable(),
   })
@@ -173,27 +195,6 @@ export const StudioAwaitingHumanItemV1Schema = z
   });
 export type StudioAwaitingHumanItemV1 = z.infer<typeof StudioAwaitingHumanItemV1Schema>;
 
-/**
- * Placeholder identity for the not-yet-real milestone concept `studio/milestones-and-phase` owns.
- * The daemon in this repository never populates a non-empty `milestones` array, so this schema is
- * exercised only by round-trip/type tests until that branch merges and this type is reconciled with
- * the real one.
- */
-export const StudioMilestoneIdV1Schema = z.string().min(1).max(128).brand<"StudioMilestoneId">();
-export type StudioMilestoneIdV1 = z.infer<typeof StudioMilestoneIdV1Schema>;
-
-export const StudioMilestoneStatusV1Schema = z.enum(["planned", "at-risk", "met", "missed"]);
-export type StudioMilestoneStatusV1 = z.infer<typeof StudioMilestoneStatusV1Schema>;
-
-export const StudioMilestoneV1Schema = z.strictObject({
-  milestoneId: StudioMilestoneIdV1Schema,
-  name: z.string().min(1).max(200),
-  /** `null` means no honest target date exists yet; the assistant must not invent one. */
-  targetDate: IsoInstantSchema.nullable(),
-  status: StudioMilestoneStatusV1Schema,
-});
-export type StudioMilestoneV1 = z.infer<typeof StudioMilestoneV1Schema>;
-
 export const StudioTimelineActualV1Schema = z.strictObject({
   attemptId: AttemptIdSchema,
   label: z.string().min(1).max(200),
@@ -202,22 +203,27 @@ export const StudioTimelineActualV1Schema = z.strictObject({
 export type StudioTimelineActualV1 = z.infer<typeof StudioTimelineActualV1Schema>;
 
 /**
- * `actuals` is real, derived from this project's own attempt/event history. `milestones` is always
- * empty today (see the module doc comment); `milestonesUnavailableReason` explains why exactly when
- * `milestones` is empty, so an empty array never reads as "on schedule with zero milestones."
+ * `actuals` is real, derived from this project's own attempt/event history. `milestones` is the
+ * project's real, revisioned milestone plan (`ProjectMilestoneV1[]`, `milestone.ts`) — the exact
+ * type `project.milestones.list`/`project.milestone.upsert` read and write, not a second,
+ * incompatible placeholder shape (see the module doc comment). An empty array is a legitimate
+ * real state — a project with no authored milestones yet — so, unlike the rest of this file's
+ * metrics, `milestonesUnavailableReason` is not required to be non-null exactly when the array is
+ * empty; it may only be non-null when the array actually is empty, and must stay `null` once any
+ * milestone is present.
  */
 export const StudioProjectTimelineV1Schema = z
   .strictObject({
-    milestones: z.array(StudioMilestoneV1Schema).max(200),
+    milestones: z.array(ProjectMilestoneV1Schema).max(MAX_PROJECT_MILESTONES_V1),
     milestonesUnavailableReason: z.string().min(1).max(500).nullable(),
     actuals: z.array(StudioTimelineActualV1Schema).max(1_000),
   })
   .superRefine((timeline, context) => {
-    if ((timeline.milestones.length === 0) !== (timeline.milestonesUnavailableReason !== null)) {
+    if (timeline.milestones.length > 0 && timeline.milestonesUnavailableReason !== null) {
       context.addIssue({
         code: "custom",
         path: ["milestonesUnavailableReason"],
-        message: "milestonesUnavailableReason must be present exactly when milestones is empty",
+        message: "milestonesUnavailableReason must be null once milestones are present",
       });
     }
   });
@@ -225,6 +231,14 @@ export type StudioProjectTimelineV1 = z.infer<typeof StudioProjectTimelineV1Sche
 
 export const StudioProjectV1Schema = z.strictObject({
   projectId: ProjectIdSchema,
+  /**
+   * A stable, StableKey-shaped identifier derived from the enrolled project/manifest when one is
+   * known, and otherwise a deterministic fallback derived only from `projectId` — never from
+   * `name`, which can change and is not fit to key a merge on. The Studio app uses this to merge
+   * a live snapshot's timeline rows with the fixture/portfolio slug it already keys on, replacing
+   * a best-effort slugify-of-name heuristic that could and did diverge from the curated slug.
+   */
+  slug: StableKeySchema,
   name: z.string().min(1).max(200),
   lifecycleStage: ProjectLifecycleStageV1Schema.nullable(),
   gates: StudioProjectGatesV1Schema,
@@ -233,6 +247,15 @@ export const StudioProjectV1Schema = z.strictObject({
   timeline: StudioProjectTimelineV1Schema,
 });
 export type StudioProjectV1 = z.infer<typeof StudioProjectV1Schema>;
+
+/**
+ * Deterministic fallback slug derived only from `projectId`, used whenever no enrolled
+ * project/manifest slug is known. Never derived from `displayName`. `project-` plus the full
+ * lowercase UUID is always a valid `StableKey` (39 characters, well under the 64-character bound).
+ */
+export function projectSlugFallbackV1(projectId: string): StableKey {
+  return StableKeySchema.parse(`project-${projectId}`);
+}
 
 /**
  * Placeholder for the rooms concept `docs/roadmap/STUDIO_PHASES.md` Phase 3 ("Chat + rooms") and

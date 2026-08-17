@@ -21,6 +21,7 @@ import { LessonV1Schema, LifecycleEventV1Schema } from "./learning.js";
 import { ProjectLifecycleStateV1Schema, TypedGateV1Schema } from "./lifecycle.js";
 import { ProjectMilestoneV1Schema, ProjectTimelineV1Schema } from "./milestone.js";
 import { ModuleManifestV1Schema } from "./module.js";
+import { PhaseDefinitionV1Schema, PhasePresetV1Schema } from "./phase.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
 import { RoomGrantV1Schema, RoomMessageV1Schema, RoomV1Schema } from "./room.js";
@@ -255,6 +256,18 @@ export const contractSchemaCatalogV1 = [
     fileName: "assistant-intent.v1.schema.json",
     id: "urn:app-factory:contracts:v1:assistant-intent",
     schema: AssistantIntentV1Schema,
+  },
+  {
+    name: "phase-definition",
+    fileName: "phase-definition.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:phase-definition",
+    schema: PhaseDefinitionV1Schema,
+  },
+  {
+    name: "phase-preset",
+    fileName: "phase-preset.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:phase-preset",
+    schema: PhasePresetV1Schema,
   },
 ] as const satisfies readonly ContractSchemaCatalogEntryV1[];
 

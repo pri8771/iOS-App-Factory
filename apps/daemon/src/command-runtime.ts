@@ -71,6 +71,13 @@ import {
   executeProjectScanCommand,
 } from "./project-command-runtime.js";
 import {
+  buildPresetListResultV1,
+  loadKnownStandardRuleIdsV1,
+  seedIosAppStandardPresetV1,
+  upsertPhaseDefinitionV1,
+  upsertPhasePresetV1,
+} from "./phase-command-runtime.js";
+import {
   createRunExportMirrorPort,
   executeRunExportCommand,
   type RunExportMirrorPort,
@@ -103,6 +110,8 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "daemon.reconcile",
   "project.apply",
   "project.milestone.upsert",
+  "preset.upsert",
+  "phase.upsert",
   "room.create",
   "room.post",
 ]);
@@ -230,6 +239,13 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
   gitExecutable?: string;
   /** Test seam: replaces the default mirror port `run.export` opens mirrors through. */
   runExportMirrors?: RunExportMirrorPort;
+  /**
+   * Absolute path to the compiled policy source `preset.upsert`/`phase.upsert` resolve
+   * `rules.standard[]` ruleIds against. Defaults to
+   * `docs/policy/ios-app-factory-policy-source.v1.json` relative to this repository; override in
+   * tests that want a smaller, controlled rule catalog.
+   */
+  policySourcePath?: string;
 }>;
 
 export type DaemonRuntimePaths = Readonly<{
@@ -587,6 +603,9 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "project.apply":
     case "project.milestones.list":
     case "project.milestone.upsert":
+    case "preset.list":
+    case "preset.upsert":
+    case "phase.upsert":
     case "effects.status":
     case "effects.list":
     case "room.create":
@@ -785,6 +804,28 @@ function assertKernelCommandIdentity(
     throw new CommandHandlerError(
       "command.identity-conflict",
       "The command ID is already bound to a durable milestone upsert.",
+      false,
+    );
+  }
+  // Phase definitions and phase presets each journal their command in their own ledger, exactly
+  // like milestones above.
+  if (
+    request.operation !== "phase.upsert" &&
+    repositories.phaseDefinitions.findRevisionByCommandId(request.commandId) !== null
+  ) {
+    throw new CommandHandlerError(
+      "command.identity-conflict",
+      "The command ID is already bound to a durable phase definition upsert.",
+      false,
+    );
+  }
+  if (
+    request.operation !== "preset.upsert" &&
+    repositories.phasePresets.findRevisionByCommandId(request.commandId) !== null
+  ) {
+    throw new CommandHandlerError(
+      "command.identity-conflict",
+      "The command ID is already bound to a durable phase preset upsert.",
       false,
     );
   }
@@ -1292,6 +1333,8 @@ async function executeRequest(
     runExportMirrors: RunExportMirrorPort;
     rooms: RoomRepository;
     roomsStatus: RoomsStatusPort;
+    /** Every ruleId `preset.upsert`/`phase.upsert` accept in `rules.standard[]`. */
+    knownStandardRuleIds: ReadonlySet<string>;
     /** Only used by `studio.assistant.intent.execute` to durably ledger the op it dispatches to. */
     paths: DaemonRuntimePaths;
   }>,
@@ -1402,6 +1445,22 @@ async function executeRequest(
       };
     case "project.milestone.upsert":
       return upsertProjectMilestone(repositories, request, dependencies.observedAt);
+    case "preset.list":
+      return buildPresetListResultV1(repositories);
+    case "preset.upsert":
+      return upsertPhasePresetV1(
+        repositories,
+        request,
+        dependencies.observedAt,
+        dependencies.knownStandardRuleIds,
+      );
+    case "phase.upsert":
+      return upsertPhaseDefinitionV1(
+        repositories,
+        request,
+        dependencies.observedAt,
+        dependencies.knownStandardRuleIds,
+      );
     case "effects.status":
       return {
         operation: "effects.status",
@@ -1544,10 +1603,22 @@ export async function openDaemonCommandRuntime(
   let effectsPumpStatusPort: EffectPumpStatusPort;
   let roomRepository: RoomRepository;
   let roomsStatusPort: RoomsStatusPort;
+  let knownStandardRuleIds: ReadonlySet<string>;
   try {
     await chmod(paths.database, 0o600);
     await assertPrivateRegularFile(paths.database);
     repositories = createFactoryRepositories(database);
+    knownStandardRuleIds = loadKnownStandardRuleIdsV1(options.policySourcePath);
+    // Idempotent by a fixed command ID: a no-op after the first daemon start ever ensures it.
+    // Best-effort: a caller-configured `policySourcePath` that does not declare this preset's own
+    // standard rule IDs (for example, a scoped-down policy source in a test) legitimately cannot
+    // seed it — that is an honest "no default preset today", not a reason to fail daemon startup.
+    try {
+      seedIosAppStandardPresetV1(repositories, knownStandardRuleIds);
+    } catch {
+      // Left unseeded; preset.list simply reports none until an operator upserts one that fits
+      // the configured policy source.
+    }
     evidenceStore = new EvidenceStore(paths.evidence);
     // Always constructed, even with no pump composed: `effects.*` commands
     // are a read-only view over durable kernel state and must work whether
@@ -1613,6 +1684,7 @@ export async function openDaemonCommandRuntime(
           runExportMirrors,
           rooms: roomRepository,
           roomsStatus: roomsStatusPort,
+          knownStandardRuleIds,
           paths,
         }),
       );

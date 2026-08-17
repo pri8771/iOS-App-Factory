@@ -5,6 +5,7 @@ import { dirname, isAbsolute } from "node:path";
 import { TextDecoder } from "node:util";
 
 import {
+  COMMAND_OPERATIONS_V1,
   COMMAND_PROTOCOL_VERSION_V1,
   CommandAuthorizationV1Schema,
   CommandRequestFrameV1Schema,
@@ -274,6 +275,22 @@ function extractRequestId(value: unknown): RequestId | null {
   if (value === null || typeof value !== "object" || !("requestId" in value)) return null;
   const result = RequestIdSchema.safeParse(value.requestId);
   return result.success ? result.data : null;
+}
+
+const KNOWN_COMMAND_OPERATIONS_V1 = new Set<string>(COMMAND_OPERATIONS_V1);
+
+/**
+ * The `request.operation` string of a decoded frame, if the frame is at least shaped enough to
+ * carry one — regardless of whether the rest of the frame (or this particular operation's payload)
+ * is otherwise valid. `null` means the frame does not even carry a syntactic operation name, so
+ * there is nothing here to classify as "unsupported" versus "malformed" and the caller falls
+ * through to the ordinary `protocol.invalid-request` path.
+ */
+function extractOperationName(value: unknown): string | null {
+  if (value === null || typeof value !== "object" || !("request" in value)) return null;
+  const request = value.request;
+  if (request === null || typeof request !== "object" || !("operation" in request)) return null;
+  return typeof request.operation === "string" ? request.operation : null;
 }
 
 type ReplayEntry = {
@@ -561,6 +578,24 @@ function handleConnection(
     }
 
     const requestId = extractRequestId(decoded);
+    const operationName = extractOperationName(decoded);
+    if (operationName !== null && !KNOWN_COMMAND_OPERATIONS_V1.has(operationName)) {
+      // A syntactically well-formed frame naming an operation this protocol version does not
+      // recognize at all — distinct from a frame that fails to parse for any other reason
+      // (missing fields, a bad payload shape for a *known* operation, wrong protocol version).
+      writeResponse(
+        socket,
+        failure(
+          requestId,
+          "protocol.unsupported-operation",
+          `Unknown command operation "${operationName}".`,
+        ),
+        requestId,
+        options.maxResponseBytes,
+      );
+      return;
+    }
+
     const parsed = CommandRequestFrameV1Schema.safeParse(decoded);
     if (!parsed.success) {
       writeResponse(

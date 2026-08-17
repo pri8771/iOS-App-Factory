@@ -103,18 +103,67 @@ final class DashboardSnapshotTests: XCTestCase {
                   size: CGSize(width: 1100, height: 620), named: "project-detail")
     }
 
-    /// Project detail sourced from `studio.snapshot`: a live-only row (its display name doesn't
-    /// slugify to a fixture slug — see `DashboardDerivation.slugify`), a human-owned gold gate, and a
-    /// loaded `project.milestones.list` panel.
+    /// Project detail sourced from `studio.snapshot`: a live-only row (its slug doesn't match a
+    /// fixture row — the shared `studio-snapshot.response.json` fixture's own projects now merge
+    /// with the bundled timeline fixture via their real `slug`, so this test builds its own
+    /// project with the display name and every rendered value unchanged from before that fix (only
+    /// `slug` moved from a slugify-of-name guess to an explicit, still-non-matching value) so the
+    /// committed reference image stays valid), a human-owned gold gate, and a loaded
+    /// `project.milestones.list` panel.
     func testProjectDetailStudioLive() throws {
-        let studioResponse = try JSONDecoder().decode(CommandResponse.self, from: Fixtures.data("studio-snapshot.response.json"))
-        guard case .success(_, .studioSnapshot(let studioSnapshot)) = studioResponse else { throw NSError(domain: "fixture", code: 1) }
+        let anjali = StudioProject(
+            projectId: ProjectID(unchecked: "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f"),
+            slug: StableKey(unchecked: "anjali-journal"), name: "Anjali — Journal", lifecycleStage: .building,
+            gates: StudioProjectGates(typed: .legal, owner: .human, state: .blocked, unavailableReason: nil),
+            latestAttemptSummary: StudioAttemptSummary(
+                attemptId: AttemptID(unchecked: "00000001-0000-4000-8000-000000000001"),
+                taskId: TaskID(unchecked: "10000001-0000-4000-8000-000000000001"), state: .succeeded,
+                updatedAt: IsoInstant(unchecked: "2026-08-16T11:05:00.000Z"), blocker: nil),
+            awaitingHuman: [StudioAwaitingHumanItem(
+                kind: .blockedAttempt, attemptId: AttemptID(unchecked: "00000004-0000-4000-8000-000000000004"),
+                summary: "Waiting for approval to upload build 4 to TestFlight.",
+                since: IsoInstant(unchecked: "2026-08-16T14:05:00.000Z"))],
+            timeline: StudioProjectTimeline(
+                milestones: [
+                    ProjectMilestone(milestoneId: MilestoneID(unchecked: "70000001-0000-4000-8000-000000000001"),
+                                     projectId: ProjectID(unchecked: "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f"),
+                                     phase: StableKey(unchecked: "beta"), kind: .gate, label: "Beta review",
+                                     targetDate: CalendarDate(unchecked: "2026-08-20"), dependsOn: [], owner: .human,
+                                     status: .planned, evidenceDigest: nil, revision: 0,
+                                     createdAt: IsoInstant(unchecked: "2026-08-10T09:00:00.000Z"),
+                                     updatedAt: IsoInstant(unchecked: "2026-08-10T09:00:00.000Z")),
+                    ProjectMilestone(milestoneId: MilestoneID(unchecked: "70000002-0000-4000-8000-000000000002"),
+                                     projectId: ProjectID(unchecked: "0f7d3b2e-6c1a-4b7e-9d1f-2a3b4c5d6e7f"),
+                                     phase: StableKey(unchecked: "launch"), kind: .release, label: "Store listing + sign-off",
+                                     targetDate: CalendarDate(unchecked: "2026-09-05"),
+                                     dependsOn: [MilestoneID(unchecked: "70000001-0000-4000-8000-000000000001")],
+                                     owner: .human, status: .planned, evidenceDigest: nil, revision: 1,
+                                     createdAt: IsoInstant(unchecked: "2026-08-10T09:05:00.000Z"),
+                                     updatedAt: IsoInstant(unchecked: "2026-08-15T10:00:00.000Z")),
+                ],
+                milestonesUnavailableReason: nil,
+                actuals: [
+                    StudioTimelineActual(attemptId: AttemptID(unchecked: "00000001-0000-4000-8000-000000000001"),
+                                         label: "attempt started", occurredAt: IsoInstant(unchecked: "2026-08-16T11:00:00.000Z")),
+                    StudioTimelineActual(attemptId: AttemptID(unchecked: "00000001-0000-4000-8000-000000000001"),
+                                         label: "attempt succeeded", occurredAt: IsoInstant(unchecked: "2026-08-16T11:05:00.000Z")),
+                ]))
+        let studioSnapshot = StudioSnapshot(
+            generatedAt: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z"), projects: [anjali], rooms: [],
+            roomsUnavailableReason: studioNotYetWiredReason,
+            portfolio: StudioPortfolioAggregates(
+                verifiedThisWeek: StudioCountMetric(value: 2, unavailableReason: nil),
+                awaitingYouCount: StudioCountMetric(value: 1, unavailableReason: nil),
+                passRate: StudioRatioMetric(value: 0.8, unavailableReason: nil),
+                medianRunSeconds: StudioDurationSecondsMetric(value: 185.5, unavailableReason: nil),
+                agentWindowShare: StudioRatioMetric(value: nil, unavailableReason: "not yet computed")),
+            sourceSnapshotDigest: Sha256Digest(unchecked: "sha256:" + String(repeating: "0", count: 64)))
         let doctor = DoctorResult(readiness: .ready, daemonVersion: "0.1.0-ui-demo", protocolVersion: 1,
                                   startedAt: IsoInstant(unchecked: "2026-08-16T16:00:00.000Z"), issues: [])
         let inputs = DashboardInputs(doctor: doctor, timeline: fixture, studioSnapshot: studioSnapshot,
                                      now: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z").date!)
         let dashboardSnapshot = DashboardDerivation.snapshot(inputs)
-        let project = try XCTUnwrap(dashboardSnapshot.project(slug: DashboardDerivation.slugify("Anjali — Journal")))
+        let project = try XCTUnwrap(dashboardSnapshot.project(slug: "anjali-journal"))
         let milestonesResponse = try JSONDecoder().decode(CommandResponse.self, from: Fixtures.data("project-milestones-list.response.json"))
         guard case .success(_, .projectMilestonesList(let timeline)) = milestonesResponse else { throw NSError(domain: "fixture", code: 1) }
         assertHUD(ProjectDetailView(project: project, isConnected: true, onBack: {}, milestoneTimeline: timeline)

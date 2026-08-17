@@ -128,7 +128,7 @@ final class DaemonAssistantTests: XCTestCase {
             case "studio.assistant.intent.execute":
                 return .reply(try! WireResponse.fixture("assistant-intent-execute.response.json", requestId: requestId))
             default:
-                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unknown-operation", message: operation, retryable: false))
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unsupported-operation", message: operation, retryable: false))
             }
         }
         defer { server.stop() }

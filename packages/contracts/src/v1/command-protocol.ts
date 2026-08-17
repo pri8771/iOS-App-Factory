@@ -20,6 +20,12 @@ import {
   ProjectTimelineV1Schema,
 } from "./milestone.js";
 import {
+  PhaseDefinitionUpsertV1Schema,
+  PhaseDefinitionV1Schema,
+  PhasePresetUpsertV1Schema,
+  PhasePresetV1Schema,
+} from "./phase.js";
+import {
   AbsolutePathSchema,
   AssistantIntentIdSchema,
   AttemptIdSchema,
@@ -312,6 +318,29 @@ export const ProjectMilestoneUpsertCommandRequestV1Schema = z.strictObject({
   payload: ProjectMilestoneUpsertV1Schema,
 });
 
+// Studio Phase 4 (`preset.*`/`phase.*`) wire types. See `phase.ts` for the shapes; no phase ever
+// executes through these ops (that is the separate planner task) — this is CRUD over durable,
+// revisioned phase definitions and the presets that bundle them.
+export const MAX_PRESET_LIST_ITEMS_V1 = 200 as const;
+
+export const PresetListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("preset.list"),
+  payload: EmptyPayloadV1Schema,
+});
+
+export const PresetUpsertCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("preset.upsert"),
+  payload: PhasePresetUpsertV1Schema,
+});
+
+export const PhaseUpsertCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("phase.upsert"),
+  payload: PhaseDefinitionUpsertV1Schema,
+});
+
 // Studio rooms (`room.*`) wire types. The moderator is daemon-owned deterministic code
 // (`@app-factory/studio-rooms`); these commands only create rooms, append human messages
 // (the single-writer transcript is CAS-appended by the daemon), read events, and signal
@@ -408,6 +437,9 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProjectApplyCommandRequestV1Schema,
   ProjectMilestonesListCommandRequestV1Schema,
   ProjectMilestoneUpsertCommandRequestV1Schema,
+  PresetListCommandRequestV1Schema,
+  PresetUpsertCommandRequestV1Schema,
+  PhaseUpsertCommandRequestV1Schema,
   EffectsStatusCommandRequestV1Schema,
   EffectsListCommandRequestV1Schema,
   RoomCreateCommandRequestV1Schema,
@@ -426,6 +458,18 @@ export type CommandRequestForOperationV1<Operation extends CommandOperationV1> =
   CommandRequestV1,
   { operation: Operation }
 >;
+
+/**
+ * Every operation literal `CommandRequestV1` recognizes, derived from the discriminated union
+ * itself (not hand-duplicated) so it can never drift. The unix command server uses this to answer
+ * `protocol.unsupported-operation` for a syntactically well-formed frame naming an operation this
+ * protocol version does not know, distinct from `protocol.invalid-request` (a frame that fails to
+ * parse for any other reason) — see `apps/daemon/src/unix-command-server.ts`.
+ */
+export const COMMAND_OPERATIONS_V1: readonly CommandOperationV1[] =
+  CommandRequestV1Schema.options.map(
+    (option) => option.shape.operation.value as CommandOperationV1,
+  );
 
 export const CommandRequestFrameV1Schema = z.strictObject({
   protocolVersion: CommandProtocolVersionV1Schema,
@@ -647,6 +691,24 @@ export const ProjectMilestoneUpsertCommandResultV1Schema = z.strictObject({
   created: z.boolean(),
 });
 
+/** Bounded, unpaginated: presets are operator-authored and few compared to attempts or events. */
+export const PresetListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("preset.list"),
+  presets: z.array(PhasePresetV1Schema).max(MAX_PRESET_LIST_ITEMS_V1),
+});
+
+export const PresetUpsertCommandResultV1Schema = z.strictObject({
+  operation: z.literal("preset.upsert"),
+  preset: PhasePresetV1Schema,
+  created: z.boolean(),
+});
+
+export const PhaseUpsertCommandResultV1Schema = z.strictObject({
+  operation: z.literal("phase.upsert"),
+  phase: PhaseDefinitionV1Schema,
+  created: z.boolean(),
+});
+
 export const RoomCreateCommandResultV1Schema = z.strictObject({
   operation: z.literal("room.create"),
   room: RoomV1Schema,
@@ -739,6 +801,9 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProjectApplyCommandResultV1Schema,
   ProjectMilestonesListCommandResultV1Schema,
   ProjectMilestoneUpsertCommandResultV1Schema,
+  PresetListCommandResultV1Schema,
+  PresetUpsertCommandResultV1Schema,
+  PhaseUpsertCommandResultV1Schema,
   EffectsStatusCommandResultV1Schema,
   EffectsListCommandResultV1Schema,
   RoomCreateCommandResultV1Schema,

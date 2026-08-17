@@ -985,4 +985,116 @@ describe("typed command client", () => {
     });
     client.close();
   });
+
+  it("lists, upserts a phase, and upserts a preset embedding it (Studio Phase 4)", async () => {
+    const phaseDraft = {
+      phaseId: "contract",
+      name: "Contract",
+      purpose: "Define the user outcome, MVP boundary, and Definition of Done.",
+      mode: "solo",
+      cast: {
+        participants: [{ provider: "claude", persona: "contract-writer", readOnly: true }],
+        coordinator: null,
+        grader: null,
+      },
+      inputs: ["docs"],
+      rules: {
+        standard: ["rule.new.scope-before-breadth"],
+        yours: [],
+        requiredOutput: [],
+        acceptanceChecks: [],
+      },
+      outputs: [{ path: "docs/product/contract.md", schema: null }],
+      gates: [],
+      budget: { estimateMinutes: 20, timeoutSeconds: 1_800 },
+    } as const;
+    const storedPhase = {
+      schemaVersion: 1,
+      ...phaseDraft,
+      revision: 0,
+      createdAt: NOW.toISOString(),
+      updatedAt: NOW.toISOString(),
+    };
+    const storedPreset = {
+      schemaVersion: 1,
+      presetId: "ios-app-standard-0.4.0",
+      name: "iOS App Standard 0.4.0",
+      phases: [storedPhase],
+      appliesTo: ["ios"],
+      revision: 0,
+      createdAt: NOW.toISOString(),
+      updatedAt: NOW.toISOString(),
+    };
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const request = frame.request as Record<string, unknown>;
+        const result =
+          request.operation === "phase.upsert"
+            ? { operation: "phase.upsert", phase: storedPhase, created: true }
+            : request.operation === "preset.upsert"
+              ? { operation: "preset.upsert", preset: storedPreset, created: true }
+              : { operation: "preset.list", presets: [storedPreset] };
+        socket.end(
+          `${JSON.stringify({ protocolVersion: 1, requestId: frame.requestId, ok: true, result })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.upsertPhase({ phase: phaseDraft, expectedRevision: null }, identity()),
+    ).resolves.toMatchObject({
+      operation: "phase.upsert",
+      created: true,
+      phase: { phaseId: "contract" },
+    });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "phase.upsert",
+        payload: { phase: phaseDraft, expectedRevision: null },
+      },
+    });
+
+    await expect(
+      client.upsertPreset(
+        {
+          preset: {
+            presetId: "ios-app-standard-0.4.0",
+            name: "iOS App Standard 0.4.0",
+            phases: [storedPhase],
+            appliesTo: ["ios"],
+          },
+          expectedRevision: null,
+        },
+        identity(),
+      ),
+    ).resolves.toMatchObject({
+      operation: "preset.upsert",
+      created: true,
+      preset: { presetId: "ios-app-standard-0.4.0" },
+    });
+    expect(received[1]).toMatchObject({ request: { operation: "preset.upsert" } });
+
+    await expect(client.listPresets(identity())).resolves.toMatchObject({
+      operation: "preset.list",
+      presets: [{ presetId: "ios-app-standard-0.4.0" }],
+    });
+    expect(received[2]).toMatchObject({ request: { operation: "preset.list", payload: {} } });
+
+    await expect(
+      client.upsertPhase(
+        { phase: { ...phaseDraft, mode: "not-a-mode" }, expectedRevision: null },
+        identity(),
+      ),
+    ).rejects.toThrow();
+    expect(received).toHaveLength(3);
+    client.close();
+  });
 });

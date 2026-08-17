@@ -41,6 +41,7 @@ import {
   assertActiveAttemptLease,
 } from "./durability-repositories.js";
 import { ProjectMilestoneRepository } from "./milestone-repositories.js";
+import { PhaseDefinitionRepository, PhasePresetRepository } from "./phase-repositories.js";
 
 type SubmitTaskCommandV1 = Extract<CommandV1, { kind: "task.submit" }>;
 type RetryTaskCommandV1 = Extract<CommandV1, { kind: "task.retry" }>;
@@ -642,6 +643,8 @@ export class FactoryRepositories {
   public readonly leases: LeaseRepository;
   public readonly unblocks: AttemptUnblockRepository;
   public readonly milestones: ProjectMilestoneRepository;
+  public readonly phaseDefinitions: PhaseDefinitionRepository;
+  public readonly phasePresets: PhasePresetRepository;
 
   public constructor(private readonly database: Database.Database) {
     this.commands = new CommandRepository(database);
@@ -655,6 +658,8 @@ export class FactoryRepositories {
     this.leases = new LeaseRepository(database);
     this.unblocks = new AttemptUnblockRepository(database);
     this.milestones = new ProjectMilestoneRepository(database);
+    this.phaseDefinitions = new PhaseDefinitionRepository(database);
+    this.phasePresets = new PhasePresetRepository(database);
   }
 
   public createTaskAttempt(input: CreateTaskAttemptInput): CreatedTaskAttempt {

@@ -86,6 +86,9 @@ importers:
       '@app-factory/oci-runner':
         specifier: workspace:*
         version: link:../../packages/oci-runner
+      '@app-factory/policy-corpus':
+        specifier: workspace:*
+        version: link:../../packages/policy-corpus
       '@app-factory/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine

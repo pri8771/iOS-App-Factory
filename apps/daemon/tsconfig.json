@@ -19,6 +19,7 @@
     { "path": "../../packages/independent-review" },
     { "path": "../../packages/kernel" },
     { "path": "../../packages/oci-runner" },
+    { "path": "../../packages/policy-corpus" },
     { "path": "../../packages/policy-engine" },
     { "path": "../../packages/process-supervisor" },
     { "path": "../../packages/project-sdk" },

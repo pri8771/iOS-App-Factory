@@ -248,23 +248,31 @@ final class ModelDecodingTests: XCTestCase {
         }
         XCTAssertEqual(snapshot.projects.count, 2)
         let anjali = snapshot.projects[0]
+        XCTAssertEqual(anjali.slug.rawValue, "anjali")
         XCTAssertEqual(anjali.name, "Anjali — Journal")
         XCTAssertEqual(anjali.lifecycleStage, .building)
         XCTAssertEqual(anjali.gates.state, .blocked)
-        XCTAssertEqual(anjali.gates.typed, "legal")
+        XCTAssertEqual(anjali.gates.typed, .legal)
         XCTAssertTrue(anjali.gates.ownerIsHuman)
         XCTAssertNil(anjali.gates.unavailableReason)
         XCTAssertEqual(anjali.awaitingHuman.count, 1)
         XCTAssertEqual(anjali.awaitingHuman[0].kind, .blockedAttempt)
+        // The real, revisioned milestone model (ProjectMilestone) — the exact type
+        // project.milestones.list/.upsert read and write, not a second placeholder shape.
         XCTAssertEqual(anjali.timeline.milestones.count, 2)
+        XCTAssertEqual(anjali.timeline.milestones.map(\.label), ["Beta review", "Store listing + sign-off"])
+        XCTAssertEqual(anjali.timeline.milestones[0].status, .planned)
+        XCTAssertEqual(anjali.timeline.milestones[0].targetDate?.rawValue, "2026-08-20")
         XCTAssertNil(anjali.timeline.milestonesUnavailableReason)
         let hindsight = snapshot.projects[1]
+        XCTAssertEqual(hindsight.slug.rawValue, "hindsight")
         XCTAssertNil(hindsight.lifecycleStage)
         XCTAssertEqual(hindsight.gates.state, .unavailable)
-        XCTAssertEqual(hindsight.gates.unavailableReason, studioNotYetWiredReason)
+        XCTAssertEqual(hindsight.gates.unavailableReason, studioNoGateRecordsReason)
         XCTAssertNil(hindsight.gates.typed)
+        // A real, non-error empty state: Hindsight has no authored milestones yet.
         XCTAssertTrue(hindsight.timeline.milestones.isEmpty)
-        XCTAssertEqual(hindsight.timeline.milestonesUnavailableReason, studioNotYetWiredReason)
+        XCTAssertNil(hindsight.timeline.milestonesUnavailableReason)
         XCTAssertTrue(snapshot.rooms.isEmpty)
         XCTAssertEqual(snapshot.roomsUnavailableReason, studioNotYetWiredReason)
         // Every field of StudioPortfolioAggregates is independently nullable — mixed here on purpose.
