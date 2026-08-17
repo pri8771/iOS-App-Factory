@@ -139,6 +139,10 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNil(hindsight.openPullRequestCount, "unavailable sources decode as nil, not 0")
         XCTAssertEqual(hindsight.sources.jira, .unavailable)
         XCTAssertEqual(hindsight.analyticsFreshness, .unavailable)
+        // portfolio.snapshot still speaks the legacy 8-value `ProjectManifestV1.lifecycleStage`
+        // vocabulary (`LegacyProjectLifecycleStageV1Schema`); the fixture's `"released"` folds onto
+        // the canonical stage per LEGACY_PROJECT_LIFECYCLE_STAGE_MAP_V1 (ADR 0005) at decode time.
+        XCTAssertEqual(snapshot.projects[2].lifecycleStage, .live)
         XCTAssertEqual(snapshot.totals.attempts, 10)
         XCTAssertNil(snapshot.totals.openPullRequests)
         XCTAssertEqual(snapshot.sourceSnapshotDigest.rawValue,
@@ -268,9 +272,17 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(anjali.timeline.milestones[0].status, .planned)
         XCTAssertEqual(anjali.timeline.milestones[0].targetDate?.rawValue, "2026-08-20")
         XCTAssertNil(anjali.timeline.milestonesUnavailableReason)
+        // `docsProvenance` (studio/repo-docs-truth): Anjali has an enrolled repo-docs source backing
+        // its lifecycleStage; Hindsight has none configured, which is `null` on the wire, not `{}`.
+        let provenance = try XCTUnwrap(anjali.docsProvenance)
+        XCTAssertEqual(provenance.sourceKind, .enrolled)
+        XCTAssertEqual(provenance.repositoryRoot.rawValue, "/Users/example/code/anjali")
+        XCTAssertEqual(provenance.lifecycleStageSource, .repoDocs)
+        XCTAssertEqual(provenance.awaitingHumanFromDocsCount, 0)
         let hindsight = snapshot.projects[1]
         XCTAssertEqual(hindsight.slug.rawValue, "hindsight")
         XCTAssertNil(hindsight.lifecycleStage)
+        XCTAssertNil(hindsight.docsProvenance)
         XCTAssertEqual(hindsight.gates.state, .unavailable)
         XCTAssertEqual(hindsight.gates.unavailableReason, studioNoGateRecordsReason)
         XCTAssertNil(hindsight.gates.typed)
@@ -375,6 +387,125 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNoThrow(try CalendarDate("2026-08-20"))
         XCTAssertThrowsError(try CalendarDate("2026-08-20T00:00:00.000Z"), "an instant is not a calendar date")
         XCTAssertThrowsError(try CalendarDate("2026-08-20\n"), "ICU `$` must not accept a trailing newline")
+    }
+
+    // MARK: ProjectLifecycleStage — canonical six (ADR 0005) shared by studio.snapshot + portfolio.snapshot
+    //
+    // `lifecycle-stages.json` is recorded by scripts/record-lifecycle-stage-fixture.mjs straight from
+    // `ProjectLifecycleStageV1Schema`, `LegacyProjectLifecycleStageV1Schema`, and
+    // `LEGACY_PROJECT_LIFECYCLE_STAGE_MAP_V1` in the built contracts, so these tests pin the Swift enum
+    // to lifecycle.ts/project.ts themselves. Regression guard: `ProjectLifecycleStage` once stayed on
+    // the legacy 8-value project-manifest enum after `StudioProjectV1.lifecycleStage` moved to the
+    // canonical six, and the recorded studio-snapshot fixture only ever carried `building`/`null` — the
+    // values that decode identically under both vocabularies — so a real `idea`/`launch-prep`/`live`/
+    // `frozen` from the daemon would have thrown at decode without any test noticing.
+
+    private struct LifecycleStageVocabulary: Decodable {
+        var canonical: [String]
+        var legacy: [String]
+        var legacyMap: [String: String]
+    }
+
+    private func lifecycleStageVocabulary() throws -> LifecycleStageVocabulary {
+        try JSONDecoder().decode(LifecycleStageVocabulary.self, from: Fixtures.data("lifecycle-stages.json"))
+    }
+
+    private struct LifecycleStageField: Codable { var lifecycleStage: ProjectLifecycleStage }
+
+    /// Decodes one raw wire string as a `ProjectLifecycleStage`, exactly as it arrives on the wire:
+    /// a JSON string (not a Swift case name) inside a keyed `lifecycleStage` field.
+    private func decodeStage(_ raw: String) throws -> ProjectLifecycleStage {
+        let data = try JSONEncoder().encode(["lifecycleStage": raw])
+        return try JSONDecoder().decode(LifecycleStageField.self, from: data).lifecycleStage
+    }
+
+    func testProjectLifecycleStageVocabularyMatchesTheRecordedContract() throws {
+        let vocabulary = try lifecycleStageVocabulary()
+        XCTAssertEqual(ProjectLifecycleStage.allCases.map(\.rawValue), vocabulary.canonical,
+                       "Swift cases must be exactly ProjectLifecycleStageV1Schema's options, in progression order")
+        XCTAssertEqual(vocabulary.canonical, ["idea", "building", "qa", "launch-prep", "live", "frozen"])
+        XCTAssertEqual(Set(vocabulary.legacy), Set(vocabulary.legacyMap.keys),
+                       "every legacy portfolio value must have a fold, and nothing else may be in the map")
+        for target in vocabulary.legacyMap.values {
+            XCTAssertNotNil(ProjectLifecycleStage(rawValue: target), "fold target \(target) is not a canonical stage")
+        }
+    }
+
+    func testProjectLifecycleStageDecodesEveryCanonicalWireValue() throws {
+        for raw in try lifecycleStageVocabulary().canonical {
+            XCTAssertEqual(try decodeStage(raw).rawValue, raw)
+        }
+        // The four that never existed in the legacy enum — the exact values the old Swift type threw on.
+        XCTAssertEqual(try decodeStage("idea"), .idea)
+        XCTAssertEqual(try decodeStage("launch-prep"), .launchPrep)
+        XCTAssertEqual(try decodeStage("live"), .live)
+        XCTAssertEqual(try decodeStage("frozen"), .frozen)
+    }
+
+    func testProjectLifecycleStageFoldsEveryLegacyPortfolioValueOntoItsCanonicalStage() throws {
+        let vocabulary = try lifecycleStageVocabulary()
+        for (legacy, canonical) in vocabulary.legacyMap {
+            XCTAssertEqual(try decodeStage(legacy).rawValue, canonical, "legacy \(legacy) must fold onto \(canonical)")
+        }
+        // The two folds ADR 0005 calls out by name.
+        XCTAssertEqual(try decodeStage("planned"), .idea, "planned is still idea: nothing built, no gate can hold")
+        XCTAssertEqual(try decodeStage("internal-testflight"), .launchPrep, "the release sub-lifecycle runs there")
+    }
+
+    func testProjectLifecycleStageRejectsValuesOutsideBothVocabularies() throws {
+        for raw in ["", "shipped", "Building", "LIVE", "launchPrep", "launch_prep", "internalTestflight", "live "] {
+            XCTAssertThrowsError(try decodeStage(raw), "\(raw.debugDescription) is neither canonical nor legacy") { error in
+                XCTAssertTrue(error is DecodingError, "\(raw.debugDescription): \(error)")
+            }
+        }
+    }
+
+    func testProjectLifecycleStageAlwaysEncodesTheCanonicalWireValue() throws {
+        let encoder = JSONEncoder()
+        for stage in ProjectLifecycleStage.allCases {
+            let text = String(decoding: try encoder.encode([stage]), as: UTF8.self)
+            XCTAssertEqual(text, "[\"\(stage.rawValue)\"]")
+            XCTAssertEqual(try JSONDecoder().decode([ProjectLifecycleStage].self, from: Data(text.utf8)), [stage])
+        }
+        // A folded legacy value re-encodes as its canonical stage — it never round-trips back to the
+        // legacy string it was folded from.
+        let folded = try decodeStage("internal-testflight")
+        XCTAssertEqual(String(decoding: try encoder.encode([folded]), as: UTF8.self), #"["launch-prep"]"#)
+        XCTAssertEqual(String(decoding: try encoder.encode([ProjectLifecycleStage.launchPrep]), as: UTF8.self),
+                       #"["launch-prep"]"#, "the wire value is the hyphenated one, never the Swift case name")
+    }
+
+    /// End to end through `CommandResponse`: a real studio.snapshot carrying each canonical stage
+    /// decodes. Substitutes Anjali's recorded `"building"` in place; the digest is intentionally not
+    /// re-verified here (that is `DaemonClient`'s job, covered by the digest tests above) — this
+    /// test is only about the model layer accepting the vocabulary.
+    func testStudioSnapshotDecodesWithEveryCanonicalLifecycleStage() throws {
+        let fixture = try Fixtures.string("studio-snapshot.response.json")
+        let needle = #""lifecycleStage": "building""#
+        XCTAssertEqual(fixture.components(separatedBy: needle).count - 1, 1, "expected exactly one non-null stage in the fixture")
+        for raw in try lifecycleStageVocabulary().canonical {
+            let json = fixture.replacingOccurrences(of: needle, with: #""lifecycleStage": "\#(raw)""#)
+            guard case .success(_, .studioSnapshot(let snapshot)) = try JSONDecoder().decode(CommandResponse.self, from: Data(json.utf8)) else {
+                return XCTFail("expected studio.snapshot for stage \(raw)")
+            }
+            XCTAssertEqual(snapshot.projects[0].lifecycleStage?.rawValue, raw)
+            XCTAssertNil(snapshot.projects[1].lifecycleStage, "the untouched null stays nil")
+        }
+    }
+
+    /// The same, for portfolio.snapshot: every legacy value `PortfolioProjectReadModelV1.lifecycleStage`
+    /// can still send decodes, folded onto its canonical stage. Substitutes svara's recorded `"released"`.
+    func testPortfolioSnapshotDecodesWithEveryLegacyLifecycleStage() throws {
+        let fixture = try Fixtures.string("portfolio-snapshot.response.json")
+        let needle = #""lifecycleStage": "released""#
+        XCTAssertEqual(fixture.components(separatedBy: needle).count - 1, 1, "expected exactly one legacy stage in the fixture")
+        for (legacy, canonical) in try lifecycleStageVocabulary().legacyMap {
+            let json = fixture.replacingOccurrences(of: needle, with: #""lifecycleStage": "\#(legacy)""#)
+            guard case .success(_, .portfolioSnapshot(let snapshot)) = try JSONDecoder().decode(CommandResponse.self, from: Data(json.utf8)) else {
+                return XCTFail("expected portfolio.snapshot for legacy stage \(legacy)")
+            }
+            XCTAssertEqual(snapshot.projects[2].lifecycleStage?.rawValue, canonical, "legacy \(legacy)")
+        }
     }
 
     // MARK: Studio rooms — room.* (@app-factory/studio-rooms)

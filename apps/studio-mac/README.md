@@ -54,6 +54,9 @@ apps/studio-mac/
 │                                 comment for why it isn't folded into record-fixtures.mjs
 ├── scripts/record-phase4-fixtures.mjs   the preset/phase-run/plan/project.seed fixtures, against
 │                                 this worktree's own built contracts (see ADR 0004)
+├── scripts/record-lifecycle-stage-fixture.mjs   lifecycle-stages.json — the canonical six /
+│                                 legacy eight / fold map, straight from lifecycle.ts, so
+│                                 ProjectLifecycleStage is pinned to the contract (ADR 0005)
 └── docs/architecture/            0001 foundations · 0002 dashboard provenance + fixture timeline ·
                                    0003 Studio Phase 2 (studio.snapshot, assistant, milestones) ·
                                    0004 Studio Phase 4 (presets, the Phase Runner, the Planner)
