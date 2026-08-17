@@ -1,4 +1,5 @@
 import {
+  EventIdSchema,
   RoomHumanHandleSchema,
   RoomPersonaSchema,
   RoomProviderSchema,
@@ -7,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { RoomError, RoomHeadMovedError, RoomRepository } from "../src/index.js";
 import {
+  PROJECT_ID,
   ROOM_ID,
   ROOM_ID_2,
   T0,
@@ -625,5 +627,127 @@ describe("RoomRepository grants and budgets", () => {
     const { repository, database } = roomWithHuman();
     database.prepare('UPDATE rooms SET pending_trigger_json = \'{"kind":"bogus"}\'').run();
     expect(() => repository.requireRoom(ROOM_ID)).toThrow();
+  });
+});
+
+describe("RoomRepository factory-event cursor", () => {
+  const EVENT_1 = EventIdSchema.parse("70000000-0000-4000-8000-000000000001");
+  const EVENT_2 = EventIdSchema.parse("70000000-0000-4000-8000-000000000002");
+
+  it("anchors once, idempotently, and refuses to bridge before anchoring or behind the cursor", () => {
+    const { repository, ids } = setup();
+    repository.createRoom(roomSpec(), T0);
+    expect(repository.findFactoryEventCursor()).toBeNull();
+    expect(() =>
+      repository.bridgeFactoryEvent({
+        ledgerPosition: 1,
+        eventId: EVENT_1,
+        eventOccurredAt: T0,
+        deliveries: [],
+        now: T0,
+      }),
+    ).toThrow(RoomError);
+    const anchored = repository.anchorFactoryEventCursor({
+      ledgerPosition: 0,
+      eventId: null,
+      eventOccurredAt: null,
+      now: T0,
+    });
+    expect(anchored).toEqual({
+      ledgerPosition: 0,
+      eventId: null,
+      eventOccurredAt: null,
+      lastDeliveredEventId: null,
+      lastDeliveredAt: null,
+      deliveredCount: 0,
+      updatedAt: T0,
+    });
+    // A second anchor never moves an existing cursor.
+    expect(
+      repository.anchorFactoryEventCursor({
+        ledgerPosition: 99,
+        eventId: EVENT_2,
+        eventOccurredAt: T0,
+        now: plusMs(T0, 1),
+      }),
+    ).toEqual(anchored);
+    const later = plusMs(T0, 5_000);
+    const lines = repository.bridgeFactoryEvent({
+      ledgerPosition: 7,
+      eventId: EVENT_1,
+      eventOccurredAt: T0,
+      deliveries: [{ roomId: ROOM_ID, messageId: ids.messageId(), body: "Factory: attempt done" }],
+      now: later,
+    });
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ code: "factory-event", sequence: 1, occurredAt: later });
+    expect(repository.requireRoom(ROOM_ID).pendingTrigger?.kind).toBe("factory-event");
+    expect(repository.findFactoryEventCursor()).toEqual({
+      ledgerPosition: 7,
+      eventId: EVENT_1,
+      eventOccurredAt: T0,
+      lastDeliveredEventId: EVENT_1,
+      lastDeliveredAt: later,
+      deliveredCount: 1,
+      updatedAt: later,
+    });
+    // Same or earlier position: refused, and nothing is appended.
+    expect(() =>
+      repository.bridgeFactoryEvent({
+        ledgerPosition: 7,
+        eventId: EVENT_2,
+        eventOccurredAt: T0,
+        deliveries: [{ roomId: ROOM_ID, messageId: ids.messageId(), body: "again" }],
+        now: later,
+      }),
+    ).toThrow(/not after the bridge cursor/);
+    expect(repository.requireRoom(ROOM_ID).headSequence).toBe(1);
+    // An empty delivery still advances the cursor but leaves the last-delivered facts alone.
+    repository.bridgeFactoryEvent({
+      ledgerPosition: 8,
+      eventId: EVENT_2,
+      eventOccurredAt: T0,
+      deliveries: [],
+      now: plusMs(later, 1),
+    });
+    expect(repository.findFactoryEventCursor()).toMatchObject({
+      ledgerPosition: 8,
+      eventId: EVENT_2,
+      lastDeliveredEventId: EVENT_1,
+      deliveredCount: 1,
+    });
+  });
+
+  it("is atomic: a failing delivery rolls back the lines already appended and the cursor", () => {
+    const { repository, ids } = setup();
+    repository.createRoom(roomSpec(), T0);
+    repository.anchorFactoryEventCursor({
+      ledgerPosition: 0,
+      eventId: null,
+      eventOccurredAt: null,
+      now: T0,
+    });
+    expect(() =>
+      repository.bridgeFactoryEvent({
+        ledgerPosition: 3,
+        eventId: EVENT_1,
+        eventOccurredAt: T0,
+        deliveries: [
+          { roomId: ROOM_ID, messageId: ids.messageId(), body: "first" },
+          { roomId: ROOM_ID_2, messageId: ids.messageId(), body: "no such room" },
+        ],
+        now: T0,
+      }),
+    ).toThrow(RoomError);
+    expect(repository.requireRoom(ROOM_ID).headSequence).toBe(0);
+    expect(repository.findFactoryEventCursor()).toMatchObject({ ledgerPosition: 0 });
+  });
+
+  it("lists rooms bound to a project, never portfolio-wide rooms", () => {
+    const { repository } = setup();
+    repository.createRoom(roomSpec({ roomId: ROOM_ID }), T0);
+    repository.createRoom(roomSpec({ roomId: ROOM_ID_2, projectId: null }), plusMs(T0, 1));
+    expect(repository.listRoomIdsForProject(PROJECT_ID)).toEqual([ROOM_ID]);
+    expect(repository.listRoomIdsForProject("30000000-0000-4000-8000-0000000000ff")).toEqual([]);
   });
 });

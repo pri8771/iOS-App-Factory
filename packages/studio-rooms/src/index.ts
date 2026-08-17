@@ -1,4 +1,5 @@
 export * from "./errors.js";
+export * from "./factory-event-bridge.js";
 export * from "./loop.js";
 export * from "./mentions.js";
 export * from "./moderator.js";

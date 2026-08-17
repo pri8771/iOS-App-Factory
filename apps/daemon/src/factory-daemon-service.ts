@@ -26,6 +26,7 @@ import {
 import { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
 export { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
 import { createEffectSubsystem, type EffectSubsystem } from "./effect-pump.js";
+import { createKernelFactoryEventSource } from "./room-factory-event-source.js";
 import {
   createRoomSubsystem,
   type RoomSubsystem,
@@ -211,6 +212,7 @@ class BackgroundSchedulerLoop {
   readonly #pollIntervalMs: number;
   readonly #wait: DaemonLoopWait;
   readonly #onError: ((error: unknown) => void) | undefined;
+  readonly #afterTick: (() => void) | undefined;
   #stopping = false;
   #wakePending = false;
   #waitAbort: AbortController | null = null;
@@ -223,12 +225,21 @@ class BackgroundSchedulerLoop {
       pollIntervalMs: number;
       wait: DaemonLoopWait;
       onError?: (error: unknown) => void;
+      /**
+       * Runs after every tick (successful or not), on the loop's own serial
+       * chain: the seam the room factory-event bridge drains on, so a kernel
+       * attempt transition the tick just committed reaches its rooms within
+       * the same poll cycle. Must not throw; anything it does throw is
+       * recorded like a scheduler error and never stops the loop.
+       */
+      afterTick?: () => void;
     }>,
   ) {
     this.#controller = controller;
     this.#pollIntervalMs = options.pollIntervalMs;
     this.#wait = options.wait;
     this.#onError = options.onError;
+    this.#afterTick = options.afterTick;
   }
 
   public get lastError(): unknown | null {
@@ -274,6 +285,11 @@ class BackgroundSchedulerLoop {
       try {
         result = await this.#controller.tick();
         this.#lastError = null;
+      } catch (error) {
+        this.#recordError(error);
+      }
+      try {
+        this.#afterTick?.();
       } catch (error) {
         this.#recordError(error);
       }
@@ -459,9 +475,22 @@ export async function startFactoryDaemonService(
             (roomsConfig.quotaFactory === undefined
               ? undefined
               : roomsConfig.quotaFactory(context.database));
+          // The factory-event bridge is the missing half of unattended mode
+          // (a dormant room acts only on `factory-event` triggers), so it is
+          // composed whenever rooms are: over the SAME kernel database
+          // handle, with the daemon's evidence store for broker-commit
+          // lookups. `factoryEventSource` in the configuration is a test
+          // seam (a fake ledger); the daemon never leaves it out.
+          const factoryEventSource =
+            roomsConfig.factoryEventSource ??
+            createKernelFactoryEventSource({
+              database: context.database,
+              evidenceStore: context.evidenceStore,
+            });
           const subsystem = createRoomSubsystem(
             {
               ...roomsConfig,
+              factoryEventSource,
               ...(resolvedQuota === undefined ? {} : { quota: resolvedQuota }),
               ...(roomsConfig.clock === undefined && daemonNow !== undefined
                 ? { clock: { now: () => new Date(daemonNow()) } }
@@ -598,6 +627,12 @@ export async function startFactoryDaemonService(
       pollIntervalMs,
       wait,
       ...(options.onSchedulerError === undefined ? {} : { onError: options.onSchedulerError }),
+      // Rooms absent: nothing to drain (fail closed, no second event bus).
+      // The bridge itself never throws from drain (it records and reports
+      // through the rooms `onError` port), so this cannot poison the loop.
+      afterTick: () => {
+        roomsState.subsystem?.drainFactoryEvents();
+      },
     });
     loop.start();
     // The pump starts only once every other composition step (including
@@ -634,7 +669,8 @@ export async function startFactoryDaemonService(
     startedAt: activeRuntime.startedAt,
     getLastSchedulerError: () => activeLoop.lastError,
     getLastEffectsPumpError: () => activeEffectsSubsystem?.loop.lastError ?? null,
-    getLastRoomsError: () => activeRoomsSubsystem?.loop.lastError ?? null,
+    getLastRoomsError: () =>
+      activeRoomsSubsystem?.loop.lastError ?? activeRoomsSubsystem?.bridge?.lastError ?? null,
     close: async () => {
       if (closePromise !== null) return await closePromise;
       closing = true;

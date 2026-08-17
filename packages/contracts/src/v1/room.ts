@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  EventIdSchema,
   IsoInstantSchema,
   NonNegativeSafeIntegerSchema,
   PositiveSafeIntegerSchema,
@@ -313,9 +314,38 @@ export const RoomGrantV1Schema = z.strictObject({
 });
 export type RoomGrantV1 = z.infer<typeof RoomGrantV1Schema>;
 
+/**
+ * Durable high-water mark of the daemon-composed factory-event bridge (the
+ * only producer of `factory-event` system lines, and therefore of the
+ * unattended path's triggers). `ledgerPosition` is the kernel `events`
+ * ledger position the bridge has scanned through; `eventId` is the kernel
+ * event at that position (null only when the bridge first anchored on an
+ * empty ledger). `lastDelivered*` describe the most recent kernel event that
+ * actually produced at least one room line; `deliveredCount` is the lifetime
+ * number of `factory-event` lines the bridge appended.
+ */
+export const RoomFactoryBridgeCursorV1Schema = z.strictObject({
+  ledgerPosition: NonNegativeSafeIntegerSchema,
+  eventId: EventIdSchema.nullable(),
+  eventOccurredAt: IsoInstantSchema.nullable(),
+  lastDeliveredEventId: EventIdSchema.nullable(),
+  lastDeliveredAt: IsoInstantSchema.nullable(),
+  deliveredCount: NonNegativeSafeIntegerSchema,
+  updatedAt: IsoInstantSchema,
+});
+export type RoomFactoryBridgeCursorV1 = z.infer<typeof RoomFactoryBridgeCursorV1Schema>;
+
+/** `enabled` is false whenever no moderator (and so no bridge) is composed; `cursor` is null until the bridge first anchors. */
+export const RoomFactoryBridgeStatusV1Schema = z.strictObject({
+  enabled: z.boolean(),
+  cursor: RoomFactoryBridgeCursorV1Schema.nullable(),
+});
+export type RoomFactoryBridgeStatusV1 = z.infer<typeof RoomFactoryBridgeStatusV1Schema>;
+
 export const RoomModeratorStatusV1Schema = z.strictObject({
   enabled: z.boolean(),
   attendance: RoomAttendanceV1Schema,
+  factoryBridge: RoomFactoryBridgeStatusV1Schema,
 });
 export type RoomModeratorStatusV1 = z.infer<typeof RoomModeratorStatusV1Schema>;
 

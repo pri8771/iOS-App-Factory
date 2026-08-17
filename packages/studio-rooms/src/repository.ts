@@ -1,9 +1,11 @@
 import {
   IsoInstantSchema,
+  ProjectIdSchema,
   RoomBudgetV1Schema,
   RoomChatMessageV1Schema,
   RoomCreateSpecV1Schema,
   RoomDayKeySchema,
+  RoomFactoryBridgeCursorV1Schema,
   RoomGrantOutcomeV1Schema,
   RoomGrantV1Schema,
   RoomIdSchema,
@@ -14,12 +16,14 @@ import {
   RoomSystemMessageV1Schema,
   RoomTriggerV1Schema,
   RoomV1Schema,
+  type EventId,
   type IsoInstant,
   type RoomAgentErrorCodeV1,
   type RoomBudgetV1,
   type RoomChatMessageV1,
   type RoomCreateSpecV1,
   type RoomDayKey,
+  type RoomFactoryBridgeCursorV1,
   type RoomGrantId,
   type RoomGrantOutcomeV1,
   type RoomGrantV1,
@@ -104,6 +108,16 @@ type GrantRow = Readonly<{
 
 type MessageRow = Readonly<{ payload_json: string }>;
 
+type FactoryEventCursorRow = Readonly<{
+  ledger_position: number;
+  event_id: string | null;
+  event_occurred_at: string | null;
+  last_delivered_event_id: string | null;
+  last_delivered_at: string | null;
+  delivered_count: number;
+  updated_at: string;
+}>;
+
 export type CreatedRoom = Readonly<{ room: RoomV1; duplicate: boolean }>;
 
 export type AppendHumanMessageInput = Readonly<{
@@ -167,6 +181,21 @@ export type FinishGrantInput = Readonly<{
   unattended: boolean;
   now: IsoInstant;
   systemLine: Omit<SystemLineInput, "roomId" | "now" | "grantId"> | null;
+}>;
+
+export type FactoryEventDelivery = Readonly<{
+  roomId: RoomId;
+  messageId: RoomMessageId;
+  body: string;
+}>;
+
+export type BridgeFactoryEventInput = Readonly<{
+  /** Kernel `events` ledger position of the event being bridged; must be after the cursor. */
+  ledgerPosition: number;
+  eventId: EventId;
+  eventOccurredAt: IsoInstant;
+  deliveries: readonly FactoryEventDelivery[];
+  now: IsoInstant;
 }>;
 
 export type BudgetGate = Readonly<{
@@ -465,6 +494,151 @@ export class RoomRepository {
       return message;
     });
     return append.immediate();
+  }
+
+  /** Rooms bound to exactly this project (portfolio-wide rooms with a null projectId are never returned). */
+  public listRoomIdsForProject(projectIdInput: unknown): readonly RoomId[] {
+    const projectId = ProjectIdSchema.parse(projectIdInput);
+    const rows = this.#database
+      .prepare("SELECT room_id FROM rooms WHERE project_id = ? ORDER BY created_at, room_id")
+      .all(projectId) as readonly Readonly<{ room_id: string }>[];
+    return rows.map((row) => parseRoomId(row.room_id));
+  }
+
+  /** The factory-event bridge's durable high-water mark (migration 0013); null until the bridge first anchors. */
+  public findFactoryEventCursor(): RoomFactoryBridgeCursorV1 | null {
+    const row = this.#database
+      .prepare("SELECT * FROM room_factory_event_cursor WHERE cursor_id = 1")
+      .get() as FactoryEventCursorRow | undefined;
+    return row === undefined ? null : RoomRepository.#parseCursor(row);
+  }
+
+  /**
+   * Anchors the bridge cursor when none exists yet (a fresh database, or a
+   * database that predates migration 0013): the ledger position given is the
+   * kernel event ledger's current head, so history is never replayed into
+   * rooms. Returns the existing cursor untouched when one is already there.
+   */
+  public anchorFactoryEventCursor(
+    input: Readonly<{
+      ledgerPosition: number;
+      eventId: EventId | null;
+      eventOccurredAt: IsoInstant | null;
+      now: IsoInstant;
+    }>,
+  ): RoomFactoryBridgeCursorV1 {
+    assertNonNegativeInteger("ledgerPosition", input.ledgerPosition);
+    const anchor = this.#database.transaction((): RoomFactoryBridgeCursorV1 => {
+      const existing = this.findFactoryEventCursor();
+      if (existing !== null) return existing;
+      this.#database
+        .prepare(
+          `INSERT INTO room_factory_event_cursor(
+             cursor_id, schema_version, ledger_position, event_id, event_occurred_at,
+             last_delivered_event_id, last_delivered_at, delivered_count, updated_at
+           ) VALUES (1, 1, ?, ?, ?, NULL, NULL, 0, ?)`,
+        )
+        .run(input.ledgerPosition, input.eventId, input.eventOccurredAt, input.now);
+      const created = this.findFactoryEventCursor();
+      if (created === null) throw new Error("Factory-event cursor anchor invariant failed");
+      return created;
+    });
+    return anchor.immediate();
+  }
+
+  /**
+   * Re-points an existing cursor at a new ledger position for the SAME
+   * kernel event (used when the kernel `events` ledger was rebuilt and its
+   * positions renumbered). Never changes which event the cursor names.
+   */
+  public reanchorFactoryEventCursor(ledgerPosition: number, now: IsoInstant): void {
+    assertPositiveInteger("ledgerPosition", ledgerPosition);
+    this.#database
+      .prepare(
+        `UPDATE room_factory_event_cursor SET ledger_position = ?, updated_at = ?
+         WHERE cursor_id = 1 AND event_id IS NOT NULL`,
+      )
+      .run(ledgerPosition, now);
+  }
+
+  /**
+   * One kernel event's bridging, atomically: appends the `factory-event`
+   * system line (and queues the factory-event trigger) in every listed room,
+   * then advances the cursor past the event, all in one IMMEDIATE
+   * transaction -- so a crash between the two can never replay the event
+   * into a room on restart, and a delivered line always has the cursor
+   * behind it. `deliveries` may be empty (the event matched no room): the
+   * cursor still advances. Each line's transcript instant is `now`, floored
+   * at that room's current head instant so appends never predate the head.
+   */
+  public bridgeFactoryEvent(input: BridgeFactoryEventInput): readonly RoomSystemMessageV1[] {
+    assertPositiveInteger("ledgerPosition", input.ledgerPosition);
+    const bridge = this.#database.transaction((): readonly RoomSystemMessageV1[] => {
+      const cursor = this.findFactoryEventCursor();
+      if (cursor === null) {
+        throw new RoomError(
+          "room.bridge-cursor-missing",
+          "The factory-event bridge cursor has not been anchored.",
+          false,
+        );
+      }
+      if (input.ledgerPosition <= cursor.ledgerPosition) {
+        throw new RoomError(
+          "room.bridge-cursor-regressed",
+          `Kernel event ${input.eventId} at ledger position ${String(input.ledgerPosition)} is not after the bridge cursor (${String(cursor.ledgerPosition)}).`,
+          false,
+        );
+      }
+      const lines: RoomSystemMessageV1[] = [];
+      for (const delivery of input.deliveries) {
+        const room = this.requireRoom(delivery.roomId);
+        const head =
+          room.headSequence === 0 ? null : this.findMessage(room.roomId, room.headSequence);
+        const at = head !== null && head.occurredAt > input.now ? head.occurredAt : input.now;
+        lines.push(
+          this.appendFactoryEvent({
+            roomId: room.roomId,
+            messageId: delivery.messageId,
+            body: delivery.body,
+            now: at,
+          }),
+        );
+      }
+      this.#database
+        .prepare(
+          `UPDATE room_factory_event_cursor
+           SET ledger_position = ?, event_id = ?, event_occurred_at = ?,
+               last_delivered_event_id = CASE WHEN ? > 0 THEN ? ELSE last_delivered_event_id END,
+               last_delivered_at = CASE WHEN ? > 0 THEN ? ELSE last_delivered_at END,
+               delivered_count = delivered_count + ?, updated_at = ?
+           WHERE cursor_id = 1`,
+        )
+        .run(
+          input.ledgerPosition,
+          input.eventId,
+          input.eventOccurredAt,
+          lines.length,
+          input.eventId,
+          lines.length,
+          input.now,
+          lines.length,
+          input.now,
+        );
+      return lines;
+    });
+    return bridge.immediate();
+  }
+
+  static #parseCursor(row: FactoryEventCursorRow): RoomFactoryBridgeCursorV1 {
+    return RoomFactoryBridgeCursorV1Schema.parse({
+      ledgerPosition: row.ledger_position,
+      eventId: row.event_id,
+      eventOccurredAt: row.event_occurred_at,
+      lastDeliveredEventId: row.last_delivered_event_id,
+      lastDeliveredAt: row.last_delivered_at,
+      deliveredCount: row.delivered_count,
+      updatedAt: row.updated_at,
+    });
   }
 
   public setHumanTyping(roomIdInput: unknown, typingUntil: IsoInstant): RoomV1 {
