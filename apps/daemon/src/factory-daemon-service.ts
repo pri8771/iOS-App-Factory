@@ -444,11 +444,24 @@ export async function startFactoryDaemonService(
       ? (context) => {
           // The moderator shares the command runtime's notion of "now" unless
           // a clock is injected explicitly, so attendance and lease arithmetic
-          // agree with the instants stamped on human posts.
+          // agree with the instants stamped on human posts. `quota` is
+          // resolved here (rather than at `startFactoryDaemonService` call
+          // time) when only a `quotaFactory` was supplied, since the kernel
+          // database handle a database-backed governor needs does not exist
+          // until the command runtime opens it.
+          const resolvedQuota =
+            roomsConfig.quota ??
+            (roomsConfig.quotaFactory === undefined
+              ? undefined
+              : roomsConfig.quotaFactory(context.database));
           const subsystem = createRoomSubsystem(
-            roomsConfig.clock === undefined && daemonNow !== undefined
-              ? { ...roomsConfig, clock: { now: () => new Date(daemonNow()) } }
-              : roomsConfig,
+            {
+              ...roomsConfig,
+              ...(resolvedQuota === undefined ? {} : { quota: resolvedQuota }),
+              ...(roomsConfig.clock === undefined && daemonNow !== undefined
+                ? { clock: { now: () => new Date(daemonNow()) } }
+                : {}),
+            },
             context.rooms,
           );
           roomsState.subsystem = subsystem;

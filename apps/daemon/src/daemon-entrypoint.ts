@@ -14,6 +14,11 @@ import {
   loadLocalExecutionProfile,
   type LocalExecutionProfileDependencies,
 } from "./local-execution-profile.js";
+import {
+  loadRoomsSubsystemConfiguration,
+  RoomParticipantsConfigurationError,
+} from "./room-participants-config.js";
+import type { RoomSubsystemConfiguration } from "./room-subsystem.js";
 import type { VerifiedLocalExecutionConfiguration } from "./verified-local-executor.js";
 
 const MAX_SECRET_BYTES = 512;
@@ -33,6 +38,17 @@ export type DaemonProcessEnvironment = Readonly<{
    * decides whether the pump loop itself runs at all.
    */
   APP_FACTORY_EFFECTS_PUMP_ENABLED?: string;
+  /**
+   * Default OFF. Set to "1" or "true" to compose the room moderator with
+   * real Codex/Claude/Ollama participants (see
+   * `APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG`). Real-model room participation
+   * is a real-identity path: enabling this refuses to load without
+   * `APP_FACTORY_CONTAINMENT_ATTESTATION` set to a valid attestation file,
+   * exactly like the coding agent's local execution profile.
+   */
+  APP_FACTORY_ROOMS_ENABLED?: string;
+  /** Absolute path to the room participants/roster JSON config; required when rooms are enabled. */
+  APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG?: string;
 }>;
 
 export type DaemonProcessConfiguration = Readonly<{
@@ -42,6 +58,7 @@ export type DaemonProcessConfiguration = Readonly<{
   pollIntervalMs: number;
   localExecution?: VerifiedLocalExecutionConfiguration;
   effects?: EffectSubsystemConfiguration;
+  rooms?: RoomSubsystemConfiguration;
 }>;
 
 export type DaemonProcessIo = Readonly<{
@@ -254,19 +271,22 @@ export async function loadDaemonProcessConfiguration(
     "APP_FACTORY_RUNTIME_DIR",
   );
   const authorization = await readPrivateAuthorizationFile(authorizationFile);
+  // Shared by both real-identity execution surfaces below (the coding agent's
+  // local execution profile and, separately, studio-rooms' live participants):
+  // one env var, one resolved path, one attestation file -- never two gates.
+  const attestationPath =
+    environment.APP_FACTORY_CONTAINMENT_ATTESTATION === undefined
+      ? undefined
+      : absolutePath(
+          environment.APP_FACTORY_CONTAINMENT_ATTESTATION,
+          "APP_FACTORY_CONTAINMENT_ATTESTATION",
+        );
   let localExecution: VerifiedLocalExecutionConfiguration | undefined;
   if (environment.APP_FACTORY_LOCAL_EXECUTION_CONFIG !== undefined) {
     const configPath = absolutePath(
       environment.APP_FACTORY_LOCAL_EXECUTION_CONFIG,
       "APP_FACTORY_LOCAL_EXECUTION_CONFIG",
     );
-    const attestationPath =
-      environment.APP_FACTORY_CONTAINMENT_ATTESTATION === undefined
-        ? undefined
-        : absolutePath(
-            environment.APP_FACTORY_CONTAINMENT_ATTESTATION,
-            "APP_FACTORY_CONTAINMENT_ATTESTATION",
-          );
     try {
       localExecution = await loadLocalExecutionProfile(configPath, runtimeDirectory, {
         ...localExecutionDependencies,
@@ -283,6 +303,28 @@ export async function loadDaemonProcessConfiguration(
     "APP_FACTORY_EFFECTS_PUMP_ENABLED",
     environment.APP_FACTORY_EFFECTS_PUMP_ENABLED,
   );
+  const roomsEnabled = booleanFlag(
+    "APP_FACTORY_ROOMS_ENABLED",
+    environment.APP_FACTORY_ROOMS_ENABLED,
+  );
+  let rooms: RoomSubsystemConfiguration | undefined;
+  if (roomsEnabled) {
+    const participantsConfigPath = absolutePath(
+      environment.APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG,
+      "APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG",
+    );
+    try {
+      rooms = loadRoomsSubsystemConfiguration({
+        participantsConfigPath,
+        ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
+      });
+    } catch (error) {
+      if (error instanceof RoomParticipantsConfigurationError) {
+        configurationError(error.message);
+      }
+      throw error;
+    }
+  }
   return {
     runtimeDirectory,
     authorization,
@@ -295,6 +337,7 @@ export async function loadDaemonProcessConfiguration(
     // `{ enabled: false }`) when off, matching `localExecution`'s pattern of
     // leaving disabled subsystems out of the resolved configuration.
     ...(effectsPumpEnabled ? { effects: { enabled: true } } : {}),
+    ...(rooms === undefined ? {} : { rooms }),
   };
 }
 

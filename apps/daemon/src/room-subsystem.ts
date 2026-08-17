@@ -15,7 +15,7 @@ import {
   type ScorerPort,
 } from "@app-factory/studio-rooms";
 
-import type { RoomsStatusPort } from "./command-runtime.js";
+import type { InitializeRoomsContext, RoomsStatusPort } from "./command-runtime.js";
 
 /**
  * Optional room moderator: `RoomModerator` + a per-room `RoomModeratorLoop`
@@ -23,8 +23,11 @@ import type { RoomsStatusPort } from "./command-runtime.js";
  * this whole option is omitted) leaves `room.*` commands working as a durable
  * transcript with no agent ever granted the floor. The three model-facing
  * ports (`scorer`, `contributor`, `revalidator`) are required when enabled:
- * no adapter is registered here by default, and none exists in this
- * repository yet — the Ollama adapter is a separate task.
+ * this module never constructs an adapter itself -- real Codex/Claude/Ollama
+ * participants, the Ollama-backed scorer, and the factory-aware quota
+ * governor all live in `@app-factory/studio-room-adapters` and are composed
+ * by `apps/daemon/src/room-participants-config.ts`, which builds this
+ * configuration object.
  */
 export type RoomSubsystemConfiguration = Readonly<{
   enabled: boolean;
@@ -32,6 +35,14 @@ export type RoomSubsystemConfiguration = Readonly<{
   contributor?: ContributorPort;
   revalidator?: RevalidatePort;
   quota?: QuotaGovernorPort;
+  /**
+   * Alternative to `quota` for a governor that needs the daemon's own kernel
+   * database (e.g. to answer "does the factory have a running attempt").
+   * Called once, inside `initializeRooms`, with the exact `FactoryDatabase`
+   * handle the room repository itself was constructed from. Ignored when
+   * `quota` is already set.
+   */
+  quotaFactory?: (database: InitializeRoomsContext["database"]) => QuotaGovernorPort;
   process?: RoomProcessPort;
   clock?: RoomClockPort;
   wait?: RoomWaitPort;

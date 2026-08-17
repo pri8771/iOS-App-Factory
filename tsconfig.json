@@ -29,6 +29,7 @@
     { "path": "./packages/scheduler" },
     { "path": "./packages/service-manager" },
     { "path": "./packages/simulator-runner" },
+    { "path": "./packages/studio-room-adapters" },
     { "path": "./packages/studio-rooms" },
     { "path": "./packages/command-client" },
     { "path": "./packages/testkit" },

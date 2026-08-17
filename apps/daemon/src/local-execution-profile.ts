@@ -268,7 +268,15 @@ function assertNoSymbolicLinkAncestors(path: string): void {
   }
 }
 
-function readPrivateFile(path: string, maximumBytes: number, label: string): Buffer {
+/**
+ * Reads one bounded, mode-0600, current-user-owned, symlink-free, unlinked
+ * regular file, verifying it did not change between the size check and the
+ * read. Exported for reuse by other daemon config loaders (e.g. the rooms
+ * roster/participants config) that want the same discipline this module
+ * already applies to its own configuration and secret files, rather than a
+ * second, independently-written copy of it.
+ */
+export function readPrivateFile(path: string, maximumBytes: number, label: string): Buffer {
   const normalized = normalizedAbsolutePath(path, label);
   assertNoSymbolicLinkAncestors(dirname(normalized));
   let descriptor: number;
@@ -393,7 +401,17 @@ function boundedAttestationText(value: unknown, label: string, maximum: number):
   return value;
 }
 
-function readOwnerContainmentAttestation(path: string): OwnerContainmentAttestationV1 {
+/**
+ * Reads and validates the owner containment attestation file at `path` with
+ * the same private-file discipline (mode 0600, single-link, current-user-
+ * owned, size-bounded, unchanged across the read) used elsewhere in this
+ * module for pinned-executable and secret material. Exported so every
+ * real-identity execution surface -- the coding-agent profile below and,
+ * separately, studio-rooms' real-model room participants -- gates on the
+ * exact same attestation file and reader rather than each growing its own
+ * copy of this check.
+ */
+export function readOwnerContainmentAttestation(path: string): OwnerContainmentAttestationV1 {
   const normalized = normalizedAbsolutePath(path, "APP_FACTORY_CONTAINMENT_ATTESTATION");
   const bytes = readPrivateFile(normalized, MAX_ATTESTATION_BYTES, CONTAINMENT_ATTESTATION_LABEL);
   let parsed: unknown;
@@ -442,7 +460,14 @@ function readOwnerContainmentAttestation(path: string): OwnerContainmentAttestat
   return { schemaVersion: 1, decision, acceptedGaps, date, owner };
 }
 
-function requireOwnerContainmentAttestation(
+/**
+ * Fails closed when `path` is absent (no attestation file configured); the
+ * `mode` label only shapes the error message. Reused verbatim by the rooms
+ * live-participant gate (`room-participants-config.ts`) with a rooms-specific
+ * label -- the same `APP_FACTORY_CONTAINMENT_ATTESTATION` env var and file,
+ * never a second gate.
+ */
+export function requireOwnerContainmentAttestation(
   path: string | undefined,
   mode: string,
 ): OwnerContainmentAttestationV1 {

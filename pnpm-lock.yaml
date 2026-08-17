@@ -86,6 +86,9 @@ importers:
       '@app-factory/oci-runner':
         specifier: workspace:*
         version: link:../../packages/oci-runner
+      '@app-factory/ollama-scorer':
+        specifier: workspace:*
+        version: link:../../packages/ollama-scorer
       '@app-factory/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine
@@ -98,6 +101,9 @@ importers:
       '@app-factory/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
+      '@app-factory/studio-room-adapters':
+        specifier: workspace:*
+        version: link:../../packages/studio-room-adapters
       '@app-factory/studio-rooms':
         specifier: workspace:*
         version: link:../../packages/studio-rooms
@@ -379,6 +385,33 @@ importers:
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../contracts
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/studio-room-adapters:
+    dependencies:
+      '@app-factory/agent-runner':
+        specifier: workspace:*
+        version: link:../agent-runner
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@app-factory/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      '@app-factory/ollama-scorer':
+        specifier: workspace:*
+        version: link:../ollama-scorer
+      '@app-factory/process-supervisor':
+        specifier: workspace:*
+        version: link:../process-supervisor
+      '@app-factory/studio-rooms':
+        specifier: workspace:*
+        version: link:../studio-rooms
+      better-sqlite3:
+        specifier: 12.11.1
+        version: 12.11.1
       zod:
         specifier: 4.4.3
         version: 4.4.3

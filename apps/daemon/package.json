@@ -24,10 +24,12 @@
     "@app-factory/independent-review": "workspace:*",
     "@app-factory/kernel": "workspace:*",
     "@app-factory/oci-runner": "workspace:*",
+    "@app-factory/ollama-scorer": "workspace:*",
     "@app-factory/policy-engine": "workspace:*",
     "@app-factory/process-supervisor": "workspace:*",
     "@app-factory/project-sdk": "workspace:*",
     "@app-factory/scheduler": "workspace:*",
+    "@app-factory/studio-room-adapters": "workspace:*",
     "@app-factory/studio-rooms": "workspace:*"
   }
 }
