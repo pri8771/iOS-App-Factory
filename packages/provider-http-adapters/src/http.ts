@@ -11,6 +11,14 @@ const ALLOWED_REQUEST_HEADERS = new Set([
   "x-atlassian-token",
   "x-github-api-version",
 ]);
+// The bounded response envelope every trusted transport projects onto and
+// every consumer of `ProviderHttpResponseV1` may rely on. It is the union of
+// the provenance / rate-limit / caching names each supported provider needs:
+// Jira Cloud (`atl-traceid`), GitHub (`x-github-request-id`,
+// `x-ratelimit-*`), and App Store Connect (`x-rate-limit`,
+// `x-apple-jingle-correlation-key`, `x-apple-request-uuid`; `asc-adapter`
+// applies its own narrower retained-set on top). Anything else a provider
+// sends is dropped by the transport before it reaches this validator.
 const ALLOWED_RESPONSE_HEADERS = new Set([
   "atl-traceid",
   "content-type",
@@ -19,7 +27,10 @@ const ALLOWED_RESPONSE_HEADERS = new Set([
   "last-modified",
   "link",
   "retry-after",
+  "x-apple-jingle-correlation-key",
+  "x-apple-request-uuid",
   "x-github-request-id",
+  "x-rate-limit",
   "x-ratelimit-remaining",
   "x-ratelimit-reset",
   "x-ratelimit-resource",

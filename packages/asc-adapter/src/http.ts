@@ -37,6 +37,9 @@ export const ASC_MAX_PAGE_SIZE = 200;
 export const ASC_DEFAULT_MAX_RESPONSE_BYTES = 1024 * 1024;
 const ASC_MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 
+// Every name here is also on `provider-http-adapters`' bounded response
+// envelope allowlist, which the trusted fetch transport projects live
+// responses onto before they reach this adapter; keep the two in step.
 const RETAINED_RESPONSE_HEADERS = new Set([
   "content-type",
   "date",

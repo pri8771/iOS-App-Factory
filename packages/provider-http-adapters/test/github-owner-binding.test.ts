@@ -7,6 +7,7 @@ import {
   assertGitHubOwnerBindingCoversRepository,
   assertGitHubOwnerBindingMatches,
   createGitHubOwnerBinding,
+  deriveGitHubBearerAuthorization,
   parseGitHubOwnerBinding,
   type BoundedProviderHttpTransport,
   type GitHubOwnerBindingV1,
@@ -253,6 +254,14 @@ describe("createGitHubOwnerBinding", () => {
       ),
     ).rejects.toThrow("at least one repository");
     expect(scripted.request).not.toHaveBeenCalled();
+  });
+});
+
+describe("deriveGitHubBearerAuthorization", () => {
+  it("prefixes the bare Keychain token with the Bearer scheme without mutating the secret buffer", () => {
+    const secret = Uint8Array.from(Buffer.from("github_pat_example"));
+    expect(deriveGitHubBearerAuthorization(secret)).toBe("Bearer github_pat_example");
+    expect(Buffer.from(secret).toString("utf8")).toBe("github_pat_example");
   });
 });
 

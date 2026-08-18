@@ -67,6 +67,20 @@ import {
 
 export const GITHUB_OWNER_BINDING_SCHEMA_VERSION = 1 as const;
 
+/**
+ * GitHub's Keychain contract: the item holds the **bare token** (as GitHub
+ * issues it), and the trusted transport derives the outbound header value
+ * from it with this function (`createFetchProviderHttpTransport({
+ * authorization: deriveGitHubBearerAuthorization })`). It runs inside the
+ * broker's credential window, must not retain or log `secret`, and its
+ * result still passes the transport's header-safety check. Shape-compatible
+ * with `provider-transport`'s `ProviderAuthorizationDerivation` without
+ * importing it (adapters never depend on the transport).
+ */
+export function deriveGitHubBearerAuthorization(secret: Uint8Array): string {
+  return `Bearer ${Buffer.from(secret).toString("utf8")}`;
+}
+
 const DEFAULT_API_VERSION = "2022-11-28";
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_ENROLLED_REPOSITORIES = 32;

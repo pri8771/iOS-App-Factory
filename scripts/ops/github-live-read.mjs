@@ -6,6 +6,10 @@
 // `@app-factory/provider-transport`'s bounded fetch transport, never by this
 // script. Documented in docs/operations/github-live-read.md.
 //
+// Keychain contract for GitHub: the item holds the BARE token; the transport's
+// authorization derivation (deriveGitHubBearerAuthorization) turns it into
+// "Bearer <token>" inside the broker window. Nothing in this file sees it.
+//
 // It is NOT wired into `pnpm test` or `pnpm verify` and must never be: every
 // invocation makes real GitHub API calls. It refuses to run unless the
 // operator sets CONFIRM_LIVE=yes, and it never issues a GraphQL mutation:
@@ -59,6 +63,7 @@ const {
   createGitHubReadObserver,
   createProviderHttpRequest,
   assertGitHubOwnerBindingMatches,
+  deriveGitHubBearerAuthorization,
   performProviderHttpRequest,
   providerBaseUrl,
   providerUrl,
@@ -161,7 +166,14 @@ function errorRecord(error) {
 // ---------------------------------------------------------------------------
 
 const broker = createCredentialBroker();
-const fetchTransport = createFetchProviderHttpTransport({ credentials: broker });
+// GitHub Keychain contract: the item holds the bare token; the transport
+// derives "Bearer <token>" inside the broker window (never here) via the
+// opt-in authorization derivation seam, and applies its header-safety check
+// to the derived value.
+const fetchTransport = createFetchProviderHttpTransport({
+  credentials: broker,
+  authorization: deriveGitHubBearerAuthorization,
+});
 
 // Records every envelope that crosses the transport contract. It sits
 // OUTSIDE the fetch transport, so it only ever sees ProviderHttpRequestV1
@@ -431,13 +443,11 @@ try {
   // Operator hint only (nothing here inspects credential bytes): GitHub
   // answers "Requires authentication" when the Authorization value carried
   // no recognisable scheme, and "Bad credentials" when a scheme was present
-  // but the token itself was rejected. The transport forwards the Keychain
-  // value verbatim, so the former means the item was stored as a bare
-  // token instead of the complete header value "Bearer <token>".
+  // but the token itself was rejected.
   if (lastResponse?.status === 401) {
     const body = lastResponse.body ?? "";
     summary.hint = body.includes("Requires authentication")
-      ? "HTTP 401 'Requires authentication': the Keychain item does not hold a complete Authorization header value; re-provision it as 'Bearer <token>' (the transport forwards the stored value verbatim)."
+      ? "HTTP 401 'Requires authentication': GitHub saw no recognisable Authorization scheme; the Keychain item must hold the bare token (this script derives 'Bearer <token>'), so check the item is not empty or double-prefixed."
       : body.includes("Bad credentials")
         ? "HTTP 401 'Bad credentials': the stored token itself was rejected by GitHub (revoked, expired, or mistyped)."
         : "HTTP 401 with an unrecognised body; see calls.jsonl.";

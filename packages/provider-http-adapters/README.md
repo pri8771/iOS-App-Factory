@@ -81,11 +81,13 @@ remain disabled until all of the following are implemented and reviewed:
   a durable artifact** (`src/github-owner-binding.ts`: `createGitHubOwnerBinding`
   produces a digest-bound `GitHubOwnerBindingV1` from one read-only GraphQL
   call through an injected transport; `parseGitHubOwnerBinding` /
-  `assertGitHubOwnerBindingMatches` are the consumer gate). The first live
-  attempt (2026-08-17, `docs/operations/github-live-read.md`) stopped at an
-  HTTP 401 caused by the Keychain item holding a bare token instead of the
-  complete `Bearer <token>` header value, so no live binding artifact exists
-  yet. This does not register the adapter in the daemon;
+  `assertGitHubOwnerBindingMatches` are the consumer gate). Two live
+  read-only attempts on 2026-08-17 (`docs/operations/github-live-read.md`)
+  both stopped at HTTP 401 -- first `Requires authentication` (verbatim
+  scheme-less value), then, with the transport's `Bearer` derivation
+  (`deriveGitHubBearerAuthorization`), `Bad credentials` (GitHub rejected the
+  stored token string) -- so no live binding artifact exists yet. This does
+  not register the adapter in the daemon;
 - provider-neutral reconciliation observations that preserve and compare the
   expected payload and field digests instead of adopting by logical marker
   alone; and

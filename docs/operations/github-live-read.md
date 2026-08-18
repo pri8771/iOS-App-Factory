@@ -34,9 +34,14 @@ mirroring the pattern of the reviewer's
   security headers, and so on, and the strict `validateProviderHttpResponse`
   rejects any non-allowlisted name, so without this projection every live
   call would have failed at the envelope validator before any status or body
-  was visible. Deterministic test added; the validator itself is unchanged.
-- **`scripts/ops/github-live-read.mjs`** -- the manual live smoke. It runs the
-  broker's metadata-only preflight, the owner-binding proof, then (from the
+  was visible. Deterministic test added; the validator itself is unchanged
+  except that its allowlist now also names App Store Connect's retained
+  headers (`x-rate-limit`, `x-apple-jingle-correlation-key`,
+  `x-apple-request-uuid`), so the merged `asc-adapter` (which filters to its
+  own narrower set on top) still sees them through the projected envelope.
+- **`scripts/ops/github-live-read.mjs`** -- the manual live smoke. It builds
+  the fetch transport with the GitHub Bearer derivation (see the provisioning
+  contract below), runs the broker's metadata-only preflight, the owner-binding proof, then (from the
   binding's `ownerNodeId`) the existing read observers in
   `packages/provider-http-adapters/src/github.ts` against each observed
   repository -- `observeRepository`, `observeChecks` on the default-branch
@@ -91,30 +96,58 @@ permissions; only the Keychain service/account are recorded, never a value;
 may only be constructed with an `owner` / `ownerNodeId` / credential
 reference / credential origin that a valid binding proved.
 
-## First live run -- 2026-08-17 (local) / 2026-08-18T02:21:55Z
+## Live runs -- 2026-08-17 (local) / 2026-08-18Z
 
-| Field             | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Branch / base     | `p5/github-live-read` off `integration/studio-wave1` @ `f912403`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Credential        | Keychain reference `{ service: "app-factory-github-token", account: "app-factory" }` (narrow-scope fine-grained PAT, repos `pri8771/iOS-App-Factory` + `pri8771/hindsight`, Contents R/W, Pull requests R/W, Metadata R). Presence confirmed with `security find-generic-password -s ...` (no `-w`); the value was never read outside the broker.                                                                                                                                                                                                                         |
-| Preflight         | broker `preflight` -> `available: true` (metadata-only probe)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Live runs         | **1** (a second run was not possible: the fix is owner-side, see below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Live calls        | **1**: `POST https://api.github.com/graphql` (owner-binding query) -> **HTTP 401**, 148 ms, body `{"message":"Requires authentication","documentation_url":"https://docs.github.com/rest","status":"401"}`, `x-github-request-id F983:2FA5D2:3DE288C:C8E5D1A:6A83C1C3`; no rate-limit headers on the answer                                                                                                                                                                                                                                                               |
-| Outcome           | **failed -- credential provisioning format**, not scope and not a transport contract rejection. `provider-transport` forwards the Keychain value verbatim as the Authorization header (by design: the transport has no auth-scheme knowledge). Anonymous diagnostic calls with no credential (`curl`, garbage values) reproduce the exact `Requires authentication` body for a scheme-less value and `Bad credentials` for `Bearer <garbage>`, so the stored item holds a bare token, GitHub never evaluated it, and the token itself was neither validated nor rejected. |
-| Binding artifact  | **not produced** (the proof failed before a binding could be formed); no `github-owner-binding.json` exists yet                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Results directory | `/Users/pchordia/.app-factory-github-smoke/results/2026-08-18T02-21-55-642Z/` (`calls.jsonl`, `summary.json` digest `sha256:2044c25e6dcb8a276140cbf5d4a150de34a26f3fe36f7d12bef97679ab74b24a`, `observations.json`, `log.txt`); grep for `authorization` / `Bearer` / `github_pat` in every file: 0 hits                                                                                                                                                                                                                                                                  |
-| What it did prove | The whole trust boundary works live end to end up to the provider's answer: Keychain resolution by the broker, just-in-time attachment by the transport, HTTPS-only + credential-origin binding, deadline, byte cap, response-header projection onto the strict envelope (GitHub's 401 carried 15 headers; 3 survived and the envelope validated), and credential-free recording. Nothing about the token's validity or scope was proven.                                                                                                                                 |
+Two live runs in total, both by hand, both strictly read-only, one live call
+each. Common facts:
 
-### Provisioning contract (the fix, owner-side)
+- Branch `p5/github-live-read` off `integration/studio-wave1` (`f912403` for
+  run 1; merged `0a36d5b` before run 2).
+- Credential: Keychain reference `{ service: "app-factory-github-token",
+account: "app-factory" }` (narrow-scope fine-grained PAT, repos
+  `pri8771/iOS-App-Factory` + `pri8771/hindsight`, Contents R/W, Pull
+  requests R/W, Metadata R). Presence confirmed with
+  `security find-generic-password -s ...` (no `-w`); the value was never read
+  outside the broker; the item was not modified between the runs
+  (`mdat 20260818020858Z` both times).
+- Broker `preflight` -> `available: true` (metadata-only probe) both times.
+- Results (0700/0600; grep for `authorization` / `Bearer` / `github_pat` in
+  every file: 0 hits): `/Users/pchordia/.app-factory-github-smoke/results/`.
+- **Binding artifact: not produced** by either run; no
+  `github-owner-binding.json` exists yet.
 
-The Keychain item must hold the **complete Authorization header value**, not
-the bare token, because the transport attaches it verbatim
-(`packages/provider-transport/src/index.ts`, `credentialHeaderValue`). For
-GitHub that is `Bearer <token>`. Re-provision it yourself (never paste the
-token into a task, prompt, log, or issue):
+| Run | When (UTC)           | Transport authorization                                                                                                   | Live call                                                           | Answer                                                                                                                                                                                            | Diagnosis                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Results dir / summary digest                                                                           |
+| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 1   | 2026-08-18T02:21:55Z | verbatim Keychain value (the transport default at the time)                                                               | `POST https://api.github.com/graphql` (owner-binding query), 148 ms | **HTTP 401** `{"message":"Requires authentication","documentation_url":"https://docs.github.com/rest","status":"401"}`, `x-github-request-id F983:2FA5D2:3DE288C:C8E5D1A:6A83C1C3`                | Provisioning format: the item holds a bare, scheme-less token, so GitHub saw no recognisable Authorization scheme and never evaluated it. Anonymous, credential-free `curl` diagnostics reproduce this exact body for a scheme-less value and `Bad credentials` for `Bearer <garbage>`.                                                                                                                                                                                         | `2026-08-18T02-21-55-642Z/`, `sha256:2044c25e6dcb8a276140cbf5d4a150de34a26f3fe36f7d12bef97679ab74b24a` |
+| 2   | 2026-08-18T02:38:29Z | `deriveGitHubBearerAuthorization` (`Bearer <token>` derived inside the broker window via the merged `authorization` seam) | `POST https://api.github.com/graphql` (owner-binding query), 129 ms | **HTTP 401** `{"message":"Bad credentials","documentation_url":"https://docs.github.com/rest","status":"401"}`, `x-github-request-id FF8D:2B97DD:3E7A3EB:CB36270:6A83C5A5`; no rate-limit headers | The scheme is now recognised and **GitHub evaluated and rejected the token string itself**. Not scope (a scope problem returns 200 with nulls or 403), not a transport contract rejection. Indistinguishable from here between a revoked/expired/mistyped token and an item whose stored value is not exactly the token (stray whitespace, quotes, or a second copy of the scheme -- the broker only trims one trailing line ending). The run budget (2) is exhausted; stopped. | `2026-08-18T02-38-29-563Z/`, `sha256:21941223e1539ac846519483930fa08304a59b71419a1966e5dc04022d03b0d3` |
+
+What the two runs did prove: the whole trust boundary works live end to end
+up to the provider's answer -- Keychain resolution by the broker, just-in-time
+attachment (verbatim in run 1, derived in run 2) by the transport,
+HTTPS-only + credential-origin binding, deadline, byte cap, response-header
+projection onto the strict envelope (GitHub's 401s carried 15 headers; 3
+survived and the envelope validated), and credential-free recording. Nothing
+about the token's validity, viewer identity, or repository scope was proven.
+
+### Provisioning contract (GitHub) and the owner-side fix
+
+The GitHub Keychain item holds the **bare token** exactly as GitHub issues it
+(no `Bearer` prefix, no surrounding whitespace or quotes; the broker trims one
+trailing line ending only). The trusted transport derives `Bearer <token>`
+from it with `deriveGitHubBearerAuthorization`
+(`packages/provider-http-adapters/src/github-owner-binding.ts`), passed as
+`createFetchProviderHttpTransport({ authorization })`; the derivation runs
+inside the broker's credential window and its result passes the transport's
+header-safety check. The verbatim-header default remains for providers
+provisioned as a complete header value, and App Store Connect uses its own
+`.p8` -> ES256 JWT derivation (`packages/provider-transport/README.md`).
+
+To clear run 2's `Bad credentials`: check on github.com that the fine-grained
+PAT is active and not expired, then re-provision the item yourself with the
+exact token (never paste the token into a task, prompt, log, or issue):
 
 ```sh
-security add-generic-password -U -s app-factory-github-token -a app-factory -w "Bearer <token>"
+security add-generic-password -U -s app-factory-github-token -a app-factory -w "<token>"
 ```
 
 then re-run the smoke:
@@ -135,8 +168,8 @@ A completed run writes `github-owner-binding.json` into the results
 directory and to `<etc>/github-owner-binding.json` (0600); the committed
 record of a successful binding belongs next to this file, mirroring
 [`containment-attestation-2026-08-14.json`](containment-attestation-2026-08-14.json).
-The script prints a hint distinguishing `Requires authentication` (format)
-from `Bad credentials` (token) on any 401. Expected on success: viewer login
+The script prints a hint distinguishing `Requires authentication` (no
+recognisable scheme) from `Bad credentials` (token rejected) on any 401. Expected on success: viewer login
 `pri8771`, HTTP 200s, both repositories observed; `observeRepository` is then
 expected to fail _after_ its 200 with "GitHub repository is missing App
 Factory metadata" because neither enrolled repository carries the App Factory
@@ -147,11 +180,12 @@ failure.
 
 Proven: the repository can make a live, read-only, credential-scoped provider
 call through its own trust boundary without any code path outside the broker
-touching credential bytes, and the strict envelopes survive a real provider
-answer once headers are projected.
+touching credential bytes (verbatim and derived authorization both exercised
+live), and the strict envelopes survive a real provider answer once headers
+are projected.
 
-Not proven (yet): the credential's validity, the viewer identity, the token's
-repository scope, any read observer against real repositories, rate-limit
+Not proven (yet): the credential's validity (GitHub rejected the stored token
+string in run 2), the viewer identity, the token's repository scope, any read observer against real repositories, rate-limit
 behavior, and everything about mutation. No adapter is registered in the
 daemon; the effect pump remains default-off with an empty registry.
 
@@ -159,7 +193,7 @@ daemon; the effect pump remains default-off with an empty registry.
 
 - **#1 (GitHub viewer/organization proof binding the owner to `ownerNodeId`)**
   -- implemented as code with a durable artifact format and consumer gate;
-  the live artifact is pending the re-provisioning above. Not registered in
+  the live artifact is pending a valid token (see run 2 above). Not registered in
   the daemon.
 - #2 (immutable Jira tenant enrollment), #3 (payload-bound provider-neutral
   reconciliation observations), #4 (contract-consistent Jira project
