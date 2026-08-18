@@ -279,7 +279,20 @@ verifier, real reviewer, real broker commit; no model call on the attempt side).
   `runtime/local-execution/git/mirrors/62000000-0000-4000-8000-000000000002.git`
   (base `c338785817ba8d5ee6056f65c075aec47178c393`, one file changed:
   `Sources/Greeter/GreetingFormatter.swift`); this row therefore also passes this
-  ledger's mirror recipe, but no `run export` was taken for it.
+  ledger's mirror recipe. Its `run export` was taken on 2026-08-18 —
+  [`runs/9a557d45-….json`](runs/9a557d45-7152-52e6-87cd-a2714631155d.json),
+  `recordDigest`
+  `sha256:78aac98a01baf28bbfc38c0c30b261539957564f8b03a194a695fa8cae431d03`
+  (fixture agent `fixture.swift-greeter-agent`, plans `tests.swift` ·
+  `acceptance.signature` · `acceptance.behavior` all passed, reviewer
+  `fixture.swift-greeter-reviewer` pass, evidence 6 records / 23 artifacts,
+  `attemptCreatedAt 21:51:55.704Z` → `attemptTerminalAt 21:52:00.931Z`). Because
+  the mirror's ownership marker is path-bound and the proof's original path
+  `/private/tmp/af-unattended` no longer existed, the preserved runtime was
+  copied back to that exact path (the preserved copy under `~` was left
+  untouched), a daemon of tip `a4f6ff3` was started on it with rooms disabled,
+  and the export was taken over its socket; the daemon accepted the mirror and
+  the record digest above is what it emitted.
 
 So the claim — a dormant, unattended-enabled room is triggered by a real factory
 attempt transition, the bridge line names the real broker commit, and a live model reply

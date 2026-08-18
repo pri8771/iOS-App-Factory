@@ -306,15 +306,26 @@ for everything past the read.
 Independent of the phase-by-phase status above, these remain true for the
 whole Studio effort and the Gen 4 daemon it runs on:
 
-- No live Jira or GitHub call has ever been made from this repository's code
-  — the effect pump ships default-off with an empty adapter registry (row 7
-  of `IMPLEMENTATION_STATUS.md`). ~~Nor App Store Connect.~~ Closed
+- No live Jira call has ever been made from this repository's code, and no
+  live provider _mutation_ of any kind — the effect pump ships default-off
+  with an empty adapter registry (row 7 of `IMPLEMENTATION_STATUS.md`).
+  ~~No live GitHub call.~~ Two read-only GitHub calls were made on
+  2026-08-17/18 through the broker + transport boundary, both answered
+  **HTTP 401** (see Phase 5 above and
+  [`docs/operations/github-live-read.md`](../operations/github-live-read.md));
+  the boundary is proven up to the provider's answer, the token is not.
+  ~~Nor App Store Connect.~~ Closed
   2026-08-17 for **reads only**: one manual, GET-only App Store Connect
   smoke through `packages/asc-adapter` (25 × 200; see
   [`docs/operations/asc-live-read.md`](../operations/asc-live-read.md)). No
   App Store Connect write of any kind has been made.
-- The read-only Codex independent-reviewer adapter has never made a live
-  model call; it has passed only fake-executable tests.
+- ~~The read-only Codex independent-reviewer adapter has never made a live
+  model call.~~ Closed 2026-08-17 for a _throwaway diff only_: two manual
+  invocations (one refused pre-model by the CLI, fixed with
+  `--skip-git-repo-check`; one completed, verdict `changes-required` with one
+  correct P1 — [`docs/operations/llm-independent-review.md`](../operations/llm-independent-review.md)).
+  It has still never reviewed a real task attempt live; the daemon's
+  automatic review path has only ever run against fake executables.
 - No quality gate, certification, archive, upload, or TestFlight build has
   run from this daemon.
 - ~~Unattended rooms mode not proven live.~~ Closed 2026-08-17: the daemon
