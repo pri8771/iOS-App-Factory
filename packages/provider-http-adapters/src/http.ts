@@ -26,6 +26,21 @@ const ALLOWED_RESPONSE_HEADERS = new Set([
   "x-request-id",
 ]);
 
+/**
+ * Whether a lowercase response header name is part of the bounded
+ * `ProviderHttpResponseV1` envelope. A trusted transport projects a live
+ * provider response through this predicate before returning it: a real
+ * provider answers with dozens of headers (`server`, `cache-control`,
+ * `vary`, security headers, ...) that the strict envelope validator
+ * `validateProviderHttpResponse` rejects by design, so the transport must
+ * drop everything outside the allowlist rather than forward it. Injected
+ * in-memory transports never needed this because they only ever emitted
+ * allowlisted headers.
+ */
+export function isAllowedProviderResponseHeader(name: string): boolean {
+  return ALLOWED_RESPONSE_HEADERS.has(name);
+}
+
 export class ProviderHttpContractError extends Error {
   public constructor(message: string) {
     super(message);

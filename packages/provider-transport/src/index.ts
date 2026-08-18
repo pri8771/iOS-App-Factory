@@ -1,6 +1,7 @@
 import type { CredentialBroker } from "@app-factory/credential-broker";
 import {
   createProviderHttpRequest,
+  isAllowedProviderResponseHeader,
   type BoundedProviderHttpTransport,
   type ProviderHttpHeaderV1,
   type ProviderHttpRequestV1,
@@ -229,9 +230,18 @@ export function createFetchProviderHttpTransport(
                 validated.maximumResponseBytes,
                 controller,
               );
+              // Project the live response onto the bounded envelope: only
+              // allowlisted names survive. A real provider sends many
+              // headers the strict `validateProviderHttpResponse` contract
+              // rejects (`server`, `cache-control`, `vary`, ...); forwarding
+              // them verbatim would fail every live call at the envelope
+              // validator, so the trusted transport drops them here.
               const headers: ProviderHttpHeaderV1[] = [];
               response.headers.forEach((value, name) => {
-                headers.push({ name: name.toLowerCase(), value });
+                const lowered = name.toLowerCase();
+                if (isAllowedProviderResponseHeader(lowered)) {
+                  headers.push({ name: lowered, value });
+                }
               });
               return {
                 schemaVersion: 1 as const,

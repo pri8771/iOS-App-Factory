@@ -77,7 +77,15 @@ remain disabled until all of the following are implemented and reviewed:
 - an immutable Jira tenant enrollment that proves `siteId`, REST base URL, and
   the credential's allowed origin name the same authenticated Atlassian site;
 - an authenticated GitHub viewer/organization proof that binds the enrolled
-  owner to `ownerNodeId` before any repository mutation;
+  owner to `ownerNodeId` before any repository mutation -- **implemented with
+  a durable artifact** (`src/github-owner-binding.ts`: `createGitHubOwnerBinding`
+  produces a digest-bound `GitHubOwnerBindingV1` from one read-only GraphQL
+  call through an injected transport; `parseGitHubOwnerBinding` /
+  `assertGitHubOwnerBindingMatches` are the consumer gate). The first live
+  attempt (2026-08-17, `docs/operations/github-live-read.md`) stopped at an
+  HTTP 401 caused by the Keychain item holding a bare token instead of the
+  complete `Bearer <token>` header value, so no live binding artifact exists
+  yet. This does not register the adapter in the daemon;
 - provider-neutral reconciliation observations that preserve and compare the
   expected payload and field digests instead of adopting by logical marker
   alone; and
@@ -87,4 +95,6 @@ remain disabled until all of the following are implemented and reviewed:
 
 Until those bindings exist, injected transports are test seams only; caller-
 supplied tenant, owner, URL, or credential-origin values are not sufficient
-authorization for a live request.
+authorization for a live request. The one manual, explicitly-invoked,
+read-only live exercise of this package is `scripts/ops/github-live-read.mjs`
+(never part of `pnpm test`/`pnpm verify`).

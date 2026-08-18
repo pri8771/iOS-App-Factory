@@ -337,6 +337,50 @@ describe("createFetchProviderHttpTransport", () => {
     expect(JSON.parse(Buffer.from(result.body).toString("utf8"))).toEqual({ ok: true });
   });
 
+  it("projects a live-shaped response onto the bounded envelope by dropping non-allowlisted headers", async () => {
+    // A real provider answers with far more headers than the strict
+    // `ProviderHttpResponseV1` allowlist admits. The transport must drop
+    // them (never forward them) or every live call would be rejected by
+    // `validateProviderHttpResponse` before any adapter saw the body.
+    const port = credentialCommandPort("projection-token");
+    const broker = createCredentialBroker(port);
+    const fetchSpy = vi.fn(async () =>
+      jsonResponse(
+        200,
+        { data: { viewer: { login: "someone" } } },
+        {
+          "content-type": "application/json; charset=utf-8",
+          server: "github.com",
+          "cache-control": "no-cache",
+          vary: "Accept-Encoding, Accept, X-Requested-With",
+          "x-github-media-type": "github.v4; format=json",
+          "x-ratelimit-limit": "5000",
+          "x-ratelimit-used": "1",
+          "x-ratelimit-remaining": "4999",
+          "x-ratelimit-reset": "1700000000",
+          "x-ratelimit-resource": "graphql",
+          "x-github-request-id": "ABCD:1234",
+          "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+          "x-content-type-options": "nosniff",
+          "content-security-policy": "default-src 'none'",
+        },
+      ),
+    );
+    const transport = createFetchProviderHttpTransport({ credentials: broker, fetch: fetchSpy });
+
+    const result = await performProviderHttpRequest(transport, validRequest());
+    expect(result.status).toBe(200);
+    expect([...result.headers.keys()].sort()).toEqual([
+      "content-type",
+      "x-github-request-id",
+      "x-ratelimit-remaining",
+      "x-ratelimit-reset",
+      "x-ratelimit-resource",
+    ]);
+    expect(result.headers.get("x-ratelimit-remaining")).toBe("4999");
+    expect(result.headers.get("server")).toBeUndefined();
+  });
+
   it("surfaces the underlying contract error type when composed validation rejects a request", async () => {
     const port = credentialCommandPort();
     const broker = createCredentialBroker(port);
