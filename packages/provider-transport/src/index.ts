@@ -27,6 +27,31 @@ export type ProviderTransportFetch = typeof fetch;
 
 export type ProviderTransportClockPort = Readonly<{ now(): Date }>;
 
+/**
+ * The subset of a validated request an authorization derivation may see:
+ * enough to bind a derived token to the exact operation (for example an
+ * App Store Connect JWT `scope` claim), never headers, body, or credentials.
+ */
+export type ProviderAuthorizationRequestV1 = Readonly<{
+  method: string;
+  url: string;
+}>;
+
+/**
+ * Derives the outbound `Authorization` header value from the just-resolved
+ * Keychain secret. The default (when no derivation is supplied) is the
+ * verbatim secret, for credentials provisioned as a complete header value.
+ * A derivation exists for providers whose Keychain item is signing material
+ * rather than a bearer token (App Store Connect's `.p8` -> ES256 JWT): it is
+ * invoked once per dispatched request, inside the broker's `withCredential`
+ * window, and must not retain, copy beyond its own call, log, or persist
+ * `secret` — the broker zeroizes the buffer the moment this call returns.
+ */
+export type ProviderAuthorizationDerivation = (
+  secret: Uint8Array,
+  request: ProviderAuthorizationRequestV1,
+) => string;
+
 export type CreateFetchProviderHttpTransportOptions = Readonly<{
   /**
    * Sole trusted source of the outbound Authorization value. The transport
@@ -34,6 +59,11 @@ export type CreateFetchProviderHttpTransportOptions = Readonly<{
    * request, and never retains or caches it beyond that call.
    */
   credentials: CredentialBroker;
+  /**
+   * Optional: derive the Authorization value from the resolved secret instead
+   * of sending it verbatim. See `ProviderAuthorizationDerivation`.
+   */
+  authorization?: ProviderAuthorizationDerivation;
   /** Injectable for deterministic tests; defaults to the platform `fetch`. */
   fetch?: ProviderTransportFetch;
   clock?: ProviderTransportClockPort;
@@ -62,14 +92,27 @@ function assertNoCredentialHeaders(headers: readonly ProviderHttpHeaderV1[]): vo
 }
 
 /**
- * The Keychain-stored secret is treated as the complete, verbatim
+ * By default the Keychain-stored secret is treated as the complete, verbatim
  * Authorization header value (whatever scheme the provisioning process wrote
  * there, e.g. "Bearer <token>" or "Basic <base64>"). This keeps the
- * transport free of any provider-specific authentication-scheme knowledge.
+ * transport free of any provider-specific authentication-scheme knowledge;
+ * a provider that needs a derived value supplies a
+ * `ProviderAuthorizationDerivation` and the transport still applies the same
+ * header-safety check to whatever it returns.
  */
-function credentialHeaderValue(secret: Uint8Array): string {
-  const value = Buffer.from(secret).toString("utf8");
-  if (value.length === 0 || value.length > 8_192 || /[\0\r\n]/.test(value)) {
+function credentialHeaderValue(
+  secret: Uint8Array,
+  request: ProviderAuthorizationRequestV1,
+  derive: ProviderAuthorizationDerivation | undefined,
+): string {
+  const value =
+    derive === undefined ? Buffer.from(secret).toString("utf8") : derive(secret, request);
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 8_192 ||
+    /[\0\r\n]/.test(value)
+  ) {
     fail("resolved credential value is not a safe HTTP header value");
   }
   return value;
@@ -212,7 +255,11 @@ export function createFetchProviderHttpTransport(
             validated.credentialReference,
             controller.signal,
             async (secret) => {
-              const authorization = credentialHeaderValue(secret);
+              const authorization = credentialHeaderValue(
+                secret,
+                { method: validated.method, url: validated.url },
+                options.authorization,
+              );
               const fetchHeaders = new Headers();
               for (const header of validated.headers) fetchHeaders.set(header.name, header.value);
               fetchHeaders.set("authorization", authorization);

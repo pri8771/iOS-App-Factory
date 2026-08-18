@@ -20,6 +20,7 @@
     "paths": {
       "@app-factory/adapter-sdk": ["./packages/adapter-sdk/src/index.ts"],
       "@app-factory/agent-runner": ["./packages/agent-runner/src/index.ts"],
+      "@app-factory/asc-adapter": ["./packages/asc-adapter/src/index.ts"],
       "@app-factory/command-client": ["./packages/command-client/src/index.ts"],
       "@app-factory/contracts": ["./packages/contracts/src/index.ts"],
       "@app-factory/credential-broker": ["./packages/credential-broker/src/index.ts"],

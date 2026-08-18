@@ -163,6 +163,24 @@ importers:
         specifier: workspace:*
         version: link:../contracts
 
+  packages/asc-adapter:
+    dependencies:
+      '@app-factory/adapter-sdk':
+        specifier: workspace:*
+        version: link:../adapter-sdk
+      '@app-factory/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@app-factory/credential-broker':
+        specifier: workspace:*
+        version: link:../credential-broker
+      '@app-factory/provider-http-adapters':
+        specifier: workspace:*
+        version: link:../provider-http-adapters
+      '@app-factory/provider-transport':
+        specifier: workspace:*
+        version: link:../provider-transport
+
   packages/command-client:
     dependencies:
       '@app-factory/contracts':
