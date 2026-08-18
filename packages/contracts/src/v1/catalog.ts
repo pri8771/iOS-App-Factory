@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import { AgentEventV1Schema, AgentRunResultV1Schema, AgentRunSpecV1Schema } from "./agent-run.js";
+import { AscReleaseProjectionV1Schema } from "./app-store-connect-read-model.js";
 import { ApprovalV1Schema } from "./approval.js";
 import { CommandV1Schema } from "./command.js";
 import { CommandRequestFrameV1Schema, CommandResponseV1Schema } from "./command-protocol.js";
@@ -103,6 +104,12 @@ export const contractSchemaCatalogV1 = [
     fileName: "release-manifest.v1.schema.json",
     id: "urn:app-factory:contracts:v1:release-manifest",
     schema: ReleaseManifestV1Schema,
+  },
+  {
+    name: "asc-release-projection",
+    fileName: "asc-release-projection.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:asc-release-projection",
+    schema: AscReleaseProjectionV1Schema,
   },
   {
     name: "lifecycle-event",

@@ -3,6 +3,7 @@
   "files": [],
   "references": [
     { "path": "./packages/adapter-sdk" },
+    { "path": "./packages/asc-adapter" },
     { "path": "./packages/contracts" },
     { "path": "./packages/credential-broker" },
     { "path": "./packages/evidence-store" },

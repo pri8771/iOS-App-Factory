@@ -270,19 +270,36 @@ protected surfaces under [`AGENTS.md`](../../AGENTS.md)) and **Blocked —
 external/user gate** (Apple Developer / App Store Connect access, per
 `docs/progress/IMPLEMENTATION_STATUS.md` rows 13–14).
 
-Status: not started. `IMPLEMENTATION_STATUS.md` row 13 additionally notes
-that neither release schema has a consumer yet in this repository — there is
-nothing for Studio to surface until a release pipeline wires
-`ReleaseManifestV1` to begin with.
+Status: **step A (read-only App Store Connect observer) done 2026-08-17;
+everything else not started.** An App Store Connect team API key (App
+Manager) now exists and lives only in the macOS Keychain; a strict read-only
+observer, [`packages/asc-adapter`](../../packages/asc-adapter/README.md),
+authenticates with a per-request ES256 JWT minted from that key just in time
+through the credential broker and the sanctioned `provider-transport` fetch
+transport, reads apps / builds (+ TestFlight beta detail) / App Store
+versions with bounded GETs only, and projects each app's latest build onto
+`RELEASE_STAGE_ORDER_V1` (`AscReleaseProjectionV1`, never inventing dates).
+The first live read succeeded the same day — 1 invocation, 25 GETs, 25 × 200,
+12 apps including all six portfolio apps
+([`docs/operations/asc-live-read.md`](../operations/asc-live-read.md)). This
+is an _observation_ surface only: the upload rail and the quality gate are
+still not built, no `ReleaseManifestV1` has a consumer, and the release and
+signing surfaces protected under `AGENTS.md` are untouched. Studio does not
+yet render the projection; row 13 of `IMPLEMENTATION_STATUS.md` still holds
+for everything past the read.
 
 ## What is NOT proven, as of 2026-08-17
 
 Independent of the phase-by-phase status above, these remain true for the
 whole Studio effort and the Gen 4 daemon it runs on:
 
-- No live Jira, GitHub, or App Store Connect call has ever been made from
-  this repository's code — the effect pump ships default-off with an empty
-  adapter registry (row 7 of `IMPLEMENTATION_STATUS.md`).
+- No live Jira or GitHub call has ever been made from this repository's code
+  — the effect pump ships default-off with an empty adapter registry (row 7
+  of `IMPLEMENTATION_STATUS.md`). ~~Nor App Store Connect.~~ Closed
+  2026-08-17 for **reads only**: one manual, GET-only App Store Connect
+  smoke through `packages/asc-adapter` (25 × 200; see
+  [`docs/operations/asc-live-read.md`](../operations/asc-live-read.md)). No
+  App Store Connect write of any kind has been made.
 - The read-only Codex independent-reviewer adapter has never made a live
   model call; it has passed only fake-executable tests.
 - No quality gate, certification, archive, upload, or TestFlight build has

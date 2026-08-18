@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../adapter-sdk"
+    },
+    {
+      "path": "../contracts"
+    },
+    {
+      "path": "../credential-broker"
+    },
+    {
+      "path": "../provider-http-adapters"
+    },
+    {
+      "path": "../provider-transport"
+    }
+  ]
+}
