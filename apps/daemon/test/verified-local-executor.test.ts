@@ -1291,6 +1291,8 @@ async function start(
     executorNow?: () => Date;
     projectOverride?: VerifiedLocalExecutionProject;
     executionManifestPublisher?: VerifiedLocalExecutionConfiguration["executionManifestPublisher"];
+    /** When set, the daemon starts with NO pinned project and this resolver answers instead. */
+    resolveProject?: VerifiedLocalExecutionConfiguration["resolveProject"];
   }> = {},
 ): Promise<FactoryDaemonService> {
   const service = await startFactoryDaemonService({
@@ -1301,14 +1303,18 @@ async function start(
     leaseDurationMs: options.leaseDurationMs ?? 5_000,
     ...(options.schedulerClock === undefined ? {} : { schedulerClock: options.schedulerClock }),
     localExecution: {
-      projects: [
-        options.projectOverride ??
-          project(f, agent, reviewCalls, {
-            ...(options.reviewerOnlyAcceptance === undefined
-              ? {}
-              : { reviewerOnlyAcceptance: options.reviewerOnlyAcceptance }),
-          }),
-      ],
+      projects:
+        options.resolveProject === undefined
+          ? [
+              options.projectOverride ??
+                project(f, agent, reviewCalls, {
+                  ...(options.reviewerOnlyAcceptance === undefined
+                    ? {}
+                    : { reviewerOnlyAcceptance: options.reviewerOnlyAcceptance }),
+                }),
+            ]
+          : [],
+      ...(options.resolveProject === undefined ? {} : { resolveProject: options.resolveProject }),
       heartbeatIntervalMs: 100,
       ...(options.executionManifestPublisher === undefined
         ? {}
@@ -2454,6 +2460,83 @@ describe("daemon verified local execution", () => {
       await expect(restartedClient.verifyEvidence(intake.attemptId)).rejects.toMatchObject({
         code: "evidence.integrity-failed",
         retryable: false,
+      });
+    },
+  );
+
+  it(
+    "admits a resolver-provided project through authorizeTask, refuses an unauthorized task with the resolver's own code, and blocks not-enrolled repositories",
+    { timeout: 45_000 },
+    async () => {
+      const f = fixture(61);
+      const agent = new DeterministicSwiftAgent("succeed");
+      const reviewCalls = { count: 0 };
+      const resolverCalls: string[] = [];
+      const pinned = project(f, agent, reviewCalls);
+      // The resolver's project pins no task semantics; it admits exactly the fixture's taskId — the
+      // shape the planner-execution resolver uses (a task must be a submitted item of an approved
+      // plan) with the plan lookup replaced by a set.
+      const unpinned: Omit<VerifiedLocalExecutionProject, "taskSemanticProfileDigest"> = {
+        ...pinned,
+        taskSemanticProfileDigest: undefined,
+      };
+      const service = await start(f, agent, reviewCalls, {
+        resolveProject: async (repositoryId) => {
+          resolverCalls.push(repositoryId);
+          if (repositoryId !== REPOSITORY_ID) return null;
+          return {
+            ...unpinned,
+            authorizeTask: (taskSpec) =>
+              taskSpec.taskId === f.taskSpec.taskId
+                ? { authorized: true }
+                : {
+                    authorized: false,
+                    code: "plan.task-not-in-approved-plan",
+                    message: "The task is not a submitted item of an approved plan.",
+                    suggestion: "Approve a plan that contains this task, or enroll the task.",
+                  },
+          };
+        },
+      });
+      const client = clientFor(service);
+
+      // 1. The authorized task runs the whole verified path exactly as a pinned project would.
+      const intake = await client.run(f.taskSpec);
+      await eventually(async () => {
+        const status = await client.status(intake.attemptId);
+        return status.attempt.state === "succeeded";
+      }, 40_000);
+      expect(reviewCalls.count).toBe(1);
+      // Resolved fresh at every step (prepare / run-agent / verify-and-commit), never cached here.
+      expect(resolverCalls.filter((id) => id === REPOSITORY_ID).length).toBeGreaterThanOrEqual(3);
+
+      // 2. A task the resolver's project does not authorize blocks with the resolver's own code.
+      const unauthorized = TaskSpecV1Schema.parse({
+        ...f.taskSpec,
+        taskId: "62000000-0000-4000-8000-000000000961",
+      });
+      const refused = await client.run(unauthorized);
+      await eventually(async () => {
+        const status = await client.status(refused.attemptId);
+        return status.attempt.state === "blocked";
+      }, 20_000);
+      expect((await client.status(refused.attemptId)).attempt.blocker).toMatchObject({
+        code: "plan.task-not-in-approved-plan",
+      });
+
+      // 3. A repository the resolver does not know is exactly as not-enrolled as before.
+      const foreign = TaskSpecV1Schema.parse({
+        ...f.taskSpec,
+        taskId: "62000000-0000-4000-8000-000000000962",
+        base: { repositoryId: "62000000-0000-4000-8000-000000000099", commit: f.baseCommit },
+      });
+      const notEnrolled = await client.run(foreign);
+      await eventually(async () => {
+        const status = await client.status(notEnrolled.attemptId);
+        return status.attempt.state === "blocked";
+      }, 20_000);
+      expect((await client.status(notEnrolled.attemptId)).attempt.blocker).toMatchObject({
+        code: "project.not-enrolled",
       });
     },
   );

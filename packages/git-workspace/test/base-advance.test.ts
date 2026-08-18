@@ -155,9 +155,13 @@ describe("advanceImmutableMirrorBase", () => {
       "export const value = 2;\n",
     );
 
+    // Before any advance the tip IS the sealed root binding.
+    expect(f.manager.readImmutableMirrorBindingTip(mirror)).toEqual(rootBinding);
+
     const advance1 = f.manager.advanceImmutableMirrorBase(mirror, rootBinding, broker1);
     expect(advance1.kind).toBe("prepared-immutable-mirror-advance");
     expect(advance1.chainIndex).toBe(1);
+    expect(f.manager.readImmutableMirrorBindingTip(mirror)).toEqual(advance1);
     expect(advance1.baseCommit).toBe(broker1.commitSha);
     expect(advance1.baseTree).toBe(broker1.candidateTreeId);
     expect(advance1.repositoryId).toBe(rootBinding.repositoryId);
@@ -213,6 +217,8 @@ describe("advanceImmutableMirrorBase", () => {
     const advance2 = f.manager.advanceImmutableMirrorBase(mirror, advance1, broker2);
     expect(advance2.chainIndex).toBe(2);
     expect(advance2.baseCommit).toBe(broker2.commitSha);
+    // The tip reader walks the whole validated chain and returns its last link.
+    expect(f.manager.readImmutableMirrorBindingTip(mirror)).toEqual(advance2);
     expect(advance2.previousBindingDigest).not.toBe(advance1.previousBindingDigest);
     expect(
       existsSync(

@@ -224,14 +224,43 @@ export type LocalAgentAdapter = Readonly<{
   run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome>;
 }>;
 
+/**
+ * A per-task admission decision for projects that are not pinned to one reviewed task
+ * (`taskSemanticProfileDigest`). Today's only producer is the planner-execution resolver, whose
+ * anchor is the human's `plan.approve`: a task is admitted exactly when it is a submitted item of a
+ * plan the owner approved for this repository. Refusals are typed so the attempt blocks with a
+ * precise, human-actionable code rather than a generic failure.
+ */
+export type TaskAuthorizationV1 =
+  | Readonly<{ authorized: true }>
+  | Readonly<{ authorized: false; code: string; message: string; suggestion: string }>;
+
 export type VerifiedLocalExecutionProject = Readonly<{
   repositoryId: string;
   sourceRepositoryPath: string;
   mirrorMode?: "refresh-source" | "prepared-immutable";
   sourceIdentityDigest?: Sha256Digest;
+  /**
+   * The base a task must be built on: the sealed enrollment base for a config-pinned project, or the
+   * mirror's CURRENT binding tip (`readImmutableMirrorBindingTip`) for a resolver-provided project
+   * whose base has advanced through verified broker commits (`advanceImmutableMirrorBase`).
+   */
   allowedBaseCommit: string;
   allowedBaseTree: string;
-  taskSemanticProfileDigest: Sha256Digest;
+  /**
+   * For a `prepared-immutable` project whose allowed base has advanced past its sealed enrollment
+   * binding: the ORIGINAL sealed base, which is what `openPreparedImmutableMirror` re-verifies the
+   * mirror's binding file against. Absent means the allowed base IS the enrollment base (every
+   * config-pinned project today).
+   */
+  enrollmentBase?: Readonly<{ commit: string; tree: string }>;
+  /**
+   * Exactly one of `taskSemanticProfileDigest` (this project runs ONE reviewed task shape, pinned by
+   * digest at enrollment) or `authorizeTask` (per-task admission, see `TaskAuthorizationV1`) must be
+   * present.
+   */
+  taskSemanticProfileDigest?: Sha256Digest;
+  authorizeTask?: (taskSpec: TaskSpecV1) => TaskAuthorizationV1;
   policyBytes: Uint8Array;
   agent: LocalAgentAdapter;
   reviewerForRun(reviewerRunId: RunId): IndependentReviewAdapter;
@@ -271,6 +300,15 @@ export type VerifiedLocalExecutionPaths = Readonly<{
 
 export type VerifiedLocalExecutionConfiguration = Readonly<{
   projects: readonly VerifiedLocalExecutionProject[];
+  /**
+   * Consulted (per attempt step, never cached here) for a task whose `base.repositoryId` is not one
+   * of the config-pinned `projects` above. Returning `null` means "not enrolled" and the attempt
+   * blocks with `project.not-enrolled` exactly as before this port existed. A resolver's project is
+   * validated by the same normalizer as a config-pinned one; today's only resolver is the
+   * planner-execution resolver (`planner-project-execution.ts`), which builds it from the Project
+   * Registry and the mirror's current binding tip.
+   */
+  resolveProject?: (repositoryId: string) => Promise<VerifiedLocalExecutionProject | null>;
   gitExecutable?: string;
   heartbeatIntervalMs?: number;
   now?: () => Date;
@@ -342,6 +380,179 @@ export function computeTaskSemanticProfileDigest(
       verification: criterion.verification,
     })),
   });
+}
+
+/**
+ * Validates one project declaration fail-closed and returns its normalized, defensively-copied form.
+ * Shared by the constructor (config-pinned projects) and by `resolveProject` results at attempt time,
+ * so a resolver-provided project can never be admitted with weaker validation than a pinned one.
+ */
+export function normalizeVerifiedLocalExecutionProject(
+  input: VerifiedLocalExecutionProject,
+): VerifiedLocalExecutionProject {
+  const repositoryId = RepositoryIdSchema.parse(input.repositoryId);
+  validateNormalizedAbsolutePath(input.sourceRepositoryPath, "sourceRepositoryPath");
+  const mirrorMode = input.mirrorMode ?? "refresh-source";
+  if (mirrorMode === "prepared-immutable") {
+    if (input.sourceIdentityDigest === undefined) {
+      throw new TypeError("Prepared immutable projects require a source identity digest");
+    }
+    Sha256DigestSchema.parse(input.sourceIdentityDigest);
+  } else if (input.sourceIdentityDigest !== undefined) {
+    throw new TypeError("Refreshable projects cannot declare an immutable source identity");
+  }
+  const allowedBaseCommit = GitObjectIdSchema.parse(input.allowedBaseCommit);
+  const allowedBaseTree = GitObjectIdSchema.parse(input.allowedBaseTree);
+  if (allowedBaseCommit.length !== allowedBaseTree.length) {
+    throw new TypeError("Allowed base commit and tree must use the same Git object format");
+  }
+  if ((input.taskSemanticProfileDigest === undefined) === (input.authorizeTask === undefined)) {
+    throw new TypeError(
+      "A verified-local project declares exactly one of taskSemanticProfileDigest or authorizeTask",
+    );
+  }
+  const taskSemanticProfileDigest =
+    input.taskSemanticProfileDigest === undefined
+      ? undefined
+      : Sha256DigestSchema.parse(input.taskSemanticProfileDigest);
+  const enrollmentBase =
+    input.enrollmentBase === undefined
+      ? undefined
+      : {
+          commit: GitObjectIdSchema.parse(input.enrollmentBase.commit),
+          tree: GitObjectIdSchema.parse(input.enrollmentBase.tree),
+        };
+  if (enrollmentBase !== undefined) {
+    if (mirrorMode !== "prepared-immutable") {
+      throw new TypeError("Only prepared immutable projects can declare an enrollment base");
+    }
+    if (enrollmentBase.commit.length !== enrollmentBase.tree.length) {
+      throw new TypeError("Enrollment base commit and tree must use the same Git object format");
+    }
+  }
+  NamespacedCodeSchema.parse(input.agent.adapterId);
+  boundedPortableVersion(input.agent.adapterVersion, "agent.adapterVersion");
+  const agentInvocationEnvironmentNames =
+    input.agentInvocationEnvironmentNames === undefined
+      ? undefined
+      : parseEnvironmentNames(
+          input.agentInvocationEnvironmentNames,
+          "agentInvocationEnvironmentNames",
+          false,
+        );
+  const agentInvocationIdentity =
+    input.agentInvocationIdentity === undefined
+      ? undefined
+      : {
+          executable: validateNormalizedAbsolutePath(
+            input.agentInvocationIdentity.executable,
+            "agentInvocationIdentity.executable",
+          ),
+          executableDigest: Sha256DigestSchema.parse(
+            input.agentInvocationIdentity.executableDigest,
+          ),
+          cliVersion: boundedPortableVersion(
+            input.agentInvocationIdentity.cliVersion,
+            "agentInvocationIdentity.cliVersion",
+          ),
+          model:
+            input.agentInvocationIdentity.model === null
+              ? null
+              : boundedPortableVersion(
+                  input.agentInvocationIdentity.model,
+                  "agentInvocationIdentity.model",
+                ),
+        };
+  if (
+    input.agentProtocol !== undefined &&
+    input.agentProtocol !== "legacy" &&
+    input.agentProtocol !== "supervisor-v2" &&
+    input.agentProtocol !== "oci-v3"
+  ) {
+    throw new TypeError("Verified local execution has an unsupported agent protocol");
+  }
+  const agentProtocol =
+    input.agentProtocol ??
+    (input.requireAgentProtocolEvidence === true ? "supervisor-v2" : "legacy");
+  const requireAgentProtocolEvidence = agentProtocol === "supervisor-v2";
+  const ociAgentIdentity =
+    input.ociAgentIdentity === undefined
+      ? undefined
+      : parseTrustedOciAgentIdentity(input.ociAgentIdentity);
+  if ((agentInvocationEnvironmentNames === undefined) !== (agentInvocationIdentity === undefined)) {
+    throw new TypeError(
+      "Trusted agent invocation environment and identity must be declared together",
+    );
+  }
+  if (input.requireAgentProtocolEvidence === true && agentProtocol !== "supervisor-v2") {
+    throw new TypeError(
+      "The legacy protocol requirement flag can select only supervisor V2 evidence",
+    );
+  }
+  if (input.agentProtocol === "supervisor-v2" && input.requireAgentProtocolEvidence === false) {
+    throw new TypeError("Supervisor V2 cannot disable its legacy evidence requirement flag");
+  }
+  if (
+    agentProtocol === "supervisor-v2" &&
+    (agentInvocationEnvironmentNames === undefined ||
+      agentInvocationIdentity === undefined ||
+      ociAgentIdentity !== undefined)
+  ) {
+    throw new TypeError(
+      "Supervisor V2 projects require only the trusted host invocation environment and identity",
+    );
+  }
+  if (
+    agentProtocol === "oci-v3" &&
+    (ociAgentIdentity === undefined ||
+      agentInvocationEnvironmentNames !== undefined ||
+      agentInvocationIdentity !== undefined)
+  ) {
+    throw new TypeError(
+      "OCI V3 projects require only one trusted OCI agent identity and evidence root",
+    );
+  }
+  if (
+    agentProtocol === "legacy" &&
+    (agentInvocationEnvironmentNames !== undefined ||
+      agentInvocationIdentity !== undefined ||
+      ociAgentIdentity !== undefined)
+  ) {
+    throw new TypeError("Legacy projects cannot declare protocol-specific trusted identities");
+  }
+  const reviewedPolicy = decodeReviewedPolicyPayload(input.policyBytes);
+  // The headless runner supports multi-turn agent sessions; agentLimits is
+  // owner-supplied composition-time configuration, but its shape (including
+  // the schema's own maxTurns bound of 1-1000) is still validated fail-closed
+  // here rather than deferred to the first attempt.
+  if (input.agentLimits !== undefined) {
+    AgentRunLimitsV1Schema.parse(input.agentLimits);
+  }
+  return {
+    ...input,
+    repositoryId,
+    mirrorMode,
+    allowedBaseCommit,
+    allowedBaseTree,
+    ...(enrollmentBase === undefined ? {} : { enrollmentBase }),
+    ...(taskSemanticProfileDigest === undefined ? {} : { taskSemanticProfileDigest }),
+    policyBytes: reviewedPolicy.bytes,
+    verificationPlans: input.verificationPlans.map((plan) => ({
+      ...plan,
+      args: [...plan.args],
+      environment: { ...plan.environment },
+      protectedFiles: { ...plan.protectedFiles },
+      toolVersions: plan.toolVersions.map((tool) => ({ ...tool })),
+    })),
+    ...(input.environmentAllowlist === undefined
+      ? {}
+      : { environmentAllowlist: [...input.environmentAllowlist] }),
+    ...(agentInvocationEnvironmentNames === undefined ? {} : { agentInvocationEnvironmentNames }),
+    ...(agentInvocationIdentity === undefined ? {} : { agentInvocationIdentity }),
+    ...(ociAgentIdentity === undefined ? {} : { ociAgentIdentity }),
+    agentProtocol,
+    requireAgentProtocolEvidence,
+  };
 }
 
 export type VerifiedLocalExecutionExecutorOptions = VerifiedLocalExecutionConfiguration &
@@ -2002,6 +2213,8 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
   readonly #agentResultRoot: string;
   readonly #agentResultTemporaryRoot: string;
   readonly #projects: ReadonlyMap<string, VerifiedLocalExecutionProject>;
+  readonly #resolveProject:
+    ((repositoryId: string) => Promise<VerifiedLocalExecutionProject | null>) | undefined;
   readonly #heartbeatIntervalMs: number;
   readonly #now: () => Date;
   readonly #executionManifestPublisher: typeof commitVerifiedExecutionManifest;
@@ -2027,158 +2240,19 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
       options.executionManifestPublisher ?? commitVerifiedExecutionManifest;
 
     const projects = new Map<string, VerifiedLocalExecutionProject>();
-    if (options.projects.length < 1) {
-      throw new TypeError("Verified local execution requires at least one enrolled project");
+    if (options.projects.length < 1 && options.resolveProject === undefined) {
+      throw new TypeError(
+        "Verified local execution requires at least one enrolled project or a project resolver",
+      );
     }
     for (const input of options.projects) {
-      const repositoryId = RepositoryIdSchema.parse(input.repositoryId);
-      if (projects.has(repositoryId)) {
-        throw new TypeError(`Duplicate verified-local project: ${repositoryId}`);
+      const normalized = normalizeVerifiedLocalExecutionProject(input);
+      if (projects.has(normalized.repositoryId)) {
+        throw new TypeError(`Duplicate verified-local project: ${normalized.repositoryId}`);
       }
-      validateNormalizedAbsolutePath(input.sourceRepositoryPath, "sourceRepositoryPath");
-      const mirrorMode = input.mirrorMode ?? "refresh-source";
-      if (mirrorMode === "prepared-immutable") {
-        if (input.sourceIdentityDigest === undefined) {
-          throw new TypeError("Prepared immutable projects require a source identity digest");
-        }
-        Sha256DigestSchema.parse(input.sourceIdentityDigest);
-      } else if (input.sourceIdentityDigest !== undefined) {
-        throw new TypeError("Refreshable projects cannot declare an immutable source identity");
-      }
-      const allowedBaseCommit = GitObjectIdSchema.parse(input.allowedBaseCommit);
-      const allowedBaseTree = GitObjectIdSchema.parse(input.allowedBaseTree);
-      if (allowedBaseCommit.length !== allowedBaseTree.length) {
-        throw new TypeError("Allowed base commit and tree must use the same Git object format");
-      }
-      const taskSemanticProfileDigest = Sha256DigestSchema.parse(input.taskSemanticProfileDigest);
-      NamespacedCodeSchema.parse(input.agent.adapterId);
-      boundedPortableVersion(input.agent.adapterVersion, "agent.adapterVersion");
-      const agentInvocationEnvironmentNames =
-        input.agentInvocationEnvironmentNames === undefined
-          ? undefined
-          : parseEnvironmentNames(
-              input.agentInvocationEnvironmentNames,
-              "agentInvocationEnvironmentNames",
-              false,
-            );
-      const agentInvocationIdentity =
-        input.agentInvocationIdentity === undefined
-          ? undefined
-          : {
-              executable: validateNormalizedAbsolutePath(
-                input.agentInvocationIdentity.executable,
-                "agentInvocationIdentity.executable",
-              ),
-              executableDigest: Sha256DigestSchema.parse(
-                input.agentInvocationIdentity.executableDigest,
-              ),
-              cliVersion: boundedPortableVersion(
-                input.agentInvocationIdentity.cliVersion,
-                "agentInvocationIdentity.cliVersion",
-              ),
-              model:
-                input.agentInvocationIdentity.model === null
-                  ? null
-                  : boundedPortableVersion(
-                      input.agentInvocationIdentity.model,
-                      "agentInvocationIdentity.model",
-                    ),
-            };
-      if (
-        input.agentProtocol !== undefined &&
-        input.agentProtocol !== "legacy" &&
-        input.agentProtocol !== "supervisor-v2" &&
-        input.agentProtocol !== "oci-v3"
-      ) {
-        throw new TypeError("Verified local execution has an unsupported agent protocol");
-      }
-      const agentProtocol =
-        input.agentProtocol ??
-        (input.requireAgentProtocolEvidence === true ? "supervisor-v2" : "legacy");
-      const requireAgentProtocolEvidence = agentProtocol === "supervisor-v2";
-      const ociAgentIdentity =
-        input.ociAgentIdentity === undefined
-          ? undefined
-          : parseTrustedOciAgentIdentity(input.ociAgentIdentity);
-      if (
-        (agentInvocationEnvironmentNames === undefined) !==
-        (agentInvocationIdentity === undefined)
-      ) {
-        throw new TypeError(
-          "Trusted agent invocation environment and identity must be declared together",
-        );
-      }
-      if (input.requireAgentProtocolEvidence === true && agentProtocol !== "supervisor-v2") {
-        throw new TypeError(
-          "The legacy protocol requirement flag can select only supervisor V2 evidence",
-        );
-      }
-      if (input.agentProtocol === "supervisor-v2" && input.requireAgentProtocolEvidence === false) {
-        throw new TypeError("Supervisor V2 cannot disable its legacy evidence requirement flag");
-      }
-      if (
-        agentProtocol === "supervisor-v2" &&
-        (agentInvocationEnvironmentNames === undefined ||
-          agentInvocationIdentity === undefined ||
-          ociAgentIdentity !== undefined)
-      ) {
-        throw new TypeError(
-          "Supervisor V2 projects require only the trusted host invocation environment and identity",
-        );
-      }
-      if (
-        agentProtocol === "oci-v3" &&
-        (ociAgentIdentity === undefined ||
-          agentInvocationEnvironmentNames !== undefined ||
-          agentInvocationIdentity !== undefined)
-      ) {
-        throw new TypeError(
-          "OCI V3 projects require only one trusted OCI agent identity and evidence root",
-        );
-      }
-      if (
-        agentProtocol === "legacy" &&
-        (agentInvocationEnvironmentNames !== undefined ||
-          agentInvocationIdentity !== undefined ||
-          ociAgentIdentity !== undefined)
-      ) {
-        throw new TypeError("Legacy projects cannot declare protocol-specific trusted identities");
-      }
-      const reviewedPolicy = decodeReviewedPolicyPayload(input.policyBytes);
-      // The headless runner supports multi-turn agent sessions; agentLimits is
-      // owner-supplied composition-time configuration, but its shape (including
-      // the schema's own maxTurns bound of 1-1000) is still validated fail-closed
-      // here rather than deferred to the first attempt.
-      if (input.agentLimits !== undefined) {
-        AgentRunLimitsV1Schema.parse(input.agentLimits);
-      }
-      projects.set(repositoryId, {
-        ...input,
-        repositoryId,
-        mirrorMode,
-        allowedBaseCommit,
-        allowedBaseTree,
-        taskSemanticProfileDigest,
-        policyBytes: reviewedPolicy.bytes,
-        verificationPlans: input.verificationPlans.map((plan) => ({
-          ...plan,
-          args: [...plan.args],
-          environment: { ...plan.environment },
-          protectedFiles: { ...plan.protectedFiles },
-          toolVersions: plan.toolVersions.map((tool) => ({ ...tool })),
-        })),
-        ...(input.environmentAllowlist === undefined
-          ? {}
-          : { environmentAllowlist: [...input.environmentAllowlist] }),
-        ...(agentInvocationEnvironmentNames === undefined
-          ? {}
-          : { agentInvocationEnvironmentNames }),
-        ...(agentInvocationIdentity === undefined ? {} : { agentInvocationIdentity }),
-        ...(ociAgentIdentity === undefined ? {} : { ociAgentIdentity }),
-        agentProtocol,
-        requireAgentProtocolEvidence,
-      });
+      projects.set(normalized.repositoryId, normalized);
     }
+    this.#resolveProject = options.resolveProject;
     this.#projects = projects;
   }
 
@@ -2445,7 +2519,7 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
 
   async #prepare(context: SchedulerExecutionContext): Promise<SchedulerStepOutcome> {
     await context.assertActive();
-    const bindings = this.#loadBindings(context.attemptId);
+    const bindings = await this.#loadBindings(context.attemptId);
     await context.assertActive();
     return {
       kind: "succeeded",
@@ -2461,7 +2535,7 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
   }
 
   async #runAgent(context: SchedulerExecutionContext): Promise<SchedulerStepOutcome> {
-    const bindings = this.#loadBindings(context.attemptId);
+    const bindings = await this.#loadBindings(context.attemptId);
     const executeStep = this.#repositories.steps
       .listByAttempt(context.attemptId)
       .find((step) => step.operation === "factory.execute");
@@ -2681,7 +2755,7 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
   }
 
   async #verifyAndCommit(context: SchedulerExecutionContext): Promise<SchedulerStepOutcome> {
-    const bindings = this.#loadBindings(context.attemptId);
+    const bindings = await this.#loadBindings(context.attemptId);
     const executeStep = this.#repositories.steps
       .listByAttempt(context.attemptId)
       .find((step) => step.operation === "factory.execute");
@@ -3135,7 +3209,27 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     return project.agentInvocationIdentity;
   }
 
-  #loadBindings(attemptIdValue: string): AttemptBindings {
+  /**
+   * A config-pinned project first; otherwise, the resolver's answer for this repository -- looked
+   * up fresh at every step (prepare / run-agent / verify-and-commit) so a base that advanced under a
+   * stale candidate is caught by the same `project.base-not-enrolled` check a pinned project has.
+   */
+  async #resolveProjectFor(
+    repositoryId: string,
+  ): Promise<VerifiedLocalExecutionProject | undefined> {
+    const pinned = this.#projects.get(repositoryId);
+    if (pinned !== undefined) return pinned;
+    if (this.#resolveProject === undefined) return undefined;
+    const resolved = await this.#resolveProject(repositoryId);
+    if (resolved === null) return undefined;
+    const normalized = normalizeVerifiedLocalExecutionProject(resolved);
+    if (normalized.repositoryId !== repositoryId) {
+      throw new Error("The project resolver answered for a different repository");
+    }
+    return normalized;
+  }
+
+  async #loadBindings(attemptIdValue: string): Promise<AttemptBindings> {
     const attemptId = AttemptIdSchema.parse(attemptIdValue);
     const attempt = this.#repositories.attempts.findById(attemptId);
     if (attempt === null) throw new Error("Scheduled attempt disappeared from the kernel");
@@ -3145,7 +3239,7 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     if (taskSpecDigest !== attempt.taskSpecDigest) {
       throw new Error("Attempt and TaskSpec digest bindings disagree");
     }
-    const project = this.#projects.get(taskSpec.base.repositoryId);
+    const project = await this.#resolveProjectFor(taskSpec.base.repositoryId);
     if (project === undefined) {
       throw new LocalExecutionBlockedError(
         blocker(
@@ -3166,12 +3260,24 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
         ),
       );
     }
-    if (computeTaskSemanticProfileDigest(taskSpec) !== project.taskSemanticProfileDigest) {
-      throw new LocalExecutionFailedError({
-        code: "task.semantic-profile-not-enrolled",
-        message: "The submitted task semantics do not match this deterministic execution profile.",
-        retryable: false,
-      });
+    if (project.taskSemanticProfileDigest !== undefined) {
+      if (computeTaskSemanticProfileDigest(taskSpec) !== project.taskSemanticProfileDigest) {
+        throw new LocalExecutionFailedError({
+          code: "task.semantic-profile-not-enrolled",
+          message:
+            "The submitted task semantics do not match this deterministic execution profile.",
+          retryable: false,
+        });
+      }
+    } else if (project.authorizeTask !== undefined) {
+      const authorization = project.authorizeTask(taskSpec);
+      if (!authorization.authorized) {
+        throw new LocalExecutionBlockedError(
+          blocker("policy", authorization.code, authorization.message, authorization.suggestion),
+        );
+      }
+    } else {
+      throw new Error("A verified-local project must pin task semantics or authorize tasks");
     }
     if (!taskMatchesEnrolledProjectBase(project, taskSpec)) {
       throw new LocalExecutionBlockedError(
@@ -3190,8 +3296,10 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
             sourceIdentityDigest: Sha256DigestSchema.parse(project.sourceIdentityDigest),
             runtimeRoot: this.#paths.gitRuntimeRoot,
             repositoryId: taskSpec.base.repositoryId,
-            baseCommit: project.allowedBaseCommit,
-            baseTree: project.allowedBaseTree,
+            // The sealed binding file records the ENROLLMENT base; an advanced allowed base is
+            // asserted separately below (`assertMirrorCommitTree` on the tip).
+            baseCommit: project.enrollmentBase?.commit ?? project.allowedBaseCommit,
+            baseTree: project.enrollmentBase?.tree ?? project.allowedBaseTree,
           })
         : this.#gitWorkspace.ensureMirror({
             sourceRepositoryPath: project.sourceRepositoryPath,

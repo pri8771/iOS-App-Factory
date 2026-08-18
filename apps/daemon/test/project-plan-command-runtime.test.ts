@@ -639,7 +639,7 @@ describe("plan.execute chaining", () => {
     const mirrorPort = createGitWorkspaceProjectPlanMirrorPortV1({
       gitWorkspace: fixture.gitWorkspace,
       resolveMirror: () => fixture.mirror,
-      resolveRootBinding: () => fixture.rootBinding,
+      resolveBindingTip: () => fixture.rootBinding,
     });
 
     let repositories: FactoryRepositories | undefined;
@@ -844,7 +844,7 @@ describe("plan.execute chaining", () => {
   it("chains 2 tasks + 1 gate through the REAL Project-Registry-backed mirror port (Seam (b))", async () => {
     // Identical fixture/flow to the test above, except the mirror port is
     // `createRegistryBackedProjectPlanMirrorPortV1` (Seam (b) of the project-registry task) instead
-    // of a hand-rolled `resolveMirror`/`resolveRootBinding` closure -- proving `plan.execute`/
+    // of a hand-rolled `resolveMirror`/`resolveBindingTip` closure -- proving `plan.execute`/
     // `plan.tick` actually resolve the target project's mirror FROM THE REGISTRY, and refuse an
     // unregistered repositoryId, rather than merely composing the generic git-workspace port in the
     // abstract.
@@ -1090,7 +1090,7 @@ describe("plan.execute chaining", () => {
         mirror: createGitWorkspaceProjectPlanMirrorPortV1({
           gitWorkspace: fixture.gitWorkspace,
           resolveMirror: () => fixture.mirror,
-          resolveRootBinding: () => fixture.rootBinding,
+          resolveBindingTip: () => fixture.rootBinding,
         }),
         resolveBrokerCommit: () => {
           throw new Error("not reached: the attempt fails before a broker commit is needed");

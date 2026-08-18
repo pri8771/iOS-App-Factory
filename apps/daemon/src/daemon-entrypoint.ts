@@ -16,6 +16,10 @@ import {
 } from "./local-execution-profile.js";
 import type { PhaseParticipantsPort } from "./phase-run-executor.js";
 import {
+  loadPlannerExecutionConfigFile,
+  type PlannerExecutionConfigV1,
+} from "./planner-project-execution.js";
+import {
   createAscReleaseObserverPort,
   loadAscObserverConfigFile,
   type ReleaseObserverPort,
@@ -64,6 +68,15 @@ export type DaemonProcessEnvironment = Readonly<{
    * `release.observe` refuses and `release.projection` serves only persisted observations.
    */
   APP_FACTORY_ASC_OBSERVER_CONFIG?: string;
+  /**
+   * Default OFF (unset). Absolute path to the planner execution config
+   * (`planner-project-execution.ts`'s `PlannerExecutionConfigV1`: `planner-codex-v1` with the Codex
+   * identity fields, or `planner-fixture-v1`; the reviewer; the `ios-xcodegen-v1` verification
+   * toolchain). When set, the verified executor runs the task items of owner-approved plans against
+   * any registered project. `planner-codex-v1` is a real-identity mode and refuses to load without
+   * `APP_FACTORY_CONTAINMENT_ATTESTATION`, exactly like `enrolled-codex-v1`.
+   */
+  APP_FACTORY_PLANNER_EXECUTION_CONFIG?: string;
 }>;
 
 export type DaemonProcessConfiguration = Readonly<{
@@ -76,6 +89,7 @@ export type DaemonProcessConfiguration = Readonly<{
   rooms?: RoomSubsystemConfiguration;
   phaseParticipants?: PhaseParticipantsPort;
   releaseObserver?: ReleaseObserverPort;
+  plannerExecution?: Readonly<{ config: PlannerExecutionConfigV1 }>;
 }>;
 
 export type DaemonProcessIo = Readonly<{
@@ -370,6 +384,28 @@ export async function loadDaemonProcessConfiguration(
       throw error;
     }
   }
+  let plannerExecution: Readonly<{ config: PlannerExecutionConfigV1 }> | undefined;
+  if (
+    environment.APP_FACTORY_PLANNER_EXECUTION_CONFIG !== undefined &&
+    environment.APP_FACTORY_PLANNER_EXECUTION_CONFIG.length > 0
+  ) {
+    const plannerConfigPath = absolutePath(
+      environment.APP_FACTORY_PLANNER_EXECUTION_CONFIG,
+      "APP_FACTORY_PLANNER_EXECUTION_CONFIG",
+    );
+    try {
+      plannerExecution = {
+        config: loadPlannerExecutionConfigFile(plannerConfigPath, {
+          ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
+        }),
+      };
+    } catch (error) {
+      if (error instanceof LocalExecutionProfileConfigurationError) {
+        configurationError(error.message);
+      }
+      throw error;
+    }
+  }
   return {
     runtimeDirectory,
     authorization,
@@ -385,6 +421,7 @@ export async function loadDaemonProcessConfiguration(
     ...(rooms === undefined ? {} : { rooms }),
     ...(phaseParticipants === undefined ? {} : { phaseParticipants }),
     ...(releaseObserver === undefined ? {} : { releaseObserver }),
+    ...(plannerExecution === undefined ? {} : { plannerExecution }),
   };
 }
 

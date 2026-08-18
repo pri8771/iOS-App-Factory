@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { AdapterRegistry } from "@app-factory/adapter-sdk";
 import { AttemptIdSchema, Sha256DigestSchema, type AttemptId } from "@app-factory/contracts";
+import { GitWorkspaceManager } from "@app-factory/git-workspace";
+import { createFactoryRepositories } from "@app-factory/kernel";
 import type { EffectCredentialPort, EffectWorkerClockPort } from "@app-factory/effect-worker";
 import type {
   SchedulerClockPort,
@@ -37,8 +39,16 @@ import {
   createKernelSchedulerController,
   type KernelSchedulerController,
 } from "./kernel-scheduler-adapter.js";
+import type { LocalExecutionProfileDependencies } from "./local-execution-profile.js";
+import { loadStandardRuleStatementsV1 } from "./phase-command-runtime.js";
+import {
+  createPlannerProjectResolver,
+  renderPlannerAgentPolicyV1,
+  type PlannerExecutionConfigV1,
+} from "./planner-project-execution.js";
 import {
   VerifiedLocalExecutionExecutor,
+  decodeReviewedPolicyPayload,
   resolveVerifiedLocalExecutionPaths,
   type VerifiedLocalExecutionConfiguration,
   type VerifiedLocalExecutionPaths,
@@ -111,6 +121,23 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   phaseParticipants?: OpenDaemonCommandRuntimeOptions["phaseParticipants"];
   /** Default inert: see `OpenDaemonCommandRuntimeOptions.releaseObserver`. */
   releaseObserver?: OpenDaemonCommandRuntimeOptions["releaseObserver"];
+  /**
+   * Planner execution (`planner-project-execution.ts`): lets the verified executor run the task
+   * items of owner-approved plans against ANY registered project (Project Registry + mirror binding
+   * tip), with or without a static `localExecution` profile. Default OFF.
+   */
+  plannerExecution?: Readonly<{
+    config: PlannerExecutionConfigV1;
+    /** Test seam for the Codex agent factory (fixture mode never consults it). */
+    profileDependencies?: LocalExecutionProfileDependencies;
+    /** Absolute path of the compiled policy source the planner policy text is rendered from. */
+    policySourcePath?: string;
+    onDiagnostic?: (message: string) => void;
+    /** Test seam: see `PlannerProjectResolverDependencies.verificationPlansFor`. */
+    verificationPlansFor?: (
+      moduleName: string,
+    ) => VerifiedLocalExecutionConfiguration["projects"][number]["verificationPlans"];
+  }>;
 }>;
 
 export type FactoryDaemonService = Readonly<{
@@ -505,10 +532,23 @@ export async function startFactoryDaemonService(
         }
       : undefined;
 
+  // Planner execution: the reviewed policy every plan-submitted task binds to is rendered ONCE here
+  // (pure in its inputs), its digest handed to the command runtime for `plan.execute`/`plan.tick`
+  // and its bytes to the resolver the executor consults -- one text, one digest, two consumers.
+  const plannerPolicy =
+    options.plannerExecution === undefined
+      ? null
+      : decodeReviewedPolicyPayload(
+          renderPlannerAgentPolicyV1(
+            loadStandardRuleStatementsV1(options.plannerExecution.policySourcePath),
+          ),
+        );
+
   try {
     runtime = await openDaemonCommandRuntime({
       runtimeDirectory: paths.root,
       daemonVersion: options.daemonVersion,
+      ...(plannerPolicy === null ? {} : { planPolicyDigest: plannerPolicy.digest }),
       ...(options.startedAt === undefined ? {} : { startedAt: options.startedAt }),
       ...(options.now === undefined ? {} : { now: options.now }),
       ...(options.commandResultLedgerBoundary === undefined
@@ -537,12 +577,43 @@ export async function startFactoryDaemonService(
         ? {}
         : { releaseObserver: options.releaseObserver }),
       initializeDatabase: (database) => {
+        const plannerResolver =
+          options.plannerExecution === undefined || plannerPolicy === null
+            ? null
+            : ((): ReturnType<typeof createPlannerProjectResolver> => {
+                const repositories = createFactoryRepositories(database);
+                const gitExecutable = options.localExecution?.gitExecutable;
+                return createPlannerProjectResolver({
+                  config: options.plannerExecution.config,
+                  runtimeDirectory: paths.root,
+                  gitRuntimeRoot: executionPaths.gitRuntimeRoot,
+                  gitWorkspace: new GitWorkspaceManager(
+                    gitExecutable === undefined ? {} : { gitExecutable },
+                  ),
+                  projectRegistry: repositories.projectRegistry,
+                  projectPlans: repositories.projectPlans,
+                  policyBytes: plannerPolicy.bytes,
+                  ...(options.plannerExecution.profileDependencies === undefined
+                    ? {}
+                    : { profileDependencies: options.plannerExecution.profileDependencies }),
+                  ...(options.plannerExecution.onDiagnostic === undefined
+                    ? {}
+                    : { onDiagnostic: options.plannerExecution.onDiagnostic }),
+                  ...(options.plannerExecution.verificationPlansFor === undefined
+                    ? {}
+                    : { verificationPlansFor: options.plannerExecution.verificationPlansFor }),
+                });
+              })();
         const executor: StartupRecoverableExecutor =
           options.executor ??
-          (options.localExecution === undefined
+          (options.localExecution === undefined && plannerResolver === null
             ? new DeterministicFakeExecutor()
             : new VerifiedLocalExecutionExecutor({
+                projects: [],
                 ...options.localExecution,
+                ...(plannerResolver === null
+                  ? {}
+                  : { resolveProject: plannerResolver.resolveProject }),
                 database,
                 ownerId,
                 runtimeDirectory: paths.root,

@@ -285,7 +285,7 @@ function assertTrustedSystemExecutable(path: string, label: string): string {
   return path;
 }
 
-function runBoundedGit(cwd: string, args: readonly string[]): Buffer {
+export function runBoundedGit(cwd: string, args: readonly string[]): Buffer {
   const result = spawnSync(GIT, ["--no-pager", "--literal-pathspecs", "-C", cwd, ...args], {
     cwd,
     encoding: null,
@@ -633,7 +633,7 @@ function parseConfiguration(bytes: Buffer): EnrolledProjectConfigurationV1 {
  * that is real review logic for a specific enrolled project, deferred to a
  * later task. This mode proves the mechanism only.
  */
-function genericProjectReviewer(
+export function genericProjectReviewer(
   mirrorPath: string,
   reviewer: EnrolledProjectConfigurationV1["reviewer"],
   reviewerRunId: RunId,
