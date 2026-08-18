@@ -13,7 +13,7 @@ import Foundation
 
 public let commandProtocolVersion = 1
 
-/// The 49 wire operations, verbatim. `studio.snapshot` and `studio.assistant.*` come from
+/// The 51 wire operations, verbatim. `studio.snapshot` and `studio.assistant.*` come from
 /// `studio/service-skeleton` (tip cdfe558); `project.milestones.list` and `project.milestone.upsert`
 /// come from `studio/milestones-and-phase` (tip 3cff9a7) — none of those six has merged to `main` as of
 /// this writing, so `DaemonClient.isUnsupportedOperation` feature-detects them. The six `room.*`
@@ -76,6 +76,11 @@ public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable 
     case phaseList = "phase.list"
     case phaseApprove = "phase.approve"
     case phaseReject = "phase.reject"
+    // Studio Phase 6 step B — the release rail (`release-observation.ts`): `release.projection` is the
+    // read-only view over the daemon's persisted App Store Connect observations; `release.observe`
+    // takes a fresh, strictly GET-only one through the daemon's credential broker.
+    case releaseObserve = "release.observe"
+    case releaseProjection = "release.projection"
 }
 
 /// `CommandOriginV1Schema` — there is no "studio" origin on the wire yet; Studio speaks as
@@ -168,6 +173,12 @@ public struct EmptyPayload: Encodable, Sendable, Hashable {
         _ = encoder.container(keyedBy: NoKeys.self)
     }
     private enum NoKeys: CodingKey {}
+}
+
+/// `release.observe` — newest-first builds read per app (1...200; Apple's page maximum).
+public struct ReleaseObservePayload: Encodable, Sendable, Hashable {
+    public var buildsLimit: Int
+    public init(buildsLimit: Int = 5) { self.buildsLimit = buildsLimit }
 }
 
 public struct AttemptPayload: Encodable, Sendable, Hashable {
@@ -500,6 +511,8 @@ public enum CommandResult: Sendable {
     case phaseList(PhaseRunListPage)
     case phaseApprove(PhaseRun)
     case phaseReject(PhaseRun)
+    case releaseObserve(AscReleaseObservation)
+    case releaseProjection(ReleaseProjection)
 
     public var operation: CommandOperation {
         switch self {
@@ -552,6 +565,8 @@ public enum CommandResult: Sendable {
         case .phaseList: return .phaseList
         case .phaseApprove: return .phaseApprove
         case .phaseReject: return .phaseReject
+        case .releaseObserve: return .releaseObserve
+        case .releaseProjection: return .releaseProjection
         }
     }
 }
@@ -562,6 +577,7 @@ extension CommandResult: Decodable {
         case attempt, events, nextAfterSequence, page, snapshot, status, manifest, manifestDigest
         case answer, intent, timeline
         case presets, run, plan, catalog
+        case observation, projection
     }
 
     public init(from decoder: any Decoder) throws {
@@ -620,6 +636,8 @@ extension CommandResult: Decodable {
         case .phaseList: self = .phaseList(try c.decode(PhaseRunListPage.self, forKey: .page))
         case .phaseApprove: self = .phaseApprove(try c.decode(PhaseRun.self, forKey: .run))
         case .phaseReject: self = .phaseReject(try c.decode(PhaseRun.self, forKey: .run))
+        case .releaseObserve: self = .releaseObserve(try c.decode(AscReleaseObservation.self, forKey: .observation))
+        case .releaseProjection: self = .releaseProjection(try c.decode(ReleaseProjection.self, forKey: .projection))
         }
     }
 }

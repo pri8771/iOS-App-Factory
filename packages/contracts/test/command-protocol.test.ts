@@ -121,6 +121,8 @@ describe("command protocol V1", () => {
     ["room.events", { roomId: ROOM_ID, afterSequence: 0, limit: 200 }],
     ["room.typing", { roomId: ROOM_ID, handle: "priyansh", ttlMs: 5_000 }],
     ["room.participants.list", {}],
+    ["release.observe", { buildsLimit: 5 }],
+    ["release.projection", {}],
     ["preset.list", {}],
     ["phase.upsert", { phase: PHASE_DRAFT, expectedRevision: null }],
     [
@@ -145,6 +147,8 @@ describe("command protocol V1", () => {
     expect(COMMAND_OPERATIONS_V1).toContain("preset.upsert");
     expect(COMMAND_OPERATIONS_V1).toContain("phase.upsert");
     expect(COMMAND_OPERATIONS_V1).toContain("room.participants.list");
+    expect(COMMAND_OPERATIONS_V1).toContain("release.observe");
+    expect(COMMAND_OPERATIONS_V1).toContain("release.projection");
     // A syntactically unrecognized operation is absent from the catalog by construction.
     expect(COMMAND_OPERATIONS_V1).not.toContain("nonexistent.operation");
   });
@@ -439,6 +443,10 @@ describe("command protocol V1", () => {
     ["room.typing", { roomId: ROOM_ID, handle: "ok", ttlMs: 60_000 }],
     ["room.list", {}],
     ["room.participants.list", { limit: 10 }],
+    ["release.observe", {}],
+    ["release.observe", { buildsLimit: 0 }],
+    ["release.observe", { buildsLimit: 201 }],
+    ["release.projection", { limit: 10 }],
   ])("rejects the malformed %s request", (operation, payload) => {
     expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(false);
   });

@@ -43,6 +43,7 @@ import {
   TaskIdSchema,
   TaskSpecV1Schema,
   canonicalPortfolioReadModelDigestInputV1,
+  canonicalReleaseProjectionDigestInputV1,
   canonicalRoomParticipantsCatalogDigestInputV1,
   canonicalStudioSnapshotDigestInputV1,
   type AbsolutePath,
@@ -1063,6 +1064,52 @@ export class CommandClient {
       identity,
       signal,
     );
+  }
+
+  /**
+   * Studio Phase 6 step B: takes ONE fresh, strictly read-only App Store Connect observation through
+   * the daemon's composed observer and persists it. Refused with `release.observer-not-configured`
+   * when the daemon has no observer composed. `buildsLimit` bounds the newest-first builds read per
+   * app (default 5, Apple's maximum 200).
+   */
+  public async observeRelease(
+    options: Readonly<{ buildsLimit?: number }> = {},
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.observe">> {
+    return await this.#request(
+      "release.observe",
+      { buildsLimit: options.buildsLimit ?? 5 },
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * The latest persisted App Store Connect observation (or an honest "none yet") plus whether the
+   * daemon could take a fresh one; re-verifies `sourceDigest` against the projection's contents.
+   */
+  public async releaseProjection(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.projection">> {
+    const result = await this.#request("release.projection", {}, identity, signal);
+    const expectedDigest = `sha256:${createHash("sha256")
+      .update(canonicalReleaseProjectionDigestInputV1(result.projection), "utf8")
+      .digest("hex")}`;
+    if (
+      !timingSafeEqual(
+        Buffer.from(result.projection.sourceDigest, "utf8"),
+        Buffer.from(expectedDigest, "utf8"),
+      )
+    ) {
+      throw new CommandClientError(
+        "protocol.release-projection-digest-mismatch",
+        "The release projection source digest does not match its contents.",
+        false,
+      );
+    }
+    return result;
   }
 
   /** The daemon's configured room participants (providers/models + roster); never errors when rooms are disabled. */

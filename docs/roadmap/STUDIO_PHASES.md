@@ -284,7 +284,8 @@ external/user gate** (Apple Developer / App Store Connect access, per
 `docs/progress/IMPLEMENTATION_STATUS.md` rows 13–14).
 
 Status: **step A (read-only App Store Connect observer) done 2026-08-17;
-everything else not started.** An App Store Connect team API key (App
+step B (the observer composed by the daemon + surfaced in Studio as the
+release rail) done 2026-08-18; everything else not started.** An App Store Connect team API key (App
 Manager) now exists and lives only in the macOS Keychain; a strict read-only
 observer, [`packages/asc-adapter`](../../packages/asc-adapter/README.md),
 authenticates with a per-request ES256 JWT minted from that key just in time
@@ -297,9 +298,20 @@ The first live read succeeded the same day — 1 invocation, 25 GETs, 25 × 200,
 ([`docs/operations/asc-live-read.md`](../operations/asc-live-read.md)). This
 is an _observation_ surface only: the upload rail and the quality gate are
 still not built, no `ReleaseManifestV1` has a consumer, and the release and
-signing surfaces protected under `AGENTS.md` are untouched. Studio does not
-yet render the projection; row 13 of `IMPLEMENTATION_STATUS.md` still holds
-for everything past the read.
+signing surfaces protected under `AGENTS.md` are untouched. Step B
+(2026-08-18, [`docs/operations/release-rail.md`](../operations/release-rail.md)):
+the daemon composes that observer itself behind `APP_FACTORY_ASC_OBSERVER_CONFIG`
+(names only; the `.p8` stays in Keychain), `release.observe` takes one
+observation on request — outside the command serial executor, persisted by
+migration 0014 (`asc_release_observations`, append-only) — and
+`release.projection` serves the newest one digest-bound; Studio's dashboard
+gained the release rail (one row per app as Apple names it, projected stage
+chip + basis, `live · release.projection` badge with the observation's own
+`observedAt`, dashed-red "won't guess" for a read Apple refused, an
+"Observe App Store Connect" control disabled with the reason when no observer
+is composed). First live run through the daemon the same day: 25 GETs,
+25 × 200, 12 apps, persisted and read back. Row 13 of
+`IMPLEMENTATION_STATUS.md` still holds for everything past observation.
 
 ## What is NOT proven, as of 2026-08-17
 
@@ -316,7 +328,8 @@ whole Studio effort and the Gen 4 daemon it runs on:
 - The read-only Codex independent-reviewer adapter has never made a live
   model call; it has passed only fake-executable tests.
 - No quality gate, certification, archive, upload, or TestFlight build has
-  run from this daemon.
+  run from this daemon. (App Store Connect _reads_ now run from the daemon on
+  request — `release.observe`, 2026-08-18 — and are still reads only.)
 - ~~Unattended rooms mode not proven live.~~ Closed 2026-08-17: the daemon
   bridges kernel attempt transitions into `factory-event` room lines
   (`packages/studio-rooms/src/factory-event-bridge.ts`, migration 0013);

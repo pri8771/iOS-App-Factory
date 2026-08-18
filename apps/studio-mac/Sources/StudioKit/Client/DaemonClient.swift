@@ -10,7 +10,7 @@ import Foundation
 //   * requestId per delivery; commandId + issuedAt are the durable identity a retry keeps
 //   * every retryable failure carries `retryIdentity` so the caller can re-send the same command
 //   * response requestId and operation are checked against what was dispatched
-//   * portfolio.snapshot / studio.snapshot / room.participants.list re-verify their source digests
+//   * portfolio.snapshot / studio.snapshot / room.participants.list / release.projection re-verify their source digests
 //     client-side
 
 public actor DaemonClient {
@@ -390,6 +390,37 @@ public actor DaemonClient {
             throw DaemonClientError.roomParticipantsDigestMismatch
         }
         return catalog
+    }
+
+    // MARK: release.* — Studio Phase 6 step B, the release rail.
+
+    /// The latest persisted App Store Connect observation (or an honest "none yet") plus whether the
+    /// daemon could take a fresh one. Re-verifies `sourceDigest` against the raw wire contents,
+    /// mirroring `roomParticipants()`.
+    public func releaseProjection(identity: CommandIdentity? = nil) async throws -> ReleaseProjection {
+        let exchange = try await request(.releaseProjection, EmptyPayload(), identity)
+        guard case .releaseProjection(let projection) = exchange.result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        guard let tree = try? JSONValue.parse(exchange.responseLine),
+              let rawProjection = tree["result"]?["projection"]
+        else { throw DaemonClientError.invalidResponse }
+        do {
+            try ReleaseProjectionDigest.verify(rawProjection)
+        } catch {
+            throw DaemonClientError.releaseProjectionDigestMismatch
+        }
+        return projection
+    }
+
+    /// Takes ONE fresh, strictly read-only App Store Connect observation through the daemon's composed
+    /// observer and persists it. The daemon refuses with `release.observer-not-configured` when it has
+    /// no observer composed; the app never sees a key.
+    public func observeRelease(buildsLimit: Int = 5, identity: CommandIdentity? = nil) async throws -> AscReleaseObservation {
+        guard case .releaseObserve(let observation) =
+            try await request(.releaseObserve, ReleaseObservePayload(buildsLimit: buildsLimit), identity).result
+        else { throw DaemonClientError.responseOperationMismatch }
+        return observation
     }
 
     // MARK: project.seed — the from-scratch entry point for the planner's "seed-repo" template item.

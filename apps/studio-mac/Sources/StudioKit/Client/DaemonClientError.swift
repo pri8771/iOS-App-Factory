@@ -116,4 +116,7 @@ public struct DaemonClientError: Error, Sendable, Equatable, CustomStringConvert
     static let roomParticipantsDigestMismatch = DaemonClientError(
         code: "protocol.room-participants-digest-mismatch",
         message: "The room participants catalog source digest does not match its contents.", retryable: false)
+    static let releaseProjectionDigestMismatch = DaemonClientError(
+        code: "protocol.release-projection-digest-mismatch",
+        message: "The release projection source digest does not match its contents.", retryable: false)
 }

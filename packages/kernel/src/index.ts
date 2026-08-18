@@ -7,6 +7,7 @@ export * from "./phase-repositories.js";
 export * from "./phase-run-repositories.js";
 export * from "./project-plan-repositories.js";
 export * from "./project-registry-repositories.js";
+export * from "./asc-release-observation-repositories.js";
 export * from "./repositories.js";
 export * from "./sqlite.js";
 export * from "./state-machine.js";

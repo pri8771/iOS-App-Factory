@@ -62,9 +62,15 @@ importers:
       '@app-factory/agent-runner':
         specifier: workspace:*
         version: link:../../packages/agent-runner
+      '@app-factory/asc-adapter':
+        specifier: workspace:*
+        version: link:../../packages/asc-adapter
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@app-factory/credential-broker':
+        specifier: workspace:*
+        version: link:../../packages/credential-broker
       '@app-factory/effect-worker':
         specifier: workspace:*
         version: link:../../packages/effect-worker
@@ -104,6 +110,12 @@ importers:
       '@app-factory/project-sdk':
         specifier: workspace:*
         version: link:../../packages/project-sdk
+      '@app-factory/provider-http-adapters':
+        specifier: workspace:*
+        version: link:../../packages/provider-http-adapters
+      '@app-factory/provider-transport':
+        specifier: workspace:*
+        version: link:../../packages/provider-transport
       '@app-factory/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler

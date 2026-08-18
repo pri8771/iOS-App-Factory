@@ -88,6 +88,7 @@ import {
   AssistantIntentV1Schema,
   AssistantQueryV1Schema,
 } from "./studio-assistant.js";
+import { AscReleaseObservationV1Schema, ReleaseProjectionV1Schema } from "./release-observation.js";
 import { StudioSnapshotV1Schema } from "./studio-snapshot.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
@@ -594,6 +595,31 @@ export const StudioSnapshotCommandRequestV1Schema = z.strictObject({
   payload: EmptyPayloadV1Schema,
 });
 
+/**
+ * Studio Phase 6 step B. `release.observe` takes ONE fresh, strictly read-only App Store Connect
+ * observation through the daemon's composed observer (`packages/asc-adapter`: bounded GETs only,
+ * credential resolved just in time by the broker) and persists it durably; refused with
+ * `release.observer-not-configured` when no observer is composed. `buildsLimit` bounds the
+ * newest-first builds read per app (Apple's page maximum is 200; the live smoke used 5).
+ */
+export const ReleaseObserveCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.observe"),
+  payload: z.strictObject({
+    buildsLimit: z.number().int().min(1).max(200),
+  }),
+});
+
+/**
+ * Read-only: the latest persisted App Store Connect observation (or an honest "none yet") plus
+ * whether the daemon could take a fresh one. See `ReleaseProjectionV1Schema`.
+ */
+export const ReleaseProjectionCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.projection"),
+  payload: EmptyPayloadV1Schema,
+});
+
 export const StudioAssistantQueryCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("studio.assistant.query"),
@@ -667,6 +693,8 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   RoomEventsCommandRequestV1Schema,
   RoomTypingCommandRequestV1Schema,
   RoomParticipantsListCommandRequestV1Schema,
+  ReleaseObserveCommandRequestV1Schema,
+  ReleaseProjectionCommandRequestV1Schema,
   StudioSnapshotCommandRequestV1Schema,
   StudioAssistantQueryCommandRequestV1Schema,
   StudioAssistantIntentProposeCommandRequestV1Schema,
@@ -1107,6 +1135,16 @@ export const StudioSnapshotCommandResultV1Schema = z.strictObject({
   snapshot: StudioSnapshotV1Schema,
 });
 
+export const ReleaseObserveCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.observe"),
+  observation: AscReleaseObservationV1Schema,
+});
+
+export const ReleaseProjectionCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.projection"),
+  projection: ReleaseProjectionV1Schema,
+});
+
 export const StudioAssistantQueryCommandResultV1Schema = z.strictObject({
   operation: z.literal("studio.assistant.query"),
   answer: AssistantAnswerV1Schema,
@@ -1193,6 +1231,8 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   RoomEventsCommandResultV1Schema,
   RoomTypingCommandResultV1Schema,
   RoomParticipantsListCommandResultV1Schema,
+  ReleaseObserveCommandResultV1Schema,
+  ReleaseProjectionCommandResultV1Schema,
   StudioSnapshotCommandResultV1Schema,
   StudioAssistantQueryCommandResultV1Schema,
   StudioAssistantIntentProposeCommandResultV1Schema,

@@ -16,7 +16,9 @@
   "dependencies": {
     "@app-factory/adapter-sdk": "workspace:*",
     "@app-factory/agent-runner": "workspace:*",
+    "@app-factory/asc-adapter": "workspace:*",
     "@app-factory/contracts": "workspace:*",
+    "@app-factory/credential-broker": "workspace:*",
     "@app-factory/effect-worker": "workspace:*",
     "@app-factory/evidence-store": "workspace:*",
     "@app-factory/execution-engine": "workspace:*",
@@ -30,6 +32,8 @@
     "@app-factory/process-supervisor": "workspace:*",
     "@app-factory/project-docs": "workspace:*",
     "@app-factory/project-sdk": "workspace:*",
+    "@app-factory/provider-http-adapters": "workspace:*",
+    "@app-factory/provider-transport": "workspace:*",
     "@app-factory/scheduler": "workspace:*",
     "@app-factory/studio-room-adapters": "workspace:*",
     "@app-factory/studio-rooms": "workspace:*",

@@ -1,0 +1,20 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "release.projection",
+    "projection": {
+      "schemaVersion": 1,
+      "observer": {
+        "configured": false,
+        "unavailableReason": "release observer not configured: no App Store Connect observer is composed (APP_FACTORY_ASC_OBSERVER_CONFIG unset), so release.observe cannot read and only previously persisted observations, if any, are served",
+        "source": null
+      },
+      "latest": null,
+      "observationCount": 0,
+      "generatedAt": "2026-08-18T02:30:00.000Z",
+      "sourceDigest": "sha256:5dd95b62d341cbd1eea6d7e3165fbe97f5c45e3aa4a045974c1d2675598e33b9"
+    }
+  }
+}

@@ -228,8 +228,8 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(String(decoding: try JSONEncoder().encode(EmptyPayload()), as: UTF8.self), "{}")
     }
 
-    func testAllFortyNineOperationsAreNamed() {
-        XCTAssertEqual(CommandOperation.allCases.count, 49)
+    func testAllFiftyOneOperationsAreNamed() {
+        XCTAssertEqual(CommandOperation.allCases.count, 51)
         XCTAssertEqual(Set(CommandOperation.allCases.map(\.rawValue)), [
             "doctor", "task.submit", "task.run", "attempt.status", "attempt.events", "attempt.list",
             "attempt.pause", "attempt.resume", "attempt.cancel", "task.retry", "attempt.unblock",
@@ -241,6 +241,7 @@ final class ModelDecodingTests: XCTestCase {
             "project.seed", "preset.list", "preset.upsert", "phase.upsert",
             "plan.propose", "plan.edit", "plan.approve", "plan.execute", "plan.approve-gate", "plan.status",
             "plan.tick", "phase.run", "phase.status", "phase.list", "phase.approve", "phase.reject",
+            "release.observe", "release.projection",
         ])
     }
 

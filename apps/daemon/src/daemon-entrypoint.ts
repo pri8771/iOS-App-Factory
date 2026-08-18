@@ -16,6 +16,11 @@ import {
 } from "./local-execution-profile.js";
 import type { PhaseParticipantsPort } from "./phase-run-executor.js";
 import {
+  createAscReleaseObserverPort,
+  loadAscObserverConfigFile,
+  type ReleaseObserverPort,
+} from "./release-command-runtime.js";
+import {
   loadPhaseParticipantsPortV1,
   loadRoomsSubsystemConfiguration,
   RoomParticipantsConfigurationError,
@@ -51,6 +56,14 @@ export type DaemonProcessEnvironment = Readonly<{
   APP_FACTORY_ROOMS_ENABLED?: string;
   /** Absolute path to the room participants/roster JSON config; required when rooms are enabled. */
   APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG?: string;
+  /**
+   * Default OFF (unset). Absolute path to the App Store Connect observer config
+   * (`release-command-runtime.ts`'s `AscObserverConfigV1`: key ID, issuer ID, and the Keychain
+   * reference of the `.p8` item -- names only). When set, `release.observe` can take strictly
+   * read-only App Store Connect observations through the credential broker; when unset,
+   * `release.observe` refuses and `release.projection` serves only persisted observations.
+   */
+  APP_FACTORY_ASC_OBSERVER_CONFIG?: string;
 }>;
 
 export type DaemonProcessConfiguration = Readonly<{
@@ -62,6 +75,7 @@ export type DaemonProcessConfiguration = Readonly<{
   effects?: EffectSubsystemConfiguration;
   rooms?: RoomSubsystemConfiguration;
   phaseParticipants?: PhaseParticipantsPort;
+  releaseObserver?: ReleaseObserverPort;
 }>;
 
 export type DaemonProcessIo = Readonly<{
@@ -336,6 +350,26 @@ export async function loadDaemonProcessConfiguration(
       throw error;
     }
   }
+  let releaseObserver: ReleaseObserverPort | undefined;
+  if (
+    environment.APP_FACTORY_ASC_OBSERVER_CONFIG !== undefined &&
+    environment.APP_FACTORY_ASC_OBSERVER_CONFIG.length > 0
+  ) {
+    const observerConfigPath = absolutePath(
+      environment.APP_FACTORY_ASC_OBSERVER_CONFIG,
+      "APP_FACTORY_ASC_OBSERVER_CONFIG",
+    );
+    try {
+      releaseObserver = createAscReleaseObserverPort({
+        config: loadAscObserverConfigFile(observerConfigPath),
+      });
+    } catch (error) {
+      if (error instanceof LocalExecutionProfileConfigurationError) {
+        configurationError(error.message);
+      }
+      throw error;
+    }
+  }
   return {
     runtimeDirectory,
     authorization,
@@ -350,6 +384,7 @@ export async function loadDaemonProcessConfiguration(
     ...(effectsPumpEnabled ? { effects: { enabled: true } } : {}),
     ...(rooms === undefined ? {} : { rooms }),
     ...(phaseParticipants === undefined ? {} : { phaseParticipants }),
+    ...(releaseObserver === undefined ? {} : { releaseObserver }),
   };
 }
 

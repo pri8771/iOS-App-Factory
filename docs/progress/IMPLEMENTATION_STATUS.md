@@ -219,7 +219,11 @@ gives the same read at a glance:
 - ~~No live provider call ever.~~ Partly closed 2026-08-17 (read-only): App
   Store Connect — first live read succeeded (`packages/asc-adapter`, 25 GETs
   / 25×200 / 12 apps, JWT derived just-in-time from the Keychain `.p8` inside
-  the broker window; `docs/operations/asc-live-read.md`). GitHub — two
+  the broker window; `docs/operations/asc-live-read.md`); on 2026-08-18 the
+  daemon itself took the same read on request (`release.observe`, opt-in by
+  `APP_FACTORY_ASC_OBSERVER_CONFIG`, persisted by migration 0014, served by
+  `release.projection`, rendered by Studio's release rail;
+  `docs/operations/release-rail.md`). GitHub — two
   read-only attempts both `401` (bare token needs the Bearer derivation, now
   in place; then "Bad credentials", re-run owner-gated on a valid token;
   owner-binding module landed, artifact pending;

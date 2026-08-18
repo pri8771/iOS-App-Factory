@@ -1,5 +1,7 @@
 # App Store Connect — first live read (2026-08-17)
 
+> Step B (2026-08-18) composed this observer inside the daemon and surfaced it in Studio: see [`release-rail.md`](release-rail.md).
+
 The first live App Store Connect call ever made from this repository's code:
 one manual, **strictly read-only** invocation of
 `scripts/ops/asc-live-read.mjs` driving

@@ -11,7 +11,7 @@ apps/studio-mac/
 │   │                             DiamondGate, StatusPill, HUDButton, ProvenanceBadge, HUDGallery
 │   ├── Client/                   DaemonClient (actor, Network.framework), AuthorizationToken,
 │   │                             ExchangeSession, DaemonClientError, DaemonLocator
-│   ├── Models/                   Codable mirrors of packages/contracts v1 (49 operations — the
+│   ├── Models/                   Codable mirrors of packages/contracts v1 (51 operations — the
 │   │                             phase-1 21, Studio Phase 2's studio.snapshot,
 │   │                             studio.assistant.{query,intent.propose,intent.execute},
 │   │                             project.milestones.{list,upsert}, the six room.* ops
@@ -19,9 +19,10 @@ apps/studio-mac/
 │   │                             room.participants.list catalog), and Studio Phase 4's
 │   │                             preset.{list,upsert}/phase.upsert, phase.{run,status,list,approve,
 │   │                             reject}, plan.{propose,edit,approve,execute,approve-gate,status,
-│   │                             tick}, and project.seed): StudioSnapshot.swift, Assistant.swift,
+│   │                             tick}, project.seed, and Studio Phase 6 step B's
+│   │                             release.{observe,projection}): StudioSnapshot.swift, Assistant.swift,
 │   │                             Milestone.swift, Room.swift, Phase.swift, PhaseRun.swift,
-│   │                             ProjectPlan.swift, ProjectSeed.swift), Provenance/Sourced,
+│   │                             ProjectPlan.swift, ProjectSeed.swift, Release.swift), Provenance/Sourced,
 │   │                             Timeline (ProjectTimeline, DayStamp, fixture loader)
 │   ├── Canonical/                JSONValue, CanonicalJSON, PortfolioDigest, StudioSnapshotDigest,
 │   │                             RoomParticipantsCatalogDigest
@@ -176,6 +177,25 @@ by a later read); with it disabled the daemon says so (`enabled: false` + its ow
 never an error) and the sheet keeps a clearly-labelled **not yet sourced** local suggestion instead.
 `RoomCreateSpecV1` still has no "kind" (research/project/lounge) field to source a picker from — the
 catalog's roster carries the operator's per-room `kind`, but a new room has no roster entry yet.
+
+### Release rail
+
+`release.projection`/`release.observe` (Studio Phase 6 step B — `docs/operations/release-rail.md`)
+are feature-detected like `studio.snapshot`: a daemon that predates them yields no rail and no error.
+Against a daemon that answers, the dashboard's bottom panel is the release rail: one row per app **as
+App Store Connect names it** (Studio claims no link to its registered projects — the registry has no
+bundle-ID field, so none is guessed), the latest build with Apple's own processing/internal state and
+`uploadedDate`, the store version and its state, and the projected stage chip
+(`RELEASE_STAGE_ORDER_V1`, surfaced verbatim from the daemon's `projectAscReleaseStageV1` — only
+`processing` / `internal TestFlight` are ever claimed) with its one-fact basis. The header is badged
+**live · release.projection** with the observation's own `observedAt` and request count when an
+observation exists, **not yet sourced** with the daemon's reason when none does; a per-app read Apple
+refused prints `denied · <code>` and the stage cell says dashed-red **won't guess**; "no build" is the
+honest fact, not an absence of data. "Observe App Store Connect" (machine-cyan: the human initiates a
+machine read; nothing here awaits the human) dispatches `release.observe` and re-reads the projection;
+it is disabled — not hidden — with the daemon's reason when no observer is composed
+(`APP_FACTORY_ASC_OBSERVER_CONFIG` unset). Fixtures are recorded through the real contracts by
+`scripts/record-release-fixtures.mjs`; `ReleaseProjectionDigest` re-verifies `sourceDigest` client-side.
 
 ## Design rules (non-negotiable)
 

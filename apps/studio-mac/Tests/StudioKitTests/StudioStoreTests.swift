@@ -65,7 +65,11 @@ final class StudioStoreTests: XCTestCase {
         // `fixtureServer()` does not answer studio.snapshot (falls to "protocol.unsupported-operation"
         // in its default case), so `refresh()` probes it first and falls back to the phase-1 sequence —
         // exactly what a daemon that has never heard of a given operation looks like.
-        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "portfolio.snapshot", "attempt.list", "evidence.list"])
+        // `release.projection` (Phase 6 step B) is probed last and, unanswered by this fixture server,
+        // falls back silently the same way studio.snapshot does — no error, no rail.
+        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "portfolio.snapshot", "attempt.list", "evidence.list", "release.projection"])
+        XCTAssertNil(store.releaseProjection)
+        XCTAssertNil(store.errors["release.projection"])
         XCTAssertEqual(server.frames[3]["request"]?["payload"], ["scope": "all", "projectId": nil, "after": nil, "limit": 100])
     }
 
@@ -95,7 +99,7 @@ final class StudioStoreTests: XCTestCase {
         XCTAssertNil(store.attempts)
         XCTAssertNil(store.errors["studio.snapshot"])
         let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
-        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "evidence.list"], "portfolio.snapshot/attempt.list are skipped once studio.snapshot answers")
+        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "evidence.list", "release.projection"], "portfolio.snapshot/attempt.list are skipped once studio.snapshot answers")
 
         let dashboard = store.dashboard
         XCTAssertEqual(dashboard.gauges.map(\.id), DashboardDerivation.studioGaugeOrder)
@@ -191,6 +195,78 @@ final class StudioStoreTests: XCTestCase {
         let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
         XCTAssertEqual(operations.filter { $0 == "project.milestone.upsert" }.count, 1)
         XCTAssertEqual(operations.filter { $0 == "project.milestones.list" }.count, 2)
+    }
+
+    /// Studio Phase 6 step B: `refresh()` reads `release.projection`; `observeRelease()` dispatches
+    /// `release.observe` and re-reads the projection, so the rail flips from "not yet sourced" to live
+    /// off the daemon's own answer. A daemon that refuses to observe leaves the refusal in `errors`.
+    func testReleaseRailIsSourcedFromTheProjectionAndObserveRereadsIt() async throws {
+        final class Flag: @unchecked Sendable {
+            private let lock = NSLock()
+            private var value = false
+            var isSet: Bool { lock.withLock { value } }
+            func set() { lock.withLock { value = true } }
+        }
+        let observed = Flag()
+        let server = try FakeDaemonServer { frame, _ in
+            let requestId = frame["requestId"]?.stringValue ?? ""
+            let operation = frame["request"]?["operation"]?.stringValue ?? ""
+            switch operation {
+            case "doctor": return .reply(try! WireResponse.fixture("doctor.response.json", requestId: requestId))
+            case "studio.snapshot": return .reply(try! WireResponse.fixture("studio-snapshot.response.json", requestId: requestId))
+            case "evidence.list": return .reply(try! WireResponse.fixture("evidence-list.response.json", requestId: requestId))
+            case "release.projection":
+                let file = observed.isSet ? "release-projection.response.json" : "release-projection-empty.response.json"
+                return .reply(try! WireResponse.fixture(file, requestId: requestId))
+            case "release.observe":
+                observed.set()
+                return .reply(try! WireResponse.fixture("release-observe.response.json", requestId: requestId))
+            default:
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unsupported-operation", message: operation, retryable: false))
+            }
+        }
+        defer { server.stop() }
+        let store = try makeStore(server)
+        await store.connect()
+
+        XCTAssertNotNil(store.releaseProjection)
+        XCTAssertNil(store.releaseProjection?.latest)
+        XCTAssertEqual(store.releaseRail.provenance, .notYetSourced)
+        XCTAssertFalse(store.releaseRail.canObserve, "the empty fixture reports the observer unconfigured")
+
+        await store.observeRelease()
+        XCTAssertNil(store.errors["release.observe"])
+        XCTAssertEqual(store.releaseProjection?.latest?.appObservations.count, 5)
+        XCTAssertEqual(store.releaseRail.provenance, .live("release.projection"))
+        XCTAssertFalse(store.isObservingRelease)
+        let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
+        XCTAssertEqual(operations.suffix(2), ["release.observe", "release.projection"])
+        XCTAssertEqual(server.frames[operations.count - 2]["request"]?["payload"]?["buildsLimit"], 5)
+    }
+
+    func testReleaseObserveRefusalIsSurfacedNotSwallowed() async throws {
+        let server = try FakeDaemonServer { frame, _ in
+            let requestId = frame["requestId"]?.stringValue ?? ""
+            let operation = frame["request"]?["operation"]?.stringValue ?? ""
+            switch operation {
+            case "doctor": return .reply(try! WireResponse.fixture("doctor.response.json", requestId: requestId))
+            case "studio.snapshot": return .reply(try! WireResponse.fixture("studio-snapshot.response.json", requestId: requestId))
+            case "evidence.list": return .reply(try! WireResponse.fixture("evidence-list.response.json", requestId: requestId))
+            case "release.projection": return .reply(try! WireResponse.fixture("release-projection-empty.response.json", requestId: requestId))
+            case "release.observe":
+                return .reply(WireResponse.failure(requestId: requestId, code: "release.observer-not-configured",
+                                                   message: "release observer not configured", retryable: false))
+            default:
+                return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unsupported-operation", message: operation, retryable: false))
+            }
+        }
+        defer { server.stop() }
+        let store = try makeStore(server)
+        await store.connect()
+        await store.observeRelease()
+        XCTAssertEqual(store.errors["release.observe"], "[daemon] release.observer-not-configured: release observer not configured")
+        XCTAssertEqual(store.releaseRail.error, "[daemon] release.observer-not-configured: release observer not configured")
+        XCTAssertNil(store.releaseProjection?.latest)
     }
 
     func testLoadRunReadsEventsAndReportsEvidenceVerifyFailureHonestly() async throws {

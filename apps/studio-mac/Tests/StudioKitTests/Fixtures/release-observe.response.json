@@ -1,0 +1,285 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "release.observe",
+    "observation": {
+      "schemaVersion": 1,
+      "observationId": "7a000000-0000-4000-8000-000000000001",
+      "observedAt": "2026-08-18T02:26:19.000Z",
+      "source": {
+        "keyId": "HGUBSYYP6G",
+        "issuerId": "69a6de8c-b017-47e3-e053-5b8c7c11a4d1",
+        "keychainService": "app-factory-asc-key",
+        "keychainAccount": "HGUBSYYP6G",
+        "origin": "https://api.appstoreconnect.apple.com"
+      },
+      "apps": {
+        "kind": "observed",
+        "status": 200,
+        "pages": 1,
+        "code": null,
+        "detail": null
+      },
+      "appObservations": [
+        {
+          "app": {
+            "schemaVersion": 1,
+            "appId": "6748000001",
+            "bundleId": "com.priyanshchordia.anjali",
+            "name": "Anjali",
+            "sku": null,
+            "primaryLocale": "en-US"
+          },
+          "builds": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "appStoreVersions": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "projection": {
+            "schemaVersion": 1,
+            "app": {
+              "schemaVersion": 1,
+              "appId": "6748000001",
+              "bundleId": "com.priyanshchordia.anjali",
+              "name": "Anjali",
+              "sku": null,
+              "primaryLocale": "en-US"
+            },
+            "latestBuild": {
+              "schemaVersion": 1,
+              "buildId": "b-anjali-4",
+              "appId": "6748000001",
+              "buildNumber": "4",
+              "marketingVersion": "1.0",
+              "uploadedDate": "2026-08-13T18:02:11.000Z",
+              "processingState": "VALID",
+              "expired": false,
+              "internalBuildState": "IN_BETA_TESTING",
+              "externalBuildState": "READY_FOR_BETA_SUBMISSION"
+            },
+            "latestAppStoreVersion": {
+              "schemaVersion": 1,
+              "appStoreVersionId": "v-anjali-1",
+              "appId": "6748000001",
+              "versionString": "1.0",
+              "platform": "IOS",
+              "appStoreState": "WAITING_FOR_REVIEW",
+              "appVersionState": "WAITING_FOR_REVIEW",
+              "createdDate": "2026-08-13T18:40:00.000Z"
+            },
+            "projectedStage": "internal-testflight-available",
+            "projectionBasis": "build-in-internal-testing",
+            "uploadedAt": "2026-08-13T18:02:11.000Z",
+            "internalTestFlightAvailableAt": null,
+            "observedAt": "2026-08-18T02:26:19.000Z"
+          }
+        },
+        {
+          "app": {
+            "schemaVersion": 1,
+            "appId": "6748000002",
+            "bundleId": "com.priyanshchordia.hindsight",
+            "name": "Hindsight",
+            "sku": null,
+            "primaryLocale": "en-US"
+          },
+          "builds": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "appStoreVersions": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "projection": {
+            "schemaVersion": 1,
+            "app": {
+              "schemaVersion": 1,
+              "appId": "6748000002",
+              "bundleId": "com.priyanshchordia.hindsight",
+              "name": "Hindsight",
+              "sku": null,
+              "primaryLocale": "en-US"
+            },
+            "latestBuild": {
+              "schemaVersion": 1,
+              "buildId": "b-hindsight-4",
+              "appId": "6748000002",
+              "buildNumber": "4",
+              "marketingVersion": "1.0",
+              "uploadedDate": "2026-08-10T21:15:41.000Z",
+              "processingState": "VALID",
+              "expired": false,
+              "internalBuildState": "IN_BETA_TESTING",
+              "externalBuildState": "READY_FOR_BETA_SUBMISSION"
+            },
+            "latestAppStoreVersion": {
+              "schemaVersion": 1,
+              "appStoreVersionId": "v-hindsight-1",
+              "appId": "6748000002",
+              "versionString": "1.0",
+              "platform": "IOS",
+              "appStoreState": "PREPARE_FOR_SUBMISSION",
+              "appVersionState": "PREPARE_FOR_SUBMISSION",
+              "createdDate": "2026-08-10T21:50:00.000Z"
+            },
+            "projectedStage": "internal-testflight-available",
+            "projectionBasis": "build-in-internal-testing",
+            "uploadedAt": "2026-08-10T21:15:41.000Z",
+            "internalTestFlightAvailableAt": null,
+            "observedAt": "2026-08-18T02:26:19.000Z"
+          }
+        },
+        {
+          "app": {
+            "schemaVersion": 1,
+            "appId": "6748000003",
+            "bundleId": "com.priyanshchordia.mala",
+            "name": "Mala",
+            "sku": null,
+            "primaryLocale": "en-US"
+          },
+          "builds": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "appStoreVersions": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "projection": {
+            "schemaVersion": 1,
+            "app": {
+              "schemaVersion": 1,
+              "appId": "6748000003",
+              "bundleId": "com.priyanshchordia.mala",
+              "name": "Mala",
+              "sku": null,
+              "primaryLocale": "en-US"
+            },
+            "latestBuild": {
+              "schemaVersion": 1,
+              "buildId": "b-mala-2",
+              "appId": "6748000003",
+              "buildNumber": "2",
+              "marketingVersion": "1.0",
+              "uploadedDate": "2026-08-06T15:22:03.000Z",
+              "processingState": "PROCESSING",
+              "expired": false,
+              "internalBuildState": "PROCESSING",
+              "externalBuildState": null
+            },
+            "latestAppStoreVersion": {
+              "schemaVersion": 1,
+              "appStoreVersionId": "v-mala-1",
+              "appId": "6748000003",
+              "versionString": "1.0",
+              "platform": "IOS",
+              "appStoreState": "WAITING_FOR_REVIEW",
+              "appVersionState": "WAITING_FOR_REVIEW",
+              "createdDate": "2026-08-06T16:00:00.000Z"
+            },
+            "projectedStage": "processing",
+            "projectionBasis": "build-processing",
+            "uploadedAt": "2026-08-06T15:22:03.000Z",
+            "internalTestFlightAvailableAt": null,
+            "observedAt": "2026-08-18T02:26:19.000Z"
+          }
+        },
+        {
+          "app": {
+            "schemaVersion": 1,
+            "appId": "6748000004",
+            "bundleId": "com.priyanshchordia.roam",
+            "name": "Roam",
+            "sku": null,
+            "primaryLocale": "en-US"
+          },
+          "builds": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "appStoreVersions": {
+            "kind": "denied",
+            "status": 403,
+            "pages": null,
+            "code": "asc.forbidden",
+            "detail": "App Store Connect answered 403 FORBIDDEN_ERROR for GET /v1/apps/6748000004/appStoreVersions"
+          },
+          "projection": null
+        },
+        {
+          "app": {
+            "schemaVersion": 1,
+            "appId": "6748000005",
+            "bundleId": "com.priyanshchordia.svara",
+            "name": "Svara",
+            "sku": null,
+            "primaryLocale": "en-US"
+          },
+          "builds": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "appStoreVersions": {
+            "kind": "observed",
+            "status": 200,
+            "pages": 1,
+            "code": null,
+            "detail": null
+          },
+          "projection": {
+            "schemaVersion": 1,
+            "app": {
+              "schemaVersion": 1,
+              "appId": "6748000005",
+              "bundleId": "com.priyanshchordia.svara",
+              "name": "Svara",
+              "sku": null,
+              "primaryLocale": "en-US"
+            },
+            "latestBuild": null,
+            "latestAppStoreVersion": null,
+            "projectedStage": null,
+            "projectionBasis": "no-build-observed",
+            "uploadedAt": null,
+            "internalTestFlightAvailableAt": null,
+            "observedAt": "2026-08-18T02:26:19.000Z"
+          }
+        }
+      ],
+      "requestCount": 11,
+      "statuses": [200, 200, 200, 200, 200, 200, 200, 200, 403, 200, 200],
+      "observationDigest": "sha256:1445d3474de40ada2ed98c1032d4d5a012d8c534550ed9f1916362ffa8343a42"
+    }
+  }
+}

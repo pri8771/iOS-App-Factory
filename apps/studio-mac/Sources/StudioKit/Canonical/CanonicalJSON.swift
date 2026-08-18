@@ -328,3 +328,43 @@ public enum RoomParticipantsCatalogDigest {
         }
     }
 }
+
+// MARK: - ReleaseProjectionDigest
+//
+// Client-side re-verification of `ReleaseProjectionV1.sourceDigest`, matching
+// `releaseProjectionDigestInputV1` / `canonicalReleaseProjectionDigestInputV1`
+// (release-observation.ts): the same recipe as `RoomParticipantsCatalogDigest`, over the projection's
+// content fields — everything except `generatedAt` and the digest itself.
+
+public enum ReleaseProjectionDigest {
+    private static let inputKeys = ["schemaVersion", "observer", "latest", "observationCount"]
+
+    public static func digestInput(_ projection: JSONValue) throws -> JSONValue {
+        guard let object = projection.objectValue else { throw PortfolioDigest.VerificationError.notAnObject }
+        var input: [String: JSONValue] = [:]
+        for key in inputKeys {
+            guard let value = object[key] else { throw PortfolioDigest.VerificationError.missingField(key) }
+            input[key] = value
+        }
+        return .object(input)
+    }
+
+    public static func canonicalText(_ projection: JSONValue) throws -> String {
+        CanonicalJSON.serialize(try digestInput(projection))
+    }
+
+    public static func compute(_ projection: JSONValue) throws -> Sha256Digest {
+        CanonicalJSON.digest(of: try canonicalText(projection))
+    }
+
+    /// Throws `.mismatch` when the embedded `sourceDigest` does not match its contents.
+    public static func verify(_ projection: JSONValue) throws {
+        guard let claimed = projection["sourceDigest"]?.stringValue else {
+            throw PortfolioDigest.VerificationError.missingField("sourceDigest")
+        }
+        let computed = try compute(projection)
+        guard PortfolioDigest.constantTimeEqual(claimed, computed.rawValue) else {
+            throw PortfolioDigest.VerificationError.mismatch(expected: Sha256Digest(unchecked: claimed), computed: computed)
+        }
+    }
+}

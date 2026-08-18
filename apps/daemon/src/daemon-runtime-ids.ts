@@ -20,7 +20,8 @@ export type DaemonRuntimeIdPurpose =
   | "assistant-intent-dispatch"
   | "plan"
   | "phase-run"
-  | "phase-run-room";
+  | "phase-run-room"
+  | "asc-release-observation";
 
 export type DaemonRuntimeIdFactory = (
   purpose: DaemonRuntimeIdPurpose,

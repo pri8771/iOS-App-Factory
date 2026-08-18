@@ -7,7 +7,9 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  RELEASE_OBSERVER_NOT_CONFIGURED_REASON_V1,
   canonicalPortfolioReadModelDigestInputV1,
+  canonicalReleaseProjectionDigestInputV1,
   canonicalRoomParticipantsCatalogDigestInputV1,
   canonicalStudioSnapshotDigestInputV1,
 } from "@app-factory/contracts";
@@ -204,6 +206,34 @@ function roomParticipantsResponse(requestId: unknown): Record<string, unknown> {
         sourcedAt: NOW.toISOString(),
         sourceDigest: `sha256:${createHash("sha256")
           .update(canonicalRoomParticipantsCatalogDigestInputV1(catalog), "utf8")
+          .digest("hex")}`,
+      },
+    },
+  };
+}
+
+function releaseProjectionResponse(requestId: unknown): Record<string, unknown> {
+  const projection = {
+    schemaVersion: 1 as const,
+    observer: {
+      configured: false,
+      unavailableReason: RELEASE_OBSERVER_NOT_CONFIGURED_REASON_V1,
+      source: null,
+    },
+    latest: null,
+    observationCount: 0,
+  };
+  return {
+    protocolVersion: 1,
+    requestId,
+    ok: true,
+    result: {
+      operation: "release.projection",
+      projection: {
+        ...projection,
+        generatedAt: NOW.toISOString(),
+        sourceDigest: `sha256:${createHash("sha256")
+          .update(canonicalReleaseProjectionDigestInputV1(projection), "utf8")
           .digest("hex")}`,
       },
     },
@@ -714,6 +744,85 @@ describe("typed command client", () => {
     await expect(client.listRoomParticipants(identity())).rejects.toMatchObject<
       Partial<CommandClientError>
     >({ code: "protocol.room-participants-digest-mismatch", retryable: false });
+    client.close();
+  });
+
+  it("reads the release projection with an empty payload and verifies its source digest; sends the strict release.observe payload", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const request = frame.request as Record<string, unknown>;
+        if (request.operation === "release.observe") {
+          socket.end(
+            `${JSON.stringify({
+              protocolVersion: 1,
+              requestId: frame.requestId,
+              ok: false,
+              error: {
+                code: "release.observer-not-configured",
+                message: RELEASE_OBSERVER_NOT_CONFIGURED_REASON_V1,
+                retryable: false,
+              },
+            })}\n`,
+          );
+          return;
+        }
+        socket.end(`${JSON.stringify(releaseProjectionResponse(frame.requestId))}\n`);
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+
+    await expect(client.releaseProjection(identity())).resolves.toMatchObject({
+      operation: "release.projection",
+      projection: { observer: { configured: false }, latest: null, observationCount: 0 },
+    });
+    expect(received[0]).toMatchObject({
+      request: { operation: "release.projection", payload: {} },
+    });
+    await expect(
+      client.observeRelease({ buildsLimit: 3 }, identity("00000000-0000-4000-8000-000000000011")),
+    ).rejects.toMatchObject<Partial<CommandClientError>>({
+      code: "release.observer-not-configured",
+      retryable: false,
+    });
+    expect(received[1]).toMatchObject({
+      request: { operation: "release.observe", payload: { buildsLimit: 3 } },
+    });
+    client.close();
+  });
+
+  it("rejects a release projection whose source digest is stale", async () => {
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        const response = releaseProjectionResponse(frame.requestId);
+        const result = response.result as Record<string, unknown>;
+        const projection = result.projection as Record<string, unknown>;
+        socket.end(
+          `${JSON.stringify({
+            ...response,
+            result: {
+              ...result,
+              projection: { ...projection, sourceDigest: `sha256:${"f".repeat(64)}` },
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "dashboard",
+      now: () => NOW,
+    });
+    await expect(client.releaseProjection(identity())).rejects.toMatchObject<
+      Partial<CommandClientError>
+    >({ code: "protocol.release-projection-digest-mismatch", retryable: false });
     client.close();
   });
 
