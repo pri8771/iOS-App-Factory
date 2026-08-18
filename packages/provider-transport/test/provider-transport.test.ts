@@ -367,4 +367,83 @@ describe("createFetchProviderHttpTransport", () => {
       ProviderTransportError,
     );
   });
+
+  describe("authorization derivation", () => {
+    it("invokes the derivation with the resolved secret and only method+url, sends its result, and zeroizes the secret afterwards", async () => {
+      const pem = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----";
+      const port = credentialCommandPort(pem);
+      const broker = createCredentialBroker(port);
+      let seenSecret: Uint8Array | null = null;
+      let seenRequest: unknown = null;
+      const derive = vi.fn((secret: Uint8Array, request: unknown) => {
+        seenSecret = secret;
+        seenRequest = request;
+        return `Bearer derived-${String(secret.byteLength)}`;
+      });
+      const fetchSpy = vi.fn(async (_url: string, init: RequestInit) => {
+        expect((init.headers as Headers).get("authorization")).toBe(
+          `Bearer derived-${String(pem.length)}`,
+        );
+        return jsonResponse(200, { ok: true });
+      });
+      const transport = createFetchProviderHttpTransport({
+        credentials: broker,
+        fetch: fetchSpy,
+        authorization: derive,
+      });
+
+      const result = await performProviderHttpRequest(transport, validRequest());
+      expect(result.status).toBe(200);
+      expect(derive).toHaveBeenCalledTimes(1);
+      expect(seenRequest).toEqual({
+        method: "GET",
+        url: "https://api.example.test/repos/owner/name",
+      });
+      // The broker owns the buffer and zeroizes it once withCredential returns.
+      expect(seenSecret).not.toBeNull();
+      expect([...(seenSecret as unknown as Uint8Array)]).toEqual(new Array(pem.length).fill(0));
+    });
+
+    it("rejects an unsafe derived value before any fetch and still zeroizes the secret", async () => {
+      const port = credentialCommandPort("secret-material");
+      const broker = createCredentialBroker(port);
+      let seenSecret: Uint8Array | null = null;
+      const fetchSpy = vi.fn(async () => jsonResponse(200, { ok: true }));
+      const transport = createFetchProviderHttpTransport({
+        credentials: broker,
+        fetch: fetchSpy,
+        authorization: (secret) => {
+          seenSecret = secret;
+          return "Bearer with\r\nnewline";
+        },
+      });
+
+      await expect(transport.request(validRequest())).rejects.toBeInstanceOf(
+        ProviderTransportError,
+      );
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect([...(seenSecret as unknown as Uint8Array)]).toEqual(
+        new Array("secret-material".length).fill(0),
+      );
+    });
+
+    it("propagates a derivation failure without dispatching and without exposing the secret in the error", async () => {
+      const port = credentialCommandPort("super-secret-pem");
+      const broker = createCredentialBroker(port);
+      const fetchSpy = vi.fn(async () => jsonResponse(200, { ok: true }));
+      const transport = createFetchProviderHttpTransport({
+        credentials: broker,
+        fetch: fetchSpy,
+        authorization: () => {
+          throw new Error("key material is not a usable private key");
+        },
+      });
+
+      await expect(transport.request(validRequest())).rejects.toThrow(
+        "key material is not a usable private key",
+      );
+      await expect(transport.request(validRequest())).rejects.not.toThrow(/super-secret-pem/);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
 });
