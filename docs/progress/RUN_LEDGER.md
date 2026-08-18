@@ -110,8 +110,15 @@ which failed at the protocol boundary (`agent.protocol-error`: "blocker.code mus
 namespaced code") — the agent emitted a blocker with a bare code, the daemon refused
 it rather than guessing a namespace, and the retry succeeded.
 
-Each broker commit touches only the files its task authorized. None has been merged
-or pushed; they exist solely at their attempt refs in the Factory-owned mirror.
+Each broker commit touches only the files its task authorized. On 2026-08-17 the owner
+delegated the choice and `1b65f206…` (the `DecisionDetailView` refresh, `+3/−1` in one
+file) was fast-forwarded onto Hindsight's `factory/pilot-1.1` in the real checkout
+(`~/Documents/wip_apps/ios_apps/hindsight`, via its `/private/tmp/hindsight-pilot`
+worktree; the ref was first fetched from the Factory mirror as
+`refs/app-factory/attempts/1930791b-…`). That branch has never existed on `origin`, so
+nothing was pushed — **the first Factory-produced change to land on a real
+application branch, still unshipped**. The other three remain solely at their attempt
+refs in the Factory-owned mirror.
 
 Build and test time is ~53 s of fixed Xcode and simulator overhead on every attempt,
 independent of diff size — agent time was 30–46 s on the three unit-tested changes and
