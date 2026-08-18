@@ -253,8 +253,21 @@ effect pump ships default-off with an empty adapter registry (row 7). Notion
 credentials are a further, separate external gate with no existing record
 anywhere in this repository.
 
-Status: not started; the credential gates above are unchanged as of
-2026-08-17.
+Status: not started as a phase. Credential gate movement as of 2026-08-17: a
+narrow-scope GitHub fine-grained PAT (two repositories, read/write Contents
+and Pull requests) now exists in the macOS Keychain -- for GitHub only; Jira
+and Notion still have no credential. The first live, read-only GitHub calls
+through the repository's own broker + transport boundary were made on
+2026-08-17 (`docs/operations/github-live-read.md`): two runs, one call each,
+both **HTTP 401** -- `Requires authentication` with the verbatim scheme-less
+Keychain value, then `Bad credentials` once the transport's opt-in
+authorization derivation supplied `Bearer <token>` (GitHub evaluated and
+rejected the stored token string). The owner-binding module, tests, and
+manual smoke script are in place; the boundary is proven live up to the
+provider's answer, but no owner-binding artifact exists and the re-run is
+owner-gated on a valid token in the Keychain item. The mutation path remains
+gated: no adapter is registered in the daemon and the effect pump stays
+default-off.
 
 ## Phase 6 — Release rail
 
