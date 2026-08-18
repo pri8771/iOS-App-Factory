@@ -1,0 +1,116 @@
+{
+  "recordDigest": "sha256:78aac98a01baf28bbfc38c0c30b261539957564f8b03a194a695fa8cae431d03",
+  "record": {
+    "schemaVersion": 1,
+    "attemptId": "9a557d45-7152-52e6-87cd-a2714631155d",
+    "taskId": "c1f4b21a-47aa-4e3c-a9ec-75d5ee968708",
+    "attemptNumber": 1,
+    "state": "succeeded",
+    "implementingRunId": "12bc8306-10ba-5869-8f22-e3345e14c773",
+    "repositoryId": "62000000-0000-4000-8000-000000000002",
+    "taskSpecDigest": "sha256:56df9c58c0813fb8690bad01947069f4d877c83ca8630ecd87c0d0a6f6a63e54",
+    "policyDigest": "sha256:d922a0a26c8331bfc0d86187190bc58dfaa6cfca77ceb6bfc5a304779def58cf",
+    "baseCommit": "c338785817ba8d5ee6056f65c075aec47178c393",
+    "candidateTree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+    "fence": 1,
+    "brokerCommit": {
+      "commit": "b258c769a80c17b7dc2b14ec600fa854e7613567",
+      "tree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+      "commitDigest": "sha256:5ba4bd7a1bc5c0841448867923b16dd7fac81f1e6c23cfa683acd58f26368892",
+      "attemptMarker": "9a557d45-7152-52e6-87cd-a2714631155d"
+    },
+    "verification": [
+      {
+        "checkId": "tests.swift",
+        "argv": [
+          "/usr/bin/swift",
+          "test",
+          "--scratch-path",
+          "/private/tmp/af-unattended/runtime/local-execution/git/verification-scratch/9a557d45-7152-52e6-87cd-a2714631155d/fence-1/tests.swift-426d3298-125d-4e33-bb40-59a86bf3f737/swiftpm-build"
+        ],
+        "checkoutTree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+        "startedAt": "2026-08-17T21:51:56.816Z",
+        "finishedAt": "2026-08-17T21:52:00.165Z",
+        "toolVersions": [
+          {
+            "name": "swift",
+            "version": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "acceptance.signature",
+        "argv": [
+          "/usr/bin/grep",
+          "-F",
+          "--",
+          "public func farewell(for name: String) -> String {",
+          "Sources/Greeter/GreetingFormatter.swift"
+        ],
+        "checkoutTree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+        "startedAt": "2026-08-17T21:52:00.243Z",
+        "finishedAt": "2026-08-17T21:52:00.245Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "grep (BSD grep, GNU compatible) 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "acceptance.behavior",
+        "argv": [
+          "/usr/bin/grep",
+          "-F",
+          "--",
+          "\"Goodbye, \\(name)!\"",
+          "Sources/Greeter/GreetingFormatter.swift"
+        ],
+        "checkoutTree": "9304cecb7ffa75f96d7b9ed6cbe1608ee46b5757",
+        "startedAt": "2026-08-17T21:52:00.314Z",
+        "finishedAt": "2026-08-17T21:52:00.316Z",
+        "toolVersions": [
+          {
+            "name": "grep",
+            "version": "grep (BSD grep, GNU compatible) 2.6.0-FreeBSD"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      }
+    ],
+    "review": {
+      "reviewerId": "fixture.swift-greeter-reviewer",
+      "reviewerVersion": "1.0.0",
+      "reviewerRunId": "9a4a19ef-2eb5-5766-89cc-fa0205169e45",
+      "verdict": "pass",
+      "findingCount": 0,
+      "reviewInputDigest": "sha256:96360bb43c596ee046cacfb62b2ed491f18fc75968219d1712d4c66308302983"
+    },
+    "evidence": {
+      "manifestDigest": "sha256:f3361f0bc2119c46aabe834b22f30a08aabe58d7fa5bdbe77095f3726d5a5787",
+      "indexDigest": "sha256:ec2bad7d1ac66bc8b5d186cd860c243a301cc426992e2c67c34a454aed6f2386",
+      "entryCount": 6,
+      "artifactCount": 23
+    },
+    "agent": {
+      "adapterId": "fixture.swift-greeter-agent",
+      "adapterVersion": null,
+      "cliVersion": null,
+      "model": null,
+      "executableDigest": null,
+      "usage": null
+    },
+    "timings": {
+      "attemptCreatedAt": "2026-08-17T21:51:55.704Z",
+      "attemptTerminalAt": "2026-08-17T21:52:00.931Z",
+      "agentStartedAt": "2026-08-17T21:51:55.988Z",
+      "agentFinishedAt": "2026-08-17T21:51:55.993Z",
+      "evidenceCreatedAt": "2026-08-17T21:51:56.637Z"
+    }
+  }
+}
