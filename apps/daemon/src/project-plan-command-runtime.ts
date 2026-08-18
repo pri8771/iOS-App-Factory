@@ -172,14 +172,14 @@ const BUILD_TEMPLATES_V1: readonly BuildTemplateV1[] = [
     title: "Domain model + tests",
     objective: "Implement the core domain model with unit test coverage.",
     acceptanceStatements: ["The domain model's core types and logic are implemented and tested."],
-    scopePaths: ["Sources"],
+    scopePaths: ["Sources", "Tests"],
   },
   {
     key: "primary-screen",
     title: "Primary screen + tests",
     objective: "Implement the primary user-facing screen with test coverage.",
     acceptanceStatements: ["The primary screen renders real data and is covered by tests."],
-    scopePaths: ["Sources"],
+    scopePaths: ["Sources", "Tests"],
   },
   {
     key: "states",
@@ -188,7 +188,7 @@ const BUILD_TEMPLATES_V1: readonly BuildTemplateV1[] = [
     acceptanceStatements: [
       "The primary screen has explicit, tested empty, loading, and error states.",
     ],
-    scopePaths: ["Sources"],
+    scopePaths: ["Sources", "Tests"],
   },
 ];
 

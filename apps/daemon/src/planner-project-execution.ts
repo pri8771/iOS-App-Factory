@@ -15,7 +15,11 @@ import {
   VERIFICATION_SCRATCH_TOKEN,
   assertVerificationArgsTemplate,
 } from "@app-factory/execution-engine";
-import { GitWorkspaceError, type GitWorkspaceManager } from "@app-factory/git-workspace";
+import {
+  GitWorkspaceError,
+  type GitWorkspaceManager,
+  type ProtectedPathPolicyExtensionV1,
+} from "@app-factory/git-workspace";
 import type { ProjectPlanRepository, ProjectRegistryRepository } from "@app-factory/kernel";
 
 import { genericProjectReviewer, runBoundedGit } from "./enrolled-project-execution.js";
@@ -581,6 +585,21 @@ export type PlannerProjectResolverDependencies = Readonly<{
   verificationPlansFor?: (moduleName: string) => VerifiedLocalExecutionProject["verificationPlans"];
 }>;
 
+/**
+ * The reviewed protected-path allowance planner execution grants every resolved project: new test
+ * files under the test target may be ADDED (never modified or removed) -- `test-file-addition`, the
+ * same allowance the Hindsight pilot's reviewed extension carried. Everything else the default
+ * classifier protects (CI, project.yml, policy, signing, trust-boundary paths, existing tests) stays
+ * protected: the seeded scaffold's `project.yml`/CI never move under an agent's hands.
+ */
+export const IOS_XCODEGEN_PROTECTED_PATH_EXTENSION_V1: ProtectedPathPolicyExtensionV1 = {
+  schemaVersion: 1,
+  additionalTrustBoundaryPathPrefixes: [],
+  additionalTrustBoundarySegments: [],
+  additionalPolicyMarkers: [],
+  allowances: ["test-file-addition"],
+};
+
 export type PlannerProjectResolver = Readonly<{
   resolveProject: (repositoryId: string) => Promise<VerifiedLocalExecutionProject | null>;
   /** sha256 of `policyBytes` -- what `plan.execute` must stamp on every submitted task. */
@@ -720,6 +739,7 @@ export function createPlannerProjectResolver(
         ...(dependencies.config.candidatePolicyLimits === undefined
           ? {}
           : { candidatePolicyLimits: dependencies.config.candidatePolicyLimits }),
+        protectedPathPolicyExtension: IOS_XCODEGEN_PROTECTED_PATH_EXTENSION_V1,
         ...agentFields,
       };
       return project;

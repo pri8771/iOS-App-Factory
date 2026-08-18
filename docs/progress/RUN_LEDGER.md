@@ -336,6 +336,27 @@ Two live-smoke claims accompany the Phase Runner and Project Registry merges:
   comment in `packages/studio-room-adapters/src/contribution-schema.ts`, unrelated
   to any grading run. **Could not be verified; recorded as owner-reported only.**
 
+### 2026-08-18 — planner execution rehearsal (fixture agent, real Xcode toolchain, throwaway project)
+
+The first plan ever run to `complete` through `plan.execute`/`plan.tick`: a `project.seed`ed
+throwaway XcodeGen app (`Rehearsal App`, `/private/tmp/af-reh/src/rehearsal-app`, never a real
+app), `planner-fixture-v1` (scripted, network-free agent), `ios-xcodegen-v1` verification
+(xcodegen generate + xcodebuild build + xcodebuild test on `iPhone 17 Pro`) — plan
+`9b426cf6-f2c2-5fca-b09c-d9b47eb95542`, 11 task items + 2 human gates, 20:03:15Z → 20:09:42Z.
+Full narrative, the seven earlier plans it took to get there, and what each taught, in
+[`docs/operations/planner-execution.md`](../operations/planner-execution.md). Two exported
+records (this ledger's recipe applies: daemon on the runtime, `run export`, diff):
+
+| Attempt                                | Item               | Base → broker           | Plans                                       | Export `recordDigest`                                                                                                       |
+| -------------------------------------- | ------------------ | ----------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `ae0e337e-abdd-51a7-b8f7-09dffb23db43` | build-seed-repo    | `e0907d86` → `09b68727` | `build.xcodegen-app` · `test.xcodegen-unit` | [`sha256:2a901a9e76db80fef538c1277ba114e2d76fe4a79b2a68c379197020e2d4e1e9`](runs/ae0e337e-abdd-51a7-b8f7-09dffb23db43.json) |
+| `80cc6ddd-15ae-5a90-b589-85b1ed72f4a1` | build-domain-model | `09b68727` → `ad399a5f` | `build.xcodegen-app` · `test.xcodegen-unit` | [`sha256:a480ab2bde789f7eb39dd7967ed847059657f6c2c59f9173ae3c2980ebef3a86`](runs/80cc6ddd-15ae-5a90-b589-85b1ed72f4a1.json) |
+
+The second row's base is the first row's broker commit — `plan.tick`'s
+`advanceImmutableMirrorBase` in the record, not in prose. Reviewer `planner.generic-review` v1
+(the generic read-back reviewer, no model). The runtime `/private/tmp/af-reh` is under `/private/tmp`
+and will not survive a clean; the exported records are the durable citation.
+
 ### Portfolio events referenced but out of this ledger's scope
 
 One claim accompanying the 2026-08-16 sweep is not a Factory run at all, and is noted

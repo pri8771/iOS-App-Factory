@@ -137,14 +137,46 @@ touched**; the seeded project was `Rehearsal App` under `/private/tmp/af-reh/src
   the trusted verifier's minimal environment — `USER` is now an allowed verification environment
   name and the plans state it explicitly. Both plans stay in the runtime as the record; the chain
   halted exactly as designed (`plan.tick` → `advanced:false` after marking the item failed).
-- Plan 3 (`fdfe7039-1ef5-5d3a-8289-9d288ccc79e1`): see the driver log summary below.
+- Plans 3–5 (`fdfe7039-…`, `9cc9b44f-…`'s plan, `70fc0be1-…`'s plan): first item failed in ~2 s.
+  With the new private failure diagnostic the reason was finally readable: (3) XcodeGen writes the
+  `.xcodeproj` INTO the checkout, and the trusted verification checkout is read-only ("couldn't
+  be copied because you don't have permission") — the template now generates into the scratch
+  directory (`--project "$S/gen"`) and builds/tests it from there (`-project`), so the checkout is
+  never written to.
+- Plan 6 (`7a43f123-…`): the six docs items ran green through the REAL toolchain (~30 s each:
+  xcodegen generate + xcodebuild build + xcodebuild test on the simulator), each `plan.tick`
+  advancing the mirror base to the previous broker commit; the chain halted at the `ready` ◆ gate
+  exactly as designed (`plan.tick` → `advanced:false`). Gate approved by hand; `build-seed-repo`
+  was refused as `candidate.protected-path` — the fixture agent had written under
+  `.github/workflows` (a protected CI path). Product finding, fixed: the planner's seed-repo
+  template scoped `project.yml` (protected: build) and `.github/workflows` (protected: CI), both
+  created by `project.seed` already — no agent could ever run it. Scope is now `["Tests"]` with an
+  honest objective; the fixture agent prefers `Sources`/`Tests`/`docs` and never dot-dirs.
+- Plan 7 (`9e23ee0e-…`): green to `ready`, then `build-seed-repo` refused again —
+  "tests and test baselines are protected": adding a test file needs the reviewed
+  `test-file-addition` allowance (the Hindsight pilot's extension carried it). Planner execution
+  now grants exactly that allowance (`IOS_XCODEGEN_PROTECTED_PATH_EXTENSION_V1`: test files may be
+  ADDED, never modified/removed; everything else stays protected), and the "+ tests" build items
+  scope `["Sources", "Tests"]`.
+- **Plan 8 (`9b426cf6-f2c2-5fca-b09c-d9b47eb95542`) — COMPLETE, 20:03:15Z → 20:09:42Z (6 min 27 s):**
+  contract → research → brief → design → architecture → plan (all done) → `ready` gate approved →
+  build-seed-repo (adds `Tests/RehearsalAppTests/PlannerRehearsal_e3d7c2f1e5cdTests.swift`, an
+  XCTest xcodebuild compiled and ran) → build-domain-model, build-primary-screen, build-states
+  (each adds a `Sources/RehearsalApp/PlannerRehearsal_*.swift`) → review → `release` gate approved
+  → `state: complete`. Eleven verified attempts, every one `build.xcodegen-app` + `test.xcodegen-unit`
+  passed, reviewer `planner.generic-review` pass, evidence 5 records / 20 artifacts each; the
+  mirror's advance chain reached 23 links across plans 6–8 on the same sealed mirror, linear.
+  Exported records committed for the two build items that touch code:
+  [`runs/ae0e337e-….json`](../progress/runs/ae0e337e-abdd-51a7-b8f7-09dffb23db43.json)
+  (build-seed-repo, base `e0907d86` → broker `09b68727`, `recordDigest sha256:2a901a9e…`) and
+  [`runs/80cc6ddd-….json`](../progress/runs/80cc6ddd-15ae-5a90-b589-85b1ed72f4a1.json)
+  (build-domain-model, base `09b68727` — the previous item's broker commit — → broker `ad399a5f`,
+  `recordDigest sha256:a480ab2b…`).
 
-<!-- REHEARSAL_RESULT -->
-
-Debuggability note recorded, not fixed here: the executor maps every unclassified error to
-`local-execution.verification-failed` / "failed closed before completion" and drops the underlying
-message (`verified-local-executor.ts`, the `#verifyAndCommit` catch). Surfacing that message as a
-private evidence artifact (never on the wire) would have saved two rehearsal rounds.
+Debuggability fix that came out of this: the executor still maps every unclassified error to
+`local-execution.verification-failed` / "failed closed before completion" on the wire, but now
+also writes the underlying reason to `<runtime>/failure-diagnostics/<attemptId>.txt` (0600, never
+on the wire, never in evidence). Read that file first when an item fails fast.
 
 ## What this does and does not prove
 
@@ -155,9 +187,13 @@ outside any approved plan is refused with `plan.task-not-in-approved-plan`; a re
 project is validated by the same normalizer as a pinned one; unknown repositories stay
 `project.not-enrolled`.
 
+Proven live (rehearsal above): the same chain with the REAL xcodegen + xcodebuild + simulator
+verification on a seeded project, through every item and both human gates to `complete`, driven
+purely through the CLI, records exported.
+
 Not proven here: any real-model run (`planner-codex-v1` has only been type-checked and
 config-parsed; its agent factory is the same `buildCodexAgentForProject` the Hindsight pilots
 used); the Studio app driving this end to end (the Planner UI calls the same ops; store tests only);
-a plan run through all its human gates to `complete`; the seed-repo item's semantics (the
-scaffold already exists when the item runs — the fixture agent adds a test file; a real agent must
-notice and make a minimal, honest change).
+what a real agent makes of the docs items (scope `docs`, no test target) and of seed-repo (the
+scaffold already exists; the fixture agent adds a test — a real agent must notice and make a
+minimal, honest change).
