@@ -347,8 +347,15 @@ original wording named.
 
 ## What these runs do not establish
 
-- No provider HTTP call has ever been made; the effect pump ships default-off with an
-  empty adapter registry.
+- The first live provider HTTP calls were made on 2026-08-17 (local; UTC 2026-08-18),
+  read-only, through the credential-broker + bounded transport: App Store Connect —
+  1 run, 25 GETs, 25×200, twelve apps listed
+  ([`docs/operations/asc-live-read.md`](../operations/asc-live-read.md)); GitHub — 2 runs,
+  1 call each, both `401` (first "Requires authentication" — verbatim bare token, no
+  scheme; then "Bad credentials" with the Bearer derivation — token refused), no
+  owner-binding artifact yet ([`docs/operations/github-live-read.md`](../operations/github-live-read.md)).
+  No mutation has been made; the effect pump still ships default-off with an empty
+  adapter registry.
 - The independent reviewer used in every row above is the project's configured
   reviewer. The read-only Codex reviewer adapter made its first live model calls on
   2026-08-17 (two invocations, by hand, outside CI: the first refused pre-model by the
