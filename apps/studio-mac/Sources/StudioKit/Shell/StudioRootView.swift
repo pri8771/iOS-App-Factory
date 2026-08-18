@@ -120,7 +120,9 @@ public struct StudioRootView: View {
             } else {
                 DashboardScreen(snapshot: store.dashboard, errors: store.errors, timelineNote: timelineNote,
                                 selectedSlug: nil, onSelectProject: { selectedSlug = $0 },
-                                onNewProject: store.socketPath != nil ? { showingSeedSheet = true } : nil)
+                                onNewProject: store.socketPath != nil ? { showingSeedSheet = true } : nil,
+                                release: store.socketPath != nil ? store.releaseRail : nil,
+                                onObserveRelease: store.socketPath != nil ? { Task { await store.observeRelease() } } : nil)
                     .transition(.opacity)
             }
         case .chat:

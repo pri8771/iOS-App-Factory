@@ -45,6 +45,11 @@ public final class StudioStore {
     /// distinguishes a real failure from silent, expected unsupported-operation fallback (which sets
     /// no error).
     public private(set) var studioSnapshot: StudioSnapshot?
+    /// `release.projection` (Studio Phase 6 step B), refreshed with the dashboard. `nil` means "not
+    /// loaded yet" or "this daemon predates the release rail" (unsupported-operation fallback sets no
+    /// error, mirroring `studioSnapshot`).
+    public private(set) var releaseProjection: ReleaseProjection?
+    public private(set) var isObservingRelease = false
     /// Per-operation errors from the last refresh, keyed by wire operation.
     public private(set) var errors: [String: String] = [:]
     public private(set) var lastRefreshAt: Date?
@@ -211,7 +216,47 @@ public final class StudioStore {
         } catch {
             errors["evidence.list"] = describe(error)
         }
+        await refreshReleaseProjection()
         lastRefreshAt = now()
+    }
+
+    /// `release.projection` alone (also called after `observeRelease()` so the rail shows the new
+    /// latest without waiting for the next full refresh).
+    public func refreshReleaseProjection() async {
+        guard let client, isConnected else { return }
+        do {
+            releaseProjection = try await client.releaseProjection()
+            errors["release.projection"] = nil
+        } catch let error as DaemonClientError where error.isUnsupportedOperation {
+            releaseProjection = nil
+            errors["release.projection"] = nil
+        } catch {
+            releaseProjection = nil
+            errors["release.projection"] = describe(error)
+        }
+    }
+
+    /// `release.observe`: asks the daemon for ONE fresh, strictly read-only App Store Connect
+    /// observation, then re-reads the projection. The daemon refuses (`release.observer-not-configured`)
+    /// when it has no observer composed; that refusal lands in `errors["release.observe"]`.
+    public func observeRelease(buildsLimit: Int = 5) async {
+        guard let client, isConnected, !isObservingRelease else { return }
+        isObservingRelease = true
+        defer { isObservingRelease = false }
+        do {
+            _ = try await client.observeRelease(buildsLimit: buildsLimit)
+            errors["release.observe"] = nil
+        } catch {
+            errors["release.observe"] = describe(error)
+        }
+        await refreshReleaseProjection()
+    }
+
+    /// The release rail's render state, composed from the last projection read and observe outcome.
+    public var releaseRail: ReleaseRailState {
+        ReleaseRailState(projection: releaseProjection,
+                         error: errors["release.observe"] ?? errors["release.projection"],
+                         isObserving: isObservingRelease)
     }
 
     /// Re-run doctor + refresh every `interval` seconds until cancelled.

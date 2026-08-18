@@ -1,0 +1,646 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "additionalProperties": false,
+      "properties": {
+        "configured": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "source": {
+          "$ref": "#/$defs/__schema4"
+        },
+        "unavailableReason": {
+          "$ref": "#/$defs/__schema3"
+        }
+      },
+      "required": [
+        "configured",
+        "unavailableReason",
+        "source"
+      ],
+      "type": "object"
+    },
+    "__schema10": {
+      "enum": [
+        "observed",
+        "denied",
+        "ambiguous"
+      ],
+      "type": "string"
+    },
+    "__schema11": {
+      "anyOf": [
+        {
+          "maximum": 599,
+          "minimum": 100,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema12": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema13"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema13": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "__schema14": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema15": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema16": {
+      "items": {
+        "$ref": "#/$defs/__schema17"
+      },
+      "maxItems": 200,
+      "type": "array"
+    },
+    "__schema17": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "$ref": "#/$defs/__schema18"
+        },
+        "appStoreVersions": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "builds": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "projection": {
+          "$ref": "#/$defs/__schema20"
+        }
+      },
+      "required": [
+        "app",
+        "builds",
+        "appStoreVersions",
+        "projection"
+      ],
+      "type": "object"
+    },
+    "__schema18": {
+      "additionalProperties": false,
+      "properties": {
+        "appId": {
+          "$ref": "#/$defs/__schema19"
+        },
+        "bundleId": {
+          "maxLength": 255,
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+$",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        "primaryLocale": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "sku": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "appId",
+        "bundleId",
+        "name",
+        "sku",
+        "primaryLocale"
+      ],
+      "type": "object"
+    },
+    "__schema19": {
+      "maxLength": 200,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": "string"
+    },
+    "__schema2": {
+      "type": "boolean"
+    },
+    "__schema20": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "app": {
+              "$ref": "#/$defs/__schema18"
+            },
+            "internalTestFlightAvailableAt": {
+              "$ref": "#/$defs/__schema27"
+            },
+            "latestAppStoreVersion": {
+              "$ref": "#/$defs/__schema23"
+            },
+            "latestBuild": {
+              "$ref": "#/$defs/__schema21"
+            },
+            "observedAt": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "projectedStage": {
+              "$ref": "#/$defs/__schema24"
+            },
+            "projectionBasis": {
+              "$ref": "#/$defs/__schema25"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "uploadedAt": {
+              "$ref": "#/$defs/__schema26"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "app",
+            "latestBuild",
+            "latestAppStoreVersion",
+            "projectedStage",
+            "projectionBasis",
+            "uploadedAt",
+            "internalTestFlightAvailableAt",
+            "observedAt"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema21": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "appId": {
+              "$ref": "#/$defs/__schema19"
+            },
+            "buildId": {
+              "$ref": "#/$defs/__schema19"
+            },
+            "buildNumber": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            "expired": {
+              "type": "boolean"
+            },
+            "externalBuildState": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema22"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "internalBuildState": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema22"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "marketingVersion": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "processingState": {
+              "enum": [
+                "PROCESSING",
+                "FAILED",
+                "INVALID",
+                "VALID"
+              ],
+              "type": "string"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "uploadedDate": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema8"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "buildId",
+            "appId",
+            "buildNumber",
+            "marketingVersion",
+            "uploadedDate",
+            "processingState",
+            "expired",
+            "internalBuildState",
+            "externalBuildState"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema22": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "type": "string"
+    },
+    "__schema23": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "appId": {
+              "$ref": "#/$defs/__schema19"
+            },
+            "appStoreState": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema22"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "appStoreVersionId": {
+              "$ref": "#/$defs/__schema19"
+            },
+            "appVersionState": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema22"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "createdDate": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema8"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "platform": {
+              "$ref": "#/$defs/__schema22"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "versionString": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "appStoreVersionId",
+            "appId",
+            "versionString",
+            "platform",
+            "appStoreState",
+            "appVersionState",
+            "createdDate"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema24": {
+      "anyOf": [
+        {
+          "enum": [
+            "candidate",
+            "certified",
+            "archived",
+            "upload-approved",
+            "uploaded",
+            "processing",
+            "internal-testflight-available",
+            "device-smoke-passed"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema25": {
+      "enum": [
+        "no-build-observed",
+        "build-processing",
+        "build-processing-failed",
+        "build-processed-not-in-internal-testing",
+        "build-in-internal-testing",
+        "build-expired"
+      ],
+      "type": "string"
+    },
+    "__schema26": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema8"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema27": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema8"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema28": {
+      "items": {
+        "$ref": "#/$defs/__schema29"
+      },
+      "maxItems": 5000,
+      "type": "array"
+    },
+    "__schema29": {
+      "maximum": 599,
+      "minimum": 100,
+      "type": "integer"
+    },
+    "__schema3": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema30": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema4": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema5"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema5": {
+      "additionalProperties": false,
+      "properties": {
+        "issuerId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "keyId": {
+          "pattern": "^[A-Z0-9]{10}$",
+          "type": "string"
+        },
+        "keychainAccount": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "keychainService": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "origin": {
+          "const": "https://api.appstoreconnect.apple.com",
+          "type": "string"
+        }
+      },
+      "required": [
+        "keyId",
+        "issuerId",
+        "keychainService",
+        "keychainAccount",
+        "origin"
+      ],
+      "type": "object"
+    },
+    "__schema6": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "appObservations": {
+              "$ref": "#/$defs/__schema16"
+            },
+            "apps": {
+              "$ref": "#/$defs/__schema9"
+            },
+            "observationDigest": {
+              "$ref": "#/$defs/__schema30"
+            },
+            "observationId": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "observedAt": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "requestCount": {
+              "$ref": "#/$defs/__schema13"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "source": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "statuses": {
+              "$ref": "#/$defs/__schema28"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "observationId",
+            "observedAt",
+            "source",
+            "apps",
+            "appObservations",
+            "requestCount",
+            "statuses",
+            "observationDigest"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema7": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema8": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema9": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/__schema14"
+        },
+        "detail": {
+          "$ref": "#/$defs/__schema15"
+        },
+        "kind": {
+          "$ref": "#/$defs/__schema10"
+        },
+        "pages": {
+          "$ref": "#/$defs/__schema12"
+        },
+        "status": {
+          "$ref": "#/$defs/__schema11"
+        }
+      },
+      "required": [
+        "kind",
+        "status",
+        "pages",
+        "code",
+        "detail"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:release-projection",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "generatedAt": {
+      "$ref": "#/$defs/__schema8"
+    },
+    "latest": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "observationCount": {
+      "$ref": "#/$defs/__schema13"
+    },
+    "observer": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "sourceDigest": {
+      "$ref": "#/$defs/__schema30"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "observer",
+    "latest",
+    "observationCount",
+    "generatedAt",
+    "sourceDigest"
+  ],
+  "type": "object"
+}

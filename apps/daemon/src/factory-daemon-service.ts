@@ -109,6 +109,8 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
    * (`room-participants-config.ts`'s `loadPhaseParticipantsPortV1`). Default: `phase.run` fails
    * closed per-run (`participant-unconfigured`) exactly like `rooms` omitted. */
   phaseParticipants?: OpenDaemonCommandRuntimeOptions["phaseParticipants"];
+  /** Default inert: see `OpenDaemonCommandRuntimeOptions.releaseObserver`. */
+  releaseObserver?: OpenDaemonCommandRuntimeOptions["releaseObserver"];
 }>;
 
 export type FactoryDaemonService = Readonly<{
@@ -531,6 +533,9 @@ export async function startFactoryDaemonService(
       ...(options.phaseParticipants === undefined
         ? {}
         : { phaseParticipants: options.phaseParticipants }),
+      ...(options.releaseObserver === undefined
+        ? {}
+        : { releaseObserver: options.releaseObserver }),
       initializeDatabase: (database) => {
         const executor: StartupRecoverableExecutor =
           options.executor ??

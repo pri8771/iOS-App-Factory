@@ -14,6 +14,7 @@ import {
   type RetryableCommandIdentity,
 } from "@app-factory/command-client";
 import {
+  type AscReleaseObservationV1,
   AbsolutePathSchema,
   AttemptIdSchema,
   CalendarDateSchema,
@@ -168,6 +169,8 @@ export type ParsedCliCommand =
       reason: string | null;
     }>
   | Readonly<{ kind: "effects.status" }>
+  | Readonly<{ kind: "release.observe"; buildsLimit: number }>
+  | Readonly<{ kind: "release.projection" }>
   | Readonly<{
       kind: "effects.list";
       state: ExternalEffectStateV1 | null;
@@ -713,6 +716,26 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
       };
     }
     usageError("Evidence requires one of: list, inspect, verify.");
+  }
+
+  // `release projection` reads the latest persisted App Store Connect observation; `release observe`
+  // takes a fresh one (GET-only, through the daemon's composed observer; refused when unconfigured).
+  if (command === "release") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "projection") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "release.projection" } };
+    }
+    if (subcommand === "observe") {
+      const buildsLimitValue = consumeOption(arguments_, "--builds-limit");
+      rejectUnexpected(arguments_);
+      const buildsLimit =
+        buildsLimitValue === undefined
+          ? 5
+          : parsePositiveInteger("--builds-limit", buildsLimitValue, 200);
+      return { outputMode, retryIdentity, command: { kind: "release.observe", buildsLimit } };
+    }
+    usageError("Release requires one of: projection, observe.");
   }
 
   if (command === "effects") {
@@ -1470,7 +1493,55 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
               .join("\n");
       return `${providers}\n${roster}\nsourced ${catalog.sourcedAt} ${catalog.sourceDigest}\n`;
     }
+    case "release.observe":
+      return `${renderAscReleaseObservation(result.observation)}`;
+    case "release.projection": {
+      const { projection } = result;
+      const observer = projection.observer.configured
+        ? `observer: configured (key ${projection.observer.source?.keyId ?? "?"}, keychain ${
+            projection.observer.source?.keychainService ?? "?"
+          }/${projection.observer.source?.keychainAccount ?? "?"})`
+        : `observer: not configured -- ${projection.observer.unavailableReason ?? "(no reason)"}`;
+      const latest =
+        projection.latest === null
+          ? "no App Store Connect observation has been persisted on this runtime\n"
+          : renderAscReleaseObservation(projection.latest);
+      return `${observer}\nobservations persisted: ${String(projection.observationCount)}\n${latest}generated ${projection.generatedAt} ${projection.sourceDigest}\n`;
+    }
   }
+}
+
+function renderAscReleaseObservation(observation: AscReleaseObservationV1): string {
+  const header = `observation ${observation.observationId} at ${observation.observedAt} -- ${String(
+    observation.requestCount,
+  )} GET(s), statuses ${observation.statuses.join(",") || "(none)"}, apps ${observation.apps.kind}${
+    observation.apps.kind === "observed"
+      ? ""
+      : ` ${observation.apps.code ?? ""}: ${observation.apps.detail ?? ""}`
+  }`;
+  const rows = observation.appObservations.map((entry) => {
+    const projection = entry.projection;
+    const build = projection?.latestBuild ?? null;
+    const buildText =
+      entry.builds.kind !== "observed"
+        ? `${entry.builds.kind}:${entry.builds.code ?? ""}`
+        : build === null
+          ? "no build"
+          : `${build.marketingVersion ?? "?"} (${build.buildNumber}) ${build.processingState}${
+              build.internalBuildState === null ? "" : `/${build.internalBuildState}`
+            }${build.expired ? " expired" : ""}`;
+    const version = projection?.latestAppStoreVersion ?? null;
+    const versionText =
+      entry.appStoreVersions.kind !== "observed"
+        ? `${entry.appStoreVersions.kind}:${entry.appStoreVersions.code ?? ""}`
+        : version === null
+          ? "no store version"
+          : `${version.versionString} ${version.appVersionState ?? version.appStoreState ?? "?"}`;
+    return `${entry.app.name}\t${entry.app.bundleId}\t${buildText}\t${versionText}\t${
+      projection?.projectedStage ?? "-"
+    }\t${projection?.projectionBasis ?? "-"}`;
+  });
+  return `${header}\n${rows.length === 0 ? "(no apps)" : rows.join("\n")}\n`;
 }
 
 export function renderCliError(error: unknown, mode: CliOutputMode): string {
@@ -1994,6 +2065,15 @@ export async function runCli(
         break;
       case "effects.status":
         result = await client.effectsStatus(identity);
+        break;
+      case "release.observe":
+        result = await client.observeRelease(
+          { buildsLimit: invocation.command.buildsLimit },
+          identity,
+        );
+        break;
+      case "release.projection":
+        result = await client.releaseProjection(identity);
         break;
       case "effects.list":
         result = await client.listEffects(

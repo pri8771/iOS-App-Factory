@@ -44,6 +44,14 @@ payload is identical. `task new` accepts `--phase KEY` to tag the task with the
 Studio phase it belongs to; omitting it leaves the spec without a `phase` key,
 so its digest is unchanged.
 
+The release rail (Studio Phase 6 step B) is `release projection` — the latest
+persisted App Store Connect observation, if any, plus whether the daemon can
+take a fresh one — and `release observe [--builds-limit N]`, which asks the
+daemon for ONE strictly read-only observation through its composed observer
+(refused with `release.observer-not-configured` when
+`APP_FACTORY_ASC_OBSERVER_CONFIG` is unset). Both print Apple's own instants
+and states verbatim; see `docs/operations/release-rail.md`.
+
 The Planner turns a brief into a skimmable, editable task list and executes
 it. `plan propose --preset ID --title TEXT --one-liner TEXT
 [--constraint TEXT]... [--project UUID] [--repository UUID]` builds the item

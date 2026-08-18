@@ -40,6 +40,7 @@ import {
   AssistantIntentV1Schema,
   AssistantQueryV1Schema,
 } from "./studio-assistant.js";
+import { AscReleaseObservationV1Schema, ReleaseProjectionV1Schema } from "./release-observation.js";
 import { StudioSnapshotV1Schema } from "./studio-snapshot.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 
@@ -260,6 +261,18 @@ export const contractSchemaCatalogV1 = [
     fileName: "studio-snapshot.v1.schema.json",
     id: "urn:app-factory:contracts:v1:studio-snapshot",
     schema: StudioSnapshotV1Schema,
+  },
+  {
+    name: "asc-release-observation",
+    fileName: "asc-release-observation.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:asc-release-observation",
+    schema: AscReleaseObservationV1Schema,
+  },
+  {
+    name: "release-projection",
+    fileName: "release-projection.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:release-projection",
+    schema: ReleaseProjectionV1Schema,
   },
   {
     name: "assistant-query",

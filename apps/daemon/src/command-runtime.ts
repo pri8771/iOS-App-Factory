@@ -12,6 +12,7 @@ import {
 import { isAbsolute, join, resolve } from "node:path";
 
 import {
+  AscReleaseObservationIdSchema,
   AttemptIdSchema,
   canonicalPortfolioReadModelDigestInputV1,
   canonicalRoomParticipantsCatalogDigestInputV1,
@@ -27,6 +28,7 @@ import {
   StableKeySchema,
   COMMAND_PROTOCOL_VERSION_V1,
   type AssistantIntentExecutionOutcomeV1,
+  type AscReleaseObservationV1,
   type AttemptId,
   type CommandId,
   type CommandRequestV1,
@@ -141,6 +143,12 @@ import { resolveVerifiedLocalExecutionPaths } from "./verified-local-executor.js
 export type { DaemonRuntimeIdFactory, DaemonRuntimeIdPurpose } from "./daemon-runtime-ids.js";
 
 const COMMAND_RESULTS_DIRECTORY_NAME = "command-results";
+import {
+  INERT_RELEASE_OBSERVER_PORT,
+  ReleaseObserverNotConfiguredError,
+  buildReleaseProjectionV1,
+  type ReleaseObserverPort,
+} from "./release-command-runtime.js";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
 const MAX_CLIENT_FUTURE_SKEW_MS = 5 * 60 * 1_000;
@@ -172,6 +180,7 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "phase.reject",
   "room.create",
   "room.post",
+  "release.observe",
 ]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
@@ -366,6 +375,12 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
   phaseOutputMirror?: PhaseOutputMirrorPort;
   /** Test seam: replaces the default read-only project-mirror reader `phase.run` folds into context. */
   phaseInputsReader?: PhaseInputsReaderPort;
+  /**
+   * The composed App Store Connect release observer (`release-command-runtime.ts`), opt-in by
+   * `APP_FACTORY_ASC_OBSERVER_CONFIG`. Defaults to the inert port: `release.observe` refuses with
+   * `release.observer-not-configured`; `release.projection` still serves persisted observations.
+   */
+  releaseObserver?: ReleaseObserverPort;
 }>;
 
 export type DaemonRuntimePaths = Readonly<{
@@ -756,6 +771,8 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "room.events":
     case "room.typing":
     case "room.participants.list":
+    case "release.observe":
+    case "release.projection":
     case "studio.snapshot":
     case "studio.assistant.query":
     case "studio.assistant.intent.propose":
@@ -1565,6 +1582,7 @@ async function executeRequest(
      * registered project's Factory mirror. */
     projectRegistryGitWorkspace: GitWorkspaceManager;
     gitRuntimeRoot: string;
+    releaseObserver: ReleaseObserverPort;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1785,6 +1803,24 @@ async function executeRequest(
     case "room.typing":
     case "room.participants.list":
       return executeRoomCommand(request, dependencies);
+    case "release.observe":
+      // Never reached: the handler takes the observation outside the serial executor and persists
+      // it itself (see `openDaemonCommandRuntime`). Kept exhaustive so a future dispatch here is a
+      // deliberate decision, not an accident.
+      throw new CommandHandlerError(
+        "release.observe-misrouted",
+        "release.observe is handled by the command runtime's observe path, not by executeRequest.",
+        false,
+      );
+    case "release.projection":
+      return {
+        operation: "release.projection",
+        projection: buildReleaseProjectionV1(
+          repositories.ascReleaseObservations,
+          dependencies.releaseObserver,
+          dependencies.observedAt,
+        ),
+      };
     case "studio.snapshot":
       return {
         operation: "studio.snapshot",
@@ -2055,12 +2091,88 @@ export async function openDaemonCommandRuntime(
     },
     createTimeoutSignal: (timeoutSeconds) => AbortSignal.timeout(timeoutSeconds * 1_000),
   };
+  const releaseObserver = options.releaseObserver ?? INERT_RELEASE_OBSERVER_PORT;
   const serial = new SerialExecutor();
   let closed = false;
+
+  /**
+   * `release.observe`: the one command whose work is a live provider read. The read runs OUTSIDE
+   * the serial executor (Apple's answer can take seconds and must not stall every other command);
+   * the ledger check before it and the persist + journal after it run inside, so idempotency and
+   * durability are exactly the same as every other durable command. The observation ID is derived
+   * from the command ID, so a concurrent duplicate that loses the race finds its own observation
+   * already recorded (same digest → `inserted: false`) or its own ledger entry.
+   */
+  const observeRelease = async (
+    request: Extract<CommandRequestV1, { operation: "release.observe" }>,
+  ): Promise<CommandResultV1> => {
+    const original = await serial.run(async () => {
+      if (closed) throw closedError();
+      const entry = await readLedgerEntry(paths, request.commandId);
+      if (entry !== null) assertMatchingRequest(entry.request, request);
+      return entry;
+    });
+    if (original !== null) return original.result;
+    const observedAt = IsoInstantSchema.parse(now());
+    assertPlausibleClientTimestamps(request, observedAt);
+    const observationId = AscReleaseObservationIdSchema.parse(
+      idFactory("asc-release-observation", request.commandId),
+    );
+    let observation: AscReleaseObservationV1;
+    try {
+      observation = await releaseObserver.observe({
+        observationId,
+        observedAt,
+        buildsLimit: request.payload.buildsLimit,
+        signal: AbortSignal.timeout(10 * 60 * 1_000),
+      });
+    } catch (error) {
+      if (error instanceof ReleaseObserverNotConfiguredError) {
+        throw new CommandHandlerError("release.observer-not-configured", error.message, false);
+      }
+      throw new CommandHandlerError(
+        "release.observe-failed",
+        `App Store Connect observation failed before any result could be recorded: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        true,
+      );
+    }
+    return await serial.run(async () => {
+      if (closed) throw closedError();
+      const raced = await readLedgerEntry(paths, request.commandId);
+      if (raced !== null) {
+        assertMatchingRequest(raced.request, request);
+        return raced.result;
+      }
+      const recorded = repositories.ascReleaseObservations.record(observation);
+      const result = CommandResultV1Schema.parse({
+        operation: "release.observe",
+        observation: recorded.observation,
+      });
+      try {
+        await options.commandResultLedgerBoundary?.({ request, result });
+        const persisted = await persistLedgerEntry(paths, {
+          ledgerVersion: RESULT_LEDGER_VERSION,
+          request,
+          result,
+        });
+        assertMatchingRequest(persisted.request, request);
+        return persisted.result;
+      } catch {
+        throw new CommandHandlerError(
+          "command.result-persistence-ambiguous",
+          "The command may have completed, but its durable result could not be confirmed. Retry with the same command ID and issuedAt.",
+          true,
+        );
+      }
+    });
+  };
 
   const handler: CommandHandler = async (requestInput: CommandRequestV1) => {
     if (closed) throw closedError();
     const request = CommandRequestV1Schema.parse(requestInput);
+    if (request.operation === "release.observe") return await observeRelease(request);
     return await serial.run(async () => {
       if (closed) throw closedError();
       const persistResult = DURABLE_COMMAND_RESULT_OPERATIONS.has(request.operation);
@@ -2096,6 +2208,7 @@ export async function openDaemonCommandRuntime(
           phaseRunCommands,
           projectRegistryGitWorkspace,
           gitRuntimeRoot,
+          releaseObserver,
         }),
       );
       // A human post is the moderator's cue; the wake happens after the

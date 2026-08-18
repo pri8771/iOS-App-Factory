@@ -8,6 +8,7 @@ import SwiftUI
 //   ├ TIMELINE (centrepiece)                              ┬ RETICLE           ┤
 //   │                                                     │ AWAITING YOU      │
 //   ├ six phase rings ────────────────────────────────────┴───────────────────┤
+//   ├ release rail (App Store Connect projection, Phase 6 step B) ────────────┤
 //
 // It is a pure function of a `DashboardSnapshot` (plus per-operation errors) so it previews and
 // snapshots without a store.
@@ -21,16 +22,23 @@ public struct DashboardScreen: View {
     /// "Seed new project" — the from-scratch entry point into the Planner (`project.seed` then
     /// `plan.propose`). `nil` when the shell has no daemon-backed planner to hand off to yet.
     public var onNewProject: (() -> Void)?
+    /// The release rail (`release.projection`). `nil` omits the panel entirely (offline previews and
+    /// the phase-1 fixture dashboard); a state with no projection renders the honest empty rail.
+    public var release: ReleaseRailState?
+    public var onObserveRelease: (() -> Void)?
 
     public init(snapshot: DashboardSnapshot, errors: [String: String] = [:], timelineNote: String? = nil,
                 selectedSlug: String? = nil, onSelectProject: ((String) -> Void)? = nil,
-                onNewProject: (() -> Void)? = nil) {
+                onNewProject: (() -> Void)? = nil, release: ReleaseRailState? = nil,
+                onObserveRelease: (() -> Void)? = nil) {
         self.snapshot = snapshot
         self.errors = errors
         self.timelineNote = timelineNote
         self.selectedSlug = selectedSlug
         self.onSelectProject = onSelectProject
         self.onNewProject = onNewProject
+        self.release = release
+        self.onObserveRelease = onObserveRelease
     }
 
     public var body: some View {
@@ -53,6 +61,7 @@ public struct DashboardScreen: View {
                     .frame(width: 300)
                 }
                 rings
+                if let release { releaseRail(release) }
                 if !errors.isEmpty { errorStrip }
             }
             .padding(HUDTheme.space.l)
@@ -96,6 +105,11 @@ public struct DashboardScreen: View {
     private var rings: some View {
         PhaseRingsRow(projects: snapshot.projects, selectedSlug: selectedSlug, onSelect: onSelectProject)
             .hudPanel("projects", padding: HUDTheme.space.s)
+    }
+
+    private func releaseRail(_ state: ReleaseRailState) -> some View {
+        ReleaseRailView(state: state, onObserve: onObserveRelease)
+            .hudPanel("release rail · app store connect", padding: HUDTheme.space.s)
     }
 
     private var errorStrip: some View {

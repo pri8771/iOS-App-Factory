@@ -24,6 +24,7 @@ export * from "./project.js";
 export * from "./project-docs-snapshot.js";
 export * from "./project-plan.js";
 export * from "./project-registry.js";
+export * from "./release-observation.js";
 export * from "./release.js";
 export * from "./room.js";
 export * from "./run-record.js";
