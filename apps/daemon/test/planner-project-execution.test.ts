@@ -182,7 +182,13 @@ describe("planner execution", () => {
       expect(plan.executable).toBe("/bin/sh");
       expect(plan.args[1]).toContain('"/opt/homebrew/bin/xcodegen" generate');
       expect(plan.args[1]).toContain('-scheme "SampleApp"');
-      expect(plan.args[1]).toContain("{verificationScratch}/derived-data");
+      // The scratch token appears exactly once per argument (materializeVerificationArgs' bound).
+      expect(plan.args[1]?.split("{verificationScratch}").length).toBe(2);
+      expect(plan.args[1]).toContain("S={verificationScratch}; ");
+      expect(plan.args[1]).toContain('-derivedDataPath "$S/derived-data"');
+      // Generated OUTSIDE the read-only checkout and built from there.
+      expect(plan.args[1]).toContain('--project "$S/gen"');
+      expect(plan.args[1]).toContain('-project "$S/gen/SampleApp.xcodeproj"');
       expect(plan.environment.PATH).toBe("/usr/bin:/bin:/opt/homebrew/bin");
     }
     expect(plans[1]?.args[1]).toContain(

@@ -155,13 +155,17 @@ const BUILD_TEMPLATES_V1: readonly BuildTemplateV1[] = [
   {
     key: "seed-repo",
     title: "Seed repository scaffold",
+    // `project.seed` already created project.yml, the CI workflow, and the first test before this
+    // plan existed, and both project.yml (build) and .github/workflows (CI) are protected Factory
+    // paths no agent may edit -- so this item's writable scope is the test target only: confirm
+    // the scaffold and leave (or add) one passing unit test.
     objective:
-      "Create the XcodeGen project, CI workflow, and one passing test -- the from-scratch entry point (project.seed).",
+      "Confirm the seeded XcodeGen scaffold (project.yml, CI workflow, app + unit-test targets, created by project.seed and protected) and make sure one unit test exists and passes.",
     acceptanceStatements: [
-      "The repository has an XcodeGen project.yml with an app target and a unit test target.",
-      "CI runs and one test passes.",
+      "The repository has an XcodeGen project.yml with an app target and a unit test target (unchanged).",
+      "One unit test exists under Tests and passes.",
     ],
-    scopePaths: ["project.yml", ".github/workflows", "Tests"],
+    scopePaths: ["Tests"],
   },
   {
     key: "domain-model",

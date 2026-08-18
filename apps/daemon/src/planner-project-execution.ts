@@ -11,7 +11,10 @@ import {
   type Sha256Digest,
   type TaskSpecV1,
 } from "@app-factory/contracts";
-import { VERIFICATION_SCRATCH_TOKEN } from "@app-factory/execution-engine";
+import {
+  VERIFICATION_SCRATCH_TOKEN,
+  assertVerificationArgsTemplate,
+} from "@app-factory/execution-engine";
 import { GitWorkspaceError, type GitWorkspaceManager } from "@app-factory/git-workspace";
 import type { ProjectPlanRepository, ProjectRegistryRepository } from "@app-factory/kernel";
 
@@ -83,6 +86,11 @@ export type PlannerVerificationConfigV1 = Readonly<{
   simulatorDestination: string;
   /** PATH the trusted verifier hands the toolchain; must contain the executables' directories. */
   path: string;
+  /**
+   * The USER name the verification environment carries (XcodeGen/Foundation refuse to run without
+   * one). Defaults to the daemon process's own user at config load; stated in every plan explicitly.
+   */
+  user: string;
   toolVersions: readonly Readonly<{ name: string; version: string }>[];
   buildTimeoutMs: number;
   testTimeoutMs: number;
@@ -159,7 +167,7 @@ function parseVerification(value: unknown): PlannerVerificationConfigV1 {
       "toolVersions",
     ],
     `${CONFIG_LABEL}: verification has an unsupported or non-exact shape.`,
-    ["path", "buildTimeoutMs", "testTimeoutMs"],
+    ["path", "user", "buildTimeoutMs", "testTimeoutMs"],
   );
   if (value.profile !== "ios-xcodegen-v1") {
     configurationError(`${CONFIG_LABEL}: verification.profile must be "ios-xcodegen-v1".`);
@@ -191,8 +199,18 @@ function parseVerification(value: unknown): PlannerVerificationConfigV1 {
     value.path === undefined
       ? "/usr/bin:/bin:/opt/homebrew/bin"
       : boundedString(value.path, "verification.path", 4_096);
+  const user =
+    value.user === undefined
+      ? (process.env.USER ?? process.env.LOGNAME ?? "")
+      : boundedString(value.user, "verification.user", 64);
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(user)) {
+    configurationError(
+      `${CONFIG_LABEL}: verification.user must be a portable user name (set it explicitly; the daemon's USER/LOGNAME is unset or unusable).`,
+    );
+  }
   return {
     profile: "ios-xcodegen-v1",
+    user,
     xcodegenExecutable: absolutePath(value.xcodegenExecutable, "verification.xcodegenExecutable"),
     xcodebuildExecutable: absolutePath(
       value.xcodebuildExecutable,
@@ -381,6 +399,7 @@ export function iosXcodegenVerificationPlansV1(
       LC_ALL: "C",
       PATH: verification.path,
       TZ: "UTC",
+      USER: verification.user,
     },
     protectedFiles: {},
     terminationGraceMs: 10_000,
@@ -388,26 +407,38 @@ export function iosXcodegenVerificationPlansV1(
     maxStderrBytes: 32 * 1024 * 1024,
     toolVersions: verification.toolVersions.map((tool) => ({ ...tool })),
   } as const;
-  const scratch = VERIFICATION_SCRATCH_TOKEN;
-  const generate = `"${verification.xcodegenExecutable}" generate --quiet`;
-  const build = `"${verification.xcodebuildExecutable}" build -scheme "${moduleName}" -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES -derivedDataPath "${scratch}/derived-data"`;
-  const test = `"${verification.xcodebuildExecutable}" test -scheme "${moduleName}" -destination "${verification.simulatorDestination}" CODE_SIGNING_ALLOWED=NO -derivedDataPath "${scratch}/derived-data" -resultBundlePath "${scratch}/result.xcresult"`;
-  return [
+  // The scratch token may appear at most ONCE per argument (`materializeVerificationArgs`), so
+  // each script binds it to a shell variable first and derives every path from that.
+  // The trusted verification checkout is READ-ONLY (a fresh, detached checkout of the candidate
+  // tree), so the .xcodeproj is generated INTO the scratch directory (`--project`) and xcodebuild is
+  // pointed at it (`-project`); the checkout is never written to and stays clean by construction.
+  // The scratch token may appear at most ONCE per argument (`materializeVerificationArgs`), so
+  // each script binds it to a shell variable first and derives every path from that.
+  const bind = `S=${VERIFICATION_SCRATCH_TOKEN}; mkdir -p "$S/gen" "$S/derived-data"`;
+  const generate = `"${verification.xcodegenExecutable}" generate --quiet --spec project.yml --project "$S/gen"`;
+  const project = `-project "$S/gen/${moduleName}.xcodeproj"`;
+  const build = `"${verification.xcodebuildExecutable}" build ${project} -scheme "${moduleName}" -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES -derivedDataPath "$S/derived-data"`;
+  const test = `"${verification.xcodebuildExecutable}" test ${project} -scheme "${moduleName}" -destination "${verification.simulatorDestination}" CODE_SIGNING_ALLOWED=NO -derivedDataPath "$S/derived-data" -resultBundlePath "$S/result.xcresult"`;
+  const plans = [
     {
       ...shared,
       checkId: "build.xcodegen-app",
       executable: "/bin/sh",
-      args: ["-c", `set -e; ${generate}; ${build}`],
+      args: ["-c", `set -e; ${bind}; ${generate}; ${build}`],
       timeoutMs: verification.buildTimeoutMs,
     },
     {
       ...shared,
       checkId: "test.xcodegen-unit",
       executable: "/bin/sh",
-      args: ["-c", `set -e; ${generate}; ${test}`],
+      args: ["-c", `set -e; ${bind}; ${generate}; ${test}`],
       timeoutMs: verification.testTimeoutMs,
     },
   ];
+  // Fail at composition time, not at the first attempt, if a template ever violates the
+  // coordinator's one-token-per-argument rule.
+  for (const plan of plans) assertVerificationArgsTemplate(plan.args);
+  return plans;
 }
 
 /** `name:` from the project's own `project.yml` at a commit, read from the sealed mirror. */
@@ -453,7 +484,20 @@ export function createPlannerFixtureAgent(): LocalAgentAdapter {
       const stamp = shortDigest(context.spec.taskSpecDigest);
       const title = context.spec.instruction.split("\n")[0]?.slice(0, 120) ?? "planner task";
       let target: string | null = null;
-      for (const authorized of context.spec.authorizedWritePaths) {
+      // Prefer the paths a coding agent may actually change (Sources, Tests, docs), and never a
+      // dot-directory: `.github/workflows` is a protected CI path the Factory refuses on sight.
+      const rank = (path: string): number =>
+        path === "Sources" || path.startsWith("Sources/")
+          ? 0
+          : path === "Tests" || path.startsWith("Tests/")
+            ? 1
+            : path === "docs" || path.startsWith("docs/")
+              ? 2
+              : 3;
+      const candidates = [...context.spec.authorizedWritePaths]
+        .filter((path) => !path.split("/").some((segment) => segment.startsWith(".")))
+        .sort((left, right) => rank(left) - rank(right));
+      for (const authorized of candidates) {
         const candidate = join(root, authorized);
         if (!existsSync(candidate) || !statSync(candidate).isDirectory()) continue;
         if (authorized === "Sources" || authorized.startsWith("Sources/")) {

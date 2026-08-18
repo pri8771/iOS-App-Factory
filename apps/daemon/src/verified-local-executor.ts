@@ -2338,6 +2338,10 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
         /(?:protected|tests and test baselines|policy and agent rules|CI configuration|quality thresholds|signing and release|trust-boundary)/iu.test(
           error.message,
         );
+      // The wire keeps its fixed, generic summary; the underlying reason lands in a private
+      // diagnostics file under the runtime (0600), never on the wire and never in evidence -- so an
+      // operator can read WHY "failed closed before completion" without weakening the boundary.
+      this.#recordFailureDiagnostic(context, error);
       return {
         kind: "failed",
         failure: {
@@ -2350,6 +2354,31 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
           retryable: false,
         },
       };
+    }
+  }
+
+  #recordFailureDiagnostic(context: SchedulerExecutionContext, error: unknown): void {
+    try {
+      const directory = ensurePrivateDirectory(
+        safeChild(dirname(this.#paths.agentResultRoot), "failure-diagnostics"),
+      );
+      const attemptId = AttemptIdSchema.parse(context.attemptId);
+      const path = safeChild(directory, `${attemptId}.txt`);
+      const detail =
+        error instanceof Error
+          ? `${error.name}: ${error.message}\n${error.stack ?? ""}${
+              error.cause instanceof Error
+                ? `\ncause: ${error.cause.name}: ${error.cause.message}`
+                : ""
+            }`
+          : String(error);
+      writeFileSync(
+        path,
+        `attempt ${attemptId} step ${context.step.key} fence ${String(context.fence)} at ${this.#now().toISOString()}\n${detail}\n`,
+        { mode: 0o600, flag: "a" },
+      );
+    } catch {
+      // Diagnostics are best-effort; the classified failure above is the authoritative outcome.
     }
   }
 
