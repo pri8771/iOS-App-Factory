@@ -26,6 +26,10 @@ const SAFE_ENVIRONMENT_NAMES = new Set([
   "SWIFT_DETERMINISTIC_HASHING",
   "TMPDIR",
   "TZ",
+  // Foundation-based tools (XcodeGen among them) refuse to start without a current username
+  // ("Couldn't find current username") because HOME is redirected into the scratch directory;
+  // USER is a non-secret name the plan states explicitly, never inherited from the daemon.
+  "USER",
 ]);
 const MAX_ARGUMENTS = 64;
 const MAX_ARGUMENT_BYTES = 64 * 1024;

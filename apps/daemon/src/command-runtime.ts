@@ -30,6 +30,7 @@ import {
   type AssistantIntentExecutionOutcomeV1,
   type AscReleaseObservationV1,
   type AttemptId,
+  type Sha256Digest,
   type CommandId,
   type CommandRequestV1,
   type CommandResultV1,
@@ -381,6 +382,15 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * `release.observer-not-configured`; `release.projection` still serves persisted observations.
    */
   releaseObserver?: ReleaseObserverPort;
+  /**
+   * The reviewed policy digest `plan.execute`/`plan.tick` stamp on every task they submit when no
+   * explicit `planExecution` is supplied. Planner execution (`planner-project-execution.ts`) sets it
+   * to the digest of the exact policy bytes its resolver hands the executor, so plan-submitted
+   * tasks and the executor's `policy.digest-mismatch` check bind to the same text. Without it the
+   * default stays the all-zeros placeholder (plan tasks then cannot run under a real profile, which
+   * is the honest pre-planner-execution state).
+   */
+  planPolicyDigest?: Sha256Digest;
 }>;
 
 export type DaemonRuntimePaths = Readonly<{
@@ -2031,7 +2041,7 @@ export async function openDaemonCommandRuntime(
       gitRuntimeRoot,
       ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
     }),
-    policyDigest: Sha256DigestSchema.parse(`sha256:${"0".repeat(64)}`),
+    policyDigest: options.planPolicyDigest ?? Sha256DigestSchema.parse(`sha256:${"0".repeat(64)}`),
   };
   const phaseGitPortOptions = {
     gitRuntimeRoot,

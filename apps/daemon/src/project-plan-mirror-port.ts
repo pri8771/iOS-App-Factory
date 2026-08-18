@@ -9,7 +9,6 @@ import {
   type BrokerCommitRecord,
   type FactoryMirror,
   type GitWorkspaceManager,
-  type ImmutableMirrorBinding,
   type ImmutableMirrorBindingTip,
 } from "@app-factory/git-workspace";
 import type { ProjectRegistryRepository } from "@app-factory/kernel";
@@ -61,24 +60,19 @@ export function createUnconfiguredProjectPlanMirrorPortV1(): ProjectPlanMirrorPo
 
 /**
  * A real, git-workspace-backed mirror port. Each repository's binding tip is cached in daemon
- * process memory, seeded from `resolveRootBinding` on first use and advanced in place by
- * `GitWorkspaceManager.advanceImmutableMirrorBase` -- the exact primitive
- * `packages/git-workspace/test/base-advance.test.ts` exercises -- every time a task item's attempt
- * succeeds.
- *
- * v1 scope, documented rather than hidden: the tip lives only in this daemon process's memory
- * (mirroring `createRunExportMirrorPort`'s own per-process `GitWorkspaceManager` cache in
- * `run-export-command-runtime.ts`), so a daemon restart mid-plan re-seeds from `resolveRootBinding`
- * rather than resuming from the last advance. That is safe, not silently wrong:
- * `advanceImmutableMirrorBase` itself fails closed (`"does not match this mirror's actual binding
- * chain"`) rather than forking the chain if the binding a caller supplies is stale. A durable,
- * restart-resumable tip (or a full multi-project mirror registry) is future work, out of this
- * task's scope.
+ * process memory, seeded from `resolveBindingTip` on first use -- the mirror's REAL current base,
+ * `GitWorkspaceManager.readImmutableMirrorBindingTip` (the sealed root binding when nothing has
+ * advanced, else the validated advance chain's last link) -- and advanced in place by
+ * `GitWorkspaceManager.advanceImmutableMirrorBase` (the exact primitive
+ * `packages/git-workspace/test/base-advance.test.ts` exercises) every time a task item's attempt
+ * succeeds. Because the seed is the on-disk tip, a daemon restarted mid-plan resumes from the last
+ * advance instead of a stale root (the v1 gap this port used to document); the durable chain on the
+ * mirror is the source of truth and this cache is only a hot copy of it.
  */
 export function createGitWorkspaceProjectPlanMirrorPortV1(options: {
   gitWorkspace: GitWorkspaceManager;
   resolveMirror: (repositoryId: RepositoryId) => FactoryMirror;
-  resolveRootBinding: (repositoryId: RepositoryId) => ImmutableMirrorBinding;
+  resolveBindingTip: (repositoryId: RepositoryId) => ImmutableMirrorBindingTip;
 }): ProjectPlanMirrorPort {
   const tips = new Map<RepositoryId, ImmutableMirrorBindingTip>();
 
@@ -86,9 +80,9 @@ export function createGitWorkspaceProjectPlanMirrorPortV1(options: {
     const repositoryId = RepositoryIdSchema.parse(repositoryIdInput);
     const existing = tips.get(repositoryId);
     if (existing !== undefined) return existing;
-    const root = options.resolveRootBinding(repositoryId);
-    tips.set(repositoryId, root);
-    return root;
+    const tip = options.resolveBindingTip(repositoryId);
+    tips.set(repositoryId, tip);
+    return tip;
   }
 
   return {
@@ -121,7 +115,7 @@ export function createGitWorkspaceProjectPlanMirrorPortV1(options: {
 
 /**
  * The production composition Seam (b) of the project-registry task wires in: identical to
- * {@link createGitWorkspaceProjectPlanMirrorPortV1} except `resolveMirror`/`resolveRootBinding` are
+ * {@link createGitWorkspaceProjectPlanMirrorPortV1} except `resolveMirror`/`resolveBindingTip` are
  * generated from the Project Registry (`ProjectRegistryRepository`) instead of being supplied ad
  * hoc by the caller. A plan's target `repositoryId` must be a registered project's own mirror
  * binding ref (`ProjectRegistryRepository.findByRepositoryId`) before its mirror is ever touched —
@@ -153,7 +147,7 @@ export function createRegistryBackedProjectPlanMirrorPortV1(options: {
   return createGitWorkspaceProjectPlanMirrorPortV1({
     gitWorkspace: options.gitWorkspace,
     resolveMirror: requireRegisteredMirror,
-    resolveRootBinding: (repositoryId) =>
-      options.gitWorkspace.readSealedRootBinding(requireRegisteredMirror(repositoryId)),
+    resolveBindingTip: (repositoryId) =>
+      options.gitWorkspace.readImmutableMirrorBindingTip(requireRegisteredMirror(repositoryId)),
   });
 }

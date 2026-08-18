@@ -223,6 +223,20 @@ recorded honestly and this pass closed:
   `project.register` itself enforces) and returns
   `{registered, projectId, repositoryId, slug}`; `SeedProjectSheet` proposes
   the plan with the real IDs whenever `registered` is `true`.
+- **Planner execution (2026-08-18,
+  [`docs/operations/planner-execution.md`](../operations/planner-execution.md))**: until this
+  pass nothing after `plan.execute` could actually run — the verified executor's project set was
+  static (one repository / one pinned base / one pinned task from
+  `APP_FACTORY_LOCAL_EXECUTION_CONFIG`), so a seeded project blocked `project.not-enrolled`, item
+  #2 blocked `project.base-not-enrolled`, and plan tasks carried an all-zeros `policyDigest`.
+  Now `APP_FACTORY_PLANNER_EXECUTION_CONFIG` resolves any registered project from the Project
+  Registry + the mirror's binding tip, admits exactly the task items of owner-approved plans,
+  binds them to one deterministic reviewed policy, verifies with `ios-xcodegen-v1`, and runs the
+  real Codex CLI (`planner-codex-v1`, attestation-gated) or a scripted fixture agent. Rehearsed
+  live the same day: a `project.seed`ed throwaway app's plan ran through all 11 items and both
+  human gates to `complete` with the real xcodegen + xcodebuild + simulator verification
+  (RUN_LEDGER, two exported records). Not yet: a real-model (`planner-codex-v1`) run — the owner
+  starts that one.
 - Live proof recorded in the `studio/project-registry` merge commit message
   (`d757bea`, this repository's own history): a dedicated Hindsight scratch
   clone (never the real checkout) was registered via `project.register`,

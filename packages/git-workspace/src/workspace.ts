@@ -2278,6 +2278,24 @@ export class GitWorkspaceManager {
     return this.#readSealedRootBinding(mirror);
   }
 
+  /**
+   * The mirror's CURRENT allowed base: the sealed root binding when no advance has ever been
+   * recorded, otherwise the latest link of the on-disk advance chain -- validated end to end (each
+   * link chains from the exact digest of its predecessor, carries the root's immutable identity,
+   * and occupies a contiguous index) exactly as `advanceImmutableMirrorBase` validates it before
+   * appending. Read-only. This is what a durable, restart-safe consumer (the project-plan mirror
+   * port, the planner-execution project resolver) seeds from instead of the root binding, so a
+   * daemon restarted mid-plan resumes from the real tip rather than re-deriving a stale one.
+   */
+  readImmutableMirrorBindingTip(mirrorInput: FactoryMirror): ImmutableMirrorBindingTip {
+    const mirror = this.#validateMirror(mirrorInput);
+    const root = this.#readSealedRootBinding(mirror);
+    const chain = this.#readImmutableMirrorAdvanceChain(mirror, root);
+    const tip = chain[chain.length - 1];
+    if (tip === undefined) throw new GitWorkspaceError("Immutable mirror binding chain is empty");
+    return tip;
+  }
+
   createTrustedVerificationCheckout(
     mirror: FactoryMirror,
     attemptRecord: FactoryWorkspaceRecord,

@@ -146,7 +146,7 @@ function parseConfiguredAgentLimits(value: unknown): AgentRunLimitsV1 {
  * with the same optional, config-driven {@link parseConfiguredAgentLimits}
  * override surface.
  */
-type CodexAgentIdentityFieldsV1 = Readonly<{
+export type CodexAgentIdentityFieldsV1 = Readonly<{
   executable: string;
   executableDigest: Sha256Digest;
   expectedCliVersion: string;
@@ -342,7 +342,7 @@ function canonicalUtf8(bytes: Buffer, label: string): string {
   return decoded;
 }
 
-function parseConfigurationObject(bytes: Buffer): Readonly<Record<string, unknown>> {
+export function parseConfigurationObject(bytes: Buffer): Readonly<Record<string, unknown>> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(canonicalUtf8(bytes, "The local execution profile")) as unknown;
@@ -361,7 +361,7 @@ function parseConfigurationObject(bytes: Buffer): Readonly<Record<string, unknow
  * `expected` plus `optional`. `optional` keys (e.g. `agentLimits`) may be
  * omitted entirely -- unlike `expected` keys, their absence is not an error.
  */
-function exactKeys(
+export function exactKeys(
   record: Readonly<Record<string, unknown>>,
   expected: readonly string[],
   message = "The local execution profile has an unsupported or non-exact shape.",
@@ -616,7 +616,7 @@ function verifySiblingExecutables(pins: readonly SiblingExecutablePinV1[]): void
   for (const pin of pins) verifySiblingExecutable(pin);
 }
 
-function parseCodexAgentIdentityFields(
+export function parseCodexAgentIdentityFields(
   record: Readonly<Record<string, unknown>>,
 ): CodexAgentIdentityFieldsV1 {
   const executableDigest = Sha256DigestSchema.safeParse(record.executableDigest);
@@ -756,7 +756,7 @@ function ensureExactOutputSchema(path: string): void {
   }
 }
 
-type BuiltCodexAgentFieldsV1 = Readonly<{
+export type BuiltCodexAgentFieldsV1 = Readonly<{
   agent: CodexLocalAgent;
   environmentAllowlist: typeof CODEX_PROFILE_ENVIRONMENT_NAMES;
   requireAgentProtocolEvidence: true;
@@ -773,7 +773,7 @@ type BuiltCodexAgentFieldsV1 = Readonly<{
  * the agent construction itself never varies by mode -- only where the
  * surrounding project data comes from does.
  */
-async function buildCodexAgentForProject(
+export async function buildCodexAgentForProject(
   profile: CodexAgentIdentityFieldsV1,
   sourceRepositoryPath: string,
   normalizedRuntime: string,

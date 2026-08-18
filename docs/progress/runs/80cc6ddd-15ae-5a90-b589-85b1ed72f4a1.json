@@ -1,0 +1,100 @@
+{
+  "recordDigest": "sha256:a480ab2bde789f7eb39dd7967ed847059657f6c2c59f9173ae3c2980ebef3a86",
+  "record": {
+    "schemaVersion": 1,
+    "attemptId": "80cc6ddd-15ae-5a90-b589-85b1ed72f4a1",
+    "taskId": "8dec38bb-6351-5270-9df3-8e4de09644c3",
+    "attemptNumber": 1,
+    "state": "succeeded",
+    "implementingRunId": "5591c1ef-2acf-5484-ad14-93c832572231",
+    "repositoryId": "91abf9b9-ae78-4dba-bf97-93bc0dd8f254",
+    "taskSpecDigest": "sha256:bb679d015d62b6fac1af02d6982cc6fab2e86719b79dbd6f1cb79e6a1ff0525b",
+    "policyDigest": "sha256:c1c1a8c974f29711291f42d67d07605665161daa2cc3349c449248eb4daf0cce",
+    "baseCommit": "09b6872703a4a91253efd220c555affeab68219c",
+    "candidateTree": "45f59da4b2482b3e9a702f6fcb83961dcb0467fe",
+    "fence": 1,
+    "brokerCommit": {
+      "commit": "ad399a5f8d617f745ff9ce60e07175e7a55e214b",
+      "tree": "45f59da4b2482b3e9a702f6fcb83961dcb0467fe",
+      "commitDigest": "sha256:b1d9be9d9df4922be2b261b40429678f5467d4fc65836295c44e6c05a3735093",
+      "attemptMarker": "80cc6ddd-15ae-5a90-b589-85b1ed72f4a1"
+    },
+    "verification": [
+      {
+        "checkId": "build.xcodegen-app",
+        "argv": [
+          "/bin/sh",
+          "-c",
+          "set -e; S=/private/tmp/af-reh/runtime/local-execution/git/verification-scratch/80cc6ddd-15ae-5a90-b589-85b1ed72f4a1/fence-1/build.xcodegen-app-43c04b1e-a609-4f4b-9047-84fc79d10f0e; mkdir -p \"$S/gen\" \"$S/derived-data\"; \"/opt/homebrew/bin/xcodegen\" generate --quiet --spec project.yml --project \"$S/gen\"; \"/usr/bin/xcodebuild\" build -project \"$S/gen/RehearsalApp.xcodeproj\" -scheme \"RehearsalApp\" -destination \"generic/platform=iOS Simulator\" CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES -derivedDataPath \"$S/derived-data\""
+        ],
+        "checkoutTree": "45f59da4b2482b3e9a702f6fcb83961dcb0467fe",
+        "startedAt": "2026-08-18T20:07:53.889Z",
+        "finishedAt": "2026-08-18T20:07:58.388Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          },
+          {
+            "name": "xcodegen",
+            "version": "2.45.4"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      },
+      {
+        "checkId": "test.xcodegen-unit",
+        "argv": [
+          "/bin/sh",
+          "-c",
+          "set -e; S=/private/tmp/af-reh/runtime/local-execution/git/verification-scratch/80cc6ddd-15ae-5a90-b589-85b1ed72f4a1/fence-1/test.xcodegen-unit-43c04b1e-a609-4f4b-9047-84fc79d10f0e; mkdir -p \"$S/gen\" \"$S/derived-data\"; \"/opt/homebrew/bin/xcodegen\" generate --quiet --spec project.yml --project \"$S/gen\"; \"/usr/bin/xcodebuild\" test -project \"$S/gen/RehearsalApp.xcodeproj\" -scheme \"RehearsalApp\" -destination \"platform=iOS Simulator,name=iPhone 17 Pro,OS=latest\" CODE_SIGNING_ALLOWED=NO -derivedDataPath \"$S/derived-data\" -resultBundlePath \"$S/result.xcresult\""
+        ],
+        "checkoutTree": "45f59da4b2482b3e9a702f6fcb83961dcb0467fe",
+        "startedAt": "2026-08-18T20:07:58.462Z",
+        "finishedAt": "2026-08-18T20:08:14.097Z",
+        "toolVersions": [
+          {
+            "name": "xcodebuild",
+            "version": "26.6"
+          },
+          {
+            "name": "xcodegen",
+            "version": "2.45.4"
+          }
+        ],
+        "passed": true,
+        "exitCode": 0
+      }
+    ],
+    "review": {
+      "reviewerId": "planner.generic-review",
+      "reviewerVersion": "v1",
+      "reviewerRunId": "49a3e95d-bcd4-5889-a56b-7ac2c69fae02",
+      "verdict": "pass",
+      "findingCount": 0,
+      "reviewInputDigest": "sha256:86f38137071efc3fd56cfb989faf7c2f5f35aa406eaf97fc2b545025cfca6b61"
+    },
+    "evidence": {
+      "manifestDigest": "sha256:e59e0a14a039579b33ef02a2314a8a71f4683bde75aba368609f1d29c59117f0",
+      "indexDigest": "sha256:98eb9ccb896a82a359898eb9a8bb2ed6234775aacd88ea3d56a7d53d5d9df5a2",
+      "entryCount": 5,
+      "artifactCount": 20
+    },
+    "agent": {
+      "adapterId": "planner.fixture-agent",
+      "adapterVersion": null,
+      "cliVersion": null,
+      "model": null,
+      "executableDigest": null,
+      "usage": null
+    },
+    "timings": {
+      "attemptCreatedAt": "2026-08-18T20:07:52.622Z",
+      "attemptTerminalAt": "2026-08-18T20:08:14.636Z",
+      "agentStartedAt": "2026-08-18T20:07:53.200Z",
+      "agentFinishedAt": "2026-08-18T20:07:53.201Z",
+      "evidenceCreatedAt": "2026-08-18T20:07:53.725Z"
+    }
+  }
+}
