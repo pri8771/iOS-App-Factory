@@ -3641,7 +3641,7 @@
       "items": {
         "$ref": "#/$defs/__schema230"
       },
-      "maxItems": 3,
+      "maxItems": 8,
       "type": "array"
     },
     "__schema23": {
@@ -3672,7 +3672,8 @@
           "enum": [
             "codex",
             "claude",
-            "ollama"
+            "ollama",
+            "openrouter"
           ],
           "type": "string"
         }

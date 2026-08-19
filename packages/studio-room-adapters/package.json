@@ -18,11 +18,15 @@
     "test": "vitest run test"
   },
   "dependencies": {
+    "@app-factory/adapter-sdk": "workspace:*",
     "@app-factory/agent-runner": "workspace:*",
     "@app-factory/contracts": "workspace:*",
+    "@app-factory/credential-broker": "workspace:*",
     "@app-factory/kernel": "workspace:*",
     "@app-factory/ollama-scorer": "workspace:*",
     "@app-factory/process-supervisor": "workspace:*",
+    "@app-factory/provider-http-adapters": "workspace:*",
+    "@app-factory/provider-transport": "workspace:*",
     "@app-factory/studio-rooms": "workspace:*",
     "better-sqlite3": "12.11.1",
     "zod": "4.4.3"

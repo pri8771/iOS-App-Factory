@@ -382,11 +382,13 @@ export type RoomCreateSpecV1 = z.infer<typeof RoomCreateSpecV1Schema>;
 
 export const MAX_ROOM_ROSTER_ENTRIES_V1 = 1_000 as const;
 export const MAX_ROOM_ROSTER_PARTICIPANTS_V1 = 64 as const;
+/** codex + claude + ollama (one each) + up to 5 named `openrouter` instances. */
+export const MAX_ROOM_CATALOG_PROVIDER_ENTRIES_V1 = 8 as const;
 /** Mirrors `@app-factory/ollama-scorer`'s `ROOM_CHARTER_MAX_CHARS` (contracts cannot import it). */
 export const MAX_ROOM_ROSTER_CHARTER_LENGTH_V1 = 2_000 as const;
 
-/** The three providers `RoomParticipantsConfigV1` can configure an adapter for. */
-export const RoomCatalogProviderV1Schema = z.enum(["codex", "claude", "ollama"]);
+/** The providers `RoomParticipantsConfigV1` can configure an adapter for. */
+export const RoomCatalogProviderV1Schema = z.enum(["codex", "claude", "ollama", "openrouter"]);
 export type RoomCatalogProviderV1 = z.infer<typeof RoomCatalogProviderV1Schema>;
 
 export const RoomCatalogProviderEntryV1Schema = z.strictObject({
@@ -424,7 +426,7 @@ const RoomParticipantsCatalogDigestInputV1Shape = {
   enabled: z.boolean(),
   /** Present exactly when `enabled` is false: why the daemon has no participants to list. */
   unavailableReason: z.string().min(1).max(500).nullable(),
-  providers: z.array(RoomCatalogProviderEntryV1Schema).max(3),
+  providers: z.array(RoomCatalogProviderEntryV1Schema).max(MAX_ROOM_CATALOG_PROVIDER_ENTRIES_V1),
   roster: z.array(RoomRosterEntryCatalogV1Schema).max(MAX_ROOM_ROSTER_ENTRIES_V1),
 };
 

@@ -1,9 +1,12 @@
+import { parseCredentialReference, type CredentialReferenceV1 } from "@app-factory/adapter-sdk";
+import { createCredentialBroker } from "@app-factory/credential-broker";
 import {
   createFetchOllamaTransport,
   createOllamaScorer,
   DEFAULT_OLLAMA_BASE_URL,
   DEFAULT_OLLAMA_MODEL,
 } from "@app-factory/ollama-scorer";
+import { createFetchProviderHttpTransport } from "@app-factory/provider-transport";
 import {
   createAlwaysDropRevalidator,
   createClaudeParticipant,
@@ -12,8 +15,10 @@ import {
   createKernelAttemptActivityPort,
   createOllamaParticipant,
   createOllamaRoomScorer,
+  createOpenRouterParticipant,
   createRoomAdapterContributor,
   createRosterCharterProvider,
+  deriveOpenRouterBearerAuthorization,
   parseRoomRosterConfigV1,
   type ParticipantAdapter,
   type RoomRosterConfigV1,
@@ -106,11 +111,23 @@ export type RoomOllamaParticipantConfigV1 = Readonly<{
   timeoutMs?: number;
 }>;
 
+export type RoomOpenRouterParticipantConfigV1 = Readonly<{
+  /** Short slug; becomes this instance's RoomProvider key as `openrouter-<id>`. Unique within the
+   *  `openrouter` array -- rooms can be configured against several named OpenRouter instances (one
+   *  per model) simultaneously, unlike codex/claude/ollama which are each configured at most once. */
+  id: string;
+  model: string;
+  credentialReference: CredentialReferenceV1;
+  baseUrl?: string;
+  timeoutMs?: number;
+}>;
+
 export type RoomParticipantsConfigV1 = Readonly<{
   schemaVersion: 1;
   codex?: RoomCodexParticipantConfigV1;
   claude?: RoomClaudeParticipantConfigV1;
   ollama?: RoomOllamaParticipantConfigV1;
+  openrouter?: readonly RoomOpenRouterParticipantConfigV1[];
   roster?: RoomRosterConfigV1;
 }>;
 
@@ -189,11 +206,63 @@ function parseOllamaParticipantConfig(value: unknown): RoomOllamaParticipantConf
   };
 }
 
+function parseOpenRouterCredentialReference(value: unknown): CredentialReferenceV1 {
+  try {
+    return parseCredentialReference(value);
+  } catch (error) {
+    configurationError("openrouter participant credentialReference is invalid.", error);
+  }
+}
+
+function parseOneOpenRouterParticipantConfig(value: unknown): RoomOpenRouterParticipantConfigV1 {
+  if (!isRecord(value))
+    configurationError("openrouter participant configuration must be an object.");
+  allowedKeys(
+    value,
+    ["id", "model", "credentialReference", "baseUrl", "timeoutMs"],
+    "openrouter participant configuration",
+  );
+  const id = boundedString(value.id, "openrouter.id", 41);
+  if (!/^[a-z][a-z0-9-]{0,40}$/.test(id)) {
+    configurationError(
+      "openrouter.id must be lowercase letters, digits, and hyphens, starting with a letter.",
+    );
+  }
+  return {
+    id,
+    model: boundedString(value.model, "openrouter.model", 200),
+    credentialReference: parseOpenRouterCredentialReference(value.credentialReference),
+    ...(value.baseUrl === undefined
+      ? {}
+      : { baseUrl: boundedString(value.baseUrl, "openrouter.baseUrl", 256) }),
+    ...(value.timeoutMs === undefined
+      ? {}
+      : { timeoutMs: boundedTimeoutMs(value.timeoutMs, "openrouter.timeoutMs") }),
+  };
+}
+
+function parseOpenRouterParticipantsConfig(
+  value: unknown,
+): readonly RoomOpenRouterParticipantConfigV1[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 5) {
+    configurationError("openrouter must be a non-empty array of at most 5 instances.");
+  }
+  const parsed = value.map((entry) => parseOneOpenRouterParticipantConfig(entry));
+  const ids = new Set<string>();
+  for (const entry of parsed) {
+    if (ids.has(entry.id)) {
+      configurationError(`openrouter instance id "${entry.id}" is configured more than once.`);
+    }
+    ids.add(entry.id);
+  }
+  return parsed;
+}
+
 export function parseRoomParticipantsConfigV1(input: unknown): RoomParticipantsConfigV1 {
   if (!isRecord(input)) configurationError(`${PARTICIPANTS_CONFIG_LABEL} must be an object.`);
   allowedKeys(
     input,
-    ["schemaVersion", "codex", "claude", "ollama", "roster"],
+    ["schemaVersion", "codex", "claude", "ollama", "openrouter", "roster"],
     PARTICIPANTS_CONFIG_LABEL,
   );
   if (input.schemaVersion !== 1)
@@ -211,6 +280,9 @@ export function parseRoomParticipantsConfigV1(input: unknown): RoomParticipantsC
     ...(input.codex === undefined ? {} : { codex: parseCodexParticipantConfig(input.codex) }),
     ...(input.claude === undefined ? {} : { claude: parseClaudeParticipantConfig(input.claude) }),
     ...(input.ollama === undefined ? {} : { ollama: parseOllamaParticipantConfig(input.ollama) }),
+    ...(input.openrouter === undefined
+      ? {}
+      : { openrouter: parseOpenRouterParticipantsConfig(input.openrouter) }),
     ...(roster === undefined ? {} : { roster }),
   };
 }
@@ -254,6 +326,9 @@ export function buildRoomParticipantsCatalogSourceV1(
       model: config.ollama.model ?? DEFAULT_OLLAMA_MODEL,
       cliVersion: null,
     });
+  }
+  for (const instance of config.openrouter ?? []) {
+    providers.push({ provider: "openrouter", model: instance.model, cliVersion: null });
   }
   const roster = (config.roster?.rooms ?? []).map((entry) => ({
     roomId: entry.roomId,
@@ -300,6 +375,28 @@ export function buildRoomSubsystemConfiguration(
         ...(ollamaConfig.timeoutMs === undefined ? {} : { timeoutMs: ollamaConfig.timeoutMs }),
       }),
     );
+  }
+  if (config.openrouter !== undefined && config.openrouter.length > 0) {
+    // One credential broker + fetch transport shared across every configured OpenRouter instance:
+    // the broker resolves whichever `credentialReference` each request carries, so instances that
+    // happen to share one Keychain item (a single API key calling several models) need no special
+    // casing, and instances with distinct keys are equally well served.
+    const openRouterTransport = createFetchProviderHttpTransport({
+      credentials: createCredentialBroker(),
+      authorization: deriveOpenRouterBearerAuthorization,
+    });
+    for (const instance of config.openrouter) {
+      adapters.push(
+        createOpenRouterParticipant({
+          id: instance.id,
+          model: instance.model,
+          credentialReference: instance.credentialReference,
+          transport: openRouterTransport,
+          ...(instance.baseUrl === undefined ? {} : { baseUrl: instance.baseUrl }),
+          ...(instance.timeoutMs === undefined ? {} : { timeoutMs: instance.timeoutMs }),
+        }),
+      );
+    }
   }
 
   const charters = createRosterCharterProvider({
@@ -389,6 +486,23 @@ export function buildPhaseParticipantsPortV1(
       ...(ollamaConfig.timeoutMs === undefined ? {} : { timeoutMs: ollamaConfig.timeoutMs }),
     });
     adapters.set(String(adapter.provider), adapter);
+  }
+  if (config.openrouter !== undefined && config.openrouter.length > 0) {
+    const openRouterTransport = createFetchProviderHttpTransport({
+      credentials: createCredentialBroker(),
+      authorization: deriveOpenRouterBearerAuthorization,
+    });
+    for (const instance of config.openrouter) {
+      const adapter = createOpenRouterParticipant({
+        id: instance.id,
+        model: instance.model,
+        credentialReference: instance.credentialReference,
+        transport: openRouterTransport,
+        ...(instance.baseUrl === undefined ? {} : { baseUrl: instance.baseUrl }),
+        ...(instance.timeoutMs === undefined ? {} : { timeoutMs: instance.timeoutMs }),
+      });
+      adapters.set(String(adapter.provider), adapter);
+    }
   }
   return { resolve: (provider) => adapters.get(String(provider)) ?? null };
 }

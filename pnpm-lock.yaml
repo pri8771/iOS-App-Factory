@@ -442,12 +442,18 @@ importers:
 
   packages/studio-room-adapters:
     dependencies:
+      '@app-factory/adapter-sdk':
+        specifier: workspace:*
+        version: link:../adapter-sdk
       '@app-factory/agent-runner':
         specifier: workspace:*
         version: link:../agent-runner
       '@app-factory/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@app-factory/credential-broker':
+        specifier: workspace:*
+        version: link:../credential-broker
       '@app-factory/kernel':
         specifier: workspace:*
         version: link:../kernel
@@ -457,6 +463,12 @@ importers:
       '@app-factory/process-supervisor':
         specifier: workspace:*
         version: link:../process-supervisor
+      '@app-factory/provider-http-adapters':
+        specifier: workspace:*
+        version: link:../provider-http-adapters
+      '@app-factory/provider-transport':
+        specifier: workspace:*
+        version: link:../provider-transport
       '@app-factory/studio-rooms':
         specifier: workspace:*
         version: link:../studio-rooms

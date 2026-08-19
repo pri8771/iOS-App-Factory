@@ -5,6 +5,7 @@ export * from "./contributor.js";
 export * from "./failure-text.js";
 export * from "./kernel-activity.js";
 export * from "./ollama-participant.js";
+export * from "./openrouter-participant.js";
 export * from "./participant-adapter.js";
 export * from "./quota-governor.js";
 export * from "./render-context.js";
