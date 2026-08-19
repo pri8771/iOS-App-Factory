@@ -21,7 +21,9 @@ export type DaemonRuntimeIdPurpose =
   | "plan"
   | "phase-run"
   | "phase-run-room"
-  | "asc-release-observation";
+  | "asc-release-observation"
+  | "signal"
+  | "signal-insight";
 
 export type DaemonRuntimeIdFactory = (
   purpose: DaemonRuntimeIdPurpose,

@@ -28,6 +28,7 @@ export * from "./release-observation.js";
 export * from "./release.js";
 export * from "./room.js";
 export * from "./run-record.js";
+export * from "./signal.js";
 export * from "./studio-assistant.js";
 export * from "./studio-snapshot.js";
 export * from "./task-spec.js";

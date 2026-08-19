@@ -79,9 +79,17 @@ import {
   RoomMessageV1Schema,
   RoomModeratorStatusV1Schema,
   RoomParticipantsCatalogV1Schema,
+  RoomProviderSchema,
   RoomV1Schema,
 } from "./room.js";
 import { RunRecordV1Schema } from "./run-record.js";
+import {
+  MAX_SIGNAL_NAME_LENGTH_V1,
+  MAX_SIGNAL_WATCH_DESCRIPTION_LENGTH_V1,
+  SignalIdSchema,
+  SignalInsightV1Schema,
+  SignalV1Schema,
+} from "./signal.js";
 import {
   AssistantAnswerV1Schema,
   AssistantIntentPayloadV1Schema,
@@ -620,6 +628,56 @@ export const ReleaseProjectionCommandRequestV1Schema = z.strictObject({
   payload: EmptyPayloadV1Schema,
 });
 
+/**
+ * Signals (`signal.*`/`insight.list`): a standing watch and its durably recorded findings. See
+ * `packages/contracts/src/v1/signal.ts` for the full model and its place in the larger, not-yet-
+ * built Signal -> Insight -> Opportunity -> Product Bet -> Plan -> Build -> Release -> Outcome
+ * lifecycle this is the first slice of.
+ */
+export const SignalCreateCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("signal.create"),
+  payload: z.strictObject({
+    name: z.string().min(1).max(MAX_SIGNAL_NAME_LENGTH_V1),
+    watchDescription: z.string().min(1).max(MAX_SIGNAL_WATCH_DESCRIPTION_LENGTH_V1),
+    scoutProvider: RoomProviderSchema,
+  }),
+});
+
+export const SignalListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("signal.list"),
+  payload: EmptyPayloadV1Schema,
+});
+
+const SignalPayloadV1Schema = z.strictObject({ signalId: SignalIdSchema });
+
+export const SignalPauseCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("signal.pause"),
+  payload: SignalPayloadV1Schema,
+});
+
+export const SignalResumeCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("signal.resume"),
+  payload: SignalPayloadV1Schema,
+});
+
+/** Runs the signal's Scout once, right now, outside the serial executor (a Scout call is a real
+ *  model/network round trip and must not stall every other command) -- mirrors `release.observe`. */
+export const SignalRunNowCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("signal.run-now"),
+  payload: SignalPayloadV1Schema,
+});
+
+export const InsightListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("insight.list"),
+  payload: SignalPayloadV1Schema,
+});
+
 export const StudioAssistantQueryCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("studio.assistant.query"),
@@ -695,6 +753,12 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   RoomParticipantsListCommandRequestV1Schema,
   ReleaseObserveCommandRequestV1Schema,
   ReleaseProjectionCommandRequestV1Schema,
+  SignalCreateCommandRequestV1Schema,
+  SignalListCommandRequestV1Schema,
+  SignalPauseCommandRequestV1Schema,
+  SignalResumeCommandRequestV1Schema,
+  SignalRunNowCommandRequestV1Schema,
+  InsightListCommandRequestV1Schema,
   StudioSnapshotCommandRequestV1Schema,
   StudioAssistantQueryCommandRequestV1Schema,
   StudioAssistantIntentProposeCommandRequestV1Schema,
@@ -1135,6 +1199,49 @@ export const StudioSnapshotCommandResultV1Schema = z.strictObject({
   snapshot: StudioSnapshotV1Schema,
 });
 
+export const SignalCreateCommandResultV1Schema = z.strictObject({
+  operation: z.literal("signal.create"),
+  signal: SignalV1Schema,
+});
+
+export const SignalListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("signal.list"),
+  signals: z.array(SignalV1Schema).max(1_000),
+});
+
+export const SignalPauseCommandResultV1Schema = z.strictObject({
+  operation: z.literal("signal.pause"),
+  signal: SignalV1Schema,
+});
+
+export const SignalResumeCommandResultV1Schema = z.strictObject({
+  operation: z.literal("signal.resume"),
+  signal: SignalV1Schema,
+});
+
+export const SignalRunNowCommandResultV1Schema = z.strictObject({
+  operation: z.literal("signal.run-now"),
+  signal: SignalV1Schema,
+  /** The recorded Insight when the Scout found something new; `null` when it found nothing new
+   *  or its answer was refused (a schema violation, no citation, or a scout-side failure --
+   *  `outcome` says which). */
+  insight: SignalInsightV1Schema.nullable(),
+  outcome: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("found") }),
+    z.strictObject({ kind: z.literal("nothing-new") }),
+    z.strictObject({
+      kind: z.literal("scout-failed"),
+      code: z.enum(["scout-not-configured", "scout-error", "scout-malformed-finding"]),
+      message: z.string().min(1).max(1_000),
+    }),
+  ]),
+});
+
+export const InsightListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("insight.list"),
+  insights: z.array(SignalInsightV1Schema).max(1_000),
+});
+
 export const ReleaseObserveCommandResultV1Schema = z.strictObject({
   operation: z.literal("release.observe"),
   observation: AscReleaseObservationV1Schema,
@@ -1233,6 +1340,12 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   RoomParticipantsListCommandResultV1Schema,
   ReleaseObserveCommandResultV1Schema,
   ReleaseProjectionCommandResultV1Schema,
+  SignalCreateCommandResultV1Schema,
+  SignalListCommandResultV1Schema,
+  SignalPauseCommandResultV1Schema,
+  SignalResumeCommandResultV1Schema,
+  SignalRunNowCommandResultV1Schema,
+  InsightListCommandResultV1Schema,
   StudioSnapshotCommandResultV1Schema,
   StudioAssistantQueryCommandResultV1Schema,
   StudioAssistantIntentProposeCommandResultV1Schema,

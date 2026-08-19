@@ -46,6 +46,7 @@ import { ProjectPlanRepository } from "./project-plan-repositories.js";
 import { PhaseRunRepository } from "./phase-run-repositories.js";
 import { AscReleaseObservationRepository } from "./asc-release-observation-repositories.js";
 import { ProjectRegistryRepository } from "./project-registry-repositories.js";
+import { SignalInsightRepository, SignalRepository } from "./signal-repositories.js";
 
 type SubmitTaskCommandV1 = Extract<CommandV1, { kind: "task.submit" }>;
 type RetryTaskCommandV1 = Extract<CommandV1, { kind: "task.retry" }>;
@@ -653,6 +654,8 @@ export class FactoryRepositories {
   public readonly phaseRuns: PhaseRunRepository;
   public readonly projectRegistry: ProjectRegistryRepository;
   public readonly ascReleaseObservations: AscReleaseObservationRepository;
+  public readonly signals: SignalRepository;
+  public readonly signalInsights: SignalInsightRepository;
 
   public constructor(private readonly database: Database.Database) {
     this.commands = new CommandRepository(database);
@@ -672,6 +675,8 @@ export class FactoryRepositories {
     this.phaseRuns = new PhaseRunRepository(database);
     this.projectRegistry = new ProjectRegistryRepository(database);
     this.ascReleaseObservations = new AscReleaseObservationRepository(database);
+    this.signals = new SignalRepository(database);
+    this.signalInsights = new SignalInsightRepository(database);
   }
 
   public createTaskAttempt(input: CreateTaskAttemptInput): CreatedTaskAttempt {

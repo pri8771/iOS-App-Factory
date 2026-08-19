@@ -1156,8 +1156,7 @@
           "type": "string"
         },
         "provider": {
-          "pattern": "^[a-z][a-z0-9-]{0,63}$",
-          "type": "string"
+          "$ref": "#/$defs/__schema74"
         }
       },
       "required": [
@@ -1168,15 +1167,32 @@
       "type": "object"
     },
     "__schema74": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "__schema75": {
       "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
     },
-    "__schema75": {
+    "__schema76": {
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
       "type": "string"
     },
-    "__schema76": {
+    "__schema77": {
+      "additionalProperties": false,
+      "properties": {
+        "signalId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signalId"
+      ],
+      "type": "object"
+    },
+    "__schema78": {
       "oneOf": [
         {
           "additionalProperties": false,
@@ -3818,10 +3834,10 @@
                   "additionalProperties": false,
                   "properties": {
                     "dailyCeilingTokens": {
-                      "$ref": "#/$defs/__schema74"
+                      "$ref": "#/$defs/__schema75"
                     },
                     "maxTokensPerReply": {
-                      "$ref": "#/$defs/__schema74"
+                      "$ref": "#/$defs/__schema75"
                     },
                     "unattendedDailyCeilingTokens": {
                       "$ref": "#/$defs/__schema11"
@@ -3958,7 +3974,7 @@
                   "type": "string"
                 },
                 "handle": {
-                  "$ref": "#/$defs/__schema75"
+                  "$ref": "#/$defs/__schema76"
                 },
                 "roomId": {
                   "$ref": "#/$defs/__schema62"
@@ -4057,7 +4073,7 @@
               "additionalProperties": false,
               "properties": {
                 "handle": {
-                  "$ref": "#/$defs/__schema75"
+                  "$ref": "#/$defs/__schema76"
                 },
                 "roomId": {
                   "$ref": "#/$defs/__schema62"
@@ -4209,6 +4225,225 @@
               "$ref": "#/$defs/__schema2"
             },
             "operation": {
+              "const": "signal.create",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "scoutProvider": {
+                  "$ref": "#/$defs/__schema74"
+                },
+                "watchDescription": {
+                  "maxLength": 2000,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "watchDescription",
+                "scoutProvider"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "signal.list",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "signal.pause",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema77"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "signal.resume",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema77"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "signal.run-now",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema77"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
+              "const": "insight.list",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "$ref": "#/$defs/__schema77"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
               "const": "studio.snapshot",
               "type": "string"
             },
@@ -4320,7 +4555,7 @@
               "additionalProperties": false,
               "properties": {
                 "intent": {
-                  "$ref": "#/$defs/__schema76"
+                  "$ref": "#/$defs/__schema78"
                 },
                 "utterance": {
                   "maxLength": 2000,
@@ -4374,7 +4609,7 @@
                       "$ref": "#/$defs/__schema0"
                     },
                     "payload": {
-                      "$ref": "#/$defs/__schema76"
+                      "$ref": "#/$defs/__schema78"
                     },
                     "proposedAt": {
                       "$ref": "#/$defs/__schema2"

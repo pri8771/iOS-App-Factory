@@ -52,6 +52,23 @@ daemon for ONE strictly read-only observation through its composed observer
 `APP_FACTORY_ASC_OBSERVER_CONFIG` is unset). Both print Apple's own instants
 and states verbatim; see `docs/operations/release-rail.md`.
 
+Signals are the first slice of a larger, not-yet-built lifecycle (Signal ->
+Insight -> Opportunity -> Product Bet -> owner-gated Plan -> Build -> Release
+-> Outcome -> back to Signal): a standing watch and its durably recorded
+findings. `signal create --name TEXT --watch TEXT --scout PROVIDER` defines
+one (`--scout` is any configured room-participant provider key, e.g. `codex`,
+`ollama`, or `openrouter-<id>` -- signals reuse the exact same adapters rooms
+and phases already use, no separate configuration). `signal list` shows every
+signal with its check/insight counts; `signal pause <id>` / `signal resume
+<id>` toggle it. `signal run-now <id>` runs its Scout once, right now: the
+configured adapter is asked the exact same question a room participant is
+asked each round ("do you have something to contribute"), except here it is
+"is there something genuinely NEW to report, since I last looked at
+`--watch`" -- citations are required, a citation-free claim is refused, never
+recorded as an Insight. `insight list <signal-id>` shows what has been found
+so far, newest first. See `packages/contracts/src/v1/signal.ts` for the full
+model and what this is deliberately the first slice of.
+
 The Planner turns a brief into a skimmable, editable task list and executes
 it. `plan propose --preset ID --title TEXT --one-liner TEXT
 [--constraint TEXT]... [--project UUID] [--repository UUID]` builds the item

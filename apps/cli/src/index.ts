@@ -15,6 +15,8 @@ import {
 } from "@app-factory/command-client";
 import {
   type AscReleaseObservationV1,
+  type SignalInsightV1,
+  type SignalV1,
   AbsolutePathSchema,
   AttemptIdSchema,
   CalendarDateSchema,
@@ -171,6 +173,15 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "effects.status" }>
   | Readonly<{ kind: "release.observe"; buildsLimit: number }>
   | Readonly<{ kind: "release.projection" }>
+  | Readonly<{
+      kind: "signal.create";
+      name: string;
+      watchDescription: string;
+      scoutProvider: string;
+    }>
+  | Readonly<{ kind: "signal.list" }>
+  | Readonly<{ kind: "signal.pause" | "signal.resume" | "signal.run-now"; signalId: string }>
+  | Readonly<{ kind: "insight.list"; signalId: string }>
   | Readonly<{
       kind: "effects.list";
       state: ExternalEffectStateV1 | null;
@@ -736,6 +747,61 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
       return { outputMode, retryIdentity, command: { kind: "release.observe", buildsLimit } };
     }
     usageError("Release requires one of: projection, observe.");
+  }
+
+  // `signal create/list/pause/resume/run-now`: the first slice of the Signal -> Insight ->
+  // Opportunity -> Product Bet -> Plan lifecycle -- a standing watch and its durably recorded
+  // findings. `insight list <signal-id>` reads what a signal's Scout has found so far.
+  if (command === "signal") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "create") {
+      const name = consumeOption(arguments_, "--name");
+      if (name === undefined || name.length === 0) usageError("--name is required.");
+      const watchDescription = consumeOption(arguments_, "--watch");
+      if (watchDescription === undefined || watchDescription.length === 0) {
+        usageError("--watch (what to watch for) is required.");
+      }
+      const scoutProvider = consumeOption(arguments_, "--scout");
+      if (scoutProvider === undefined || scoutProvider.length === 0) {
+        usageError(
+          "--scout (a configured room-participant provider, e.g. codex, ollama) is required.",
+        );
+      }
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "signal.create", name, watchDescription, scoutProvider },
+      };
+    }
+    if (subcommand === "list") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "signal.list" } };
+    }
+    if (subcommand === "pause" || subcommand === "resume" || subcommand === "run-now") {
+      const signalId = arguments_.shift();
+      if (signalId === undefined || signalId.length === 0) usageError("A signal ID is required.");
+      rejectUnexpected(arguments_);
+      const kind =
+        subcommand === "pause"
+          ? "signal.pause"
+          : subcommand === "resume"
+            ? "signal.resume"
+            : "signal.run-now";
+      return { outputMode, retryIdentity, command: { kind, signalId } };
+    }
+    usageError("Signal requires one of: create, list, pause, resume, run-now.");
+  }
+
+  if (command === "insight") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "list") {
+      const signalId = arguments_.shift();
+      if (signalId === undefined || signalId.length === 0) usageError("A signal ID is required.");
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "insight.list", signalId } };
+    }
+    usageError("Insight requires: list.");
   }
 
   if (command === "effects") {
@@ -1508,7 +1574,42 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
           : renderAscReleaseObservation(projection.latest);
       return `${observer}\nobservations persisted: ${String(projection.observationCount)}\n${latest}generated ${projection.generatedAt} ${projection.sourceDigest}\n`;
     }
+    case "signal.create":
+      return `${renderSignal(result.signal)}\n`;
+    case "signal.list":
+      return result.signals.length === 0
+        ? "no signals defined\n"
+        : `${result.signals.map(renderSignal).join("\n")}\n`;
+    case "signal.pause":
+    case "signal.resume":
+      return `${renderSignal(result.signal)}\n`;
+    case "signal.run-now": {
+      const outcome =
+        result.outcome.kind === "found"
+          ? `found: ${result.insight === null ? "(missing)" : result.insight.headline}`
+          : result.outcome.kind === "nothing-new"
+            ? "nothing new"
+            : `scout failed (${result.outcome.code}): ${result.outcome.message}`;
+      return `${renderSignal(result.signal)}\n${outcome}\n`;
+    }
+    case "insight.list":
+      return result.insights.length === 0
+        ? "no insights recorded yet\n"
+        : `${result.insights.map(renderInsight).join("\n")}\n`;
   }
+}
+
+function renderSignal(signal: SignalV1): string {
+  return `signal ${signal.signalId} [${signal.status}] "${signal.name}" scout=${
+    signal.scoutProvider
+  } checks=${String(signal.checkCount)} insights=${String(signal.insightCount)} lastChecked=${
+    signal.lastCheckedAt ?? "never"
+  }`;
+}
+
+function renderInsight(insight: SignalInsightV1): string {
+  const citations = insight.citations.map((citation) => citation.url).join(", ");
+  return `insight ${insight.insightId} ${insight.discoveredAt} [${insight.confidence}] ${insight.headline}\n  ${insight.rationale}\n  sources: ${citations}`;
 }
 
 function renderAscReleaseObservation(observation: AscReleaseObservationV1): string {
@@ -2074,6 +2175,35 @@ export async function runCli(
         break;
       case "release.projection":
         result = await client.releaseProjection(identity);
+        break;
+      case "signal.create":
+        result = await client.createSignal(
+          {
+            name: invocation.command.name,
+            watchDescription: invocation.command.watchDescription,
+            scoutProvider: invocation.command.scoutProvider,
+          },
+          identity,
+        );
+        break;
+      case "signal.list":
+        result = await client.listSignals(identity);
+        break;
+      case "signal.pause":
+        result = await client.pauseSignal(invocation.command.signalId, identity);
+        break;
+      case "signal.resume":
+        result = await client.resumeSignal(invocation.command.signalId, identity);
+        break;
+      case "signal.run-now":
+        result = await client.runSignalNow(
+          invocation.command.signalId,
+          identity,
+          AbortSignal.timeout(2 * 60 * 1_000 + 10_000),
+        );
+        break;
+      case "insight.list":
+        result = await client.listInsights(invocation.command.signalId, identity);
         break;
       case "effects.list":
         result = await client.listEffects(

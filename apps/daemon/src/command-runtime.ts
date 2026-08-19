@@ -46,7 +46,12 @@ import {
   type RoomParticipantsCatalogV1,
   RoomHumanHandleSchema,
   RoomMessageIdSchema,
+  SignalInsightIdSchema,
+  SignalIdSchema,
+  canonicalSignalInsightDigestInputV1,
   type TaskSpecV1,
+  type SignalInsightV1,
+  type SignalV1,
 } from "@app-factory/contracts";
 import {
   FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME,
@@ -150,6 +155,16 @@ import {
   buildReleaseProjectionV1,
   type ReleaseObserverPort,
 } from "./release-command-runtime.js";
+import {
+  buildInsightListResultV1,
+  buildSignalListResultV1,
+  executeSignalCreateCommand,
+  executeSignalPauseCommand,
+  executeSignalResumeCommand,
+  insightFromFinding,
+  runSignalScout,
+  type SignalScoutParticipantsPort,
+} from "./signal-command-runtime.js";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
 const MAX_CLIENT_FUTURE_SKEW_MS = 5 * 60 * 1_000;
@@ -182,6 +197,10 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "room.create",
   "room.post",
   "release.observe",
+  "signal.create",
+  "signal.pause",
+  "signal.resume",
+  "signal.run-now",
 ]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
@@ -783,6 +802,12 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "room.participants.list":
     case "release.observe":
     case "release.projection":
+    case "signal.create":
+    case "signal.list":
+    case "signal.pause":
+    case "signal.resume":
+    case "signal.run-now":
+    case "insight.list":
     case "studio.snapshot":
     case "studio.assistant.query":
     case "studio.assistant.intent.propose":
@@ -1831,6 +1856,30 @@ async function executeRequest(
           dependencies.observedAt,
         ),
       };
+    case "signal.create":
+      return executeSignalCreateCommand(
+        repositories,
+        request,
+        dependencies.observedAt,
+        SignalIdSchema.parse(dependencies.idFactory("signal", request.commandId)),
+      );
+    case "signal.list":
+      return buildSignalListResultV1(repositories);
+    case "signal.pause":
+      return executeSignalPauseCommand(repositories, request);
+    case "signal.resume":
+      return executeSignalResumeCommand(repositories, request);
+    case "insight.list":
+      return buildInsightListResultV1(repositories, request);
+    case "signal.run-now":
+      // Never reached: `signal.run-now` runs a real Scout call outside the serial executor and
+      // persists it itself (see `openDaemonCommandRuntime`'s `runSignalNow`), mirroring
+      // `release.observe` exactly. Kept exhaustive so a future dispatch here is deliberate.
+      throw new CommandHandlerError(
+        "signal.run-now-misrouted",
+        "signal.run-now is handled by the command runtime's Scout path, not by executeRequest.",
+        false,
+      );
     case "studio.snapshot":
       return {
         operation: "studio.snapshot",
@@ -2057,6 +2106,15 @@ export async function openDaemonCommandRuntime(
   const phaseParticipants: PhaseParticipantsPort = options.phaseParticipants ?? {
     resolve: () => null,
   };
+  // Signals reuse the SAME configured room-participant adapters phases do -- no separate
+  // "which providers may scout" configuration exists. `PhaseParticipantsPort.resolve` is typed
+  // over the distinct `PhaseProvider` brand; the underlying map is plain-string-keyed either way
+  // (`buildPhaseParticipantsPortV1` itself does `adapters.set(String(adapter.provider), adapter)`),
+  // so this cast is the same coercion that function's own call sites already rely on.
+  const signalScoutParticipants: SignalScoutParticipantsPort = {
+    resolve: (provider) =>
+      phaseParticipants.resolve(provider as Parameters<PhaseParticipantsPort["resolve"]>[0]),
+  };
   const standardRuleStatements = loadStandardRuleStatementsV1(options.policySourcePath);
   const phaseRoomPort: PhaseRoomPort = {
     createPhaseRoom(input) {
@@ -2179,10 +2237,113 @@ export async function openDaemonCommandRuntime(
     });
   };
 
+  /**
+   * `signal.run-now`: the Scout call is a real model/network round trip and runs OUTSIDE the
+   * serial executor, exactly like `release.observe` -- see that function's own doc comment for the
+   * idempotency shape this mirrors verbatim (ledger check before, persist + journal after). The
+   * insight ID is derived from the command ID, so a concurrent duplicate finds its own insight
+   * already recorded (same digest -> `inserted: false`) or its own ledger entry. `recordCheck`
+   * always runs (even on "nothing new" or a scout failure) so `lastCheckedAt`/`checkCount` reflect
+   * every attempt, not only successful ones.
+   */
+  const runSignalNow = async (
+    request: Extract<CommandRequestV1, { operation: "signal.run-now" }>,
+  ): Promise<CommandResultV1> => {
+    const original = await serial.run(async () => {
+      if (closed) throw closedError();
+      const entry = await readLedgerEntry(paths, request.commandId);
+      if (entry !== null) assertMatchingRequest(entry.request, request);
+      return entry;
+    });
+    if (original !== null) return original.result;
+    const signal = await serial.run(async () => {
+      if (closed) throw closedError();
+      const existing = repositories.signals.findById(
+        SignalIdSchema.parse(request.payload.signalId),
+      );
+      if (existing === null) {
+        throw new CommandHandlerError(
+          "signal.not-found",
+          `Signal ${request.payload.signalId} does not exist.`,
+          false,
+        );
+      }
+      return existing;
+    });
+    const observedAt = IsoInstantSchema.parse(now());
+    assertPlausibleClientTimestamps(request, observedAt);
+    const recentHeadlines = repositories.signalInsights
+      .listBySignal(signal.signalId)
+      .slice(0, 10)
+      .map((insight) => insight.headline);
+    const outcome = await runSignalScout(signalScoutParticipants, signal, recentHeadlines, {
+      signal: AbortSignal.timeout(2 * 60 * 1_000),
+    });
+    return await serial.run(async () => {
+      if (closed) throw closedError();
+      const raced = await readLedgerEntry(paths, request.commandId);
+      if (raced !== null) {
+        assertMatchingRequest(raced.request, request);
+        return raced.result;
+      }
+      let insight: SignalInsightV1 | null = null;
+      if (outcome.kind === "found") {
+        const insightId = SignalInsightIdSchema.parse(
+          idFactory("signal-insight", request.commandId),
+        );
+        const draft = insightFromFinding(outcome.finding, {
+          insightId,
+          signalId: signal.signalId,
+          discoveredAt: observedAt,
+        });
+        const insightDigest = Sha256DigestSchema.parse(
+          `sha256:${createHash("sha256")
+            .update(canonicalSignalInsightDigestInputV1(draft), "utf8")
+            .digest("hex")}`,
+        );
+        const recorded = repositories.signalInsights.record({ ...draft, insightDigest });
+        insight = recorded.insight;
+      }
+      const updatedSignal: SignalV1 = repositories.signals.recordCheck(
+        signal.signalId,
+        observedAt,
+        insight !== null,
+      );
+      const result = CommandResultV1Schema.parse({
+        operation: "signal.run-now",
+        signal: updatedSignal,
+        insight,
+        outcome:
+          outcome.kind === "found"
+            ? { kind: "found" }
+            : outcome.kind === "nothing-new"
+              ? { kind: "nothing-new" }
+              : { kind: "scout-failed", code: outcome.code, message: outcome.message },
+      });
+      try {
+        await options.commandResultLedgerBoundary?.({ request, result });
+        const persisted = await persistLedgerEntry(paths, {
+          ledgerVersion: RESULT_LEDGER_VERSION,
+          request,
+          result,
+        });
+        assertMatchingRequest(persisted.request, request);
+        return persisted.result;
+      } catch {
+        throw new CommandHandlerError(
+          "command.result-persistence-ambiguous",
+          "The command may have completed, but its durable result could not be confirmed. Retry with the same command ID and issuedAt.",
+          true,
+        );
+      }
+    });
+  };
+
   const handler: CommandHandler = async (requestInput: CommandRequestV1) => {
     if (closed) throw closedError();
     const request = CommandRequestV1Schema.parse(requestInput);
     if (request.operation === "release.observe") return await observeRelease(request);
+    if (request.operation === "signal.run-now") return await runSignalNow(request);
     return await serial.run(async () => {
       if (closed) throw closedError();
       const persistResult = DURABLE_COMMAND_RESULT_OPERATIONS.has(request.operation);

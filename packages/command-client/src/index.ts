@@ -84,6 +84,8 @@ import {
   type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
+  RoomProviderSchema,
+  SignalIdSchema,
 } from "@app-factory/contracts";
 
 export const DEFAULT_COMMAND_TIMEOUT_MS = 30_000;
@@ -1110,6 +1112,84 @@ export class CommandClient {
       );
     }
     return result;
+  }
+
+  public async createSignal(
+    input: Readonly<{ name: string; watchDescription: string; scoutProvider: string }>,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"signal.create">> {
+    return await this.#request(
+      "signal.create",
+      {
+        name: input.name,
+        watchDescription: input.watchDescription,
+        scoutProvider: RoomProviderSchema.parse(input.scoutProvider),
+      },
+      identity,
+      signal,
+    );
+  }
+
+  public async listSignals(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"signal.list">> {
+    return await this.#request("signal.list", {}, identity, signal);
+  }
+
+  public async pauseSignal(
+    signalId: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"signal.pause">> {
+    return await this.#request(
+      "signal.pause",
+      { signalId: SignalIdSchema.parse(signalId) },
+      identity,
+      signal,
+    );
+  }
+
+  public async resumeSignal(
+    signalId: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"signal.resume">> {
+    return await this.#request(
+      "signal.resume",
+      { signalId: SignalIdSchema.parse(signalId) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Runs the signal's Scout once, right now. A real model/network round trip -- give it a longer
+   *  client-side timeout than most commands via `signal` (an `AbortSignal.timeout(...)`). */
+  public async runSignalNow(
+    signalId: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"signal.run-now">> {
+    return await this.#request(
+      "signal.run-now",
+      { signalId: SignalIdSchema.parse(signalId) },
+      identity,
+      signal,
+    );
+  }
+
+  public async listInsights(
+    signalId: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"insight.list">> {
+    return await this.#request(
+      "insight.list",
+      { signalId: SignalIdSchema.parse(signalId) },
+      identity,
+      signal,
+    );
   }
 
   /** The daemon's configured room participants (providers/models + roster); never errors when rooms are disabled. */
