@@ -6,9 +6,12 @@ import Observation
 // The observable state behind the rooms UI: the room list (`room.list`), the selected room's live
 // transcript (`room.events`, cursor-polled), posting (`room.post`), the debounced typing signal
 // (`room.typing`), and the daemon's configured participants catalog (`room.participants.list`, read
-// whenever the new-room sheet appears so its roster defaults are sourced, not guessed). Mirrors `StudioStore`'s discipline — `nil`/empty until actually read, per-room
-// errors kept rather than swallowed — but stays a separate object because rooms are a distinct wire
-// family from the assistant `ChatModel` conversations, not a variant of them (see Room.swift).
+// whenever the new-room sheet appears so its roster defaults are sourced, not guessed). Mirrors
+// `StudioStore`'s discipline — `nil`/empty until actually read, per-room errors kept rather than
+// swallowed. As of Wave 9b (Architecture decisions 1/14), a "conversation" is just a `flavor ==
+// .direct` room — `ConversationsModel` is a thin façade filtering this same model's `rooms`, not a
+// second wire family; `ChatModel` (Chat/ChatModel.swift) now only overlays local intent-confirmation
+// cards on top of the transcripts this model already owns.
 //
 // Polling: `select(_:)` starts a ~1.5s poll loop for the chosen room and stops any previous one;
 // `select(nil)` (or `stopPolling()`) stops it outright. Callers are responsible for calling
@@ -43,6 +46,11 @@ public final class RoomsModel {
     private let client: DaemonClient?
     private var pollTask: Task<Void, Never>?
     private var typingTask: Task<Void, Never>?
+    /// Wave 9b (Architecture decision 14, plan item 5): while a `room.update` is in flight or has
+    /// just landed, the ~1.5s poll must not clobber the update's own result with a concurrently-
+    /// fetched `room.events` snapshot that predates it — `poll(_:)` ignores any room snapshot older
+    /// than this floor, and clears the floor once a snapshot catches up to (or passes) it.
+    private var roomUpdateFloor: [RoomID: IsoInstant] = [:]
 
     public init(client: DaemonClient?, handle: RoomHumanHandle = RoomsModel.defaultHandle(),
                 now: @escaping @Sendable () -> Date = { Date() }) {
@@ -107,12 +115,12 @@ public final class RoomsModel {
     @discardableResult
     public func createRoom(title: String, projectId: ProjectID?, unattendedEnabled: Bool,
                            agentCooldownEvents: Int = RoomsModel.defaultAgentCooldownEvents,
-                           participants: [RoomParticipantSpec],
+                           participants: [RoomParticipantSpec], flavor: RoomFlavor = .room,
                            budget: RoomBudgetPolicy = RoomsModel.defaultBudgetPolicy) async -> Result<Room, AssistantBackendError> {
         guard let client else { return .failure(AssistantBackendError("no daemon configured")) }
         isCreatingRoom = true
         defer { isCreatingRoom = false }
-        let spec = RoomCreateSpec(roomId: RoomID.generate(), title: title, projectId: projectId,
+        let spec = RoomCreateSpec(roomId: RoomID.generate(), title: title, projectId: projectId, flavor: flavor,
                                   unattendedEnabled: unattendedEnabled, agentCooldownEvents: agentCooldownEvents,
                                   participants: participants, budget: budget)
         do {
@@ -193,7 +201,14 @@ public final class RoomsModel {
         do {
             let result = try await client.roomEvents(roomId: id, afterSequence: after, limit: 200)
             var transcript = transcripts[id] ?? RoomTranscript()
-            transcript.room = result.room
+            if let floor = roomUpdateFloor[id], result.room.updatedAt < floor {
+                // Stale relative to an in-flight/just-applied `room.update` — keep the newer room
+                // snapshot already applied optimistically or by that update's own result; messages/
+                // moderator below are monotonic and still safe to merge.
+            } else {
+                transcript.room = result.room
+                roomUpdateFloor[id] = nil
+            }
             transcript.moderator = result.moderator
             if !result.messages.isEmpty {
                 transcript.messages = Self.dedupSorted(transcript.messages + result.messages)
@@ -218,10 +233,14 @@ public final class RoomsModel {
 
     // MARK: Posting + typing
 
-    public func send(_ id: RoomID) async {
-        guard let client else { return }
+    /// Posts the room's current draft. Returns the posted message on success (so a caller — see
+    /// `ChatModel.send` — can anchor a local overlay item to its `sequence`), `nil` on an empty draft
+    /// or a failed post (the draft is preserved either way, per the doc comment on `roomErrors`).
+    @discardableResult
+    public func send(_ id: RoomID) async -> RoomChatMessage? {
+        guard let client else { return nil }
         let text = (drafts[id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty else { return nil }
         drafts[id] = ""
         do {
             let result = try await client.postToRoom(roomId: id, handle: handle, body: text)
@@ -231,10 +250,97 @@ public final class RoomsModel {
             transcript.nextAfterSequence = max(transcript.nextAfterSequence, result.message.sequence)
             transcripts[id] = transcript
             roomErrors[id] = nil
+            return result.message
         } catch {
             roomErrors[id] = Self.describe(error)
             drafts[id] = text // don't lose what the human typed
+            return nil
         }
+    }
+
+    // MARK: room.update (Architecture decision 7 / plan item 5)
+
+    /// A durable CAS patch over an existing room — title rename, archive, participant add/remove,
+    /// budget policy. No optimistic UX (unlike `setUnattended` below): rename/archive are infrequent,
+    /// human-initiated edits where waiting for the daemon's own echo is the simpler, safer default.
+    /// Still sets `roomUpdateFloor` so the ~1.5s poll can't race a concurrently-fetched stale snapshot
+    /// ahead of this update's own result.
+    @discardableResult
+    public func updateRoom(_ id: RoomID, patch: RoomUpdatePatch) async -> Result<Room, AssistantBackendError> {
+        guard let client else { return .failure(AssistantBackendError("no daemon configured")) }
+        guard let current = room(id) else { return .failure(AssistantBackendError("room not loaded yet")) }
+        do {
+            let updated = try await client.updateRoom(roomId: id, expectedUpdatedAt: current.updatedAt, patch: patch)
+            roomUpdateFloor[id] = updated.updatedAt
+            replaceRoom(id, with: updated)
+            roomErrors[id] = nil
+            return .success(updated)
+        } catch {
+            let message = Self.describe(error)
+            roomErrors[id] = message
+            return .failure(AssistantBackendError(message))
+        }
+    }
+
+    /// The ambient toggle (multi rooms only — the daemon forces `unattendedEnabled` false server-side
+    /// for a direct room regardless of what a client sends): flips the room's local state immediately
+    /// so the switch tracks the tap, then reconciles with the daemon's own result — reverting and
+    /// surfacing an honest error on failure, exactly like every other optimistic write in this app
+    /// never pretends success it hasn't confirmed.
+    @discardableResult
+    public func setUnattended(_ id: RoomID, enabled: Bool) async -> Result<Room, AssistantBackendError> {
+        guard let client else { return .failure(AssistantBackendError("no daemon configured")) }
+        guard let previous = room(id) else { return .failure(AssistantBackendError("room not loaded yet")) }
+        replaceRoom(id, with: Self.mutating(previous) { $0.unattendedEnabled = enabled })
+        do {
+            let updated = try await client.updateRoom(roomId: id, expectedUpdatedAt: previous.updatedAt,
+                                                       patch: RoomUpdatePatch(unattendedEnabled: enabled))
+            roomUpdateFloor[id] = updated.updatedAt
+            replaceRoom(id, with: updated)
+            roomErrors[id] = nil
+            return .success(updated)
+        } catch {
+            replaceRoom(id, with: previous)
+            let message = Self.describe(error)
+            roomErrors[id] = message
+            return .failure(AssistantBackendError(message))
+        }
+    }
+
+    private static func mutating(_ room: Room, _ mutate: (inout Room) -> Void) -> Room {
+        var next = room
+        mutate(&next)
+        return next
+    }
+
+    /// Writes `next` into both the cached transcript's room snapshot and the flat `rooms` list, so
+    /// every reader (`room(_:)`, the sidebar, the roster panel) sees the same value immediately —
+    /// mirrors how `send`/`poll`/`loadTranscript` already keep those two copies in sync.
+    private func replaceRoom(_ id: RoomID, with next: Room) {
+        if var transcript = transcripts[id] {
+            transcript.room = next
+            transcripts[id] = transcript
+        } else {
+            transcripts[id] = RoomTranscript(room: next)
+        }
+        if let index = rooms.firstIndex(where: { $0.roomId == id }) { rooms[index] = next }
+    }
+
+    /// A unique persona for a client-minted `@mention`-into-thread participant add (plan item 4): the
+    /// catalog entry's own room-provider key (its `roomProviderKey`, or the bare provider name for a
+    /// legacy entry recorded before that field existed — same fallback `RoomParticipantsCatalog`
+    /// itself uses) — "family name, then family-2" when that key already names a seat in the room.
+    /// `nil` only if the entry's key somehow fails `RoomPersona`'s own pattern (never true for a
+    /// daemon-sourced key in practice).
+    public static func mintPersona(for entry: RoomCatalogProviderEntry, existingPersonas: Set<String>) -> RoomPersona? {
+        let base = entry.roomProviderKey?.rawValue ?? entry.provider.rawValue
+        var candidate = base
+        var suffix = 2
+        while existingPersonas.contains(candidate) {
+            candidate = "\(base)-\(suffix)"
+            suffix += 1
+        }
+        return try? RoomPersona(candidate)
     }
 
     private static let typingSignalTtlMs = 6_000

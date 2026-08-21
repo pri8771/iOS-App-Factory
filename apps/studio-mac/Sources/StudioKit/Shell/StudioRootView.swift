@@ -13,9 +13,11 @@ public struct StudioRootView: View {
     /// wire-derived. Falls back to `.chat` for any stored value that doesn't match a current
     /// `StudioTab` case (including the pre-Wave-8 `"phases"`/`"dashboard"` scheme).
     @AppStorage("studio.selectedTab") private var tab: StudioTab = .chat
-    /// Reserved for Wave 9b's conversation/room restore-on-relaunch flow; declared here (the shell)
-    /// now so the persistence surface is complete, not yet read or written by this wave.
+    /// The conversation/room restore-on-relaunch flow (Wave 9b): written on every selection change,
+    /// read back once the first `room.list` lands (`restoreLastSelectedRoomIfNeeded`) — only when the
+    /// stored id still names a room the daemon actually returned, never a blind `select()`.
     @AppStorage("studio.lastSelectedRoomId") private var lastSelectedRoomId: String?
+    @State private var didRestoreLastSelectedRoom = false
     /// Reserved for Wave 9d's `AnalyticsPanel` 7D/30D range picker; same status as
     /// `lastSelectedRoomId` above.
     @AppStorage("studio.analyticsRange") private var analyticsRange: String = "7d"
@@ -67,8 +69,8 @@ public struct StudioRootView: View {
                         screen
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         if tab != .chat {
-                            CornerChatView(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend,
-                                           rooms: roomsModel, onNewRoom: { showingNewRoom = true },
+                            CornerChatView(chat: store.chat, rooms: roomsModel, conversations: conversationsModel,
+                                           backend: assistantBackend, onNewRoom: { showingNewRoom = true },
                                            minimized: $chatMinimized, onExpand: { tab = .chat },
                                            onPlanReady: { plan in store.planner.adopt(plan); showingPlanner = true })
                             .padding(HUDTheme.space.l)
@@ -122,14 +124,28 @@ public struct StudioRootView: View {
         }
         .onChange(of: tab) { _, _ in updateRoomsVisibility() }
         .onChange(of: chatMinimized) { _, _ in updateRoomsVisibility() }
+        .onChange(of: store.rooms.rooms) { _, rooms in restoreLastSelectedRoomIfNeeded(rooms) }
+        .onChange(of: store.rooms.selectedRoomId) { _, newValue in lastSelectedRoomId = newValue?.rawValue }
     }
 
     /// `nil` until the store has a client at all, mirroring `assistantBackend` below — rooms need a
     /// daemon exactly like the assistant backend does.
     private var roomsModel: RoomsModel? { store.socketPath != nil ? store.rooms : nil }
+    private var conversationsModel: ConversationsModel? { store.socketPath != nil ? store.conversations : nil }
 
     private func updateRoomsVisibility() {
         if roomsVisible { store.rooms.resumePollingSelected() } else { store.rooms.stopPolling() }
+    }
+
+    /// Restores `studio.lastSelectedRoomId` exactly once, and only once `room.list` has actually
+    /// returned something naming it — never a blind `select()` on a possibly-stale/archived/deleted
+    /// id. A no-op once it has run, or if nothing was ever stored, or the stored id no longer names a
+    /// room the daemon returned.
+    private func restoreLastSelectedRoomIfNeeded(_ rooms: [Room]) {
+        guard !didRestoreLastSelectedRoom, !rooms.isEmpty else { return }
+        didRestoreLastSelectedRoom = true
+        guard let raw = lastSelectedRoomId, let id = try? RoomID(raw), rooms.contains(where: { $0.roomId == id }) else { return }
+        store.rooms.select(id)
     }
 
     @ViewBuilder
@@ -155,8 +171,8 @@ public struct StudioRootView: View {
                     .transition(.opacity)
             }
         case .chat:
-            ChatScreen(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend,
-                      rooms: roomsModel, onNewRoom: { showingNewRoom = true },
+            ChatScreen(chat: store.chat, rooms: roomsModel, conversations: conversationsModel, backend: assistantBackend,
+                      onNewRoom: { showingNewRoom = true }, onOpenSettings: { tab = .settings },
                       onPlanReady: { plan in store.planner.adopt(plan); showingPlanner = true })
         case .settings:
             SettingsScreen(

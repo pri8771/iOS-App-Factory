@@ -192,19 +192,19 @@ final class DashboardSnapshotTests: XCTestCase {
             size: CGSize(width: 460, height: 440), named: "intent-confirmation-card")
     }
 
-    func testCornerChatAndFab() async {
-        let chat = ChatModel()
-        await chat.send("how many attempts?", context: AssistantContext(link: "offline · [client] transport.connection-failed"))
+    /// No daemon at all (`rooms`/`conversations` both `nil`) — the honest offline empty state, not a
+    /// scripted reply (the deleted `ScriptedAssistant` fallback used to seed one here).
+    func testCornerChatAndFab() {
         assertHUD(HStack(alignment: .bottom, spacing: 24) {
-            CornerChatView(chat: chat, context: { AssistantContext(link: "offline") }, minimized: .constant(false), onExpand: {})
-            CornerChatView(chat: chat, context: { AssistantContext(link: "offline") }, minimized: .constant(true))
+            CornerChatView(chat: ChatModel(), minimized: .constant(false), onExpand: {})
+            CornerChatView(chat: ChatModel(), minimized: .constant(true))
         }.padding(24).background(HUDTheme.void), size: CGSize(width: 520, height: 520), named: "corner-chat")
     }
 
-    func testChatScreen() async {
-        let chat = ChatModel()
-        await chat.send("what's blocked?", context: AssistantContext(link: "offline", timeline: fixture, now: today.date))
-        assertHUD(ChatScreen(chat: chat, context: { AssistantContext(link: "offline") }),
+    /// Same offline empty state, full screen — the Conversations/Rooms sidebar sections render their
+    /// own "needs a daemon connection" lines when `conversations`/`rooms` are `nil`.
+    func testChatScreen() {
+        assertHUD(ChatScreen(chat: ChatModel()),
                   size: CGSize(width: 900, height: 420), named: "chat-screen")
     }
 

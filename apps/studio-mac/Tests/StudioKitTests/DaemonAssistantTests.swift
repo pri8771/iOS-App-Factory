@@ -2,15 +2,15 @@ import Foundation
 @testable import StudioKit
 import XCTest
 
-/// Chat rendering for both `AssistantAnswer` variants, the intent phrase recognizer, and a full
-/// propose → confirm → execute round trip against `FakeDaemonServer` — extended here with the three
-/// new `studio.assistant.*` operations alongside the phase-1 ones it already answers.
+/// The intent phrase recognizer (unchanged by Wave 9b), and `ChatModel`'s Wave 9b shape: posting to a
+/// room (via `RoomsModel`, never duplicated) with a recognized-intent overlay on top — a confirmation
+/// card on a successful `studio.assistant.intent.propose`, an honest "assistant unavailable" system
+/// note on a `nil` backend or a failed proposal (replacing the deleted `ScriptedAssistant` fallback) —
+/// plus the full propose -> confirm -> execute round trip against `FakeDaemonServer` and
+/// `ChatThreadItem`'s interleaving rule.
 final class DaemonAssistantTests: XCTestCase {
     private let token = try! AuthorizationToken(validating: "studio-test-token-0123456789abcdefghijklmnop")
-
-    private func context() -> AssistantContext {
-        AssistantContext(link: "connected", now: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z").date!)
-    }
+    private let roomId = RoomID(unchecked: "50000001-0000-4000-8000-000000000001")
 
     // MARK: IntentRecognizer
 
@@ -42,64 +42,16 @@ final class DaemonAssistantTests: XCTestCase {
         XCTAssertNil(IntentRecognizer.recognize("queue task foo"), "queue-task needs a full TaskSpec, not recognized from text")
     }
 
-    // MARK: ChatModel rendering — both AssistantAnswer variants
-
-    @MainActor
-    func testAnsweredRendersCitationsAndIsNotStub() async throws {
-        let chat = ChatModel()
-        let citations = [AssistantCitation(kind: .attempt, id: "00000001-0000-4000-8000-000000000001")]
-        let backend = AssistantBackend(
-            query: { _, _ in .answer(.answered(text: "Anjali's latest attempt succeeded.", citations: citations)) },
-            proposeIntent: { _, _ in .failure(AssistantBackendError("not used")) },
-            executeIntent: { _ in .failure(AssistantBackendError("not used")) })
-        _ = await chat.send("how is anjali", context: context(), backend: backend)
-        let message = try XCTUnwrap(chat.selected?.messages.last)
-        XCTAssertEqual(message.text, "Anjali's latest attempt succeeded.")
-        XCTAssertEqual(message.citations, citations)
-        XCTAssertFalse(message.isStub)
-        XCTAssertEqual(message.provenance, .live("studio.assistant.query"))
-    }
-
-    @MainActor
-    func testCannotAnswerRendersAnHonestLineWithTheReason() async throws {
-        let chat = ChatModel()
-        let backend = AssistantBackend(
-            query: { _, _ in .answer(.cannotAnswer(reason: .noMilestoneTargetDate,
-                                                    detail: "No milestone with a real target date exists yet.")) },
-            proposeIntent: { _, _ in .failure(AssistantBackendError("not used")) },
-            executeIntent: { _ in .failure(AssistantBackendError("not used")) })
-        _ = await chat.send("when does roam ship", context: context(), backend: backend)
-        let message = try XCTUnwrap(chat.selected?.messages.last)
-        XCTAssertTrue(message.text.contains("No milestone with a real target date exists yet."), message.text)
-        XCTAssertTrue(message.text.contains("no-milestone-target-date"), message.text)
-        XCTAssertFalse(message.isStub, "a refusal is still a real, live daemon answer")
-        XCTAssertTrue(message.citations.isEmpty)
-    }
-
-    @MainActor
-    func testUnsupportedOrFailedQueryFallsBackToTheScriptedStub() async throws {
-        let chat = ChatModel()
-        for outcome: AssistantQueryOutcome in [.unsupported, .failed("timeout")] {
-            let backend = AssistantBackend(
-                query: { _, _ in outcome },
-                proposeIntent: { _, _ in .failure(AssistantBackendError("not used")) },
-                executeIntent: { _ in .failure(AssistantBackendError("not used")) })
-            _ = await chat.send("is the daemon online?", context: context(), backend: backend)
-            let message = try XCTUnwrap(chat.selected?.messages.last)
-            XCTAssertTrue(message.isStub, "an unsupported or failed daemon call falls back to the scripted stub")
-            XCTAssertFalse(message.text.isEmpty)
-            XCTAssertNil(message.intentCard)
-        }
-    }
-
-    // MARK: Intent round trip against FakeDaemonServer
+    // MARK: Fixtures / fakes
 
     private func makeClient(_ server: FakeDaemonServer) throws -> DaemonClient {
         try DaemonClient(configuration: .init(socketPath: server.socketPath, authorization: token, timeout: .seconds(5)))
     }
 
-    /// Mirrors `StudioStore.assistantBackend` closure-for-closure, over a plain `DaemonClient`, so this
-    /// test proves the same wiring the app uses without needing a full `StudioStore`.
+    /// Mirrors `StudioStore.assistantBackend` closure-for-closure, over a plain `DaemonClient`, so
+    /// these tests prove the same wiring the app uses without needing a full `StudioStore`. `query`
+    /// is wired for completeness (the type still carries it — Architecture decision 14 keeps
+    /// `AssistantBackend` whole) even though `ChatModel` never calls it.
     private func backend(for client: DaemonClient) -> AssistantBackend {
         AssistantBackend(
             query: { question, projectId in
@@ -117,61 +69,201 @@ final class DaemonAssistantTests: XCTestCase {
             })
     }
 
-    @MainActor
-    func testProposeConfirmExecuteRoundTripShowsTheResultingAttemptId() async throws {
-        let server = try FakeDaemonServer { frame, _ in
+    /// `room.post` always answers with `room-post.response.json` (sequence 1); `studio.assistant.*`
+    /// dispatches to the named fixture; anything else fails with `protocol.unsupported-operation`.
+    private func server(proposeFixture: String? = "assistant-intent-propose.response.json",
+                        executeFixture: String? = "assistant-intent-execute.response.json") throws -> FakeDaemonServer {
+        try FakeDaemonServer { frame, _ in
             let requestId = frame["requestId"]?.stringValue ?? ""
             let operation = frame["request"]?["operation"]?.stringValue ?? ""
             switch operation {
+            case "room.post":
+                return .reply(try! WireResponse.fixture("room-post.response.json", requestId: requestId))
             case "studio.assistant.intent.propose":
-                return .reply(try! WireResponse.fixture("assistant-intent-propose.response.json", requestId: requestId))
+                guard let proposeFixture else {
+                    return .reply(WireResponse.failure(requestId: requestId, code: "test.propose-unavailable", message: "propose is down", retryable: false))
+                }
+                return .reply(try! WireResponse.fixture(proposeFixture, requestId: requestId))
             case "studio.assistant.intent.execute":
-                return .reply(try! WireResponse.fixture("assistant-intent-execute.response.json", requestId: requestId))
+                guard let executeFixture else {
+                    return .reply(WireResponse.failure(requestId: requestId, code: "test.execute-unavailable", message: "execute is down", retryable: false))
+                }
+                return .reply(try! WireResponse.fixture(executeFixture, requestId: requestId))
             default:
                 return .reply(WireResponse.failure(requestId: requestId, code: "protocol.unsupported-operation", message: operation, retryable: false))
             }
         }
-        defer { server.stop() }
+    }
+
+    @MainActor
+    private func makeRooms(_ server: FakeDaemonServer, draft: String) throws -> RoomsModel {
         let client = try makeClient(server)
-        let backend = self.backend(for: client)
+        let rooms = RoomsModel(client: client)
+        rooms.drafts[roomId] = draft
+        return rooms
+    }
 
+    // MARK: ChatModel.send — the overlay rules
+
+    @MainActor
+    func testSendPostsAnOrdinaryMessageWithNoOverlay() async throws {
+        let server = try server()
+        defer { server.stop() }
+        let rooms = try makeRooms(server, draft: "Let's plan the launch checklist.")
         let chat = ChatModel()
-        let attemptId = "00000004-0000-4000-8000-000000000004"
-        let utterance = "approve \(attemptId) Approved — go ahead and upload."
-        _ = await chat.send(utterance, context: context(), backend: backend)
+        let posted = await chat.send(roomId, rooms: rooms, backend: backend(for: try makeClient(server)))
+        XCTAssertEqual(posted?.body, "Let's plan the launch checklist.")
+        let items = chat.threadItems(roomId: roomId, messages: [.message(try XCTUnwrap(posted))])
+        XCTAssertEqual(items.count, 1, "no intent card/note for an unrecognized phrasing")
+        XCTAssertEqual(rooms.drafts[roomId], "", "the draft is cleared by the post")
+        let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
+        XCTAssertEqual(operations, ["room.post"], "never proposes an intent for text IntentRecognizer doesn't recognize")
+    }
 
-        let proposed = try XCTUnwrap(chat.selected?.messages.last)
-        let card = try XCTUnwrap(proposed.intentCard)
+    @MainActor
+    func testSendOfARecognizedPhraseAlsoProposesAndOverlaysAPendingCard() async throws {
+        let server = try server()
+        defer { server.stop() }
+        let utterance = "approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload."
+        let rooms = try makeRooms(server, draft: utterance)
+        let chat = ChatModel()
+        let sent = await chat.send(roomId, rooms: rooms, backend: backend(for: try makeClient(server)))
+        let posted = try XCTUnwrap(sent)
+
+        let items = chat.threadItems(roomId: roomId, messages: [.message(posted)])
+        XCTAssertEqual(items.count, 2)
+        guard case .room = items[0] else { return XCTFail("posted message sorts first") }
+        guard case .intentCard(_, let anchor, let card) = items[1] else { return XCTFail("expected an overlaid intent card") }
+        XCTAssertEqual(anchor, posted.sequence)
         XCTAssertEqual(card.status, .pending)
-        guard case .approveAttempt(let proposedAttemptId, _) = card.intent.payload else { return XCTFail("expected approve-attempt") }
-        XCTAssertEqual(proposedAttemptId.rawValue, attemptId)
-
-        await chat.confirmIntent(proposed.id, backend: backend)
-        let executed = try XCTUnwrap(chat.selected?.messages.last { $0.id == proposed.id })
-        guard case .executed(let summary) = try XCTUnwrap(executed.intentCard).status else {
-            return XCTFail("expected an executed outcome, got \(String(describing: executed.intentCard?.status))")
-        }
-        XCTAssertTrue(summary.contains(attemptId), "the resulting attempt id is shown — \(summary)")
+        guard case .approveAttempt(let attemptId, _) = card.intent.payload else { return XCTFail("expected approve-attempt") }
+        XCTAssertEqual(attemptId.rawValue, "00000004-0000-4000-8000-000000000004")
 
         let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
-        XCTAssertEqual(operations, ["studio.assistant.intent.propose", "studio.assistant.intent.execute"])
+        XCTAssertEqual(operations, ["room.post", "studio.assistant.intent.propose"], "the room post happens regardless of the intent side")
+    }
+
+    @MainActor
+    func testSendWithNoBackendStillPostsAndOverlaysAnHonestNote() async throws {
+        let server = try server()
+        defer { server.stop() }
+        let utterance = "approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload."
+        let rooms = try makeRooms(server, draft: utterance)
+        let chat = ChatModel()
+        let sent = await chat.send(roomId, rooms: rooms, backend: nil)
+        let posted = try XCTUnwrap(sent)
+
+        let items = chat.threadItems(roomId: roomId, messages: [.message(posted)])
+        XCTAssertEqual(items.count, 2)
+        guard case .systemNote(_, let anchor, let text) = items[1] else { return XCTFail("expected a system note, not a scripted reply") }
+        XCTAssertEqual(anchor, posted.sequence)
+        XCTAssertEqual(text, "no daemon connection")
+        let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
+        XCTAssertEqual(operations, ["room.post"], "no propose call with no backend")
+    }
+
+    @MainActor
+    func testSendWhenProposeFailsOverlaysAnHonestNoteInsteadOfAScriptedStub() async throws {
+        let server = try server(proposeFixture: nil)
+        defer { server.stop() }
+        let utterance = "approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload."
+        let rooms = try makeRooms(server, draft: utterance)
+        let chat = ChatModel()
+        let sent = await chat.send(roomId, rooms: rooms, backend: backend(for: try makeClient(server)))
+        let posted = try XCTUnwrap(sent)
+
+        let items = chat.threadItems(roomId: roomId, messages: [.message(posted)])
+        guard case .systemNote(_, _, let text) = items[1] else { return XCTFail("expected a system note") }
+        XCTAssertTrue(text.contains("test.propose-unavailable"), text)
+    }
+
+    @MainActor
+    func testSendOfAnEmptyDraftPostsNothing() async throws {
+        let server = try server()
+        defer { server.stop() }
+        let rooms = try makeRooms(server, draft: "   ")
+        let chat = ChatModel()
+        let posted = await chat.send(roomId, rooms: rooms, backend: nil)
+        XCTAssertNil(posted)
+        XCTAssertTrue(server.frames.isEmpty)
+    }
+
+    // MARK: Confirm / cancel round trip
+
+    @MainActor
+    func testConfirmIntentExecutesAndRecordsTheResultingAttemptId() async throws {
+        let server = try server()
+        defer { server.stop() }
+        let utterance = "approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload."
+        let rooms = try makeRooms(server, draft: utterance)
+        let chat = ChatModel()
+        let backend = self.backend(for: try makeClient(server))
+        let sent = await chat.send(roomId, rooms: rooms, backend: backend)
+        let posted = try XCTUnwrap(sent)
+
+        var items = chat.threadItems(roomId: roomId, messages: [.message(posted)])
+        guard case .intentCard(let cardId, _, _) = items[1] else { return XCTFail("expected a pending card") }
+
+        let outcome = await chat.confirmIntent(roomId, cardId: cardId, backend: backend)
+        XCTAssertEqual(outcome?.attemptId?.rawValue, "00000004-0000-4000-8000-000000000004")
+
+        items = chat.threadItems(roomId: roomId, messages: [.message(posted)])
+        guard case .intentCard(_, _, let card) = items[1] else { return XCTFail("expected the same card") }
+        guard case .executed(let summary) = card.status else { return XCTFail("expected an executed outcome, got \(card.status)") }
+        XCTAssertTrue(summary.contains("00000004-0000-4000-8000-000000000004"), summary)
+
+        let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
+        XCTAssertEqual(operations, ["room.post", "studio.assistant.intent.propose", "studio.assistant.intent.execute"])
     }
 
     @MainActor
     func testCancelIntentNeverCallsExecute() async throws {
-        let server = try FakeDaemonServer { frame, _ in
-            let requestId = frame["requestId"]?.stringValue ?? ""
-            return .reply(try! WireResponse.fixture("assistant-intent-propose.response.json", requestId: requestId))
-        }
+        let server = try server()
         defer { server.stop() }
-        let backend = self.backend(for: try makeClient(server))
+        let utterance = "approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload."
+        let rooms = try makeRooms(server, draft: utterance)
         let chat = ChatModel()
-        _ = await chat.send("approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload.",
-                            context: context(), backend: backend)
-        let proposed = try XCTUnwrap(chat.selected?.messages.last)
-        chat.cancelIntent(proposed.id)
-        let cancelled = try XCTUnwrap(chat.selected?.messages.last { $0.id == proposed.id })
-        XCTAssertEqual(cancelled.intentCard?.status, .cancelled)
-        XCTAssertEqual(server.frames.count, 1, "propose only — cancelling never dispatches execute")
+        let backend = self.backend(for: try makeClient(server))
+        let sent = await chat.send(roomId, rooms: rooms, backend: backend)
+        let posted = try XCTUnwrap(sent)
+
+        let items = chat.threadItems(roomId: roomId, messages: [.message(posted)])
+        guard case .intentCard(let cardId, _, _) = items[1] else { return XCTFail("expected a pending card") }
+        chat.cancelIntent(roomId, cardId: cardId)
+
+        let after = chat.threadItems(roomId: roomId, messages: [.message(posted)])
+        guard case .intentCard(_, _, let card) = after[1] else { return XCTFail("expected the same card") }
+        XCTAssertEqual(card.status, .cancelled)
+        let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
+        XCTAssertEqual(operations, ["room.post", "studio.assistant.intent.propose"], "cancelling never dispatches execute")
+    }
+
+    // MARK: ChatThreadItem interleaving
+
+    /// A card anchored to an earlier message sorts between that message and a later one — never
+    /// after a message that hadn't happened yet when the card was created.
+    @MainActor
+    func testThreadItemsSortACardImmediatelyAfterItsAnchorMessage() async throws {
+        let server = try server()
+        defer { server.stop() }
+        let utterance = "approve 00000004-0000-4000-8000-000000000004 Approved — go ahead and upload."
+        let rooms = try makeRooms(server, draft: utterance)
+        let chat = ChatModel()
+        let sent = await chat.send(roomId, rooms: rooms, backend: backend(for: try makeClient(server)))
+        let firstMessage = try XCTUnwrap(sent)
+        XCTAssertEqual(firstMessage.sequence, 1)
+
+        let laterMessage = RoomChatMessage(
+            roomId: roomId, messageId: RoomMessageID(unchecked: "51000001-0000-4000-8000-000000000099"), sequence: 2,
+            occurredAt: IsoInstant(unchecked: "2026-08-16T18:02:00.000Z"), roundNumber: nil, grantId: nil,
+            author: .agent(persona: try RoomPersona("codex")), body: "On it.", mentions: [])
+
+        let items = chat.threadItems(roomId: roomId, messages: [.message(firstMessage), .message(laterMessage)])
+        XCTAssertEqual(items.count, 3)
+        guard case .room(let m0) = items[0] else { return XCTFail() }
+        XCTAssertEqual(m0.sequence, 1)
+        guard case .intentCard = items[1] else { return XCTFail("the card anchored at sequence 1 sorts right after it") }
+        guard case .room(let m2) = items[2] else { return XCTFail() }
+        XCTAssertEqual(m2.sequence, 2)
     }
 }

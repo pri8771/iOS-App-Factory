@@ -4,10 +4,16 @@ import SwiftUI
 //
 // `RoomMessageRow` renders one `RoomMessage` (message-transcript.md: human = gold, agent = cyan +
 // persona/provider, system = muted italic, `agent-error` = a typed chip that is NEVER silence,
-// `agent-passed` = a muted "— persona passed —" line). `RoomTranscriptView` is the scroll + composer,
-// shared by the full chat screen and the corner popup — same shape as `ConversationView`, over
-// `RoomsModel` instead of `ChatModel`. `RoomRosterPanel` is the right-side instrument: roster with
-// live state, the budget meter, the mode line. `NewRoomSheet` creates a room.
+// `agent-passed` = a muted "— persona passed —" line); `@persona` mentions inside a chat bubble are
+// highlighted from the message's own (server-truth) `mentions` field. `RoomTranscriptView` is the
+// scroll + composer, shared by the full chat screen and the corner popup — as of Wave 9b it is THE
+// chat surface (both "conversations" and "rooms" are rooms, Architecture decision 1), rendering
+// `ChatModel.threadItems` (the transcript plus any local intent-card/system-note overlay — Architecture
+// decision 14) rather than raw `RoomMessage`s, and owns the `@mention` popover (Architecture decision
+// 14) plus the ambient toggle / rename / archive affordances (plan item 5) by calling straight into
+// `RoomsModel` — no extra closures threaded through the screen. `RoomRosterPanel` is the right-side
+// instrument: roster with live state, the budget meter, the mode line, and (multi rooms only) an "add
+// participant" list sourced from `room.participants.list`. `NewRoomSheet` creates a room.
 
 private func roomTimeString(_ date: Date) -> String {
     let formatter = DateFormatter()
@@ -67,7 +73,7 @@ public struct RoomMessageRow: View {
                 Spacer(minLength: 40)
                 VStack(alignment: .trailing, spacing: 3) {
                     Text(handle.rawValue).font(HUDTypography.monoLabel).foregroundStyle(HUDTheme.gold)
-                    bubble(chat.body, role: .human)
+                    bubble(chat.body, mentions: chat.mentions, role: .human)
                     timestamp(chat.occurredAt)
                 }
                 RoomAvatar(role: .human, initial: String(handle.rawValue.prefix(1)).uppercased())
@@ -86,7 +92,7 @@ public struct RoomMessageRow: View {
                             Text(provider.rawValue).font(HUDTypography.monoLabel).foregroundStyle(HUDTheme.mute)
                         }
                     }
-                    bubble(chat.body, role: .machine)
+                    bubble(chat.body, mentions: chat.mentions, role: .machine)
                     timestamp(chat.occurredAt)
                 }
                 Spacer(minLength: 40)
@@ -96,8 +102,8 @@ public struct RoomMessageRow: View {
         }
     }
 
-    private func bubble(_ text: String, role: HUDRole) -> some View {
-        Text(text)
+    private func bubble(_ text: String, mentions: [RoomPersona], role: HUDRole) -> some View {
+        Text(Self.highlighted(text, mentions: mentions))
             .font(HUDTypography.body)
             .foregroundStyle(HUDTheme.ink)
             .textSelection(.enabled)
@@ -111,6 +117,23 @@ public struct RoomMessageRow: View {
                 RoundedRectangle(cornerRadius: HUDTheme.radius.control, style: .continuous)
                     .stroke(role == .human ? HUDTheme.gold.opacity(0.35) : HUDTheme.hairline, lineWidth: 1)
             )
+    }
+
+    /// Highlights every `@persona` occurrence named in `mentions` — server truth
+    /// (`RoomChatMessageV1.mentions`), never a client-side re-derivation of who got mentioned.
+    static func highlighted(_ text: String, mentions: [RoomPersona]) -> AttributedString {
+        var attributed = AttributedString(text)
+        guard !mentions.isEmpty else { return attributed }
+        for persona in mentions {
+            let needle = "@\(persona.rawValue)"
+            var searchStart = attributed.startIndex
+            while searchStart < attributed.endIndex, let range = attributed[searchStart...].range(of: needle) {
+                attributed[range].foregroundColor = HUDTheme.arc
+                attributed[range].font = HUDTypography.bodyStrong
+                searchStart = range.upperBound
+            }
+        }
+        return attributed
     }
 
     private func timestamp(_ at: IsoInstant) -> some View {
@@ -177,23 +200,85 @@ public struct RoomMessageRow: View {
     }
 }
 
+// MARK: - Intent-card / system-note overlay row
+
+/// One row of `ChatModel.threadItems`: a real `RoomMessage` renders through `RoomMessageRow`
+/// unchanged; the two client-local overlay kinds get their own honest rendering — a gold confirmation
+/// card (captioned "not in transcript", since it never becomes a durable `RoomMessage`) or a muted
+/// system-style line for a proposal that came back empty-handed instead of the deleted scripted stub.
+public struct ChatThreadItemRow: View {
+    public var item: ChatThreadItem
+    public var room: Room?
+    public var onConfirm: (() -> Void)?
+    public var onCancel: (() -> Void)?
+
+    public init(_ item: ChatThreadItem, room: Room?, onConfirm: (() -> Void)? = nil, onCancel: (() -> Void)? = nil) {
+        self.item = item
+        self.room = room
+        self.onConfirm = onConfirm
+        self.onCancel = onCancel
+    }
+
+    public var body: some View {
+        switch item {
+        case .room(let message):
+            RoomMessageRow(message, room: room)
+        case .intentCard(_, _, let card):
+            HStack(alignment: .top, spacing: HUDTheme.space.xs) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: HUDTheme.space.xxs) {
+                        HUDLabel("assistant")
+                        Text("·").font(HUDTypography.monoLabel).foregroundStyle(HUDTheme.faint)
+                        Text("studio assistant").font(HUDTypography.monoLabel).textCase(.uppercase).tracking(1.0)
+                            .foregroundStyle(HUDTheme.mute)
+                    }
+                    IntentConfirmationCard(card: card, onConfirm: onConfirm, onCancel: onCancel)
+                    HStack(spacing: HUDTheme.space.xxs) {
+                        ProvenanceBadge(.live("studio.assistant.intent.propose"), compact: true)
+                        Text("not in transcript — local to this session").font(HUDTypography.caption).foregroundStyle(HUDTheme.faint)
+                    }
+                }
+                Spacer(minLength: 40)
+            }
+        case .systemNote(_, _, let text):
+            Text("assistant unavailable: \(text)")
+                .font(HUDTypography.caption).italic()
+                .foregroundStyle(HUDTheme.mute)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityLabel("assistant unavailable: \(text)")
+        }
+    }
+}
+
 // MARK: - Transcript + composer
 
+/// The chat surface (Wave 9b): both a "conversation" (a direct room) and a "room" render through this
+/// one view. Owns the `@mention` popover, the ambient toggle, and rename/archive — all one-line calls
+/// straight into `RoomsModel`, no closures threaded down from the screen.
 public struct RoomTranscriptView: View {
     @Bindable public var rooms: RoomsModel
+    public var chat: ChatModel
     public var roomId: RoomID
+    /// `nil` keeps intent proposal off (no `studio.assistant.*` calls) — the room post itself still
+    /// goes through either way; see `ChatModel.send`.
+    public var backend: (() -> AssistantBackend?)?
     public var compact: Bool
 
     @FocusState private var focused: Bool
+    @State private var isEditingTitle = false
+    @State private var titleDraft = ""
 
-    public init(rooms: RoomsModel, roomId: RoomID, compact: Bool = false) {
+    public init(rooms: RoomsModel, chat: ChatModel, roomId: RoomID, backend: (() -> AssistantBackend?)? = nil, compact: Bool = false) {
         self.rooms = rooms
+        self.chat = chat
         self.roomId = roomId
+        self.backend = backend
         self.compact = compact
     }
 
     private var transcript: RoomTranscript { rooms.transcripts[roomId] ?? RoomTranscript() }
     private var room: Room? { rooms.room(roomId) }
+    private var threadItems: [ChatThreadItem] { chat.threadItems(roomId: roomId, messages: transcript.messages) }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -202,8 +287,9 @@ public struct RoomTranscriptView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: HUDTheme.space.s) {
-                        ForEach(transcript.messages) { message in
-                            RoomMessageRow(message, room: room).id(message.id)
+                        ForEach(threadItems) { item in
+                            ChatThreadItemRow(item, room: room, onConfirm: { confirm(item) }, onCancel: { cancel(item) })
+                                .id(item.id)
                         }
                         if transcript.messages.isEmpty {
                             Text(emptyStateText)
@@ -214,8 +300,8 @@ public struct RoomTranscriptView: View {
                     }
                     .padding(compact ? HUDTheme.space.s : HUDTheme.space.m)
                 }
-                .onChange(of: transcript.messages.count) { _, _ in
-                    if let last = transcript.messages.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
+                .onChange(of: threadItems.count) { _, _ in
+                    if let last = threadItems.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
                 }
             }
             Rectangle().fill(HUDTheme.hairline).frame(height: 1)
@@ -228,10 +314,12 @@ public struct RoomTranscriptView: View {
         return "No messages yet. Say hello."
     }
 
+    // MARK: Header — title (+ rename), round indicator, ambient toggle (multi rooms only), archive
+
     private var header: some View {
         HStack(spacing: HUDTheme.space.xs) {
             if let room {
-                Text(room.title).font(HUDTypography.displaySubheading).foregroundStyle(HUDTheme.ink).lineLimit(1)
+                titleView(room)
                 // Typing/round indicator only after a real grant — never speculative.
                 if room.roundInProgress {
                     BreathingDot(color: HUDTheme.arc)
@@ -240,8 +328,14 @@ public struct RoomTranscriptView: View {
                 if let moderator = transcript.moderator, !moderator.enabled {
                     StatusPill(.paused, label: "no agents granted")
                 }
+                Spacer()
+                if room.flavor == .room {
+                    ambientToggle(room)
+                }
+                overflowMenu
+            } else {
+                Spacer()
             }
-            Spacer()
             ProvenanceBadge(.live("room.events"), compact: true)
         }
         .padding(.horizontal, compact ? HUDTheme.space.s : HUDTheme.space.m)
@@ -249,22 +343,167 @@ public struct RoomTranscriptView: View {
         .background(HUDTheme.hull)
     }
 
-    private var composer: some View {
-        HStack(spacing: HUDTheme.space.xs) {
-            TextField("Message the room…", text: draftBinding, axis: .vertical)
+    @ViewBuilder
+    private func titleView(_ room: Room) -> some View {
+        if isEditingTitle {
+            TextField("Title", text: $titleDraft)
                 .textFieldStyle(.plain)
-                .font(HUDTypography.body)
+                .font(HUDTypography.displaySubheading)
                 .foregroundStyle(HUDTheme.ink)
-                .lineLimit(1...4)
-                .focused($focused)
-                .onSubmit { send() }
-                .accessibilityLabel("Message")
-            HUDButton("Send", systemImage: "arrow.up", variant: .arc, compact: true, action: send)
-                .disabled((rooms.drafts[roomId] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .keyboardShortcut(.return, modifiers: .command)
+                .frame(maxWidth: 220)
+                .onSubmit { commitRename(room) }
+            HUDButton("Save", compact: true, action: { commitRename(room) })
+            HUDButton("Cancel", variant: .ghost, compact: true) { isEditingTitle = false }
+        } else {
+            Text(room.title).font(HUDTypography.displaySubheading).foregroundStyle(HUDTheme.ink).lineLimit(1)
+            Button {
+                titleDraft = room.title
+                isEditingTitle = true
+            } label: {
+                Image(systemName: "pencil").font(.system(size: 10))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(HUDTheme.mute)
+            .help("Rename")
+            .accessibilityLabel("Rename room")
         }
-        .padding(compact ? HUDTheme.space.s : HUDTheme.space.m)
+    }
+
+    private func commitRename(_ room: Room) {
+        let trimmed = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        isEditingTitle = false
+        guard !trimmed.isEmpty, trimmed != room.title else { return }
+        Task { await rooms.updateRoom(roomId, patch: RoomUpdatePatch(title: trimmed)) }
+    }
+
+    /// Gold — an ambient room lets an agent speak up unprompted, a human decision (Architecture
+    /// decision 14 / plan item 5). Forced off server-side for a direct room, so this control is only
+    /// ever shown for a multi room in the first place (see `header`).
+    private func ambientToggle(_ room: Room) -> some View {
+        HStack(spacing: HUDTheme.space.xxs) {
+            Text("ambient").font(HUDTypography.monoLabel).textCase(.uppercase).tracking(1.0).foregroundStyle(HUDTheme.mute)
+            Toggle("Ambient", isOn: unattendedBinding(room)).labelsHidden().toggleStyle(.switch).tint(HUDTheme.gold)
+        }
+        .accessibilityLabel("Ambient — agents may reply while you're away")
+        .accessibilityValue(room.unattendedEnabled ? "on" : "off")
+    }
+
+    private func unattendedBinding(_ room: Room) -> Binding<Bool> {
+        Binding(get: { room.unattendedEnabled },
+               set: { newValue in Task { await rooms.setUnattended(roomId, enabled: newValue) } })
+    }
+
+    private var overflowMenu: some View {
+        Menu {
+            Button("Archive", role: .destructive) {
+                Task { await rooms.updateRoom(roomId, patch: RoomUpdatePatch(archived: true)) }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle").font(.system(size: 13))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .foregroundStyle(HUDTheme.mute)
+        .accessibilityLabel("Room actions")
+    }
+
+    // MARK: Composer — draft, `@mention` popover, passive mention chips
+
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if showMentionPopover { mentionPopover }
+            if !passiveMentions.isEmpty { mentionChips }
+            HStack(spacing: HUDTheme.space.xs) {
+                TextField("Message the room…", text: draftBinding, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(HUDTypography.body)
+                    .foregroundStyle(HUDTheme.ink)
+                    .lineLimit(1...4)
+                    .focused($focused)
+                    .onSubmit { send() }
+                    .onKeyPress(.tab) {
+                        guard showMentionPopover, let first = mentionMatches.first else { return .ignored }
+                        completeMention(first)
+                        return .handled
+                    }
+                    .accessibilityLabel("Message")
+                HUDButton("Send", systemImage: "arrow.up", variant: .arc, compact: true, action: send)
+                    .disabled((rooms.drafts[roomId] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .keyboardShortcut(.return, modifiers: .command)
+            }
+            .padding(compact ? HUDTheme.space.s : HUDTheme.space.m)
+        }
         .background(HUDTheme.hull)
+    }
+
+    private var activeMentionToken: MentionScanner.ActiveToken? {
+        MentionScanner.activeToken(in: rooms.drafts[roomId] ?? "")
+    }
+
+    private var mentionMatches: [RoomParticipant] {
+        guard let token = activeMentionToken, let room else { return [] }
+        return MentionScanner.matches(token.query, participants: room.participants)
+    }
+
+    private var showMentionPopover: Bool { activeMentionToken != nil && !mentionMatches.isEmpty }
+
+    /// A floating list above the composer — deliberately a plain overlay view, not SwiftUI's
+    /// `.popover()` presentation, so the text field never loses keyboard focus while it's showing
+    /// (the plan's own fallback for exactly that risk, taken here as the primary implementation).
+    private var mentionPopover: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(mentionMatches) { participant in
+                Button { completeMention(participant) } label: {
+                    HStack(spacing: HUDTheme.space.xxs) {
+                        Text("@\(participant.persona.rawValue)").font(HUDTypography.monoLabel).foregroundStyle(HUDTheme.arc)
+                        Text(participant.displayName).font(HUDTypography.body).foregroundStyle(HUDTheme.ink)
+                        Spacer()
+                        Text(participant.isBenched(at: rooms.now()) ? "benched" : "idle")
+                            .font(HUDTypography.caption).foregroundStyle(HUDTheme.mute)
+                    }
+                    .padding(.horizontal, HUDTheme.space.s)
+                    .padding(.vertical, HUDTheme.space.xxs)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, HUDTheme.space.xxs)
+        .background(HUDTheme.raised)
+        .overlay(Rectangle().stroke(HUDTheme.hairline, lineWidth: 1))
+        .padding(.horizontal, compact ? HUDTheme.space.s : HUDTheme.space.m)
+        .padding(.top, HUDTheme.space.xxs)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Mention a participant")
+    }
+
+    private func completeMention(_ participant: RoomParticipant) {
+        rooms.drafts[roomId] = MentionScanner.completing(rooms.drafts[roomId] ?? "", with: participant.persona.rawValue)
+    }
+
+    private var passiveMentions: [RoomPersona] {
+        MentionScanner.mentions(in: rooms.drafts[roomId] ?? "", participants: room?.participants ?? [])
+    }
+
+    /// "Will mention" chips under the field — a preview of what `room.post` will compute into
+    /// `RoomChatMessageV1.mentions` once this draft is actually sent, not a claim about what already
+    /// happened.
+    private var mentionChips: some View {
+        HStack(spacing: HUDTheme.space.xxs) {
+            ForEach(passiveMentions, id: \.self) { persona in
+                Text("@\(persona.rawValue)")
+                    .font(HUDTypography.monoLabel)
+                    .foregroundStyle(HUDTheme.arc)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(HUDTheme.arc.opacity(0.12)))
+            }
+        }
+        .padding(.horizontal, compact ? HUDTheme.space.s : HUDTheme.space.m)
+        .padding(.top, HUDTheme.space.xxs)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Will mention: " + passiveMentions.map { $0.rawValue }.joined(separator: ", "))
     }
 
     /// Every keystroke also fires the (internally debounced) typing signal.
@@ -278,7 +517,17 @@ public struct RoomTranscriptView: View {
     }
 
     private func send() {
-        Task { await rooms.send(roomId) }
+        Task { await chat.send(roomId, rooms: rooms, backend: backend?()) }
+    }
+
+    private func confirm(_ item: ChatThreadItem) {
+        guard case .intentCard(let id, _, _) = item, let backend = backend?() else { return }
+        Task { _ = await chat.confirmIntent(roomId, cardId: id, backend: backend) }
+    }
+
+    private func cancel(_ item: ChatThreadItem) {
+        guard case .intentCard(let id, _, _) = item else { return }
+        chat.cancelIntent(roomId, cardId: id)
     }
 }
 
@@ -316,16 +565,26 @@ public struct RoomRosterPanel: View {
     public var room: Room?
     public var messages: [RoomMessage]
     public var now: Date
+    /// `room.participants.list`, for the "add participant" list below — `nil` shows nothing (never a
+    /// guessed roster). Multi rooms only; a direct room never offers this (plan item 4 — atomic swap,
+    /// not additive `@mention`-into-thread, for a direct room, and not built this wave).
+    public var catalog: RoomParticipantsCatalog?
+    /// `nil` disables the "add participant" affordance entirely (e.g. a caller with no daemon).
+    public var onAddParticipant: ((RoomCatalogProviderEntry) -> Void)?
 
-    public init(room: Room?, messages: [RoomMessage], now: Date = Date()) {
+    public init(room: Room?, messages: [RoomMessage], now: Date = Date(),
+                catalog: RoomParticipantsCatalog? = nil, onAddParticipant: ((RoomCatalogProviderEntry) -> Void)? = nil) {
         self.room = room
         self.messages = messages
         self.now = now
+        self.catalog = catalog
+        self.onAddParticipant = onAddParticipant
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: HUDTheme.space.m) {
             rosterPanel
+            addParticipantPanel
             budgetPanel
             modePanel
         }
@@ -360,6 +619,43 @@ public struct RoomRosterPanel: View {
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// Catalog providers the daemon has configured that aren't already a seat in this room — the
+    /// "@mention a provider into the thread" affordance (plan item 4). Empty (so the panel renders
+    /// nothing) for a direct room, an unread/disabled catalog, or a room with every configured
+    /// provider already seated.
+    private var availableToAdd: [RoomCatalogProviderEntry] {
+        guard let room, room.flavor == .room, let catalog, catalog.enabled else { return [] }
+        let existing = Set(room.participants.map(\.provider))
+        return catalog.providers.filter { entry in
+            guard let key = entry.roomProviderKey ?? (try? RoomProvider(entry.provider.rawValue)) else { return false }
+            return !existing.contains(key)
+        }
+    }
+
+    @ViewBuilder
+    private var addParticipantPanel: some View {
+        if let onAddParticipant, !availableToAdd.isEmpty {
+            VStack(alignment: .leading, spacing: HUDTheme.space.xs) {
+                ForEach(availableToAdd) { entry in
+                    HUDButton(addParticipantLabel(entry), systemImage: "plus", variant: .ghost, compact: true) {
+                        onAddParticipant(entry)
+                    }
+                }
+                ProvenanceBadge(.live("room.participants.list"), compact: true)
+            }
+            .hudPanel("add participant")
+        }
+    }
+
+    /// The catalog's provider name, plus the instance key when it names something more specific than
+    /// the bare family (e.g. two named OpenRouter instances — "OpenRouter — fast" vs "OpenRouter —
+    /// deep") — never two identical-looking rows for genuinely different instances.
+    private func addParticipantLabel(_ entry: RoomCatalogProviderEntry) -> String {
+        let key = entry.roomProviderKey?.rawValue ?? entry.provider.rawValue
+        guard key != entry.provider.rawValue else { return entry.provider.displayName }
+        return "\(entry.provider.displayName) — \(key)"
     }
 
     @ViewBuilder

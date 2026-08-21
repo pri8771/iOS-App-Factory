@@ -64,6 +64,9 @@ public final class StudioStore {
     public let timelineLoadError: String?
     public let chat = ChatModel()
     public let rooms: RoomsModel
+    /// A thin façade over `rooms` (Architecture decisions 1/14) — conversations are direct rooms,
+    /// filtered from the same `room.list` `rooms` already loads; not a second wire family.
+    public let conversations: ConversationsModel
     public let phases: PhasesModel
     public let planner: PlannerModel
     public let settings: SettingsModel
@@ -82,6 +85,7 @@ public final class StudioStore {
         self.timelineLoadError = timelineLoadError
         self.now = now
         self.rooms = RoomsModel(client: client, now: now)
+        self.conversations = ConversationsModel(client: client, rooms: self.rooms)
         self.phases = PhasesModel(client: client, now: now)
         self.planner = PlannerModel(client: client, now: now)
         self.settings = SettingsModel(client: client)
