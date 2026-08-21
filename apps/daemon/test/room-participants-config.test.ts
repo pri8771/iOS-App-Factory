@@ -366,14 +366,14 @@ describe("buildRoomParticipantsCatalogSourceV1 (room.participants.list)", () => 
   it("projects providers by key/model/pinned CLI version and the roster verbatim", () => {
     const source = buildRoomParticipantsCatalogSourceV1(FULL_CONFIG);
     expect(source.providers).toEqual([
-      { provider: "codex", roomProviderKey: null, model: "gpt-test", cliVersion: "0.42.0" },
-      { provider: "claude", roomProviderKey: null, model: "sonnet", cliVersion: null },
+      { provider: "codex", roomProviderKey: "codex", model: "gpt-test", cliVersion: "0.42.0" },
+      { provider: "claude", roomProviderKey: "claude", model: "sonnet", cliVersion: null },
       // Ollama's model was left unset in the config; the catalog reports the effective default
-      // the adapter actually speaks, never an "unknown". `roomProviderKey` derivation (including
-      // the per-instance `openrouter-<id>` keys) is Wave 5 work, not this contracts-only wave.
+      // the adapter actually speaks, never an "unknown". The legacy singular form's
+      // `roomProviderKey` is the bare "ollama" (Architecture decision 9).
       {
         provider: "ollama",
-        roomProviderKey: null,
+        roomProviderKey: "ollama",
         model: expect.stringMatching(/^.+$/) as string,
         cliVersion: null,
       },
@@ -422,7 +422,12 @@ describe("buildRoomParticipantsCatalogSourceV1 (room.participants.list)", () => 
     });
     expect(ports.participantsCatalog).toEqual({
       providers: [
-        { provider: "ollama", roomProviderKey: null, model: "qwen2.5-coder:14b", cliVersion: null },
+        {
+          provider: "ollama",
+          roomProviderKey: "ollama",
+          model: "qwen2.5-coder:14b",
+          cliVersion: null,
+        },
       ],
       roster: [],
     });
@@ -495,7 +500,11 @@ describe("daemon-entrypoint rooms wiring reuses the containment attestation gate
     expect(configuration.rooms).toBeUndefined();
   });
 
-  it("refuses to enable rooms without a containment attestation, exactly like the coding-agent profile", async () => {
+  // Architecture decision 3: a missing containment attestation no longer kills rooms-enabled
+  // startup -- the daemon starts with the configured file's catalog visible (so `provider.list`/
+  // `room.participants.list` are honest about what is configured) but with no adapters activated
+  // (`provider.health` reports each instance "blocked"; see `provider-command-runtime.test.ts`).
+  it("starts rooms without a containment attestation, but activates no adapters", async () => {
     const directory = await root();
     const codexHome = join(directory, "codex-home");
     await mkdir(codexHome, { mode: 0o700 });
@@ -508,13 +517,53 @@ describe("daemon-entrypoint rooms wiring reuses the containment attestation gate
       }),
       { mode: 0o600 },
     );
-    await expect(
-      loadDaemonProcessConfiguration({
-        ...(await baseEnvironment(directory)),
-        APP_FACTORY_ROOMS_ENABLED: "true",
-        APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG: participantsConfig,
-      }),
-    ).rejects.toThrow(/containment attestation/);
+    const configuration = await loadDaemonProcessConfiguration({
+      ...(await baseEnvironment(directory)),
+      APP_FACTORY_ROOMS_ENABLED: "true",
+      APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG: participantsConfig,
+      // No APP_FACTORY_CONTAINMENT_ATTESTATION set.
+    });
+    expect(configuration.rooms?.enabled).toBe(true);
+    expect(configuration.rooms?.scorer).toBeDefined();
+    expect(configuration.rooms?.contributor).toBeDefined();
+    expect(configuration.rooms?.revalidator).toBeDefined();
+    expect(configuration.rooms?.providerCatalog).toBeDefined();
+    // The file's configured providers still surface honestly, even though not-attested means no
+    // adapter was activated for any of them.
+    expect(configuration.rooms?.participantsCatalog).toEqual({
+      providers: [
+        {
+          provider: "ollama",
+          roomProviderKey: "ollama",
+          model: expect.stringMatching(/^.+$/) as string,
+          cliVersion: null,
+        },
+      ],
+      roster: [],
+    });
+    expect(configuration.providerRegistry).toEqual({ configPath: participantsConfig });
+  });
+
+  // Architecture decision 3: a missing participants config file (nothing has ever been
+  // `provider.upsert`ed) also no longer kills rooms-enabled startup -- the daemon starts with an
+  // empty registry, ready for the first `provider.upsert` to populate.
+  it("starts rooms with an empty registry when no participants config file exists yet", async () => {
+    const directory = await root();
+    const attestationFile = join(directory, "containment-attestation.json");
+    await writeFile(attestationFile, JSON.stringify(VALID_ATTESTATION), { mode: 0o600 });
+    const participantsConfig = join(directory, "room-participants.json");
+    const configuration = await loadDaemonProcessConfiguration({
+      ...(await baseEnvironment(directory)),
+      APP_FACTORY_ROOMS_ENABLED: "true",
+      APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG: participantsConfig,
+      APP_FACTORY_CONTAINMENT_ATTESTATION: attestationFile,
+    });
+    expect(configuration.rooms?.enabled).toBe(true);
+    expect(configuration.rooms?.participantsCatalog).toEqual({ providers: [], roster: [] });
+    expect(configuration.providerRegistry).toEqual({
+      configPath: participantsConfig,
+      containmentAttestationPath: attestationFile,
+    });
   });
 
   it("enables rooms once a valid attestation and participants config are present", async () => {

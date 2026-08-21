@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { AdapterRegistry } from "@app-factory/adapter-sdk";
 import { AttemptIdSchema, Sha256DigestSchema, type AttemptId } from "@app-factory/contracts";
+import { createCredentialBroker, type CredentialBroker } from "@app-factory/credential-broker";
 import { GitWorkspaceManager } from "@app-factory/git-workspace";
 import { createFactoryRepositories } from "@app-factory/kernel";
 import type { EffectCredentialPort, EffectWorkerClockPort } from "@app-factory/effect-worker";
@@ -23,15 +24,24 @@ import {
   openDaemonCommandRuntime,
   resolveDaemonRuntimePaths,
   type DaemonCommandRuntime,
+  type InitializeRoomsContext,
   type OpenDaemonCommandRuntimeOptions,
+  type ProviderRegistryPort,
 } from "./command-runtime.js";
 import { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
 export { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
 import { createEffectSubsystem, type EffectSubsystem } from "./effect-pump.js";
+import { createProviderRegistryPort, type VersionProbePort } from "./provider-command-runtime.js";
 import { createKernelFactoryEventSource } from "./room-factory-event-source.js";
 import {
+  buildRoomsCompositionV1,
+  type RoomParticipantsConfigV1,
+} from "./room-participants-config.js";
+import {
+  createRoomsSubsystemHandle,
   createRoomSubsystem,
   type RoomSubsystem,
+  type RoomsSubsystemHandle,
   type RoomSubsystemConfiguration,
 } from "./room-subsystem.js";
 export { nodeRoomProcessPort, type RoomSubsystemConfiguration } from "./room-subsystem.js";
@@ -87,6 +97,20 @@ export type EffectSubsystemConfiguration = Readonly<{
   onError?: (error: unknown) => void;
 }>;
 
+/** See `StartFactoryDaemonServiceOptions.providerRegistry`. */
+export type ProviderRegistryConfiguration = Readonly<{
+  /** Absolute path to the participants config JSON file (the same one `rooms`/`phaseParticipants`
+   *  were built from). */
+  configPath: string;
+  containmentAttestationPath?: string;
+  /** Test seam: overrides the default `createCredentialBroker()`. */
+  credentialBroker?: CredentialBroker;
+  /** Test seam: overrides the real `child_process.spawn`-based codex/claude `--version` probe. */
+  versionProbe?: VersionProbePort;
+  /** Test seam: overrides the platform `fetch` the ollama/OpenRouter health probes use. */
+  fetchImpl?: typeof fetch;
+}>;
+
 export type StartFactoryDaemonServiceOptions = Readonly<{
   runtimeDirectory: string;
   authorization: string;
@@ -121,6 +145,14 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   phaseParticipants?: OpenDaemonCommandRuntimeOptions["phaseParticipants"];
   /** Default inert: see `OpenDaemonCommandRuntimeOptions.releaseObserver`. */
   releaseObserver?: OpenDaemonCommandRuntimeOptions["releaseObserver"];
+  /**
+   * Default OFF: omit to keep `provider.*` degraded (Architecture decisions 2-3). When set, builds
+   * the real `ProviderRegistryPort` (`provider-command-runtime.ts`) over the SAME participants
+   * config file `rooms`/`phaseParticipants` (above) were loaded from, and wires its hot-reload
+   * callback to `rooms`' own `RoomsSubsystemHandle` -- a successful `provider.upsert`/`remove`/
+   * `credential.set` swaps the live rooms subsystem with no daemon restart.
+   */
+  providerRegistry?: ProviderRegistryConfiguration;
   /**
    * Planner execution (`planner-project-execution.ts`): lets the verified executor run the task
    * items of owner-approved plans against ANY registered project (Project Registry + mirror binding
@@ -398,7 +430,10 @@ export async function startFactoryDaemonService(
     controller: null,
   };
   const effectsState: { subsystem: EffectSubsystem | null } = { subsystem: null };
-  const roomsState: { subsystem: RoomSubsystem | null } = { subsystem: null };
+  const roomsState: {
+    handle: RoomsSubsystemHandle | null;
+    context: InitializeRoomsContext | null;
+  } = { handle: null, context: null };
   let loop: BackgroundSchedulerLoop | null = null;
   let closing = false;
   let ready = false;
@@ -489,48 +524,104 @@ export async function startFactoryDaemonService(
 
   const roomsConfig = options.rooms;
   const daemonNow = options.now;
+
+  /**
+   * Builds a real `RoomSubsystem` from `configuration` over `context` -- shared by the initial
+   * `initializeRooms` composition below AND by `reloadRoomsFromConfig` (Architecture decision 3),
+   * so a hot-swapped subsystem gets the exact same `factoryEventSource`/`quota`/`clock` resolution
+   * the daemon always applies, never a second, drifted copy of this logic.
+   */
+  function composeRoomSubsystem(
+    configuration: RoomSubsystemConfiguration,
+    context: InitializeRoomsContext,
+  ): RoomSubsystem {
+    // The moderator shares the command runtime's notion of "now" unless a clock is injected
+    // explicitly, so attendance and lease arithmetic agree with the instants stamped on human
+    // posts. `quota` is resolved here (rather than at `startFactoryDaemonService` call time) when
+    // only a `quotaFactory` was supplied, since the kernel database handle a database-backed
+    // governor needs does not exist until the command runtime opens it.
+    const resolvedQuota =
+      configuration.quota ??
+      (configuration.quotaFactory === undefined
+        ? undefined
+        : configuration.quotaFactory(context.database));
+    // The factory-event bridge is the missing half of unattended mode (a dormant room acts only on
+    // `factory-event` triggers), so it is composed whenever rooms are: over the SAME kernel
+    // database handle, with the daemon's evidence store for broker-commit lookups.
+    // `factoryEventSource` in the configuration is a test seam (a fake ledger); the daemon never
+    // leaves it out.
+    const factoryEventSource =
+      configuration.factoryEventSource ??
+      createKernelFactoryEventSource({
+        database: context.database,
+        evidenceStore: context.evidenceStore,
+      });
+    return createRoomSubsystem(
+      {
+        ...configuration,
+        factoryEventSource,
+        ...(resolvedQuota === undefined ? {} : { quota: resolvedQuota }),
+        ...(configuration.clock === undefined && daemonNow !== undefined
+          ? { clock: { now: () => new Date(daemonNow()) } }
+          : {}),
+      },
+      context.rooms,
+    );
+  }
+
   const initializeRooms: OpenDaemonCommandRuntimeOptions["initializeRooms"] =
     roomsConfig?.enabled === true
       ? (context) => {
-          // The moderator shares the command runtime's notion of "now" unless
-          // a clock is injected explicitly, so attendance and lease arithmetic
-          // agree with the instants stamped on human posts. `quota` is
-          // resolved here (rather than at `startFactoryDaemonService` call
-          // time) when only a `quotaFactory` was supplied, since the kernel
-          // database handle a database-backed governor needs does not exist
-          // until the command runtime opens it.
-          const resolvedQuota =
-            roomsConfig.quota ??
-            (roomsConfig.quotaFactory === undefined
-              ? undefined
-              : roomsConfig.quotaFactory(context.database));
-          // The factory-event bridge is the missing half of unattended mode
-          // (a dormant room acts only on `factory-event` triggers), so it is
-          // composed whenever rooms are: over the SAME kernel database
-          // handle, with the daemon's evidence store for broker-commit
-          // lookups. `factoryEventSource` in the configuration is a test
-          // seam (a fake ledger); the daemon never leaves it out.
-          const factoryEventSource =
-            roomsConfig.factoryEventSource ??
-            createKernelFactoryEventSource({
-              database: context.database,
-              evidenceStore: context.evidenceStore,
-            });
-          const subsystem = createRoomSubsystem(
-            {
-              ...roomsConfig,
-              factoryEventSource,
-              ...(resolvedQuota === undefined ? {} : { quota: resolvedQuota }),
-              ...(roomsConfig.clock === undefined && daemonNow !== undefined
-                ? { clock: { now: () => new Date(daemonNow()) } }
-                : {}),
-            },
-            context.rooms,
-          );
-          roomsState.subsystem = subsystem;
-          return subsystem.statusPort;
+          const handle = createRoomsSubsystemHandle();
+          handle.adopt(composeRoomSubsystem(roomsConfig, context));
+          roomsState.handle = handle;
+          roomsState.context = context;
+          return handle.statusPort;
         }
       : undefined;
+
+  /**
+   * `provider.upsert`/`provider.remove`/`provider.credential.set`'s hot-reload callback
+   * (Architecture decision 3): rebuilds the moderator/contributor/providerCatalog from the
+   * freshly-written participants config and swaps it into the live `RoomsSubsystemHandle`,
+   * preserving every OTHER setting `roomsConfig` originally specified (a test-injected clock,
+   * `onError`/`onRound`, `dormancyMs`, ...). A no-op when rooms were never enabled at all -- the
+   * write to the config file already happened; there is simply nothing to swap.
+   */
+  const reloadRoomsFromConfig = async (
+    nextParticipantsConfig: RoomParticipantsConfigV1,
+    attested: boolean,
+  ): Promise<void> => {
+    if (roomsState.handle === null || roomsState.context === null || roomsConfig === undefined) {
+      return;
+    }
+    const { subsystemConfiguration } = buildRoomsCompositionV1(nextParticipantsConfig, attested);
+    const merged: RoomSubsystemConfiguration = {
+      ...roomsConfig,
+      ...subsystemConfiguration,
+      enabled: true,
+    };
+    await roomsState.handle.swap(composeRoomSubsystem(merged, roomsState.context));
+  };
+
+  const providerRegistryConfig = options.providerRegistry;
+  const providerRegistry: ProviderRegistryPort | undefined =
+    providerRegistryConfig === undefined
+      ? undefined
+      : createProviderRegistryPort({
+          configPath: providerRegistryConfig.configPath,
+          ...(providerRegistryConfig.containmentAttestationPath === undefined
+            ? {}
+            : { containmentAttestationPath: providerRegistryConfig.containmentAttestationPath }),
+          credentialBroker: providerRegistryConfig.credentialBroker ?? createCredentialBroker(),
+          ...(providerRegistryConfig.versionProbe === undefined
+            ? {}
+            : { versionProbe: providerRegistryConfig.versionProbe }),
+          ...(providerRegistryConfig.fetchImpl === undefined
+            ? {}
+            : { fetchImpl: providerRegistryConfig.fetchImpl }),
+          reloadRooms: reloadRoomsFromConfig,
+        });
 
   // Planner execution: the reviewed policy every plan-submitted task binds to is rendered ONCE here
   // (pure in its inputs), its digest handed to the command runtime for `plan.execute`/`plan.tick`
@@ -636,6 +727,7 @@ export async function startFactoryDaemonService(
       },
       ...(initializeEffects === undefined ? {} : { initializeEffects }),
       ...(initializeRooms === undefined ? {} : { initializeRooms }),
+      ...(providerRegistry === undefined ? {} : { providerRegistry }),
     });
     const activeController = schedulerState.controller;
     if (activeController === null) {
@@ -707,7 +799,7 @@ export async function startFactoryDaemonService(
       // The bridge itself never throws from drain (it records and reports
       // through the rooms `onError` port), so this cannot poison the loop.
       afterTick: () => {
-        roomsState.subsystem?.drainFactoryEvents();
+        roomsState.handle?.drainFactoryEvents();
       },
     });
     loop.start();
@@ -717,10 +809,10 @@ export async function startFactoryDaemonService(
     effectsState.subsystem?.start();
     // The room moderator sweeps orphaned grants and resumes pending rooms at
     // the same instant, strictly after startup recovery succeeded.
-    roomsState.subsystem?.start();
+    roomsState.handle?.start();
     ready = true;
   } catch (error) {
-    await roomsState.subsystem?.stop().catch(() => undefined);
+    await roomsState.handle?.stop().catch(() => undefined);
     await effectsState.subsystem?.stop().catch(() => undefined);
     await schedulerState.controller?.stop().catch(() => undefined);
     runtime?.close();
@@ -732,7 +824,7 @@ export async function startFactoryDaemonService(
   const activeController = schedulerState.controller;
   const activeLoop = loop;
   const activeEffectsSubsystem = effectsState.subsystem;
-  const activeRoomsSubsystem = roomsState.subsystem;
+  const activeRoomsHandle = roomsState.handle;
   if (activeRuntime === null || activeController === null || activeLoop === null) {
     throw new Error("The daemon composition finished without all owned components");
   }
@@ -745,8 +837,7 @@ export async function startFactoryDaemonService(
     startedAt: activeRuntime.startedAt,
     getLastSchedulerError: () => activeLoop.lastError,
     getLastEffectsPumpError: () => activeEffectsSubsystem?.loop.lastError ?? null,
-    getLastRoomsError: () =>
-      activeRoomsSubsystem?.loop.lastError ?? activeRoomsSubsystem?.bridge?.lastError ?? null,
+    getLastRoomsError: () => activeRoomsHandle?.lastError() ?? null,
     close: async () => {
       if (closePromise !== null) return await closePromise;
       closing = true;
@@ -758,7 +849,7 @@ export async function startFactoryDaemonService(
           activeController.stop(),
           activeLoop.stopped(),
           activeEffectsSubsystem === null ? Promise.resolve() : activeEffectsSubsystem.stop(),
-          activeRoomsSubsystem === null ? Promise.resolve() : activeRoomsSubsystem.stop(),
+          activeRoomsHandle === null ? Promise.resolve() : activeRoomsHandle.stop(),
         ]);
         activeRuntime.close();
         const failures = results

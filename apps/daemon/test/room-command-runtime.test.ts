@@ -428,3 +428,162 @@ describe("room moderator composed against the runtime database", () => {
     await loop.stop();
   });
 });
+
+describe("room.update", () => {
+  it("round-trips a CAS patch (title, unattendedEnabled, agentCooldownEvents, budget) and rejects a stale expectedUpdatedAt", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const created = await invoke(runtime, request("room.create", 1, spec()));
+    if (created.operation !== "room.create") throw new Error("unexpected result");
+
+    const updated = await invoke(
+      runtime,
+      request("room.update", 2, {
+        roomId: ROOM_ID,
+        expectedUpdatedAt: created.room.updatedAt,
+        patch: {
+          title: "Renamed",
+          unattendedEnabled: true,
+          agentCooldownEvents: 5,
+          budget: {
+            dailyCeilingTokens: 9_000,
+            unattendedDailyCeilingTokens: 2_000,
+            maxTokensPerReply: 700,
+          },
+        },
+      }),
+    );
+    expect(updated).toMatchObject({
+      operation: "room.update",
+      room: {
+        roomId: ROOM_ID,
+        title: "Renamed",
+        unattendedEnabled: true,
+        agentCooldownEvents: 5,
+        budget: {
+          dailyCeilingTokens: 9_000,
+          unattendedDailyCeilingTokens: 2_000,
+          maxTokensPerReply: 700,
+        },
+      },
+    });
+    if (updated.operation !== "room.update") throw new Error("unexpected result");
+
+    // A retry with the SAME commandId and patch replays the durable result byte-for-byte.
+    expect(
+      await invoke(
+        runtime,
+        request("room.update", 2, {
+          roomId: ROOM_ID,
+          expectedUpdatedAt: created.room.updatedAt,
+          patch: {
+            title: "Renamed",
+            unattendedEnabled: true,
+            agentCooldownEvents: 5,
+            budget: {
+              dailyCeilingTokens: 9_000,
+              unattendedDailyCeilingTokens: 2_000,
+              maxTokensPerReply: 700,
+            },
+          },
+        }),
+      ),
+    ).toEqual(updated);
+
+    // A FRESH commandId carrying an `expectedUpdatedAt` that does not match the room's actual
+    // `updatedAt` is refused, retryable -- the same CAS discipline `provider.upsert`'s
+    // `expectedDigest` uses. (This harness's clock is fixed at T0, so the room's `updatedAt` never
+    // itself advances past T0; a deliberately wrong instant exercises the same conflict path a
+    // genuinely stale read would.)
+    await expect(
+      invoke(
+        runtime,
+        request("room.update", 3, {
+          roomId: ROOM_ID,
+          expectedUpdatedAt: "2020-01-01T00:00:00.000Z",
+          patch: { title: "Racing rename" },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "room.update-conflict", retryable: true });
+
+    // The room is still readable and reflects only the FIRST update, not the rejected one.
+    const listed = await invoke(runtime, request("room.list", 4, { limit: 10 }));
+    expect(listed).toMatchObject({ rooms: [{ roomId: ROOM_ID, title: "Renamed" }] });
+  });
+
+  it("archives a room via room.update; room.list excludes it by default and includes it with includeArchived", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const created = await invoke(runtime, request("room.create", 1, spec()));
+    if (created.operation !== "room.create") throw new Error("unexpected result");
+
+    const archived = await invoke(
+      runtime,
+      request("room.update", 2, {
+        roomId: ROOM_ID,
+        expectedUpdatedAt: created.room.updatedAt,
+        patch: { archived: true },
+      }),
+    );
+    expect(archived).toMatchObject({ operation: "room.update", room: { archivedAt: T0 } });
+
+    const defaultList = await invoke(runtime, request("room.list", 3, { limit: 10 }));
+    expect(defaultList).toMatchObject({ operation: "room.list", rooms: [] });
+
+    const explicitFalse = await invoke(
+      runtime,
+      request("room.list", 4, { limit: 10, includeArchived: false }),
+    );
+    expect(explicitFalse).toMatchObject({ operation: "room.list", rooms: [] });
+
+    const withArchived = await invoke(
+      runtime,
+      request("room.list", 5, { limit: 10, includeArchived: true }),
+    );
+    expect(withArchived).toMatchObject({ operation: "room.list", rooms: [{ roomId: ROOM_ID }] });
+  });
+});
+
+describe("direct rooms (Architecture decision 1)", () => {
+  const DIRECT_ROOM_ID = "30000000-0000-4000-8000-000000000002";
+
+  function directSpec(overrides: Partial<RoomCreateSpecV1> = {}): RoomCreateSpecV1 {
+    return spec({
+      roomId: DIRECT_ROOM_ID,
+      flavor: "direct",
+      unattendedEnabled: false,
+      participants: [{ persona: "assistant", provider: "ollama", displayName: "Assistant" }],
+      ...overrides,
+    } as Partial<RoomCreateSpecV1>);
+  }
+
+  it("creates a direct room over the wire with exactly one participant", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const created = await invoke(runtime, request("room.create", 1, directSpec()));
+    expect(created).toMatchObject({
+      operation: "room.create",
+      duplicate: false,
+      room: { roomId: DIRECT_ROOM_ID, flavor: "direct" },
+    });
+  });
+
+  it("refuses a direct room with more than one participant or unattendedEnabled true", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    await expect(
+      invoke(
+        runtime,
+        request(
+          "room.create",
+          1,
+          directSpec({
+            participants: [
+              { persona: "assistant", provider: "ollama", displayName: "Assistant" },
+              { persona: "second", provider: "ollama", displayName: "Second" },
+            ],
+          }),
+        ),
+      ),
+    ).rejects.toMatchObject({ code: "room.direct-invariant" });
+    await expect(
+      invoke(runtime, request("room.create", 2, directSpec({ unattendedEnabled: true }))),
+    ).rejects.toMatchObject({ code: "room.direct-invariant" });
+  });
+});

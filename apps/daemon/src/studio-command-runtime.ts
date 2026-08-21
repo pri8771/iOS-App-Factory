@@ -4,9 +4,12 @@ import {
   AssistantIntentIdSchema,
   AssistantIntentV1Schema,
   CommandRequestV1Schema,
+  MAX_ROOM_LIST_ITEMS_V1,
   STUDIO_NOT_YET_WIRED_REASON_V1,
   STUDIO_NO_GATE_RECORDS_REASON_V1,
+  STUDIO_NO_ROOMS_REASON_V1,
   Sha256DigestSchema,
+  StudioRoomIdV1Schema,
   StudioSnapshotV1Schema,
   canonicalStudioSnapshotDigestInputV1,
   projectSlugFallbackV1,
@@ -31,10 +34,12 @@ import {
   type StudioPortfolioAggregatesV1,
   type StudioProjectDocsProvenanceV1,
   type StudioProjectV1,
+  type StudioRoomV1,
   type StudioSnapshotV1,
   type StudioTimelineActualV1,
 } from "@app-factory/contracts";
 import type { FactoryRepositories, LocalPortfolioProjectSummary } from "@app-factory/kernel";
+import type { RoomRepository } from "@app-factory/studio-rooms";
 import {
   mapCorpusLifecycleStageToCanonicalV1,
   readProjectDocsSnapshot,
@@ -62,10 +67,12 @@ import { CommandHandlerError } from "./unix-command-server.js";
  * `ProjectMilestoneRepository` `studio/milestones-and-phase` merged), the exact same
  * `ProjectMilestoneV1[]` `project.milestones.list` reads. `computeAssistantAnswerV1`'s
  * "when does X ship" lookup therefore answers for real whenever a project has an authored
- * milestone with a target date. `gates` and portfolio `rooms` are still reported empty/unavailable
- * with an explicit reason: `gates` because no typed-gate persistence exists yet in this daemon
- * (`STUDIO_NO_GATE_RECORDS_REASON_V1` — an honest "no records", not "not implemented"), `rooms`
- * because `studio/rooms-core` is a separate, unmerged worktree (`STUDIO_NOT_YET_WIRED_REASON_V1`).
+ * milestone with a target date. Portfolio `rooms` are real too (Architecture decision 12): sourced
+ * from the same `RoomRepository` the `room.*` commands write to, excluding archived rooms;
+ * `roomsUnavailableReason` is set only when the portfolio genuinely has none yet
+ * (`STUDIO_NO_ROOMS_REASON_V1`). `gates` is still reported empty/unavailable with an explicit
+ * reason: no typed-gate persistence exists yet in this daemon (`STUDIO_NO_GATE_RECORDS_REASON_V1`
+ * — an honest "no records", not "not implemented").
  *
  * `lifecycleStage` and part of `awaitingHuman`, by contrast, ARE wired for real today, for any
  * project `loadProjectDocsSourcesV1` (`project-docs-sources.ts`) names: they come from that
@@ -436,9 +443,21 @@ function placeholderProjectSummaryV1(
  * kernel attempt history but no registry record (pre-registry data) still gets a real row too:
  * attempt history is undeniable factory-observed truth, registration or not.
  */
+/** Projects `RoomV1[]` (excluding archived) into the dashboard's coarse `StudioRoomV1` summary
+ *  (Architecture decision 12): `kind` is `"project"` when the room is bound to a project,
+ *  `"portfolio"` otherwise. */
+function buildStudioRoomsV1(rooms: RoomRepository): StudioRoomV1[] {
+  return rooms.listRooms(MAX_ROOM_LIST_ITEMS_V1).map((room): StudioRoomV1 => ({
+    roomId: StudioRoomIdV1Schema.parse(room.roomId),
+    name: room.title,
+    kind: room.projectId === null ? "portfolio" : "project",
+  }));
+}
+
 export function buildStudioSnapshotV1(
   repositories: FactoryRepositories,
   observedAt: IsoInstant,
+  rooms: RoomRepository,
   docsSources: readonly ProjectDocsSourceV1[] = [],
 ): StudioSnapshotV1 {
   const summaries = repositories.portfolio.listProjectSummaries();
@@ -497,13 +516,14 @@ export function buildStudioSnapshotV1(
     ...build.project.timeline.actuals.map((actual) => actual.occurredAt),
   ]);
   const generatedAt = latestInstant(observedAt, ...activityTimestamps);
+  const studioRooms = buildStudioRoomsV1(rooms);
 
   const envelope = {
     schemaVersion: 1 as const,
     generatedAt,
     projects: builds.map((build) => build.project),
-    rooms: [],
-    roomsUnavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+    rooms: studioRooms,
+    roomsUnavailableReason: studioRooms.length === 0 ? STUDIO_NO_ROOMS_REASON_V1 : null,
     portfolio: computePortfolioAggregates(builds, generatedAt),
   };
   const sourceSnapshotDigest = Sha256DigestSchema.parse(

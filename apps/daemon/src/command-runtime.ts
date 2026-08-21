@@ -165,6 +165,8 @@ import {
   runSignalScout,
   type SignalScoutParticipantsPort,
 } from "./signal-command-runtime.js";
+import { buildSettingsGetResultV1, executeSettingsSetCommand } from "./settings-command-runtime.js";
+import { buildUsageSummaryResultV1 } from "./usage-command-runtime.js";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
 const MAX_CLIENT_FUTURE_SKEW_MS = 5 * 60 * 1_000;
@@ -196,11 +198,19 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "phase.reject",
   "room.create",
   "room.post",
+  "room.update",
   "release.observe",
   "signal.create",
   "signal.pause",
   "signal.resume",
   "signal.run-now",
+  "provider.upsert",
+  "provider.remove",
+  "settings.set",
+  // NOT durable (Architecture decision 2): `provider.credential.set` carries a bare secret and
+  // must never be journaled to `<runtime>/command-results/` -- a durable replay ledger must never
+  // be able to hold it, even transiently. It also routes OUTSIDE the serial executor entirely (see
+  // `openDaemonCommandRuntime`'s `setProviderCredential`), so it never reaches this set's checks.
 ]);
 
 type FactoryDatabase = ReturnType<typeof openMigratedFactoryDatabase>;
@@ -244,7 +254,12 @@ export type RoomsStatusPort = Readonly<{
    * `room.participants.list` (see `RoomParticipantsCatalogSourceV1`). Absent on the inert port and
    * on a hand-composed moderator with no config: the operation then reports no providers/roster.
    */
-  participantsCatalog?: RoomParticipantsCatalogSourceV1;
+  // The explicit `| undefined` (rather than plain `participantsCatalog?: ...`) is deliberate under
+  // `exactOptionalPropertyTypes`: `RoomsSubsystemHandle`'s stable `statusPort` (`room-subsystem.ts`)
+  // implements this field as a getter delegating to whichever subsystem is currently adopted, which
+  // may itself be `undefined` -- a getter's key is always "present" on the object, so its return
+  // type must include `undefined` explicitly rather than relying on key-absence.
+  participantsCatalog?: RoomParticipantsCatalogSourceV1 | undefined;
 }>;
 
 /**
@@ -269,6 +284,45 @@ const inertRoomsStatusPort: RoomsStatusPort = {
   wake: () => undefined,
   factoryBridge: () => ({ enabled: false, cursor: null }),
 };
+
+/**
+ * `provider.*` (Architecture decisions 2-3): daemon-composition-owned, injected exactly like
+ * `RoomsStatusPort`/`ReleaseObserverPort` -- this module has no business knowing the participants
+ * config file's shape, only how to route the already-validated wire request/result. The real
+ * implementation (`apps/daemon/src/provider-command-runtime.ts`, built from
+ * `room-participants-config.ts`'s read/write/mutate helpers) is wired up by
+ * `factory-daemon-service.ts` and by tests that want real provider.* coverage; a composition with
+ * no participants config at all simply omits this option, and `provider.*` degrades honestly (an
+ * empty list for the read side, a typed refusal for anything that would mutate or probe nothing).
+ * `credentialSet`/`health` run OUTSIDE the serial executor (Architecture decision 3, mirroring
+ * `release.observe`): each is a real Keychain/process/network round trip and must not stall every
+ * other command; NEITHER is ever journaled to the command-results ledger (Architecture decision 2
+ * for `credentialSet` -- the bare secret must never reach durable storage; `health` simply has
+ * nothing durable to say).
+ */
+export type ProviderRegistryPort = Readonly<{
+  list(request: Extract<CommandRequestV1, { operation: "provider.list" }>): CommandResultV1;
+  upsert(
+    request: Extract<CommandRequestV1, { operation: "provider.upsert" }>,
+  ): Promise<CommandResultV1>;
+  remove(
+    request: Extract<CommandRequestV1, { operation: "provider.remove" }>,
+  ): Promise<CommandResultV1>;
+  credentialSet(
+    request: Extract<CommandRequestV1, { operation: "provider.credential.set" }>,
+  ): Promise<CommandResultV1>;
+  health(
+    request: Extract<CommandRequestV1, { operation: "provider.health" }>,
+  ): Promise<CommandResultV1>;
+}>;
+
+function providerRegistryNotConfiguredError(): CommandHandlerError {
+  return new CommandHandlerError(
+    "provider.registry-not-configured",
+    "No provider registry is composed on this daemon (APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG unset); there is nothing to upsert, remove, or fund a credential for.",
+    false,
+  );
+}
 
 export type InitializeRoomsContext = Readonly<{
   database: FactoryDatabase;
@@ -344,6 +398,9 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
   /** Default OFF; see {@link TaskPolicyGateOptions}. */
   taskPolicyGate?: TaskPolicyGateOptions;
   initializeRooms?: InitializeRooms;
+  /** Default OFF: omit to keep `provider.*` degraded (an honest empty list; a typed refusal for
+   *  anything mutating). See {@link ProviderRegistryPort}. */
+  providerRegistry?: ProviderRegistryPort;
   /** Deterministic failpoint after the authoritative mutation and before result journaling. */
   commandResultLedgerBoundary?: (
     entry: Readonly<{ request: CommandRequestV1; result: CommandResultV1 }>,
@@ -845,6 +902,7 @@ type RoomCommandRequestV1 = Extract<
       | "room.post"
       | "room.events"
       | "room.typing"
+      | "room.update"
       | "room.participants.list";
   }
 >;
@@ -903,7 +961,9 @@ function executeRoomCommand(
       case "room.list":
         return {
           operation: "room.list",
-          rooms: [...dependencies.rooms.listRooms(request.payload.limit)],
+          rooms: [
+            ...dependencies.rooms.listRooms(request.payload.limit, request.payload.includeArchived),
+          ],
         };
       case "room.post": {
         const appended = dependencies.rooms.appendHumanMessage({
@@ -944,6 +1004,14 @@ function executeRoomCommand(
         );
         const room = dependencies.rooms.setHumanTyping(request.payload.roomId, typingUntil);
         return { operation: "room.typing", roomId: room.roomId, typingUntil };
+      }
+      case "room.update": {
+        const updated = dependencies.rooms.updateRoom(
+          request.payload,
+          request.commandId,
+          dependencies.observedAt,
+        );
+        return { operation: "room.update", room: updated.room };
       }
       case "room.participants.list":
         return {
@@ -1617,6 +1685,7 @@ async function executeRequest(
     runExportMirrors: RunExportMirrorPort;
     rooms: RoomRepository;
     roomsStatus: RoomsStatusPort;
+    providerRegistry: ProviderRegistryPort | null;
     /** Every ruleId `preset.upsert`/`phase.upsert` accept in `rules.standard[]`. */
     knownStandardRuleIds: ReadonlySet<string>;
     /** Only used by `studio.assistant.intent.execute` to durably ledger the op it dispatches to. */
@@ -1846,6 +1915,7 @@ async function executeRequest(
     case "room.post":
     case "room.events":
     case "room.typing":
+    case "room.update":
     case "room.participants.list":
       return executeRoomCommand(request, dependencies);
     case "release.observe":
@@ -1896,24 +1966,54 @@ async function executeRequest(
         snapshot: buildStudioSnapshotV1(
           repositories,
           dependencies.observedAt,
+          dependencies.rooms,
           loadProjectDocsSourcesV1(),
         ),
       };
-    // `provider.*`/`settings.*`/`room.update`/`usage.summary`/`signal.reschedule`: recognized by
-    // the wire protocol (`packages/contracts/src/v1/command-protocol.ts`) as of this contracts-only
-    // wave, but no daemon-side handler exists yet -- that lands in later waves (provider registry +
-    // settings-command-runtime + usage-command-runtime + room lifecycle + signal scheduler). Kept
-    // exhaustive, and honest about "recognized but not yet implemented" rather than falling through
-    // to `protocol.unsupported-operation`, which would incorrectly claim the operation is unknown.
     case "provider.list":
+      return dependencies.providerRegistry === null
+        ? { operation: "provider.list", providers: [] }
+        : dependencies.providerRegistry.list(request);
     case "provider.upsert":
+      if (dependencies.providerRegistry === null) throw providerRegistryNotConfiguredError();
+      return await dependencies.providerRegistry.upsert(request);
     case "provider.remove":
+      if (dependencies.providerRegistry === null) throw providerRegistryNotConfiguredError();
+      return await dependencies.providerRegistry.remove(request);
+    // `provider.credential.set`/`provider.health`: never reached here -- both run OUTSIDE the
+    // serial executor (see `openDaemonCommandRuntime`'s `setProviderCredential`/`probeProviderHealth`),
+    // mirroring `release.observe`/`signal.run-now`. Kept exhaustive so a future dispatch here is a
+    // deliberate decision, not an accident.
     case "provider.credential.set":
+      throw new CommandHandlerError(
+        "provider.credential.set-misrouted",
+        "provider.credential.set is handled by the command runtime's credential path, not by executeRequest.",
+        false,
+      );
     case "provider.health":
+      throw new CommandHandlerError(
+        "provider.health-misrouted",
+        "provider.health is handled by the command runtime's health-probe path, not by executeRequest.",
+        false,
+      );
     case "settings.get":
+      return buildSettingsGetResultV1(repositories.studioSettings, request);
     case "settings.set":
-    case "room.update":
+      return executeSettingsSetCommand(
+        repositories.studioSettings,
+        request,
+        dependencies.observedAt,
+        (dependencies.roomsStatus.participantsCatalog?.providers ?? []).map(
+          (entry) => entry.roomProviderKey ?? entry.provider,
+        ),
+      );
     case "usage.summary":
+      return buildUsageSummaryResultV1(repositories.tokenUsage, request, dependencies.observedAt);
+    // `signal.reschedule`: recognized by the wire protocol (`packages/contracts/src/v1/command-
+    // protocol.ts`), but the signal scheduler itself is a later wave's work (Architecture decision
+    // 11, Wave 7). Kept exhaustive, and honest about "recognized but not yet implemented" rather
+    // than falling through to `protocol.unsupported-operation`, which would incorrectly claim the
+    // operation is unknown.
     case "signal.reschedule":
       throw new CommandHandlerError(
         "command.operation-not-yet-implemented",
@@ -1924,7 +2024,12 @@ async function executeRequest(
       return {
         operation: "studio.assistant.query",
         answer: computeAssistantAnswerV1(
-          buildStudioSnapshotV1(repositories, dependencies.observedAt, loadProjectDocsSourcesV1()),
+          buildStudioSnapshotV1(
+            repositories,
+            dependencies.observedAt,
+            dependencies.rooms,
+            loadProjectDocsSourcesV1(),
+          ),
           request.payload.query,
         ),
       };
@@ -2370,11 +2475,48 @@ export async function openDaemonCommandRuntime(
     });
   };
 
+  /**
+   * `provider.credential.set`: routes OUTSIDE the serial executor and is NEVER journaled
+   * (Architecture decision 2) -- unlike `release.observe`/`signal.run-now`, there is no
+   * before/after ledger check here at all, because there must never be a durable record for a
+   * retry to find. A retried `provider.credential.set` (same commandId) simply runs again; storing
+   * the same secret under the same Keychain reference twice is idempotent (`security
+   * add-generic-password -U`).
+   */
+  const setProviderCredential = async (
+    request: Extract<CommandRequestV1, { operation: "provider.credential.set" }>,
+  ): Promise<CommandResultV1> => {
+    if (closed) throw closedError();
+    const observedAt = IsoInstantSchema.parse(now());
+    assertPlausibleClientTimestamps(request, observedAt);
+    if (options.providerRegistry === undefined) throw providerRegistryNotConfiguredError();
+    return await options.providerRegistry.credentialSet(request);
+  };
+
+  /**
+   * `provider.health`: routes OUTSIDE the serial executor, exactly like `release.observe`
+   * (Architecture decision 3) -- a health probe is a real process/network round trip and must not
+   * stall every other command. Never journaled: a probe result is never worth replaying.
+   */
+  const probeProviderHealth = async (
+    request: Extract<CommandRequestV1, { operation: "provider.health" }>,
+  ): Promise<CommandResultV1> => {
+    if (closed) throw closedError();
+    const observedAt = IsoInstantSchema.parse(now());
+    assertPlausibleClientTimestamps(request, observedAt);
+    if (options.providerRegistry === undefined)
+      return { operation: "provider.health", reports: [] };
+    return await options.providerRegistry.health(request);
+  };
+
   const handler: CommandHandler = async (requestInput: CommandRequestV1) => {
     if (closed) throw closedError();
     const request = CommandRequestV1Schema.parse(requestInput);
     if (request.operation === "release.observe") return await observeRelease(request);
     if (request.operation === "signal.run-now") return await runSignalNow(request);
+    if (request.operation === "provider.credential.set")
+      return await setProviderCredential(request);
+    if (request.operation === "provider.health") return await probeProviderHealth(request);
     return await serial.run(async () => {
       if (closed) throw closedError();
       const persistResult = DURABLE_COMMAND_RESULT_OPERATIONS.has(request.operation);
@@ -2404,6 +2546,7 @@ export async function openDaemonCommandRuntime(
           runExportMirrors,
           rooms: roomRepository,
           roomsStatus: roomsStatusPort,
+          providerRegistry: options.providerRegistry ?? null,
           knownStandardRuleIds,
           paths,
           planExecution,

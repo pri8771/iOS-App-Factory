@@ -8,6 +8,7 @@ import {
   startFactoryDaemonService,
   type EffectSubsystemConfiguration,
   type FactoryDaemonService,
+  type ProviderRegistryConfiguration,
 } from "./factory-daemon-service.js";
 import {
   LocalExecutionProfileConfigurationError,
@@ -88,6 +89,7 @@ export type DaemonProcessConfiguration = Readonly<{
   effects?: EffectSubsystemConfiguration;
   rooms?: RoomSubsystemConfiguration;
   phaseParticipants?: PhaseParticipantsPort;
+  providerRegistry?: ProviderRegistryConfiguration;
   releaseObserver?: ReleaseObserverPort;
   plannerExecution?: Readonly<{ config: PlannerExecutionConfigV1 }>;
 }>;
@@ -340,12 +342,17 @@ export async function loadDaemonProcessConfiguration(
   );
   let rooms: RoomSubsystemConfiguration | undefined;
   let phaseParticipants: PhaseParticipantsPort | undefined;
+  let providerRegistry: ProviderRegistryConfiguration | undefined;
   if (roomsEnabled) {
     const participantsConfigPath = absolutePath(
       environment.APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG,
       "APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG",
     );
     try {
+      // Architecture decision 3: a missing config file (nothing upserted yet) or missing/invalid
+      // attestation no longer fails daemon startup -- `rooms` always comes back `enabled: true`
+      // with an empty or adapter-inert registry; see `loadRoomsSubsystemConfiguration`'s own doc
+      // comment. Only a PRESENT-but-malformed config file still fails loudly, below.
       rooms = loadRoomsSubsystemConfiguration({
         participantsConfigPath,
         ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
@@ -357,8 +364,18 @@ export async function loadDaemonProcessConfiguration(
         participantsConfigPath,
         ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
       });
+      // provider.* (Architecture decisions 2-3): the SAME participants config file and attestation
+      // gate `rooms`/`phaseParticipants` just loaded -- `provider.upsert`/`remove`/
+      // `credential.set` write and hot-reload this exact file, never a second registry.
+      providerRegistry = {
+        configPath: participantsConfigPath,
+        ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
+      };
     } catch (error) {
-      if (error instanceof RoomParticipantsConfigurationError) {
+      if (
+        error instanceof RoomParticipantsConfigurationError ||
+        error instanceof LocalExecutionProfileConfigurationError
+      ) {
         configurationError(error.message);
       }
       throw error;
@@ -420,6 +437,7 @@ export async function loadDaemonProcessConfiguration(
     ...(effectsPumpEnabled ? { effects: { enabled: true } } : {}),
     ...(rooms === undefined ? {} : { rooms }),
     ...(phaseParticipants === undefined ? {} : { phaseParticipants }),
+    ...(providerRegistry === undefined ? {} : { providerRegistry }),
     ...(releaseObserver === undefined ? {} : { releaseObserver }),
     ...(plannerExecution === undefined ? {} : { plannerExecution }),
   };

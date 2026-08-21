@@ -27,13 +27,13 @@ import {
  * (`studio.snapshot`/`StudioSnapshotCommandRequestV1`) the Studio Mac app's dashboard makes on
  * open, per `docs/roadmap/STUDIO_PHASES.md` Phase 2. It composes from repositories that already
  * exist in this repository (attempts, events, the local portfolio projection, and — as of the
- * `studio/milestones-and-phase` merge — the durable milestone repository). `rooms` and typed
- * `gates` still belong to worktrees not reconciled here yet; every field those own is present in
- * the wire shape now, so the app can code against its final contract today, but the daemon
- * reports each one empty with an explicit `unavailableReason` string rather than a fabricated
- * value — see `STUDIO_NOT_YET_WIRED_REASON_V1` below. This mirrors, field for field, the
- * "never a defaulted number for a source you don't have" discipline `portfolio-read-model.ts`
- * already established for the pre-existing portfolio snapshot.
+ * `studio/milestones-and-phase` merge — the durable milestone repository). `rooms` projects the
+ * real room repository as of Architecture decision 12 (`roomsUnavailableReason` set only when the
+ * portfolio genuinely has none yet, `STUDIO_NO_ROOMS_REASON_V1`); typed `gates` still belong to a
+ * worktree not reconciled here yet, reported empty with an explicit `unavailableReason` string
+ * rather than a fabricated value — see `STUDIO_NOT_YET_WIRED_REASON_V1` below. This mirrors, field
+ * for field, the "never a defaulted number for a source you don't have" discipline
+ * `portfolio-read-model.ts` already established for the pre-existing portfolio snapshot.
  *
  * `projects[].timeline.milestones` is `ProjectMilestoneV1[]` — the same revisioned type
  * `project.milestones.list`/`project.milestone.upsert` read and write (`milestone.ts`). Earlier
@@ -60,6 +60,13 @@ export const STUDIO_NOT_YET_WIRED_REASON_V1 = "not yet wired (studio/rooms-core 
  * honest fact about the project, not a missing daemon capability.
  */
 export const STUDIO_NO_GATE_RECORDS_REASON_V1 = "no gate records for project" as const;
+
+/**
+ * Reported on `roomsUnavailableReason` once the daemon actually projects real rooms (Architecture
+ * decision 12) but the portfolio genuinely has none yet -- an honest fact about the daemon's
+ * durable state, not the old `STUDIO_NOT_YET_WIRED_REASON_V1` "a worktree hasn't merged" claim.
+ */
+export const STUDIO_NO_ROOMS_REASON_V1 = "no rooms have been created yet" as const;
 
 /**
  * Shared invariant for every nullable portfolio metric below: exactly one of `value` or
@@ -301,9 +308,9 @@ export function projectSlugFallbackV1(projectId: string): StableKey {
 }
 
 /**
- * Placeholder for the rooms concept `docs/roadmap/STUDIO_PHASES.md` Phase 3 ("Chat + rooms") and
- * the separate `studio/rooms-core` worktree own. Always empty in this daemon; see
- * `roomsUnavailableReason`.
+ * The dashboard's room summary (`docs/roadmap/STUDIO_PHASES.md` Phase 3, "Chat + rooms"):
+ * `kind` is `"project"` when the room's `RoomV1.projectId` is set, `"portfolio"` otherwise. Empty
+ * only when the portfolio genuinely has no rooms yet; see `roomsUnavailableReason`.
  */
 export const StudioRoomIdV1Schema = z.string().min(1).max(128).brand<"StudioRoomId">();
 export type StudioRoomIdV1 = z.infer<typeof StudioRoomIdV1Schema>;

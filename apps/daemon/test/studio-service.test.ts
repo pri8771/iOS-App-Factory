@@ -304,7 +304,7 @@ afterEach(async () => {
 });
 
 describe("studio.snapshot", () => {
-  it("composes an honest snapshot with a real slug, no persisted gates, no authored milestones yet, and unavailable rooms, with a verifiable digest", async () => {
+  it("composes an honest snapshot with a real slug, no persisted gates, no authored milestones yet, and no rooms created yet, with a verifiable digest", async () => {
     const runtime = await openRuntime(await makeRoot());
     const run = await invoke(runtime, request("task.run", RUN_COMMAND_ID, { taskSpec }, T0));
     if (run.operation !== "task.run") throw new Error("Unexpected run result");
@@ -333,8 +333,11 @@ describe("studio.snapshot", () => {
     // StudioMilestone placeholder.
     expect(project?.timeline.milestones).toEqual([]);
     expect(project?.timeline.milestonesUnavailableReason).toBeNull();
+    // No room has ever been created against this daemon: an honest "none yet", never the old
+    // "not yet wired (studio/rooms-core pending)" stub now that rooms project for real
+    // (Architecture decision 12).
     expect(snapshot.rooms).toEqual([]);
-    expect(snapshot.roomsUnavailableReason).toMatch(/not yet wired/);
+    expect(snapshot.roomsUnavailableReason).toBe("no rooms have been created yet");
     // Never a defaulted number: a metric this daemon genuinely cannot compute is unavailable, not 0.
     expect(snapshot.portfolio.agentWindowShare).toMatchObject({ value: null });
     expect(snapshot.portfolio.agentWindowShare.unavailableReason).not.toBeNull();
@@ -348,6 +351,74 @@ describe("studio.snapshot", () => {
     expect(canonicalStudioSnapshotDigestInputV1(snapshot)).toBe(
       canonicalStudioSnapshotDigestInputV1(structuredClone(snapshot)),
     );
+  });
+
+  it("projects real rooms into the snapshot (Architecture decision 12), excluding archived ones", async () => {
+    const runtime = await openRuntime(await makeRoot());
+    const projectRoomId = "90000000-0000-4000-8000-000000000201";
+    const portfolioRoomId = "90000000-0000-4000-8000-000000000202";
+    const archivedRoomId = "90000000-0000-4000-8000-000000000203";
+    const roomSpec = (roomId: string, projectId: string | null) => ({
+      roomId,
+      title: `Room ${roomId.slice(-4)}`,
+      projectId,
+      unattendedEnabled: false,
+      agentCooldownEvents: 2,
+      participants: [{ persona: "architect", provider: "ollama", displayName: "Architect" }],
+      budget: {
+        dailyCeilingTokens: 1_000,
+        unattendedDailyCeilingTokens: 0,
+        maxTokensPerReply: 200,
+      },
+    });
+    for (const [roomId, projectId, commandSuffix] of [
+      [projectRoomId, PROJECT_ID, "10"],
+      [portfolioRoomId, null, "11"],
+      [archivedRoomId, PROJECT_ID, "12"],
+    ] as const) {
+      const created = await invoke(
+        runtime,
+        request(
+          "room.create",
+          `90000000-0000-4000-8000-0000000002${commandSuffix}`,
+          roomSpec(roomId, projectId),
+          T1,
+        ),
+      );
+      if (created.operation !== "room.create") throw new Error("Unexpected room.create result");
+    }
+    const archived = await invoke(
+      runtime,
+      request(
+        "room.update",
+        "90000000-0000-4000-8000-000000000220",
+        {
+          roomId: archivedRoomId,
+          // `openRuntime`'s fixed clock (`now: () => T2`) stamps every command's `observedAt` as
+          // T2 regardless of `issuedAt` -- `room.create` therefore left this room's `updatedAt` at
+          // T2, the CAS value this update must match.
+          expectedUpdatedAt: T2,
+          patch: { archived: true },
+        },
+        T1,
+      ),
+    );
+    if (archived.operation !== "room.update") throw new Error("Unexpected room.update result");
+
+    const result = await invoke(runtime, request("studio.snapshot", SNAPSHOT_COMMAND_ID, {}, T2));
+    if (result.operation !== "studio.snapshot")
+      throw new Error("Unexpected studio.snapshot result");
+    // Archived room excluded; a project-bound room reports kind "project", a projectId-less room
+    // reports "portfolio" -- sourced from the exact same `RoomRepository` `room.*` commands write
+    // to, never a fabricated or stale projection.
+    expect(result.snapshot.rooms).toEqual(
+      expect.arrayContaining([
+        { roomId: projectRoomId, name: `Room ${projectRoomId.slice(-4)}`, kind: "project" },
+        { roomId: portfolioRoomId, name: `Room ${portfolioRoomId.slice(-4)}`, kind: "portfolio" },
+      ]),
+    );
+    expect(result.snapshot.rooms).toHaveLength(2);
+    expect(result.snapshot.roomsUnavailableReason).toBeNull();
   });
 
   it("reports a blocked attempt in awaitingHuman and the portfolio's awaitingYouCount", async () => {

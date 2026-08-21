@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   closeSync,
   constants,
@@ -9,6 +9,8 @@ import {
   openSync,
   readSync,
   realpathSync,
+  renameSync,
+  unlinkSync,
   writeSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
@@ -326,6 +328,62 @@ export function readPrivateFile(path: string, maximumBytes: number, label: strin
     return bytes;
   } finally {
     closeSync(descriptor);
+  }
+}
+
+/**
+ * Writes `bytes` to `path` atomically: a mode-0600 temp file created in the SAME directory (so the
+ * final `renameSync` is a same-filesystem atomic swap, never a partial write an observer could
+ * catch mid-flight), fsynced before the rename, with the directory itself fsynced after so the
+ * rename survives a crash. The temp file is unlinked in `finally` whether or not the rename
+ * happened, so a failed write never leaves stray `.tmp` siblings behind. A file written this way
+ * always passes {@link readPrivateFile}'s own discipline on the next read (regular, single-link,
+ * mode 0600, current-user-owned). Exported for reuse by daemon config writers that mutate a
+ * private JSON file in place (the room participants/provider registry config) rather than each
+ * growing its own copy of this atomic-write discipline.
+ */
+export function writePrivateFile(path: string, bytes: Buffer, label: string): void {
+  const normalized = normalizedAbsolutePath(path, label);
+  const directory = dirname(normalized);
+  assertNoSymbolicLinkAncestors(directory);
+  const temporaryPath = join(
+    directory,
+    `.${basename(normalized)}.${String(process.pid)}.${randomUUID()}.tmp`,
+  );
+  let descriptor: number | null = null;
+  try {
+    descriptor = openSync(
+      temporaryPath,
+      constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | (constants.O_NOFOLLOW ?? 0),
+      PRIVATE_FILE_MODE,
+    );
+    writeAll(descriptor, bytes, label);
+    fsyncSync(descriptor);
+    closeSync(descriptor);
+    descriptor = null;
+    renameSync(temporaryPath, normalized);
+  } catch (error) {
+    configurationError(`${label} could not be written safely.`, error);
+  } finally {
+    if (descriptor !== null) closeSync(descriptor);
+    // Best-effort only: a successful rename above already removed the temp path (this unlink then
+    // harmlessly ENOENTs), and a failure above is already propagating its own error out of this
+    // `finally` -- a `throw` here would silently replace that pending exception, which is exactly
+    // what `no-unsafe-finally` guards against.
+    try {
+      unlinkSync(temporaryPath);
+    } catch {
+      // Ignored: see above.
+    }
+  }
+  let directoryDescriptor: number | null = null;
+  try {
+    directoryDescriptor = openSync(directory, constants.O_RDONLY);
+    fsyncSync(directoryDescriptor);
+  } catch (error) {
+    configurationError(`${label} directory could not be synced after the write.`, error);
+  } finally {
+    if (directoryDescriptor !== null) closeSync(directoryDescriptor);
   }
 }
 
@@ -720,11 +778,11 @@ function ensurePrivateDirectory(path: string, label: string): string {
   return normalized;
 }
 
-function writeAll(descriptor: number, bytes: Buffer): void {
+function writeAll(descriptor: number, bytes: Buffer, label = "The Codex output schema"): void {
   let offset = 0;
   while (offset < bytes.byteLength) {
     const written = writeSync(descriptor, bytes, offset, bytes.byteLength - offset);
-    if (written < 1) configurationError("The Codex output schema could not be written completely.");
+    if (written < 1) configurationError(`${label} could not be written completely.`);
     offset += written;
   }
 }

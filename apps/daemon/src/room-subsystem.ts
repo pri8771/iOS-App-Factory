@@ -1,5 +1,6 @@
 import type { RoomFactoryBridgeStatusV1, RoomId } from "@app-factory/contracts";
 import {
+  DEFAULT_ROOM_DORMANCY_MS,
   RoomFactoryEventBridge,
   RoomModerator,
   RoomModeratorLoop,
@@ -124,6 +125,78 @@ export const nodeRoomProcessPort: RoomProcessPort = {
     }
   },
 };
+
+/**
+ * Hot-swap indirection over a `RoomSubsystem` (Architecture decision 3): `provider.upsert`/
+ * `provider.remove` rewrite the participants config file and then call {@link swap} with a freshly
+ * built subsystem over the new configuration -- no daemon restart. `statusPort` is a STABLE object
+ * (its properties are getters/closures over whichever subsystem is currently adopted) so every
+ * consumer that captured `handle.statusPort` once (the command runtime's `RoomsStatusPort`
+ * dependency) sees the swap take effect immediately, with no re-wiring.
+ *
+ * `swap` stops the currently adopted subsystem BEFORE building the next one: `RoomModeratorLoop
+ * .stop()` awaits every in-flight round to finish (see `loop.ts`), so a round already granted
+ * under the OLD configuration always finishes on its OWN already-resolved contributor/adapter
+ * closure -- never torn down mid-flight, and never racing a second moderator driving the same
+ * room concurrently (the "Reload races" mitigation the plan calls out). Only after that does the
+ * new subsystem start, so at most one moderator is ever live for a given `RoomRepository`.
+ */
+export type RoomsSubsystemHandle = Readonly<{
+  statusPort: RoomsStatusPort;
+  /** First-time synchronous adoption (no previous subsystem to stop) -- called once, from
+   *  `initializeRooms`, with the subsystem the daemon starts with. */
+  adopt(subsystem: RoomSubsystem): void;
+  /** Hot-swap: stops whatever is currently adopted, then adopts `next`. A no-op wait (nothing to
+   *  stop) before the very first `adopt`. */
+  swap(next: RoomSubsystem): Promise<void>;
+  start(): void;
+  stop(): Promise<void>;
+  drainFactoryEvents(): RoomFactoryEventBridgeDrainReport | null;
+  lastError(): unknown | null;
+}>;
+
+const inertRoomFactoryBridgeStatus: RoomFactoryBridgeStatusV1 = { enabled: false, cursor: null };
+
+export function createRoomsSubsystemHandle(): RoomsSubsystemHandle {
+  let current: RoomSubsystem | null = null;
+  let started = false;
+
+  const statusPort: RoomsStatusPort = {
+    get enabled() {
+      return current?.statusPort.enabled ?? false;
+    },
+    get dormancyMs() {
+      return current?.statusPort.dormancyMs ?? DEFAULT_ROOM_DORMANCY_MS;
+    },
+    wake: (roomId) => current?.statusPort.wake(roomId),
+    factoryBridge: () => current?.statusPort.factoryBridge() ?? inertRoomFactoryBridgeStatus,
+    get participantsCatalog() {
+      return current?.statusPort.participantsCatalog;
+    },
+  };
+
+  return {
+    statusPort,
+    adopt: (subsystem) => {
+      current = subsystem;
+    },
+    swap: async (next) => {
+      const previous = current;
+      if (previous !== null) await previous.stop();
+      current = next;
+      if (started) next.start();
+    },
+    start: () => {
+      started = true;
+      current?.start();
+    },
+    stop: async () => {
+      await current?.stop();
+    },
+    drainFactoryEvents: () => current?.drainFactoryEvents() ?? null,
+    lastError: () => current?.loop.lastError ?? current?.bridge?.lastError ?? null,
+  };
+}
 
 export function createRoomSubsystem(
   configuration: RoomSubsystemConfiguration,
