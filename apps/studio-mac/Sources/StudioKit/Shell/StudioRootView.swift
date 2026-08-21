@@ -18,9 +18,12 @@ public struct StudioRootView: View {
     /// stored id still names a room the daemon actually returned, never a blind `select()`.
     @AppStorage("studio.lastSelectedRoomId") private var lastSelectedRoomId: String?
     @State private var didRestoreLastSelectedRoom = false
-    /// Reserved for Wave 9d's `AnalyticsPanel` 7D/30D range picker; same status as
-    /// `lastSelectedRoomId` above.
+    /// The dashboard Analytics panel's 7D/30D range picker (Wave 9d — declared in Wave 8, now
+    /// consumed): the human's persisted choice; `UsageModel.range` is kept in sync with it (see
+    /// `syncAnalyticsRangeIfNeeded`) so `StudioStore.refresh()`'s 15s `usage.load()` always reads the
+    /// window the panel is actually showing, not whatever range the model happened to start with.
     @AppStorage("studio.analyticsRange") private var analyticsRange: String = "7d"
+    @State private var didSyncAnalyticsRange = false
     @State private var selectedSlug: String?
     /// The corner chat starts as the FAB so the dashboard's right column is visible on launch; one
     /// click opens the panel.
@@ -34,9 +37,6 @@ public struct StudioRootView: View {
     @State private var showingAddProvider = false
     @State private var credentialSheetProvider: ProviderInstance?
 
-    /// Phase 1: the budget gauge is a static placeholder and says so.
-    public static let staticBudget = Sourced(0.38, .staticValue("phase 1 placeholder"))
-
     public init() {}
 
     /// Rooms are visible exactly when the corner panel is open or the full chat tab is showing —
@@ -49,7 +49,7 @@ public struct StudioRootView: View {
         HStack(spacing: 0) {
             NavRail(tab: $tab)
             VStack(spacing: 0) {
-                StudioTitleBar(link: store.link, budget: Self.staticBudget, lastRefreshAt: store.lastRefreshAt) {
+                StudioTitleBar(link: store.link, budget: store.titleBarBudget, lastRefreshAt: store.lastRefreshAt) {
                     Task { await store.connect() }
                 }
                 ZStack(alignment: .bottomTrailing) {
@@ -120,12 +120,30 @@ public struct StudioRootView: View {
         }
         .task {
             updateRoomsVisibility()
+            syncAnalyticsRangeIfNeeded()
             await store.phases.loadPresetsIfNeeded()
         }
         .onChange(of: tab) { _, _ in updateRoomsVisibility() }
         .onChange(of: chatMinimized) { _, _ in updateRoomsVisibility() }
         .onChange(of: store.rooms.rooms) { _, rooms in restoreLastSelectedRoomIfNeeded(rooms) }
         .onChange(of: store.rooms.selectedRoomId) { _, newValue in lastSelectedRoomId = newValue?.rawValue }
+    }
+
+    /// Points `UsageModel` at the persisted `studio.analyticsRange` exactly once per launch, before
+    /// anything reads `usage.summary` — everything after this is `selectAnalyticsRange(_:)`, driven by
+    /// the panel's own picker.
+    private func syncAnalyticsRangeIfNeeded() {
+        guard !didSyncAnalyticsRange else { return }
+        didSyncAnalyticsRange = true
+        store.usage.setRange(AnalyticsRange(rawValue: analyticsRange) ?? .sevenDays)
+    }
+
+    /// The Analytics panel's 7D/30D picker: persists the choice, points the model at it, and reloads
+    /// immediately rather than waiting for the next 15s refresh tick.
+    private func selectAnalyticsRange(_ range: AnalyticsRange) {
+        analyticsRange = range.rawValue
+        store.usage.setRange(range)
+        Task { await store.usage.load() }
     }
 
     /// `nil` until the store has a client at all, mirroring `assistantBackend` below — rooms need a
@@ -167,7 +185,17 @@ public struct StudioRootView: View {
                                 selectedSlug: nil, onSelectProject: { selectedSlug = $0 },
                                 onNewProject: store.socketPath != nil ? { showingSeedSheet = true } : nil,
                                 release: store.socketPath != nil ? store.releaseRail : nil,
-                                onObserveRelease: store.socketPath != nil ? { Task { await store.observeRelease() } } : nil)
+                                onObserveRelease: store.socketPath != nil ? { Task { await store.observeRelease() } } : nil,
+                                analytics: store.socketPath != nil ? store.analyticsState : nil,
+                                onSelectAnalyticsRange: store.socketPath != nil ? { selectAnalyticsRange($0) } : nil,
+                                signals: store.socketPath != nil ? store.signalsState : nil,
+                                onExpandSignal: store.socketPath != nil ? { id in Task { await store.signals.toggleExpand(id) } } : nil,
+                                onPauseSignal: store.socketPath != nil ? { id in Task { await store.signals.pause(id) } } : nil,
+                                onResumeSignal: store.socketPath != nil ? { id in Task { await store.signals.resume(id) } } : nil,
+                                onRunSignalNow: store.socketPath != nil ? { id in Task { await store.signals.runNow(id) } } : nil,
+                                onRescheduleSignal: store.socketPath != nil
+                                    ? { id, minutes in Task { await store.signals.reschedule(id, checkIntervalMinutes: minutes) } } : nil,
+                                onAppear: { await store.usage.load(); await store.signals.load() })
                     .transition(.opacity)
             }
         case .chat:

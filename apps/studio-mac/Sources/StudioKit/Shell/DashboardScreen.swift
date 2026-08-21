@@ -26,11 +26,31 @@ public struct DashboardScreen: View {
     /// the phase-1 fixture dashboard); a state with no projection renders the honest empty rail.
     public var release: ReleaseRailState?
     public var onObserveRelease: (() -> Void)?
+    /// The Analytics panel (`usage.summary`, Wave 9d). `nil` omits the panel entirely, same convention
+    /// as `release` above; a non-nil state with `summary == nil` renders the panel's own honest empty
+    /// body instead (feature-detected — see `AnalyticsState`'s header comment).
+    public var analytics: AnalyticsState?
+    public var onSelectAnalyticsRange: ((AnalyticsRange) -> Void)?
+    /// The Signals panel (`signal.list`/`insight.list`, Wave 9d). Same nil-omits convention as `release`/`analytics`.
+    public var signals: SignalsState?
+    public var onExpandSignal: ((SignalID) -> Void)?
+    public var onPauseSignal: ((SignalID) -> Void)?
+    public var onResumeSignal: ((SignalID) -> Void)?
+    public var onRunSignalNow: ((SignalID) -> Void)?
+    public var onRescheduleSignal: ((SignalID, Int?) -> Void)?
+    /// Fires once when the screen appears — `StudioRootView` uses it to load `usage.summary`/
+    /// `signal.list` on every Dashboard-tab appearance, mirroring `PhasesScreen`/`SettingsScreen`'s
+    /// own `onAppear` closure (the 15s `StudioStore.refresh()` loop keeps them fresh after that).
+    public var onAppear: () async -> Void
 
     public init(snapshot: DashboardSnapshot, errors: [String: String] = [:], timelineNote: String? = nil,
                 selectedSlug: String? = nil, onSelectProject: ((String) -> Void)? = nil,
                 onNewProject: (() -> Void)? = nil, release: ReleaseRailState? = nil,
-                onObserveRelease: (() -> Void)? = nil) {
+                onObserveRelease: (() -> Void)? = nil, analytics: AnalyticsState? = nil,
+                onSelectAnalyticsRange: ((AnalyticsRange) -> Void)? = nil, signals: SignalsState? = nil,
+                onExpandSignal: ((SignalID) -> Void)? = nil, onPauseSignal: ((SignalID) -> Void)? = nil,
+                onResumeSignal: ((SignalID) -> Void)? = nil, onRunSignalNow: ((SignalID) -> Void)? = nil,
+                onRescheduleSignal: ((SignalID, Int?) -> Void)? = nil, onAppear: @escaping () async -> Void = {}) {
         self.snapshot = snapshot
         self.errors = errors
         self.timelineNote = timelineNote
@@ -39,6 +59,15 @@ public struct DashboardScreen: View {
         self.onNewProject = onNewProject
         self.release = release
         self.onObserveRelease = onObserveRelease
+        self.analytics = analytics
+        self.onSelectAnalyticsRange = onSelectAnalyticsRange
+        self.signals = signals
+        self.onExpandSignal = onExpandSignal
+        self.onPauseSignal = onPauseSignal
+        self.onResumeSignal = onResumeSignal
+        self.onRunSignalNow = onRunSignalNow
+        self.onRescheduleSignal = onRescheduleSignal
+        self.onAppear = onAppear
     }
 
     public var body: some View {
@@ -57,15 +86,18 @@ public struct DashboardScreen: View {
                     VStack(spacing: HUDTheme.space.m) {
                         reticle
                         awaiting
+                        if let signals { signalsPanel(signals) }
                     }
                     .frame(width: 300)
                 }
                 rings
+                if let analytics { analyticsPanel(analytics) }
                 if let release { releaseRail(release) }
                 if !errors.isEmpty { errorStrip }
             }
             .padding(HUDTheme.space.l)
         }
+        .task { await onAppear() }
     }
 
     private var gaugeRow: some View {
@@ -110,6 +142,16 @@ public struct DashboardScreen: View {
     private func releaseRail(_ state: ReleaseRailState) -> some View {
         ReleaseRailView(state: state, onObserve: onObserveRelease)
             .hudPanel("release rail · app store connect", padding: HUDTheme.space.s)
+    }
+
+    private func analyticsPanel(_ state: AnalyticsState) -> some View {
+        AnalyticsPanel(state: state, onSelectRange: { range in onSelectAnalyticsRange?(range) })
+    }
+
+    private func signalsPanel(_ state: SignalsState) -> some View {
+        SignalsPanel(state: state, onExpand: { id in onExpandSignal?(id) }, onPause: { id in onPauseSignal?(id) },
+                    onResume: { id in onResumeSignal?(id) }, onRunNow: { id in onRunSignalNow?(id) },
+                    onReschedule: { id, minutes in onRescheduleSignal?(id, minutes) })
     }
 
     private var errorStrip: some View {

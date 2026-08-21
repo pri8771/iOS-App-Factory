@@ -70,6 +70,10 @@ public final class StudioStore {
     public let phases: PhasesModel
     public let planner: PlannerModel
     public let settings: SettingsModel
+    /// The dashboard Analytics panel's `usage.summary` state (Wave 9d).
+    public let usage: UsageModel
+    /// The dashboard Signals panel's `signal.*`/`insight.list` state (Wave 9d).
+    public let signals: SignalsModel
 
     /// Injectable clock so derivations (and snapshots) are deterministic.
     public var now: @Sendable () -> Date
@@ -89,6 +93,8 @@ public final class StudioStore {
         self.phases = PhasesModel(client: client, now: now)
         self.planner = PlannerModel(client: client, now: now)
         self.settings = SettingsModel(client: client)
+        self.usage = UsageModel(client: client)
+        self.signals = SignalsModel(client: client)
     }
 
     /// Locates the daemon from the environment (`APP_FACTORY_SOCKET` / `APP_FACTORY_RUNTIME_DIR`,
@@ -124,6 +130,20 @@ public final class StudioStore {
     }
 
     public var dashboard: DashboardSnapshot { DashboardDerivation.snapshot(inputs) }
+
+    /// The title bar's budget gauge (Architecture decision — Wave 9d item 3): today's spent + reserved
+    /// tokens over the sum of daily ceilings across every room `room.list` currently knows, derived
+    /// client-side (no `usage.summary`-backed cross-room budget op exists yet — see the plan's "upgrade
+    /// to usage.summary later" note). `nil` when no rooms are loaded, or every loaded room's ceiling is
+    /// non-positive (never a divide-by-zero) — the gauge renders "—" honestly rather than a placeholder.
+    public var titleBarBudget: Sourced<Double> {
+        let budgets = rooms.rooms.map(\.budget)
+        let ceiling = budgets.reduce(0) { $0 + $1.dailyCeilingTokens }
+        guard !budgets.isEmpty, ceiling > 0 else { return Sourced(nil, .derived("room.list budgets")) }
+        let used = budgets.reduce(0) { $0 + $1.spentTokens + $1.reservedTokens }
+        let fraction = min(max(Double(used) / Double(ceiling), 0), 1)
+        return Sourced(fraction, .derived("room.list budgets"))
+    }
 
     public var assistantContext: AssistantContext {
         AssistantContext(link: link.description, doctor: link.doctor, portfolio: portfolio, attempts: attempts,
@@ -247,6 +267,12 @@ public final class StudioStore {
         // `loadRooms()`. Piggybacks on this same 15s loop rather than a second timer; the 1.5s
         // per-room transcript poll (`RoomsModel.resumePollingSelected()`) is unrelated and unchanged.
         await rooms.loadRooms()
+        // Wave 9d: the dashboard's Analytics/Signals panels stay fresh the same way, whether or not
+        // the human has the Dashboard tab open — `usage.summary`/`signal.list` are cheap reads, and
+        // each model's own `load()` already feature-detects an unsupported-operation daemon the same
+        // way `studioSnapshot` above does (nil, no error).
+        await usage.load()
+        await signals.load()
         lastRefreshAt = now()
     }
 
@@ -287,6 +313,24 @@ public final class StudioStore {
         ReleaseRailState(projection: releaseProjection,
                          error: errors["release.observe"] ?? errors["release.projection"],
                          isObserving: isObservingRelease)
+    }
+
+    /// The dashboard's Analytics panel state (Wave 9d) — `usage.load()`'s last result plus
+    /// `room.list`'s count, re-presented (not itself a new read). `activeRoomsCount` is `nil` until
+    /// this store has completed at least one `refresh()` — the same "loaded vs never asked" honesty
+    /// `knownProjects` observes for `portfolio`/`studioSnapshot`.
+    public var analyticsState: AnalyticsState {
+        AnalyticsState(range: usage.range, summary: usage.summary, isLoading: usage.isLoading, error: usage.error,
+                       activeRoomsCount: lastRefreshAt != nil ? rooms.rooms.count : nil)
+    }
+
+    /// The dashboard's Signals panel state (Wave 9d) — a direct re-presentation of `SignalsModel`'s
+    /// own observable state; the panel is a pure function of it, same convention as `releaseRail`.
+    public var signalsState: SignalsState {
+        SignalsState(signals: signals.signals, isLoading: signals.isLoading, error: signals.error,
+                    expandedSignalId: signals.expandedSignalId, insightsBySignal: signals.insightsBySignal,
+                    insightErrors: signals.insightErrors, busyIds: signals.busyIds, rowErrors: signals.rowErrors,
+                    lastRunOutcome: signals.lastRunOutcome)
     }
 
     /// Re-run doctor + refresh every `interval` seconds until cancelled.

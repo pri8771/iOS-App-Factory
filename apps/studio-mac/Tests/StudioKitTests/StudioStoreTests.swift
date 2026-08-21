@@ -69,8 +69,10 @@ final class StudioStoreTests: XCTestCase {
         // falls back silently the same way studio.snapshot does — no error, no rail. `room.list`
         // (Wave 8) is piggybacked onto this same `refresh()` so chat's room sidebar stays fresh even
         // outside the dedicated rooms UI; unanswered here, it falls back to `roomsError` the same
-        // honest way, never blocking the rest of the refresh.
-        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "portfolio.snapshot", "attempt.list", "evidence.list", "release.projection", "room.list"])
+        // honest way, never blocking the rest of the refresh. `usage.summary`/`signal.list` (Wave 9d)
+        // join last, feature-detecting the same unsupported-operation fallback.
+        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "portfolio.snapshot", "attempt.list", "evidence.list",
+                                    "release.projection", "room.list", "usage.summary", "signal.list"])
         XCTAssertNil(store.releaseProjection)
         XCTAssertNil(store.errors["release.projection"])
         XCTAssertEqual(server.frames[3]["request"]?["payload"], ["scope": "all", "projectId": nil, "after": nil, "limit": 100])
@@ -102,8 +104,10 @@ final class StudioStoreTests: XCTestCase {
         XCTAssertNil(store.attempts)
         XCTAssertNil(store.errors["studio.snapshot"])
         let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
-        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "evidence.list", "release.projection", "room.list"],
-                       "portfolio.snapshot/attempt.list are skipped once studio.snapshot answers; room.list (Wave 8) always runs")
+        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "evidence.list", "release.projection", "room.list",
+                                    "usage.summary", "signal.list"],
+                       "portfolio.snapshot/attempt.list are skipped once studio.snapshot answers; room.list (Wave 8) " +
+                       "and usage.summary/signal.list (Wave 9d) always run")
 
         let dashboard = store.dashboard
         XCTAssertEqual(dashboard.gauges.map(\.id), DashboardDerivation.studioGaugeOrder)

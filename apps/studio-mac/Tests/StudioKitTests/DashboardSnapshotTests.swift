@@ -80,11 +80,46 @@ final class DashboardSnapshotTests: XCTestCase {
                   size: CGSize(width: 900, height: 200), named: "phase-rings")
     }
 
+    // MARK: Wave 9d — Analytics / Signals panels
+
+    func testAnalyticsPanelPopulated() {
+        assertHUD(AnalyticsPanel(state: .previewPopulated).padding(16).background(HUDTheme.void),
+                  size: CGSize(width: 640, height: 220), named: "analytics-panel-populated")
+    }
+
+    func testAnalyticsPanelUnreportedHeavy() {
+        assertHUD(AnalyticsPanel(state: .previewUnreportedHeavy).padding(16).background(HUDTheme.void),
+                  size: CGSize(width: 640, height: 200), named: "analytics-panel-unreported-heavy")
+    }
+
+    func testAnalyticsPanelNotYetSourced() {
+        assertHUD(AnalyticsPanel(state: .previewNotYetSourced).padding(16).background(HUDTheme.void),
+                  size: CGSize(width: 640, height: 140), named: "analytics-panel-not-yet-sourced")
+    }
+
+    func testSignalsPanelActiveAndPaused() {
+        assertHUD(SignalsPanel(state: .previewActiveAndPaused).padding(16).frame(width: 340).background(HUDTheme.void),
+                  size: CGSize(width: 372, height: 300), named: "signals-panel-active-paused")
+    }
+
+    func testSignalsPanelExpandedWithInsights() {
+        assertHUD(SignalsPanel(state: .previewExpandedWithInsights).padding(16).frame(width: 340).background(HUDTheme.void),
+                  size: CGSize(width: 372, height: 420), named: "signals-panel-expanded")
+    }
+
+    func testSignalsPanelNotYetSourced() {
+        assertHUD(SignalsPanel(state: .previewNotYetSourced).padding(16).frame(width: 340).background(HUDTheme.void),
+                  size: CGSize(width: 372, height: 140), named: "signals-panel-not-yet-sourced")
+    }
+
+    /// Includes the Wave 9d Analytics/Signals panels (populated) — the layout every dashboard
+    /// screenshot below this line is now taken against.
     func testDashboardScreen() throws {
         let snapshot = DashboardDerivation.snapshot(try liveInputs())
-        assertHUD(DashboardScreen(snapshot: snapshot, timelineNote: "FIXTURE · timeline-fixture.json — planned spans are illustrative until the daemon has a milestones schema.")
+        assertHUD(DashboardScreen(snapshot: snapshot, timelineNote: "FIXTURE · timeline-fixture.json — planned spans are illustrative until the daemon has a milestones schema.",
+                                  analytics: .previewPopulated, signals: .previewActiveAndPaused)
                     .background(HUDTheme.void),
-                  size: CGSize(width: 1240, height: 940), named: "dashboard")
+                  size: CGSize(width: 1240, height: 1520), named: "dashboard")
     }
 
     func testProjectDetail() throws {
@@ -208,12 +243,15 @@ final class DashboardSnapshotTests: XCTestCase {
                   size: CGSize(width: 900, height: 420), named: "chat-screen")
     }
 
+    /// `budget` is now `StudioStore.titleBarBudget` (Wave 9d) — a derived `room.list`-budgets
+    /// fraction, never the old STATIC 0.38 placeholder. These two literals stand in for what that
+    /// derivation would produce connected-with-rooms vs. offline-with-nothing-loaded.
     func testTitleBar() {
         let ready = DoctorResult(readiness: .ready, daemonVersion: "0.1.0-ui-demo", protocolVersion: 1,
                                  startedAt: IsoInstant(unchecked: "2026-08-16T16:00:00.000Z"), issues: [])
         assertHUD(VStack(spacing: 8) {
-            StudioTitleBar(link: .connected(ready), budget: StudioRootView.staticBudget)
-            StudioTitleBar(link: .offline("[client] transport.connection-failed"), budget: StudioRootView.staticBudget)
+            StudioTitleBar(link: .connected(ready), budget: Sourced(0.38, .derived("room.list budgets")))
+            StudioTitleBar(link: .offline("[client] transport.connection-failed"), budget: Sourced(nil, .derived("room.list budgets")))
         }.background(HUDTheme.void), size: CGSize(width: 1000, height: 100), named: "title-bar")
     }
 

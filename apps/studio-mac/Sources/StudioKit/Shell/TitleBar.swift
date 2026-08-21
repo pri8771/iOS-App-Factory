@@ -3,10 +3,13 @@ import SwiftUI
 // MARK: - Title bar
 //
 // The window's own top strip (the system title bar is hidden): traffic-light inset, the wordmark,
-// the daemon beacon driven by doctor, and the budget mini gauge — which in phase 1 is a STATIC 38%
-// and is labelled as such. As of Wave 8 (Architecture decision 13) the four screens are no longer
-// tabs living here — they moved to the left `NavRail` — so this bar keeps only the chrome that is
-// not "which screen": the wordmark, the beacon, and the gauge.
+// the daemon beacon driven by doctor, and the budget mini gauge — `StudioStore.titleBarBudget` as of
+// Wave 9d: today's spent + reserved tokens over the sum of daily ceilings across every room
+// `room.list` knows about, `.derived("room.list budgets")`, honest "—" with no rooms loaded (no more
+// STATIC placeholder — see `StudioStore.titleBarBudget`'s doc comment). As of Wave 8 (Architecture
+// decision 13) the four screens are no longer tabs living here — they moved to the left `NavRail` —
+// so this bar keeps only the chrome that is not "which screen": the wordmark, the beacon, and the
+// gauge.
 
 /// The four screens (Architecture decision 13): chat is the default landing tab, not dashboard —
 /// declaration order is `NavRail`'s display order. `.phases` was renamed to `.stages` here (UI-only:
@@ -143,8 +146,8 @@ public struct MiniArc: View {
     VStack(spacing: 0) {
         StudioTitleBar(link: .connected(DoctorResult(readiness: .ready, daemonVersion: "0.1.0-ui-demo", protocolVersion: 1,
                                                       startedAt: IsoInstant(unchecked: "2026-08-16T16:00:00.000Z"), issues: [])),
-                       budget: Sourced(0.38, .staticValue("phase 1 placeholder")))
-        StudioTitleBar(link: .offline("[client] transport.connection-failed"), budget: Sourced(0.38, .staticValue("phase 1 placeholder")))
+                       budget: Sourced(0.38, .derived("room.list budgets")))
+        StudioTitleBar(link: .offline("[client] transport.connection-failed"), budget: Sourced(nil, .derived("room.list budgets")))
         Spacer()
     }
     .frame(width: 1000, height: 140)
