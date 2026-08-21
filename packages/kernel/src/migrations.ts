@@ -17,6 +17,10 @@ import { projectRegistryMigration } from "./migrations/0012-project-registry.js"
 import { roomFactoryEventCursorMigration } from "./migrations/0013-room-factory-event-cursor.js";
 import { ascReleaseObservationsMigration } from "./migrations/0014-asc-release-observations.js";
 import { signalsMigration } from "./migrations/0015-signals.js";
+import { studioSettingsMigration } from "./migrations/0016-studio-settings.js";
+import { tokenUsageMigration } from "./migrations/0017-token-usage.js";
+import { roomLifecycleMigration } from "./migrations/0018-room-lifecycle.js";
+import { signalScheduleMigration } from "./migrations/0019-signal-schedule.js";
 import type { SqlMigration } from "./migration-types.js";
 
 export type { SqlMigration } from "./migration-types.js";
@@ -54,6 +58,10 @@ export const FACTORY_MIGRATIONS: readonly SqlMigration[] = [
   roomFactoryEventCursorMigration,
   ascReleaseObservationsMigration,
   signalsMigration,
+  studioSettingsMigration,
+  tokenUsageMigration,
+  roomLifecycleMigration,
+  signalScheduleMigration,
 ];
 
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;

@@ -136,6 +136,90 @@ describe("credential broker", () => {
     expect([...stderr]).toEqual(Array(stderr.byteLength).fill(0));
   });
 
+  it("stores a secret with -U (update-in-place) and never requests it back", async () => {
+    const port = command();
+    const secret = Uint8Array.from(Buffer.from("brand-new-provider-token"));
+    await createCredentialBroker(port).store(REFERENCE, secret, new AbortController().signal);
+    expect(port.run.mock.calls[0]?.[0].arguments).toEqual([
+      "add-generic-password",
+      "-U",
+      "-s",
+      REFERENCE.service,
+      "-a",
+      REFERENCE.account,
+      "-w",
+      "brand-new-provider-token",
+    ]);
+    // The caller's buffer is zeroed once the store settles.
+    expect([...secret]).toEqual(Array("brand-new-provider-token".length).fill(0));
+  });
+
+  it("zeroes the secret buffer even when the store is refused, times out, or is cancelled upfront", async () => {
+    const denied = createCredentialBroker(command({ exitCode: 44, stderr: "irrelevant" }));
+    const deniedSecret = Uint8Array.from(Buffer.from("will-be-denied"));
+    await expect(
+      denied.store(REFERENCE, deniedSecret, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "credential.store-denied", retryable: false });
+    expect([...deniedSecret]).toEqual(Array("will-be-denied".length).fill(0));
+
+    const timedOut = createCredentialBroker(command({ timedOut: true }));
+    const timedOutSecret = Uint8Array.from(Buffer.from("will-time-out"));
+    await expect(
+      timedOut.store(REFERENCE, timedOutSecret, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "credential.store-timeout", retryable: true });
+    expect([...timedOutSecret]).toEqual(Array("will-time-out".length).fill(0));
+
+    const limited = createCredentialBroker(command({ outputLimitExceeded: true }));
+    const limitedSecret = Uint8Array.from(Buffer.from("output-too-big"));
+    await expect(
+      limited.store(REFERENCE, limitedSecret, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "credential.store-output-limit", retryable: false });
+    expect([...limitedSecret]).toEqual(Array("output-too-big".length).fill(0));
+
+    const controller = new AbortController();
+    controller.abort();
+    const port = command();
+    const cancelledSecret = Uint8Array.from(Buffer.from("never-sent"));
+    await expect(
+      createCredentialBroker(port).store(REFERENCE, cancelledSecret, controller.signal),
+    ).rejects.toMatchObject({ code: "credential.cancelled" });
+    expect(port.run).not.toHaveBeenCalled();
+    expect([...cancelledSecret]).toEqual(Array("never-sent".length).fill(0));
+
+    const empty = createCredentialBroker(command());
+    const emptySecret = new Uint8Array(0);
+    await expect(
+      empty.store(REFERENCE, emptySecret, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "credential.store-invalid", retryable: false });
+  });
+
+  it("wraps an unexpected command-port failure as credential.store-failed and still zeroes the buffer", async () => {
+    const port: CredentialCommandPort = {
+      run: vi.fn(async () => Promise.reject(new Error("boom"))),
+    };
+    const secret = Uint8Array.from(Buffer.from("about-to-explode"));
+    await expect(
+      createCredentialBroker(port).store(REFERENCE, secret, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "credential.store-failed", retryable: true });
+    expect([...secret]).toEqual(Array("about-to-explode".length).fill(0));
+  });
+
+  it("never leaks the secret into a thrown error message", async () => {
+    const secret = "canary-secret-must-not-appear-in-errors";
+    const denied = createCredentialBroker(command({ exitCode: 1 }));
+    try {
+      await denied.store(
+        REFERENCE,
+        Uint8Array.from(Buffer.from(secret)),
+        new AbortController().signal,
+      );
+      throw new Error("expected a denied store");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CredentialBrokerError);
+      expect((error as Error).message).not.toContain(secret);
+    }
+  });
+
   it("revokes and erases a borrowed credential while its callback is still running", async () => {
     const controller = new AbortController();
     let borrowed: Uint8Array | undefined;

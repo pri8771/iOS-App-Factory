@@ -9,6 +9,8 @@ export * from "./project-plan-repositories.js";
 export * from "./project-registry-repositories.js";
 export * from "./asc-release-observation-repositories.js";
 export * from "./signal-repositories.js";
+export * from "./settings-repositories.js";
+export * from "./token-usage-repositories.js";
 export * from "./repositories.js";
 export * from "./sqlite.js";
 export * from "./state-machine.js";

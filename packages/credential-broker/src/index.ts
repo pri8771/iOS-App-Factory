@@ -53,6 +53,13 @@ export type CredentialBroker = Readonly<{
     signal: AbortSignal,
     use: (credential: Uint8Array) => Promise<T>,
   ): Promise<T>;
+  /**
+   * Writes `secret` into Keychain under `reference` (Architecture decision 2: the daemon writes
+   * the Keychain, the bare key crosses the wire exactly once via `provider.credential.set`).
+   * `secret` is zeroed in `finally`, whether the store succeeds, fails, or is cancelled -- the
+   * caller must treat it as consumed after this call returns or throws.
+   */
+  store(reference: unknown, secret: Uint8Array, signal: AbortSignal): Promise<void>;
 }>;
 
 function aborted(): CredentialBrokerError {
@@ -78,6 +85,26 @@ function securityArguments(reference: CredentialReferenceV1, includeSecret: bool
     reference.service,
     "-a",
     reference.account,
+  ];
+}
+
+/**
+ * `-U` updates the item in place when one already exists for this service/account instead of
+ * failing with a duplicate-item error, so `store` is safe to call again for key rotation. The
+ * secret is necessarily materialized as a JS string here (a child process argv is strings, not
+ * bytes) -- unlike a fetched credential's bytes, this string cannot be zeroed; the caller's
+ * `Uint8Array` is zeroed in `store`'s `finally` regardless.
+ */
+function securityStoreArguments(reference: CredentialReferenceV1, secretText: string): string[] {
+  return [
+    "add-generic-password",
+    "-U",
+    "-s",
+    reference.service,
+    "-a",
+    reference.account,
+    "-w",
+    secretText,
   ];
 }
 
@@ -217,6 +244,67 @@ export function createCredentialBroker(
       } finally {
         signal.removeEventListener("abort", onAbort);
         owned.fill(0);
+      }
+    },
+    store: async (referenceValue, secret, signal) => {
+      const reference = parseCredentialReference(referenceValue);
+      try {
+        if (signal.aborted) throw aborted();
+        if (secret.byteLength === 0 || secret.byteLength > MAX_CREDENTIAL_BYTES) {
+          throw new CredentialBrokerError(
+            "credential.store-invalid",
+            "The credential to store is empty or too large.",
+            false,
+          );
+        }
+        // Never logged: this string exists only to become the `-w` argv entry below.
+        const secretText = Buffer.from(secret).toString("utf8");
+        let result: CredentialCommandResult;
+        try {
+          result = await commandPort.run({
+            executable: SECURITY_EXECUTABLE,
+            arguments: securityStoreArguments(reference, secretText),
+            timeoutMs,
+            maximumStdoutBytes: MAX_DIAGNOSTIC_BYTES,
+            maximumStderrBytes: MAX_DIAGNOSTIC_BYTES,
+            signal,
+          });
+        } catch (error) {
+          if (error instanceof CredentialBrokerError) throw error;
+          throw new CredentialBrokerError(
+            "credential.store-failed",
+            "The credential could not be stored in Keychain.",
+            true,
+          );
+        }
+        try {
+          if (signal.aborted) throw aborted();
+          if (result.timedOut) {
+            throw new CredentialBrokerError(
+              "credential.store-timeout",
+              "The Keychain credential store timed out.",
+              true,
+            );
+          }
+          if (result.outputLimitExceeded) {
+            throw new CredentialBrokerError(
+              "credential.store-output-limit",
+              "The Keychain credential store produced too much output.",
+              false,
+            );
+          }
+          if (result.exitCode !== 0) {
+            throw new CredentialBrokerError(
+              "credential.store-denied",
+              "The credential could not be written to Keychain.",
+              false,
+            );
+          }
+        } finally {
+          eraseResult(result);
+        }
+      } finally {
+        secret.fill(0);
       }
     },
   };
