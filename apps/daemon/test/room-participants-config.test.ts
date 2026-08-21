@@ -73,7 +73,41 @@ describe("parseRoomParticipantsConfigV1", () => {
     ).toThrow(RoomParticipantsConfigurationError);
   });
 
-  it("parses a full config with all three providers and a roster", () => {
+  it("rejects a relative gemini executable path", () => {
+    expect(() =>
+      parseRoomParticipantsConfigV1({
+        schemaVersion: 1,
+        gemini: { executable: "gemini", model: "gemini-2.5-flash" },
+      }),
+    ).toThrow(RoomParticipantsConfigurationError);
+  });
+
+  it("rejects an unsupported field inside a gemini participant block", () => {
+    expect(() =>
+      parseRoomParticipantsConfigV1({
+        schemaVersion: 1,
+        gemini: { executable: "/usr/bin/true", model: "gemini-2.5-flash", apiKey: "sk-nope" },
+      }),
+    ).toThrow(RoomParticipantsConfigurationError);
+  });
+
+  it("parses a gemini participant block, including an optional displayName", () => {
+    const config = parseRoomParticipantsConfigV1({
+      schemaVersion: 1,
+      gemini: {
+        executable: "/usr/bin/true",
+        model: "gemini-2.5-flash",
+        displayName: "Gemini (fast)",
+      },
+    });
+    expect(config.gemini).toEqual({
+      executable: "/usr/bin/true",
+      model: "gemini-2.5-flash",
+      displayName: "Gemini (fast)",
+    });
+  });
+
+  it("parses a full config with all four providers and a roster", () => {
     const config = parseRoomParticipantsConfigV1({
       schemaVersion: 1,
       codex: {
@@ -84,6 +118,7 @@ describe("parseRoomParticipantsConfigV1", () => {
         scratchRoot: "/tmp/codex-scratch",
       },
       claude: { executable: "/usr/bin/true", model: "sonnet" },
+      gemini: { executable: "/usr/bin/true", model: "gemini-2.5-flash" },
       ollama: { baseUrl: "http://127.0.0.1:11434", model: "qwen2.5-coder:14b" },
       roster: {
         schemaVersion: 1,
@@ -98,6 +133,7 @@ describe("parseRoomParticipantsConfigV1", () => {
     });
     expect(config.codex?.model).toBe("gpt-test");
     expect(config.claude?.model).toBe("sonnet");
+    expect(config.gemini?.model).toBe("gemini-2.5-flash");
     expect((config.ollama as RoomOllamaParticipantConfigV1 | undefined)?.model).toBe(
       "qwen2.5-coder:14b",
     );
@@ -348,6 +384,7 @@ describe("buildRoomParticipantsCatalogSourceV1 (room.participants.list)", () => 
       scratchRoot: "/tmp/codex-scratch",
     },
     claude: { executable: "/usr/bin/true", model: "sonnet" },
+    gemini: { executable: "/usr/bin/true", model: "gemini-2.5-flash" },
     ollama: { baseUrl: "http://127.0.0.1:11434", timeoutMs: 120_000 },
     roster: {
       schemaVersion: 1,
@@ -368,6 +405,12 @@ describe("buildRoomParticipantsCatalogSourceV1 (room.participants.list)", () => 
     expect(source.providers).toEqual([
       { provider: "codex", roomProviderKey: "codex", model: "gpt-test", cliVersion: "0.42.0" },
       { provider: "claude", roomProviderKey: "claude", model: "sonnet", cliVersion: null },
+      {
+        provider: "gemini",
+        roomProviderKey: "gemini",
+        model: "gemini-2.5-flash",
+        cliVersion: null,
+      },
       // Ollama's model was left unset in the config; the catalog reports the effective default
       // the adapter actually speaks, never an "unknown". The legacy singular form's
       // `roomProviderKey` is the bare "ollama" (Architecture decision 9).
@@ -449,6 +492,7 @@ describe("buildPhaseParticipantsPortV1 (Seam (b): phase.run's composed roster)",
         scratchRoot: join(directory, "codex-scratch"),
       },
       claude: { executable: "/usr/bin/true", model: "sonnet" },
+      gemini: { executable: "/usr/bin/true", model: "gemini-2.5-flash" },
     });
 
     const codexAdapter = port.resolve("codex" as never);
@@ -458,6 +502,10 @@ describe("buildPhaseParticipantsPortV1 (Seam (b): phase.run's composed roster)",
     const claudeAdapter = port.resolve("claude" as never);
     expect(claudeAdapter).not.toBeNull();
     expect(claudeAdapter?.provider).toBe("claude");
+
+    const geminiAdapter = port.resolve("gemini" as never);
+    expect(geminiAdapter).not.toBeNull();
+    expect(geminiAdapter?.provider).toBe("gemini");
 
     // "ollama" was never configured on this port -- resolves closed (null), never a fabricated
     // adapter, exactly like a room roster naming an unconfigured provider only fails that
@@ -469,6 +517,7 @@ describe("buildPhaseParticipantsPortV1 (Seam (b): phase.run's composed roster)",
     const port = buildPhaseParticipantsPortV1({ schemaVersion: 1 });
     expect(port.resolve("codex" as never)).toBeNull();
     expect(port.resolve("claude" as never)).toBeNull();
+    expect(port.resolve("gemini" as never)).toBeNull();
     expect(port.resolve("ollama" as never)).toBeNull();
   });
 

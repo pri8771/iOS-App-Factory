@@ -64,9 +64,9 @@ containment decision covers.
 
 Rooms need `APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG` set to an absolute path naming a mode-`0600`
 JSON file (`apps/daemon/src/room-participants-config.ts`'s `parseRoomParticipantsConfigV1()`):
-`schemaVersion: 1` plus any of `codex`, `claude`, `ollama`, `openrouter`, `roster`, all optional.
-The smallest working config needs only a local Ollama instance (loopback-only, no credential
-broker involved):
+`schemaVersion: 1` plus any of `codex`, `claude`, `gemini`, `ollama`, `openrouter`, `roster`, all
+optional. The smallest working config needs only a local Ollama instance (loopback-only, no
+credential broker involved):
 
 ```json
 {
@@ -98,11 +98,43 @@ default. Add `codex`/`claude` blocks to exercise those CLI-subprocess participan
 `openrouter` (an array of up to 5 named instances, each carrying a `credentialReference` — never a
 bare key — resolved through the credential broker) for BYOK OpenRouter.
 
+`gemini` is a fourth CLI-subprocess participant, configured exactly like `claude` (one instance,
+`executable`/`model`, optional `displayName` — no credential field at all in this config; the CLI
+authenticates through its own already-logged-in session under `~/.gemini/`, never an API key read
+or forwarded by this daemon):
+
+```json
+{
+  "schemaVersion": 1,
+  "gemini": {
+    "executable": "/Users/pchordia/.local/bin/gemini",
+    "model": "gemini-2.5-flash"
+  },
+  "ollama": {
+    "baseUrl": "http://127.0.0.1:11434",
+    "model": "qwen2.5:3b"
+  }
+}
+```
+
+Prerequisite: run `gemini` interactively once on this machine (outside this config) and complete
+its own Google OAuth login flow, so `~/.gemini/oauth_creds.json` exists and
+`~/.gemini/settings.json`'s `security.auth.selectedType` selects an OAuth-backed mode — CLI-login
+only, exactly like `claude`. A `gemini` install whose `selectedType` is `"gemini-api-key"` instead
+(reads `GEMINI_API_KEY` from its own environment) will fail every contribution closed with "you
+must specify the GEMINI_API_KEY environment variable" under this adapter's restricted child
+environment, by design: this daemon never reads or forwards `GEMINI_API_KEY`/`GOOGLE_API_KEY` from
+its own process environment (Architecture decision 10) — route API-key Gemini access through an
+`openrouter` instance instead. `provider.upsert` cannot create a brand-new `gemini` instance over
+the wire either, for the same machine-local-executable-path reason as `codex`/`claude`: configure
+it once by hand in this file, and `provider.upsert`/Settings → Providers may only retune its
+`model`/`displayName` afterward.
+
 A reachable local Ollama server is effectively required regardless of which chat participants you
 configure: the Tier-1 admission scorer and the per-room charter/summarizer are always built from
 Ollama (`config.ollama`'s `baseUrl`/`model`, or the same defaults, even when `ollama` is omitted
 entirely) — there is no "scorer" override yet to point that at a different instance (see the
-architecture plan's decision 5, not yet built). Without any of `codex`/`claude`/`ollama`/
+architecture plan's decision 5, not yet built). Without any of `codex`/`claude`/`gemini`/`ollama`/
 `openrouter` configured as a chat participant, rooms still start (a durable transcript with no
 agent floor); a room whose participant provider isn't configured here doesn't fail to create, it
 silently errors every turn a real reply is expected — check the room transcript's own error lines,

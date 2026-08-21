@@ -15,6 +15,7 @@ import { createFetchProviderHttpTransport } from "@app-factory/provider-transpor
 import {
   CLAUDE_SAFE_AGENT_ENVIRONMENT_NAMES,
   deriveOpenRouterBearerAuthorization,
+  GEMINI_SAFE_AGENT_ENVIRONMENT_NAMES,
 } from "@app-factory/studio-room-adapters";
 
 import type { ProviderRegistryPort } from "./command-runtime.js";
@@ -396,14 +397,18 @@ async function probeOneProviderV1(
       case "openrouter":
         report = await probeOpenRouter(slot, findOpenRouterBaseUrl(config, slot.key), deps);
         break;
-      case "gemini":
-        report = {
-          status: "not-configured",
-          detail: "gemini is not yet a supported provider family",
-          latencyMs: null,
-          version: null,
-        };
+      case "gemini": {
+        if (config.gemini === undefined) {
+          report = { status: "not-configured", detail: null, latencyMs: null, version: null };
+          break;
+        }
+        report = await probeCodexOrClaude(
+          config.gemini.executable,
+          pickSafeEnvironment(GEMINI_SAFE_AGENT_ENVIRONMENT_NAMES),
+          deps,
+        );
         break;
+      }
     }
   } catch (error) {
     report = {

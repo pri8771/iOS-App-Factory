@@ -3,6 +3,7 @@ export * from "./codex-participant.js";
 export * from "./contribution-schema.js";
 export * from "./contributor.js";
 export * from "./failure-text.js";
+export * from "./gemini-participant.js";
 export * from "./kernel-activity.js";
 export * from "./ollama-participant.js";
 export * from "./openrouter-participant.js";

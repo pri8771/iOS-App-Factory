@@ -26,6 +26,7 @@ import {
   createClaudeParticipant,
   createCodexParticipant,
   createFactoryAwareQuotaGovernor,
+  createGeminiParticipant,
   createKernelAttemptActivityPort,
   createOllamaParticipant,
   createOllamaRoomScorer,
@@ -126,6 +127,15 @@ export type RoomClaudeParticipantConfigV1 = Readonly<{
   displayName?: string;
 }>;
 
+/** Mirrors `RoomClaudeParticipantConfigV1` field for field (Architecture decision 10: gemini is a
+ *  CLI-subprocess adapter configured exactly like Claude -- one instance, machine-local
+ *  executable path, no credential in this config). */
+export type RoomGeminiParticipantConfigV1 = Readonly<{
+  executable: string;
+  model: string;
+  displayName?: string;
+}>;
+
 export type RoomOllamaParticipantConfigV1 = Readonly<{
   baseUrl?: string;
   model?: string;
@@ -190,6 +200,7 @@ export type RoomParticipantsConfigV1 = Readonly<{
   schemaVersion: 1;
   codex?: RoomCodexParticipantConfigV1;
   claude?: RoomClaudeParticipantConfigV1;
+  gemini?: RoomGeminiParticipantConfigV1;
   ollama?: RoomOllamaConfigV1;
   openrouter?: readonly RoomOpenRouterParticipantConfigV1[];
   scorer?: RoomScorerConfigV1;
@@ -247,6 +258,19 @@ function parseClaudeParticipantConfig(value: unknown): RoomClaudeParticipantConf
     ...(value.displayName === undefined
       ? {}
       : { displayName: boundedString(value.displayName, "claude.displayName", 100) }),
+  };
+}
+
+/** Mirrors {@link parseClaudeParticipantConfig} exactly (Architecture decision 10). */
+function parseGeminiParticipantConfig(value: unknown): RoomGeminiParticipantConfigV1 {
+  if (!isRecord(value)) configurationError("gemini participant configuration must be an object.");
+  allowedKeys(value, ["executable", "model", "displayName"], "gemini participant configuration");
+  return {
+    executable: absolutePathValue(value.executable, "gemini.executable"),
+    model: boundedString(value.model, "gemini.model", 200),
+    ...(value.displayName === undefined
+      ? {}
+      : { displayName: boundedString(value.displayName, "gemini.displayName", 100) }),
   };
 }
 
@@ -437,7 +461,7 @@ export function parseRoomParticipantsConfigV1(input: unknown): RoomParticipantsC
   if (!isRecord(input)) configurationError(`${PARTICIPANTS_CONFIG_LABEL} must be an object.`);
   allowedKeys(
     input,
-    ["schemaVersion", "codex", "claude", "ollama", "openrouter", "scorer", "roster"],
+    ["schemaVersion", "codex", "claude", "gemini", "ollama", "openrouter", "scorer", "roster"],
     PARTICIPANTS_CONFIG_LABEL,
   );
   if (input.schemaVersion !== 1)
@@ -469,6 +493,7 @@ export function parseRoomParticipantsConfigV1(input: unknown): RoomParticipantsC
     schemaVersion: 1,
     ...(input.codex === undefined ? {} : { codex: parseCodexParticipantConfig(input.codex) }),
     ...(input.claude === undefined ? {} : { claude: parseClaudeParticipantConfig(input.claude) }),
+    ...(input.gemini === undefined ? {} : { gemini: parseGeminiParticipantConfig(input.gemini) }),
     ...(ollama === undefined ? {} : { ollama }),
     ...(input.openrouter === undefined
       ? {}
@@ -536,6 +561,16 @@ export function enumerateProviderSlotsV1(
       model: config.claude.model,
       cliVersion: null,
       displayName: config.claude.displayName ?? defaultDisplayName("claude", "claude"),
+      credentialReference: null,
+    });
+  }
+  if (config.gemini !== undefined) {
+    slots.push({
+      key: RoomProviderSchema.parse("gemini"),
+      family: "gemini",
+      model: config.gemini.model,
+      cliVersion: null,
+      displayName: config.gemini.displayName ?? defaultDisplayName("gemini", "gemini"),
       credentialReference: null,
     });
   }
@@ -735,6 +770,9 @@ export function buildRoomSubsystemConfiguration(
   }
   if (config.claude !== undefined) {
     adapters.push(createClaudeParticipant(config.claude));
+  }
+  if (config.gemini !== undefined) {
+    adapters.push(createGeminiParticipant(config.gemini));
   }
   const ollamaTransport = createFetchOllamaTransport();
   const ollamaInstances = normalizeOllamaInstances(config.ollama);
@@ -949,6 +987,10 @@ export function buildPhaseParticipantsPortV1(
     const adapter = createClaudeParticipant(config.claude);
     adapters.set(String(adapter.provider), adapter);
   }
+  if (config.gemini !== undefined) {
+    const adapter = createGeminiParticipant(config.gemini);
+    adapters.set(String(adapter.provider), adapter);
+  }
   const ollamaInstances = normalizeOllamaInstances(config.ollama);
   for (const adapter of buildOllamaAdapters(ollamaInstances, createFetchOllamaTransport())) {
     adapters.set(String(adapter.provider), adapter);
@@ -1072,13 +1114,15 @@ export function writeProviderConfigSnapshotV1(
   return { config: validated, digest: digestRoomParticipantsConfigV1(validated) };
 }
 
-/** Which slot in `RoomParticipantsConfigV1` a wire `{key, family}` pair names. Never includes a
- *  `"gemini"` member: {@link deriveProviderSlotIdentityV1} always refuses `family: "gemini"`
- *  before returning, so no branch of this union is ever needed for it (Gemini ships in a later
- *  wave -- see Architecture decision 10). */
+/** Which slot in `RoomParticipantsConfigV1` a wire `{key, family}` pair names. `"gemini"` is
+ *  configured exactly like `"claude"` (Architecture decision 10): one instance, key must equal
+ *  `"gemini"`, and `upsertProviderInstanceV1` refuses to CREATE a brand-new one over the wire for
+ *  the same machine-local-executable-path reason codex/claude are refused -- it may only retune
+ *  the `model`/`displayName` of a gemini instance an operator already configured by hand. */
 export type ProviderSlotIdentityV1 =
   | Readonly<{ kind: "codex" }>
   | Readonly<{ kind: "claude" }>
+  | Readonly<{ kind: "gemini" }>
   | Readonly<{ kind: "ollama-legacy" }>
   | Readonly<{ kind: "ollama-instance"; id: string }>
   | Readonly<{ kind: "openrouter-instance"; id: string }>;
@@ -1093,10 +1137,13 @@ export function deriveProviderSlotIdentityV1(
   family: ProviderFamilyV1,
 ): ProviderSlotIdentityV1 {
   if (family === "gemini") {
-    registryError(
-      "provider.family-not-supported",
-      "gemini is not yet a supported provider family (Architecture decision 10 ships it in a later wave).",
-    );
+    if (key !== "gemini") {
+      registryError(
+        "provider.key-family-mismatch",
+        `key "${key}" does not match family gemini; the gemini instance's key must be exactly "gemini".`,
+      );
+    }
+    return { kind: "gemini" };
   }
   if (family === "codex") {
     if (key !== "codex") {
@@ -1201,6 +1248,22 @@ export function upsertProviderInstanceV1(
       };
       break;
     }
+    case "gemini": {
+      if (config.gemini === undefined) {
+        registryError(
+          "provider.family-requires-local-configuration",
+          "A new gemini instance cannot be created over the wire: executable is a machine-local path only an operator editing the config file directly can supply. Configure gemini once by hand, then provider.upsert may update its model/displayName.",
+        );
+      }
+      next = {
+        config: {
+          ...config,
+          gemini: { ...config.gemini, model: spec.model, displayName: spec.displayName },
+        },
+        created: false,
+      };
+      break;
+    }
     case "ollama-legacy": {
       if (config.ollama !== undefined && Array.isArray(config.ollama)) {
         registryError(
@@ -1289,7 +1352,7 @@ export type ProviderRemoveOutcomeV1 = Readonly<{
  *  `RoomParticipantsConfigV1`) purely to avoid an unused destructured binding for the dropped key. */
 function withoutField(
   config: RoomParticipantsConfigV1,
-  key: "codex" | "claude" | "ollama" | "openrouter",
+  key: "codex" | "claude" | "gemini" | "ollama" | "openrouter",
 ): RoomParticipantsConfigV1 {
   const next: Record<string, unknown> = { ...config };
   Reflect.deleteProperty(next, key);
@@ -1307,6 +1370,9 @@ export function removeProviderInstanceV1(
   }
   if (key === "claude" && config.claude !== undefined) {
     return { config: withoutField(config, "claude"), removed: true };
+  }
+  if (key === "gemini" && config.gemini !== undefined) {
+    return { config: withoutField(config, "gemini"), removed: true };
   }
   if (config.ollama !== undefined) {
     if (key === "ollama" && !Array.isArray(config.ollama)) {
