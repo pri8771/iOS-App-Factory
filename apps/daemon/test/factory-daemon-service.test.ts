@@ -911,7 +911,9 @@ describe("room moderator subsystem lifecycle", () => {
         pollIntervalMs: 5,
         rooms: { enabled: true },
       }),
-    ).rejects.toThrow(/rooms\.scorer, rooms\.contributor, and rooms\.revalidator are required/);
+    ).rejects.toThrow(
+      /rooms\.scorer, rooms\.contributor, rooms\.revalidator, and rooms\.providerCatalog are required/,
+    );
     // Composition failure released socket ownership: a follow-up daemon starts cleanly.
     const service = await startFactoryDaemonService({
       runtimeDirectory: root,
@@ -949,6 +951,9 @@ describe("room moderator subsystem lifecycle", () => {
           }),
       },
       revalidator: { revalidate: () => Promise.resolve({ decision: "post" as const }) },
+      providerCatalog: {
+        resolve: () => ({ family: "ollama" as const, model: "qwen2.5-coder:14b" }),
+      },
       participantsCatalog: {
         providers: [{ provider: "ollama" as const, model: "qwen2.5-coder:14b", cliVersion: null }],
         roster: [
@@ -1077,6 +1082,7 @@ describe("room moderator subsystem lifecycle", () => {
           }),
       },
       revalidator: { revalidate: () => Promise.resolve({ decision: "post" as const }) },
+      providerCatalog: { resolve: () => ({ family: "ollama" as const, model: "test-model" }) },
     };
     const service = await startFactoryDaemonService({
       runtimeDirectory: root,

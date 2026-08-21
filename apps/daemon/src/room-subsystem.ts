@@ -11,6 +11,7 @@ import {
   type RoomClockPort,
   type RoomFactoryEventBridgeDrainReport,
   type RoomProcessPort,
+  type RoomProviderCatalogPort,
   type RoomRandomPort,
   type RoomRepository,
   type RoomRoundOutcome,
@@ -41,6 +42,17 @@ export type RoomSubsystemConfiguration = Readonly<{
   scorer?: ScorerPort;
   contributor?: ContributorPort;
   revalidator?: RevalidatePort;
+  /**
+   * Resolves a grant's room-provider key to the adapter family and configured model the honest
+   * token ledger attributes every closed grant to (contracts Architecture decision 6). Required
+   * whenever rooms are enabled, exactly like `scorer`/`contributor`/`revalidator`: this module
+   * never invents a family or model, so a composition that enables rooms must supply one.
+   * `room-participants-config.ts`'s `buildRoomSubsystemConfiguration` is the daemon's real
+   * composition site for this (it already knows every configured provider's family and model);
+   * threading it there is Wave 5 work (room-participants-config extensions), not this wave's --
+   * this field exists now so the moderator's required dependency has somewhere to come from.
+   */
+  providerCatalog?: RoomProviderCatalogPort;
   quota?: QuotaGovernorPort;
   /**
    * Alternative to `quota` for a governor that needs the daemon's own kernel
@@ -120,10 +132,11 @@ export function createRoomSubsystem(
   if (
     configuration.scorer === undefined ||
     configuration.contributor === undefined ||
-    configuration.revalidator === undefined
+    configuration.revalidator === undefined ||
+    configuration.providerCatalog === undefined
   ) {
     throw new TypeError(
-      "rooms.scorer, rooms.contributor, and rooms.revalidator are required when rooms are enabled",
+      "rooms.scorer, rooms.contributor, rooms.revalidator, and rooms.providerCatalog are required when rooms are enabled",
     );
   }
   const moderator = new RoomModerator({
@@ -131,6 +144,7 @@ export function createRoomSubsystem(
     scorer: configuration.scorer,
     contributor: configuration.contributor,
     revalidator: configuration.revalidator,
+    providerCatalog: configuration.providerCatalog,
     process: configuration.process ?? nodeRoomProcessPort,
     ...(configuration.quota === undefined ? {} : { quota: configuration.quota }),
     ...(configuration.clock === undefined ? {} : { clock: configuration.clock }),

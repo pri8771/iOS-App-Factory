@@ -23,6 +23,8 @@ import type {
   RoomContributionResult,
   RoomIdFactoryPort,
   RoomProcessPort,
+  RoomProviderCatalogPort,
+  RoomProviderModelInfo,
   RoomRevalidationDecision,
   RoomRevalidationRequest,
   RoomScorerRequest,
@@ -82,6 +84,37 @@ export function roomSpec(overrides: Partial<RoomCreateSpecV1> = {}): RoomCreateS
     },
     ...overrides,
   } as RoomCreateSpecV1;
+}
+
+const DEFAULT_TEST_PROVIDER_MODELS: Readonly<Record<string, RoomProviderModelInfo>> = {
+  ollama: { family: "ollama", model: "llama3.1" },
+  codex: { family: "codex", model: "gpt-5-codex" },
+  claude: { family: "claude", model: "claude-opus-4" },
+  openrouter: { family: "openrouter", model: "anthropic/claude-3.5-sonnet" },
+};
+
+/** Resolves the standard test fixture's providers (ollama/codex/claude/openrouter) to a plausible
+ *  family+model out of the box; `set` registers any other provider key a test invents. Throws for
+ *  anything unregistered, matching the port's own "never fabricate" contract. */
+export class FakeProviderCatalog implements RoomProviderCatalogPort {
+  readonly #overrides = new Map<string, RoomProviderModelInfo>();
+
+  public set(provider: string, info: RoomProviderModelInfo): this {
+    this.#overrides.set(provider, info);
+    return this;
+  }
+
+  public resolve(provider: string): RoomProviderModelInfo {
+    const info = this.#overrides.get(provider) ?? DEFAULT_TEST_PROVIDER_MODELS[provider];
+    if (info === undefined) {
+      throw new Error(`FakeProviderCatalog: no model configured for provider "${provider}"`);
+    }
+    return info;
+  }
+}
+
+export function fakeProviderCatalog(): FakeProviderCatalog {
+  return new FakeProviderCatalog();
 }
 
 export class FakeClock implements RoomClockPort {

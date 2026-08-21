@@ -1,5 +1,9 @@
+import { randomUUID } from "node:crypto";
+
 import {
+  CommandIdSchema,
   IsoInstantSchema,
+  MAX_ROOM_PARTICIPANTS_V1,
   ProjectIdSchema,
   RoomBudgetV1Schema,
   RoomChatMessageV1Schema,
@@ -15,9 +19,13 @@ import {
   RoomProviderSchema,
   RoomSystemMessageV1Schema,
   RoomTriggerV1Schema,
+  RoomUpdateSpecV1Schema,
   RoomV1Schema,
+  type AgentUsageV1,
+  type CommandId,
   type EventId,
   type IsoInstant,
+  type ProviderFamilyV1,
   type RoomAgentErrorCodeV1,
   type RoomBudgetV1,
   type RoomChatMessageV1,
@@ -37,9 +45,10 @@ import {
   type RoomSystemCodeV1,
   type RoomSystemMessageV1,
   type RoomTriggerV1,
+  type RoomUpdateSpecV1,
   type RoomV1,
 } from "@app-factory/contracts";
-import { canonicalJson } from "@app-factory/kernel";
+import { TokenUsageRepository, canonicalJson } from "@app-factory/kernel";
 import type Database from "better-sqlite3";
 
 import { RoomError, RoomHeadMovedError } from "./errors.js";
@@ -56,6 +65,7 @@ type RoomRow = Readonly<{
   room_id: string;
   title: string;
   project_id: string | null;
+  flavor: string;
   created_at: string;
   updated_at: string;
   unattended_enabled: number;
@@ -68,6 +78,7 @@ type RoomRow = Readonly<{
   active_grant_id: string | null;
   pending_trigger_json: string | null;
   create_spec_json: string;
+  archived_at: string | null;
 }>;
 
 type ParticipantRow = Readonly<{
@@ -120,6 +131,8 @@ type FactoryEventCursorRow = Readonly<{
 
 export type CreatedRoom = Readonly<{ room: RoomV1; duplicate: boolean }>;
 
+export type UpdatedRoom = Readonly<{ room: RoomV1; duplicate: boolean }>;
+
 export type AppendHumanMessageInput = Readonly<{
   roomId: RoomId;
   messageId: RoomMessageId;
@@ -149,6 +162,21 @@ export type SystemLineInput = Readonly<{
   retryAt?: IsoInstant | null;
 }>;
 
+/**
+ * The honest token ledger's own per-contribution attribution (contracts Architecture decision 6):
+ * `providerFamily`/`providerKey`/`model` are never derivable from the room's own rows (the
+ * participants table only carries the room-provider key, not the adapter family or the
+ * configured model string), so every closed grant's caller -- the moderator, which resolves the
+ * adapter's configuration -- supplies them explicitly. Never optional: a closing grant always
+ * produces exactly one `token_usage` row, honest-null on tokens/cost when the outcome carried no
+ * usage, never skipped and never fabricated.
+ */
+export type TokenUsageAttributionInput = Readonly<{
+  providerFamily: ProviderFamilyV1;
+  providerKey: RoomProvider;
+  model: string;
+}>;
+
 export type CreateGrantInput = Readonly<{
   grantId: RoomGrantId;
   roomId: RoomId;
@@ -170,6 +198,13 @@ export type CommitGrantInput = Readonly<{
   revalidated: boolean;
   unattended: boolean;
   now: IsoInstant;
+  /** The honest token ledger's own record of this contribution's usage, when the contributor
+   *  reported one (contracts Architecture decision 6) -- `tokensUsed` above keeps its existing
+   *  budget-debit meaning; these are the separate, never-fabricated figures persisted both onto
+   *  the grant's own `outcome_json` and into the `token_usage` row `tokenUsage` attributes. */
+  usage: AgentUsageV1 | null;
+  costUsdMicros: number | null;
+  tokenUsage: TokenUsageAttributionInput;
 }>;
 
 export type CommittedGrant = Readonly<{ grant: RoomGrantV1; message: RoomChatMessageV1 }>;
@@ -181,6 +216,7 @@ export type FinishGrantInput = Readonly<{
   unattended: boolean;
   now: IsoInstant;
   systemLine: Omit<SystemLineInput, "roomId" | "now" | "grantId"> | null;
+  tokenUsage: TokenUsageAttributionInput;
 }>;
 
 export type FactoryEventDelivery = Readonly<{
@@ -244,6 +280,22 @@ export class RoomRepository {
 
   public createRoom(specInput: unknown, now: IsoInstant): CreatedRoom {
     const spec: RoomCreateSpecV1 = RoomCreateSpecV1Schema.parse(specInput);
+    if (spec.flavor === "direct") {
+      if (spec.participants.length !== 1) {
+        throw new RoomError(
+          "room.direct-invariant",
+          `A direct room must have exactly one participant; ${spec.roomId} specified ${String(spec.participants.length)}.`,
+          false,
+        );
+      }
+      if (spec.unattendedEnabled) {
+        throw new RoomError(
+          "room.direct-invariant",
+          `Direct room ${spec.roomId} cannot enable unattended mode.`,
+          false,
+        );
+      }
+    }
     const create = this.#database.transaction((): CreatedRoom => {
       const existing = this.#database
         .prepare("SELECT create_spec_json FROM rooms WHERE room_id = ?")
@@ -261,14 +313,15 @@ export class RoomRepository {
       this.#database
         .prepare(
           `INSERT INTO rooms(
-             room_id, schema_version, title, project_id, created_at, updated_at,
+             room_id, schema_version, title, project_id, flavor, created_at, updated_at,
              unattended_enabled, agent_cooldown_events, create_spec_json
-           ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?)`,
+           ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           spec.roomId,
           spec.title,
           spec.projectId,
+          spec.flavor,
           now,
           now,
           spec.unattendedEnabled ? 1 : 0,
@@ -324,12 +377,243 @@ export class RoomRepository {
     return room;
   }
 
-  public listRooms(limit: number): readonly RoomV1[] {
+  /** `includeArchived` defaults to false (Architecture decision 7): a soft-archived room stays
+   *  fully readable by `findRoom`/`requireRoom`, but `room.list` hides it unless asked for it. */
+  public listRooms(limit: number, includeArchived = false): readonly RoomV1[] {
     assertPositiveInteger("limit", limit);
-    const rows = this.#database
-      .prepare("SELECT * FROM rooms ORDER BY updated_at DESC, room_id DESC LIMIT ?")
-      .all(limit) as readonly RoomRow[];
+    const rows = (
+      includeArchived
+        ? this.#database.prepare(
+            "SELECT * FROM rooms ORDER BY updated_at DESC, room_id DESC LIMIT ?",
+          )
+        : this.#database.prepare(
+            "SELECT * FROM rooms WHERE archived_at IS NULL ORDER BY updated_at DESC, room_id DESC LIMIT ?",
+          )
+    ).all(limit) as readonly RoomRow[];
     return rows.map((row) => this.#assembleRoom(row));
+  }
+
+  /**
+   * `room.update` (Architecture decision 7): a CAS patch over exactly the fields the moderator
+   * allows to change post-creation, applied atomically with one append-only `room_updates` audit
+   * row. `commandId` is the durable command's own id (the daemon's replay key): a retry with the
+   * SAME `commandId` and an identical patch returns the original result (`duplicate: true`); the
+   * same `commandId` with a different room or patch is a typed `room.identity-conflict`, matching
+   * `createRoom`/`appendHumanMessage`'s own idempotency style. `expectedUpdatedAt` is checked only
+   * after that replay check, so a successful retry never trips on the CAS the first application
+   * already advanced past.
+   */
+  public updateRoom(specInput: unknown, commandIdInput: unknown, now: IsoInstant): UpdatedRoom {
+    const spec: RoomUpdateSpecV1 = RoomUpdateSpecV1Schema.parse(specInput);
+    const commandId: CommandId = CommandIdSchema.parse(commandIdInput);
+    const update = this.#database.transaction((): UpdatedRoom => {
+      const replay = this.#database
+        .prepare("SELECT room_id, patch_json FROM room_updates WHERE command_id = ?")
+        .get(commandId) as Readonly<{ room_id: string; patch_json: string }> | undefined;
+      if (replay !== undefined) {
+        if (replay.room_id !== spec.roomId || replay.patch_json !== canonicalJson(spec.patch)) {
+          throw new RoomError(
+            "room.identity-conflict",
+            `Update ${commandId} was already recorded against a different room or patch.`,
+            false,
+          );
+        }
+        return { room: this.requireRoom(spec.roomId), duplicate: true };
+      }
+
+      const room = this.requireRoom(spec.roomId);
+      if (room.updatedAt !== spec.expectedUpdatedAt) {
+        throw new RoomError(
+          "room.update-conflict",
+          `Room ${room.roomId} was last updated at ${room.updatedAt}, not the expected ${spec.expectedUpdatedAt}.`,
+          true,
+        );
+      }
+      const patch = spec.patch;
+
+      const addCount = patch.addParticipants?.length ?? 0;
+      const removeCount = patch.removeParticipants?.length ?? 0;
+      if (room.flavor === "direct") {
+        if (patch.unattendedEnabled === true) {
+          throw new RoomError(
+            "room.direct-invariant",
+            `Direct room ${room.roomId} cannot enable unattended mode.`,
+            false,
+          );
+        }
+        if ((addCount > 0 || removeCount > 0) && (addCount !== 1 || removeCount !== 1)) {
+          throw new RoomError(
+            "room.direct-invariant",
+            `Direct room ${room.roomId} may only change participants as one atomic remove-and-add swap.`,
+            false,
+          );
+        }
+      }
+
+      if (patch.title !== undefined) {
+        this.#database
+          .prepare("UPDATE rooms SET title = ? WHERE room_id = ?")
+          .run(patch.title, room.roomId);
+      }
+      if (patch.unattendedEnabled !== undefined) {
+        this.#database
+          .prepare("UPDATE rooms SET unattended_enabled = ? WHERE room_id = ?")
+          .run(patch.unattendedEnabled ? 1 : 0, room.roomId);
+      }
+      if (patch.agentCooldownEvents !== undefined) {
+        this.#database
+          .prepare("UPDATE rooms SET agent_cooldown_events = ? WHERE room_id = ?")
+          .run(patch.agentCooldownEvents, room.roomId);
+      }
+      if (patch.archived === true) {
+        this.#database
+          .prepare("UPDATE rooms SET archived_at = ? WHERE room_id = ? AND archived_at IS NULL")
+          .run(now, room.roomId);
+      } else if (patch.archived === false) {
+        this.#database
+          .prepare("UPDATE rooms SET archived_at = NULL WHERE room_id = ?")
+          .run(room.roomId);
+      }
+      // Budget policy rewrite: POLICY columns only -- `spent_tokens`/`reserved_tokens`/
+      // `unattended_spent_tokens`/`day_key` are never touched by a room.update.
+      if (patch.budget !== undefined) {
+        this.#database
+          .prepare(
+            `UPDATE room_budgets
+             SET daily_ceiling_tokens = ?, unattended_daily_ceiling_tokens = ?,
+                 max_tokens_per_reply = ?, updated_at = ?
+             WHERE room_id = ?`,
+          )
+          .run(
+            patch.budget.dailyCeilingTokens,
+            patch.budget.unattendedDailyCeilingTokens,
+            patch.budget.maxTokensPerReply,
+            now,
+            room.roomId,
+          );
+      }
+
+      // Soft remove first, so a same-patch persona swap (remove "x", add "x") is still refused --
+      // the row for "x" still exists (now `removed_at`-stamped) when `addParticipants` checks it.
+      if (patch.removeParticipants !== undefined) {
+        for (const persona of patch.removeParticipants) {
+          const row = this.#database
+            .prepare("SELECT removed_at FROM room_participants WHERE room_id = ? AND persona = ?")
+            .get(room.roomId, persona) as Readonly<{ removed_at: string | null }> | undefined;
+          if (row === undefined) {
+            throw new RoomError(
+              "room.unknown-persona",
+              `Persona ${persona} is not a participant of room ${room.roomId}.`,
+              false,
+            );
+          }
+          if (row.removed_at !== null) {
+            throw new RoomError(
+              "room.unknown-persona",
+              `Persona ${persona} was already removed from room ${room.roomId}.`,
+              false,
+            );
+          }
+          this.#database
+            .prepare(
+              "UPDATE room_participants SET removed_at = ? WHERE room_id = ? AND persona = ?",
+            )
+            .run(now, room.roomId, persona);
+        }
+      }
+      if (patch.addParticipants !== undefined) {
+        const maxPositionRow = this.#database
+          .prepare(
+            "SELECT COALESCE(MAX(position), -1) AS maxPosition FROM room_participants WHERE room_id = ?",
+          )
+          .get(room.roomId) as Readonly<{ maxPosition: number }>;
+        let nextPosition = maxPositionRow.maxPosition + 1;
+        const insertParticipant = this.#database.prepare(
+          `INSERT INTO room_participants(room_id, persona, provider, display_name, position)
+           VALUES (?, ?, ?, ?, ?)`,
+        );
+        const addedThisPatch = new Set<string>();
+        for (const participant of patch.addParticipants) {
+          if (addedThisPatch.has(participant.persona)) {
+            throw new RoomError(
+              "room.participant-conflict",
+              `Persona ${participant.persona} was named more than once in the same update.`,
+              false,
+            );
+          }
+          const existing = this.#database
+            .prepare("SELECT 1 FROM room_participants WHERE room_id = ? AND persona = ?")
+            .get(room.roomId, participant.persona);
+          if (existing !== undefined) {
+            throw new RoomError(
+              "room.participant-conflict",
+              `Persona ${participant.persona} was already used in room ${room.roomId} and cannot be reused, even after removal.`,
+              false,
+            );
+          }
+          insertParticipant.run(
+            room.roomId,
+            participant.persona,
+            participant.provider,
+            participant.displayName,
+            nextPosition,
+          );
+          nextPosition += 1;
+          addedThisPatch.add(participant.persona);
+        }
+      }
+
+      const activeCountRow = this.#database
+        .prepare(
+          "SELECT COUNT(*) AS activeCount FROM room_participants WHERE room_id = ? AND removed_at IS NULL",
+        )
+        .get(room.roomId) as Readonly<{ activeCount: number }>;
+      if (activeCountRow.activeCount < 1) {
+        throw new RoomError(
+          "room.participant-conflict",
+          `Room ${room.roomId} must retain at least one active participant.`,
+          false,
+        );
+      }
+      if (activeCountRow.activeCount > MAX_ROOM_PARTICIPANTS_V1) {
+        throw new RoomError(
+          "room.participant-conflict",
+          `Room ${room.roomId} cannot exceed ${String(MAX_ROOM_PARTICIPANTS_V1)} active participants.`,
+          false,
+        );
+      }
+      if (room.flavor === "direct" && activeCountRow.activeCount !== 1) {
+        throw new RoomError(
+          "room.direct-invariant",
+          `Direct room ${room.roomId} must have exactly one active participant.`,
+          false,
+        );
+      }
+
+      this.#database
+        .prepare("UPDATE rooms SET updated_at = ? WHERE room_id = ?")
+        .run(now, room.roomId);
+      this.#database
+        .prepare(
+          `INSERT INTO room_updates(update_id, schema_version, room_id, occurred_at, command_id, patch_json)
+           VALUES (?, 1, ?, ?, ?, ?)`,
+        )
+        .run(randomUUID(), room.roomId, now, commandId, canonicalJson(patch));
+
+      return { room: this.requireRoom(room.roomId), duplicate: false };
+    });
+    return update.immediate();
+  }
+
+  /** The provider key for a room+persona regardless of removal (audit/attribution lookups such as
+   *  orphan-sweep token-usage attribution, where the hydrated `RoomV1.participants` may already
+   *  exclude a since-removed persona). Null only if the persona never existed in this room. */
+  public findParticipantProvider(roomIdInput: unknown, persona: RoomPersona): RoomProvider | null {
+    const roomId = parseRoomId(roomIdInput);
+    const row = this.#database
+      .prepare("SELECT provider FROM room_participants WHERE room_id = ? AND persona = ?")
+      .get(roomId, persona) as Readonly<{ provider: string }> | undefined;
+    return row === undefined ? null : RoomProviderSchema.parse(row.provider);
   }
 
   public listRoomIdsWithPendingTriggers(): readonly RoomId[] {
@@ -909,10 +1193,11 @@ export class RoomRepository {
         messageSequence: message.sequence,
         tokensUsed: input.tokensUsed,
         revalidated: input.revalidated,
-        // The honest token ledger (contracts Architecture decision 6) is not wired up yet -- no
-        // adapter reports real usage/cost through this path until a later wave.
-        usage: null,
-        costUsdMicros: null,
+        // The honest token ledger (contracts Architecture decision 6): whatever the contributor
+        // itself reported, never fabricated when it reported nothing usable. `#closeGrant` (below)
+        // persists this same outcome onto both the grant's `outcome_json` and the `token_usage` row.
+        usage: input.usage,
+        costUsdMicros: input.costUsdMicros,
       };
       this.#closeGrant(
         grant,
@@ -922,6 +1207,7 @@ export class RoomRepository {
         input.tokensUsed,
         input.unattended,
         input.now,
+        input.tokenUsage,
       );
       return { grant: this.requireGrant(grant.grantId), message };
     });
@@ -968,6 +1254,7 @@ export class RoomRepository {
         input.tokensUsed,
         input.unattended,
         input.now,
+        input.tokenUsage,
       );
       if (input.systemLine !== null) {
         this.appendSystemLine({
@@ -1068,6 +1355,7 @@ export class RoomRepository {
     tokensUsed: number,
     unattended: boolean,
     now: IsoInstant,
+    tokenUsage: TokenUsageAttributionInput,
   ): void {
     this.#database
       .prepare(
@@ -1089,6 +1377,48 @@ export class RoomRepository {
          WHERE room_id = ?`,
       )
       .run(reservedAfter, tokensUsed, unattended ? tokensUsed : 0, now, room.roomId);
+    this.#recordTokenUsage(room, grant, outcome, tokenUsage, now);
+  }
+
+  /**
+   * The honest token ledger (Architecture decision 6, migration `0017-token-usage`): every closed
+   * grant -- committed, passed, failed, dropped, or orphaned -- produces exactly one append-only
+   * `token_usage` row in the SAME transaction as the grant's own close, inside the shared
+   * `@app-factory/kernel` `TokenUsageRepository` over this repository's own database handle (the
+   * same pattern `canonicalJson` and every other kernel helper this package already calls
+   * follows). The outcome carries real usage only for `committed`/`passed`; every other kind, and
+   * a `committed`/`passed` outcome whose contributor reported nothing usable, leaves every token
+   * and cost field NULL -- an honest "unreported" row, never skipped and never a fabricated zero.
+   */
+  #recordTokenUsage(
+    room: RoomV1,
+    grant: RoomGrantV1,
+    outcome: RoomGrantOutcomeV1,
+    tokenUsage: TokenUsageAttributionInput,
+    now: IsoInstant,
+  ): void {
+    const usage = outcome.kind === "committed" || outcome.kind === "passed" ? outcome.usage : null;
+    const costUsdMicros =
+      outcome.kind === "committed" || outcome.kind === "passed" ? outcome.costUsdMicros : null;
+    new TokenUsageRepository(this.#database).append(
+      {
+        schemaVersion: 1,
+        usageId: randomUUID(),
+        occurredAt: now,
+        providerFamily: tokenUsage.providerFamily,
+        providerKey: tokenUsage.providerKey,
+        model: tokenUsage.model,
+        source: "room",
+        roomId: room.roomId,
+        phaseRunId: null,
+        signalId: null,
+        inputTokens: usage?.inputTokens ?? null,
+        outputTokens: usage?.outputTokens ?? null,
+        cachedInputTokens: usage?.cachedInputTokens ?? null,
+        costUsdMicros: costUsdMicros ?? null,
+      },
+      grant.grantId,
+    );
   }
 
   #mergePendingTrigger(roomId: RoomId, trigger: RoomTriggerV1): void {
@@ -1182,10 +1512,13 @@ export class RoomRepository {
   }
 
   #assembleRoom(row: RoomRow): RoomV1 {
+    // Soft-removed participants (Architecture decision 7) never surface in the hydrated room:
+    // their `room_participants` row stays so historical `room_grants` FKs remain valid, but every
+    // read excludes them.
     const participantRows = this.#database
       .prepare(
         `SELECT persona, provider, display_name, position, benched_until, bench_reason
-         FROM room_participants WHERE room_id = ? ORDER BY position`,
+         FROM room_participants WHERE room_id = ? AND removed_at IS NULL ORDER BY position`,
       )
       .all(row.room_id) as readonly ParticipantRow[];
     const participants: RoomParticipantV1[] = participantRows.map((participant) =>
@@ -1213,6 +1546,7 @@ export class RoomRepository {
       roomId: row.room_id,
       title: row.title,
       projectId: row.project_id,
+      flavor: row.flavor,
       createdAt: iso(row.created_at),
       updatedAt: iso(row.updated_at),
       unattendedEnabled: row.unattended_enabled === 1,
@@ -1227,6 +1561,7 @@ export class RoomRepository {
       agentCooldownEvents: row.agent_cooldown_events,
       participants,
       budget: RoomRepository.#parseBudget(budgetRow),
+      archivedAt: row.archived_at,
     });
   }
 }

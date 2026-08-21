@@ -1,5 +1,6 @@
 import type {
   AgentUsageV1,
+  ProviderFamilyV1,
   RoomAgentErrorCodeV1,
   RoomGrantId,
   RoomGrantV1,
@@ -126,6 +127,20 @@ export type RoomRevalidationDecision =
  */
 export type RevalidatePort = Readonly<{
   revalidate(request: RoomRevalidationRequest): Promise<RoomRevalidationDecision>;
+}>;
+
+/**
+ * The honest token ledger's own attribution source (contracts Architecture decision 6): the
+ * moderator knows a grant's room-provider key (`RoomParticipantV1.provider`) but not which
+ * adapter family backs it or which model it is configured to speak -- that lives only in the
+ * daemon-side participants config (`apps/daemon/src/room-participants-config.ts`). A required
+ * port, not a default, so a closing grant never fabricates or silently omits either field: the
+ * composition wiring the daemon is responsible for.
+ */
+export type RoomProviderModelInfo = Readonly<{ family: ProviderFamilyV1; model: string }>;
+
+export type RoomProviderCatalogPort = Readonly<{
+  resolve(provider: RoomProvider): RoomProviderModelInfo;
 }>;
 
 export type QuotaPriorityClass = "factory" | "rooms";

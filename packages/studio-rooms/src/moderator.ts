@@ -20,6 +20,7 @@ import {
   type RoomMessageV1,
   type RoomParticipantV1,
   type RoomPersona,
+  type RoomProvider,
   type RoomTriggerV1,
   type RoomV1,
 } from "@app-factory/contracts";
@@ -35,6 +36,7 @@ import type {
   RoomContributionResult,
   RoomIdFactoryPort,
   RoomProcessPort,
+  RoomProviderCatalogPort,
   RoomRandomPort,
   RoomRevalidationDecision,
   RoomScorerCandidate,
@@ -43,7 +45,7 @@ import type {
   ScorerPort,
 } from "./ports.js";
 import { unlimitedQuotaGovernor } from "./quota-governor.js";
-import type { RoomRepository } from "./repository.js";
+import type { RoomRepository, TokenUsageAttributionInput } from "./repository.js";
 
 export const DEFAULT_ROOM_DORMANCY_MS = 10 * 60_000;
 export const DEFAULT_ROOM_LEASE_MS = 120_000;
@@ -81,6 +83,10 @@ export type RoomModeratorOptions = Readonly<{
   contributor: ContributorPort;
   revalidator: RevalidatePort;
   process: RoomProcessPort;
+  /** Resolves a grant's room-provider key to the adapter family and configured model the honest
+   *  token ledger attributes every closed grant to (contracts Architecture decision 6). Required,
+   *  not defaulted, so the ledger never fabricates or silently skips a row. */
+  providerCatalog: RoomProviderCatalogPort;
   clock?: RoomClockPort;
   wait?: RoomWaitPort;
   random?: RoomRandomPort;
@@ -256,6 +262,7 @@ export class RoomModerator {
   readonly #contributor: ContributorPort;
   readonly #revalidator: RevalidatePort;
   readonly #process: RoomProcessPort;
+  readonly #providerCatalog: RoomProviderCatalogPort;
   readonly #clock: RoomClockPort;
   readonly #wait: RoomWaitPort;
   readonly #random: RoomRandomPort;
@@ -275,6 +282,7 @@ export class RoomModerator {
     this.#contributor = options.contributor;
     this.#revalidator = options.revalidator;
     this.#process = options.process;
+    this.#providerCatalog = options.providerCatalog;
     if (!Number.isSafeInteger(this.#process.pid) || this.#process.pid < 1) {
       throw new TypeError("process.pid must be a positive safe integer");
     }
@@ -361,6 +369,7 @@ export class RoomModerator {
           roundNumber: grant.roundNumber,
           persona: grant.persona,
         },
+        tokenUsage: this.#tokenAttribution(this.#providerOf(room, grant.persona)),
       });
       const refreshed = this.#repository.requireRoom(grant.roomId);
       if (refreshed.pendingTrigger === null) {
@@ -408,6 +417,16 @@ export class RoomModerator {
       if (trigger.kind !== "factory-event") {
         return { kind: "refused", reason: "no-chains-while-dormant" };
       }
+    }
+
+    // Direct-flavor fast path (Architecture decision 1): a conversation's sole participant is
+    // granted on every human message via the forced-invite path, never through Tier-0 candidate
+    // building, Tier-1 scoring, or cooldown -- there is only ever one persona to admit. Chain-cap
+    // is 1 by construction: `#queueChain` never queues a follow-up trigger for a direct room, and
+    // this branch itself only ever admits a `human-message` trigger, so a stray `agent-message` or
+    // `factory-event` trigger (there should never be one) is refused rather than granted.
+    if (room.flavor === "direct") {
+      return await this.#runDirectRound(room, trigger, now, unattended);
     }
 
     // Tier 0: deterministic gates.
@@ -540,6 +559,100 @@ export class RoomModerator {
     };
   }
 
+  /**
+   * The direct-flavor fast path (Architecture decision 1). Only a `human-message` trigger is ever
+   * admissible; the room's invariants (`createRoom`/`updateRoom`) guarantee exactly one active
+   * participant, so there is no candidate set to build and nothing for a Tier-1 scorer to judge --
+   * the sole participant is granted the floor directly, as if forced by an `@mention`. A benched
+   * participant and an exhausted budget still refuse, exactly like the multi-room path.
+   */
+  async #runDirectRound(
+    room: RoomV1,
+    trigger: RoomTriggerV1,
+    now: IsoInstant,
+    unattended: boolean,
+  ): Promise<RoomRoundOutcome> {
+    if (trigger.kind !== "human-message") {
+      return { kind: "refused", reason: "no-eligible-agents" };
+    }
+    const participant = room.participants[0];
+    if (participant === undefined) {
+      throw new Error(`Direct room ${room.roomId} invariant failed: no active participant`);
+    }
+    if (participant.benchedUntil !== null && participant.benchedUntil > now) {
+      return { kind: "refused", reason: "no-eligible-agents" };
+    }
+    this.#repository.rolloverBudget(room.roomId, now);
+    const gate = this.#repository.evaluateBudgetGate(room.roomId, unattended);
+    if (!gate.admitted) {
+      this.#postOnce(room, {
+        code: "budget-exhausted",
+        body: `Room budget exhausted for today (${String(gate.availableTokens)} of ${String(gate.ceilingTokens)} tokens available${unattended ? ", unattended ceiling" : ""}). Agents resume tomorrow (UTC).`,
+      });
+      return { kind: "refused", reason: "budget-exhausted" };
+    }
+
+    const roundNumber = this.#repository.beginRound(room.roomId);
+    const quota = this.#quota.reserve({
+      priority: "rooms",
+      provider: participant.provider,
+      tokens: room.budget.maxTokensPerReply,
+      now: new Date(now),
+    });
+    if (!quota.granted) {
+      const retryAt = instant(quota.retryAt);
+      this.#repository.appendSystemLine({
+        roomId: room.roomId,
+        messageId: this.#ids.messageId(),
+        code: "throttled",
+        body: `Shared model quota is depleted; rooms yield to factory work. Retry after ${retryAt}.`,
+        now: this.#appendInstant(this.#repository.requireRoom(room.roomId), this.#now()),
+        roundNumber,
+        retryAt,
+      });
+      return { kind: "throttled", roundNumber, retryAt };
+    }
+
+    // Skip Tier-1 entirely: the sole participant is granted directly, the forced-invite path.
+    let grant: RoomGrantV1;
+    const grantedAt = this.#appendInstant(this.#repository.requireRoom(room.roomId), this.#now());
+    try {
+      grant = this.#repository.createGrant({
+        grantId: this.#ids.grantId(),
+        roomId: room.roomId,
+        roundNumber,
+        persona: participant.persona,
+        ownerPid: this.#process.pid,
+        leaseExpiresAt: addMs(grantedAt, this.#leaseDurationMs),
+        now: grantedAt,
+        unattended,
+      });
+    } catch (error) {
+      quota.reservation.release();
+      if (error instanceof RoomError && error.code === "room.generation-in-flight") {
+        this.#repository.setPendingTrigger(room.roomId, trigger);
+        return { kind: "deferred", reason: "generation-in-flight", retryAt: null };
+      }
+      if (error instanceof RoomError && error.code === "room.budget-exhausted") {
+        this.#postOnce(this.#repository.requireRoom(room.roomId), {
+          code: "budget-exhausted",
+          body: "Room budget exhausted for today. Agents resume tomorrow (UTC).",
+        });
+        return { kind: "refused", reason: "budget-exhausted" };
+      }
+      throw error;
+    }
+
+    const outcome = await this.#execute(grant, participant, unattended, quota.reservation);
+    return {
+      kind: "granted",
+      roundNumber,
+      grantId: grant.grantId,
+      persona: grant.persona,
+      outcome,
+    };
+  }
+
   // Tier 2 and completion.
   async #execute(
     grant: RoomGrantV1,
@@ -579,7 +692,7 @@ export class RoomModerator {
           case "message":
             return await this.#commit(grant, participant, result, unattended, reservation);
           case "pass":
-            return this.#pass(grant, result, unattended, reservation);
+            return this.#pass(grant, result, unattended, reservation, participant);
           case "error":
             return this.#fail(
               grant,
@@ -631,6 +744,9 @@ export class RoomModerator {
           revalidated,
           unattended,
           now: this.#appendInstant(this.#repository.requireRoom(grant.roomId), this.#now()),
+          usage: result.usage,
+          costUsdMicros: result.costUsdMicros,
+          tokenUsage: this.#tokenAttribution(participant.provider),
         });
         reservation.settle(result.tokensUsed);
         if (revalidated) {
@@ -672,7 +788,7 @@ export class RoomModerator {
         if (!humanPosted) continue;
         revalidations += 1;
         if (revalidations > MAX_ROOM_REVALIDATIONS_PER_GRANT) {
-          return this.#drop(grant, "revalidation-exhausted", unattended, reservation);
+          return this.#drop(grant, participant, "revalidation-exhausted", unattended, reservation);
         }
         const room = this.#repository.requireRoom(grant.roomId);
         const held = this.#repository.holdGrant(
@@ -699,11 +815,11 @@ export class RoomModerator {
           decision = { decision: "drop" };
         }
         if (decision.decision === "drop") {
-          return this.#drop(grant, "revalidation-dropped", unattended, reservation);
+          return this.#drop(grant, participant, "revalidation-dropped", unattended, reservation);
         }
         if (decision.decision === "revise") {
           if (decision.body.length < 1 || decision.body.length > 20_000) {
-            return this.#drop(grant, "revalidation-dropped", unattended, reservation);
+            return this.#drop(grant, participant, "revalidation-dropped", unattended, reservation);
           }
           body = decision.body;
         }
@@ -717,6 +833,7 @@ export class RoomModerator {
     result: Extract<RoomContributionResult, { kind: "pass" }>,
     unattended: boolean,
     reservation: QuotaReservation,
+    participant: RoomParticipantV1,
   ): RoomGrantOutcomeV1 {
     const room = this.#repository.requireRoom(grant.roomId);
     const tokensUsed = result.tokensUsed;
@@ -739,6 +856,7 @@ export class RoomModerator {
         roundNumber: grant.roundNumber,
         persona: grant.persona,
       },
+      tokenUsage: this.#tokenAttribution(participant.provider),
     });
     reservation.settle(tokensUsed);
     return outcome;
@@ -746,6 +864,7 @@ export class RoomModerator {
 
   #drop(
     grant: RoomGrantV1,
+    participant: RoomParticipantV1,
     reason: "revalidation-dropped" | "revalidation-exhausted",
     unattended: boolean,
     reservation: QuotaReservation,
@@ -768,6 +887,7 @@ export class RoomModerator {
         roundNumber: grant.roundNumber,
         persona: grant.persona,
       },
+      tokenUsage: this.#tokenAttribution(participant.provider),
     });
     reservation.release();
     return outcome;
@@ -812,6 +932,7 @@ export class RoomModerator {
         benchedUntil,
         retryAt: benchedUntil,
       },
+      tokenUsage: this.#tokenAttribution(participant.provider),
     });
     reservation.release();
     return outcome;
@@ -839,9 +960,12 @@ export class RoomModerator {
     }
   }
 
-  /** After a committed agent message, an attended room may chain one more round (bounded by cooldown and the cap). */
+  /** After a committed agent message, an attended room may chain one more round (bounded by
+   *  cooldown and the cap). Direct rooms never chain (Architecture decision 1: chain-cap is
+   *  effectively 1) -- the sole participant only ever speaks again once the human replies. */
   #queueChain(grant: RoomGrantV1, message: RoomChatMessageV1): void {
     const room = this.#repository.requireRoom(grant.roomId);
+    if (room.flavor === "direct") return;
     if (this.attendanceOf(room, this.#now()) === "dormant") return;
     this.#repository.setPendingTrigger(room.roomId, {
       kind: "agent-message",
@@ -991,6 +1115,27 @@ export class RoomModerator {
     const message = error instanceof Error ? error.message : String(error);
     const normalized = message.replaceAll(/\s+/g, " ").trim();
     return normalized.length > 200 ? `${normalized.slice(0, 200)}...` : normalized || "unknown";
+  }
+
+  /** The room-provider key for a grant's persona, even when the participant has since been
+   *  removed (Architecture decision 7 soft-remove): `room.participants` already excludes removed
+   *  rows, but a still-open grant's audit attribution must resolve regardless. The FK from
+   *  `room_grants` to `room_participants(room_id, persona)` guarantees this always resolves. */
+  #providerOf(room: RoomV1, persona: RoomPersona): RoomProvider {
+    const active = room.participants.find((participant) => participant.persona === persona);
+    if (active !== undefined) return active.provider;
+    const provider = this.#repository.findParticipantProvider(room.roomId, persona);
+    if (provider === null) {
+      throw new Error(`Grant persona ${persona} has no participant row in room ${room.roomId}`);
+    }
+    return provider;
+  }
+
+  /** The honest token ledger's per-closed-grant attribution (contracts Architecture decision 6):
+   *  resolves the caller-supplied provider catalog once per close, never fabricated. */
+  #tokenAttribution(provider: RoomProvider): TokenUsageAttributionInput {
+    const info = this.#providerCatalog.resolve(provider);
+    return { providerFamily: info.family, providerKey: provider, model: info.model };
   }
 
   #now(): IsoInstant {

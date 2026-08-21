@@ -18,6 +18,7 @@ import {
   ROOM_ID_2,
   cleanupTestDatabases,
   deferred,
+  fakeProviderCatalog,
   neverWait,
   openTestDatabase,
   plusMs,
@@ -50,6 +51,7 @@ function harness(options: { loopWait?: ManualWait; pid?: number } = {}) {
     process,
     clock,
     ids,
+    providerCatalog: fakeProviderCatalog(),
     wait: neverWait,
   });
   const outcomes: Array<[RoomId, RoomRoundOutcome]> = [];

@@ -1,8 +1,13 @@
-import { RoomHumanHandleSchema, type RoomTriggerV1 } from "@app-factory/contracts";
+import {
+  RoomHumanHandleSchema,
+  type ProviderFamilyV1,
+  type RoomTriggerV1,
+} from "@app-factory/contracts";
 import type { ScoreRequestInputV1, ScoreResultV1 } from "@app-factory/ollama-scorer";
 import {
   RoomModerator,
   RoomRepository,
+  type RoomProviderCatalogPort,
   type RoomRoundOutcome,
   type RoomWaitPort,
 } from "@app-factory/studio-rooms";
@@ -99,6 +104,12 @@ function harness(options: { bids: Readonly<Record<string, number>>; hasRunningAt
   const quota = createFactoryAwareQuotaGovernor({
     activity: { hasRunningAttempt: () => options.hasRunningAttempt ?? false },
   });
+  const providerCatalog: RoomProviderCatalogPort = {
+    resolve: (provider) => ({
+      family: provider as ProviderFamilyV1,
+      model: `${provider}-test-model`,
+    }),
+  };
   const moderator = new RoomModerator({
     repository,
     scorer,
@@ -108,6 +119,7 @@ function harness(options: { bids: Readonly<Record<string, number>>; hasRunningAt
     clock,
     ids,
     quota,
+    providerCatalog,
     wait: neverResolvingWait,
     random: { fraction: () => 0.5 },
   });

@@ -1,6 +1,7 @@
 import {
   RoomHumanHandleSchema,
   RoomPersonaSchema,
+  RoomProviderSchema,
   type RoomTriggerV1,
 } from "@app-factory/contracts";
 import { afterEach, describe, expect, it } from "vitest";
@@ -25,6 +26,7 @@ import {
   T0,
   cleanupTestDatabases,
   deferred,
+  fakeProviderCatalog,
   instantWait,
   neverWait,
   openTestDatabase,
@@ -55,6 +57,7 @@ function harness(overrides: Partial<RoomModeratorOptions> = {}, spec = roomSpec(
   const revalidator = new FakeRevalidator();
   const process = new FakeProcess(1000);
   const quota = new RecordingQuota();
+  const providerCatalog = fakeProviderCatalog();
   const moderator = new RoomModerator({
     repository,
     scorer,
@@ -64,6 +67,7 @@ function harness(overrides: Partial<RoomModeratorOptions> = {}, spec = roomSpec(
     clock,
     ids,
     quota,
+    providerCatalog,
     wait: neverWait,
     random: { fraction: () => 0.5 },
     ...overrides,
@@ -79,6 +83,7 @@ function harness(overrides: Partial<RoomModeratorOptions> = {}, spec = roomSpec(
     revalidator,
     process,
     quota,
+    providerCatalog,
     moderator,
   };
 }
@@ -506,6 +511,7 @@ describe("RoomModerator single-writer transcript (CAS on human post)", () => {
       clock: h.clock,
       ids: h.ids,
       quota: h.quota,
+      providerCatalog: h.providerCatalog,
       wait: neverWait,
     });
     const round = moderator.runRound(ROOM_ID, humanPosts(h, "q"));
@@ -632,6 +638,7 @@ describe("RoomModerator failures are typed events, never holds", () => {
       clock: h.clock,
       ids,
       quota: h.quota,
+      providerCatalog: h.providerCatalog,
       wait: neverWait,
     });
     const round = moderator.runRound(ROOM_ID, humanPosts(h, "q"));
@@ -975,6 +982,7 @@ describe("RoomModerator constructor validation", () => {
       scorer: new FakeScorer(),
       contributor: new FakeContributor(),
       revalidator: new FakeRevalidator(),
+      providerCatalog: fakeProviderCatalog(),
       wait: instantWait,
     };
     expect(() => new RoomModerator({ ...base, process: new FakeProcess(0) })).toThrow(TypeError);
@@ -995,5 +1003,102 @@ describe("RoomModerator constructor validation", () => {
           },
         }),
     ).toThrow(TypeError);
+  });
+});
+
+describe("RoomModerator direct rooms (Architecture decision 1)", () => {
+  function directHarness(overrides: Partial<RoomModeratorOptions> = {}) {
+    return harness(
+      overrides,
+      roomSpec({
+        flavor: "direct",
+        participants: [{ persona: ARCHITECT, provider: "ollama", displayName: "Architect" }],
+      }),
+    );
+  }
+
+  it("grants the sole participant on a human message with no Tier-1 scorer call and no agent chain", async () => {
+    const h = directHarness();
+    const trigger = humanPosts(h, "hello there");
+    const outcome = await h.moderator.runRound(ROOM_ID, trigger);
+    expect(outcome).toMatchObject({ kind: "granted", persona: "architect" });
+    // The forced-invite fast path never calls the Tier-1 scorer.
+    expect(h.scorer.calls).toHaveLength(0);
+    expect(h.contributor.calls).toHaveLength(1);
+    // Chain-cap is effectively 1: no follow-up agent-message trigger is ever queued.
+    expect(h.repository.requireRoom(ROOM_ID).pendingTrigger).toBeNull();
+    expect(transcript(h)).toEqual(["human:priyansh", "agent:architect"]);
+  });
+
+  it("multiple human messages each grant the sole participant directly, still with no scorer calls", async () => {
+    const h = directHarness();
+    const first = await h.moderator.runRound(ROOM_ID, humanPosts(h, "first"));
+    expect(first.kind).toBe("granted");
+    const second = await h.moderator.runRound(ROOM_ID, humanPosts(h, "second"));
+    expect(second).toMatchObject({ kind: "granted", persona: "architect" });
+    expect(h.scorer.calls).toHaveLength(0);
+    expect(h.contributor.calls).toHaveLength(2);
+  });
+
+  it("refuses a non-human trigger rather than granting the sole participant", async () => {
+    const h = directHarness();
+    // Establishes attendance first, so this exercises the direct-room "human-message only"
+    // refusal itself rather than the earlier, unrelated dormancy gate.
+    humanPosts(h, "warm the room up");
+    const trigger: RoomTriggerV1 = {
+      kind: "agent-message",
+      requestedAt: h.clock.instant(),
+      sourceSequence: 0,
+    };
+    const outcome = await h.moderator.runRound(ROOM_ID, trigger);
+    expect(outcome).toMatchObject({ kind: "refused", reason: "no-eligible-agents" });
+    expect(h.contributor.calls).toHaveLength(0);
+    expect(h.scorer.calls).toHaveLength(0);
+  });
+
+  it("refuses when the sole participant is benched, without granting or scoring", async () => {
+    const h = directHarness();
+    h.repository.benchPersona(ROOM_ID, ARCHITECT, plusMs(T0, 60_000), "timeout");
+    const trigger = humanPosts(h, "hello?");
+    const outcome = await h.moderator.runRound(ROOM_ID, trigger);
+    expect(outcome).toMatchObject({ kind: "refused", reason: "no-eligible-agents" });
+    expect(h.contributor.calls).toHaveLength(0);
+    expect(h.scorer.calls).toHaveLength(0);
+  });
+
+  it("refuses with a budget-exhausted system line when the room's budget is spent, never scoring", async () => {
+    const h = directHarness();
+    const grant = h.repository.createGrant({
+      grantId: h.ids.grantId(),
+      roomId: ROOM_ID,
+      roundNumber: 1,
+      persona: ARCHITECT,
+      ownerPid: h.process.pid,
+      leaseExpiresAt: plusMs(T0, 60_000),
+      now: T0,
+      unattended: false,
+    });
+    h.repository.commitGrant({
+      grantId: grant.grantId,
+      messageId: h.ids.messageId(),
+      expectedHeadSequence: 0,
+      body: "spends the whole ceiling",
+      tokensUsed: 10_000,
+      revalidated: false,
+      unattended: false,
+      now: T0,
+      usage: null,
+      costUsdMicros: null,
+      tokenUsage: {
+        providerFamily: "ollama",
+        providerKey: RoomProviderSchema.parse("ollama"),
+        model: "llama3.1",
+      },
+    });
+    const trigger = humanPosts(h, "still there?");
+    const outcome = await h.moderator.runRound(ROOM_ID, trigger);
+    expect(outcome).toMatchObject({ kind: "refused", reason: "budget-exhausted" });
+    expect(h.scorer.calls).toHaveLength(0);
+    expect(transcript(h).at(-1)).toBe("system:budget-exhausted");
   });
 });

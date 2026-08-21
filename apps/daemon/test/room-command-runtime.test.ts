@@ -382,6 +382,7 @@ describe("room moderator composed against the runtime database", () => {
           revalidator: { revalidate: () => Promise.resolve({ decision: "post" }) },
           process: { pid: process.pid, isAlive: () => false, kill: () => false },
           clock: { now: () => new Date(T0) },
+          providerCatalog: { resolve: () => ({ family: "ollama", model: "test-model" }) },
         });
         loop = new RoomModeratorLoop({
           moderator,

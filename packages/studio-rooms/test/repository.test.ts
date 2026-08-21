@@ -6,7 +6,12 @@ import {
 } from "@app-factory/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { RoomError, RoomHeadMovedError, RoomRepository } from "../src/index.js";
+import {
+  RoomError,
+  RoomHeadMovedError,
+  RoomRepository,
+  type TokenUsageAttributionInput,
+} from "../src/index.js";
 import {
   PROJECT_ID,
   ROOM_ID,
@@ -23,6 +28,13 @@ const HUMAN = RoomHumanHandleSchema.parse("priyansh");
 const ARCHITECT = RoomPersonaSchema.parse("architect");
 const CRITIC = RoomPersonaSchema.parse("critic");
 
+/** Generic token-usage attribution for grant tests that aren't themselves about the ledger. */
+const TOKEN_USAGE: TokenUsageAttributionInput = {
+  providerFamily: "ollama",
+  providerKey: RoomProviderSchema.parse("ollama"),
+  model: "test-model",
+};
+
 afterEach(() => {
   cleanupTestDatabases();
 });
@@ -32,6 +44,19 @@ function setup() {
   const repository = new RoomRepository(database);
   const ids = sequentialIds();
   return { database, repository, ids };
+}
+
+/** Asserts `fn` throws a `RoomError` with exactly this `code` -- `.toThrow(regex)` matches the
+ *  Error's `message`, not its `code`, so typed-error assertions go through this helper instead. */
+function expectRoomErrorCode(fn: () => unknown, code: string): void {
+  let error: unknown;
+  try {
+    fn();
+  } catch (caught) {
+    error = caught;
+  }
+  expect(error).toBeInstanceOf(RoomError);
+  expect(error).toMatchObject({ code });
 }
 
 describe("RoomRepository rooms", () => {
@@ -360,6 +385,9 @@ describe("RoomRepository grants and budgets", () => {
       revalidated: false,
       unattended: false,
       now: plusMs(T0, 1),
+      usage: null,
+      costUsdMicros: null,
+      tokenUsage: TOKEN_USAGE,
     });
     expect(repository.requireRoom(ROOM_ID).budget).toMatchObject({
       reservedTokens: 0,
@@ -387,6 +415,7 @@ describe("RoomRepository grants and budgets", () => {
       unattended: false,
       now: plusMs(T0, 3),
       systemLine: null,
+      tokenUsage: TOKEN_USAGE,
     });
     // 520 spent: a third 1000-token reservation no longer fits under 1500.
     expect(() =>
@@ -437,6 +466,9 @@ describe("RoomRepository grants and budgets", () => {
       revalidated: false,
       unattended: true,
       now: plusMs(T0, 1),
+      usage: null,
+      costUsdMicros: null,
+      tokenUsage: TOKEN_USAGE,
     });
     expect(repository.requireRoom(ROOM_ID).budget).toMatchObject({
       spentTokens: 800,
@@ -478,6 +510,9 @@ describe("RoomRepository grants and budgets", () => {
         revalidated: false,
         unattended: false,
         now: plusMs(T0, 1_000),
+        usage: null,
+        costUsdMicros: null,
+        tokenUsage: TOKEN_USAGE,
       });
     } catch (caught) {
       error = caught;
@@ -500,6 +535,9 @@ describe("RoomRepository grants and budgets", () => {
       revalidated: true,
       unattended: false,
       now: plusMs(T0, 1_002),
+      usage: null,
+      costUsdMicros: null,
+      tokenUsage: TOKEN_USAGE,
     });
     expect(committed.message).toMatchObject({
       sequence: 3,
@@ -522,6 +560,9 @@ describe("RoomRepository grants and budgets", () => {
         revalidated: false,
         unattended: false,
         now: plusMs(T0, 1_003),
+        usage: null,
+        costUsdMicros: null,
+        tokenUsage: TOKEN_USAGE,
       }),
     ).toThrow(/already committed/);
   });
@@ -557,6 +598,7 @@ describe("RoomRepository grants and budgets", () => {
         retryAt: benchedUntil,
         roundNumber: 1,
       },
+      tokenUsage: TOKEN_USAGE,
     });
     expect(finished).toMatchObject({
       state: "failed",
@@ -584,6 +626,7 @@ describe("RoomRepository grants and budgets", () => {
         unattended: false,
         now: plusMs(T0, 11),
         systemLine: null,
+        tokenUsage: TOKEN_USAGE,
       }),
     ).toThrow(/already failed/);
   });
@@ -627,6 +670,556 @@ describe("RoomRepository grants and budgets", () => {
     const { repository, database } = roomWithHuman();
     database.prepare('UPDATE rooms SET pending_trigger_json = \'{"kind":"bogus"}\'').run();
     expect(() => repository.requireRoom(ROOM_ID)).toThrow();
+  });
+});
+
+describe("RoomRepository honest token usage ledger", () => {
+  function tokenUsageRows(database: ReturnType<typeof openTestDatabase>, grantId: string) {
+    return database
+      .prepare("SELECT * FROM token_usage WHERE grant_id = ? ORDER BY occurred_at")
+      .all(grantId) as readonly Record<string, unknown>[];
+  }
+
+  it("writes one row on commit with the contributor's real usage, never fabricated", () => {
+    const { repository, database, ids } = setup();
+    repository.createRoom(roomSpec(), T0);
+    const grant = repository.createGrant({
+      grantId: ids.grantId(),
+      roomId: ROOM_ID,
+      roundNumber: 1,
+      persona: ARCHITECT,
+      ownerPid: 1,
+      leaseExpiresAt: plusMs(T0, 60_000),
+      now: T0,
+      unattended: false,
+    });
+    repository.commitGrant({
+      grantId: grant.grantId,
+      messageId: ids.messageId(),
+      expectedHeadSequence: grant.headSequence,
+      body: "reported usage",
+      tokensUsed: 42,
+      revalidated: false,
+      unattended: false,
+      now: plusMs(T0, 1),
+      usage: { inputTokens: 100, outputTokens: 42, cachedInputTokens: 10 },
+      costUsdMicros: 555,
+      tokenUsage: {
+        providerFamily: "ollama",
+        providerKey: RoomProviderSchema.parse("ollama"),
+        model: "llama3.1",
+      },
+    });
+    const rows = tokenUsageRows(database, grant.grantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      room_id: ROOM_ID,
+      source: "room",
+      provider_family: "ollama",
+      provider_key: "ollama",
+      model: "llama3.1",
+      input_tokens: 100,
+      output_tokens: 42,
+      cached_input_tokens: 10,
+      cost_usd_micros: 555,
+    });
+  });
+
+  it("writes an honest all-null row on commit when the adapter reported nothing usable", () => {
+    const { repository, database, ids } = setup();
+    repository.createRoom(roomSpec(), T0);
+    const grant = repository.createGrant({
+      grantId: ids.grantId(),
+      roomId: ROOM_ID,
+      roundNumber: 1,
+      persona: ARCHITECT,
+      ownerPid: 1,
+      leaseExpiresAt: plusMs(T0, 60_000),
+      now: T0,
+      unattended: false,
+    });
+    repository.commitGrant({
+      grantId: grant.grantId,
+      messageId: ids.messageId(),
+      expectedHeadSequence: grant.headSequence,
+      body: "unreported usage",
+      tokensUsed: 42,
+      revalidated: false,
+      unattended: false,
+      now: plusMs(T0, 1),
+      usage: null,
+      costUsdMicros: null,
+      tokenUsage: TOKEN_USAGE,
+    });
+    const rows = tokenUsageRows(database, grant.grantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      input_tokens: null,
+      output_tokens: null,
+      cached_input_tokens: null,
+      cost_usd_micros: null,
+    });
+  });
+
+  it("writes one row on a pass, with the contributor's real usage when reported", () => {
+    const { repository, database, ids } = setup();
+    repository.createRoom(roomSpec(), T0);
+    const grant = repository.createGrant({
+      grantId: ids.grantId(),
+      roomId: ROOM_ID,
+      roundNumber: 1,
+      persona: ARCHITECT,
+      ownerPid: 1,
+      leaseExpiresAt: plusMs(T0, 60_000),
+      now: T0,
+      unattended: false,
+    });
+    repository.finishGrant({
+      grantId: grant.grantId,
+      outcome: {
+        kind: "passed",
+        tokensUsed: 7,
+        usage: { inputTokens: 20, outputTokens: 7, cachedInputTokens: null },
+        costUsdMicros: 12,
+      },
+      tokensUsed: 7,
+      unattended: false,
+      now: plusMs(T0, 1),
+      systemLine: null,
+      tokenUsage: {
+        providerFamily: "codex",
+        providerKey: RoomProviderSchema.parse("codex"),
+        model: "gpt-5-codex",
+      },
+    });
+    const rows = tokenUsageRows(database, grant.grantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      provider_family: "codex",
+      provider_key: "codex",
+      model: "gpt-5-codex",
+      input_tokens: 20,
+      output_tokens: 7,
+      cached_input_tokens: null,
+      cost_usd_micros: 12,
+    });
+  });
+
+  it("writes an honest all-null row for a failed grant, which never carries usage at all", () => {
+    const { repository, database, ids } = setup();
+    repository.createRoom(roomSpec(), T0);
+    const grant = repository.createGrant({
+      grantId: ids.grantId(),
+      roomId: ROOM_ID,
+      roundNumber: 1,
+      persona: ARCHITECT,
+      ownerPid: 1,
+      leaseExpiresAt: plusMs(T0, 60_000),
+      now: T0,
+      unattended: false,
+    });
+    repository.finishGrant({
+      grantId: grant.grantId,
+      outcome: { kind: "failed", code: "timeout", benchedUntil: plusMs(T0, 60_000) },
+      tokensUsed: 0,
+      unattended: false,
+      now: plusMs(T0, 1),
+      systemLine: null,
+      tokenUsage: TOKEN_USAGE,
+    });
+    const rows = tokenUsageRows(database, grant.grantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      input_tokens: null,
+      output_tokens: null,
+      cached_input_tokens: null,
+      cost_usd_micros: null,
+    });
+  });
+});
+
+describe("RoomRepository direct rooms", () => {
+  function directSpec(overrides: Partial<Parameters<typeof roomSpec>[0]> = {}) {
+    return roomSpec({
+      roomId: ROOM_ID_2,
+      flavor: "direct" as never,
+      participants: [{ persona: ARCHITECT, provider: "ollama", displayName: "Architect" }] as never,
+      ...overrides,
+    });
+  }
+
+  it("creates a direct room with exactly one participant", () => {
+    const { repository } = setup();
+    const created = repository.createRoom(directSpec(), T0);
+    expect(created.room).toMatchObject({ flavor: "direct", unattendedEnabled: false });
+    expect(created.room.participants.map((p) => p.persona)).toEqual(["architect"]);
+  });
+
+  it("refuses a direct room specified with more than one participant", () => {
+    const { repository } = setup();
+    expectRoomErrorCode(
+      () =>
+        repository.createRoom(
+          directSpec({
+            participants: [
+              { persona: ARCHITECT, provider: "ollama", displayName: "Architect" },
+              { persona: CRITIC, provider: "ollama", displayName: "Critic" },
+            ] as never,
+          }),
+          T0,
+        ),
+      "room.direct-invariant",
+    );
+  });
+
+  it("refuses a direct room specified with unattendedEnabled true", () => {
+    const { repository } = setup();
+    expectRoomErrorCode(
+      () => repository.createRoom(directSpec({ unattendedEnabled: true }), T0),
+      "room.direct-invariant",
+    );
+  });
+});
+
+describe("RoomRepository room.update", () => {
+  const COMMAND_1 = "60000000-0000-4000-8000-000000000001";
+  const COMMAND_2 = "60000000-0000-4000-8000-000000000002";
+  const COMMAND_3 = "60000000-0000-4000-8000-000000000003";
+
+  it("refuses a stale CAS with a typed, retryable room.update-conflict error", () => {
+    const { repository } = setup();
+    const created = repository.createRoom(roomSpec(), T0);
+    let error: unknown;
+    try {
+      repository.updateRoom(
+        {
+          roomId: ROOM_ID,
+          expectedUpdatedAt: plusMs(created.room.updatedAt, 999),
+          patch: { title: "Renamed" },
+        },
+        COMMAND_1,
+        plusMs(T0, 10),
+      );
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(RoomError);
+    expect(error).toMatchObject({ code: "room.update-conflict", retryable: true });
+    // Nothing was applied: the title is still the original.
+    expect(repository.requireRoom(ROOM_ID).title).toBe("Design review");
+  });
+
+  it("applies title/unattendedEnabled/agentCooldownEvents atomically and writes one audit row", () => {
+    const { repository, database } = setup();
+    const created = repository.createRoom(roomSpec(), T0);
+    const updated = repository.updateRoom(
+      {
+        roomId: ROOM_ID,
+        expectedUpdatedAt: created.room.updatedAt,
+        patch: { title: "New title", unattendedEnabled: true, agentCooldownEvents: 5 },
+      },
+      COMMAND_1,
+      plusMs(T0, 10),
+    );
+    expect(updated.duplicate).toBe(false);
+    expect(updated.room).toMatchObject({
+      title: "New title",
+      unattendedEnabled: true,
+      agentCooldownEvents: 5,
+      updatedAt: plusMs(T0, 10),
+    });
+    const auditRows = database
+      .prepare("SELECT * FROM room_updates WHERE room_id = ?")
+      .all(ROOM_ID) as readonly Record<string, unknown>[];
+    expect(auditRows).toHaveLength(1);
+    expect(auditRows[0]).toMatchObject({ command_id: COMMAND_1, room_id: ROOM_ID });
+    expect(JSON.parse(String(auditRows[0]?.patch_json))).toEqual({
+      title: "New title",
+      unattendedEnabled: true,
+      agentCooldownEvents: 5,
+    });
+  });
+
+  it("replays an identical command idempotently and refuses a mismatched replay", () => {
+    const { repository, database } = setup();
+    const created = repository.createRoom(roomSpec(), T0);
+    repository.updateRoom(
+      { roomId: ROOM_ID, expectedUpdatedAt: created.room.updatedAt, patch: { title: "Once" } },
+      COMMAND_1,
+      plusMs(T0, 10),
+    );
+    const replay = repository.updateRoom(
+      { roomId: ROOM_ID, expectedUpdatedAt: created.room.updatedAt, patch: { title: "Once" } },
+      COMMAND_1,
+      plusMs(T0, 20),
+    );
+    expect(replay.duplicate).toBe(true);
+    expect(replay.room.title).toBe("Once");
+    const auditRows = database
+      .prepare("SELECT * FROM room_updates WHERE room_id = ?")
+      .all(ROOM_ID) as readonly unknown[];
+    expect(auditRows).toHaveLength(1);
+    expectRoomErrorCode(
+      () =>
+        repository.updateRoom(
+          {
+            roomId: ROOM_ID,
+            expectedUpdatedAt: created.room.updatedAt,
+            patch: { title: "Different" },
+          },
+          COMMAND_1,
+          plusMs(T0, 30),
+        ),
+      "room.identity-conflict",
+    );
+  });
+
+  it("rewrites only the budget policy columns, leaving spent and reserved tokens untouched", () => {
+    const { repository, ids } = setup();
+    repository.createRoom(roomSpec(), T0);
+    const grant = repository.createGrant({
+      grantId: ids.grantId(),
+      roomId: ROOM_ID,
+      roundNumber: 1,
+      persona: ARCHITECT,
+      ownerPid: 1,
+      leaseExpiresAt: plusMs(T0, 60_000),
+      now: T0,
+      unattended: false,
+    });
+    repository.commitGrant({
+      grantId: grant.grantId,
+      messageId: ids.messageId(),
+      expectedHeadSequence: grant.headSequence,
+      body: "spend some",
+      tokensUsed: 300,
+      revalidated: false,
+      unattended: false,
+      now: plusMs(T0, 1),
+      usage: null,
+      costUsdMicros: null,
+      tokenUsage: TOKEN_USAGE,
+    });
+    const beforeUpdate = repository.requireRoom(ROOM_ID);
+    expect(beforeUpdate.budget).toMatchObject({ spentTokens: 300, reservedTokens: 0 });
+    const updated = repository.updateRoom(
+      {
+        roomId: ROOM_ID,
+        expectedUpdatedAt: beforeUpdate.updatedAt,
+        patch: {
+          budget: {
+            dailyCeilingTokens: 20_000,
+            unattendedDailyCeilingTokens: 4_000,
+            maxTokensPerReply: 2_000,
+          },
+        },
+      },
+      COMMAND_1,
+      plusMs(T0, 10),
+    );
+    expect(updated.room.budget).toMatchObject({
+      dailyCeilingTokens: 20_000,
+      unattendedDailyCeilingTokens: 4_000,
+      maxTokensPerReply: 2_000,
+      // Untouched by the policy rewrite.
+      spentTokens: 300,
+      reservedTokens: 0,
+    });
+  });
+
+  it("soft-removes a participant: hidden from reads, but a historical grant's FK stays valid", () => {
+    const { repository, ids } = setup();
+    repository.createRoom(roomSpec(), T0);
+    const grant = repository.createGrant({
+      grantId: ids.grantId(),
+      roomId: ROOM_ID,
+      roundNumber: 1,
+      persona: CRITIC,
+      ownerPid: 1,
+      leaseExpiresAt: plusMs(T0, 60_000),
+      now: T0,
+      unattended: false,
+    });
+    repository.commitGrant({
+      grantId: grant.grantId,
+      messageId: ids.messageId(),
+      expectedHeadSequence: grant.headSequence,
+      body: "critic's last word",
+      tokensUsed: 5,
+      revalidated: false,
+      unattended: false,
+      now: plusMs(T0, 1),
+      usage: null,
+      costUsdMicros: null,
+      tokenUsage: TOKEN_USAGE,
+    });
+    const beforeUpdate = repository.requireRoom(ROOM_ID);
+    const updated = repository.updateRoom(
+      {
+        roomId: ROOM_ID,
+        expectedUpdatedAt: beforeUpdate.updatedAt,
+        patch: { removeParticipants: [CRITIC] },
+      },
+      COMMAND_1,
+      plusMs(T0, 10),
+    );
+    expect(updated.room.participants.map((p) => p.persona)).toEqual(["architect", "planner"]);
+    // The historical grant, and its FK to the now-removed participant row, are unaffected.
+    expect(repository.requireGrant(grant.grantId)).toMatchObject({
+      persona: "critic",
+      state: "committed",
+    });
+    expect(repository.listMessages(ROOM_ID, 0, 10).at(-1)).toMatchObject({
+      author: { kind: "agent", persona: "critic" },
+    });
+  });
+
+  it("enforces at least one active participant remains", () => {
+    const { repository } = setup();
+    const created = repository.createRoom(
+      roomSpec({ participants: [{ persona: ARCHITECT, provider: "ollama", displayName: "A" }] }),
+      T0,
+    );
+    expectRoomErrorCode(
+      () =>
+        repository.updateRoom(
+          {
+            roomId: ROOM_ID,
+            expectedUpdatedAt: created.room.updatedAt,
+            patch: { removeParticipants: [ARCHITECT] },
+          },
+          COMMAND_1,
+          plusMs(T0, 10),
+        ),
+      "room.participant-conflict",
+    );
+  });
+
+  it("refuses reusing a persona after removal, even within the same room's lifetime", () => {
+    const { repository } = setup();
+    const created = repository.createRoom(roomSpec(), T0);
+    const afterRemove = repository.updateRoom(
+      {
+        roomId: ROOM_ID,
+        expectedUpdatedAt: created.room.updatedAt,
+        patch: { removeParticipants: [CRITIC] },
+      },
+      COMMAND_1,
+      plusMs(T0, 10),
+    );
+    expectRoomErrorCode(
+      () =>
+        repository.updateRoom(
+          {
+            roomId: ROOM_ID,
+            expectedUpdatedAt: afterRemove.room.updatedAt,
+            patch: {
+              addParticipants: [
+                { persona: CRITIC, provider: "ollama", displayName: "Critic again" },
+              ],
+            },
+          },
+          COMMAND_2,
+          plusMs(T0, 20),
+        ),
+      "room.participant-conflict",
+    );
+  });
+
+  it("archives a room out of the default list; unarchiving restores it, transcript untouched throughout", () => {
+    const { repository } = setup();
+    repository.createRoom(roomSpec(), T0);
+    repository.createRoom(roomSpec({ roomId: ROOM_ID_2, title: "Second" }), plusMs(T0, 1));
+    const created = repository.requireRoom(ROOM_ID);
+    const archived = repository.updateRoom(
+      { roomId: ROOM_ID, expectedUpdatedAt: created.updatedAt, patch: { archived: true } },
+      COMMAND_1,
+      plusMs(T0, 10),
+    );
+    expect(archived.room.archivedAt).toBe(plusMs(T0, 10));
+    expect(repository.listRooms(10).map((room) => room.roomId)).toEqual([ROOM_ID_2]);
+    expect(
+      repository
+        .listRooms(10, true)
+        .map((room) => room.roomId)
+        .sort(),
+    ).toEqual([ROOM_ID, ROOM_ID_2].sort());
+    // Still fully readable directly, and its transcript is untouched.
+    expect(repository.requireRoom(ROOM_ID).archivedAt).toBe(plusMs(T0, 10));
+    const unarchived = repository.updateRoom(
+      { roomId: ROOM_ID, expectedUpdatedAt: archived.room.updatedAt, patch: { archived: false } },
+      COMMAND_2,
+      plusMs(T0, 20),
+    );
+    expect(unarchived.room.archivedAt).toBeNull();
+    expect(
+      repository
+        .listRooms(10)
+        .map((room) => room.roomId)
+        .sort(),
+    ).toEqual([ROOM_ID, ROOM_ID_2].sort());
+  });
+
+  it("allows a direct room's participants to change only as one atomic remove-and-add swap", () => {
+    const { repository } = setup();
+    const created = repository.createRoom(
+      roomSpec({
+        roomId: ROOM_ID_2,
+        flavor: "direct" as never,
+        participants: [
+          { persona: ARCHITECT, provider: "ollama", displayName: "Architect" },
+        ] as never,
+      }),
+      T0,
+    );
+    const swapped = repository.updateRoom(
+      {
+        roomId: ROOM_ID_2,
+        expectedUpdatedAt: created.room.updatedAt,
+        patch: {
+          removeParticipants: [ARCHITECT],
+          addParticipants: [{ persona: CRITIC, provider: "codex", displayName: "Critic" }],
+        },
+      },
+      COMMAND_1,
+      plusMs(T0, 10),
+    );
+    expect(swapped.room.participants).toHaveLength(1);
+    expect(swapped.room.participants[0]).toMatchObject({ persona: "critic", provider: "codex" });
+
+    // A non-swap participant change (add only) is refused.
+    expectRoomErrorCode(
+      () =>
+        repository.updateRoom(
+          {
+            roomId: ROOM_ID_2,
+            expectedUpdatedAt: swapped.room.updatedAt,
+            patch: {
+              addParticipants: [
+                { persona: ARCHITECT, provider: "ollama", displayName: "Architect" },
+              ],
+            },
+          },
+          COMMAND_2,
+          plusMs(T0, 20),
+        ),
+      "room.direct-invariant",
+    );
+
+    // Enabling unattended mode on a direct room is refused.
+    expectRoomErrorCode(
+      () =>
+        repository.updateRoom(
+          {
+            roomId: ROOM_ID_2,
+            expectedUpdatedAt: swapped.room.updatedAt,
+            patch: { unattendedEnabled: true },
+          },
+          COMMAND_3,
+          plusMs(T0, 30),
+        ),
+      "room.direct-invariant",
+    );
   });
 });
 
