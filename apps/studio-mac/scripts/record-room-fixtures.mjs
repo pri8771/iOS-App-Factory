@@ -1,11 +1,12 @@
-// Regenerates Tests/StudioKitTests/Fixtures/room-*.response.json (the five room.* transcript ops
-// plus room.participants.list, enabled and disabled) through the real
-// `@app-factory/contracts` build — same "record through the real contracts" discipline as
-// record-fixtures.mjs (see apps/studio-mac/docs/architecture/0001, decision 5), kept as its own
-// script rather than appended to record-fixtures.mjs because that script's pre-existing
-// attempt-list.response.json generator does not build against this worktree's current contracts
-// (AttemptListItemV1Schema gained a required `phase` field on a branch this one hasn't reconciled
-// with — unrelated to rooms, and out of scope here). Re-record with:
+// Regenerates Tests/StudioKitTests/Fixtures/room-*.response.json (the room.* transcript ops —
+// including Wave 8's `room.update` and a `direct`-flavor `room.create` — plus
+// room.participants.list, enabled and disabled) through the real `@app-factory/contracts` build —
+// same "record through the real contracts" discipline as record-fixtures.mjs (see
+// apps/studio-mac/docs/architecture/0001, decision 5), kept as its own script rather than appended
+// to record-fixtures.mjs because that script's pre-existing attempt-list.response.json generator
+// does not build against this worktree's current contracts (AttemptListItemV1Schema gained a
+// required `phase` field on a branch this one hasn't reconciled with — unrelated to rooms, and out
+// of scope here). Re-record with:
 //   pnpm --filter @app-factory/contracts build && node apps/studio-mac/scripts/record-room-fixtures.mjs
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
@@ -80,8 +81,35 @@ const freshRoom = {
   budget: { ...roomBudget, spentTokens: 0, reservedTokens: 0 },
 };
 
+// A `direct` conversation: exactly one agent participant, moderator fast path (Architecture
+// decision 1). Distinct roomId from `freshRoom` so decode tests can tell the two fixtures apart.
+const directRoomId = "50000004-0000-4000-8000-000000000004";
+const directRoom = {
+  ...freshRoom,
+  roomId: directRoomId,
+  title: "Codex — quick question",
+  flavor: "direct",
+  participants: [{ ...roomParticipants[0], benchedUntil: null, benchReason: null }],
+  budget: { ...roomBudget, spentTokens: 0, reservedTokens: 0 },
+};
+
+// `room.update` (Architecture decision 7): a CAS title/ambient-toggle patch applied to `freshRoom`,
+// `updatedAt` bumped past the room's original `createdAt`/`updatedAt`.
+const updatedRoom = {
+  ...freshRoom,
+  title: "Studio launch review — GA",
+  unattendedEnabled: true,
+  updatedAt: "2026-08-16T19:00:00.000Z",
+};
+
 const fixtures = {
   "room-create.response.json": ok({ operation: "room.create", room: freshRoom, duplicate: false }),
+  "room-create-direct.response.json": ok({
+    operation: "room.create",
+    room: directRoom,
+    duplicate: false,
+  }),
+  "room-update.response.json": ok({ operation: "room.update", room: updatedRoom }),
   "room-list.response.json": ok({
     operation: "room.list",
     rooms: [
@@ -289,10 +317,36 @@ const fixtures = {
     catalog: participantsCatalog({
       enabled: true,
       unavailableReason: null,
+      // `roomProviderKey` (Wave 8, Architecture decision 9): a live catalog always sets it. Two
+      // OpenRouter instances share `provider: "openrouter"` but carry distinct `roomProviderKey`s —
+      // the exact shape that used to make `room.participants.list` throw on its own uniqueness
+      // refine before this field existed (the refine ran over the shared `provider` value).
       providers: [
-        { provider: "codex", model: "gpt-5-codex", cliVersion: "0.42.0" },
-        { provider: "claude", model: "claude-sonnet-4-5", cliVersion: null },
-        { provider: "ollama", model: "qwen2.5-coder:14b", cliVersion: null },
+        { provider: "codex", roomProviderKey: "codex", model: "gpt-5-codex", cliVersion: "0.42.0" },
+        {
+          provider: "claude",
+          roomProviderKey: "claude",
+          model: "claude-sonnet-4-5",
+          cliVersion: null,
+        },
+        {
+          provider: "ollama",
+          roomProviderKey: "ollama",
+          model: "qwen2.5-coder:14b",
+          cliVersion: null,
+        },
+        {
+          provider: "openrouter",
+          roomProviderKey: "openrouter-fast",
+          model: "google/gemini-2.5-flash",
+          cliVersion: null,
+        },
+        {
+          provider: "openrouter",
+          roomProviderKey: "openrouter-deep",
+          model: "anthropic/claude-opus-4.1",
+          cliVersion: null,
+        },
       ],
       roster: [
         {

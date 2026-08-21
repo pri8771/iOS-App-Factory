@@ -221,6 +221,21 @@ public enum PhaseOutputPathRule: WireStringRule {
     }
 }
 
+// MARK: Signal wire primitives (signal.ts, `signal.*`/`insight.list` — Wave 8)
+
+/// `SignalInsightIdSchema` — deliberately NOT `LowercaseUUIDRule`: the TS pattern
+/// (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/`) does not constrain the
+/// version/variant nibbles the way the standard lowercase-UUID rule does — an insight id is derived
+/// deterministically from a signal check, not minted as a plain v4 UUID, so it need not satisfy the
+/// `[1-8]` version / `[89ab]` variant constraint `WirePatterns.lowercaseUUID` enforces.
+public enum SignalInsightIdRule: WireStringRule {
+    public static let name = "signal insight id"
+    private static let pattern = try! NSRegularExpression(
+        pattern: "\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z")
+    public static func isValid(_ value: String) -> Bool { WirePatterns.matches(pattern, value) }
+}
+public typealias SignalInsightID = WireString<SignalInsightIdRule>
+
 public typealias PhaseId = WireString<PhaseIdRule>
 public typealias PhasePresetId = WireString<PhasePresetIdRule>
 public typealias PhaseProvider = WireString<PhaseProviderRule>
@@ -307,6 +322,10 @@ public enum MilestoneIDTag: Sendable {}
 public enum RoomIDTag: Sendable {}
 public enum RoomMessageIDTag: Sendable {}
 public enum RoomGrantIDTag: Sendable {}
+/// Signals (signal.ts, Wave 8) — a standing watch. Distinct from `SignalInsightID` (above), which is
+/// NOT a `WireID<Tag>` (a plain v4 UUID) because its wire pattern is looser; `SignalId` itself does
+/// use the standard lowercase-UUID rule, same as every other `WireID`.
+public enum SignalIDTag: Sendable {}
 
 public typealias ProjectID = WireID<ProjectIDTag>
 public typealias RepositoryID = WireID<RepositoryIDTag>
@@ -326,6 +345,7 @@ public typealias MilestoneID = WireID<MilestoneIDTag>
 public typealias RoomID = WireID<RoomIDTag>
 public typealias RoomMessageID = WireID<RoomMessageIDTag>
 public typealias RoomGrantID = WireID<RoomGrantIDTag>
+public typealias SignalID = WireID<SignalIDTag>
 
 public typealias Sha256Digest = WireString<Sha256DigestRule>
 public typealias GitObjectID = WireString<GitObjectIDRule>

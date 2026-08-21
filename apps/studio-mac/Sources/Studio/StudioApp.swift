@@ -15,6 +15,10 @@ import SwiftUI
 @main
 struct StudioApp: App {
     @State private var store = StudioStore.fromEnvironment()
+    /// Same `UserDefaults` key `StudioRootView` reads its tab from — SwiftUI's `@AppStorage`
+    /// synchronizes any two bindings of the same key, so ⌘, here and the `NavRail` selection there
+    /// stay one source of truth without a second shared model just for this.
+    @AppStorage("studio.selectedTab") private var tab: StudioTab = .chat
 
     var body: some Scene {
         WindowGroup("Studio") {
@@ -33,6 +37,12 @@ struct StudioApp: App {
             CommandGroup(after: .toolbar) {
                 Button("Reconnect to Daemon") { Task { await store.connect() } }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
+            }
+            // No app-level Settings scene exists (Settings is a `NavRail` tab, not a separate
+            // window) — ⌘, remaps to it instead of doing nothing.
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") { tab = .settings }
+                    .keyboardShortcut(",", modifiers: .command)
             }
         }
     }

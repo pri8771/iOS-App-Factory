@@ -228,8 +228,8 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(String(decoding: try JSONEncoder().encode(EmptyPayload()), as: UTF8.self), "{}")
     }
 
-    func testAllFiftyOneOperationsAreNamed() {
-        XCTAssertEqual(CommandOperation.allCases.count, 51)
+    func testAllSixtySevenOperationsAreNamed() {
+        XCTAssertEqual(CommandOperation.allCases.count, 67)
         XCTAssertEqual(Set(CommandOperation.allCases.map(\.rawValue)), [
             "doctor", "task.submit", "task.run", "attempt.status", "attempt.events", "attempt.list",
             "attempt.pause", "attempt.resume", "attempt.cancel", "task.retry", "attempt.unblock",
@@ -238,10 +238,14 @@ final class ModelDecodingTests: XCTestCase {
             "studio.snapshot", "studio.assistant.query", "studio.assistant.intent.propose",
             "studio.assistant.intent.execute", "project.milestones.list", "project.milestone.upsert",
             "room.create", "room.list", "room.post", "room.events", "room.typing", "room.participants.list",
-            "project.seed", "preset.list", "preset.upsert", "phase.upsert",
+            "room.update", "project.seed", "preset.list", "preset.upsert", "phase.upsert",
             "plan.propose", "plan.edit", "plan.approve", "plan.execute", "plan.approve-gate", "plan.status",
             "plan.tick", "phase.run", "phase.status", "phase.list", "phase.approve", "phase.reject",
             "release.observe", "release.projection",
+            "provider.list", "provider.upsert", "provider.remove", "provider.credential.set", "provider.health",
+            "settings.get", "settings.set", "usage.summary",
+            "signal.create", "signal.list", "signal.pause", "signal.resume", "signal.run-now",
+            "signal.reschedule", "insight.list",
         ])
     }
 
@@ -295,8 +299,11 @@ final class ModelDecodingTests: XCTestCase {
         // A real, non-error empty state: Hindsight has no authored milestones yet.
         XCTAssertTrue(hindsight.timeline.milestones.isEmpty)
         XCTAssertNil(hindsight.timeline.milestonesUnavailableReason)
-        XCTAssertTrue(snapshot.rooms.isEmpty)
-        XCTAssertEqual(snapshot.roomsUnavailableReason, studioNotYetWiredReason)
+        // Rooms are real as of Architecture decision 12 — no longer the always-empty placeholder.
+        XCTAssertEqual(snapshot.rooms.count, 2)
+        XCTAssertEqual(snapshot.rooms.map(\.kind), [.portfolio, .project])
+        XCTAssertEqual(snapshot.rooms[1].name, "Anjali build room")
+        XCTAssertNil(snapshot.roomsUnavailableReason)
         // Every field of StudioPortfolioAggregates is independently nullable — mixed here on purpose.
         XCTAssertEqual(snapshot.portfolio.verifiedThisWeek.value, 2)
         XCTAssertEqual(snapshot.portfolio.passRate.value, 0.8)
@@ -632,9 +639,15 @@ final class ModelDecodingTests: XCTestCase {
         }
         XCTAssertTrue(catalog.enabled)
         XCTAssertNil(catalog.unavailableReason)
-        XCTAssertEqual(catalog.providers.map(\.provider), [.codex, .claude, .ollama])
-        XCTAssertEqual(catalog.providers.map(\.model), ["gpt-5-codex", "claude-sonnet-4-5", "qwen2.5-coder:14b"])
-        XCTAssertEqual(catalog.providers.map(\.cliVersion), ["0.42.0", nil, nil])
+        XCTAssertEqual(catalog.providers.map(\.provider), [.codex, .claude, .ollama, .openrouter, .openrouter])
+        XCTAssertEqual(catalog.providers.map(\.model),
+                       ["gpt-5-codex", "claude-sonnet-4-5", "qwen2.5-coder:14b", "google/gemini-2.5-flash", "anthropic/claude-opus-4.1"])
+        XCTAssertEqual(catalog.providers.map(\.cliVersion), ["0.42.0", nil, nil, nil, nil])
+        // `roomProviderKey` (Wave 8): every live entry sets it; the two OpenRouter rows share
+        // `provider` but carry distinct keys — the shape that used to break the catalog's own
+        // uniqueness refine before this field existed.
+        XCTAssertEqual(catalog.providers.map(\.roomProviderKey?.rawValue),
+                       ["codex", "claude", "ollama", "openrouter-fast", "openrouter-deep"])
         XCTAssertEqual(catalog.roster.count, 2)
         let research = catalog.roster[0]
         XCTAssertEqual(research.roomId, "50000001-0000-4000-8000-000000000001")
@@ -646,10 +659,14 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNil(catalog.roster[1].charter)
         XCTAssertTrue(catalog.roster[1].participants.isEmpty)
         XCTAssertEqual(catalog.sourcedAt.rawValue, "2026-08-16T18:12:00.000Z")
-        // The honest default roster for a new room: one seat per configured provider, nothing invented.
-        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.provider.rawValue), ["codex", "claude", "ollama"])
-        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.persona.rawValue), ["codex", "claude", "ollama"])
-        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.displayName), ["Codex", "Claude", "Ollama"])
+        // The honest default roster for a new room: one seat per configured provider, keyed by
+        // `roomProviderKey` (so the two OpenRouter instances get distinct personas), nothing invented.
+        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.provider.rawValue),
+                       ["codex", "claude", "ollama", "openrouter-fast", "openrouter-deep"])
+        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.persona.rawValue),
+                       ["codex", "claude", "ollama", "openrouter-fast", "openrouter-deep"])
+        XCTAssertEqual(catalog.defaultParticipantSpecs.map(\.displayName),
+                       ["Codex", "Claude", "Ollama", "OpenRouter", "OpenRouter"])
     }
 
     func testRoomParticipantsCatalogDisabledAnswersHonestly() throws {

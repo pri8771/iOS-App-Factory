@@ -217,6 +217,11 @@ public final class StudioStore {
             errors["evidence.list"] = describe(error)
         }
         await refreshReleaseProjection()
+        // Chat is the default tab as of this wave, so its sidebar of rooms needs to stay fresh even
+        // when the human never opens the dedicated rooms UI that used to be the only caller of
+        // `loadRooms()`. Piggybacks on this same 15s loop rather than a second timer; the 1.5s
+        // per-room transcript poll (`RoomsModel.resumePollingSelected()`) is unrelated and unchanged.
+        await rooms.loadRooms()
         lastRefreshAt = now()
     }
 

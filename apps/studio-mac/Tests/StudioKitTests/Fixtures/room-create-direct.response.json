@@ -6,10 +6,10 @@
     "operation": "room.create",
     "room": {
       "schemaVersion": 1,
-      "roomId": "50000001-0000-4000-8000-000000000001",
-      "title": "Studio launch review",
+      "roomId": "50000004-0000-4000-8000-000000000004",
+      "title": "Codex — quick question",
       "projectId": null,
-      "flavor": "room",
+      "flavor": "direct",
       "createdAt": "2026-08-16T18:00:00.000Z",
       "updatedAt": "2026-08-16T18:00:00.000Z",
       "unattendedEnabled": false,
@@ -27,22 +27,6 @@
           "provider": "codex",
           "displayName": "Codex",
           "position": 0,
-          "benchedUntil": null,
-          "benchReason": null
-        },
-        {
-          "persona": "claude",
-          "provider": "claude",
-          "displayName": "Claude",
-          "position": 1,
-          "benchedUntil": null,
-          "benchReason": null
-        },
-        {
-          "persona": "ollama",
-          "provider": "ollama",
-          "displayName": "Ollama",
-          "position": 2,
           "benchedUntil": null,
           "benchReason": null
         }

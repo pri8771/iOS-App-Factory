@@ -11,17 +11,32 @@
       "providers": [
         {
           "provider": "codex",
+          "roomProviderKey": "codex",
           "model": "gpt-5-codex",
           "cliVersion": "0.42.0"
         },
         {
           "provider": "claude",
+          "roomProviderKey": "claude",
           "model": "claude-sonnet-4-5",
           "cliVersion": null
         },
         {
           "provider": "ollama",
+          "roomProviderKey": "ollama",
           "model": "qwen2.5-coder:14b",
+          "cliVersion": null
+        },
+        {
+          "provider": "openrouter",
+          "roomProviderKey": "openrouter-fast",
+          "model": "google/gemini-2.5-flash",
+          "cliVersion": null
+        },
+        {
+          "provider": "openrouter",
+          "roomProviderKey": "openrouter-deep",
+          "model": "anthropic/claude-opus-4.1",
           "cliVersion": null
         }
       ],
@@ -49,7 +64,7 @@
         }
       ],
       "sourcedAt": "2026-08-16T18:12:00.000Z",
-      "sourceDigest": "sha256:bb837889aea0f95eca1b70942048bacdf6bb2d05c520fee1c0b4ea74a9ea5199"
+      "sourceDigest": "sha256:d51900b888a3c43a406ace5f0093020f0c9bac02cf107f9ddcc2c67fa1e5119c"
     }
   }
 }

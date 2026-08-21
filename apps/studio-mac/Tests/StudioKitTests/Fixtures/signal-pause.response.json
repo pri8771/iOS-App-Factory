@@ -1,0 +1,21 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "signal.pause",
+    "signal": {
+      "schemaVersion": 1,
+      "signalId": "90000001-0000-4000-8000-000000000001",
+      "name": "OpenRouter pricing changes",
+      "watchDescription": "Watch for OpenRouter pricing or rate-limit changes that affect our configured models.",
+      "scoutProvider": "openrouter-fast",
+      "status": "paused",
+      "createdAt": "2026-08-15T09:00:00.000Z",
+      "lastCheckedAt": "2026-08-16T18:00:00.000Z",
+      "checkCount": 5,
+      "insightCount": 2,
+      "checkIntervalMinutes": 60
+    }
+  }
+}

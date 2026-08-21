@@ -66,8 +66,11 @@ final class StudioStoreTests: XCTestCase {
         // in its default case), so `refresh()` probes it first and falls back to the phase-1 sequence —
         // exactly what a daemon that has never heard of a given operation looks like.
         // `release.projection` (Phase 6 step B) is probed last and, unanswered by this fixture server,
-        // falls back silently the same way studio.snapshot does — no error, no rail.
-        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "portfolio.snapshot", "attempt.list", "evidence.list", "release.projection"])
+        // falls back silently the same way studio.snapshot does — no error, no rail. `room.list`
+        // (Wave 8) is piggybacked onto this same `refresh()` so chat's room sidebar stays fresh even
+        // outside the dedicated rooms UI; unanswered here, it falls back to `roomsError` the same
+        // honest way, never blocking the rest of the refresh.
+        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "portfolio.snapshot", "attempt.list", "evidence.list", "release.projection", "room.list"])
         XCTAssertNil(store.releaseProjection)
         XCTAssertNil(store.errors["release.projection"])
         XCTAssertEqual(server.frames[3]["request"]?["payload"], ["scope": "all", "projectId": nil, "after": nil, "limit": 100])
@@ -99,7 +102,8 @@ final class StudioStoreTests: XCTestCase {
         XCTAssertNil(store.attempts)
         XCTAssertNil(store.errors["studio.snapshot"])
         let operations = server.frames.compactMap { $0["request"]?["operation"]?.stringValue }
-        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "evidence.list", "release.projection"], "portfolio.snapshot/attempt.list are skipped once studio.snapshot answers")
+        XCTAssertEqual(operations, ["doctor", "studio.snapshot", "evidence.list", "release.projection", "room.list"],
+                       "portfolio.snapshot/attempt.list are skipped once studio.snapshot answers; room.list (Wave 8) always runs")
 
         let dashboard = store.dashboard
         XCTAssertEqual(dashboard.gauges.map(\.id), DashboardDerivation.studioGaugeOrder)

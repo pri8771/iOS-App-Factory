@@ -1,0 +1,42 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "insight.list",
+    "insights": [
+      {
+        "schemaVersion": 1,
+        "insightId": "91000001-0000-4000-8000-000000000001",
+        "signalId": "90000001-0000-4000-8000-000000000001",
+        "discoveredAt": "2026-08-16T18:00:03.000Z",
+        "headline": "OpenRouter added a 20% surcharge on Gemini 2.5 Flash during peak hours.",
+        "rationale": "Peak-hour pricing changes our per-reply cost model for the fast lane; worth flagging before the next budget review.",
+        "confidence": "strong",
+        "citations": [
+          {
+            "url": "https://openrouter.ai/docs/pricing",
+            "title": "OpenRouter pricing docs"
+          }
+        ],
+        "insightDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "schemaVersion": 1,
+        "insightId": "91000002-0000-4000-8000-000000000002",
+        "signalId": "90000001-0000-4000-8000-000000000001",
+        "discoveredAt": "2026-08-14T12:00:00.000Z",
+        "headline": "OpenRouter deprecated the legacy Gemini 1.5 route.",
+        "rationale": "Peak-hour pricing changes our per-reply cost model for the fast lane; worth flagging before the next budget review.",
+        "confidence": "moderate",
+        "citations": [
+          {
+            "url": "https://openrouter.ai/docs/pricing",
+            "title": "OpenRouter pricing docs"
+          }
+        ],
+        "insightDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    ]
+  }
+}

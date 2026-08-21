@@ -2,12 +2,23 @@ import SwiftUI
 
 // MARK: - StudioRootView
 //
-// The window: title bar with tabs, the selected screen, and the corner chat floating bottom-right
-// on every screen. Reads everything from `StudioStore` in the environment.
+// The window (Architecture decision 13): a left `NavRail` (chat/stages/dashboard/settings) beside a
+// column of {title bar, selected screen}, with the corner chat floating bottom-right on every
+// non-chat screen. Reads everything from `StudioStore` in the environment. Chat is the default
+// landing tab — the pivot this wave makes: Studio used to open on the dashboard.
 
 public struct StudioRootView: View {
     @Environment(StudioStore.self) private var store
-    @State private var tab: StudioTab = .dashboard
+    /// The shell's own persistence — exactly three keys (Architecture decision 13), nothing
+    /// wire-derived. Falls back to `.chat` for any stored value that doesn't match a current
+    /// `StudioTab` case (including the pre-Wave-8 `"phases"`/`"dashboard"` scheme).
+    @AppStorage("studio.selectedTab") private var tab: StudioTab = .chat
+    /// Reserved for Wave 9b's conversation/room restore-on-relaunch flow; declared here (the shell)
+    /// now so the persistence surface is complete, not yet read or written by this wave.
+    @AppStorage("studio.lastSelectedRoomId") private var lastSelectedRoomId: String?
+    /// Reserved for Wave 9d's `AnalyticsPanel` 7D/30D range picker; same status as
+    /// `lastSelectedRoomId` above.
+    @AppStorage("studio.analyticsRange") private var analyticsRange: String = "7d"
     @State private var selectedSlug: String?
     /// The corner chat starts as the FAB so the dashboard's right column is visible on launch; one
     /// click opens the panel.
@@ -26,36 +37,40 @@ public struct StudioRootView: View {
 
     /// Rooms are visible exactly when the corner panel is open or the full chat tab is showing —
     /// this is the single "poll while visible, stop when hidden" decision; `RoomsModel` itself does
-    /// not know which screen is on top.
+    /// not know which screen is on top. Chat is the default tab as of this wave, so rooms poll from
+    /// the very first frame unless the human has since switched away.
     private var roomsVisible: Bool { tab == .chat || !chatMinimized }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            StudioTitleBar(tab: $tab, link: store.link, budget: Self.staticBudget, lastRefreshAt: store.lastRefreshAt) {
-                Task { await store.connect() }
-            }
-            ZStack(alignment: .bottomTrailing) {
-                if showingPlanner, let plan = store.planner.plan {
-                    PlannerScreen(
-                        plan: plan, isSavingEdit: store.planner.isSavingEdit, isApproving: store.planner.isApproving,
-                        isExecuting: store.planner.isExecuting, error: store.planner.error,
-                        onBack: { showingPlanner = false; store.planner.close() },
-                        onReorder: { order in await store.planner.reorder(order) },
-                        onDefer: { itemId in await store.planner.defer_(itemId) },
-                        onApprove: { await store.planner.approve() },
-                        onExecute: { await store.planner.execute() },
-                        onApproveGate: { itemId in await store.planner.approveGate(itemId) })
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .transition(.opacity)
-                } else {
-                    screen
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    if tab != .chat {
-                        CornerChatView(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend,
-                                       rooms: roomsModel, onNewRoom: { showingNewRoom = true },
-                                       minimized: $chatMinimized, onExpand: { tab = .chat },
-                                       onPlanReady: { plan in store.planner.adopt(plan); showingPlanner = true })
-                        .padding(HUDTheme.space.l)
+        HStack(spacing: 0) {
+            NavRail(tab: $tab)
+            VStack(spacing: 0) {
+                StudioTitleBar(link: store.link, budget: Self.staticBudget, lastRefreshAt: store.lastRefreshAt) {
+                    Task { await store.connect() }
+                }
+                ZStack(alignment: .bottomTrailing) {
+                    if showingPlanner, let plan = store.planner.plan {
+                        PlannerScreen(
+                            plan: plan, isSavingEdit: store.planner.isSavingEdit, isApproving: store.planner.isApproving,
+                            isExecuting: store.planner.isExecuting, error: store.planner.error,
+                            onBack: { showingPlanner = false; store.planner.close() },
+                            onReorder: { order in await store.planner.reorder(order) },
+                            onDefer: { itemId in await store.planner.defer_(itemId) },
+                            onApprove: { await store.planner.approve() },
+                            onExecute: { await store.planner.execute() },
+                            onApproveGate: { itemId in await store.planner.approveGate(itemId) })
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .transition(.opacity)
+                    } else {
+                        screen
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        if tab != .chat {
+                            CornerChatView(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend,
+                                           rooms: roomsModel, onNewRoom: { showingNewRoom = true },
+                                           minimized: $chatMinimized, onExpand: { tab = .chat },
+                                           onPlanReady: { plan in store.planner.adopt(plan); showingPlanner = true })
+                            .padding(HUDTheme.space.l)
+                        }
                     }
                 }
             }
@@ -129,7 +144,9 @@ public struct StudioRootView: View {
             ChatScreen(chat: store.chat, context: { store.assistantContext }, backend: assistantBackend,
                       rooms: roomsModel, onNewRoom: { showingNewRoom = true },
                       onPlanReady: { plan in store.planner.adopt(plan); showingPlanner = true })
-        case .phases:
+        case .settings:
+            SettingsScreen()
+        case .stages:
             PhasesScreen(
                 presets: store.phases.presets, isLoadingPresets: store.phases.isLoadingPresets,
                 presetsError: store.phases.presetsError, selectedPresetId: store.phases.selectedPresetId,

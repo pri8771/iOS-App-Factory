@@ -1,0 +1,43 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "usage.summary",
+    "summary": {
+      "sinceDays": 7,
+      "rows": [
+        {
+          "providerKey": "claude",
+          "model": "claude-sonnet-4-5",
+          "dayKey": "2026-08-16",
+          "inputTokens": 12400,
+          "outputTokens": 3100,
+          "cachedInputTokens": 2000,
+          "costUsdMicros": 184500,
+          "unreportedCount": 0
+        },
+        {
+          "providerKey": "openrouter-fast",
+          "model": "google/gemini-2.5-flash",
+          "dayKey": "2026-08-16",
+          "inputTokens": null,
+          "outputTokens": 5600,
+          "cachedInputTokens": null,
+          "costUsdMicros": null,
+          "unreportedCount": 0
+        },
+        {
+          "providerKey": "codex",
+          "model": "gpt-5-codex",
+          "dayKey": "2026-08-16",
+          "inputTokens": null,
+          "outputTokens": null,
+          "cachedInputTokens": null,
+          "costUsdMicros": null,
+          "unreportedCount": 4
+        }
+      ]
+    }
+  }
+}

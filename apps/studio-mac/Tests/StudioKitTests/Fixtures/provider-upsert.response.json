@@ -1,0 +1,17 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "provider.upsert",
+    "instance": {
+      "key": "openrouter-batch",
+      "family": "openrouter",
+      "model": "meta-llama/llama-3.3-70b",
+      "displayName": "OpenRouter — batch",
+      "credentialReference": null
+    },
+    "created": true,
+    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  }
+}

@@ -120,8 +120,19 @@
           "docsProvenance": null
         }
       ],
-      "rooms": [],
-      "roomsUnavailableReason": "not yet wired (studio/rooms-core pending)",
+      "rooms": [
+        {
+          "roomId": "50000001-0000-4000-8000-000000000001",
+          "name": "Studio launch review",
+          "kind": "portfolio"
+        },
+        {
+          "roomId": "50000003-0000-4000-8000-000000000003",
+          "name": "Anjali build room",
+          "kind": "project"
+        }
+      ],
+      "roomsUnavailableReason": null,
       "portfolio": {
         "verifiedThisWeek": {
           "value": 2,
@@ -144,7 +155,7 @@
           "unavailableReason": "not yet computed: step-level timing is not aggregated into an agent-active-window ratio"
         }
       },
-      "sourceSnapshotDigest": "sha256:1102f2f90e1a7562ae70675d2ee656721f803bca04dd33395740a1814ec30978"
+      "sourceSnapshotDigest": "sha256:ec4457002ac5e7b694865f33fc44df329abbd89e27e2690589c05c91dd50e8bf"
     }
   }
 }

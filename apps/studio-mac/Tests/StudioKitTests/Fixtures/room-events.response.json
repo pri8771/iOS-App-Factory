@@ -9,6 +9,7 @@
       "roomId": "50000001-0000-4000-8000-000000000001",
       "title": "Studio launch review",
       "projectId": null,
+      "flavor": "room",
       "createdAt": "2026-08-16T18:00:00.000Z",
       "updatedAt": "2026-08-16T18:31:00.000Z",
       "unattendedEnabled": false,
@@ -54,7 +55,8 @@
         "spentTokens": 3200,
         "reservedTokens": 800,
         "unattendedSpentTokens": 0
-      }
+      },
+      "archivedAt": null
     },
     "moderator": {
       "enabled": true,

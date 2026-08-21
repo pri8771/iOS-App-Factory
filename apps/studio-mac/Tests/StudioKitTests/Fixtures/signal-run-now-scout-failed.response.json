@@ -1,0 +1,27 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "signal.run-now",
+    "signal": {
+      "schemaVersion": 1,
+      "signalId": "90000002-0000-4000-8000-000000000002",
+      "name": "Competitor Shopify app launches",
+      "watchDescription": "Watch for new Shopify apps entering our category.",
+      "scoutProvider": "codex",
+      "status": "paused",
+      "createdAt": "2026-08-10T09:00:00.000Z",
+      "lastCheckedAt": "2026-08-16T19:00:00.000Z",
+      "checkCount": 1,
+      "insightCount": 0,
+      "checkIntervalMinutes": null
+    },
+    "insight": null,
+    "outcome": {
+      "kind": "scout-failed",
+      "code": "scout-error",
+      "message": "codex adapter timed out after 25s."
+    }
+  }
+}

@@ -5,18 +5,20 @@
 // `ProjectLifecycleStageV1` on `lifecycleStage` (ADR 0005) plus the new `docsProvenance` field:
 // Anjali carries a populated provenance (an "enrolled" repo-docs source backing its
 // `lifecycleStage`), Hindsight carries `null` (no repo-docs source configured for it), exercising
-// both shapes `StudioProjectDocsProvenanceV1Schema.nullable()` allows. Kept as its own script
-// rather than folded into record-fixtures.mjs for historical reasons (record-fixtures.mjs's own
-// "attempt-list.response.json" generation once threw on a schema-drift issue, fixed in f63336c;
-// that is no longer a reason to keep these separate, but splitting them back out is not this
-// change's job).
+// both shapes `StudioProjectDocsProvenanceV1Schema.nullable()` allows. As of Wave 8 (Architecture
+// decision 12), `rooms` also carries real, non-placeholder rows instead of the old always-empty
+// `STUDIO_NOT_YET_WIRED_REASON_V1` claim — see `STUDIO_NO_ROOMS_REASON_V1`'s doc comment in
+// studio-snapshot.ts for when that reason (not used by this fixture, which has real rooms) applies
+// instead. Kept as its own script rather than folded into record-fixtures.mjs for historical
+// reasons (record-fixtures.mjs's own "attempt-list.response.json" generation once threw on a
+// schema-drift issue, fixed in f63336c; that is no longer a reason to keep these separate, but
+// splitting them back out is not this change's job).
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import {
   CommandResponseV1Schema,
   StudioSnapshotV1Schema,
   canonicalStudioSnapshotDigestInputV1,
-  STUDIO_NOT_YET_WIRED_REASON_V1,
   STUDIO_NO_GATE_RECORDS_REASON_V1,
 } from "../../../packages/contracts/dist/index.js";
 
@@ -146,8 +148,18 @@ const envelope = {
       docsProvenance: null,
     },
   ],
-  rooms: [],
-  roomsUnavailableReason: STUDIO_NOT_YET_WIRED_REASON_V1,
+  // Rooms are now real (Architecture decision 12, `buildStudioRoomsV1`): one row bound to Anjali's
+  // projectId ("project" kind), one unbound ("portfolio" kind) — exercising both `StudioRoom.Kind`
+  // branches through the real, non-placeholder projection.
+  rooms: [
+    {
+      roomId: "50000001-0000-4000-8000-000000000001",
+      name: "Studio launch review",
+      kind: "portfolio",
+    },
+    { roomId: "50000003-0000-4000-8000-000000000003", name: "Anjali build room", kind: "project" },
+  ],
+  roomsUnavailableReason: null,
   portfolio: {
     verifiedThisWeek: { value: 2, unavailableReason: null },
     awaitingYouCount: { value: 1, unavailableReason: null },

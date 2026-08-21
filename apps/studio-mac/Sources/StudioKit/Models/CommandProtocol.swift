@@ -13,14 +13,17 @@ import Foundation
 
 public let commandProtocolVersion = 1
 
-/// The 51 wire operations, verbatim. `studio.snapshot` and `studio.assistant.*` come from
+/// The 67 wire operations, verbatim. `studio.snapshot` and `studio.assistant.*` come from
 /// `studio/service-skeleton` (tip cdfe558); `project.milestones.list` and `project.milestone.upsert`
 /// come from `studio/milestones-and-phase` (tip 3cff9a7) — none of those six has merged to `main` as of
-/// this writing, so `DaemonClient.isUnsupportedOperation` feature-detects them. The six `room.*`
-/// operations (`@app-factory/studio-rooms` — the five transcript ops plus the read-only
-/// `room.participants.list` catalog) are different: they are unconditionally registered on any
-/// daemon built from this contract (a durable transcript even with the moderator disabled — see
-/// Room.swift's doc comment), so no unsupported-operation fallback applies to them.
+/// this writing, so `DaemonClient.isUnsupportedOperation` feature-detects them. The `room.*`
+/// operations (`@app-factory/studio-rooms` — the transcript ops, the read-only
+/// `room.participants.list` catalog, and Wave 8's `room.update`), `provider.*`, `settings.*`,
+/// `usage.summary`, and `signal.*`/`insight.list` (Wave 8's provider registry, settings, token
+/// ledger, and signals surfaces — see the Studio chat-first shell plan's "Architecture decisions")
+/// are different: they are unconditionally registered on any daemon built from this contract (a
+/// durable transcript even with the moderator disabled — see Room.swift's doc comment), so no
+/// unsupported-operation fallback applies to any of them.
 public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable {
     case doctor
     case taskSubmit = "task.submit"
@@ -55,6 +58,7 @@ public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable 
     case roomEvents = "room.events"
     case roomTyping = "room.typing"
     case roomParticipantsList = "room.participants.list"
+    case roomUpdate = "room.update"
     case projectSeed = "project.seed"
     // Studio Phase 4 (`preset.*`/`phase.*`) — CRUD over durable, revisioned phase definitions and
     // the presets that bundle them. See `phase.ts`; no phase ever executes through these ops.
@@ -81,6 +85,25 @@ public enum CommandOperation: String, Hashable, Sendable, Codable, CaseIterable 
     // takes a fresh, strictly GET-only one through the daemon's credential broker.
     case releaseObserve = "release.observe"
     case releaseProjection = "release.projection"
+    // Provider registry (`provider.*`, provider.ts) — Wave 8, Architecture decisions 2-3.
+    case providerList = "provider.list"
+    case providerUpsert = "provider.upsert"
+    case providerRemove = "provider.remove"
+    case providerCredentialSet = "provider.credential.set"
+    case providerHealth = "provider.health"
+    // Studio settings (`settings.*`, settings.ts) — Wave 8, Architecture decision 4.
+    case settingsGet = "settings.get"
+    case settingsSet = "settings.set"
+    // The honest token ledger's read side (`usage.summary`, token-usage.ts) — Wave 8, decision 6.
+    case usageSummary = "usage.summary"
+    // Signals (`signal.*`/`insight.list`, signal.ts) — Wave 8.
+    case signalCreate = "signal.create"
+    case signalList = "signal.list"
+    case signalPause = "signal.pause"
+    case signalResume = "signal.resume"
+    case signalRunNow = "signal.run-now"
+    case signalReschedule = "signal.reschedule"
+    case insightList = "insight.list"
 }
 
 /// `CommandOriginV1Schema` — there is no "studio" origin on the wire yet; Studio speaks as
@@ -325,7 +348,13 @@ public typealias RoomCreatePayload = RoomCreateSpec
 
 public struct RoomListPayload: Encodable, Sendable, Hashable {
     public var limit: Int
-    public init(limit: Int = 50) { self.limit = limit }
+    /// `false` (the default) hides archived rooms, so an existing caller's behavior is unchanged
+    /// unless it opts in.
+    public var includeArchived: Bool
+    public init(limit: Int = 50, includeArchived: Bool = false) {
+        self.limit = limit
+        self.includeArchived = includeArchived
+    }
 }
 
 public struct RoomPostPayload: Encodable, Sendable, Hashable {
@@ -360,6 +389,11 @@ public struct RoomTypingPayload: Encodable, Sendable, Hashable {
         self.ttlMs = ttlMs
     }
 }
+
+/// `room.update`'s payload IS `RoomUpdateSpec` directly, mirroring `room.create` above —
+/// `RoomUpdateSpec` needs no hand-written `encode(to:)` of its own (see its doc comment: every field
+/// is wire-`optional()`, not `nullable()`).
+public typealias RoomUpdatePayload = RoomUpdateSpec
 
 // MARK: project.seed payload
 
@@ -495,6 +529,7 @@ public enum CommandResult: Sendable {
     case roomEvents(RoomEventsResult)
     case roomTyping(RoomTypingResult)
     case roomParticipantsList(RoomParticipantsCatalog)
+    case roomUpdate(Room)
     case projectSeed(ProjectSeedResult)
     case presetList([PhasePreset])
     case presetUpsert(PresetUpsertResult)
@@ -513,6 +548,21 @@ public enum CommandResult: Sendable {
     case phaseReject(PhaseRun)
     case releaseObserve(AscReleaseObservation)
     case releaseProjection(ReleaseProjection)
+    case providerList([ProviderInstance])
+    case providerUpsert(ProviderUpsertResult)
+    case providerRemove(ProviderRemoveResult)
+    case providerCredentialSet(ProviderCredentialSetResult)
+    case providerHealth([ProviderHealthEntry])
+    case settingsGet(StudioSettingEntry)
+    case settingsSet(StudioSettingEntry)
+    case usageSummary(UsageSummary)
+    case signalCreate(Signal)
+    case signalList([Signal])
+    case signalPause(Signal)
+    case signalResume(Signal)
+    case signalRunNow(SignalRunNowResult)
+    case signalReschedule(Signal)
+    case insightList([SignalInsight])
 
     public var operation: CommandOperation {
         switch self {
@@ -549,6 +599,7 @@ public enum CommandResult: Sendable {
         case .roomEvents: return .roomEvents
         case .roomTyping: return .roomTyping
         case .roomParticipantsList: return .roomParticipantsList
+        case .roomUpdate: return .roomUpdate
         case .projectSeed: return .projectSeed
         case .presetList: return .presetList
         case .presetUpsert: return .presetUpsert
@@ -567,6 +618,21 @@ public enum CommandResult: Sendable {
         case .phaseReject: return .phaseReject
         case .releaseObserve: return .releaseObserve
         case .releaseProjection: return .releaseProjection
+        case .providerList: return .providerList
+        case .providerUpsert: return .providerUpsert
+        case .providerRemove: return .providerRemove
+        case .providerCredentialSet: return .providerCredentialSet
+        case .providerHealth: return .providerHealth
+        case .settingsGet: return .settingsGet
+        case .settingsSet: return .settingsSet
+        case .usageSummary: return .usageSummary
+        case .signalCreate: return .signalCreate
+        case .signalList: return .signalList
+        case .signalPause: return .signalPause
+        case .signalResume: return .signalResume
+        case .signalRunNow: return .signalRunNow
+        case .signalReschedule: return .signalReschedule
+        case .insightList: return .insightList
         }
     }
 }
@@ -620,6 +686,7 @@ extension CommandResult: Decodable {
         case .roomEvents: self = .roomEvents(try single.decode(RoomEventsResult.self))
         case .roomTyping: self = .roomTyping(try single.decode(RoomTypingResult.self))
         case .roomParticipantsList: self = .roomParticipantsList(try c.decode(RoomParticipantsCatalog.self, forKey: .catalog))
+        case .roomUpdate: self = .roomUpdate(try single.decode(RoomUpdateResult.self).room)
         case .projectSeed: self = .projectSeed(try single.decode(ProjectSeedResult.self))
         case .presetList: self = .presetList(try c.decode([PhasePreset].self, forKey: .presets))
         case .presetUpsert: self = .presetUpsert(try single.decode(PresetUpsertResult.self))
@@ -638,6 +705,21 @@ extension CommandResult: Decodable {
         case .phaseReject: self = .phaseReject(try c.decode(PhaseRun.self, forKey: .run))
         case .releaseObserve: self = .releaseObserve(try c.decode(AscReleaseObservation.self, forKey: .observation))
         case .releaseProjection: self = .releaseProjection(try c.decode(ReleaseProjection.self, forKey: .projection))
+        case .providerList: self = .providerList(try single.decode(ProviderListResult.self).providers)
+        case .providerUpsert: self = .providerUpsert(try single.decode(ProviderUpsertResult.self))
+        case .providerRemove: self = .providerRemove(try single.decode(ProviderRemoveResult.self))
+        case .providerCredentialSet: self = .providerCredentialSet(try single.decode(ProviderCredentialSetResult.self))
+        case .providerHealth: self = .providerHealth(try single.decode(ProviderHealthResult.self).reports)
+        case .settingsGet: self = .settingsGet(try single.decode(SettingsResult.self).entry)
+        case .settingsSet: self = .settingsSet(try single.decode(SettingsResult.self).entry)
+        case .usageSummary: self = .usageSummary(try single.decode(UsageSummaryResult.self).summary)
+        case .signalCreate: self = .signalCreate(try single.decode(SignalResult.self).signal)
+        case .signalList: self = .signalList(try single.decode(SignalListResult.self).signals)
+        case .signalPause: self = .signalPause(try single.decode(SignalResult.self).signal)
+        case .signalResume: self = .signalResume(try single.decode(SignalResult.self).signal)
+        case .signalRunNow: self = .signalRunNow(try single.decode(SignalRunNowResult.self))
+        case .signalReschedule: self = .signalReschedule(try single.decode(SignalResult.self).signal)
+        case .insightList: self = .insightList(try single.decode(InsightListResult.self).insights)
         }
     }
 }

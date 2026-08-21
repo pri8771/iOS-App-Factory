@@ -1,0 +1,50 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "provider.list",
+    "providers": [
+      {
+        "key": "codex",
+        "family": "codex",
+        "model": "gpt-5-codex",
+        "displayName": "Codex",
+        "credentialReference": null
+      },
+      {
+        "key": "claude",
+        "family": "claude",
+        "model": "claude-sonnet-4-5",
+        "displayName": "Claude",
+        "credentialReference": null
+      },
+      {
+        "key": "ollama",
+        "family": "ollama",
+        "model": "qwen2.5-coder:14b",
+        "displayName": "Ollama",
+        "credentialReference": null
+      },
+      {
+        "key": "openrouter-fast",
+        "family": "openrouter",
+        "model": "google/gemini-2.5-flash",
+        "displayName": "OpenRouter — fast",
+        "credentialReference": {
+          "schemaVersion": 1,
+          "kind": "macos-keychain",
+          "service": "app-factory-provider",
+          "account": "openrouter-fast"
+        }
+      },
+      {
+        "key": "openrouter-deep",
+        "family": "openrouter",
+        "model": "anthropic/claude-opus-4.1",
+        "displayName": "OpenRouter — deep",
+        "credentialReference": null
+      }
+    ]
+  }
+}

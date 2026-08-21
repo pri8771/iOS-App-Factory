@@ -3,17 +3,39 @@ import SwiftUI
 // MARK: - Title bar
 //
 // The window's own top strip (the system title bar is hidden): traffic-light inset, the wordmark,
-// three tabs (Dashboard · Chat · Phases), the daemon beacon driven by doctor, and the budget mini
-// gauge — which in phase 1 is a STATIC 38% and is labelled as such.
+// the daemon beacon driven by doctor, and the budget mini gauge — which in phase 1 is a STATIC 38%
+// and is labelled as such. As of Wave 8 (Architecture decision 13) the four screens are no longer
+// tabs living here — they moved to the left `NavRail` — so this bar keeps only the chrome that is
+// not "which screen": the wordmark, the beacon, and the gauge.
 
+/// The four screens (Architecture decision 13): chat is the default landing tab, not dashboard —
+/// declaration order is `NavRail`'s display order. `.phases` was renamed to `.stages` here (UI-only:
+/// nothing on the wire serializes a `StudioTab`, so this is a pure rename, not a schema change) and
+/// `.settings` is new (Wave 9a fills in its real content; Wave 8 ships an honest placeholder,
+/// `SettingsScreen`).
 public enum StudioTab: String, CaseIterable, Hashable, Sendable, Identifiable {
-    case dashboard, chat, phases
+    case chat, stages, dashboard, settings
     public var id: String { rawValue }
-    public var title: String { rawValue }
+    public var title: String {
+        switch self {
+        case .chat: return "Chat"
+        case .stages: return "Stages"
+        case .dashboard: return "Dashboard"
+        case .settings: return "Settings"
+        }
+    }
+    /// The SF Symbol `NavRail` renders for this screen.
+    public var symbolName: String {
+        switch self {
+        case .chat: return "bubble.left.and.bubble.right.fill"
+        case .stages: return "flowchart"
+        case .dashboard: return "chart.bar.fill"
+        case .settings: return "gearshape.fill"
+        }
+    }
 }
 
 public struct StudioTitleBar: View {
-    @Binding public var tab: StudioTab
     public var link: StudioStore.Link
     public var budget: Sourced<Double>
     public var lastRefreshAt: Date?
@@ -21,9 +43,8 @@ public struct StudioTitleBar: View {
 
     public static let height: CGFloat = 44
 
-    public init(tab: Binding<StudioTab>, link: StudioStore.Link, budget: Sourced<Double>, lastRefreshAt: Date? = nil,
+    public init(link: StudioStore.Link, budget: Sourced<Double>, lastRefreshAt: Date? = nil,
                 onReconnect: (() -> Void)? = nil) {
-        self._tab = tab
         self.link = link
         self.budget = budget
         self.lastRefreshAt = lastRefreshAt
@@ -38,8 +59,6 @@ public struct StudioTitleBar: View {
                 Text("Studio").font(HUDTypography.displayHeading).foregroundStyle(HUDTheme.ink)
                 HUDLabel("app factory")
             }
-            tabs
-                .padding(.leading, HUDTheme.space.m)
             Spacer()
             beacon
             budgetGauge
@@ -49,36 +68,6 @@ public struct StudioTitleBar: View {
         .frame(maxWidth: .infinity)
         .background(HUDTheme.hull)
         .overlay(alignment: .bottom) { Rectangle().fill(HUDTheme.hairline).frame(height: 1) }
-    }
-
-    private var tabs: some View {
-        HStack(spacing: HUDTheme.space.l) {
-            ForEach(StudioTab.allCases) { candidate in
-                Button {
-                    tab = candidate
-                } label: {
-                    VStack(spacing: 5) {
-                        Text(candidate.title)
-                            .font(HUDTypography.monoLabel)
-                            .textCase(.uppercase)
-                            .tracking(HUDTypography.labelTracking)
-                            .foregroundStyle(candidate == tab ? HUDTheme.arc : HUDTheme.mute)
-                        Rectangle()
-                            .fill(candidate == tab ? HUDTheme.arc : Color.clear)
-                            .frame(height: 1)
-                            .shadow(color: candidate == tab ? HUDTheme.glow : .clear, radius: 3)
-                    }
-                    .padding(.top, 5)
-                    .fixedSize()
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(candidate.title)
-                .accessibilityAddTraits(candidate == tab ? [.isSelected] : [])
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Screens")
     }
 
     private var beaconPill: StatusPill {
@@ -151,20 +140,14 @@ public struct MiniArc: View {
 }
 
 #Preview("Title bar") {
-    struct Host: View {
-        @State var tab = StudioTab.dashboard
-        var body: some View {
-            VStack(spacing: 0) {
-                StudioTitleBar(tab: $tab,
-                               link: .connected(DoctorResult(readiness: .ready, daemonVersion: "0.1.0-ui-demo", protocolVersion: 1,
-                                                             startedAt: IsoInstant(unchecked: "2026-08-16T16:00:00.000Z"), issues: [])),
-                               budget: Sourced(0.38, .staticValue("phase 1 placeholder")))
-                StudioTitleBar(tab: $tab, link: .offline("[client] transport.connection-failed"), budget: Sourced(0.38, .staticValue("phase 1 placeholder")))
-                Spacer()
-            }
-            .frame(width: 1000, height: 140)
-            .background(HUDTheme.void)
-        }
+    VStack(spacing: 0) {
+        StudioTitleBar(link: .connected(DoctorResult(readiness: .ready, daemonVersion: "0.1.0-ui-demo", protocolVersion: 1,
+                                                      startedAt: IsoInstant(unchecked: "2026-08-16T16:00:00.000Z"), issues: [])),
+                       budget: Sourced(0.38, .staticValue("phase 1 placeholder")))
+        StudioTitleBar(link: .offline("[client] transport.connection-failed"), budget: Sourced(0.38, .staticValue("phase 1 placeholder")))
+        Spacer()
     }
-    return Host().preferredColorScheme(.dark)
+    .frame(width: 1000, height: 140)
+    .background(HUDTheme.void)
+    .preferredColorScheme(.dark)
 }

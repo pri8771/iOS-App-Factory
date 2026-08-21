@@ -331,9 +331,11 @@ public actor DaemonClient {
         return result
     }
 
-    /// Most-recently-updated rooms first (the daemon's own ordering).
-    public func listRooms(limit: Int = 50, identity: CommandIdentity? = nil) async throws -> [Room] {
-        guard case .roomList(let result) = try await request(.roomList, RoomListPayload(limit: limit), identity).result else {
+    /// Most-recently-updated rooms first (the daemon's own ordering). `includeArchived: false` (the
+    /// default) hides archived rooms.
+    public func listRooms(limit: Int = 50, includeArchived: Bool = false, identity: CommandIdentity? = nil) async throws -> [Room] {
+        let payload = RoomListPayload(limit: limit, includeArchived: includeArchived)
+        guard case .roomList(let result) = try await request(.roomList, payload, identity).result else {
             throw DaemonClientError.responseOperationMismatch
         }
         return result.rooms
@@ -390,6 +392,153 @@ public actor DaemonClient {
             throw DaemonClientError.roomParticipantsDigestMismatch
         }
         return catalog
+    }
+
+    /// A durable CAS patch over an existing room (Architecture decision 7): title, ambient toggle,
+    /// cooldown window, archive, budget policy, and participant add/remove. `expectedUpdatedAt`
+    /// guards against `Room.updatedAt`; a stale value is refused rather than silently merged.
+    public func updateRoom(roomId: RoomID, expectedUpdatedAt: IsoInstant, patch: RoomUpdatePatch,
+                           identity: CommandIdentity? = nil) async throws -> Room {
+        let payload = RoomUpdateSpec(roomId: roomId, expectedUpdatedAt: expectedUpdatedAt, patch: patch)
+        guard case .roomUpdate(let room) = try await request(.roomUpdate, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return room
+    }
+
+    // MARK: Provider registry (provider.ts, `provider.*`) — Architecture decisions 2-3.
+
+    public func listProviders(identity: CommandIdentity? = nil) async throws -> [ProviderInstance] {
+        guard case .providerList(let providers) = try await request(.providerList, EmptyPayload(), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return providers
+    }
+
+    /// Creates or reconfigures an instance. Never carries a credential — see `setProviderCredential`.
+    /// `expectedDigest: nil` accepts whatever the config file currently holds.
+    public func upsertProvider(_ instance: ProviderUpsertSpec, expectedDigest: Sha256Digest? = nil,
+                               identity: CommandIdentity? = nil) async throws -> ProviderUpsertResult {
+        let payload = ProviderUpsertPayload(instance: instance, expectedDigest: expectedDigest)
+        guard case .providerUpsert(let result) = try await request(.providerUpsert, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    public func removeProvider(key: RoomProvider, expectedDigest: Sha256Digest? = nil,
+                               identity: CommandIdentity? = nil) async throws -> ProviderRemoveResult {
+        let payload = ProviderRemovePayload(key: key, expectedDigest: expectedDigest)
+        guard case .providerRemove(let result) = try await request(.providerRemove, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    /// Carries `secret` ONCE, over the owner-only 0600 socket (Architecture decision 2) — never
+    /// journaled to a durable replay ledger, never logged. Never echoed back; only the
+    /// `CredentialReference` the daemon just wrote to the Keychain.
+    public func setProviderCredential(key: RoomProvider, secret: String,
+                                      identity: CommandIdentity? = nil) async throws -> ProviderCredentialSetResult {
+        let payload = ProviderCredentialSetPayload(key: key, secret: secret)
+        guard case .providerCredentialSet(let result) = try await request(.providerCredentialSet, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    /// Runs OUTSIDE the daemon's serial executor, like `release.observe` — a health probe is a real
+    /// process/network round trip. `key: nil` probes every configured instance.
+    public func providerHealth(key: RoomProvider? = nil, identity: CommandIdentity? = nil) async throws -> [ProviderHealthEntry] {
+        guard case .providerHealth(let reports) = try await request(.providerHealth, ProviderHealthPayload(key: key), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return reports
+    }
+
+    // MARK: Studio settings (settings.ts, `settings.*`) — Architecture decision 4.
+
+    public func getSetting(_ key: StudioSettingKey, identity: CommandIdentity? = nil) async throws -> StudioSettingEntry {
+        guard case .settingsGet(let entry) = try await request(.settingsGet, SettingsGetPayload(key: key), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return entry
+    }
+
+    public func setSetting(_ key: StudioSettingKey, value: RoomProvider, identity: CommandIdentity? = nil) async throws -> StudioSettingEntry {
+        let payload = SettingsSetPayload(key: key, value: value)
+        guard case .settingsSet(let entry) = try await request(.settingsSet, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return entry
+    }
+
+    // MARK: The honest token ledger, read side (token-usage.ts, `usage.summary`) — decision 6.
+
+    public func usageSummary(sinceDays: Int = 7, identity: CommandIdentity? = nil) async throws -> UsageSummary {
+        guard case .usageSummary(let summary) = try await request(.usageSummary, UsageSummaryPayload(sinceDays: sinceDays), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return summary
+    }
+
+    // MARK: Signals (signal.ts, `signal.*`/`insight.list`) — a standing, named watch run by a Scout.
+
+    /// `checkIntervalMinutes: nil` (the default) leaves the signal manual-only (`runSignalNow`).
+    public func createSignal(name: String, watchDescription: String, scoutProvider: RoomProvider,
+                             checkIntervalMinutes: Int? = nil, identity: CommandIdentity? = nil) async throws -> Signal {
+        let payload = SignalCreatePayload(name: name, watchDescription: watchDescription, scoutProvider: scoutProvider,
+                                          checkIntervalMinutes: checkIntervalMinutes)
+        guard case .signalCreate(let signal) = try await request(.signalCreate, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return signal
+    }
+
+    public func listSignals(identity: CommandIdentity? = nil) async throws -> [Signal] {
+        guard case .signalList(let signals) = try await request(.signalList, EmptyPayload(), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return signals
+    }
+
+    public func pauseSignal(_ signalId: SignalID, identity: CommandIdentity? = nil) async throws -> Signal {
+        guard case .signalPause(let signal) = try await request(.signalPause, SignalIdPayload(signalId: signalId), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return signal
+    }
+
+    public func resumeSignal(_ signalId: SignalID, identity: CommandIdentity? = nil) async throws -> Signal {
+        guard case .signalResume(let signal) = try await request(.signalResume, SignalIdPayload(signalId: signalId), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return signal
+    }
+
+    /// Runs the signal's Scout once, right now, OUTSIDE the serial executor (mirrors
+    /// `release.observe`/`providerHealth`) — a Scout call is a real model/network round trip.
+    public func runSignalNow(_ signalId: SignalID, identity: CommandIdentity? = nil) async throws -> SignalRunNowResult {
+        guard case .signalRunNow(let result) = try await request(.signalRunNow, SignalIdPayload(signalId: signalId), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return result
+    }
+
+    /// Sets or clears (`nil`) a signal's scheduled check interval.
+    public func rescheduleSignal(_ signalId: SignalID, checkIntervalMinutes: Int?, identity: CommandIdentity? = nil) async throws -> Signal {
+        let payload = SignalReschedulePayload(signalId: signalId, checkIntervalMinutes: checkIntervalMinutes)
+        guard case .signalReschedule(let signal) = try await request(.signalReschedule, payload, identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return signal
+    }
+
+    public func listInsights(signalId: SignalID, identity: CommandIdentity? = nil) async throws -> [SignalInsight] {
+        guard case .insightList(let insights) = try await request(.insightList, SignalIdPayload(signalId: signalId), identity).result else {
+            throw DaemonClientError.responseOperationMismatch
+        }
+        return insights
     }
 
     // MARK: release.* — Studio Phase 6 step B, the release rail.

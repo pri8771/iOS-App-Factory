@@ -1,0 +1,13 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "settings.set",
+    "entry": {
+      "key": "default-provider",
+      "value": "codex",
+      "updatedAt": "2026-08-16T18:20:00.000Z"
+    }
+  }
+}

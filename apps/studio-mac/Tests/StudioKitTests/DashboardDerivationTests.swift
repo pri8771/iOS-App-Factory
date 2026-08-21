@@ -286,7 +286,7 @@ final class DashboardDerivationTests: XCTestCase {
             timeline: StudioProjectTimeline(milestones: [], milestonesUnavailableReason: "no milestones recorded yet", actuals: []))
         return StudioSnapshot(
             generatedAt: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z"), projects: [hindsight, zenith], rooms: [],
-            roomsUnavailableReason: studioNotYetWiredReason,
+            roomsUnavailableReason: studioNoRoomsReason,
             portfolio: StudioPortfolioAggregates(
                 verifiedThisWeek: StudioCountMetric(value: 5, unavailableReason: nil),
                 awaitingYouCount: StudioCountMetric(value: nil, unavailableReason: "no source yet"),
@@ -379,7 +379,7 @@ final class DashboardDerivationTests: XCTestCase {
             timeline: StudioProjectTimeline(milestones: [], milestonesUnavailableReason: nil, actuals: []))
         let snapshot = StudioSnapshot(
             generatedAt: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z"), projects: [project], rooms: [],
-            roomsUnavailableReason: studioNotYetWiredReason,
+            roomsUnavailableReason: studioNoRoomsReason,
             portfolio: StudioPortfolioAggregates(
                 verifiedThisWeek: StudioCountMetric(value: 0, unavailableReason: nil),
                 awaitingYouCount: StudioCountMetric(value: 0, unavailableReason: nil),

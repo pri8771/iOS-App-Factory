@@ -119,7 +119,7 @@ final class DaemonClientTests: XCTestCase {
         XCTAssertEqual(rooms[1].title, "Portfolio triage")
         XCTAssertTrue(rooms[1].roundInProgress)
         let payload = try XCTUnwrap(server.frames.first?["request"]?["payload"])
-        XCTAssertEqual(payload, ["limit": 10])
+        XCTAssertEqual(payload, ["limit": 10, "includeArchived": false])
     }
 
     /// The core rooms flow: `room.post` appends a human message, then `room.events` reads the whole
@@ -186,7 +186,9 @@ final class DaemonClientTests: XCTestCase {
         let client = try makeClient(server)
         let catalog = try await client.roomParticipants()
         XCTAssertTrue(catalog.enabled)
-        XCTAssertEqual(catalog.providers.map(\.provider), [.codex, .claude, .ollama])
+        XCTAssertEqual(catalog.providers.map(\.provider), [.codex, .claude, .ollama, .openrouter, .openrouter])
+        XCTAssertEqual(catalog.providers.map(\.roomProviderKey?.rawValue),
+                       ["codex", "claude", "ollama", "openrouter-fast", "openrouter-deep"])
         XCTAssertEqual(catalog.roster.count, 2)
         let request = try XCTUnwrap(server.frames.first?["request"])
         XCTAssertEqual(request["operation"]?.stringValue, "room.participants.list")

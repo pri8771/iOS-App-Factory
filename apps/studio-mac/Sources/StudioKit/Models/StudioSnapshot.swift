@@ -4,12 +4,15 @@ import Foundation
 //
 // Mirrors `packages/contracts/src/v1/studio-snapshot.ts`. The daemon composes this from
 // attempts/events/the local portfolio projection and — since the `studio/milestones-and-phase`
-// merge — the durable milestone repository; portfolio `rooms` is a concept a separate,
-// still-unmerged worktree (`studio/rooms-core`) owns, so the daemon reports it with an explicit
-// `unavailableReason` rather than a fabricated value. `studioNotYetWiredReason` is that reason,
-// verbatim, so every "not wired yet" surface here is grep-able. Project `gates` are real typed
-// values (`TypedGateName`/`GateOwner` below) backed by no persisted observation yet in this
-// daemon; `studioNoGateRecordsReason` explains that specific, different kind of absence.
+// merge — the durable milestone repository. Portfolio `rooms` projects the REAL room repository as
+// of Architecture decision 12 (`buildStudioRoomsV1`, `studio-command-runtime.ts`) — no longer the
+// placeholder `studio/rooms-core` claim an earlier revision of this file made;
+// `roomsUnavailableReason` is set only when the portfolio genuinely has no rooms yet
+// (`studioNoRoomsReason`), never because the concept is unwired. `studioNotYetWiredReason` remains
+// the reason for concepts a still-unreconciled worktree owns (e.g. an unregistered/observed
+// project's milestones); every "not wired yet" surface using it is grep-able. Project `gates` are
+// real typed values (`TypedGateName`/`GateOwner` below) backed by no persisted observation yet in
+// this daemon; `studioNoGateRecordsReason` explains that specific, different kind of absence.
 //
 // `projects[].timeline.milestones` is `[ProjectMilestone]` (Milestone.swift) — the exact same
 // durable, revisioned type `project.milestones.list`/`.upsert` read and write. Earlier revisions
@@ -24,6 +27,11 @@ public let studioNotYetWiredReason = "not yet wired (studio/rooms-core pending)"
 /// Reported on `gates.unavailableReason` for a project with no persisted typed-gate observation
 /// yet — an honest fact about that project, not a missing daemon capability.
 public let studioNoGateRecordsReason = "no gate records for project"
+
+/// Reported on `roomsUnavailableReason` once the daemon actually projects real rooms (Architecture
+/// decision 12) but the portfolio genuinely has none yet — an honest fact about the daemon's durable
+/// state, distinct from `studioNotYetWiredReason`'s "a worktree hasn't merged" claim.
+public let studioNoRoomsReason = "no rooms have been created yet"
 
 // MARK: Metrics — "exactly one of value or unavailableReason"
 
@@ -296,7 +304,7 @@ public struct StudioProject: Hashable, Sendable, Codable, Identifiable {
     }
 }
 
-// MARK: Rooms (placeholder — rooms/Phase 3)
+// MARK: Rooms — the dashboard's coarse room summary (real as of Architecture decision 12)
 
 public struct StudioRoom: Hashable, Sendable, Codable, Identifiable {
     public enum Kind: String, Hashable, Sendable, Codable, CaseIterable { case project, portfolio }

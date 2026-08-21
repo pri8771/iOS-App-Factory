@@ -1,0 +1,46 @@
+{
+  "protocolVersion": 1,
+  "requestId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "ok": true,
+  "result": {
+    "operation": "provider.health",
+    "reports": [
+      {
+        "key": "codex",
+        "report": {
+          "status": "ok",
+          "detail": null,
+          "latencyMs": 340,
+          "version": "0.42.0"
+        }
+      },
+      {
+        "key": "claude",
+        "report": {
+          "status": "unreachable",
+          "detail": "connection refused",
+          "latencyMs": null,
+          "version": null
+        }
+      },
+      {
+        "key": "gemini",
+        "report": {
+          "status": "not-configured",
+          "detail": null,
+          "latencyMs": null,
+          "version": null
+        }
+      },
+      {
+        "key": "openrouter-fast",
+        "report": {
+          "status": "blocked",
+          "detail": "containment-attestation-missing",
+          "latencyMs": null,
+          "version": null
+        }
+      }
+    ]
+  }
+}

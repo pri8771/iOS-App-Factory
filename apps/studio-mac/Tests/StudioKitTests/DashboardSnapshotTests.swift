@@ -150,7 +150,7 @@ final class DashboardSnapshotTests: XCTestCase {
                 ]))
         let studioSnapshot = StudioSnapshot(
             generatedAt: IsoInstant(unchecked: "2026-08-16T22:00:00.000Z"), projects: [anjali], rooms: [],
-            roomsUnavailableReason: studioNotYetWiredReason,
+            roomsUnavailableReason: studioNoRoomsReason,
             portfolio: StudioPortfolioAggregates(
                 verifiedThisWeek: StudioCountMetric(value: 2, unavailableReason: nil),
                 awaitingYouCount: StudioCountMetric(value: 1, unavailableReason: nil),
@@ -212,8 +212,23 @@ final class DashboardSnapshotTests: XCTestCase {
         let ready = DoctorResult(readiness: .ready, daemonVersion: "0.1.0-ui-demo", protocolVersion: 1,
                                  startedAt: IsoInstant(unchecked: "2026-08-16T16:00:00.000Z"), issues: [])
         assertHUD(VStack(spacing: 8) {
-            StudioTitleBar(tab: .constant(.dashboard), link: .connected(ready), budget: StudioRootView.staticBudget)
-            StudioTitleBar(tab: .constant(.chat), link: .offline("[client] transport.connection-failed"), budget: StudioRootView.staticBudget)
+            StudioTitleBar(link: .connected(ready), budget: StudioRootView.staticBudget)
+            StudioTitleBar(link: .offline("[client] transport.connection-failed"), budget: StudioRootView.staticBudget)
         }.background(HUDTheme.void), size: CGSize(width: 1000, height: 100), named: "title-bar")
+    }
+
+    /// The `NavRail` (Architecture decision 13): one column per `StudioTab`, each with that tab
+    /// selected, so the arc-accent selection bar + icon tint are exercised for all four.
+    func testNavRail() {
+        assertHUD(HStack(spacing: 24) {
+            ForEach(StudioTab.allCases) { selected in
+                NavRail(tab: .constant(selected))
+            }
+        }.background(HUDTheme.void), size: CGSize(width: 260, height: 360), named: "nav-rail")
+    }
+
+    /// The honest Settings placeholder (Wave 8 — Wave 9a builds the real provider roster).
+    func testSettingsScreenPlaceholder() {
+        assertHUD(SettingsScreen(), size: CGSize(width: 900, height: 620), named: "settings-screen-placeholder")
     }
 }

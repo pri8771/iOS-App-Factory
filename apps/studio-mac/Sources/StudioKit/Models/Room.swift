@@ -12,9 +12,11 @@ import Foundation
 // chat.
 //
 // NOT the same concept as `StudioRoom` (StudioSnapshot.swift) — that is `studio.snapshot`'s own
-// unrelated, always-empty placeholder (`roomId`/`name`/`kind` only). Two "room" shapes exist in the
-// wire today for the same reason two "milestone" shapes do (see Milestone.swift's doc comment):
-// independently-evolving worktrees that have not yet been reconciled.
+// coarse, read-only dashboard summary (`roomId`/`name`/`kind` only), now projected from these same
+// real rooms (Architecture decision 12) but still a separate, deliberately thinner shape: a
+// dashboard row, not a transcript. Two "room" shapes coexist in the wire for the same reason two
+// "milestone" shapes once did (see Milestone.swift's doc comment) — they now both read from the
+// same durable source, but nothing has unified their wire shapes.
 
 // MARK: Wire limits (room.ts) — mirrored so callers don't have to guess a page size.
 
@@ -44,6 +46,15 @@ public enum RoomAgentErrorCode: String, Hashable, Sendable, Codable, CaseIterabl
 
 public enum RoomAttendance: String, Hashable, Sendable, Codable, CaseIterable {
     case attended, dormant
+}
+
+/// `RoomFlavorV1` — `direct` is a conversation: exactly one agent participant, a moderator fast path
+/// that skips the scorer/auction/cooldown machinery and grants the sole participant on every human
+/// message, `unattendedEnabled` forced false. Every room created before this field existed — and
+/// every client that predates it — parses as a plain `.room` (the wire default). See "Architecture
+/// decisions" item 1 in the Studio chat-first shell plan.
+public enum RoomFlavor: String, Hashable, Sendable, Codable, CaseIterable {
+    case room, direct
 }
 
 public enum RoomTriggerKind: String, Hashable, Sendable, Codable, CaseIterable {
@@ -163,6 +174,7 @@ public struct Room: Hashable, Sendable, Codable, Identifiable {
     public var roomId: RoomID
     public var title: String
     public var projectId: ProjectID?
+    public var flavor: RoomFlavor
     public var createdAt: IsoInstant
     public var updatedAt: IsoInstant
     public var unattendedEnabled: Bool
@@ -176,17 +188,22 @@ public struct Room: Hashable, Sendable, Codable, Identifiable {
     public var agentCooldownEvents: Int
     public var participants: [RoomParticipant]
     public var budget: RoomBudget
+    /// Non-nil exactly for an archived room (Architecture decision 7). Archive is soft: the room,
+    /// its transcript, and its history stay intact and readable; only `room.list` hides it by
+    /// default (`includeArchived`).
+    public var archivedAt: IsoInstant?
 
     public var id: RoomID { roomId }
 
-    public init(roomId: RoomID, title: String, projectId: ProjectID?, createdAt: IsoInstant, updatedAt: IsoInstant,
-                unattendedEnabled: Bool, headSequence: Int, headMessageId: RoomMessageID?, lastHumanAt: IsoInstant?,
-                humanTypingUntil: IsoInstant?, roundCounter: Int, activeGrantId: RoomGrantID?,
+    public init(roomId: RoomID, title: String, projectId: ProjectID?, flavor: RoomFlavor = .room, createdAt: IsoInstant,
+                updatedAt: IsoInstant, unattendedEnabled: Bool, headSequence: Int, headMessageId: RoomMessageID?,
+                lastHumanAt: IsoInstant?, humanTypingUntil: IsoInstant?, roundCounter: Int, activeGrantId: RoomGrantID?,
                 pendingTrigger: RoomTrigger?, agentCooldownEvents: Int, participants: [RoomParticipant],
-                budget: RoomBudget) {
+                budget: RoomBudget, archivedAt: IsoInstant? = nil) {
         self.roomId = roomId
         self.title = title
         self.projectId = projectId
+        self.flavor = flavor
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.unattendedEnabled = unattendedEnabled
@@ -200,10 +217,14 @@ public struct Room: Hashable, Sendable, Codable, Identifiable {
         self.agentCooldownEvents = agentCooldownEvents
         self.participants = participants
         self.budget = budget
+        self.archivedAt = archivedAt
     }
 
     /// A round is in flight right now (room-level only — see the type doc comment).
     public var roundInProgress: Bool { activeGrantId != nil }
+
+    /// `true` for a conversation (`flavor == .direct`) — a plain multi-participant room otherwise.
+    public var isDirect: Bool { flavor == .direct }
 }
 
 /// `RoomChatAuthorV1Schema` — a `kind`-discriminated union.
@@ -394,16 +415,18 @@ public struct RoomCreateSpec: Hashable, Sendable, Codable {
     public var roomId: RoomID
     public var title: String
     public var projectId: ProjectID?
+    public var flavor: RoomFlavor
     public var unattendedEnabled: Bool
     public var agentCooldownEvents: Int
     public var participants: [RoomParticipantSpec]
     public var budget: RoomBudgetPolicy
 
-    public init(roomId: RoomID, title: String, projectId: ProjectID?, unattendedEnabled: Bool, agentCooldownEvents: Int,
-                participants: [RoomParticipantSpec], budget: RoomBudgetPolicy) {
+    public init(roomId: RoomID, title: String, projectId: ProjectID?, flavor: RoomFlavor = .room, unattendedEnabled: Bool,
+                agentCooldownEvents: Int, participants: [RoomParticipantSpec], budget: RoomBudgetPolicy) {
         self.roomId = roomId
         self.title = title
         self.projectId = projectId
+        self.flavor = flavor
         self.unattendedEnabled = unattendedEnabled
         self.agentCooldownEvents = agentCooldownEvents
         self.participants = participants
@@ -411,7 +434,7 @@ public struct RoomCreateSpec: Hashable, Sendable, Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case roomId, title, projectId, unattendedEnabled, agentCooldownEvents, participants, budget
+        case roomId, title, projectId, flavor, unattendedEnabled, agentCooldownEvents, participants, budget
     }
 
     /// `projectId` is `nullable`, not optional, on the wire — zod `strictObject` requires the key
@@ -421,12 +444,60 @@ public struct RoomCreateSpec: Hashable, Sendable, Codable {
         try c.encode(roomId, forKey: .roomId)
         try c.encode(title, forKey: .title)
         try c.encode(projectId, forKey: .projectId)
+        try c.encode(flavor, forKey: .flavor)
         try c.encode(unattendedEnabled, forKey: .unattendedEnabled)
         try c.encode(agentCooldownEvents, forKey: .agentCooldownEvents)
         try c.encode(participants, forKey: .participants)
         try c.encode(budget, forKey: .budget)
     }
 }
+
+// MARK: room.update (Architecture decision 7)
+
+/// `RoomUpdatePatchV1` — a CAS patch over exactly the fields the moderator allows to change
+/// post-creation. Every field here is wire-`optional()` (not `nullable()`), unlike most other
+/// payload types in this file: a client omits a field it is not touching, and Swift's default
+/// `Optional` encoding already does exactly that (omits the key when `nil`) — so, deliberately
+/// unlike `RoomCreateSpec` above, this type needs NO hand-written `encode(to:)`. At least one field
+/// must be set; the daemon (not this shape) refuses an all-nil patch.
+public struct RoomUpdatePatch: Hashable, Sendable, Encodable {
+    public var title: String?
+    public var unattendedEnabled: Bool?
+    public var agentCooldownEvents: Int?
+    public var archived: Bool?
+    /// Replaces the room's budget policy; the moderator re-derives `RoomBudget` from it.
+    public var budget: RoomBudgetPolicy?
+    public var addParticipants: [RoomParticipantSpec]?
+    public var removeParticipants: [RoomPersona]?
+
+    public init(title: String? = nil, unattendedEnabled: Bool? = nil, agentCooldownEvents: Int? = nil,
+                archived: Bool? = nil, budget: RoomBudgetPolicy? = nil, addParticipants: [RoomParticipantSpec]? = nil,
+                removeParticipants: [RoomPersona]? = nil) {
+        self.title = title
+        self.unattendedEnabled = unattendedEnabled
+        self.agentCooldownEvents = agentCooldownEvents
+        self.archived = archived
+        self.budget = budget
+        self.addParticipants = addParticipants
+        self.removeParticipants = removeParticipants
+    }
+}
+
+/// `room.update`'s payload. `expectedUpdatedAt` is a CAS guard against `Room.updatedAt`; a stale
+/// value is refused rather than silently merged.
+public struct RoomUpdateSpec: Hashable, Sendable, Encodable {
+    public var roomId: RoomID
+    public var expectedUpdatedAt: IsoInstant
+    public var patch: RoomUpdatePatch
+
+    public init(roomId: RoomID, expectedUpdatedAt: IsoInstant, patch: RoomUpdatePatch) {
+        self.roomId = roomId
+        self.expectedUpdatedAt = expectedUpdatedAt
+        self.patch = patch
+    }
+}
+
+public struct RoomUpdateResult: Hashable, Sendable, Codable { public var room: Room }
 
 // MARK: Command results
 
@@ -468,16 +539,21 @@ public struct RoomTypingResult: Hashable, Sendable, Codable {
 // `unavailableReason`, never an error. `sourceDigest` is re-verified client-side by `DaemonClient`
 // (see `RoomParticipantsCatalogDigest`), mirroring `studio.snapshot`'s `sourceSnapshotDigest`.
 
-/// `RoomCatalogProviderV1` — the three providers `RoomParticipantsConfigV1` can configure an adapter for.
+/// `RoomCatalogProviderV1` — the providers `RoomParticipantsConfigV1` can configure an adapter for.
+/// `gemini`/`openrouter` joined the wire enum in Wave 8 (a CLI-subprocess Gemini adapter and named
+/// OpenRouter instances — see "Architecture decisions" items 9-10); `openrouter` rows are the ones
+/// that need `roomProviderKey` (below) to distinguish multiple named instances.
 public enum RoomCatalogProvider: String, Hashable, Sendable, Codable, CaseIterable {
-    case codex, claude, ollama
+    case codex, claude, gemini, ollama, openrouter
 
     /// The display name a fresh roster row defaults to for this provider.
     public var displayName: String {
         switch self {
         case .codex: return "Codex"
         case .claude: return "Claude"
+        case .gemini: return "Gemini"
         case .ollama: return "Ollama"
+        case .openrouter: return "OpenRouter"
         }
     }
 }
@@ -486,13 +562,23 @@ public enum RoomCatalogProvider: String, Hashable, Sendable, Codable, CaseIterab
 /// the operator-pinned CLI version.
 public struct RoomCatalogProviderEntry: Hashable, Sendable, Codable, Identifiable {
     public var provider: RoomCatalogProvider
+    /// The unique room-provider key this entry answers to at `@mention` / `room.create` time (e.g.
+    /// `openrouter-fast`), matching `RoomParticipantSpec.provider` / `RoomProvider`. `nil` only for
+    /// a catalog recorded before this field existed; a live catalog always sets it. Fixes a live
+    /// bug: before this field existed, two or more OpenRouter instances made
+    /// `room.participants.list` throw on its own uniqueness refine, because that refine ran over
+    /// the shared `provider` value ("openrouter") instead of each instance's own key.
+    public var roomProviderKey: RoomProvider?
     public var model: String
     public var cliVersion: String?
 
-    public var id: RoomCatalogProvider { provider }
+    /// Falls back to `provider` for a legacy entry recorded before `roomProviderKey` existed —
+    /// mirrors the TS uniqueness refine's own fallback (`room.ts`).
+    public var id: String { roomProviderKey?.rawValue ?? provider.rawValue }
 
-    public init(provider: RoomCatalogProvider, model: String, cliVersion: String?) {
+    public init(provider: RoomCatalogProvider, roomProviderKey: RoomProvider?, model: String, cliVersion: String?) {
         self.provider = provider
+        self.roomProviderKey = roomProviderKey
         self.model = model
         self.cliVersion = cliVersion
     }
@@ -565,8 +651,11 @@ public struct RoomParticipantsCatalog: Hashable, Sendable, Codable {
     public var defaultParticipantSpecs: [RoomParticipantSpec] {
         guard enabled else { return [] }
         return providers.compactMap { entry in
-            guard let persona = try? RoomPersona(entry.provider.rawValue),
-                  let provider = try? RoomProvider(entry.provider.rawValue) else { return nil }
+            // Prefer the entry's own room-provider key (distinguishes multiple named OpenRouter —
+            // or, soon, Ollama — instances that all share `provider`); fall back to the bare
+            // provider for a legacy entry recorded before `roomProviderKey` existed.
+            let key = entry.roomProviderKey?.rawValue ?? entry.provider.rawValue
+            guard let persona = try? RoomPersona(key), let provider = try? RoomProvider(key) else { return nil }
             return RoomParticipantSpec(persona: persona, provider: provider, displayName: entry.provider.displayName)
         }
     }

@@ -10,6 +10,7 @@
         "roomId": "50000001-0000-4000-8000-000000000001",
         "title": "Studio launch review",
         "projectId": null,
+        "flavor": "room",
         "createdAt": "2026-08-16T18:00:00.000Z",
         "updatedAt": "2026-08-16T18:31:00.000Z",
         "unattendedEnabled": false,
@@ -55,13 +56,15 @@
           "spentTokens": 3200,
           "reservedTokens": 800,
           "unattendedSpentTokens": 0
-        }
+        },
+        "archivedAt": null
       },
       {
         "schemaVersion": 1,
         "roomId": "50000002-0000-4000-8000-000000000002",
         "title": "Portfolio triage",
         "projectId": null,
+        "flavor": "room",
         "createdAt": "2026-08-16T17:00:00.000Z",
         "updatedAt": "2026-08-16T18:32:00.000Z",
         "unattendedEnabled": true,
@@ -91,7 +94,8 @@
           "spentTokens": 41000,
           "reservedTokens": 4000,
           "unattendedSpentTokens": 0
-        }
+        },
+        "archivedAt": null
       }
     ]
   }
