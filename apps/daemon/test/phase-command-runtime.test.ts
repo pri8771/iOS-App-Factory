@@ -201,6 +201,46 @@ describe("phase.upsert", () => {
     ).rejects.toMatchObject({ code: "phase.unknown-rule-id" });
   });
 
+  it("succeeds on a seeded phase's first edit at the embedded revision (regression: used to fail phase.not-found)", async () => {
+    // The seed used to embed each of the default preset's 10 phases directly into `phase_presets`
+    // without ever materializing a matching row in `phase_definitions`, so the very first
+    // `phase.upsert` against a seeded phase -- with `expectedRevision` set to the revision the
+    // preset already reports -- failed `phase.not-found`: there was no durable row to compare
+    // against. The seed now materializes each phase durably, so this succeeds and increments the
+    // revision like any other compare-and-set update.
+    const runtime = await openRuntime(await makeRoot());
+
+    const list = await invoke(runtime, request("preset.list", commandId(1), {}));
+    if (list.operation !== "preset.list") throw new Error("Unexpected preset.list result");
+    const seededPreset = list.presets.find(
+      (preset) => preset.presetId === "ios-app-standard-0.4.0",
+    );
+    const seededContract = seededPreset?.phases.find((phase) => phase.phaseId === "contract");
+    if (seededContract === undefined) throw new Error("Expected a seeded 'contract' phase");
+    expect(seededContract.revision).toBe(0);
+
+    // `phase.upsert`'s payload is the `PhaseDefinitionDraftV1` shape: strip the durable-only
+    // fields (`schemaVersion`/`revision`/`createdAt`/`updatedAt`) the preset's snapshot carries.
+    const draft: Record<string, unknown> = { ...seededContract };
+    delete draft.schemaVersion;
+    delete draft.revision;
+    delete draft.createdAt;
+    delete draft.updatedAt;
+
+    const updated = await invoke(
+      runtime,
+      request(
+        "phase.upsert",
+        commandId(2),
+        { phase: { ...draft, name: "Contract v2" }, expectedRevision: seededContract.revision },
+        T1,
+      ),
+    );
+    if (updated.operation !== "phase.upsert") throw new Error("Unexpected upsert result");
+    expect(updated.created).toBe(false);
+    expect(updated.phase).toMatchObject({ phaseId: "contract", name: "Contract v2", revision: 1 });
+  });
+
   it("resolves rules.standard against a caller-configured policy source path", async () => {
     const root = await makeRoot();
     const policySourcePath = join(root, "policy-source.json");

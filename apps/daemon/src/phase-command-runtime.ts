@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,6 +7,7 @@ import {
   type CommandRequestV1,
   type CommandResultV1,
   type IsoInstant,
+  type PhaseDefinitionV1,
   type PhasePresetV1,
 } from "@app-factory/contracts";
 import {
@@ -166,25 +168,55 @@ export function upsertPhasePresetV1(
 // docs/architecture/0004-studio-mac-app.md decision 5 — the deep-dive's collapsed default
 // (contract, research, brief, design, architecture, plan, ◆ready, build, review, ◆release).
 //
-// Built as plain object literals, not typed as the branded contract types directly: the
-// repository's own `PhasePresetUpsertCommandV1Schema.parse` validates and brands the whole
-// structure in one pass when `seedIosAppStandardPresetV1` upserts it, exactly like every other
-// command payload in this daemon crosses from "shaped like the wire" to "the branded contract
-// type" at a schema boundary rather than through scattered casts.
+// Built as plain object literals, not typed as the branded contract types directly: each
+// repository's own `*UpsertCommandV1Schema.parse` validates and brands the structure in one pass
+// when `materializeSeedIosAppStandardPhaseDefinitionsV1`/`seedIosAppStandardPresetV1` upserts it,
+// exactly like every other command payload in this daemon crosses from "shaped like the wire" to
+// "the branded contract type" at a schema boundary rather than through scattered casts.
+//
+// Every one of the preset's 10 phases is durably materialized in `phase_definitions` (with its own
+// `phase_definition_revisions` history) BEFORE the preset embeds it: a preset only ever stores an
+// already-durable `PhaseDefinitionV1` snapshot (see `phase.ts`'s module doc comment and
+// `PhasePresetDraftV1Shape.phases`'s `PhaseDefinitionV1Schema` array), so seeding the preset
+// without also seeding its phases left the first `phase.upsert` against a seeded phase unable to
+// find the row its `expectedRevision` referenced (`phase.not-found`) — the durable library and the
+// preset's own copy must both exist, not just the copy embedded in the preset.
 // ---------------------------------------------------------------------------
 
 /** Fixed, well-known: the seed upsert is idempotent by command ID across every daemon start. */
-const SEED_PHASE_PRESET_COMMAND_ID_V1 = "00000000-0000-4000-8000-000000000001";
-const SEED_INSTANT_V1 = "2026-01-01T00:00:00.000Z";
+export const SEED_PHASE_PRESET_COMMAND_ID_V1 = "00000000-0000-4000-8000-000000000001";
+export const SEED_INSTANT_V1 = "2026-01-01T00:00:00.000Z";
+
+/**
+ * Deterministically derives one seeded phase's own `phase.upsert` command ID from the preset
+ * seed's fixed command ID plus the `phaseId`, formatted as the UUID `CommandIdSchema` requires
+ * (same sha256-then-format technique `command-runtime.ts`'s `deterministicUuidFromParts` uses).
+ * Same input always yields the same command ID, so materializing a seeded phase definition is
+ * idempotent across every daemon start exactly like the preset's own fixed command ID already is:
+ * `PhaseDefinitionRepository.upsert` recognizes a replayed command ID bound to identical content
+ * and short-circuits rather than writing a second revision.
+ */
+function deriveSeedPhaseDefinitionCommandIdV1(phaseId: string): string {
+  const digest = createHash("sha256")
+    .update(`${SEED_PHASE_PRESET_COMMAND_ID_V1}\0phase.upsert\0${phaseId}`)
+    .digest("hex");
+  const variant = ((Number.parseInt(digest.charAt(16), 16) & 0x3) | 0x8).toString(16);
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-${variant}${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+}
 
 type SeedPhaseOverrides = Readonly<Record<string, unknown>> &
   Readonly<{ name: string; purpose: string }>;
 
-function seedPhase(
+/**
+ * One seeded phase's draft: the `PhaseDefinitionDraftV1` shape `phase.upsert` accepts (no
+ * `schemaVersion`/`revision`/`createdAt`/`updatedAt` — `PhaseDefinitionRepository.upsert` stamps
+ * those itself from the current head, exactly as it does for an operator-issued `phase.upsert`).
+ */
+function seedPhaseDraft(
   phaseId: string,
   overrides: SeedPhaseOverrides,
-): Readonly<Record<string, unknown>> {
-  const draft = {
+): Readonly<Record<string, unknown>> & Readonly<{ phaseId: string }> {
+  return {
     phaseId,
     mode: "panel",
     cast: {
@@ -202,23 +234,19 @@ function seedPhase(
     budget: { estimateMinutes: 30, timeoutSeconds: 2_700 },
     ...overrides,
   };
-  return {
-    schemaVersion: 1,
-    ...draft,
-    revision: 0,
-    createdAt: SEED_INSTANT_V1,
-    updatedAt: SEED_INSTANT_V1,
-  };
 }
 
 /**
- * The default iOS Phase Preset: 8 working phases plus 2 human gate checkpoints (`ready`,
- * `release`), each mode `chat` with an empty cast — a pure human decision, no agent seats — and a
- * non-empty `gates[]` marking it as a checkpoint rather than a working phase.
+ * The default iOS Phase Preset's 10 phase drafts, in run order: 8 working phases plus 2 human gate
+ * checkpoints (`ready`, `release`), each mode `chat` with an empty cast — a pure human decision, no
+ * agent seats — and a non-empty `gates[]` marking it as a checkpoint rather than a working phase.
  */
-function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown>> {
-  const phases = [
-    seedPhase("contract", {
+export function buildSeedIosAppStandardPhaseDraftsV1(): readonly (Readonly<
+  Record<string, unknown>
+> &
+  Readonly<{ phaseId: string }>)[] {
+  return [
+    seedPhaseDraft("contract", {
       name: "Contract",
       purpose: "Define the user outcome, MVP boundary, constraints, and Definition of Done.",
       mode: "solo",
@@ -237,7 +265,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       outputs: [{ path: "docs/product/contract.md", schema: null }],
       budget: { estimateMinutes: 20, timeoutSeconds: 1_800 },
     }),
-    seedPhase("research", {
+    seedPhaseDraft("research", {
       name: "Research",
       purpose:
         "Inventory prior art, constraints, and platform capabilities before proposing a design.",
@@ -250,7 +278,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       },
       outputs: [{ path: "docs/product/research.md", schema: null }],
     }),
-    seedPhase("brief", {
+    seedPhaseDraft("brief", {
       name: "Brief",
       purpose: "Translate the contract and research into a concise product brief.",
       mode: "solo",
@@ -268,7 +296,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       outputs: [{ path: "docs/product/brief.md", schema: null }],
       budget: { estimateMinutes: 15, timeoutSeconds: 1_500 },
     }),
-    seedPhase("design", {
+    seedPhaseDraft("design", {
       name: "Design",
       purpose: "Propose the user-facing design across every applicable state and layout.",
       inputs: ["docs", "source-readonly"],
@@ -280,7 +308,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       },
       outputs: [{ path: "docs/design/design.md", schema: null }],
     }),
-    seedPhase("architecture", {
+    seedPhaseDraft("architecture", {
       name: "Architecture",
       purpose: "Decide the technical approach; a distinct grader breaks ties between proposals.",
       mode: "debate",
@@ -302,7 +330,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       outputs: [{ path: "docs/architecture/decision.md", schema: null }],
       budget: { estimateMinutes: 45, timeoutSeconds: 3_600 },
     }),
-    seedPhase("plan", {
+    seedPhaseDraft("plan", {
       name: "Plan",
       purpose: "Break the architecture down into an ordered, estimable task plan.",
       inputs: ["docs", "issues"],
@@ -314,7 +342,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       },
       outputs: [{ path: "docs/product/plan.md", schema: null }],
     }),
-    seedPhase("ready", {
+    seedPhaseDraft("ready", {
       name: "Ready",
       purpose: "Human gate: confirm the plan and design are ready before implementation begins.",
       mode: "chat",
@@ -330,7 +358,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       gates: ["build", "tests"],
       budget: { estimateMinutes: null, timeoutSeconds: 900 },
     }),
-    seedPhase("build", {
+    seedPhaseDraft("build", {
       name: "Build",
       purpose: "Implement the planned change and its required non-happy-path coverage.",
       inputs: ["docs", "source-readonly", "issues"],
@@ -347,7 +375,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       outputs: [{ path: "docs/progress/build-notes.md", schema: null }],
       budget: { estimateMinutes: 60, timeoutSeconds: 7_200 },
     }),
-    seedPhase("review", {
+    seedPhaseDraft("review", {
       name: "Review",
       purpose: "Independently review the build against the contract and standard rules.",
       mode: "debate",
@@ -369,7 +397,7 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       outputs: [{ path: "docs/progress/review.md", schema: null }],
       budget: { estimateMinutes: 40, timeoutSeconds: 3_600 },
     }),
-    seedPhase("release", {
+    seedPhaseDraft("release", {
       name: "Release",
       purpose: "Human gate: legal, device, and store readiness before release.",
       mode: "chat",
@@ -391,25 +419,60 @@ function buildSeedIosAppStandardPresetDraftV1(): Readonly<Record<string, unknown
       budget: { estimateMinutes: null, timeoutSeconds: 900 },
     }),
   ];
-
-  return {
-    presetId: "ios-app-standard-0.4.0",
-    name: "iOS App Standard 0.4.0",
-    phases,
-    appliesTo: ["ios"],
-  };
 }
 
 /**
- * Idempotently ensures the default iOS Phase Preset exists. Uses a fixed command ID and a fixed
- * `issuedAt`/`recordedAt` so every daemon start replays byte-identical content and the repository's
- * own idempotency short-circuits after the first application — a real, durable upsert, not a
- * runtime-only default.
+ * Idempotently ensures each of the default iOS Phase Preset's 10 phase definitions is durably
+ * materialized in `phase_definitions` (with matching `phase_definition_revisions` history) — not
+ * merely embedded in the preset's own snapshot; see this section's module doc comment for why that
+ * distinction is the fix for `phase.not-found` on a seeded phase's first edit.
+ *
+ * Runs unconditionally, independent of whether the preset itself already exists in this database:
+ * each phase's own derived command ID (`deriveSeedPhaseDefinitionCommandIdV1`), not the preset's,
+ * is what makes its materialization idempotent, so a database that already carries the preset from
+ * before this materialization step existed gets its 10 missing phase rows backfilled here exactly
+ * as a fresh database gets them created — the check is per-phase, never gated on preset presence.
+ */
+export function materializeSeedIosAppStandardPhaseDefinitionsV1(
+  repositories: FactoryRepositories,
+  knownStandardRuleIds: ReadonlySet<string>,
+): readonly PhaseDefinitionV1[] {
+  return buildSeedIosAppStandardPhaseDraftsV1().map((phase) => {
+    const upserted = repositories.phaseDefinitions.upsert({
+      command: {
+        schemaVersion: 1,
+        commandId: deriveSeedPhaseDefinitionCommandIdV1(phase.phaseId),
+        issuedAt: SEED_INSTANT_V1,
+        origin: "system",
+        kind: "phase.upsert",
+        upsert: { phase, expectedRevision: null },
+      },
+      recordedAt: SEED_INSTANT_V1,
+      knownStandardRuleIds: [...knownStandardRuleIds],
+    });
+    return upserted.phase;
+  });
+}
+
+/**
+ * Idempotently ensures the default iOS Phase Preset exists. First durably materializes each of its
+ * 10 phase definitions (`materializeSeedIosAppStandardPhaseDefinitionsV1`) and then embeds those
+ * very durable results — not a separately-built copy — as the preset's own `phases[]` snapshot, so
+ * the preset and the `phase_definitions` rows it names are always byte-for-byte identical: the same
+ * `revision`, `createdAt`, and `updatedAt` a durable `phase.upsert` on that phase would report.
+ *
+ * Uses a fixed command ID and a fixed `issuedAt`/`recordedAt` so every daemon start replays
+ * byte-identical content and the repository's own idempotency short-circuits after the first
+ * application — a real, durable upsert, not a runtime-only default.
  */
 export function seedIosAppStandardPresetV1(
   repositories: FactoryRepositories,
   knownStandardRuleIds: ReadonlySet<string>,
 ): PhasePresetV1 {
+  const phases = materializeSeedIosAppStandardPhaseDefinitionsV1(
+    repositories,
+    knownStandardRuleIds,
+  );
   const result = repositories.phasePresets.upsert({
     command: {
       schemaVersion: 1,
@@ -417,7 +480,15 @@ export function seedIosAppStandardPresetV1(
       issuedAt: SEED_INSTANT_V1,
       origin: "system",
       kind: "preset.upsert",
-      upsert: { preset: buildSeedIosAppStandardPresetDraftV1(), expectedRevision: null },
+      upsert: {
+        preset: {
+          presetId: "ios-app-standard-0.4.0",
+          name: "iOS App Standard 0.4.0",
+          phases,
+          appliesTo: ["ios"],
+        },
+        expectedRevision: null,
+      },
     },
     recordedAt: SEED_INSTANT_V1,
     knownStandardRuleIds: [...knownStandardRuleIds],
