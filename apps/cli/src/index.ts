@@ -190,9 +190,11 @@ export type ParsedCliCommand =
       name: string;
       watchDescription: string;
       scoutProvider: string;
+      checkIntervalMinutes: number | null;
     }>
   | Readonly<{ kind: "signal.list" }>
   | Readonly<{ kind: "signal.pause" | "signal.resume" | "signal.run-now"; signalId: string }>
+  | Readonly<{ kind: "signal.reschedule"; signalId: string; checkIntervalMinutes: number | null }>
   | Readonly<{ kind: "insight.list"; signalId: string }>
   | Readonly<{
       kind: "effects.list";
@@ -382,6 +384,16 @@ function parseNonNegativeInteger(name: string, value: string | undefined): numbe
   }
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed)) usageError(`${name} is too large.`);
+  return parsed;
+}
+
+function parseCheckIntervalMinutesOption(value: string | undefined): number | null {
+  if (value === undefined) return null;
+  if (value === "none") return null;
+  const parsed = parsePositiveInteger("--check-interval-minutes", value, 10_080);
+  if (parsed < 5) {
+    usageError("--check-interval-minutes must be at least 5 minutes.");
+  }
   return parsed;
 }
 
@@ -820,11 +832,19 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
           "--scout (a configured room-participant provider, e.g. codex, ollama) is required.",
         );
       }
+      const checkIntervalMinutesValue = consumeOption(arguments_, "--check-interval-minutes");
+      const checkIntervalMinutes = parseCheckIntervalMinutesOption(checkIntervalMinutesValue);
       rejectUnexpected(arguments_);
       return {
         outputMode,
         retryIdentity,
-        command: { kind: "signal.create", name, watchDescription, scoutProvider },
+        command: {
+          kind: "signal.create",
+          name,
+          watchDescription,
+          scoutProvider,
+          checkIntervalMinutes,
+        },
       };
     }
     if (subcommand === "list") {
@@ -843,7 +863,22 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
             : "signal.run-now";
       return { outputMode, retryIdentity, command: { kind, signalId } };
     }
-    usageError("Signal requires one of: create, list, pause, resume, run-now.");
+    if (subcommand === "reschedule") {
+      const signalId = arguments_.shift();
+      if (signalId === undefined || signalId.length === 0) usageError("A signal ID is required.");
+      const checkIntervalMinutesValue = consumeOption(arguments_, "--check-interval-minutes");
+      if (checkIntervalMinutesValue === undefined || checkIntervalMinutesValue.length === 0) {
+        usageError("--check-interval-minutes is required.");
+      }
+      const checkIntervalMinutes = parseCheckIntervalMinutesOption(checkIntervalMinutesValue);
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "signal.reschedule", signalId, checkIntervalMinutes },
+      };
+    }
+    usageError("Signal requires one of: create, list, pause, resume, run-now, reschedule.");
   }
 
   if (command === "insight") {
@@ -2588,6 +2623,7 @@ export async function runCli(
             name: invocation.command.name,
             watchDescription: invocation.command.watchDescription,
             scoutProvider: invocation.command.scoutProvider,
+            checkIntervalMinutes: invocation.command.checkIntervalMinutes,
           },
           identity,
         );
@@ -2606,6 +2642,13 @@ export async function runCli(
           invocation.command.signalId,
           identity,
           AbortSignal.timeout(2 * 60 * 1_000 + 10_000),
+        );
+        break;
+      case "signal.reschedule":
+        result = await client.rescheduleSignal(
+          invocation.command.signalId,
+          invocation.command.checkIntervalMinutes,
+          identity,
         );
         break;
       case "insight.list":
