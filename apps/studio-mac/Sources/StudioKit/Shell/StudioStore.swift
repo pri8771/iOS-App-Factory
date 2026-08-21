@@ -66,6 +66,7 @@ public final class StudioStore {
     public let rooms: RoomsModel
     public let phases: PhasesModel
     public let planner: PlannerModel
+    public let settings: SettingsModel
 
     /// Injectable clock so derivations (and snapshots) are deterministic.
     public var now: @Sendable () -> Date
@@ -83,6 +84,7 @@ public final class StudioStore {
         self.rooms = RoomsModel(client: client, now: now)
         self.phases = PhasesModel(client: client, now: now)
         self.planner = PlannerModel(client: client, now: now)
+        self.settings = SettingsModel(client: client)
     }
 
     /// Locates the daemon from the environment (`APP_FACTORY_SOCKET` / `APP_FACTORY_RUNTIME_DIR`,

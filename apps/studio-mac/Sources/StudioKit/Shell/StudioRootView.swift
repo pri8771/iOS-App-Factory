@@ -29,6 +29,8 @@ public struct StudioRootView: View {
     /// overlays whichever tab is active, mirroring how `ProjectDetailView` overlays the Dashboard.
     @State private var showingPlanner = false
     @State private var showingSeedSheet = false
+    @State private var showingAddProvider = false
+    @State private var credentialSheetProvider: ProviderInstance?
 
     /// Phase 1: the budget gauge is a static placeholder and says so.
     public static let staticBudget = Sourced(0.38, .staticValue("phase 1 placeholder"))
@@ -102,6 +104,18 @@ public struct StudioRootView: View {
                     if plan != nil { showingPlanner = true }
                 })
         }
+        .sheet(isPresented: $showingAddProvider) {
+            AddProviderSheet(
+                onUpsert: { spec in await store.settings.upsertProvider(spec) },
+                onSetCredential: { key, secret in await store.settings.setCredential(key, secret: secret) },
+                onDone: { _ in showingAddProvider = false })
+        }
+        .sheet(item: $credentialSheetProvider) { instance in
+            SetProviderCredentialSheet(
+                providerKey: instance.key, displayName: instance.displayName,
+                onSubmit: { secret in await store.settings.setCredential(instance.key, secret: secret) },
+                onDone: { _ in credentialSheetProvider = nil })
+        }
         .task {
             updateRoomsVisibility()
             await store.phases.loadPresetsIfNeeded()
@@ -145,7 +159,23 @@ public struct StudioRootView: View {
                       rooms: roomsModel, onNewRoom: { showingNewRoom = true },
                       onPlanReady: { plan in store.planner.adopt(plan); showingPlanner = true })
         case .settings:
-            SettingsScreen()
+            SettingsScreen(
+                providers: store.settings.providers, health: store.settings.health,
+                defaultProviderKey: store.settings.defaultProviderKey,
+                isLoadingProviders: store.settings.isLoadingProviders, isLoadingHealth: store.settings.isLoadingHealth,
+                providersError: store.settings.providersError, healthError: store.settings.healthError,
+                defaultError: store.settings.defaultError,
+                busyKeys: store.settings.busyKeys, rowErrors: store.settings.rowErrors,
+                onAppear: { await store.settings.load() },
+                onRefreshHealth: { Task { await store.settings.loadHealth() } },
+                onMakeDefault: { key in Task { await store.settings.makeDefault(key) } },
+                onRemove: { key in Task { await store.settings.removeProvider(key) } },
+                onAddProvider: { showingAddProvider = true },
+                onSetCredential: { key in
+                    if let instance = store.settings.providers.first(where: { $0.key == key }) {
+                        credentialSheetProvider = instance
+                    }
+                })
         case .stages:
             PhasesScreen(
                 presets: store.phases.presets, isLoadingPresets: store.phases.isLoadingPresets,

@@ -226,9 +226,4 @@ final class DashboardSnapshotTests: XCTestCase {
             }
         }.background(HUDTheme.void), size: CGSize(width: 260, height: 360), named: "nav-rail")
     }
-
-    /// The honest Settings placeholder (Wave 8 — Wave 9a builds the real provider roster).
-    func testSettingsScreenPlaceholder() {
-        assertHUD(SettingsScreen(), size: CGSize(width: 900, height: 620), named: "settings-screen-placeholder")
-    }
 }
