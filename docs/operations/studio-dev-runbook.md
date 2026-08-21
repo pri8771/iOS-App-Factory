@@ -147,11 +147,10 @@ later via `signal reschedule <signal-id> <minutes|none>`. Default OFF, matching
 `APP_FACTORY_ROOMS_ENABLED`'s own opt-in shape -- omit it and `signal.run-now` keeps working
 exactly as before, just manually.
 
-**CLI gap:** as of this wave, `node apps/cli/dist/index.js signal create` does not yet parse a
-`--check-interval-minutes` flag, and there is no `signal reschedule` subcommand at the CLI layer
-(the wire op, `command-client`'s `rescheduleSignal`, and the daemon-side handler are all real and
-round-trip fine) -- reach either through `@app-factory/command-client`'s `CommandClient` directly,
-or the Swift client, until the CLI verb lands.
+Signal scheduling is fully available via the CLI: `signal create` accepts an optional
+`--check-interval-minutes <5..10080>` flag (omit or pass nothing for manual-only mode), and
+`signal reschedule <signalId> --check-interval-minutes <N|none>` reschedules an existing signal's
+interval (pass `none` to switch back to manual-only).
 
 The daemon owns `.../studio-dev/runtime/daemon.sock` and that directory's SQLite control plane.
 Stop it with `Control-C`. If startup rejects the runtime, verify every directory is owned by the
@@ -189,10 +188,10 @@ node apps/cli/dist/index.js doctor
 A `doctor` readiness of `ready` (not `degraded`, and not a `daemon.starting` retry) confirms the
 socket, auth, attestation, and participants config all loaded. See
 [`docs/OPERATOR_RUNBOOK.md`](../OPERATOR_RUNBOOK.md#4-use-the-cli) for the rest of the CLI surface
-(`submit`, `run`, `status`, `portfolio`, `evidence`, ...). `signal create/list/pause/resume/run-now`
+(`submit`, `run`, `status`, `portfolio`, `evidence`, ...). `signal create/list/pause/resume/run-now/reschedule`
 and `insight list <signal-id>` are already CLI commands (e.g.
 `node apps/cli/dist/index.js signal list`) — a quick way to smoke the config above without opening
 the Mac app. `room.*` has none yet: today it is reached only through the Swift app or a raw socket
 frame. A later wave's CLI work adds `provider list/health`, `usage summary`, `room update`,
-`settings get/set`, and `signal reschedule` verbs; it does not by itself promise CLI verbs for the
+and `settings get/set` verbs; it does not by itself promise CLI verbs for the
 rest of `room.*` (`create`/`list`/`post`/`events`/`typing`/`participants.list`).

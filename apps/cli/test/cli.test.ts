@@ -21,6 +21,7 @@ import {
 const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
 const PROJECT_ID = "00000000-0000-4000-8000-000000000006";
 const PHASE_RUN_ID = "00000000-0000-4000-8000-0000000000f1";
+const SIGNAL_ID = "00000000-0000-4000-8000-000000000010";
 const NOW = "2026-08-10T12:00:00.000Z";
 const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 const PLAN_DIGEST = `sha256:${"a".repeat(64)}`;
@@ -349,6 +350,78 @@ describe("CLI argument parser", () => {
       },
     ],
     [
+      ["signal", "create", "--name", "Trends", "--watch", "Fashion trends", "--scout", "codex"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "signal.create",
+          name: "Trends",
+          watchDescription: "Fashion trends",
+          scoutProvider: "codex",
+          checkIntervalMinutes: null,
+        },
+      },
+    ],
+    [
+      [
+        "signal",
+        "create",
+        "--name",
+        "Trends",
+        "--watch",
+        "Fashion trends",
+        "--scout",
+        "codex",
+        "--check-interval-minutes",
+        "60",
+      ],
+      {
+        outputMode: "human",
+        command: {
+          kind: "signal.create",
+          name: "Trends",
+          watchDescription: "Fashion trends",
+          scoutProvider: "codex",
+          checkIntervalMinutes: 60,
+        },
+      },
+    ],
+    [["signal", "list"], { outputMode: "human", command: { kind: "signal.list" } }],
+    [
+      ["signal", "pause", SIGNAL_ID],
+      { outputMode: "human", command: { kind: "signal.pause", signalId: SIGNAL_ID } },
+    ],
+    [
+      ["signal", "resume", SIGNAL_ID],
+      { outputMode: "human", command: { kind: "signal.resume", signalId: SIGNAL_ID } },
+    ],
+    [
+      ["signal", "run-now", SIGNAL_ID],
+      { outputMode: "human", command: { kind: "signal.run-now", signalId: SIGNAL_ID } },
+    ],
+    [
+      ["signal", "reschedule", SIGNAL_ID, "--check-interval-minutes", "30"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "signal.reschedule",
+          signalId: SIGNAL_ID,
+          checkIntervalMinutes: 30,
+        },
+      },
+    ],
+    [
+      ["signal", "reschedule", SIGNAL_ID, "--check-interval-minutes", "none"],
+      {
+        outputMode: "human",
+        command: {
+          kind: "signal.reschedule",
+          signalId: SIGNAL_ID,
+          checkIntervalMinutes: null,
+        },
+      },
+    ],
+    [
       ["project", "milestones", PROJECT_ID],
       { outputMode: "human", command: { kind: "project.milestones.list", projectId: PROJECT_ID } },
     ],
@@ -624,6 +697,62 @@ describe("CLI argument parser", () => {
     [["effects", "list", "--after-updated-at", NOW]],
     [["effects", "list", "--after-effect", "00000000-0000-4000-8000-000000000009"]],
     [["effects", "list", "--after-updated-at", "not-an-instant", "--after-effect", ATTEMPT_ID]],
+    [["signal"]],
+    [["signal", "unknown"]],
+    [["signal", "create"]],
+    [["signal", "create", "--name", "Trends"]],
+    [["signal", "create", "--name", "Trends", "--watch", "Trends"]],
+    [["signal", "create", "--name", "Trends", "--watch", "Trends", "--scout"]],
+    [
+      [
+        "signal",
+        "create",
+        "--name",
+        "Trends",
+        "--watch",
+        "Trends",
+        "--scout",
+        "codex",
+        "--check-interval-minutes",
+      ],
+    ],
+    [
+      [
+        "signal",
+        "create",
+        "--name",
+        "Trends",
+        "--watch",
+        "Trends",
+        "--scout",
+        "codex",
+        "--check-interval-minutes",
+        "3",
+      ],
+    ],
+    [
+      [
+        "signal",
+        "create",
+        "--name",
+        "Trends",
+        "--watch",
+        "Trends",
+        "--scout",
+        "codex",
+        "--check-interval-minutes",
+        "10081",
+      ],
+    ],
+    [["signal", "pause"]],
+    [["signal", "resume"]],
+    [["signal", "run-now"]],
+    [["signal", "reschedule"]],
+    [["signal", "reschedule", "not-a-signal-id"]],
+    [["signal", "reschedule", SIGNAL_ID]],
+    [["signal", "reschedule", SIGNAL_ID, "--check-interval-minutes"]],
+    [["signal", "reschedule", SIGNAL_ID, "--check-interval-minutes", "3"]],
+    [["signal", "reschedule", SIGNAL_ID, "--check-interval-minutes", "10081"]],
     [["doctor", "--json", "--json"]],
     [["service"]],
     [["service", "install", "--config", "service.json"]],
@@ -3273,5 +3402,228 @@ describe("runCli providers, settings, and usage", () => {
     expect(receivedPayload).toEqual({ sinceDays: 30 });
     expect(captured().stdout).toContain("openrouter-fast");
     expect(captured().stdout).toContain("unreported=0");
+  });
+});
+
+describe("runCli signals", () => {
+  const FIXTURE_SIGNAL = {
+    schemaVersion: 1,
+    signalId: SIGNAL_ID,
+    name: "Fashion Trends",
+    watchDescription: "Watch for trending fashion items",
+    scoutProvider: "codex",
+    status: "active" as const,
+    createdAt: NOW,
+    lastCheckedAt: null,
+    checkCount: 0,
+    insightCount: 0,
+    checkIntervalMinutes: null,
+  };
+
+  it("creates a signal with optional check interval", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "signal.create") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "signal.create",
+          signal: FIXTURE_SIGNAL,
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      [
+        "signal",
+        "create",
+        "--name",
+        "Fashion Trends",
+        "--watch",
+        "Watch for trending fashion items",
+        "--scout",
+        "codex",
+        "--check-interval-minutes",
+        "60",
+      ],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toMatchObject({
+      name: "Fashion Trends",
+      watchDescription: "Watch for trending fashion items",
+      scoutProvider: "codex",
+      checkIntervalMinutes: 60,
+    });
+    expect(captured().stdout).toContain("Fashion Trends");
+    expect(captured().stdout).toContain(SIGNAL_ID);
+  });
+
+  it("creates a signal without check interval (manual-only mode)", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "signal.create") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "signal.create",
+          signal: FIXTURE_SIGNAL,
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      [
+        "signal",
+        "create",
+        "--name",
+        "Fashion Trends",
+        "--watch",
+        "Watch for trending fashion items",
+        "--scout",
+        "codex",
+      ],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toMatchObject({
+      name: "Fashion Trends",
+      watchDescription: "Watch for trending fashion items",
+      scoutProvider: "codex",
+      checkIntervalMinutes: null,
+    });
+    expect(captured().stdout).toContain("Fashion Trends");
+  });
+
+  it("lists signals", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "signal.list") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "signal.list",
+          signals: [FIXTURE_SIGNAL],
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["signal", "list"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("Fashion Trends");
+    expect(captured().stdout).toContain(SIGNAL_ID);
+  });
+
+  it("pauses a signal", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "signal.pause") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "signal.pause",
+          signal: { ...FIXTURE_SIGNAL, status: "paused" as const },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["signal", "pause", SIGNAL_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toMatchObject({ signalId: SIGNAL_ID });
+    expect(captured().stdout).toContain("paused");
+  });
+
+  it("resumes a signal", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "signal.resume") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "signal.resume",
+          signal: { ...FIXTURE_SIGNAL, status: "active" as const },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["signal", "resume", SIGNAL_ID],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("active");
+  });
+
+  it("reschedules a signal to a new check interval", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "signal.reschedule") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "signal.reschedule",
+          signal: { ...FIXTURE_SIGNAL, checkIntervalMinutes: 120 },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["signal", "reschedule", SIGNAL_ID, "--check-interval-minutes", "120"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toMatchObject({
+      signalId: SIGNAL_ID,
+      checkIntervalMinutes: 120,
+    });
+    expect(captured().stdout).toContain(SIGNAL_ID);
+  });
+
+  it("reschedules a signal to manual-only mode with none", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "signal.reschedule") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "signal.reschedule",
+          signal: { ...FIXTURE_SIGNAL, checkIntervalMinutes: null },
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["signal", "reschedule", SIGNAL_ID, "--check-interval-minutes", "none"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toMatchObject({
+      signalId: SIGNAL_ID,
+      checkIntervalMinutes: null,
+    });
+    expect(captured().stdout).toContain(SIGNAL_ID);
   });
 });
