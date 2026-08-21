@@ -48,10 +48,7 @@ import {
   RoomMessageIdSchema,
   SignalInsightIdSchema,
   SignalIdSchema,
-  canonicalSignalInsightDigestInputV1,
   type TaskSpecV1,
-  type SignalInsightV1,
-  type SignalV1,
 } from "@app-factory/contracts";
 import {
   FACTORY_CONTROL_PLANE_DATABASE_FILE_NAME,
@@ -75,6 +72,7 @@ import {
   RoomError,
   RoomRepository,
   roomAttendanceAt,
+  type RoomProviderCatalogPort,
 } from "@app-factory/studio-rooms";
 
 import type { DaemonRuntimeIdFactory, DaemonRuntimeIdPurpose } from "./daemon-runtime-ids.js";
@@ -160,9 +158,9 @@ import {
   buildSignalListResultV1,
   executeSignalCreateCommand,
   executeSignalPauseCommand,
+  executeSignalRescheduleCommand,
   executeSignalResumeCommand,
-  insightFromFinding,
-  runSignalScout,
+  performSignalCheck,
   type SignalScoutParticipantsPort,
 } from "./signal-command-runtime.js";
 import { buildSettingsGetResultV1, executeSettingsSetCommand } from "./settings-command-runtime.js";
@@ -204,6 +202,7 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "signal.pause",
   "signal.resume",
   "signal.run-now",
+  "signal.reschedule",
   "provider.upsert",
   "provider.remove",
   "settings.set",
@@ -448,6 +447,14 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * adapters here is the daemon composition layer's job, mirroring `initializeRooms`.
    */
   phaseParticipants?: PhaseParticipantsPort;
+  /**
+   * The honest token ledger's family/model resolver (Wave 7, Architecture decision 6/8): built from
+   * the SAME participants config `phaseParticipants` was, so every `token_usage` row `phase.run`
+   * inserts attributes to a real configured instance. Defaults to a port that throws on any
+   * `resolve` call -- safe because the default `phaseParticipants` above never resolves an adapter
+   * either, so no contribution (and therefore no row) is ever produced to attribute.
+   */
+  phaseProviderCatalog?: RoomProviderCatalogPort;
   /** Test seam: replaces the default `docs/`-scoped broker-commit port `phase.run` writes outputs through. */
   phaseOutputMirror?: PhaseOutputMirrorPort;
   /** Test seam: replaces the default read-only project-mirror reader `phase.run` folds into context. */
@@ -2009,17 +2016,11 @@ async function executeRequest(
       );
     case "usage.summary":
       return buildUsageSummaryResultV1(repositories.tokenUsage, request, dependencies.observedAt);
-    // `signal.reschedule`: recognized by the wire protocol (`packages/contracts/src/v1/command-
-    // protocol.ts`), but the signal scheduler itself is a later wave's work (Architecture decision
-    // 11, Wave 7). Kept exhaustive, and honest about "recognized but not yet implemented" rather
-    // than falling through to `protocol.unsupported-operation`, which would incorrectly claim the
-    // operation is unknown.
+    // `signal.reschedule`: a plain repository write (like signal.pause/resume), dispatched through
+    // the normal serial executor -- Wave 7 replaces the earlier "recognized but not yet implemented"
+    // placeholder now that `signals.check_interval_minutes` (migration 0019) is actually wired.
     case "signal.reschedule":
-      throw new CommandHandlerError(
-        "command.operation-not-yet-implemented",
-        `"${request.operation}" is recognized by the wire protocol but not yet implemented by this daemon build.`,
-        false,
-      );
+      return executeSignalRescheduleCommand(repositories, request);
     case "studio.assistant.query":
       return {
         operation: "studio.assistant.query",
@@ -2251,6 +2252,16 @@ export async function openDaemonCommandRuntime(
     resolve: (provider) =>
       phaseParticipants.resolve(provider as Parameters<PhaseParticipantsPort["resolve"]>[0]),
   };
+  // See OpenDaemonCommandRuntimeOptions.phaseProviderCatalog's doc comment: never resolved unless a
+  // real contribution was actually dispatched, which the default (adapter-less) `phaseParticipants`
+  // above never allows.
+  const phaseProviderCatalog: RoomProviderCatalogPort = options.phaseProviderCatalog ?? {
+    resolve: (provider) => {
+      throw new Error(
+        `No provider catalog is configured for token-usage attribution (resolving "${String(provider)}").`,
+      );
+    },
+  };
   const standardRuleStatements = loadStandardRuleStatementsV1(options.policySourcePath);
   const phaseRoomPort: PhaseRoomPort = {
     createPhaseRoom(input) {
@@ -2294,6 +2305,7 @@ export async function openDaemonCommandRuntime(
       standardRuleStatements,
     },
     createTimeoutSignal: (timeoutSeconds) => AbortSignal.timeout(timeoutSeconds * 1_000),
+    providerCatalog: phaseProviderCatalog,
   };
   const releaseObserver = options.releaseObserver ?? INERT_RELEASE_OBSERVER_PORT;
   const serial = new SerialExecutor();
@@ -2377,10 +2389,12 @@ export async function openDaemonCommandRuntime(
    * `signal.run-now`: the Scout call is a real model/network round trip and runs OUTSIDE the
    * serial executor, exactly like `release.observe` -- see that function's own doc comment for the
    * idempotency shape this mirrors verbatim (ledger check before, persist + journal after). The
-   * insight ID is derived from the command ID, so a concurrent duplicate finds its own insight
-   * already recorded (same digest -> `inserted: false`) or its own ledger entry. `recordCheck`
-   * always runs (even on "nothing new" or a scout failure) so `lastCheckedAt`/`checkCount` reflect
-   * every attempt, not only successful ones.
+   * actual scout execution + insight/token-usage recording is `performSignalCheck` (Wave 7,
+   * `signal-command-runtime.ts`), shared with the new signal scheduler; this function's own job is
+   * ONLY the command-ledger envelope around it. The insight ID is derived from the command ID, so a
+   * concurrent duplicate finds its own insight already recorded (same digest -> `inserted: false`)
+   * or its own ledger entry. `recordCheck` always runs (even on "nothing new" or a scout failure) so
+   * `lastCheckedAt`/`checkCount` reflect every attempt, not only successful ones.
    */
   const runSignalNow = async (
     request: Extract<CommandRequestV1, { operation: "signal.run-now" }>,
@@ -2408,13 +2422,24 @@ export async function openDaemonCommandRuntime(
     });
     const observedAt = IsoInstantSchema.parse(now());
     assertPlausibleClientTimestamps(request, observedAt);
-    const recentHeadlines = repositories.signalInsights
-      .listBySignal(signal.signalId)
-      .slice(0, 10)
-      .map((insight) => insight.headline);
-    const outcome = await runSignalScout(signalScoutParticipants, signal, recentHeadlines, {
-      signal: AbortSignal.timeout(2 * 60 * 1_000),
-    });
+    const insightId = SignalInsightIdSchema.parse(idFactory("signal-insight", request.commandId));
+    const {
+      signal: updatedSignal,
+      insight,
+      outcome,
+    } = await performSignalCheck(
+      {
+        scoutParticipants: signalScoutParticipants,
+        signals: repositories.signals,
+        signalInsights: repositories.signalInsights,
+        tokenUsage: repositories.tokenUsage,
+        providerCatalog: phaseProviderCatalog,
+      },
+      signal,
+      { insightId },
+      observedAt,
+      { signal: AbortSignal.timeout(2 * 60 * 1_000) },
+    );
     return await serial.run(async () => {
       if (closed) throw closedError();
       const raced = await readLedgerEntry(paths, request.commandId);
@@ -2422,29 +2447,6 @@ export async function openDaemonCommandRuntime(
         assertMatchingRequest(raced.request, request);
         return raced.result;
       }
-      let insight: SignalInsightV1 | null = null;
-      if (outcome.kind === "found") {
-        const insightId = SignalInsightIdSchema.parse(
-          idFactory("signal-insight", request.commandId),
-        );
-        const draft = insightFromFinding(outcome.finding, {
-          insightId,
-          signalId: signal.signalId,
-          discoveredAt: observedAt,
-        });
-        const insightDigest = Sha256DigestSchema.parse(
-          `sha256:${createHash("sha256")
-            .update(canonicalSignalInsightDigestInputV1(draft), "utf8")
-            .digest("hex")}`,
-        );
-        const recorded = repositories.signalInsights.record({ ...draft, insightDigest });
-        insight = recorded.insight;
-      }
-      const updatedSignal: SignalV1 = repositories.signals.recordCheck(
-        signal.signalId,
-        observedAt,
-        insight !== null,
-      );
       const result = CommandResultV1Schema.parse({
         operation: "signal.run-now",
         signal: updatedSignal,

@@ -45,6 +45,12 @@ import {
   type RoomSubsystemConfiguration,
 } from "./room-subsystem.js";
 export { nodeRoomProcessPort, type RoomSubsystemConfiguration } from "./room-subsystem.js";
+import type { SignalScoutParticipantsPort } from "./signal-command-runtime.js";
+import {
+  createSignalSchedulerSubsystem,
+  type SignalSchedulerRepositories,
+  type SignalSchedulerSubsystem,
+} from "./signal-scheduler.js";
 import {
   createKernelSchedulerController,
   type KernelSchedulerController,
@@ -97,6 +103,25 @@ export type EffectSubsystemConfiguration = Readonly<{
   onError?: (error: unknown) => void;
 }>;
 
+/**
+ * Optional signal scheduler (`signal-scheduler.ts`, Architecture decision 11, Wave 7): checks at
+ * most one due signal per pass, entirely outside the serial executor. Disabled (`enabled: false`,
+ * the default when this whole option is omitted) leaves `signal.*` working exactly as before --
+ * `signal.run-now` still runs a check manually, `checkIntervalMinutes` is simply never acted on
+ * unattended. `pollIntervalMs` here is the SCHEDULER's own poll cadence, distinct from the daemon's
+ * global `pollIntervalMs` -- the daemon composition (`daemon-entrypoint.ts`) is expected to pass
+ * `Math.max(globalPollIntervalMs, 30_000)`, never the raw (potentially sub-second) global value.
+ */
+export type SignalSchedulerConfiguration = Readonly<{
+  enabled: boolean;
+  pollIntervalMs?: number;
+  maxBackoffMs?: number;
+  scoutCallTimeoutMs?: number;
+  wait?: DaemonLoopWait;
+  clock?: Readonly<{ now(): Date }>;
+  onError?: (error: unknown) => void;
+}>;
+
 /** See `StartFactoryDaemonServiceOptions.providerRegistry`. */
 export type ProviderRegistryConfiguration = Readonly<{
   /** Absolute path to the participants config JSON file (the same one `rooms`/`phaseParticipants`
@@ -138,11 +163,18 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   effects?: EffectSubsystemConfiguration;
   /** Default OFF: omit or pass `{ enabled: false }` to keep the room moderator inert. */
   rooms?: RoomSubsystemConfiguration;
+  /** Default OFF: omit or pass `{ enabled: false }` to keep the signal scheduler inert
+   *  (`signal.run-now` still works manually). See `SignalSchedulerConfiguration`. */
+  signalScheduler?: SignalSchedulerConfiguration;
   /** Seam (b) of the project-registry task: resolves a real `ParticipantAdapter` per cast provider
    * for `phase.run`, built from the SAME room roster config `rooms` (above) uses
    * (`room-participants-config.ts`'s `loadPhaseParticipantsPortV1`). Default: `phase.run` fails
    * closed per-run (`participant-unconfigured`) exactly like `rooms` omitted. */
   phaseParticipants?: OpenDaemonCommandRuntimeOptions["phaseParticipants"];
+  /** See `OpenDaemonCommandRuntimeOptions.phaseProviderCatalog`'s doc comment; also feeds the
+   *  signal scheduler's (`signalScheduler`, below) `token_usage` attribution when enabled -- the
+   *  SAME resolver, never a second one. */
+  phaseProviderCatalog?: OpenDaemonCommandRuntimeOptions["phaseProviderCatalog"];
   /** Default inert: see `OpenDaemonCommandRuntimeOptions.releaseObserver`. */
   releaseObserver?: OpenDaemonCommandRuntimeOptions["releaseObserver"];
   /**
@@ -180,6 +212,7 @@ export type FactoryDaemonService = Readonly<{
   getLastSchedulerError(): unknown | null;
   getLastEffectsPumpError(): unknown | null;
   getLastRoomsError(): unknown | null;
+  getLastSignalSchedulerError(): unknown | null;
   close(): Promise<void>;
 }>;
 
@@ -434,6 +467,7 @@ export async function startFactoryDaemonService(
     handle: RoomsSubsystemHandle | null;
     context: InitializeRoomsContext | null;
   } = { handle: null, context: null };
+  const signalSchedulerState: { subsystem: SignalSchedulerSubsystem | null } = { subsystem: null };
   let loop: BackgroundSchedulerLoop | null = null;
   let closing = false;
   let ready = false;
@@ -664,6 +698,9 @@ export async function startFactoryDaemonService(
       ...(options.phaseParticipants === undefined
         ? {}
         : { phaseParticipants: options.phaseParticipants }),
+      ...(options.phaseProviderCatalog === undefined
+        ? {}
+        : { phaseProviderCatalog: options.phaseProviderCatalog }),
       ...(options.releaseObserver === undefined
         ? {}
         : { releaseObserver: options.releaseObserver }),
@@ -724,6 +761,55 @@ export async function startFactoryDaemonService(
             ? {}
             : { leaseDurationMs: options.leaseDurationMs }),
         });
+        // Signal scheduler (Wave 7, Architecture decision 11): built over the SAME database handle
+        // and the SAME `phaseParticipants`/`phaseProviderCatalog` ports `phase.run` and
+        // `signal.run-now` use -- default OFF (`signalScheduler.enabled` unset or false), matching
+        // `effects`/`rooms`'s own opt-in shape.
+        const signalSchedulerConfig = options.signalScheduler;
+        if (signalSchedulerConfig?.enabled === true) {
+          const schedulerRepositories: SignalSchedulerRepositories =
+            createFactoryRepositories(database);
+          // Signals reuse the SAME configured room-participant adapters phases do (no separate
+          // "which providers may scout" configuration exists) -- the exact coercion
+          // `command-runtime.ts`'s own `signalScoutParticipants` already relies on.
+          const scoutParticipants: SignalScoutParticipantsPort = {
+            resolve: (provider) =>
+              options.phaseParticipants?.resolve(
+                provider as Parameters<
+                  NonNullable<OpenDaemonCommandRuntimeOptions["phaseParticipants"]>["resolve"]
+                >[0],
+              ) ?? null,
+          };
+          signalSchedulerState.subsystem = createSignalSchedulerSubsystem({
+            repositories: schedulerRepositories,
+            scoutParticipants,
+            providerCatalog: options.phaseProviderCatalog ?? {
+              resolve: (provider) => {
+                throw new Error(
+                  `No provider catalog is configured for signal token-usage attribution (resolving "${String(provider)}").`,
+                );
+              },
+            },
+            ...(signalSchedulerConfig.pollIntervalMs === undefined
+              ? {}
+              : { pollIntervalMs: signalSchedulerConfig.pollIntervalMs }),
+            ...(signalSchedulerConfig.maxBackoffMs === undefined
+              ? {}
+              : { maxBackoffMs: signalSchedulerConfig.maxBackoffMs }),
+            ...(signalSchedulerConfig.scoutCallTimeoutMs === undefined
+              ? {}
+              : { scoutCallTimeoutMs: signalSchedulerConfig.scoutCallTimeoutMs }),
+            ...(signalSchedulerConfig.wait === undefined
+              ? {}
+              : { wait: signalSchedulerConfig.wait }),
+            ...(signalSchedulerConfig.clock === undefined
+              ? {}
+              : { clock: signalSchedulerConfig.clock }),
+            ...(signalSchedulerConfig.onError === undefined
+              ? {}
+              : { onError: signalSchedulerConfig.onError }),
+          });
+        }
       },
       ...(initializeEffects === undefined ? {} : { initializeEffects }),
       ...(initializeRooms === undefined ? {} : { initializeRooms }),
@@ -810,8 +896,12 @@ export async function startFactoryDaemonService(
     // The room moderator sweeps orphaned grants and resumes pending rooms at
     // the same instant, strictly after startup recovery succeeded.
     roomsState.handle?.start();
+    // The signal scheduler starts at the same instant, strictly after startup recovery succeeded --
+    // it may immediately dispatch a real model call for a signal that was already due.
+    signalSchedulerState.subsystem?.start();
     ready = true;
   } catch (error) {
+    await signalSchedulerState.subsystem?.stop().catch(() => undefined);
     await roomsState.handle?.stop().catch(() => undefined);
     await effectsState.subsystem?.stop().catch(() => undefined);
     await schedulerState.controller?.stop().catch(() => undefined);
@@ -825,6 +915,7 @@ export async function startFactoryDaemonService(
   const activeLoop = loop;
   const activeEffectsSubsystem = effectsState.subsystem;
   const activeRoomsHandle = roomsState.handle;
+  const activeSignalScheduler = signalSchedulerState.subsystem;
   if (activeRuntime === null || activeController === null || activeLoop === null) {
     throw new Error("The daemon composition finished without all owned components");
   }
@@ -838,6 +929,7 @@ export async function startFactoryDaemonService(
     getLastSchedulerError: () => activeLoop.lastError,
     getLastEffectsPumpError: () => activeEffectsSubsystem?.loop.lastError ?? null,
     getLastRoomsError: () => activeRoomsHandle?.lastError() ?? null,
+    getLastSignalSchedulerError: () => activeSignalScheduler?.loop.lastError ?? null,
     close: async () => {
       if (closePromise !== null) return await closePromise;
       closing = true;
@@ -850,6 +942,7 @@ export async function startFactoryDaemonService(
           activeLoop.stopped(),
           activeEffectsSubsystem === null ? Promise.resolve() : activeEffectsSubsystem.stop(),
           activeRoomsHandle === null ? Promise.resolve() : activeRoomsHandle.stop(),
+          activeSignalScheduler === null ? Promise.resolve() : activeSignalScheduler.stop(),
         ]);
         activeRuntime.close();
         const failures = results

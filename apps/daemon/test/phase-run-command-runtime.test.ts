@@ -15,7 +15,7 @@ import {
 } from "@app-factory/contracts";
 import { GitWorkspaceManager } from "@app-factory/git-workspace";
 import { createFactoryRepositories, openMigratedFactoryDatabase } from "@app-factory/kernel";
-import { RoomRepository } from "@app-factory/studio-rooms";
+import { RoomRepository, type RoomProviderCatalogPort } from "@app-factory/studio-rooms";
 import type {
   ParticipantAdapter,
   ParticipantContributionResult,
@@ -153,13 +153,28 @@ function fakeParticipant(
   };
 }
 
-function message(text: string, tokensUsed = 10): ParticipantContributionResult {
-  return { kind: "message", text, usage: { tokensUsed } };
+function message(
+  text: string,
+  tokensUsed = 10,
+  reported: Readonly<{
+    inputTokens: number | null;
+    outputTokens: number | null;
+    cachedInputTokens: number | null;
+  }> | null = null,
+): ParticipantContributionResult {
+  return { kind: "message", text, usage: { tokensUsed, reported, costUsdMicros: null } };
 }
 
 function participantsPort(...adapters: readonly ParticipantAdapter[]): PhaseParticipantsPort {
   const byProvider = new Map(adapters.map((adapter) => [adapter.provider, adapter]));
   return { resolve: (provider) => byProvider.get(provider) ?? null };
+}
+
+/** Every test provider resolves to the SAME fake family/model -- the fixture participant keys
+ *  ("codex", "cursor", "claude", "ollama", ...) are arbitrary test strings, not real provider
+ *  families, so this only needs to exercise the wiring, never real-world attribution accuracy. */
+function fakeProviderCatalog(): RoomProviderCatalogPort {
+  return { resolve: (provider) => ({ family: "ollama", model: `${provider}-test-model` }) };
 }
 
 function dependencies(
@@ -203,6 +218,7 @@ function dependencies(
       standardRuleStatements: new Map([["rule.new.scope-before-breadth", "Scope before breadth."]]),
     },
     createTimeoutSignal: (timeoutSeconds) => AbortSignal.timeout(timeoutSeconds * 1_000),
+    providerCatalog: fakeProviderCatalog(),
   };
 }
 
@@ -317,6 +333,49 @@ describe("phase.run — solo mode", () => {
       output.evidence.branch,
     );
     expect(committed).toBe("# Research\n\nSome findings.");
+  });
+
+  it("records one honest token_usage row (source: phase) per dispatched contribution", async () => {
+    const h = harness();
+    const researcher = fakeParticipant("ollama", () =>
+      message("# Research\n\nSome findings.\n", 42, {
+        inputTokens: 100,
+        outputTokens: 50,
+        cachedInputTokens: null,
+      }),
+    );
+    h.repositories.phaseDefinitions.upsert({
+      command: {
+        schemaVersion: 1,
+        commandId: idFactory(),
+        issuedAt: NOW,
+        origin: "system",
+        kind: "phase.upsert",
+        upsert: { phase: phaseDraft(), expectedRevision: null },
+      },
+      recordedAt: NOW,
+      knownStandardRuleIds: [],
+    });
+
+    const result = await runPhaseV1(
+      h.repositories,
+      runRequest(idFactory()),
+      NOW,
+      idFactory,
+      dependencies(h, participantsPort(researcher)),
+    );
+    if (result.operation !== "phase.run") throw new Error("unexpected operation");
+    expect(result.run.state).toBe("succeeded");
+
+    const summary = h.repositories.tokenUsage.summarize({ sinceDays: 1, asOf: NOW });
+    expect(summary.rows).toHaveLength(1);
+    expect(summary.rows[0]).toMatchObject({
+      providerKey: "ollama",
+      model: "ollama-test-model",
+      inputTokens: 100,
+      outputTokens: 50,
+      unreportedCount: 0,
+    });
   });
 
   it("fails closed when the resolved provider has no configured adapter", async () => {

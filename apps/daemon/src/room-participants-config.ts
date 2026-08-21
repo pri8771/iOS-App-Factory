@@ -885,6 +885,13 @@ export function buildRoomsCompositionV1(
 ): Readonly<{
   subsystemConfiguration: Omit<RoomSubsystemConfiguration, "enabled">;
   phaseParticipants: PhaseParticipantsPort;
+  /**
+   * The SAME family/model resolver `subsystemConfiguration.providerCatalog` carries, exposed
+   * directly too (Wave 7): `phase.run`'s and the signal scheduler's honest `token_usage` rows
+   * (`source: "phase"`/`"signal"`) need exactly this resolution and have no room to read it
+   * through -- never a second, independently configured catalog.
+   */
+  providerCatalog: RoomProviderCatalogPort;
 }> {
   const participantsCatalog = buildRoomParticipantsCatalogSourceV1(config);
   if (!attested) {
@@ -894,11 +901,13 @@ export function buildRoomsCompositionV1(
         participantsCatalog,
       },
       phaseParticipants: { resolve: () => null },
+      providerCatalog: buildProviderCatalogPortV1(EMPTY_ROOM_PARTICIPANTS_CONFIG_V1),
     };
   }
   return {
     subsystemConfiguration: buildRoomSubsystemConfiguration(config),
     phaseParticipants: buildPhaseParticipantsPortV1(config),
+    providerCatalog: buildProviderCatalogPortV1(config),
   };
 }
 
@@ -984,6 +993,24 @@ export function loadPhaseParticipantsPortV1(
   const attested = isRoomsContainmentAttestedV1(options.containmentAttestationPath);
   const config = loadRoomParticipantsConfigFileOrEmpty(options.participantsConfigPath);
   return buildRoomsCompositionV1(config, attested).phaseParticipants;
+}
+
+export type LoadPhaseProviderCatalogPortOptions = LoadRoomsSubsystemConfigurationOptions;
+
+/**
+ * Top-level daemon entrypoint hook mirroring {@link loadPhaseParticipantsPortV1} exactly (Wave 7):
+ * the honest token ledger's family/model resolver for `phase.run`'s and the signal scheduler's
+ * `token_usage` rows, built from the SAME participants config file and attestation gate. Not hot-
+ * swapped on `provider.upsert`/`remove` today, matching `phaseParticipants`'s own known limitation
+ * (see `daemon-entrypoint.ts`'s composition of both) -- a future task can thread live reload through
+ * both together.
+ */
+export function loadPhaseProviderCatalogPortV1(
+  options: LoadPhaseProviderCatalogPortOptions,
+): RoomProviderCatalogPort {
+  const attested = isRoomsContainmentAttestedV1(options.containmentAttestationPath);
+  const config = loadRoomParticipantsConfigFileOrEmpty(options.participantsConfigPath);
+  return buildRoomsCompositionV1(config, attested).providerCatalog;
 }
 
 // ---------------------------------------------------------------------------

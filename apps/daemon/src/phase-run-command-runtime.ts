@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   IsoInstantSchema,
   PhaseRunIdSchema,
@@ -6,15 +8,21 @@ import {
   type CommandResultV1,
   type IsoInstant,
   type PhaseDefinitionV1,
+  type PhaseRunId,
   type PhaseRunOutcomeV1,
   type PhaseRunOutputV1,
   type PhaseRunV1,
 } from "@app-factory/contracts";
 import type { FactoryRepositories } from "@app-factory/kernel";
+import type { RoomProviderCatalogPort } from "@app-factory/studio-rooms";
 
 import type { DaemonRuntimeIdFactory } from "./daemon-runtime-ids.js";
 import type { PhaseOutputMirrorPort } from "./phase-output-mirror.js";
-import { executePhaseRunV1, type PhaseRunExecutionPorts } from "./phase-run-executor.js";
+import {
+  executePhaseRunV1,
+  type PhaseRunContributionUsageV1,
+  type PhaseRunExecutionPorts,
+} from "./phase-run-executor.js";
 import { CommandHandlerError } from "./unix-command-server.js";
 
 /**
@@ -47,7 +55,48 @@ export type PhaseRunCommandDependencies = Readonly<{
   executionPorts: Omit<PhaseRunExecutionPorts, "signal" | "mintRoomId">;
   /** Bounds a run's whole execution to its own declared `budget.timeoutSeconds`. */
   createTimeoutSignal: (timeoutSeconds: number) => AbortSignal;
+  /** The honest token ledger's family/model resolver (Wave 7): the SAME participants config
+   *  `executionPorts.participants` was built from, so every `token_usage` row this module inserts
+   *  attributes to a real, configured provider instance -- never a second, independently configured
+   *  catalog. See `room-participants-config.ts`'s `loadPhaseProviderCatalogPortV1`. */
+  providerCatalog: RoomProviderCatalogPort;
 }>;
+
+/**
+ * One append-only `token_usage` row (`source: "phase"`) per contribution the executor actually
+ * dispatched (Wave 7, Architecture decision 6/8): honest nulls whenever a contribution's provider
+ * reported nothing usable, never a fabricated zero. Called exactly once per real (non-replayed)
+ * execution, from the single point every downstream branch of `runPhaseV1` passes through --
+ * covers the output-commit-failure path, the gated awaiting-human path, and the final
+ * succeeded/failed path alike, so no contribution is ever double- or un-recorded.
+ */
+function recordPhaseTokenUsage(
+  repositories: FactoryRepositories,
+  providerCatalog: RoomProviderCatalogPort,
+  phaseRunId: PhaseRunId,
+  occurredAt: IsoInstant,
+  contributions: readonly PhaseRunContributionUsageV1[],
+): void {
+  for (const contribution of contributions) {
+    const info = providerCatalog.resolve(contribution.provider);
+    repositories.tokenUsage.append({
+      schemaVersion: 1,
+      usageId: randomUUID(),
+      occurredAt,
+      providerFamily: info.family,
+      providerKey: contribution.provider,
+      model: info.model,
+      source: "phase",
+      roomId: null,
+      phaseRunId,
+      signalId: null,
+      inputTokens: contribution.usage.reported?.inputTokens ?? null,
+      outputTokens: contribution.usage.reported?.outputTokens ?? null,
+      cachedInputTokens: contribution.usage.reported?.cachedInputTokens ?? null,
+      costUsdMicros: contribution.usage.costUsdMicros ?? null,
+    });
+  }
+}
 
 function requirePhaseRun(repositories: FactoryRepositories, phaseRunId: unknown): PhaseRunV1 {
   const run = repositories.phaseRuns.findById(PhaseRunIdSchema.parse(phaseRunId));
@@ -190,6 +239,16 @@ export async function runPhaseV1(
   }
 
   const finishedAt = nextInstant(observedAt, running.updatedAt);
+  // Every branch below (output-commit failure, a gated awaiting-human stop, or the final
+  // succeeded/failed transition) passes through this point exactly once per real execution, so
+  // this is the single place the honest token ledger's `token_usage` rows are inserted.
+  recordPhaseTokenUsage(
+    repositories,
+    dependencies.providerCatalog,
+    phaseRunId,
+    finishedAt,
+    outcome.contributions,
+  );
   let outputs: readonly PhaseRunOutputV1[] = [];
   if (outcome.files.length > 0) {
     try {

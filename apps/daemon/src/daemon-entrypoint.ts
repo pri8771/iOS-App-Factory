@@ -3,12 +3,14 @@ import { open } from "node:fs/promises";
 import { isAbsolute, normalize } from "node:path";
 
 import { CommandAuthorizationV1Schema } from "@app-factory/contracts";
+import type { RoomProviderCatalogPort } from "@app-factory/studio-rooms";
 
 import {
   startFactoryDaemonService,
   type EffectSubsystemConfiguration,
   type FactoryDaemonService,
   type ProviderRegistryConfiguration,
+  type SignalSchedulerConfiguration,
 } from "./factory-daemon-service.js";
 import {
   LocalExecutionProfileConfigurationError,
@@ -27,6 +29,7 @@ import {
 } from "./release-command-runtime.js";
 import {
   loadPhaseParticipantsPortV1,
+  loadPhaseProviderCatalogPortV1,
   loadRoomsSubsystemConfiguration,
   RoomParticipantsConfigurationError,
 } from "./room-participants-config.js";
@@ -62,6 +65,16 @@ export type DaemonProcessEnvironment = Readonly<{
   /** Absolute path to the room participants/roster JSON config; required when rooms are enabled. */
   APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG?: string;
   /**
+   * Default OFF (Wave 7, Architecture decision 11). Set to "1" or "true" to run the signal
+   * scheduler loop: at most one due signal (`status: active`, `checkIntervalMinutes` set, last
+   * checked longer ago than that interval) is checked per pass, entirely outside the serial
+   * executor -- an unattended real-model call, so this stays opt-in exactly like
+   * `APP_FACTORY_ROOMS_ENABLED`. Requires `APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG` (the scheduler
+   * shares the SAME configured scout adapters `signal.run-now` uses); a scheduler enabled with no
+   * providers configured simply finds every check `scout-not-configured`, never a startup failure.
+   */
+  APP_FACTORY_SIGNAL_SCHEDULER_ENABLED?: string;
+  /**
    * Default OFF (unset). Absolute path to the App Store Connect observer config
    * (`release-command-runtime.ts`'s `AscObserverConfigV1`: key ID, issuer ID, and the Keychain
    * reference of the `.p8` item -- names only). When set, `release.observe` can take strictly
@@ -88,7 +101,9 @@ export type DaemonProcessConfiguration = Readonly<{
   localExecution?: VerifiedLocalExecutionConfiguration;
   effects?: EffectSubsystemConfiguration;
   rooms?: RoomSubsystemConfiguration;
+  signalScheduler?: SignalSchedulerConfiguration;
   phaseParticipants?: PhaseParticipantsPort;
+  phaseProviderCatalog?: RoomProviderCatalogPort;
   providerRegistry?: ProviderRegistryConfiguration;
   releaseObserver?: ReleaseObserverPort;
   plannerExecution?: Readonly<{ config: PlannerExecutionConfigV1 }>;
@@ -342,6 +357,7 @@ export async function loadDaemonProcessConfiguration(
   );
   let rooms: RoomSubsystemConfiguration | undefined;
   let phaseParticipants: PhaseParticipantsPort | undefined;
+  let phaseProviderCatalog: RoomProviderCatalogPort | undefined;
   let providerRegistry: ProviderRegistryConfiguration | undefined;
   if (roomsEnabled) {
     const participantsConfigPath = absolutePath(
@@ -361,6 +377,12 @@ export async function loadDaemonProcessConfiguration(
       // SAME participants config file and the SAME containment attestation gate `rooms` (above)
       // just loaded -- never a second, independently configured pool.
       phaseParticipants = loadPhaseParticipantsPortV1({
+        participantsConfigPath,
+        ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
+      });
+      // The honest token ledger's family/model resolver (Wave 7): `phase.run`'s and the signal
+      // scheduler's `token_usage` rows both read this, built from the SAME config + attestation.
+      phaseProviderCatalog = loadPhaseProviderCatalogPortV1({
         participantsConfigPath,
         ...(attestationPath === undefined ? {} : { containmentAttestationPath: attestationPath }),
       });
@@ -401,6 +423,11 @@ export async function loadDaemonProcessConfiguration(
       throw error;
     }
   }
+  const signalSchedulerEnabled = booleanFlag(
+    "APP_FACTORY_SIGNAL_SCHEDULER_ENABLED",
+    environment.APP_FACTORY_SIGNAL_SCHEDULER_ENABLED,
+  );
+  const resolvedPollIntervalMs = pollInterval(environment.APP_FACTORY_POLL_INTERVAL_MS);
   let plannerExecution: Readonly<{ config: PlannerExecutionConfigV1 }> | undefined;
   if (
     environment.APP_FACTORY_PLANNER_EXECUTION_CONFIG !== undefined &&
@@ -427,7 +454,7 @@ export async function loadDaemonProcessConfiguration(
     runtimeDirectory,
     authorization,
     daemonVersion: daemonVersion(environment.APP_FACTORY_DAEMON_VERSION),
-    pollIntervalMs: pollInterval(environment.APP_FACTORY_POLL_INTERVAL_MS),
+    pollIntervalMs: resolvedPollIntervalMs,
     ...(localExecution === undefined ? {} : { localExecution }),
     // Adapter registration is deliberately left unconfigured here: it stays a
     // code-level seam (`configureAdapters`) for a future task to populate
@@ -436,7 +463,19 @@ export async function loadDaemonProcessConfiguration(
     // leaving disabled subsystems out of the resolved configuration.
     ...(effectsPumpEnabled ? { effects: { enabled: true } } : {}),
     ...(rooms === undefined ? {} : { rooms }),
+    // Wave 7, Architecture decision 11: never below 30s regardless of the daemon's own (possibly
+    // sub-second, test-oriented) global poll cadence -- an unattended real-model loop stays on a
+    // deliberately slow, opt-in cadence.
+    ...(signalSchedulerEnabled
+      ? {
+          signalScheduler: {
+            enabled: true,
+            pollIntervalMs: Math.max(resolvedPollIntervalMs, 30_000),
+          },
+        }
+      : {}),
     ...(phaseParticipants === undefined ? {} : { phaseParticipants }),
+    ...(phaseProviderCatalog === undefined ? {} : { phaseProviderCatalog }),
     ...(providerRegistry === undefined ? {} : { providerRegistry }),
     ...(releaseObserver === undefined ? {} : { releaseObserver }),
     ...(plannerExecution === undefined ? {} : { plannerExecution }),

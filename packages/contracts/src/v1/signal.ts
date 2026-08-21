@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { AgentUsageV1 } from "./agent-run.js";
 import {
   IsoInstantSchema,
   NonNegativeSafeIntegerSchema,
@@ -181,13 +182,29 @@ export function canonicalSignalInsightDigestInputV1(
   return canonicalJson(signalInsightDigestInputV1(insight));
 }
 
+/**
+ * Mirrors `ParticipantUsage` (`@app-factory/studio-room-adapters`) field-for-field, without this
+ * package depending on that one (contracts stays a leaf package; adapters depend on contracts, never
+ * the reverse) -- the same-shape local type `apps/daemon/src/signal-command-runtime.ts`'s
+ * `runSignalScout` widens its result with (Wave 7, Architecture decision 6).
+ */
+export type SignalScoutUsageV1 = Readonly<{
+  tokensUsed: number;
+  reported: AgentUsageV1 | null;
+  costUsdMicros: number | null;
+}>;
+
 /** What a Scout run produced, before persistence -- the daemon's own classification of the
- *  contribution it got back, independent of the wire command result shape. */
+ *  contribution it got back, independent of the wire command result shape. `usage` is `null` only
+ *  when no real `contribute()` call happened at all (`scout-not-configured`) or the call itself
+ *  returned a typed error with no usage data of its own (`scout-error`) -- a `scout-malformed-
+ *  finding` still carries the usage a real (just unusable) `message` contribution reported. */
 export type SignalScoutRunOutcomeV1 =
-  | Readonly<{ kind: "found"; finding: SignalScoutFindingV1 }>
-  | Readonly<{ kind: "nothing-new" }>
+  | Readonly<{ kind: "found"; finding: SignalScoutFindingV1; usage: SignalScoutUsageV1 }>
+  | Readonly<{ kind: "nothing-new"; usage: SignalScoutUsageV1 }>
   | Readonly<{
       kind: "scout-failed";
       code: "scout-not-configured" | "scout-error" | "scout-malformed-finding";
       message: string;
+      usage: SignalScoutUsageV1 | null;
     }>;

@@ -134,11 +134,24 @@ Optional, real-identity coding-agent execution (separate from rooms) is
 [`docs/operations/verified-local-execution.md`](verified-local-execution.md); it shares the same
 `APP_FACTORY_CONTAINMENT_ATTESTATION` gate set above.
 
-**Not yet wired:** `APP_FACTORY_SIGNAL_SCHEDULER_ENABLED` — unattended scheduled signal checks
-(migration `0019-signal-schedule`, `signal-scheduler.ts`) are a later wave's work. Signals exist
-today (`signal.create/list/pause/resume/run-now`, `insight.list`) but only run when explicitly
-triggered with `run-now`; there is no scheduler loop to enable yet. This section will grow an
-`export APP_FACTORY_SIGNAL_SCHEDULER_ENABLED=1` step once that wave lands.
+Optional unattended signal scheduling (Wave 7, Architecture decision 11):
+`export APP_FACTORY_SIGNAL_SCHEDULER_ENABLED="1"` runs a background loop that checks at most one
+due signal per pass (`status: active`, a non-null `checkIntervalMinutes` on the signal, and last
+checked longer ago than that interval, or never checked at all) -- entirely outside the serial
+executor, sharing the exact same Scout core `signal.run-now` uses. It shares
+`APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG`'s providers, not a second registry, so it is only as useful
+as whatever `scoutProvider` a signal names being actually configured there. Its own poll cadence is
+clamped to a 30-second floor regardless of `APP_FACTORY_POLL_INTERVAL_MS` (an unattended real-model
+loop stays deliberately slow); a signal's `checkIntervalMinutes` is set at `signal create` time or
+later via `signal reschedule <signal-id> <minutes|none>`. Default OFF, matching
+`APP_FACTORY_ROOMS_ENABLED`'s own opt-in shape -- omit it and `signal.run-now` keeps working
+exactly as before, just manually.
+
+**CLI gap:** as of this wave, `node apps/cli/dist/index.js signal create` does not yet parse a
+`--check-interval-minutes` flag, and there is no `signal reschedule` subcommand at the CLI layer
+(the wire op, `command-client`'s `rescheduleSignal`, and the daemon-side handler are all real and
+round-trip fine) -- reach either through `@app-factory/command-client`'s `CommandClient` directly,
+or the Swift client, until the CLI verb lands.
 
 The daemon owns `.../studio-dev/runtime/daemon.sock` and that directory's SQLite control plane.
 Stop it with `Control-C`. If startup rejects the runtime, verify every directory is owned by the

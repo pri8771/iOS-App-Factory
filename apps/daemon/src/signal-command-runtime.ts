@@ -1,11 +1,16 @@
+import { createHash, randomUUID } from "node:crypto";
+
 import {
   RoomPersonaSchema,
+  Sha256DigestSchema,
   SignalIdSchema,
   SignalScoutFindingV1Schema,
+  canonicalSignalInsightDigestInputV1,
   type CommandRequestV1,
   type CommandResultV1,
   type IsoInstant,
   type SignalId,
+  type SignalInsightId,
   type SignalInsightV1,
   type SignalScoutFindingV1,
   type SignalScoutRunOutcomeV1,
@@ -13,6 +18,7 @@ import {
 } from "@app-factory/contracts";
 import type { FactoryRepositories } from "@app-factory/kernel";
 import type { ParticipantAdapter, ParticipantContext } from "@app-factory/studio-room-adapters";
+import type { RoomProviderCatalogPort } from "@app-factory/studio-rooms";
 
 import { CommandHandlerError } from "./unix-command-server.js";
 
@@ -42,6 +48,7 @@ export function executeSignalCreateCommand(
     watchDescription: request.payload.watchDescription,
     scoutProvider: request.payload.scoutProvider,
     createdAt: observedAt,
+    checkIntervalMinutes: request.payload.checkIntervalMinutes,
   });
   return { operation: "signal.create", signal: created };
 }
@@ -78,6 +85,21 @@ export function executeSignalResumeCommand(
   const existing = requireSignal(repositories, request.payload.signalId);
   const signal = repositories.signals.setStatus(existing.signalId, "active");
   return { operation: "signal.resume", signal };
+}
+
+/** Sets or clears (`null`) a signal's scheduled check interval (Architecture decision 11). A plain
+ *  repository write dispatched through the normal serial executor, exactly like pause/resume --
+ *  the scheduler itself (`signal-scheduler.ts`) only ever READS `checkIntervalMinutes`. */
+export function executeSignalRescheduleCommand(
+  repositories: Pick<FactoryRepositories, "signals">,
+  request: Extract<CommandRequestV1, { operation: "signal.reschedule" }>,
+): CommandResultV1 {
+  const existing = requireSignal(repositories, request.payload.signalId);
+  const signal = repositories.signals.reschedule(
+    existing.signalId,
+    request.payload.checkIntervalMinutes,
+  );
+  return { operation: "signal.reschedule", signal };
 }
 
 export function buildInsightListResultV1(
@@ -134,6 +156,7 @@ export async function runSignalScout(
       kind: "scout-failed",
       code: "scout-not-configured",
       message: `No configured room participant answers to provider "${signal.scoutProvider}"; configure it (APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG) before running this signal.`,
+      usage: null,
     };
   }
   const context: ParticipantContext = {
@@ -158,12 +181,13 @@ export async function runSignalScout(
     reportWorkerPid: () => undefined,
   };
   const contribution = await adapter.contribute(context);
-  if (contribution.kind === "pass") return { kind: "nothing-new" };
+  if (contribution.kind === "pass") return { kind: "nothing-new", usage: contribution.usage };
   if (contribution.kind === "error") {
     return {
       kind: "scout-failed",
       code: "scout-error",
       message: `Scout "${signal.scoutProvider}" answered with error(${contribution.code}).`,
+      usage: null,
     };
   }
   let decoded: unknown;
@@ -174,6 +198,7 @@ export async function runSignalScout(
       kind: "scout-failed",
       code: "scout-malformed-finding",
       message: "Scout answer was not valid JSON.",
+      usage: contribution.usage,
     };
   }
   const parsed = SignalScoutFindingV1Schema.safeParse(decoded);
@@ -182,9 +207,10 @@ export async function runSignalScout(
       kind: "scout-failed",
       code: "scout-malformed-finding",
       message: `Scout answer did not match the required finding schema: ${parsed.error.issues[0]?.message ?? "invalid"}.`,
+      usage: contribution.usage,
     };
   }
-  return { kind: "found", finding: parsed.data };
+  return { kind: "found", finding: parsed.data, usage: contribution.usage };
 }
 
 /** Projects a Scout's accepted finding onto the durable shape, minus `insightDigest` (the caller
@@ -207,4 +233,94 @@ export function insightFromFinding(
     confidence: finding.confidence,
     citations: finding.citations,
   };
+}
+
+export type PerformSignalCheckDependencies = Readonly<{
+  scoutParticipants: SignalScoutParticipantsPort;
+  signals: Pick<FactoryRepositories["signals"], "recordCheck">;
+  signalInsights: Pick<FactoryRepositories["signalInsights"], "record" | "listBySignal">;
+  /** The honest token ledger (Wave 7, Architecture decision 6): one `source: "signal"` row per
+   *  scout call that reported usable usage. */
+  tokenUsage: Pick<FactoryRepositories["tokenUsage"], "append">;
+  /** Resolves `signal.scoutProvider` to the family/model the `token_usage` row attributes to --
+   *  the SAME participants config `scoutParticipants` was built from. */
+  providerCatalog: RoomProviderCatalogPort;
+}>;
+
+export type PerformSignalCheckResult = Readonly<{
+  signal: SignalV1;
+  insight: SignalInsightV1 | null;
+  outcome: SignalScoutRunOutcomeV1;
+}>;
+
+/**
+ * The shared scout-execution core of `signal.run-now` (Wave 7): resolves recent headlines, calls
+ * `runSignalScout`, records an accepted finding as a durable Insight, appends one `token_usage` row
+ * whenever the scout call reported usable usage, and always calls `recordCheck` -- whether the
+ * scout found something, found nothing new, or failed outright (`SignalScoutRunOutcomeV1`'s three
+ * kinds). Extracted from `command-runtime.ts`'s `runSignalNow` so the new `signal-scheduler.ts` loop
+ * shares the exact same core; the wire `signal.run-now` op keeps its own command-ledger idempotency
+ * envelope (ledger check before, persist after) wrapped AROUND a call to this function, mirroring
+ * `release.observe`'s shape. `ids.insightId` is minted by the caller -- `command-runtime.ts` derives
+ * it from the commandId, `signal-scheduler.ts` from a slot-aligned identity -- so a retried check
+ * dedupes through `signalInsights.record`'s own digest-matching idempotency (same ID + same digest
+ * -> `inserted: false`), never a duplicate row. A genuine conflict (same ID, a DIFFERENT digest --
+ * e.g. a live model answering differently on a same-slot retry) is a real edge case neither this
+ * function nor its pre-Wave-7 predecessor specially handles: `signalInsights.record` throws, and
+ * `recordCheck` is skipped for that attempt, exactly like today's `signal.run-now` on an equivalent
+ * repository-level conflict -- the caller's own retry/backoff (the scheduler's bounded backoff, or a
+ * client re-issuing `signal.run-now`) is what recovers, not a fabricated success here.
+ */
+export async function performSignalCheck(
+  deps: PerformSignalCheckDependencies,
+  signal: SignalV1,
+  ids: Readonly<{ insightId: SignalInsightId }>,
+  now: IsoInstant,
+  options: Readonly<{ signal: AbortSignal }>,
+): Promise<PerformSignalCheckResult> {
+  const recentHeadlines = deps.signalInsights
+    .listBySignal(signal.signalId)
+    .slice(0, 10)
+    .map((insight) => insight.headline);
+  const outcome = await runSignalScout(deps.scoutParticipants, signal, recentHeadlines, options);
+
+  let insight: SignalInsightV1 | null = null;
+  if (outcome.kind === "found") {
+    const draft = insightFromFinding(outcome.finding, {
+      insightId: ids.insightId,
+      signalId: signal.signalId,
+      discoveredAt: now,
+    });
+    const insightDigest = Sha256DigestSchema.parse(
+      `sha256:${createHash("sha256")
+        .update(canonicalSignalInsightDigestInputV1(draft), "utf8")
+        .digest("hex")}`,
+    );
+    const recorded = deps.signalInsights.record({ ...draft, insightDigest });
+    insight = recorded.insight;
+  }
+
+  const usage = outcome.usage;
+  if (usage !== null) {
+    const info = deps.providerCatalog.resolve(signal.scoutProvider);
+    deps.tokenUsage.append({
+      schemaVersion: 1,
+      usageId: randomUUID(),
+      occurredAt: now,
+      providerFamily: info.family,
+      providerKey: signal.scoutProvider,
+      model: info.model,
+      source: "signal",
+      roomId: null,
+      phaseRunId: null,
+      signalId: signal.signalId,
+      inputTokens: usage.reported?.inputTokens ?? null,
+      outputTokens: usage.reported?.outputTokens ?? null,
+      cachedInputTokens: usage.reported?.cachedInputTokens ?? null,
+      costUsdMicros: usage.costUsdMicros ?? null,
+    });
+  }
+
+  const updatedSignal = deps.signals.recordCheck(signal.signalId, now, insight !== null);
+  return { signal: updatedSignal, insight, outcome };
 }

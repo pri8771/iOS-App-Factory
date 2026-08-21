@@ -24,10 +24,12 @@ type SignalRow = Readonly<{
   last_checked_at: string | null;
   check_count: number;
   insight_count: number;
+  check_interval_minutes: number | null;
 }>;
 
 const SIGNAL_SELECT = `SELECT signal_id, schema_version, name, watch_description, scout_provider,
-   status, created_at, last_checked_at, check_count, insight_count FROM signals`;
+   status, created_at, last_checked_at, check_count, insight_count, check_interval_minutes
+   FROM signals`;
 
 function decodeSignal(row: SignalRow): SignalV1 {
   return SignalV1Schema.parse({
@@ -41,6 +43,7 @@ function decodeSignal(row: SignalRow): SignalV1 {
     lastCheckedAt: row.last_checked_at,
     checkCount: row.check_count,
     insightCount: row.insight_count,
+    checkIntervalMinutes: row.check_interval_minutes,
   });
 }
 
@@ -75,13 +78,16 @@ export class SignalRepository {
     watchDescription: string;
     scoutProvider: string;
     createdAt: string;
+    /** `null` (manual-only, the default before Architecture decision 11's scheduler) or how often
+     *  `signal-scheduler.ts`'s loop is willing to run this signal's Scout, in minutes. */
+    checkIntervalMinutes?: number | null;
   }): SignalV1 {
     this.database
       .prepare(
         `INSERT INTO signals (
            signal_id, schema_version, name, watch_description, scout_provider, status,
-           created_at, last_checked_at, check_count, insight_count
-         ) VALUES (?, 1, ?, ?, ?, 'active', ?, NULL, 0, 0)`,
+           created_at, last_checked_at, check_count, insight_count, check_interval_minutes
+         ) VALUES (?, 1, ?, ?, ?, 'active', ?, NULL, 0, 0, ?)`,
       )
       .run(
         input.signalId,
@@ -89,6 +95,7 @@ export class SignalRepository {
         input.watchDescription,
         input.scoutProvider,
         input.createdAt,
+        input.checkIntervalMinutes ?? null,
       );
     const created = this.findById(input.signalId);
     if (created === null) throw new Error("Signal insert did not persist");
@@ -104,6 +111,18 @@ export class SignalRepository {
     this.database
       .prepare(`UPDATE signals SET status = ? WHERE signal_id = ?`)
       .run(status, signalId);
+    const updated = this.findById(signalId);
+    if (updated === null) throw new Error("Signal disappeared during update");
+    return updated;
+  }
+
+  /** Sets or clears (`null`) `checkIntervalMinutes` (Architecture decision 11's `signal.reschedule`).
+   *  A plain repository write; the scheduler loop only ever reads this column. */
+  public reschedule(signalId: SignalId, checkIntervalMinutes: number | null): SignalV1 {
+    this.requireExisting(signalId);
+    this.database
+      .prepare(`UPDATE signals SET check_interval_minutes = ? WHERE signal_id = ?`)
+      .run(checkIntervalMinutes, signalId);
     const updated = this.findById(signalId);
     if (updated === null) throw new Error("Signal disappeared during update");
     return updated;

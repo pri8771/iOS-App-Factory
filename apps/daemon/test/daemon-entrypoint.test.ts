@@ -167,6 +167,35 @@ describe("daemon process configuration", () => {
     });
   });
 
+  it("signal scheduler: absent by default, and clamps its poll cadence to a 30s floor when enabled (Wave 7)", async () => {
+    const directory = await root();
+    const authFile = join(directory, "authorization");
+    await writeFile(authFile, TOKEN, { mode: 0o600 });
+
+    // Default (APP_FACTORY_SIGNAL_SCHEDULER_ENABLED unset): the resolved configuration carries no
+    // `signalScheduler` key at all -- `factory-daemon-service.ts` never builds the subsystem.
+    const disabled = await loadDaemonProcessConfiguration({
+      APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+      APP_FACTORY_AUTH_FILE: authFile,
+      APP_FACTORY_DAEMON_VERSION: "0.3.0-test",
+      APP_FACTORY_POLL_INTERVAL_MS: "20",
+    });
+    expect(disabled).not.toHaveProperty("signalScheduler");
+
+    // Enabled, with the daemon's own global poll cadence (20ms, test-fast) far below the
+    // scheduler's own 30s floor: the resolved config clamps to the floor, never the raw value --
+    // an unattended real-model loop stays on a deliberately slow, opt-in cadence.
+    const enabled = await loadDaemonProcessConfiguration({
+      APP_FACTORY_RUNTIME_DIR: join(directory, "runtime"),
+      APP_FACTORY_AUTH_FILE: authFile,
+      APP_FACTORY_DAEMON_VERSION: "0.3.0-test",
+      APP_FACTORY_POLL_INTERVAL_MS: "20",
+      APP_FACTORY_SIGNAL_SCHEDULER_ENABLED: "1",
+    });
+    expect(enabled.signalScheduler).toEqual({ enabled: true, pollIntervalMs: 30_000 });
+    expect(enabled.pollIntervalMs).toBe(20);
+  });
+
   it("rejects a group-readable credential and a symlink", async () => {
     const directory = await root();
     const authFile = join(directory, "authorization");

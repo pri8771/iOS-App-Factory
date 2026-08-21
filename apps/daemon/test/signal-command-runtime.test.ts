@@ -69,12 +69,17 @@ describe("runSignalScout (pure)", () => {
     expect(outcome).toMatchObject({ kind: "scout-failed", code: "scout-not-configured" });
   });
 
-  it("returns nothing-new on a pass", async () => {
-    const adapter = scriptedAdapter(() => ({ kind: "pass", usage: { tokensUsed: 10 } }));
+  it("returns nothing-new on a pass, carrying the contribution's usage", async () => {
+    const adapter = scriptedAdapter(() => ({
+      kind: "pass",
+      usage: { tokensUsed: 10, reported: null, costUsdMicros: null },
+    }));
     const outcome = await runSignalScout({ resolve: () => adapter }, signal, [], {
       signal: new AbortController().signal,
     });
-    expect(outcome).toEqual({ kind: "nothing-new" });
+    expect(outcome).toMatchObject({ kind: "nothing-new" });
+    if (outcome.kind !== "nothing-new") throw new Error("expected nothing-new");
+    expect(outcome.usage).toEqual({ tokensUsed: 10, reported: null, costUsdMicros: null });
   });
 
   it("parses a well-formed finding, and feeds networkEnabled=true and prior headlines into the context", async () => {
@@ -169,6 +174,9 @@ describe("signal.* / insight.list through a live daemon", () => {
         phaseParticipants: {
           resolve: (provider) => (String(provider) === "codex" ? adapter : null),
         },
+        phaseProviderCatalog: {
+          resolve: (provider) => ({ family: "codex", model: `${provider}-test-model` }),
+        },
       });
       services.push(service);
       const client = createCommandClient({
@@ -210,6 +218,20 @@ describe("signal.* / insight.list through a live daemon", () => {
 
       const listed = await client.listSignals();
       expect(listed.signals.map((s) => s.signalId)).toEqual([created.signal.signalId]);
+
+      // Wave 7: the scout call that found something honestly recorded a source: "signal"
+      // token_usage row, attributed through the SAME provider catalog phase.run uses.
+      const usage = await client.usageSummary(1);
+      expect(usage.summary.rows.some((row) => row.providerKey === "codex")).toBe(true);
+
+      // Wave 7: signal.reschedule round-trips a check interval, and clears it back to manual-only.
+      const rescheduled = await client.rescheduleSignal(created.signal.signalId, 15);
+      expect(rescheduled.signal.checkIntervalMinutes).toBe(15);
+      const cleared = await client.rescheduleSignal(created.signal.signalId, null);
+      expect(cleared.signal.checkIntervalMinutes).toBeNull();
+      await expect(
+        client.rescheduleSignal("9a000000-0000-4000-8000-000000000099", 15),
+      ).rejects.toMatchObject({ code: "signal.not-found" });
 
       await expect(
         client.runSignalNow("9a000000-0000-4000-8000-000000000099"),

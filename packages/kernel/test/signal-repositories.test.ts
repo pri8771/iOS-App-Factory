@@ -110,6 +110,37 @@ describe("SignalRepository", () => {
     db.close();
   });
 
+  it("stores checkIntervalMinutes on create (null by default) and reschedule sets or clears it", () => {
+    const db = database();
+    const repository = createFactoryRepositories(db).signals;
+    const manualOnly = repository.create({
+      signalId: signalId(20),
+      name: "Manual only",
+      watchDescription: "Watch something, manually.",
+      scoutProvider: "codex",
+      createdAt: "2026-08-19T00:00:00.000Z",
+    });
+    expect(manualOnly.checkIntervalMinutes).toBeNull();
+
+    const scheduled = repository.create({
+      signalId: signalId(21),
+      name: "Scheduled",
+      watchDescription: "Watch something, on a schedule.",
+      scoutProvider: "ollama",
+      createdAt: "2026-08-19T00:00:00.000Z",
+      checkIntervalMinutes: 15,
+    });
+    expect(scheduled.checkIntervalMinutes).toBe(15);
+    expect(repository.findById(scheduled.signalId)?.checkIntervalMinutes).toBe(15);
+
+    const rescheduled = repository.reschedule(scheduled.signalId, 60);
+    expect(rescheduled.checkIntervalMinutes).toBe(60);
+    const cleared = repository.reschedule(scheduled.signalId, null);
+    expect(cleared.checkIntervalMinutes).toBeNull();
+    expect(() => repository.reschedule(signalId(99), 30)).toThrow(SignalNotFoundError);
+    db.close();
+  });
+
   it("refuses to update or check a signal that does not exist", () => {
     const db = database();
     const repository = createFactoryRepositories(db).signals;
