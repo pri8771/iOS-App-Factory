@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  AgentUsageV1Schema,
   IsoInstantSchema,
   MAX_ROOM_MESSAGE_BODY_LENGTH_V1,
+  NonNegativeSafeIntegerSchema,
   ROOM_MAX_CONSECUTIVE_AGENT_MESSAGES_V1,
   RoomAgentErrorCodeV1Schema,
   RoomGrantIdSchema,
@@ -137,8 +139,15 @@ const ContributionResultSchema = z.discriminatedUnion("kind", [
     kind: z.literal("message"),
     body: z.string().min(1).max(MAX_ROOM_MESSAGE_BODY_LENGTH_V1),
     tokensUsed: TokensUsedSchema,
+    usage: AgentUsageV1Schema.nullable().default(null),
+    costUsdMicros: NonNegativeSafeIntegerSchema.nullable().default(null),
   }),
-  z.strictObject({ kind: z.literal("pass"), tokensUsed: TokensUsedSchema }),
+  z.strictObject({
+    kind: z.literal("pass"),
+    tokensUsed: TokensUsedSchema,
+    usage: AgentUsageV1Schema.nullable().default(null),
+    costUsdMicros: NonNegativeSafeIntegerSchema.nullable().default(null),
+  }),
   z.strictObject({
     kind: z.literal("error"),
     code: RoomAgentErrorCodeV1Schema,
@@ -570,7 +579,7 @@ export class RoomModerator {
           case "message":
             return await this.#commit(grant, participant, result, unattended, reservation);
           case "pass":
-            return this.#pass(grant, result.tokensUsed, unattended, reservation);
+            return this.#pass(grant, result, unattended, reservation);
           case "error":
             return this.#fail(
               grant,
@@ -643,10 +652,11 @@ export class RoomModerator {
           messageSequence: committed.message.sequence,
           tokensUsed: result.tokensUsed,
           revalidated,
-          // The honest token ledger (contracts Architecture decision 6) is not wired up yet --
-          // no adapter reports real usage/cost through this path until a later wave.
-          usage: null,
-          costUsdMicros: null,
+          // The honest token ledger (contracts Architecture decision 6): whatever the contributor
+          // itself reported for this contribution, never fabricated when the adapter reported
+          // nothing usable.
+          usage: result.usage,
+          costUsdMicros: result.costUsdMicros,
         };
       } catch (error) {
         if (!(error instanceof RoomHeadMovedError)) throw error;
@@ -704,16 +714,17 @@ export class RoomModerator {
 
   #pass(
     grant: RoomGrantV1,
-    tokensUsed: number,
+    result: Extract<RoomContributionResult, { kind: "pass" }>,
     unattended: boolean,
     reservation: QuotaReservation,
   ): RoomGrantOutcomeV1 {
     const room = this.#repository.requireRoom(grant.roomId);
+    const tokensUsed = result.tokensUsed;
     const outcome: RoomGrantOutcomeV1 = {
       kind: "passed",
       tokensUsed,
-      usage: null,
-      costUsdMicros: null,
+      usage: result.usage,
+      costUsdMicros: result.costUsdMicros,
     };
     this.#repository.finishGrant({
       grantId: grant.grantId,

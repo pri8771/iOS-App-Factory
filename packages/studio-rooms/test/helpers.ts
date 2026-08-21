@@ -272,6 +272,8 @@ export class FakeContributor implements ContributorPort {
         kind: "message",
         body: `${request.participant.persona} reply #${String(request.grant.roundNumber)}`,
         tokensUsed: 100,
+        usage: null,
+        costUsdMicros: null,
       }),
   ) {
     this.#fallback = fallback;

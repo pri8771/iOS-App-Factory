@@ -5,6 +5,7 @@ import {
   createOllamaScorer,
   DEFAULT_OLLAMA_BASE_URL,
   DEFAULT_OLLAMA_MODEL,
+  type OllamaTransportPort,
 } from "@app-factory/ollama-scorer";
 import { createFetchProviderHttpTransport } from "@app-factory/provider-transport";
 import {
@@ -109,27 +110,60 @@ export type RoomOllamaParticipantConfigV1 = Readonly<{
    * default (60s) targets a small, already-warm model. A heavier local model (e.g. a 14B coder
    * model) processing a large `docs/` context routinely needs more than that. */
   timeoutMs?: number;
+  /** Per-instance output cap; `createOllamaParticipant`'s own default (150) is preserved when
+   *  absent. */
+  maxOutputTokens?: number;
 }>;
+
+/** One named local Ollama instance in the array form of `config.ollama` (Architecture decision 5):
+ *  registers under the `ollama-<id>` provider key, alongside any number of other instances. */
+export type RoomOllamaInstanceConfigV1 = Readonly<{
+  /** Short slug; becomes this instance's RoomProvider key as `ollama-<id>`. Unique within the
+   *  `ollama` array, same pattern as `openrouter.id`. */
+  id: string;
+  baseUrl?: string;
+  model?: string;
+  timeoutMs?: number;
+  maxOutputTokens?: number;
+}>;
+
+/** `config.ollama` accepts either the legacy singular object (registers under the bare `"ollama"`
+ *  key) or an array of named instances (registers under `"ollama-<id>"` each) -- never both at
+ *  once. */
+export type RoomOllamaConfigV1 =
+  RoomOllamaParticipantConfigV1 | readonly RoomOllamaInstanceConfigV1[];
+
+/** Chooses which configured Ollama instance backs the Tier-1 admission scorer and the rolling
+ *  summarizer. `ollama` is either the literal `"legacy"` (the singular object form) or one of the
+ *  array form's instance ids. Omitted entirely, the default is the legacy entry when present, else
+ *  the first array instance. */
+export type RoomScorerConfigV1 = Readonly<{ ollama: string }>;
 
 export type RoomOpenRouterParticipantConfigV1 = Readonly<{
   /** Short slug; becomes this instance's RoomProvider key as `openrouter-<id>`. Unique within the
    *  `openrouter` array -- rooms can be configured against several named OpenRouter instances (one
-   *  per model) simultaneously, unlike codex/claude/ollama which are each configured at most once. */
+   *  per model) simultaneously, unlike codex/claude which are each configured at most once. */
   id: string;
   model: string;
   credentialReference: CredentialReferenceV1;
   baseUrl?: string;
   timeoutMs?: number;
+  /** Per-instance output cap; `createOpenRouterParticipant`'s own default (150) is preserved when
+   *  absent. */
+  maxOutputTokens?: number;
 }>;
 
 export type RoomParticipantsConfigV1 = Readonly<{
   schemaVersion: 1;
   codex?: RoomCodexParticipantConfigV1;
   claude?: RoomClaudeParticipantConfigV1;
-  ollama?: RoomOllamaParticipantConfigV1;
+  ollama?: RoomOllamaConfigV1;
   openrouter?: readonly RoomOpenRouterParticipantConfigV1[];
+  scorer?: RoomScorerConfigV1;
   roster?: RoomRosterConfigV1;
 }>;
+
+const INSTANCE_ID_PATTERN = /^[a-z][a-z0-9-]{0,40}$/;
 
 function parseCodexParticipantConfig(value: unknown): RoomCodexParticipantConfigV1 {
   if (!isRecord(value)) configurationError("codex participant configuration must be an object.");
@@ -190,9 +224,20 @@ function boundedTimeoutMs(value: unknown, label: string): number {
   return value;
 }
 
+function boundedMaxOutputTokens(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > 100_000) {
+    configurationError(`${label} must be an integer number of tokens between 1 and 100000.`);
+  }
+  return value;
+}
+
 function parseOllamaParticipantConfig(value: unknown): RoomOllamaParticipantConfigV1 {
   if (!isRecord(value)) configurationError("ollama participant configuration must be an object.");
-  allowedKeys(value, ["baseUrl", "model", "timeoutMs"], "ollama participant configuration");
+  allowedKeys(
+    value,
+    ["baseUrl", "model", "timeoutMs", "maxOutputTokens"],
+    "ollama participant configuration",
+  );
   return {
     ...(value.baseUrl === undefined
       ? {}
@@ -203,7 +248,68 @@ function parseOllamaParticipantConfig(value: unknown): RoomOllamaParticipantConf
     ...(value.timeoutMs === undefined
       ? {}
       : { timeoutMs: boundedTimeoutMs(value.timeoutMs, "ollama.timeoutMs") }),
+    ...(value.maxOutputTokens === undefined
+      ? {}
+      : {
+          maxOutputTokens: boundedMaxOutputTokens(value.maxOutputTokens, "ollama.maxOutputTokens"),
+        }),
   };
+}
+
+function parseOneOllamaInstanceConfig(value: unknown): RoomOllamaInstanceConfigV1 {
+  if (!isRecord(value)) configurationError("ollama instance configuration must be an object.");
+  allowedKeys(
+    value,
+    ["id", "baseUrl", "model", "timeoutMs", "maxOutputTokens"],
+    "ollama instance configuration",
+  );
+  const id = boundedString(value.id, "ollama instance id", 41);
+  if (!INSTANCE_ID_PATTERN.test(id)) {
+    configurationError(
+      "ollama instance id must be lowercase letters, digits, and hyphens, starting with a letter.",
+    );
+  }
+  return {
+    id,
+    ...(value.baseUrl === undefined
+      ? {}
+      : { baseUrl: boundedString(value.baseUrl, "ollama.baseUrl", 256) }),
+    ...(value.model === undefined
+      ? {}
+      : { model: boundedString(value.model, "ollama.model", 128) }),
+    ...(value.timeoutMs === undefined
+      ? {}
+      : { timeoutMs: boundedTimeoutMs(value.timeoutMs, "ollama.timeoutMs") }),
+    ...(value.maxOutputTokens === undefined
+      ? {}
+      : {
+          maxOutputTokens: boundedMaxOutputTokens(value.maxOutputTokens, "ollama.maxOutputTokens"),
+        }),
+  };
+}
+
+/** `config.ollama` disambiguates legacy-object vs named-array purely by JS shape (`Array.isArray`)
+ *  -- the legacy object never carried an `id` field, so there is no ambiguity to resolve. */
+function parseOllamaConfig(value: unknown): RoomOllamaConfigV1 {
+  if (Array.isArray(value)) {
+    if (value.length < 1) configurationError("ollama array configuration must be non-empty.");
+    const parsed = value.map((entry) => parseOneOllamaInstanceConfig(entry));
+    const ids = new Set<string>();
+    for (const entry of parsed) {
+      if (ids.has(entry.id)) {
+        configurationError(`ollama instance id "${entry.id}" is configured more than once.`);
+      }
+      ids.add(entry.id);
+    }
+    return parsed;
+  }
+  return parseOllamaParticipantConfig(value);
+}
+
+function parseScorerConfig(value: unknown): RoomScorerConfigV1 {
+  if (!isRecord(value)) configurationError("scorer configuration must be an object.");
+  allowedKeys(value, ["ollama"], "scorer configuration");
+  return { ollama: boundedString(value.ollama, "scorer.ollama", 64) };
 }
 
 function parseOpenRouterCredentialReference(value: unknown): CredentialReferenceV1 {
@@ -219,11 +325,11 @@ function parseOneOpenRouterParticipantConfig(value: unknown): RoomOpenRouterPart
     configurationError("openrouter participant configuration must be an object.");
   allowedKeys(
     value,
-    ["id", "model", "credentialReference", "baseUrl", "timeoutMs"],
+    ["id", "model", "credentialReference", "baseUrl", "timeoutMs", "maxOutputTokens"],
     "openrouter participant configuration",
   );
   const id = boundedString(value.id, "openrouter.id", 41);
-  if (!/^[a-z][a-z0-9-]{0,40}$/.test(id)) {
+  if (!INSTANCE_ID_PATTERN.test(id)) {
     configurationError(
       "openrouter.id must be lowercase letters, digits, and hyphens, starting with a letter.",
     );
@@ -238,6 +344,14 @@ function parseOneOpenRouterParticipantConfig(value: unknown): RoomOpenRouterPart
     ...(value.timeoutMs === undefined
       ? {}
       : { timeoutMs: boundedTimeoutMs(value.timeoutMs, "openrouter.timeoutMs") }),
+    ...(value.maxOutputTokens === undefined
+      ? {}
+      : {
+          maxOutputTokens: boundedMaxOutputTokens(
+            value.maxOutputTokens,
+            "openrouter.maxOutputTokens",
+          ),
+        }),
   };
 }
 
@@ -262,7 +376,7 @@ export function parseRoomParticipantsConfigV1(input: unknown): RoomParticipantsC
   if (!isRecord(input)) configurationError(`${PARTICIPANTS_CONFIG_LABEL} must be an object.`);
   allowedKeys(
     input,
-    ["schemaVersion", "codex", "claude", "ollama", "openrouter", "roster"],
+    ["schemaVersion", "codex", "claude", "ollama", "openrouter", "scorer", "roster"],
     PARTICIPANTS_CONFIG_LABEL,
   );
   if (input.schemaVersion !== 1)
@@ -275,14 +389,30 @@ export function parseRoomParticipantsConfigV1(input: unknown): RoomParticipantsC
       configurationError(`${PARTICIPANTS_CONFIG_LABEL} has an invalid roster.`, error);
     }
   }
+  const ollama = input.ollama === undefined ? undefined : parseOllamaConfig(input.ollama);
+  const scorer = input.scorer === undefined ? undefined : parseScorerConfig(input.scorer);
+  if (scorer !== undefined) {
+    const validIds =
+      ollama === undefined
+        ? []
+        : Array.isArray(ollama)
+          ? ollama.map((instance) => instance.id)
+          : ["legacy"];
+    if (!validIds.includes(scorer.ollama)) {
+      configurationError(
+        `scorer.ollama "${scorer.ollama}" does not match any configured ollama instance.`,
+      );
+    }
+  }
   return {
     schemaVersion: 1,
     ...(input.codex === undefined ? {} : { codex: parseCodexParticipantConfig(input.codex) }),
     ...(input.claude === undefined ? {} : { claude: parseClaudeParticipantConfig(input.claude) }),
-    ...(input.ollama === undefined ? {} : { ollama: parseOllamaParticipantConfig(input.ollama) }),
+    ...(ollama === undefined ? {} : { ollama }),
     ...(input.openrouter === undefined
       ? {}
       : { openrouter: parseOpenRouterParticipantsConfig(input.openrouter) }),
+    ...(scorer === undefined ? {} : { scorer }),
     ...(roster === undefined ? {} : { roster }),
   };
 }
@@ -330,11 +460,16 @@ export function buildRoomParticipantsCatalogSourceV1(
       cliVersion: null,
     });
   }
-  if (config.ollama !== undefined) {
+  // Only the legacy singular object form is projected here: multi-instance `ollama-<id>` catalog
+  // surfacing (like the openrouter `roomProviderKey` derivation) is Wave 5 work, not this wave's.
+  // (`Array.isArray`'s negative branch does not exclude a `readonly T[]` union member -- see
+  // `normalizeOllamaInstances`'s comment -- so the legacy member is recovered with a cast.)
+  if (config.ollama !== undefined && !Array.isArray(config.ollama)) {
+    const legacy = config.ollama as RoomOllamaParticipantConfigV1;
     providers.push({
       provider: "ollama",
       roomProviderKey: null,
-      model: config.ollama.model ?? DEFAULT_OLLAMA_MODEL,
+      model: legacy.model ?? DEFAULT_OLLAMA_MODEL,
       cliVersion: null,
     });
   }
@@ -358,6 +493,92 @@ export function buildRoomParticipantsCatalogSourceV1(
   return { providers, roster };
 }
 
+/** One normalized local Ollama instance, whichever of the two `config.ollama` shapes it came
+ *  from -- `instanceKey` is `"legacy"` for the singular object form, else the array entry's `id`. */
+type NormalizedOllamaInstance = Readonly<{
+  instanceKey: string;
+  baseUrl: string;
+  model: string;
+  timeoutMs?: number;
+  maxOutputTokens?: number;
+}>;
+
+function normalizeOllamaInstances(
+  ollama: RoomOllamaConfigV1 | undefined,
+): readonly NormalizedOllamaInstance[] {
+  if (ollama === undefined) return [];
+  if (Array.isArray(ollama)) {
+    return ollama.map((instance) => ({
+      instanceKey: instance.id,
+      baseUrl: instance.baseUrl ?? DEFAULT_OLLAMA_BASE_URL,
+      model: instance.model ?? DEFAULT_OLLAMA_MODEL,
+      ...(instance.timeoutMs === undefined ? {} : { timeoutMs: instance.timeoutMs }),
+      ...(instance.maxOutputTokens === undefined
+        ? {}
+        : { maxOutputTokens: instance.maxOutputTokens }),
+    }));
+  }
+  // `Array.isArray` narrows the true branch above cleanly, but TypeScript does not exclude a
+  // `readonly T[]` union member from the false branch (a known checker limitation), so the
+  // legacy-object member is recovered with an explicit cast rather than relying on that narrowing.
+  const legacy = ollama as RoomOllamaParticipantConfigV1;
+  return [
+    {
+      instanceKey: "legacy",
+      baseUrl: legacy.baseUrl ?? DEFAULT_OLLAMA_BASE_URL,
+      model: legacy.model ?? DEFAULT_OLLAMA_MODEL,
+      ...(legacy.timeoutMs === undefined ? {} : { timeoutMs: legacy.timeoutMs }),
+      ...(legacy.maxOutputTokens === undefined ? {} : { maxOutputTokens: legacy.maxOutputTokens }),
+    },
+  ];
+}
+
+/**
+ * Builds one `ParticipantAdapter` per normalized instance, registering each under its own
+ * provider key (the legacy bare `"ollama"`, or `"ollama-<id>"` per array entry) -- shared by both
+ * `buildRoomSubsystemConfiguration` and `buildPhaseParticipantsPortV1` so a room's cast and a
+ * phase's participants port always draw from the exact same configured pool (Architecture
+ * decision 5).
+ */
+function buildOllamaAdapters(
+  instances: readonly NormalizedOllamaInstance[],
+  transport: OllamaTransportPort,
+): ParticipantAdapter[] {
+  return instances.map((instance) =>
+    createOllamaParticipant({
+      ...(instance.instanceKey === "legacy" ? {} : { id: instance.instanceKey }),
+      transport,
+      baseUrl: instance.baseUrl,
+      model: instance.model,
+      ...(instance.timeoutMs === undefined ? {} : { timeoutMs: instance.timeoutMs }),
+      ...(instance.maxOutputTokens === undefined
+        ? {}
+        : { maxOutputTokens: instance.maxOutputTokens }),
+    }),
+  );
+}
+
+/**
+ * Picks the Ollama instance that backs the Tier-1 admission scorer and rolling summarizer
+ * (Architecture decision 5): an explicit `config.scorer.ollama` selection (validated against the
+ * configured instances at parse time by `parseRoomParticipantsConfigV1`, so this is a defensive
+ * second check for configs assembled by hand, e.g. in tests), else the legacy singular entry when
+ * present, else the first array instance. `null` only when no Ollama instance is configured at
+ * all -- the caller falls back to the bare default local endpoint in that case, preserving the
+ * pre-multi-instance behavior of always running a scorer even with no explicit `ollama` config.
+ */
+function resolveScorerOllamaInstance(
+  instances: readonly NormalizedOllamaInstance[],
+  scorer: RoomScorerConfigV1 | undefined,
+): NormalizedOllamaInstance | null {
+  if (scorer !== undefined) {
+    return instances.find((instance) => instance.instanceKey === scorer.ollama) ?? null;
+  }
+  const legacy = instances.find((instance) => instance.instanceKey === "legacy");
+  if (legacy !== undefined) return legacy;
+  return instances[0] ?? null;
+}
+
 /**
  * Builds every real port `RoomSubsystemConfiguration` needs (`scorer`,
  * `contributor`, `revalidator`, `quotaFactory`) from a parsed participants
@@ -378,20 +599,16 @@ export function buildRoomSubsystemConfiguration(
   if (config.claude !== undefined) {
     adapters.push(createClaudeParticipant(config.claude));
   }
-  const ollamaConfig = config.ollama ?? {};
   const ollamaTransport = createFetchOllamaTransport();
-  const ollamaBaseUrl = ollamaConfig.baseUrl ?? DEFAULT_OLLAMA_BASE_URL;
-  const ollamaModel = ollamaConfig.model ?? DEFAULT_OLLAMA_MODEL;
-  if (config.ollama !== undefined) {
-    adapters.push(
-      createOllamaParticipant({
-        transport: ollamaTransport,
-        baseUrl: ollamaBaseUrl,
-        model: ollamaModel,
-        ...(ollamaConfig.timeoutMs === undefined ? {} : { timeoutMs: ollamaConfig.timeoutMs }),
-      }),
-    );
-  }
+  const ollamaInstances = normalizeOllamaInstances(config.ollama);
+  adapters.push(...buildOllamaAdapters(ollamaInstances, ollamaTransport));
+  // Falls back to the bare default local endpoint when no `ollama` instance is configured at all,
+  // preserving the pre-multi-instance behavior of always running a scorer.
+  const scorerInstance: Pick<NormalizedOllamaInstance, "baseUrl" | "model"> =
+    resolveScorerOllamaInstance(ollamaInstances, config.scorer) ?? {
+      baseUrl: DEFAULT_OLLAMA_BASE_URL,
+      model: DEFAULT_OLLAMA_MODEL,
+    };
   if (config.openrouter !== undefined && config.openrouter.length > 0) {
     // One credential broker + fetch transport shared across every configured OpenRouter instance:
     // the broker resolves whichever `credentialReference` each request carries, so instances that
@@ -410,6 +627,9 @@ export function buildRoomSubsystemConfiguration(
           transport: openRouterTransport,
           ...(instance.baseUrl === undefined ? {} : { baseUrl: instance.baseUrl }),
           ...(instance.timeoutMs === undefined ? {} : { timeoutMs: instance.timeoutMs }),
+          ...(instance.maxOutputTokens === undefined
+            ? {}
+            : { maxOutputTokens: instance.maxOutputTokens }),
         }),
       );
     }
@@ -418,7 +638,7 @@ export function buildRoomSubsystemConfiguration(
   const charters = createRosterCharterProvider({
     transport: ollamaTransport,
     ...(config.roster === undefined ? {} : { roster: config.roster }),
-    summarizerConfig: { baseUrl: ollamaBaseUrl, model: ollamaModel },
+    summarizerConfig: { baseUrl: scorerInstance.baseUrl, model: scorerInstance.model },
   });
   const scorer = createOllamaRoomScorer({
     scorer: createOllamaScorer({
@@ -429,7 +649,7 @@ export function buildRoomSubsystemConfiguration(
       // three-way admission judgment) regularly needs more than that, so
       // this daemon composition widens it rather than forcing every room
       // scorer configuration to rediscover the same headroom.
-      config: { baseUrl: ollamaBaseUrl, model: ollamaModel, timeoutMs: 20_000 },
+      config: { baseUrl: scorerInstance.baseUrl, model: scorerInstance.model, timeoutMs: 20_000 },
     }),
     charters,
   });
@@ -493,14 +713,8 @@ export function buildPhaseParticipantsPortV1(
     const adapter = createClaudeParticipant(config.claude);
     adapters.set(String(adapter.provider), adapter);
   }
-  if (config.ollama !== undefined) {
-    const ollamaConfig = config.ollama;
-    const adapter = createOllamaParticipant({
-      transport: createFetchOllamaTransport(),
-      baseUrl: ollamaConfig.baseUrl ?? DEFAULT_OLLAMA_BASE_URL,
-      model: ollamaConfig.model ?? DEFAULT_OLLAMA_MODEL,
-      ...(ollamaConfig.timeoutMs === undefined ? {} : { timeoutMs: ollamaConfig.timeoutMs }),
-    });
+  const ollamaInstances = normalizeOllamaInstances(config.ollama);
+  for (const adapter of buildOllamaAdapters(ollamaInstances, createFetchOllamaTransport())) {
     adapters.set(String(adapter.provider), adapter);
   }
   if (config.openrouter !== undefined && config.openrouter.length > 0) {
@@ -516,6 +730,9 @@ export function buildPhaseParticipantsPortV1(
         transport: openRouterTransport,
         ...(instance.baseUrl === undefined ? {} : { baseUrl: instance.baseUrl }),
         ...(instance.timeoutMs === undefined ? {} : { timeoutMs: instance.timeoutMs }),
+        ...(instance.maxOutputTokens === undefined
+          ? {}
+          : { maxOutputTokens: instance.maxOutputTokens }),
       });
       adapters.set(String(adapter.provider), adapter);
     }

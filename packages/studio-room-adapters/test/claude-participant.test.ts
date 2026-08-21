@@ -55,6 +55,30 @@ describe("createClaudeParticipant", () => {
     expect(result).toMatchObject({ kind: "message", text: "Fake Claude says hi." });
   });
 
+  it("falls back to the len/4 tokensUsed estimate and reported null when the envelope carries no usage", async () => {
+    const result = await participant("success").contribute(context());
+    const expectedTokensUsed = Math.ceil("Fake Claude says hi.".length / 4);
+    expect(result).toEqual({
+      kind: "message",
+      text: "Fake Claude says hi.",
+      usage: { tokensUsed: expectedTokensUsed, reported: null, costUsdMicros: null },
+    });
+  });
+
+  it("reports honest usage and cost when the envelope carries usage and total_cost_usd", async () => {
+    const result = await participant("success-with-usage").contribute(context());
+    expect(result).toEqual({
+      kind: "message",
+      text: "Fake Claude says hi, with usage.",
+      usage: {
+        // The real output_tokens figure wins over the len/4 estimate once the envelope reports one.
+        tokensUsed: 45,
+        reported: { inputTokens: 120, outputTokens: 45, cachedInputTokens: 10 },
+        costUsdMicros: 3_400,
+      },
+    });
+  });
+
   it("maps api_error_status 429 to error(limit)", async () => {
     const result = await participant("error-limit").contribute(context());
     expect(result).toEqual({ kind: "error", code: "limit", retryAfterMs: null });

@@ -93,6 +93,25 @@ async function main() {
     process.exit(0);
   }
 
+  if (mode === "success-with-usage") {
+    process.stdout.write(
+      JSON.stringify({
+        type: "result",
+        subtype: "success",
+        is_error: false,
+        api_error_status: null,
+        result: JSON.stringify({
+          schemaVersion: 1,
+          kind: "message",
+          text: "Fake Claude says hi, with usage.",
+        }),
+        usage: { input_tokens: 120, output_tokens: 45, cache_read_input_tokens: 10 },
+        total_cost_usd: 0.0034,
+      }),
+    );
+    process.exit(0);
+  }
+
   if (mode === "echo-args") {
     process.stdout.write(
       JSON.stringify({

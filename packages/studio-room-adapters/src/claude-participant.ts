@@ -3,7 +3,7 @@ import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 
-import { RoomProviderSchema, type RoomProvider } from "@app-factory/contracts";
+import { RoomProviderSchema, type AgentUsageV1, type RoomProvider } from "@app-factory/contracts";
 
 import { boundedText, classifyFailureText } from "./failure-text.js";
 import { parseRoomContribution, ROOM_CONTRIBUTION_JSON_SCHEMA_V1 } from "./contribution-schema.js";
@@ -11,6 +11,7 @@ import type {
   ParticipantAdapter,
   ParticipantContext,
   ParticipantContributionResult,
+  ParticipantUsage,
 } from "./participant-adapter.js";
 import { renderParticipantInstruction } from "./render-context.js";
 
@@ -120,6 +121,8 @@ type ClaudeResultEnvelope = Readonly<{
   subtype?: string;
   result?: unknown;
   errors?: readonly unknown[];
+  usage?: unknown;
+  total_cost_usd?: unknown;
 }>;
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -133,6 +136,46 @@ function parseResultEnvelope(stdout: string): ClaudeResultEnvelope | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Honest token ledger (contracts Architecture decision 6): parses Claude's own `usage` envelope
+ * field when present. `null` whenever the envelope carries none of these three keys, never a
+ * fabricated zero.
+ */
+function parseClaudeUsage(envelope: ClaudeResultEnvelope): AgentUsageV1 | null {
+  const usage = envelope.usage;
+  if (!isRecord(usage)) return null;
+  const keys = ["input_tokens", "output_tokens", "cache_read_input_tokens"] as const;
+  if (!keys.some((key) => Object.hasOwn(usage, key))) return null;
+
+  const parsed: Record<(typeof keys)[number], number | null> = {
+    input_tokens: null,
+    output_tokens: null,
+    cache_read_input_tokens: null,
+  };
+  for (const key of keys) {
+    const value = usage[key];
+    if (value === undefined) continue;
+    if (!Number.isSafeInteger(value) || (value as number) < 0) return null;
+    parsed[key] = value as number;
+  }
+  return {
+    inputTokens: parsed.input_tokens,
+    outputTokens: parsed.output_tokens,
+    cachedInputTokens: parsed.cache_read_input_tokens,
+  };
+}
+
+/**
+ * Claude is the one provider this codebase trusts to self-report a dollar cost
+ * (`total_cost_usd`); every other adapter's `costUsdMicros` stays `null` (no invented per-token
+ * pricing, per contracts Architecture decision 6).
+ */
+function parseClaudeCostUsdMicros(envelope: ClaudeResultEnvelope): number | null {
+  const cost = envelope.total_cost_usd;
+  if (typeof cost !== "number" || !Number.isFinite(cost) || cost < 0) return null;
+  return Math.round(cost * 1_000_000);
 }
 
 function classifyErrorEnvelope(envelope: ClaudeResultEnvelope): ParticipantContributionResult {
@@ -284,15 +327,20 @@ async function runOnce(
       }
       try {
         const parsed = parseRoomContribution(envelope.result ?? "");
-        // Claude's JSON envelope does not report a token count separate from
-        // its dollar-cost accounting; the room's own tokensUsed accounting is
-        // therefore approximate for this provider (message length / 4 is the
-        // conventional bound used elsewhere in this codebase).
-        const tokensUsed = parsed.kind === "message" ? Math.ceil(parsed.text.length / 4) : 0;
+        const reported = parseClaudeUsage(envelope);
+        const costUsdMicros = parseClaudeCostUsdMicros(envelope);
+        // Claude's own `usage.output_tokens` is the honest per-turn figure when the envelope
+        // carries one. The len/4 estimate survives ONLY as the tokensUsed budget fallback when
+        // output_tokens is absent -- the conventional bound used elsewhere in this codebase --
+        // never as a stand-in for `reported`, which stays null in that case.
+        const tokensUsed =
+          reported?.outputTokens ??
+          (parsed.kind === "message" ? Math.ceil(parsed.text.length / 4) : 0);
+        const usage: ParticipantUsage = { tokensUsed, reported, costUsdMicros };
         finish(
           parsed.kind === "pass"
-            ? { kind: "pass", usage: { tokensUsed } }
-            : { kind: "message", text: parsed.text, usage: { tokensUsed } },
+            ? { kind: "pass", usage }
+            : { kind: "message", text: parsed.text, usage },
         );
       } catch {
         finish({ kind: "error", code: "internal", retryAfterMs: null });

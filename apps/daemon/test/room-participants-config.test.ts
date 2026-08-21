@@ -13,6 +13,7 @@ import {
   buildRoomSubsystemConfiguration,
   parseRoomParticipantsConfigV1,
   RoomParticipantsConfigurationError,
+  type RoomOllamaParticipantConfigV1,
 } from "../src/room-participants-config.js";
 
 const TOKEN = "daemon-private-authorization-token-000001";
@@ -97,8 +98,151 @@ describe("parseRoomParticipantsConfigV1", () => {
     });
     expect(config.codex?.model).toBe("gpt-test");
     expect(config.claude?.model).toBe("sonnet");
-    expect(config.ollama?.model).toBe("qwen2.5-coder:14b");
+    expect((config.ollama as RoomOllamaParticipantConfigV1 | undefined)?.model).toBe(
+      "qwen2.5-coder:14b",
+    );
     expect(config.roster?.rooms).toHaveLength(1);
+  });
+});
+
+describe("parseRoomParticipantsConfigV1 -- ollama multi-instance + scorer selection", () => {
+  it("parses the legacy singular object form, including a per-instance maxOutputTokens", () => {
+    const config = parseRoomParticipantsConfigV1({
+      schemaVersion: 1,
+      ollama: { baseUrl: "http://127.0.0.1:11434", maxOutputTokens: 500 },
+    });
+    expect(config.ollama).toEqual({ baseUrl: "http://127.0.0.1:11434", maxOutputTokens: 500 });
+  });
+
+  it("parses an array of named ollama instances with unique ids", () => {
+    const config = parseRoomParticipantsConfigV1({
+      schemaVersion: 1,
+      ollama: [
+        { id: "fast", model: "qwen2.5-coder:7b" },
+        { id: "reasoning", model: "qwen2.5-coder:32b", maxOutputTokens: 2_000 },
+      ],
+    });
+    expect(config.ollama).toEqual([
+      { id: "fast", model: "qwen2.5-coder:7b" },
+      { id: "reasoning", model: "qwen2.5-coder:32b", maxOutputTokens: 2_000 },
+    ]);
+  });
+
+  it("rejects an empty ollama array", () => {
+    expect(() => parseRoomParticipantsConfigV1({ schemaVersion: 1, ollama: [] })).toThrow(
+      RoomParticipantsConfigurationError,
+    );
+  });
+
+  it("rejects a duplicate ollama instance id", () => {
+    expect(() =>
+      parseRoomParticipantsConfigV1({
+        schemaVersion: 1,
+        ollama: [{ id: "fast" }, { id: "fast" }],
+      }),
+    ).toThrow(RoomParticipantsConfigurationError);
+  });
+
+  it("rejects an ollama instance id that is not a lowercase slug", () => {
+    expect(() =>
+      parseRoomParticipantsConfigV1({ schemaVersion: 1, ollama: [{ id: "Not_Valid" }] }),
+    ).toThrow(RoomParticipantsConfigurationError);
+  });
+
+  it("accepts an explicit scorer.ollama selecting one array instance", () => {
+    const config = parseRoomParticipantsConfigV1({
+      schemaVersion: 1,
+      ollama: [{ id: "fast" }, { id: "reasoning" }],
+      scorer: { ollama: "reasoning" },
+    });
+    expect(config.scorer).toEqual({ ollama: "reasoning" });
+  });
+
+  it("accepts an explicit scorer.ollama of 'legacy' selecting the singular object form", () => {
+    const config = parseRoomParticipantsConfigV1({
+      schemaVersion: 1,
+      ollama: { model: "qwen2.5-coder:14b" },
+      scorer: { ollama: "legacy" },
+    });
+    expect(config.scorer).toEqual({ ollama: "legacy" });
+  });
+
+  it("rejects a scorer.ollama that does not match any configured ollama instance", () => {
+    expect(() =>
+      parseRoomParticipantsConfigV1({
+        schemaVersion: 1,
+        ollama: [{ id: "fast" }],
+        scorer: { ollama: "nope" },
+      }),
+    ).toThrow(RoomParticipantsConfigurationError);
+  });
+
+  it("rejects a scorer block when no ollama instance is configured at all", () => {
+    expect(() =>
+      parseRoomParticipantsConfigV1({ schemaVersion: 1, scorer: { ollama: "legacy" } }),
+    ).toThrow(RoomParticipantsConfigurationError);
+  });
+
+  it("accepts a per-instance maxOutputTokens on an openrouter entry", () => {
+    const config = parseRoomParticipantsConfigV1({
+      schemaVersion: 1,
+      openrouter: [
+        {
+          id: "fast",
+          model: "anthropic/claude-3.5-sonnet",
+          credentialReference: {
+            schemaVersion: 1,
+            kind: "macos-keychain",
+            service: "app-factory-openrouter",
+            account: "fast",
+          },
+          maxOutputTokens: 800,
+        },
+      ],
+    });
+    expect(config.openrouter?.[0]?.maxOutputTokens).toBe(800);
+  });
+});
+
+describe("buildRoomSubsystemConfiguration / buildPhaseParticipantsPortV1 -- ollama multi-instance", () => {
+  it("registers each array instance under its own ollama-<id> provider key", () => {
+    const port = buildPhaseParticipantsPortV1({
+      schemaVersion: 1,
+      ollama: [
+        { id: "fast", baseUrl: "http://127.0.0.1:19999" },
+        { id: "reasoning", baseUrl: "http://127.0.0.1:19998" },
+      ],
+    });
+    const fast = port.resolve("ollama-fast" as never);
+    const reasoning = port.resolve("ollama-reasoning" as never);
+    expect(fast).not.toBeNull();
+    expect(fast?.provider).toBe("ollama-fast");
+    expect(reasoning).not.toBeNull();
+    expect(reasoning?.provider).toBe("ollama-reasoning");
+    // The bare legacy key is not registered when only the array form is configured.
+    expect(port.resolve("ollama" as never)).toBeNull();
+  });
+
+  it("still registers the bare 'ollama' key for the legacy singular object form", () => {
+    const port = buildPhaseParticipantsPortV1({
+      schemaVersion: 1,
+      ollama: { baseUrl: "http://127.0.0.1:19999" },
+    });
+    expect(port.resolve("ollama" as never)?.provider).toBe("ollama");
+    expect(port.resolve("ollama-fast" as never)).toBeNull();
+  });
+
+  it("builds a working scorer from an array config honoring an explicit scorer.ollama selection", () => {
+    const ports = buildRoomSubsystemConfiguration({
+      schemaVersion: 1,
+      ollama: [
+        { id: "fast", baseUrl: "http://127.0.0.1:19999" },
+        { id: "reasoning", baseUrl: "http://127.0.0.1:19998" },
+      ],
+      scorer: { ollama: "reasoning" },
+    });
+    expect(ports.scorer).toBeDefined();
+    expect(ports.contributor).toBeDefined();
   });
 });
 

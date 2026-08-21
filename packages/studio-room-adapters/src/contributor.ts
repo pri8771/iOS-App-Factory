@@ -76,9 +76,20 @@ export function createRoomAdapterContributor(
         });
         switch (result.kind) {
           case "message":
-            return { kind: "message", body: result.text, tokensUsed: result.usage.tokensUsed };
+            return {
+              kind: "message",
+              body: result.text,
+              tokensUsed: result.usage.tokensUsed,
+              usage: result.usage.reported,
+              costUsdMicros: result.usage.costUsdMicros,
+            };
           case "pass":
-            return { kind: "pass", tokensUsed: result.usage.tokensUsed };
+            return {
+              kind: "pass",
+              tokensUsed: result.usage.tokensUsed,
+              usage: result.usage.reported,
+              costUsdMicros: result.usage.costUsdMicros,
+            };
           case "error":
             return { kind: "error", code: result.code, retryAfterMs: result.retryAfterMs };
         }

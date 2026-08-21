@@ -1,4 +1,4 @@
-import { RoomProviderSchema, type RoomProvider } from "@app-factory/contracts";
+import { RoomProviderSchema, type AgentUsageV1, type RoomProvider } from "@app-factory/contracts";
 import {
   createFetchOllamaTransport,
   DEFAULT_OLLAMA_BASE_URL,
@@ -9,6 +9,7 @@ import {
   performanceClock,
   type MonotonicClockPort,
   type OllamaGenerateRequestBody,
+  type OllamaGenerateUsage,
   type OllamaTransportPort,
 } from "@app-factory/ollama-scorer";
 
@@ -21,6 +22,7 @@ import type {
   ParticipantAdapter,
   ParticipantContext,
   ParticipantContributionResult,
+  ParticipantUsage,
 } from "./participant-adapter.js";
 import { renderParticipantInstruction } from "./render-context.js";
 
@@ -28,11 +30,19 @@ import { renderParticipantInstruction } from "./render-context.js";
  * Historical guard: local generation on shared developer hardware regularly
  * ran to ~25 minutes when a model's output budget was left unbounded. Ollama
  * room participants are capped hard at this many output tokens regardless of
- * what the room's own `maxTokensPerReply` budget allows.
+ * what the room's own `maxTokensPerReply` budget allows. This is the default
+ * per-instance `maxOutputTokens`; a configured instance may raise or lower it.
  */
 export const OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS = 150;
 
+const INSTANCE_ID_PATTERN = /^[a-z][a-z0-9-]{0,40}$/;
+
 export type OllamaParticipantConfigV1 = Readonly<{
+  /** Short slug identifying this configured instance, e.g. "fast" or "reasoning". When present,
+   *  this adapter's `RoomProvider` key becomes `ollama-<id>` instead of the legacy bare `"ollama"`,
+   *  so multiple local Ollama instances can be configured and referenced independently in a room's
+   *  cast or as the Tier-1 scorer's backing model. */
+  id?: string;
   transport?: OllamaTransportPort;
   clock?: MonotonicClockPort;
   baseUrl?: string;
@@ -41,9 +51,13 @@ export type OllamaParticipantConfigV1 = Readonly<{
   contextTokens?: number;
   /** Hard wall-clock budget for one contribution. */
   timeoutMs?: number;
+  /** Per-instance output cap; defaults to {@link OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS} when
+   *  absent, preserving today's behavior for every untouched config. */
+  maxOutputTokens?: number;
 }>;
 
 type ValidatedOllamaParticipantConfig = Readonly<{
+  id: string | null;
   transport: OllamaTransportPort;
   clock: MonotonicClockPort;
   baseUrl: string;
@@ -51,9 +65,15 @@ type ValidatedOllamaParticipantConfig = Readonly<{
   keepAlive: string;
   contextTokens: number;
   timeoutMs: number;
+  maxOutputTokens: number;
 }>;
 
 function validateConfig(config: OllamaParticipantConfigV1): ValidatedOllamaParticipantConfig {
+  if (config.id !== undefined && !INSTANCE_ID_PATTERN.test(config.id)) {
+    throw new TypeError(
+      "OllamaParticipant id must be lowercase letters, digits, and hyphens, starting with a letter",
+    );
+  }
   const baseUrl = config.baseUrl ?? DEFAULT_OLLAMA_BASE_URL;
   if (!isLoopbackOllamaBaseUrl(baseUrl)) {
     throw new TypeError(
@@ -69,7 +89,12 @@ function validateConfig(config: OllamaParticipantConfigV1): ValidatedOllamaParti
   if (!Number.isSafeInteger(contextTokens) || contextTokens < 512 || contextTokens > 131_072) {
     throw new TypeError("OllamaParticipant contextTokens must be between 512 and 131072");
   }
+  const maxOutputTokens = config.maxOutputTokens ?? OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS;
+  if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > 100_000) {
+    throw new TypeError("OllamaParticipant maxOutputTokens must be between 1 and 100000");
+  }
   return {
+    id: config.id ?? null,
     transport: config.transport ?? createFetchOllamaTransport(),
     clock: config.clock ?? performanceClock,
     baseUrl,
@@ -77,6 +102,20 @@ function validateConfig(config: OllamaParticipantConfigV1): ValidatedOllamaParti
     keepAlive: config.keepAlive ?? "10m",
     contextTokens,
     timeoutMs,
+    maxOutputTokens,
+  };
+}
+
+/**
+ * Honest token ledger (contracts Architecture decision 6): `null` only when Ollama reported
+ * neither count, never a fabricated zero.
+ */
+function parseOllamaUsage(usage: OllamaGenerateUsage): AgentUsageV1 | null {
+  if (usage.promptEvalCount === null && usage.evalCount === null) return null;
+  return {
+    inputTokens: usage.promptEvalCount,
+    outputTokens: usage.evalCount,
+    cachedInputTokens: null,
   };
 }
 
@@ -93,16 +132,18 @@ export function createOllamaParticipant(
   config: OllamaParticipantConfigV1 = {},
 ): ParticipantAdapter {
   const validated = validateConfig(config);
-  const provider: RoomProvider = RoomProviderSchema.parse("ollama");
+  const provider: RoomProvider = RoomProviderSchema.parse(
+    validated.id === null ? "ollama" : `ollama-${validated.id}`,
+  );
 
   return {
-    id: "ollama.local-room-participant",
+    id:
+      validated.id === null
+        ? "ollama.local-room-participant"
+        : `ollama.${validated.id}-local-room-participant`,
     provider,
     async contribute(context: ParticipantContext): Promise<ParticipantContributionResult> {
-      const numPredict = Math.max(
-        1,
-        Math.min(context.maxOutputTokens, OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS),
-      );
+      const numPredict = Math.max(1, Math.min(context.maxOutputTokens, validated.maxOutputTokens));
       const body: OllamaGenerateRequestBody = {
         model: validated.model,
         system: renderParticipantInstruction(context),
@@ -148,9 +189,15 @@ export function createOllamaParticipant(
       try {
         const parsed = parseRoomContribution(outcome.text);
         const tokensUsed = outcome.usage.evalCount ?? 0;
+        // Ollama never reports a dollar cost; costUsdMicros stays null for this provider.
+        const usage: ParticipantUsage = {
+          tokensUsed,
+          reported: parseOllamaUsage(outcome.usage),
+          costUsdMicros: null,
+        };
         return parsed.kind === "pass"
-          ? { kind: "pass", usage: { tokensUsed } }
-          : { kind: "message", text: parsed.text, usage: { tokensUsed } };
+          ? { kind: "pass", usage }
+          : { kind: "message", text: parsed.text, usage };
       } catch {
         return { kind: "error", code: "internal", retryAfterMs: null };
       }

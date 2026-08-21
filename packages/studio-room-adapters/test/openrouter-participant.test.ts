@@ -111,7 +111,15 @@ describe("createOpenRouterParticipant", () => {
     }));
     const result = await participant(transport).contribute(context());
 
-    expect(result).toEqual({ kind: "message", text: "Ship it.", usage: { tokensUsed: 12 } });
+    expect(result).toEqual({
+      kind: "message",
+      text: "Ship it.",
+      usage: {
+        tokensUsed: 12,
+        reported: { inputTokens: null, outputTokens: 12, cachedInputTokens: null },
+        costUsdMicros: null,
+      },
+    });
     expect(transport.requests).toHaveLength(1);
     const request = transport.requests[0];
     expect(request?.method).toBe("POST");
@@ -146,7 +154,81 @@ describe("createOpenRouterParticipant", () => {
       body: chatEnvelope({ schemaVersion: 1, kind: "pass", text: null }),
     }));
     const result = await participant(transport).contribute(context());
-    expect(result).toEqual({ kind: "pass", usage: { tokensUsed: 12 } });
+    expect(result).toEqual({
+      kind: "pass",
+      usage: {
+        tokensUsed: 12,
+        reported: { inputTokens: null, outputTokens: 12, cachedInputTokens: null },
+        costUsdMicros: null,
+      },
+    });
+  });
+
+  it("reports prompt + completion + cached tokens when the response carries all three", async () => {
+    const transport = fakeTransport(async () => ({
+      status: 200,
+      body: {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({ schemaVersion: 1, kind: "message", text: "Ship it." }),
+            },
+          },
+        ],
+        usage: {
+          prompt_tokens: 30,
+          completion_tokens: 12,
+          total_tokens: 42,
+          prompt_tokens_details: { cached_tokens: 8 },
+        },
+      },
+    }));
+    const result = await participant(transport).contribute(context());
+    expect(result).toEqual({
+      kind: "message",
+      text: "Ship it.",
+      usage: {
+        tokensUsed: 12,
+        reported: { inputTokens: 30, outputTokens: 12, cachedInputTokens: 8 },
+        costUsdMicros: null,
+      },
+    });
+  });
+
+  it("reports usage null (never a fabricated zero) when the response carries no usage object", async () => {
+    const transport = fakeTransport(async () => ({
+      status: 200,
+      body: {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                schemaVersion: 1,
+                kind: "message",
+                text: "No usage here.",
+              }),
+            },
+          },
+        ],
+      },
+    }));
+    const result = await participant(transport).contribute(context());
+    expect(result).toEqual({
+      kind: "message",
+      text: "No usage here.",
+      usage: { tokensUsed: 0, reported: null, costUsdMicros: null },
+    });
+  });
+
+  it("honors a per-instance maxOutputTokens config, raising the historical guard", async () => {
+    const transport = fakeTransport(async () => ({
+      status: 200,
+      body: chatEnvelope({ schemaVersion: 1, kind: "pass", text: null }),
+    }));
+    await participant(transport, { maxOutputTokens: 1_000 }).contribute(
+      context({ maxOutputTokens: 2_000 }),
+    );
+    expect((transport.requestBodies[0] as { max_tokens: number }).max_tokens).toBe(1_000);
   });
 
   it("maps HTTP 429 to error(limit) using the retry-after header", async () => {

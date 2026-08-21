@@ -1,6 +1,7 @@
 import {
   IsoInstantSchema,
   RoomProviderSchema,
+  type AgentUsageV1,
   type IsoInstant,
   type RoomProvider,
 } from "@app-factory/contracts";
@@ -18,6 +19,7 @@ import type {
   ParticipantAdapter,
   ParticipantContext,
   ParticipantContributionResult,
+  ParticipantUsage,
 } from "./participant-adapter.js";
 import { renderParticipantInstruction } from "./render-context.js";
 
@@ -59,6 +61,9 @@ export type OpenRouterParticipantConfigV1 = Readonly<{
   /** Hard wall-clock budget for one contribution. Kept well under the moderator's own
    *  contribution lease (120s by default) so this adapter's own timeout is the one that fires. */
   timeoutMs?: number;
+  /** Per-instance output cap; defaults to {@link OPENROUTER_PARTICIPANT_MAX_OUTPUT_TOKENS} when
+   *  absent, preserving today's behavior for every untouched config. */
+  maxOutputTokens?: number;
 }>;
 
 type ValidatedOpenRouterParticipantConfig = Readonly<{
@@ -69,6 +74,7 @@ type ValidatedOpenRouterParticipantConfig = Readonly<{
   baseUrl: string;
   clock: Readonly<{ now(): Date }>;
   timeoutMs: number;
+  maxOutputTokens: number;
 }>;
 
 const ID_PATTERN = /^[a-z][a-z0-9-]{0,40}$/;
@@ -90,6 +96,10 @@ function validateConfig(
       "OpenRouterParticipant timeoutMs must be between 1000 and 100000 (well under the moderator's own contribution lease)",
     );
   }
+  const maxOutputTokens = config.maxOutputTokens ?? OPENROUTER_PARTICIPANT_MAX_OUTPUT_TOKENS;
+  if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > 100_000) {
+    throw new TypeError("OpenRouterParticipant maxOutputTokens must be between 1 and 100000");
+  }
   return {
     id: config.id,
     model: config.model,
@@ -98,6 +108,7 @@ function validateConfig(
     baseUrl: config.baseUrl ?? DEFAULT_OPENROUTER_BASE_URL,
     clock: config.clock ?? { now: () => new Date() },
     timeoutMs,
+    maxOutputTokens,
   };
 }
 
@@ -109,6 +120,28 @@ function requestHeaders(): readonly ProviderHttpHeaderV1[] {
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Honest token ledger (contracts Architecture decision 6): reads OpenRouter's OpenAI-compatible
+ * `usage` object (`prompt_tokens`/`completion_tokens`, plus `prompt_tokens_details.cached_tokens`
+ * when the underlying model reports it). `null` when neither prompt nor completion tokens are
+ * present, never a fabricated zero.
+ */
+function parseOpenRouterUsage(usage: Readonly<Record<string, unknown>>): AgentUsageV1 | null {
+  const promptTokens = usage.prompt_tokens;
+  const completionTokens = usage.completion_tokens;
+  const hasPrompt = typeof promptTokens === "number" && Number.isFinite(promptTokens);
+  const hasCompletion = typeof completionTokens === "number" && Number.isFinite(completionTokens);
+  if (!hasPrompt && !hasCompletion) return null;
+  const details = isRecord(usage.prompt_tokens_details) ? usage.prompt_tokens_details : null;
+  const cachedTokens = details?.cached_tokens;
+  const hasCached = typeof cachedTokens === "number" && Number.isFinite(cachedTokens);
+  return {
+    inputTokens: hasPrompt ? (promptTokens as number) : null,
+    outputTokens: hasCompletion ? (completionTokens as number) : null,
+    cachedInputTokens: hasCached ? (cachedTokens as number) : null,
+  };
 }
 
 /**
@@ -137,10 +170,7 @@ export function createOpenRouterParticipant(
     id: `openrouter.${validated.id}-room-participant`,
     provider,
     async contribute(context: ParticipantContext): Promise<ParticipantContributionResult> {
-      const maxTokens = Math.max(
-        1,
-        Math.min(context.maxOutputTokens, OPENROUTER_PARTICIPANT_MAX_OUTPUT_TOKENS),
-      );
+      const maxTokens = Math.max(1, Math.min(context.maxOutputTokens, validated.maxOutputTokens));
       const messages: readonly ChatMessage[] = [
         { role: "system", content: renderParticipantInstruction(context) },
         { role: "user", content: "Respond now with the JSON object described above." },
@@ -216,17 +246,24 @@ export function createOpenRouterParticipant(
       if (typeof messageContent !== "string") {
         return { kind: "error", code: "internal", retryAfterMs: null };
       }
-      const usage = isRecord(decoded.usage) ? decoded.usage : {};
+      const usageRecord = isRecord(decoded.usage) ? decoded.usage : {};
       const tokensUsed =
-        typeof usage.completion_tokens === "number" && Number.isFinite(usage.completion_tokens)
-          ? usage.completion_tokens
+        typeof usageRecord.completion_tokens === "number" &&
+        Number.isFinite(usageRecord.completion_tokens)
+          ? usageRecord.completion_tokens
           : 0;
+      // OpenRouter's chat-completions envelope carries no dollar cost; costUsdMicros stays null.
+      const usage: ParticipantUsage = {
+        tokensUsed,
+        reported: parseOpenRouterUsage(usageRecord),
+        costUsdMicros: null,
+      };
 
       try {
         const parsed = parseRoomContribution(messageContent);
         return parsed.kind === "pass"
-          ? { kind: "pass", usage: { tokensUsed } }
-          : { kind: "message", text: parsed.text, usage: { tokensUsed } };
+          ? { kind: "pass", usage }
+          : { kind: "message", text: parsed.text, usage };
       } catch {
         return { kind: "error", code: "internal", retryAfterMs: null };
       }

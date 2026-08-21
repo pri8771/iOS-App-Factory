@@ -1,4 +1,9 @@
-import type { RoomAgentErrorCodeV1, RoomPersona, RoomProvider } from "@app-factory/contracts";
+import type {
+  AgentUsageV1,
+  RoomAgentErrorCodeV1,
+  RoomPersona,
+  RoomProvider,
+} from "@app-factory/contracts";
 
 /**
  * One transcript line handed to a `ParticipantAdapter`, already excerpted and
@@ -42,7 +47,18 @@ export type ParticipantContext = Readonly<{
   reportWorkerPid: (pid: number) => void;
 }>;
 
-export type ParticipantUsage = Readonly<{ tokensUsed: number }>;
+/**
+ * The honest token ledger (contracts Architecture decision 6): `tokensUsed` keeps its historical
+ * budget-debit meaning exactly (each adapter's own approximation, used to settle the room/phase
+ * token reservation) -- `reported` and `costUsdMicros` are the separate, never-fabricated figures
+ * an adapter parsed straight from the provider's own usage accounting, `null` whenever the
+ * provider reported nothing usable rather than a fabricated zero.
+ */
+export type ParticipantUsage = Readonly<{
+  tokensUsed: number;
+  reported: AgentUsageV1 | null;
+  costUsdMicros: number | null;
+}>;
 
 export type ParticipantContributionResult =
   | Readonly<{ kind: "message"; text: string; usage: ParticipantUsage }>

@@ -97,7 +97,7 @@ describe("createRoomAdapterContributor", () => {
     const codex = fakeAdapter("codex", async (ctx) => ({
       kind: "message",
       text: `codex saw charter: ${ctx.roomCharter}`,
-      usage: { tokensUsed: 5 },
+      usage: { tokensUsed: 5, reported: null, costUsdMicros: null },
     }));
     const contributor = createRoomAdapterContributor({
       adapters: [codex],
@@ -108,16 +108,44 @@ describe("createRoomAdapterContributor", () => {
       kind: "message",
       body: "codex saw charter: Charter for Translation app risk review",
       tokensUsed: 5,
+      usage: null,
+      costUsdMicros: null,
+    });
+  });
+
+  it("plumbs an adapter's honest reported usage and cost through unchanged (the honest token ledger)", async () => {
+    const codex = fakeAdapter("codex", async () => ({
+      kind: "message",
+      text: "answer",
+      usage: {
+        tokensUsed: 5,
+        reported: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 2 },
+        costUsdMicros: 1_234,
+      },
+    }));
+    const result = await createRoomAdapterContributor({
+      adapters: [codex],
+      charters: fakeCharters(),
+    }).contribute(requestFor());
+    expect(result).toEqual({
+      kind: "message",
+      body: "answer",
+      tokensUsed: 5,
+      usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 2 },
+      costUsdMicros: 1_234,
     });
   });
 
   it("maps pass and typed error results through unchanged", async () => {
-    const codex = fakeAdapter("codex", async () => ({ kind: "pass", usage: { tokensUsed: 3 } }));
+    const codex = fakeAdapter("codex", async () => ({
+      kind: "pass",
+      usage: { tokensUsed: 3, reported: null, costUsdMicros: null },
+    }));
     const passResult = await createRoomAdapterContributor({
       adapters: [codex],
       charters: fakeCharters(),
     }).contribute(requestFor());
-    expect(passResult).toEqual({ kind: "pass", tokensUsed: 3 });
+    expect(passResult).toEqual({ kind: "pass", tokensUsed: 3, usage: null, costUsdMicros: null });
 
     const failing = fakeAdapter("codex", async () => ({
       kind: "error",
@@ -150,8 +178,14 @@ describe("createRoomAdapterContributor", () => {
   });
 
   it("rejects a duplicate ParticipantAdapter registration for the same provider", () => {
-    const codexA = fakeAdapter("codex", async () => ({ kind: "pass", usage: { tokensUsed: 0 } }));
-    const codexB = fakeAdapter("codex", async () => ({ kind: "pass", usage: { tokensUsed: 0 } }));
+    const codexA = fakeAdapter("codex", async () => ({
+      kind: "pass",
+      usage: { tokensUsed: 0, reported: null, costUsdMicros: null },
+    }));
+    const codexB = fakeAdapter("codex", async () => ({
+      kind: "pass",
+      usage: { tokensUsed: 0, reported: null, costUsdMicros: null },
+    }));
     expect(() =>
       createRoomAdapterContributor({ adapters: [codexA, codexB], charters: fakeCharters() }),
     ).toThrow(TypeError);

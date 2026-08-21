@@ -1,4 +1,5 @@
 import type {
+  AgentUsageV1,
   RoomAgentErrorCodeV1,
   RoomGrantId,
   RoomGrantV1,
@@ -81,9 +82,23 @@ export type RoomContributionRequest = Readonly<{
 }>;
 
 export type RoomContributionResult =
-  | Readonly<{ kind: "message"; body: string; tokensUsed: number }>
+  | Readonly<{
+      kind: "message";
+      body: string;
+      tokensUsed: number;
+      /** The honest token ledger's own record of this contribution's usage, when the adapter
+       *  reported one (contracts Architecture decision 6) -- `tokensUsed` above keeps its existing
+       *  budget-debit meaning unchanged; this is the separate, never-fabricated ledger figure. */
+      usage: AgentUsageV1 | null;
+      costUsdMicros: number | null;
+    }>
   /** Tier 2: the admitted agent may decline; the moderator treats this as success. */
-  | Readonly<{ kind: "pass"; tokensUsed: number }>
+  | Readonly<{
+      kind: "pass";
+      tokensUsed: number;
+      usage: AgentUsageV1 | null;
+      costUsdMicros: number | null;
+    }>
   | Readonly<{ kind: "error"; code: RoomAgentErrorCodeV1; retryAfterMs: number | null }>;
 
 export type ContributorPort = Readonly<{

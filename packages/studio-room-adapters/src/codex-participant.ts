@@ -18,7 +18,7 @@ import {
   validateCodexWorkspaceScope,
   type CodexInvocation,
 } from "@app-factory/agent-runner";
-import { RoomProviderSchema, type RoomProvider } from "@app-factory/contracts";
+import { RoomProviderSchema, type AgentUsageV1, type RoomProvider } from "@app-factory/contracts";
 import {
   launchPreparedSupervisedRun,
   prepareSupervisedRun,
@@ -44,6 +44,7 @@ import type {
   ParticipantAdapter,
   ParticipantContext,
   ParticipantContributionResult,
+  ParticipantUsage,
 } from "./participant-adapter.js";
 import { renderParticipantInstruction } from "./render-context.js";
 
@@ -266,6 +267,37 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 }
 
 /**
+ * Extracts `AgentUsageV1` from a Codex `turn.completed` event's own `usage` field. Copied locally
+ * (not imported) from `@app-factory/agent-runner`'s `codex-result.ts` `parseUsageFromCompletedTurn`
+ * -- the honest token ledger (contracts Architecture decision 6) wants this package to own its
+ * parser rather than reach into that package's coding-agent-result internals, even though the two
+ * packages already share a dependency edge. `null` whenever Codex reported nothing usable, never a
+ * fabricated zero.
+ */
+function parseCodexTurnUsage(usage: unknown): AgentUsageV1 | null {
+  if (!isRecord(usage)) return null;
+  const keys = ["input_tokens", "output_tokens", "cached_input_tokens"] as const;
+  if (!keys.some((key) => Object.hasOwn(usage, key))) return null;
+
+  const parsed: Record<(typeof keys)[number], number | null> = {
+    input_tokens: null,
+    output_tokens: null,
+    cached_input_tokens: null,
+  };
+  for (const key of keys) {
+    const value = usage[key];
+    if (value === undefined) continue;
+    if (!Number.isSafeInteger(value) || (value as number) < 0) return null;
+    parsed[key] = value as number;
+  }
+  return {
+    inputTokens: parsed.input_tokens,
+    outputTokens: parsed.output_tokens,
+    cachedInputTokens: parsed.cached_input_tokens,
+  };
+}
+
+/**
  * Walks Codex's JSONL transcript exactly the way
  * `classifyCodexReviewProcess`/`classifyCodexProcess` do (one thread start,
  * at least one turn start, exactly one terminal event as the final line),
@@ -284,6 +316,7 @@ export function classifyCodexParticipantStdout(
   let terminalType: "turn.completed" | "turn.failed" | null = null;
   let terminalIndex = -1;
   let terminalFailureMessage = "";
+  let terminalUsage: unknown = undefined;
   let finalAgentMessage: string | null = null;
 
   for (const [index, line] of lines.entries()) {
@@ -304,6 +337,9 @@ export function classifyCodexParticipantStdout(
       }
       terminalType = event.type;
       terminalIndex = index;
+      if (event.type === "turn.completed") {
+        terminalUsage = event.usage;
+      }
       if (
         event.type === "turn.failed" &&
         isRecord(event.error) &&
@@ -350,12 +386,19 @@ export function classifyCodexParticipantStdout(
   }
   try {
     const parsed = parseRoomContribution(finalAgentMessage);
+    const reported = parseCodexTurnUsage(terminalUsage);
+    // Codex never self-reports a dollar cost; `costUsdMicros` stays null for this provider.
+    const usage: ParticipantUsage = {
+      tokensUsed: reported?.outputTokens ?? 0,
+      reported,
+      costUsdMicros: null,
+    };
     return {
       kind: "completed",
       contribution:
         parsed.kind === "pass"
-          ? { kind: "pass", usage: { tokensUsed: 0 } }
-          : { kind: "message", text: parsed.text, usage: { tokensUsed: 0 } },
+          ? { kind: "pass", usage }
+          : { kind: "message", text: parsed.text, usage },
     };
   } catch (error) {
     return {

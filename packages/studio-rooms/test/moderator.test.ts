@@ -178,6 +178,54 @@ describe("RoomModerator admission and grants", () => {
     expect(transcript(h)).toEqual(["human:priyansh", "agent:architect"]);
   });
 
+  it("carries a contributor's honest reported usage and cost through to a committed grant outcome (the honest token ledger)", async () => {
+    const h = harness();
+    h.contributor.queue(() =>
+      Promise.resolve({
+        kind: "message",
+        body: "answer",
+        tokensUsed: 100,
+        usage: { inputTokens: 80, outputTokens: 20, cachedInputTokens: null },
+        costUsdMicros: 4_200,
+      }),
+    );
+    const outcome = await h.moderator.runRound(
+      ROOM_ID,
+      humanPosts(h, "What should we build first?"),
+    );
+    expect(outcome).toMatchObject({
+      kind: "granted",
+      outcome: {
+        kind: "committed",
+        tokensUsed: 100,
+        usage: { inputTokens: 80, outputTokens: 20, cachedInputTokens: null },
+        costUsdMicros: 4_200,
+      },
+    });
+  });
+
+  it("carries a contributor's honest reported usage through to a passed grant outcome, with no fabricated cost", async () => {
+    const h = harness();
+    h.contributor.queue(() =>
+      Promise.resolve({
+        kind: "pass",
+        tokensUsed: 12,
+        usage: { inputTokens: 30, outputTokens: null, cachedInputTokens: null },
+        costUsdMicros: null,
+      }),
+    );
+    const outcome = await h.moderator.runRound(ROOM_ID, humanPosts(h, "thoughts?"));
+    expect(outcome).toMatchObject({
+      kind: "granted",
+      outcome: {
+        kind: "passed",
+        tokensUsed: 12,
+        usage: { inputTokens: 30, outputTokens: null, cachedInputTokens: null },
+        costUsdMicros: null,
+      },
+    });
+  });
+
   it("posts 'all agents passed' on a zero-bid round and never grants", async () => {
     const h = harness();
     h.scorer.setFallback(scoreAll(0));

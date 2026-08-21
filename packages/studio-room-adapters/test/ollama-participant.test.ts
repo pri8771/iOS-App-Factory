@@ -33,7 +33,15 @@ describe("createOllamaParticipant", () => {
     const participant = createOllamaParticipant({ transport, model: "qwen2.5-coder:14b" });
     const result = await participant.contribute(context());
 
-    expect(result).toEqual({ kind: "message", text: "Ship it.", usage: { tokensUsed: 14 } });
+    expect(result).toEqual({
+      kind: "message",
+      text: "Ship it.",
+      usage: {
+        tokensUsed: 14,
+        reported: { inputTokens: 200, outputTokens: 14, cachedInputTokens: null },
+        costUsdMicros: null,
+      },
+    });
     expect(transport.requests).toHaveLength(1);
     const body = transport.requests[0]?.body;
     expect(body?.model).toBe("qwen2.5-coder:14b");
@@ -78,7 +86,58 @@ describe("createOllamaParticipant", () => {
     }));
     const participant = createOllamaParticipant({ transport });
     const result = await participant.contribute(context());
-    expect(result).toEqual({ kind: "pass", usage: { tokensUsed: 14 } });
+    expect(result).toEqual({
+      kind: "pass",
+      usage: {
+        tokensUsed: 14,
+        reported: { inputTokens: 200, outputTokens: 14, cachedInputTokens: null },
+        costUsdMicros: null,
+      },
+    });
+  });
+
+  it("reports usage null (never a fabricated zero) when Ollama's envelope carries neither count", async () => {
+    const transport = fakeOllamaTransport(async () => ({
+      status: 200,
+      body: ollamaGenerateEnvelope(
+        { schemaVersion: 1, kind: "message", text: "No usage reported." },
+        { prompt_eval_count: undefined, eval_count: undefined },
+      ),
+    }));
+    const participant = createOllamaParticipant({ transport });
+    const result = await participant.contribute(context());
+    expect(result).toEqual({
+      kind: "message",
+      text: "No usage reported.",
+      usage: { tokensUsed: 0, reported: null, costUsdMicros: null },
+    });
+  });
+
+  it("honors a per-instance maxOutputTokens config, raising the historical guard", async () => {
+    const transport = fakeOllamaTransport(async () => ({
+      status: 200,
+      body: ollamaGenerateEnvelope({ schemaVersion: 1, kind: "pass", text: null }),
+    }));
+    const participant = createOllamaParticipant({ transport, maxOutputTokens: 1_000 });
+    await participant.contribute(context({ maxOutputTokens: 2_000 }));
+    const body = transport.requests[0]?.body;
+    expect((body?.options as { num_predict: number }).num_predict).toBe(1_000);
+  });
+
+  it("registers under an `ollama-<id>` provider key when an instance id is configured", () => {
+    const transport = fakeOllamaTransport(async () => ({ status: 200, body: "{}" }));
+    const participant = createOllamaParticipant({ transport, id: "fast" });
+    expect(String(participant.provider)).toBe("ollama-fast");
+    expect(participant.id).toBe("ollama.fast-local-room-participant");
+  });
+
+  it("rejects an id that is not a lowercase slug", () => {
+    expect(() =>
+      createOllamaParticipant({
+        transport: fakeOllamaTransport(async () => ({ status: 200, body: "{}" })),
+        id: "Not_Valid",
+      }),
+    ).toThrow(TypeError);
   });
 
   it("maps a hard timeout to error(timeout)", async () => {

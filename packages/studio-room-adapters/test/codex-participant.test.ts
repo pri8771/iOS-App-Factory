@@ -222,7 +222,14 @@ function context(overrides: Partial<ParticipantContext> = {}): ParticipantContex
   };
 }
 
-function agentMessageStdout(payload: unknown): string {
+function agentMessageStdout(
+  payload: unknown,
+  // `null` (never the default parameter's `undefined`) opts out of a `usage` field altogether, so
+  // callers can exercise the "turn.completed reported nothing" case explicitly.
+  usage: Readonly<Record<string, unknown>> | null = { input_tokens: 1, output_tokens: 1 },
+): string {
+  const turnCompleted: Record<string, unknown> = { type: "turn.completed" };
+  if (usage !== null) turnCompleted.usage = usage;
   return [
     JSON.stringify({ type: "thread.started", thread_id: randomUUID() }),
     JSON.stringify({ type: "turn.started" }),
@@ -230,28 +237,57 @@ function agentMessageStdout(payload: unknown): string {
       type: "item.completed",
       item: { id: "item_1", type: "agent_message", text: JSON.stringify(payload) },
     }),
-    JSON.stringify({ type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } }),
+    JSON.stringify(turnCompleted),
   ].join("\n");
 }
 
 describe("classifyCodexParticipantStdout", () => {
-  it("extracts a message contribution from the final agent_message", () => {
+  it("extracts a message contribution from the final agent_message, with honest usage from turn.completed", () => {
     const result = classifyCodexParticipantStdout(
       agentMessageStdout({ schemaVersion: 1, kind: "message", text: "Ship it." }),
     );
     expect(result).toEqual({
       kind: "completed",
-      contribution: { kind: "message", text: "Ship it.", usage: { tokensUsed: 0 } },
+      contribution: {
+        kind: "message",
+        text: "Ship it.",
+        usage: {
+          tokensUsed: 1,
+          reported: { inputTokens: 1, outputTokens: 1, cachedInputTokens: null },
+          costUsdMicros: null,
+        },
+      },
     });
   });
 
-  it("extracts a pass contribution", () => {
+  it("extracts a pass contribution, with honest usage from turn.completed", () => {
     const result = classifyCodexParticipantStdout(
       agentMessageStdout({ schemaVersion: 1, kind: "pass", text: null }),
     );
     expect(result).toEqual({
       kind: "completed",
-      contribution: { kind: "pass", usage: { tokensUsed: 0 } },
+      contribution: {
+        kind: "pass",
+        usage: {
+          tokensUsed: 1,
+          reported: { inputTokens: 1, outputTokens: 1, cachedInputTokens: null },
+          costUsdMicros: null,
+        },
+      },
+    });
+  });
+
+  it("falls back to tokensUsed 0 and reported null when turn.completed carries no usage field at all", () => {
+    const result = classifyCodexParticipantStdout(
+      agentMessageStdout({ schemaVersion: 1, kind: "message", text: "No usage here." }, null),
+    );
+    expect(result).toEqual({
+      kind: "completed",
+      contribution: {
+        kind: "message",
+        text: "No usage here.",
+        usage: { tokensUsed: 0, reported: null, costUsdMicros: null },
+      },
     });
   });
 
@@ -371,13 +407,25 @@ function buildParticipant(script: ScriptedRun) {
   return { participant, launched };
 }
 
+/** `agentMessageStdout`'s default `turn.completed` usage (`{input_tokens:1, output_tokens:1}`)
+ *  parsed into the widened `ParticipantUsage` shape. */
+const DEFAULT_USAGE = {
+  tokensUsed: 1,
+  reported: { inputTokens: 1, outputTokens: 1, cachedInputTokens: null },
+  costUsdMicros: null,
+};
+
 describe("createCodexParticipant (fake supervisor)", () => {
   it("maps a successful message contribution end to end", async () => {
     const { participant, launched } = buildParticipant({
       stdout: agentMessageStdout({ schemaVersion: 1, kind: "message", text: "Codex says hi." }),
     });
     const result = await participant.contribute(context());
-    expect(result).toEqual({ kind: "message", text: "Codex says hi.", usage: { tokensUsed: 0 } });
+    expect(result).toEqual({
+      kind: "message",
+      text: "Codex says hi.",
+      usage: DEFAULT_USAGE,
+    });
     expect(launched).toHaveLength(1);
   });
 
@@ -386,7 +434,7 @@ describe("createCodexParticipant (fake supervisor)", () => {
       stdout: agentMessageStdout({ schemaVersion: 1, kind: "pass", text: null }),
     });
     const result = await participant.contribute(context());
-    expect(result).toEqual({ kind: "pass", usage: { tokensUsed: 0 } });
+    expect(result).toEqual({ kind: "pass", usage: DEFAULT_USAGE });
   });
 
   it("maps receipt.terminationOrigin 'timeout' to error(timeout) without reading output", async () => {
@@ -425,7 +473,7 @@ describe("createCodexParticipant (fake supervisor)", () => {
     const result = await participant.contribute(
       context({ reportWorkerPid: (pid) => pids.push(pid) }),
     );
-    expect(result).toEqual({ kind: "message", text: "Via reconcile.", usage: { tokensUsed: 0 } });
+    expect(result).toEqual({ kind: "message", text: "Via reconcile.", usage: DEFAULT_USAGE });
     expect(launched).toHaveLength(1);
     expect(pids).toEqual([9999]);
   });
@@ -536,6 +584,6 @@ describe("createCodexParticipant (fake supervisor)", () => {
       environmentAllowlist: ["PATH"],
     });
     const result = await participant.contribute(context());
-    expect(result).toEqual({ kind: "pass", usage: { tokensUsed: 0 } });
+    expect(result).toEqual({ kind: "pass", usage: DEFAULT_USAGE });
   });
 });
