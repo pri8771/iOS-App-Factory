@@ -109,7 +109,7 @@ final class StudioStoreTests: XCTestCase {
         XCTAssertEqual(dashboard.gauges[2].role, .human)
         XCTAssertNil(dashboard.gauges[5].readout, "agentWindowShare is unavailableReason in the fixture")
         XCTAssertEqual(dashboard.gauges[5].provenance, .notYetSourced)
-        XCTAssertEqual(dashboard.awaiting.count, 4, "1 studio.snapshot awaitingHuman item + 3 fixture ◆ gates")
+        XCTAssertEqual(dashboard.awaiting.count, 5, "2 studio.snapshot awaitingHuman items + 3 fixture ◆ gates")
         XCTAssertEqual(dashboard.awaiting[0].provenance, .live("studio.snapshot"))
     }
 

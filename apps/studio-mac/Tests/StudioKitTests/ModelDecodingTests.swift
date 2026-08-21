@@ -266,8 +266,11 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(anjali.gates.typed, .legal)
         XCTAssertTrue(anjali.gates.ownerIsHuman)
         XCTAssertNil(anjali.gates.unavailableReason)
-        XCTAssertEqual(anjali.awaitingHuman.count, 1)
+        XCTAssertEqual(anjali.awaitingHuman.count, 2)
         XCTAssertEqual(anjali.awaitingHuman[0].kind, .blockedAttempt)
+        XCTAssertNil(anjali.awaitingHuman[0].phaseRunId)
+        XCTAssertEqual(anjali.awaitingHuman[1].kind, .phaseRun)
+        XCTAssertEqual(anjali.awaitingHuman[1].phaseRunId?.rawValue, "80000001-0000-4000-8000-000000000001")
         // The real, revisioned milestone model (ProjectMilestone) — the exact type
         // project.milestones.list/.upsert read and write, not a second placeholder shape.
         XCTAssertEqual(anjali.timeline.milestones.count, 2)

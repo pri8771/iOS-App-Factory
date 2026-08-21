@@ -6,10 +6,10 @@
 // Anjali carries a populated provenance (an "enrolled" repo-docs source backing its
 // `lifecycleStage`), Hindsight carries `null` (no repo-docs source configured for it), exercising
 // both shapes `StudioProjectDocsProvenanceV1Schema.nullable()` allows. Kept as its own script
-// rather than folded into record-fixtures.mjs: that script's own "attempt-list.response.json"
-// generation already throws (AttemptListItemV1 gained a required `phase` field in a later,
-// unrelated merge that script was never updated for), which would block this fixture from being
-// written too. See the flagged follow-up task for that.
+// rather than folded into record-fixtures.mjs for historical reasons (record-fixtures.mjs's own
+// "attempt-list.response.json" generation once threw on a schema-drift issue, fixed in f63336c;
+// that is no longer a reason to keep these separate, but splitting them back out is not this
+// change's job).
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import {
@@ -83,12 +83,23 @@ const envelope = {
         updatedAt: "2026-08-16T11:05:00.000Z",
         blocker: null,
       },
+      // StudioAwaitingHumanItemV1.phaseRunId (since 6d6a0fd): required (nullable), present exactly
+      // for a "phase-run" item. One "blocked-attempt" row (phaseRunId null) and one "phase-run" row
+      // (phaseRunId set) so the Swift decoder sees both branches.
       awaitingHuman: [
         {
           kind: "blocked-attempt",
           attemptId: "00000004-0000-4000-8000-000000000004",
+          phaseRunId: null,
           summary: "Waiting for approval to upload build 4 to TestFlight.",
           since: "2026-08-16T14:05:00.000Z",
+        },
+        {
+          kind: "phase-run",
+          attemptId: null,
+          phaseRunId: "80000001-0000-4000-8000-000000000001",
+          summary: 'Phase "beta-review" is awaiting your approval.',
+          since: "2026-08-16T15:00:00.000Z",
         },
       ],
       timeline: {

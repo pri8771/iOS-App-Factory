@@ -142,32 +142,38 @@ public struct StudioAttemptSummary: Hashable, Sendable, Codable {
 public enum StudioAwaitingHumanKind: String, Hashable, Sendable, Codable, CaseIterable {
     case blockedAttempt = "blocked-attempt"
     case gateApproval = "gate-approval"
+    case phaseRun = "phase-run"
 }
 
 /// `"blocked-attempt"` is populated for real from live attempt state; `"gate-approval"` exists for
 /// forward compatibility with `studio/policy-engine-scoping`'s owner-approval gates and is never
-/// emitted yet.
+/// emitted yet; `"phase-run"` is populated for real from Phase Runner — `phaseRunId`
+/// (`StudioAwaitingHumanItemV1.phaseRunId`, since 6d6a0fd) is present exactly for this kind.
 public struct StudioAwaitingHumanItem: Hashable, Sendable, Codable, Identifiable {
     public var kind: StudioAwaitingHumanKind
     public var attemptId: AttemptID?
+    public var phaseRunId: PhaseRunID?
     public var summary: String
     public var since: IsoInstant
 
-    public var id: String { "\(kind.rawValue).\(attemptId?.rawValue ?? since.rawValue)" }
+    public var id: String { "\(kind.rawValue).\(attemptId?.rawValue ?? phaseRunId?.rawValue ?? since.rawValue)" }
 
-    public init(kind: StudioAwaitingHumanKind, attemptId: AttemptID?, summary: String, since: IsoInstant) {
+    public init(kind: StudioAwaitingHumanKind, attemptId: AttemptID?, phaseRunId: PhaseRunID? = nil,
+                summary: String, since: IsoInstant) {
         self.kind = kind
         self.attemptId = attemptId
+        self.phaseRunId = phaseRunId
         self.summary = summary
         self.since = since
     }
 
-    private enum CodingKeys: String, CodingKey { case kind, attemptId, summary, since }
+    private enum CodingKeys: String, CodingKey { case kind, attemptId, phaseRunId, summary, since }
 
     public func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(kind, forKey: .kind)
         try c.encode(attemptId, forKey: .attemptId)
+        try c.encode(phaseRunId, forKey: .phaseRunId)
         try c.encode(summary, forKey: .summary)
         try c.encode(since, forKey: .since)
     }

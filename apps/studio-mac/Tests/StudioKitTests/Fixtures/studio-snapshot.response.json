@@ -30,8 +30,16 @@
             {
               "kind": "blocked-attempt",
               "attemptId": "00000004-0000-4000-8000-000000000004",
+              "phaseRunId": null,
               "summary": "Waiting for approval to upload build 4 to TestFlight.",
               "since": "2026-08-16T14:05:00.000Z"
+            },
+            {
+              "kind": "phase-run",
+              "attemptId": null,
+              "phaseRunId": "80000001-0000-4000-8000-000000000001",
+              "summary": "Phase \"beta-review\" is awaiting your approval.",
+              "since": "2026-08-16T15:00:00.000Z"
             }
           ],
           "timeline": {
@@ -136,7 +144,7 @@
           "unavailableReason": "not yet computed: step-level timing is not aggregated into an agent-active-window ratio"
         }
       },
-      "sourceSnapshotDigest": "sha256:3ee98aa308196525333ac94651e127b5703d402c1b757a260adb4b80594310b1"
+      "sourceSnapshotDigest": "sha256:1102f2f90e1a7562ae70675d2ee656721f803bca04dd33395740a1814ec30978"
     }
   }
 }
