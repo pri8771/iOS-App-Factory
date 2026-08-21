@@ -309,26 +309,42 @@ export function loadRoomParticipantsConfigFile(path: string): RoomParticipantsCo
 export function buildRoomParticipantsCatalogSourceV1(
   config: RoomParticipantsConfigV1,
 ): RoomParticipantsCatalogSourceV1 {
+  // `roomProviderKey` is left `null` here (the schema's own legacy/not-yet-computed case, see
+  // `RoomCatalogProviderEntryV1Schema` in `packages/contracts/src/v1/room.ts`): deriving the real
+  // per-instance key (including the `openrouter-<id>` keys that fix the multi-instance uniqueness
+  // bug) is Wave 5 work (`room-participants-config.ts` extensions), not this contracts-only wave.
   const providers: RoomParticipantsCatalogSourceV1["providers"][number][] = [];
   if (config.codex !== undefined) {
     providers.push({
       provider: "codex",
+      roomProviderKey: null,
       model: config.codex.model,
       cliVersion: config.codex.expectedCliVersion ?? null,
     });
   }
   if (config.claude !== undefined) {
-    providers.push({ provider: "claude", model: config.claude.model, cliVersion: null });
+    providers.push({
+      provider: "claude",
+      roomProviderKey: null,
+      model: config.claude.model,
+      cliVersion: null,
+    });
   }
   if (config.ollama !== undefined) {
     providers.push({
       provider: "ollama",
+      roomProviderKey: null,
       model: config.ollama.model ?? DEFAULT_OLLAMA_MODEL,
       cliVersion: null,
     });
   }
   for (const instance of config.openrouter ?? []) {
-    providers.push({ provider: "openrouter", model: instance.model, cliVersion: null });
+    providers.push({
+      provider: "openrouter",
+      roomProviderKey: null,
+      model: instance.model,
+      cliVersion: null,
+    });
   }
   const roster = (config.roster?.rooms ?? []).map((entry) => ({
     roomId: entry.roomId,

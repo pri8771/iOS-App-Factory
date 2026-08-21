@@ -4,8 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   COMMAND_OPERATIONS_V1,
+  MAX_ROOM_CATALOG_PROVIDER_ENTRIES_V1,
   CommandRequestV1Schema,
   CommandResultV1Schema,
+  RoomCatalogProviderEntryV1Schema,
+  RoomCatalogProviderV1Schema,
   RoomParticipantsCatalogV1Schema,
   canonicalRoomParticipantsCatalogDigestInputV1,
   roomParticipantsCatalogDigestInputV1,
@@ -167,5 +170,104 @@ describe("room participants catalog V1", () => {
         sourceDigest: digestOf(duplicated),
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("roomProviderKey uniqueness (fixes the multi-OpenRouter-instance bug)", () => {
+  it("parses a legacy entry with no roomProviderKey, defaulting it to null", () => {
+    const parsed = RoomCatalogProviderEntryV1Schema.parse(CODEX_PROVIDER);
+    expect(parsed.roomProviderKey).toBeNull();
+  });
+
+  it("accepts TWO OpenRouter entries sharing provider but with distinct roomProviderKey -- previously this threw", () => {
+    const input: RoomParticipantsCatalogDigestInputV1 = {
+      ...enabledInput(),
+      providers: [
+        {
+          provider: "openrouter",
+          roomProviderKey: "openrouter-fast",
+          model: "m/fast",
+          cliVersion: null,
+        },
+        {
+          provider: "openrouter",
+          roomProviderKey: "openrouter-cheap",
+          model: "m/cheap",
+          cliVersion: null,
+        },
+      ],
+    };
+    expect(
+      RoomParticipantsCatalogV1Schema.safeParse({
+        ...input,
+        sourcedAt: SOURCED_AT,
+        sourceDigest: digestOf(input),
+      }).success,
+    ).toBe(true);
+  });
+
+  it("still rejects two entries that share both provider and roomProviderKey", () => {
+    const input: RoomParticipantsCatalogDigestInputV1 = {
+      ...enabledInput(),
+      providers: [
+        {
+          provider: "openrouter",
+          roomProviderKey: "openrouter-fast",
+          model: "m/fast",
+          cliVersion: null,
+        },
+        {
+          provider: "openrouter",
+          roomProviderKey: "openrouter-fast",
+          model: "m/other",
+          cliVersion: null,
+        },
+      ],
+    };
+    expect(
+      RoomParticipantsCatalogV1Schema.safeParse({
+        ...input,
+        sourcedAt: SOURCED_AT,
+        sourceDigest: digestOf(input),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("still rejects two legacy entries (no roomProviderKey) sharing the same provider, exactly as before", () => {
+    const input: RoomParticipantsCatalogDigestInputV1 = {
+      ...enabledInput(),
+      providers: [CODEX_PROVIDER, CODEX_PROVIDER],
+    };
+    expect(
+      RoomParticipantsCatalogV1Schema.safeParse({
+        ...input,
+        sourcedAt: SOURCED_AT,
+        sourceDigest: digestOf(input),
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("RoomCatalogProviderV1Schema / MAX_ROOM_CATALOG_PROVIDER_ENTRIES_V1", () => {
+  it("accepts gemini as a catalog provider family", () => {
+    expect(RoomCatalogProviderV1Schema.safeParse("gemini").success).toBe(true);
+  });
+
+  it("allows up to 16 provider entries (raised from 8)", () => {
+    expect(MAX_ROOM_CATALOG_PROVIDER_ENTRIES_V1).toBe(16);
+    const providers = Array.from({ length: 16 }, (_, index) => ({
+      provider: "openrouter" as const,
+      roomProviderKey: `openrouter-${index}`,
+      model: "m",
+      cliVersion: null,
+    }));
+    const input: RoomParticipantsCatalogDigestInputV1 = { ...enabledInput(), providers };
+    expect(
+      RoomParticipantsCatalogV1Schema.safeParse({
+        ...input,
+        sourcedAt: SOURCED_AT,
+        sourceDigest: digestOf(input),
+      }).success,
+    ).toBe(true);
   });
 });

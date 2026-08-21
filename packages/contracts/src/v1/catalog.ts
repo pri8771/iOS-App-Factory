@@ -28,6 +28,7 @@ import { PhaseRunV1Schema } from "./phase-run.js";
 import { PolicyLockV1Schema, ProjectManifestV1Schema } from "./project.js";
 import { ProjectDocsSnapshotV1Schema } from "./project-docs-snapshot.js";
 import { ProjectPlanV1Schema } from "./project-plan.js";
+import { ProviderHealthReportV1Schema, ProviderInstanceV1Schema } from "./provider.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
 import {
   RoomGrantV1Schema,
@@ -35,6 +36,7 @@ import {
   RoomParticipantsCatalogV1Schema,
   RoomV1Schema,
 } from "./room.js";
+import { StudioSettingEntryV1Schema } from "./settings.js";
 import {
   AssistantAnswerV1Schema,
   AssistantIntentV1Schema,
@@ -43,6 +45,7 @@ import {
 import { AscReleaseObservationV1Schema, ReleaseProjectionV1Schema } from "./release-observation.js";
 import { StudioSnapshotV1Schema } from "./studio-snapshot.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
+import { UsageSummaryV1Schema } from "./token-usage.js";
 
 export type ContractSchemaCatalogEntryV1 = Readonly<{
   name: string;
@@ -333,6 +336,30 @@ export const contractSchemaCatalogV1 = [
     fileName: "phase-run.v1.schema.json",
     id: "urn:app-factory:contracts:v1:phase-run",
     schema: PhaseRunV1Schema,
+  },
+  {
+    name: "provider-instance",
+    fileName: "provider-instance.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:provider-instance",
+    schema: ProviderInstanceV1Schema,
+  },
+  {
+    name: "provider-health-report",
+    fileName: "provider-health-report.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:provider-health-report",
+    schema: ProviderHealthReportV1Schema,
+  },
+  {
+    name: "studio-setting-entry",
+    fileName: "studio-setting-entry.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:studio-setting-entry",
+    schema: StudioSettingEntryV1Schema,
+  },
+  {
+    name: "usage-summary",
+    fileName: "usage-summary.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:usage-summary",
+    schema: UsageSummaryV1Schema,
   },
 ] as const satisfies readonly ContractSchemaCatalogEntryV1[];
 

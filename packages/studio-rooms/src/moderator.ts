@@ -643,6 +643,10 @@ export class RoomModerator {
           messageSequence: committed.message.sequence,
           tokensUsed: result.tokensUsed,
           revalidated,
+          // The honest token ledger (contracts Architecture decision 6) is not wired up yet --
+          // no adapter reports real usage/cost through this path until a later wave.
+          usage: null,
+          costUsdMicros: null,
         };
       } catch (error) {
         if (!(error instanceof RoomHeadMovedError)) throw error;
@@ -705,7 +709,12 @@ export class RoomModerator {
     reservation: QuotaReservation,
   ): RoomGrantOutcomeV1 {
     const room = this.#repository.requireRoom(grant.roomId);
-    const outcome: RoomGrantOutcomeV1 = { kind: "passed", tokensUsed };
+    const outcome: RoomGrantOutcomeV1 = {
+      kind: "passed",
+      tokensUsed,
+      usage: null,
+      costUsdMicros: null,
+    };
     this.#repository.finishGrant({
       grantId: grant.grantId,
       outcome,

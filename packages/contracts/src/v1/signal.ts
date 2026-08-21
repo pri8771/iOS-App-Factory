@@ -56,6 +56,8 @@ export type SignalStatusV1 = z.infer<typeof SignalStatusV1Schema>;
 
 export const MAX_SIGNAL_NAME_LENGTH_V1 = 200;
 export const MAX_SIGNAL_WATCH_DESCRIPTION_LENGTH_V1 = 2_000;
+export const MIN_SIGNAL_CHECK_INTERVAL_MINUTES_V1 = 5;
+export const MAX_SIGNAL_CHECK_INTERVAL_MINUTES_V1 = 10_080;
 
 export const SignalV1Schema = z.strictObject({
   schemaVersion: SchemaVersionV1Schema,
@@ -73,6 +75,15 @@ export const SignalV1Schema = z.strictObject({
   lastCheckedAt: IsoInstantSchema.nullable(),
   checkCount: NonNegativeSafeIntegerSchema,
   insightCount: NonNegativeSafeIntegerSchema,
+  /** `null` = manual-only (`signal.run-now`), the only mode until Architecture decision 11's
+   *  scheduler; otherwise how often the scheduler loop is willing to run this signal's Scout. */
+  checkIntervalMinutes: z
+    .number()
+    .int()
+    .min(MIN_SIGNAL_CHECK_INTERVAL_MINUTES_V1)
+    .max(MAX_SIGNAL_CHECK_INTERVAL_MINUTES_V1)
+    .nullable()
+    .default(null),
 });
 export type SignalV1 = z.infer<typeof SignalV1Schema>;
 

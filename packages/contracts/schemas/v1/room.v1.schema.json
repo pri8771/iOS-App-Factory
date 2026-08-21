@@ -92,6 +92,17 @@
       "minimum": 1,
       "type": "integer"
     },
+    "archivedAt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema0"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "budget": {
       "additionalProperties": false,
       "properties": {
@@ -131,6 +142,14 @@
     },
     "createdAt": {
       "$ref": "#/$defs/__schema0"
+    },
+    "flavor": {
+      "default": "room",
+      "enum": [
+        "room",
+        "direct"
+      ],
+      "type": "string"
     },
     "headMessageId": {
       "anyOf": [

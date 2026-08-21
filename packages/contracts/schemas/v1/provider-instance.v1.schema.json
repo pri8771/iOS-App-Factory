@@ -1,0 +1,78 @@
+{
+  "$id": "urn:app-factory:contracts:v1:provider-instance",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "credentialReference": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "^[^\\0\\r\\n]{1,200}$",
+              "type": "string"
+            },
+            "kind": {
+              "const": "macos-keychain",
+              "type": "string"
+            },
+            "schemaVersion": {
+              "const": 1,
+              "type": "number"
+            },
+            "service": {
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "^[^\\0\\r\\n]{1,200}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "kind",
+            "service",
+            "account"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "displayName": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+    },
+    "family": {
+      "enum": [
+        "codex",
+        "claude",
+        "gemini",
+        "ollama",
+        "openrouter"
+      ],
+      "type": "string"
+    },
+    "key": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "model": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "key",
+    "family",
+    "model",
+    "displayName",
+    "credentialReference"
+  ],
+  "type": "object"
+}

@@ -14,6 +14,7 @@ const COMMAND_ID = "00000000-0000-4000-8000-000000000004";
 const REQUEST_ID = "00000000-0000-4000-8000-000000000010";
 const ATTEMPT_ID = "00000000-0000-4000-8000-000000000005";
 const ROOM_ID = "30000000-0000-4000-8000-000000000001";
+const SIGNAL_ID = "8a000000-0000-4000-8000-000000000001";
 const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 
 function request(operation: string, payload: unknown): unknown {
@@ -117,9 +118,15 @@ describe("command protocol V1", () => {
       },
     ],
     ["room.list", { limit: 50 }],
+    ["room.list", { limit: 50, includeArchived: true }],
     ["room.post", { roomId: ROOM_ID, handle: "priyansh", body: "@architect thoughts?" }],
     ["room.events", { roomId: ROOM_ID, afterSequence: 0, limit: 200 }],
     ["room.typing", { roomId: ROOM_ID, handle: "priyansh", ttlMs: 5_000 }],
+    [
+      "room.update",
+      { roomId: ROOM_ID, expectedUpdatedAt: NOW, patch: { unattendedEnabled: true } },
+    ],
+    ["room.update", { roomId: ROOM_ID, expectedUpdatedAt: NOW, patch: { archived: true } }],
     ["room.participants.list", {}],
     ["release.observe", { buildsLimit: 5 }],
     ["release.projection", {}],
@@ -137,6 +144,28 @@ describe("command protocol V1", () => {
         expectedRevision: null,
       },
     ],
+    ["provider.list", {}],
+    [
+      "provider.upsert",
+      {
+        instance: {
+          key: "openrouter-fast",
+          family: "openrouter",
+          model: "anthropic/claude-3.7-sonnet",
+          displayName: "Fast (OpenRouter)",
+        },
+        expectedDigest: null,
+      },
+    ],
+    ["provider.remove", { key: "openrouter-fast", expectedDigest: null }],
+    ["provider.credential.set", { key: "openrouter-fast", secret: "sk-test-secret" }],
+    ["provider.health", { key: null }],
+    ["provider.health", { key: "codex" }],
+    ["settings.get", { key: "default-provider" }],
+    ["settings.set", { key: "default-provider", value: "openrouter-fast" }],
+    ["usage.summary", { sinceDays: 30 }],
+    ["signal.reschedule", { signalId: SIGNAL_ID, checkIntervalMinutes: 60 }],
+    ["signal.reschedule", { signalId: SIGNAL_ID, checkIntervalMinutes: null }],
   ])("accepts the strict %s request", (operation, payload) => {
     expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(true);
   });
@@ -149,6 +178,16 @@ describe("command protocol V1", () => {
     expect(COMMAND_OPERATIONS_V1).toContain("room.participants.list");
     expect(COMMAND_OPERATIONS_V1).toContain("release.observe");
     expect(COMMAND_OPERATIONS_V1).toContain("release.projection");
+    expect(COMMAND_OPERATIONS_V1).toContain("room.update");
+    expect(COMMAND_OPERATIONS_V1).toContain("provider.list");
+    expect(COMMAND_OPERATIONS_V1).toContain("provider.upsert");
+    expect(COMMAND_OPERATIONS_V1).toContain("provider.remove");
+    expect(COMMAND_OPERATIONS_V1).toContain("provider.credential.set");
+    expect(COMMAND_OPERATIONS_V1).toContain("provider.health");
+    expect(COMMAND_OPERATIONS_V1).toContain("settings.get");
+    expect(COMMAND_OPERATIONS_V1).toContain("settings.set");
+    expect(COMMAND_OPERATIONS_V1).toContain("usage.summary");
+    expect(COMMAND_OPERATIONS_V1).toContain("signal.reschedule");
     // A syntactically unrecognized operation is absent from the catalog by construction.
     expect(COMMAND_OPERATIONS_V1).not.toContain("nonexistent.operation");
   });
@@ -442,13 +481,109 @@ describe("command protocol V1", () => {
     ["room.events", { roomId: ROOM_ID, afterSequence: -1, limit: 10 }],
     ["room.typing", { roomId: ROOM_ID, handle: "ok", ttlMs: 60_000 }],
     ["room.list", {}],
+    ["room.update", { roomId: ROOM_ID, expectedUpdatedAt: NOW, patch: {} }],
+    ["room.update", { roomId: ROOM_ID, patch: { title: "x" } }],
     ["room.participants.list", { limit: 10 }],
     ["release.observe", {}],
     ["release.observe", { buildsLimit: 0 }],
     ["release.observe", { buildsLimit: 201 }],
     ["release.projection", { limit: 10 }],
+    [
+      "provider.upsert",
+      {
+        instance: { key: "openrouter-fast", family: "openrouter", model: "m" },
+        expectedDigest: null,
+      },
+    ],
+    ["provider.credential.set", { key: "openrouter-fast", secret: "" }],
+    ["provider.credential.set", { key: "openrouter-fast", secret: "x".repeat(4_001) }],
+    ["settings.set", { key: "not-a-real-setting", value: "codex" }],
+    ["usage.summary", { sinceDays: 0 }],
+    ["usage.summary", { sinceDays: 91 }],
+    ["signal.reschedule", { signalId: SIGNAL_ID, checkIntervalMinutes: 4 }],
+    ["signal.reschedule", { signalId: SIGNAL_ID, checkIntervalMinutes: 10_081 }],
   ])("rejects the malformed %s request", (operation, payload) => {
     expect(CommandRequestV1Schema.safeParse(request(operation, payload)).success).toBe(false);
+  });
+
+  it("never lets a provider.credential.set result carry the secret -- only the credential reference", () => {
+    expect(
+      CommandResponseV1Schema.safeParse({
+        protocolVersion: 1,
+        requestId: REQUEST_ID,
+        ok: true,
+        result: {
+          operation: "provider.credential.set",
+          key: "openrouter-fast",
+          credentialReference: {
+            schemaVersion: 1,
+            kind: "macos-keychain",
+            service: "app-factory.provider.openrouter-fast",
+            account: "openrouter-fast",
+          },
+        },
+      }).success,
+    ).toBe(true);
+    expect(
+      CommandResponseV1Schema.safeParse({
+        protocolVersion: 1,
+        requestId: REQUEST_ID,
+        ok: true,
+        result: {
+          operation: "provider.credential.set",
+          key: "openrouter-fast",
+          credentialReference: {
+            schemaVersion: 1,
+            kind: "macos-keychain",
+            service: "app-factory.provider.openrouter-fast",
+            account: "openrouter-fast",
+          },
+          secret: "sk-leak",
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("answers settings.get honestly with a null value and null updatedAt for a never-set key", () => {
+    expect(
+      CommandResponseV1Schema.safeParse({
+        protocolVersion: 1,
+        requestId: REQUEST_ID,
+        ok: true,
+        result: {
+          operation: "settings.get",
+          entry: { key: "default-provider", value: null, updatedAt: null },
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("bounds usage.summary rows through the success envelope with null-honest sums and unreportedCount", () => {
+    expect(
+      CommandResponseV1Schema.safeParse({
+        protocolVersion: 1,
+        requestId: REQUEST_ID,
+        ok: true,
+        result: {
+          operation: "usage.summary",
+          summary: {
+            sinceDays: 7,
+            rows: [
+              {
+                providerKey: "openrouter-fast",
+                model: "anthropic/claude-3.7-sonnet",
+                dayKey: "2026-08-20",
+                inputTokens: null,
+                outputTokens: null,
+                cachedInputTokens: null,
+                costUsdMicros: null,
+                unreportedCount: 4,
+              },
+            ],
+          },
+        },
+      }).success,
+    ).toBe(true);
   });
 
   it("keeps operation-specific request and result types correlated", () => {

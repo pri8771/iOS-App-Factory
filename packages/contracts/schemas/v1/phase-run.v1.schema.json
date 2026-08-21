@@ -243,16 +243,99 @@
       "type": "integer"
     },
     "__schema33": {
+      "anyOf": [
+        {
+          "maxLength": 10000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "__schema34": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "__schema35": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "maxRounds": {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "perParticipantTurnCap": {
+              "anyOf": [
+                {
+                  "maximum": 12,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "maxRounds",
+            "perParticipantTurnCap"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "__schema36": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "maxTotalTokens": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "maxTotalTokens"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "__schema37": {
       "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
-    "__schema34": {
+    "__schema38": {
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
       "type": "string"
     },
-    "__schema35": {
+    "__schema39": {
       "additionalProperties": false,
       "properties": {
         "digest": {
@@ -268,10 +351,10 @@
               "type": "string"
             },
             "commit": {
-              "$ref": "#/$defs/__schema36"
+              "$ref": "#/$defs/__schema40"
             },
             "tree": {
-              "$ref": "#/$defs/__schema36"
+              "$ref": "#/$defs/__schema40"
             }
           },
           "required": [
@@ -294,17 +377,17 @@
       ],
       "type": "object"
     },
-    "__schema36": {
-      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
-      "type": "string"
-    },
-    "__schema37": {
-      "maxLength": 2000,
+    "__schema4": {
+      "maxLength": 200,
       "minLength": 1,
       "type": "string"
     },
-    "__schema4": {
-      "maxLength": 200,
+    "__schema40": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "__schema41": {
+      "maxLength": 2000,
       "minLength": 1,
       "type": "string"
     },
@@ -383,12 +466,12 @@
   "additionalProperties": false,
   "properties": {
     "createdAt": {
-      "$ref": "#/$defs/__schema34"
+      "$ref": "#/$defs/__schema38"
     },
     "finishedAt": {
       "anyOf": [
         {
-          "$ref": "#/$defs/__schema34"
+          "$ref": "#/$defs/__schema38"
         },
         {
           "type": "null"
@@ -402,7 +485,7 @@
           "properties": {
             "findings": {
               "items": {
-                "$ref": "#/$defs/__schema37"
+                "$ref": "#/$defs/__schema41"
               },
               "maxItems": 50,
               "type": "array"
@@ -501,7 +584,7 @@
     },
     "outputs": {
       "items": {
-        "$ref": "#/$defs/__schema35"
+        "$ref": "#/$defs/__schema39"
       },
       "maxItems": 10,
       "type": "array"
@@ -522,7 +605,7 @@
           "$ref": "#/$defs/__schema7"
         },
         "createdAt": {
-          "$ref": "#/$defs/__schema34"
+          "$ref": "#/$defs/__schema38"
         },
         "gates": {
           "$ref": "#/$defs/__schema28"
@@ -542,11 +625,14 @@
         "phaseId": {
           "$ref": "#/$defs/__schema2"
         },
+        "prompt": {
+          "$ref": "#/$defs/__schema33"
+        },
         "purpose": {
           "$ref": "#/$defs/__schema5"
         },
         "revision": {
-          "$ref": "#/$defs/__schema33"
+          "$ref": "#/$defs/__schema37"
         },
         "rules": {
           "$ref": "#/$defs/__schema17"
@@ -554,8 +640,17 @@
         "schemaVersion": {
           "$ref": "#/$defs/__schema0"
         },
-        "updatedAt": {
+        "tokenBudget": {
+          "$ref": "#/$defs/__schema36"
+        },
+        "topicScope": {
           "$ref": "#/$defs/__schema34"
+        },
+        "turnPolicy": {
+          "$ref": "#/$defs/__schema35"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/__schema38"
         }
       },
       "required": [
@@ -596,7 +691,7 @@
       "$ref": "#/$defs/__schema1"
     },
     "revision": {
-      "$ref": "#/$defs/__schema33"
+      "$ref": "#/$defs/__schema37"
     },
     "roomId": {
       "anyOf": [
@@ -615,7 +710,7 @@
     "startedAt": {
       "anyOf": [
         {
-          "$ref": "#/$defs/__schema34"
+          "$ref": "#/$defs/__schema38"
         },
         {
           "type": "null"
@@ -637,7 +732,7 @@
       "additionalProperties": false,
       "properties": {
         "totalTokens": {
-          "$ref": "#/$defs/__schema33"
+          "$ref": "#/$defs/__schema37"
         }
       },
       "required": [
@@ -646,7 +741,7 @@
       "type": "object"
     },
     "updatedAt": {
-      "$ref": "#/$defs/__schema34"
+      "$ref": "#/$defs/__schema38"
     }
   },
   "required": [

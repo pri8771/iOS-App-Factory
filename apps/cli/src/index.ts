@@ -1596,6 +1596,54 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
       return result.insights.length === 0
         ? "no insights recorded yet\n"
         : `${result.insights.map(renderInsight).join("\n")}\n`;
+    case "provider.list":
+      return result.providers.length === 0
+        ? "no providers configured\n"
+        : `${result.providers
+            .map(
+              (instance) =>
+                `${instance.key}\t${instance.family}\t${instance.model}\t${
+                  instance.credentialReference === null ? "no credential" : "credential set"
+                }`,
+            )
+            .join("\n")}\n`;
+    case "provider.upsert":
+      return `provider ${result.instance.key}: ${result.created ? "created" : "updated"} (digest ${result.digest})\n`;
+    case "provider.remove":
+      return `provider remove: ${result.removed ? "removed" : "not found"} (digest ${result.digest})\n`;
+    case "provider.credential.set":
+      return `provider ${result.key}: credential stored (${result.credentialReference.kind} ${result.credentialReference.service}/${result.credentialReference.account})\n`;
+    case "provider.health":
+      return result.reports.length === 0
+        ? "no providers to probe\n"
+        : `${result.reports
+            .map(
+              ({ key, report }) =>
+                `${key}\t${report.status}${report.latencyMs === null ? "" : `\t${String(report.latencyMs)}ms`}${
+                  report.detail === null ? "" : `\t${report.detail}`
+                }`,
+            )
+            .join("\n")}\n`;
+    case "settings.get":
+    case "settings.set":
+      return `${result.entry.key} = ${result.entry.value ?? "(unset)"}${
+        result.entry.updatedAt === null ? "" : ` (updated ${result.entry.updatedAt})`
+      }\n`;
+    case "room.update":
+      return `room ${result.room.roomId}: updated (updatedAt ${result.room.updatedAt})\n`;
+    case "usage.summary":
+      return result.summary.rows.length === 0
+        ? "no usage recorded\n"
+        : `${result.summary.rows
+            .map(
+              (row) =>
+                `${row.dayKey}\t${row.providerKey}\t${row.model}\tin=${row.inputTokens ?? "?"}\tout=${
+                  row.outputTokens ?? "?"
+                }\tunreported=${String(row.unreportedCount)}`,
+            )
+            .join("\n")}\n`;
+    case "signal.reschedule":
+      return `${renderSignal(result.signal)}\n`;
   }
 }
 

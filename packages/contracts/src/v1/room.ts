@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { AgentUsageV1Schema } from "./agent-run.js";
 import {
   EventIdSchema,
   IsoInstantSchema,
@@ -89,6 +90,17 @@ export type RoomAgentErrorCodeV1 = z.infer<typeof RoomAgentErrorCodeV1Schema>;
 export const RoomAttendanceV1Schema = z.enum(["attended", "dormant"]);
 export type RoomAttendanceV1 = z.infer<typeof RoomAttendanceV1Schema>;
 
+/**
+ * `direct` = a conversation: exactly one agent participant, a moderator fast path that skips the
+ * scorer/auction/cooldown machinery and grants the sole participant on every human message,
+ * `unattendedEnabled` forced false. `.default("room")` so every room created before this field
+ * existed -- and every client that has not learned about `direct` yet -- keeps parsing as a
+ * plain multi-participant room. See "Architecture decisions" item 1 in the Studio chat-first
+ * shell plan; the moderator behavior itself is a later wave's work, not this schema's.
+ */
+export const RoomFlavorV1Schema = z.enum(["room", "direct"]);
+export type RoomFlavorV1 = z.infer<typeof RoomFlavorV1Schema>;
+
 export const RoomTriggerKindV1Schema = z.enum([
   "human-message",
   "agent-message",
@@ -176,6 +188,7 @@ export const RoomV1Schema = z.strictObject({
   roomId: RoomIdSchema,
   title: z.string().min(1).max(200),
   projectId: ProjectIdSchema.nullable(),
+  flavor: RoomFlavorV1Schema.default("room"),
   createdAt: IsoInstantSchema,
   updatedAt: IsoInstantSchema,
   unattendedEnabled: z.boolean(),
@@ -191,6 +204,10 @@ export const RoomV1Schema = z.strictObject({
   agentCooldownEvents: z.number().int().min(1).max(MAX_ROOM_COOLDOWN_EVENTS_V1),
   participants: z.array(RoomParticipantV1Schema).min(1).max(MAX_ROOM_PARTICIPANTS_V1),
   budget: RoomBudgetV1Schema,
+  /** Non-null exactly for an archived room (Architecture decision 7). Archive is soft: the room,
+   *  its transcript, and its history stay intact and readable; only `room.list` hides it by
+   *  default (`includeArchived`). */
+  archivedAt: IsoInstantSchema.nullable().default(null),
 });
 export type RoomV1 = z.infer<typeof RoomV1Schema>;
 
@@ -276,8 +293,18 @@ export const RoomGrantOutcomeV1Schema = z.discriminatedUnion("kind", [
     messageSequence: PositiveSafeIntegerSchema,
     tokensUsed: NonNegativeSafeIntegerSchema,
     revalidated: z.boolean(),
+    /** The honest token ledger's own record of this grant's usage, when the adapter reported one
+     *  (Architecture decision 6) -- `tokensUsed` above keeps its existing budget-debit meaning
+     *  unchanged; this is the separate, never-fabricated ledger figure. */
+    usage: AgentUsageV1Schema.nullable().default(null),
+    costUsdMicros: NonNegativeSafeIntegerSchema.nullable().default(null),
   }),
-  z.strictObject({ kind: z.literal("passed"), tokensUsed: NonNegativeSafeIntegerSchema }),
+  z.strictObject({
+    kind: z.literal("passed"),
+    tokensUsed: NonNegativeSafeIntegerSchema,
+    usage: AgentUsageV1Schema.nullable().default(null),
+    costUsdMicros: NonNegativeSafeIntegerSchema.nullable().default(null),
+  }),
   z.strictObject({
     kind: z.literal("failed"),
     code: RoomAgentErrorCodeV1Schema,
@@ -353,6 +380,7 @@ export const RoomCreateSpecV1Schema = z.strictObject({
   roomId: RoomIdSchema,
   title: z.string().min(1).max(200),
   projectId: ProjectIdSchema.nullable(),
+  flavor: RoomFlavorV1Schema.default("room"),
   unattendedEnabled: z.boolean(),
   agentCooldownEvents: z.number().int().min(1).max(MAX_ROOM_COOLDOWN_EVENTS_V1),
   participants: z
@@ -368,6 +396,37 @@ export const RoomCreateSpecV1Schema = z.strictObject({
 });
 export type RoomCreateSpecV1 = z.infer<typeof RoomCreateSpecV1Schema>;
 
+/**
+ * `room.update` (Architecture decision 7): a CAS patch over exactly the fields the moderator
+ * allows to change post-creation. `roomId`, `projectId`, `flavor`, `createdAt`, and the transcript
+ * itself are immutable -- absent from the patch by construction, not merely unenforced. Every
+ * field is optional; at least one must be set (a no-op update is never a valid command). Removing
+ * a participant is soft everywhere it happens (the moderator enforces "at least one active
+ * participant remains" and, for a `direct` room, "removal is only ever an atomic swap for the
+ * replacement" -- both daemon-side invariants, not shape constraints this schema can express).
+ */
+export const RoomUpdatePatchV1Schema = z
+  .strictObject({
+    title: z.string().min(1).max(200).optional(),
+    unattendedEnabled: z.boolean().optional(),
+    agentCooldownEvents: z.number().int().min(1).max(MAX_ROOM_COOLDOWN_EVENTS_V1).optional(),
+    archived: z.boolean().optional(),
+    /** Replaces the room's budget policy; the moderator re-derives `RoomBudgetV1` from it. */
+    budget: RoomBudgetPolicyV1Schema.optional(),
+    addParticipants: z.array(RoomParticipantSpecV1Schema).max(MAX_ROOM_PARTICIPANTS_V1).optional(),
+    removeParticipants: z.array(RoomPersonaSchema).max(MAX_ROOM_PARTICIPANTS_V1).optional(),
+  })
+  .refine((patch) => Object.keys(patch).length > 0, "patch must set at least one field");
+export type RoomUpdatePatchV1 = z.infer<typeof RoomUpdatePatchV1Schema>;
+
+export const RoomUpdateSpecV1Schema = z.strictObject({
+  roomId: RoomIdSchema,
+  /** CAS guard against `RoomV1.updatedAt`; a stale value is refused rather than silently merged. */
+  expectedUpdatedAt: IsoInstantSchema,
+  patch: RoomUpdatePatchV1Schema,
+});
+export type RoomUpdateSpecV1 = z.infer<typeof RoomUpdateSpecV1Schema>;
+
 // `room.participants.list`: the wire-safe catalog of the daemon's configured room participants.
 //
 // `apps/daemon/src/room-participants-config.ts` (`RoomParticipantsConfigV1`) is daemon-local
@@ -382,17 +441,37 @@ export type RoomCreateSpecV1 = z.infer<typeof RoomCreateSpecV1Schema>;
 
 export const MAX_ROOM_ROSTER_ENTRIES_V1 = 1_000 as const;
 export const MAX_ROOM_ROSTER_PARTICIPANTS_V1 = 64 as const;
-/** codex + claude + ollama (one each) + up to 5 named `openrouter` instances. */
-export const MAX_ROOM_CATALOG_PROVIDER_ENTRIES_V1 = 8 as const;
+/** codex + claude + gemini + ollama (array, multiple named instances) + up to 5 named `openrouter`
+ *  instances, with headroom for growth (was 8, one per provider family, before named Ollama and
+ *  Gemini instances existed). */
+export const MAX_ROOM_CATALOG_PROVIDER_ENTRIES_V1 = 16 as const;
 /** Mirrors `@app-factory/ollama-scorer`'s `ROOM_CHARTER_MAX_CHARS` (contracts cannot import it). */
 export const MAX_ROOM_ROSTER_CHARTER_LENGTH_V1 = 2_000 as const;
 
 /** The providers `RoomParticipantsConfigV1` can configure an adapter for. */
-export const RoomCatalogProviderV1Schema = z.enum(["codex", "claude", "ollama", "openrouter"]);
+export const RoomCatalogProviderV1Schema = z.enum([
+  "codex",
+  "claude",
+  "gemini",
+  "ollama",
+  "openrouter",
+]);
 export type RoomCatalogProviderV1 = z.infer<typeof RoomCatalogProviderV1Schema>;
 
 export const RoomCatalogProviderEntryV1Schema = z.strictObject({
   provider: RoomCatalogProviderV1Schema,
+  /**
+   * The unique room-provider key this entry answers to at `@mention` / `room.create` time (e.g.
+   * `openrouter-fast`), matching `RoomParticipantSpecV1.provider` / `RoomProviderSchema`. `null`
+   * only for a catalog recorded before this field existed; a live catalog always sets it (the
+   * daemon derives it from the participants config: the bare `provider` value for
+   * codex/claude/gemini/ollama, `openrouter-<id>` for each named OpenRouter instance). Fixes a
+   * live bug: before this field existed, two or more OpenRouter instances made
+   * `room.participants.list` throw on its own uniqueness refine, because that refine ran over the
+   * shared `provider` value ("openrouter") instead of each instance's own key -- see the
+   * uniqueness check below.
+   */
+  roomProviderKey: RoomProviderSchema.nullable().default(null),
   /** The effective model the adapter speaks (the daemon resolves Ollama's default when unset). */
   model: z.string().min(1).max(200),
   /** Codex `expectedCliVersion` when the operator pinned one; `null` for every other case. */
@@ -459,13 +538,17 @@ export const RoomParticipantsCatalogV1Schema = z
         message: "a disabled catalog lists no providers and no roster",
       });
     }
-    if (
-      new Set(catalog.providers.map(({ provider }) => provider)).size !== catalog.providers.length
-    ) {
+    // Uniqueness runs over `roomProviderKey`, falling back to `provider` for a legacy entry
+    // recorded before `roomProviderKey` existed. That fallback preserves the exact old behavior
+    // for legacy data (one entry per provider family, each with a distinct `provider`) while
+    // correctly allowing two or more OpenRouter instances -- which now carry distinct
+    // `roomProviderKey`s despite sharing `provider: "openrouter"` -- to coexist.
+    const providerKeys = catalog.providers.map((entry) => entry.roomProviderKey ?? entry.provider);
+    if (new Set(providerKeys).size !== providerKeys.length) {
       context.addIssue({
         code: "custom",
         path: ["providers"],
-        message: "providers must be unique",
+        message: "roomProviderKey (or provider, for legacy entries) must be unique",
       });
     }
   });

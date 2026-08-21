@@ -68,6 +68,14 @@ import {
 } from "./primitives.js";
 import { PortfolioReadModelV1Schema } from "./portfolio-read-model.js";
 import {
+  CredentialReferenceV1Schema,
+  MAX_PROVIDER_CREDENTIAL_SECRET_LENGTH_V1,
+  MAX_PROVIDER_INSTANCES_V1,
+  ProviderHealthEntryV1Schema,
+  ProviderInstanceV1Schema,
+  ProviderUpsertSpecV1Schema,
+} from "./provider.js";
+import {
   MAX_ROOM_EVENTS_LIMIT_V1,
   MAX_ROOM_LIST_ITEMS_V1,
   MAX_ROOM_MESSAGE_BODY_LENGTH_V1,
@@ -80,12 +88,16 @@ import {
   RoomModeratorStatusV1Schema,
   RoomParticipantsCatalogV1Schema,
   RoomProviderSchema,
+  RoomUpdateSpecV1Schema,
   RoomV1Schema,
 } from "./room.js";
 import { RunRecordV1Schema } from "./run-record.js";
+import { StudioSettingEntryV1Schema, StudioSettingKeyV1Schema } from "./settings.js";
 import {
+  MAX_SIGNAL_CHECK_INTERVAL_MINUTES_V1,
   MAX_SIGNAL_NAME_LENGTH_V1,
   MAX_SIGNAL_WATCH_DESCRIPTION_LENGTH_V1,
+  MIN_SIGNAL_CHECK_INTERVAL_MINUTES_V1,
   SignalIdSchema,
   SignalInsightV1Schema,
   SignalV1Schema,
@@ -99,6 +111,7 @@ import {
 import { AscReleaseObservationV1Schema, ReleaseProjectionV1Schema } from "./release-observation.js";
 import { StudioSnapshotV1Schema } from "./studio-snapshot.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
+import { UsageSummaryV1Schema } from "./token-usage.js";
 
 export const COMMAND_PROTOCOL_VERSION_V1 = 1 as const;
 export const CommandProtocolVersionV1Schema = z.literal(COMMAND_PROTOCOL_VERSION_V1);
@@ -552,7 +565,12 @@ export const RoomCreateCommandRequestV1Schema = z.strictObject({
 export const RoomListCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("room.list"),
-  payload: z.strictObject({ limit: z.number().int().min(1).max(MAX_ROOM_LIST_ITEMS_V1) }),
+  payload: z.strictObject({
+    limit: z.number().int().min(1).max(MAX_ROOM_LIST_ITEMS_V1),
+    /** `false` (the default) hides archived rooms, so an existing caller's `room.list` behavior
+     *  is unchanged unless it opts in. */
+    includeArchived: z.boolean().default(false),
+  }),
 });
 
 export const RoomPostCommandRequestV1Schema = z.strictObject({
@@ -583,6 +601,17 @@ export const RoomTypingCommandRequestV1Schema = z.strictObject({
     handle: RoomHumanHandleSchema,
     ttlMs: z.number().int().min(1).max(MAX_ROOM_TYPING_TTL_MS_V1),
   }),
+});
+
+/**
+ * A durable CAS patch over an existing room (Architecture decision 7): title, ambient toggle,
+ * cooldown window, archive, budget policy, and participant add/remove. `RoomUpdateSpecV1Schema`
+ * itself refuses an empty patch; the daemon separately refuses a stale `expectedUpdatedAt`.
+ */
+export const RoomUpdateCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("room.update"),
+  payload: RoomUpdateSpecV1Schema,
 });
 
 /**
@@ -641,6 +670,15 @@ export const SignalCreateCommandRequestV1Schema = z.strictObject({
     name: z.string().min(1).max(MAX_SIGNAL_NAME_LENGTH_V1),
     watchDescription: z.string().min(1).max(MAX_SIGNAL_WATCH_DESCRIPTION_LENGTH_V1),
     scoutProvider: RoomProviderSchema,
+    /** `null` (the default) leaves the signal manual-only, matching every signal created before
+     *  the scheduler (Architecture decision 11) existed. */
+    checkIntervalMinutes: z
+      .number()
+      .int()
+      .min(MIN_SIGNAL_CHECK_INTERVAL_MINUTES_V1)
+      .max(MAX_SIGNAL_CHECK_INTERVAL_MINUTES_V1)
+      .nullable()
+      .default(null),
   }),
 });
 
@@ -672,10 +710,113 @@ export const SignalRunNowCommandRequestV1Schema = z.strictObject({
   payload: SignalPayloadV1Schema,
 });
 
+/** Sets or clears (`null`) a signal's scheduled check interval (Architecture decision 11);
+ *  `signal.create`'s own `checkIntervalMinutes` covers the create-time case. */
+export const SignalRescheduleCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("signal.reschedule"),
+  payload: z.strictObject({
+    signalId: SignalIdSchema,
+    checkIntervalMinutes: z
+      .number()
+      .int()
+      .min(MIN_SIGNAL_CHECK_INTERVAL_MINUTES_V1)
+      .max(MAX_SIGNAL_CHECK_INTERVAL_MINUTES_V1)
+      .nullable(),
+  }),
+});
+
 export const InsightListCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("insight.list"),
   payload: SignalPayloadV1Schema,
+});
+
+/**
+ * Provider registry (`provider.*`): see `provider.ts`'s module doc comment and "Architecture
+ * decisions" items 2-3 in the Studio chat-first shell plan. `provider.list` is an owner surface --
+ * it may return executable-adjacent metadata and credential references, but the daemon never puts
+ * a raw secret in any `provider.*` result.
+ */
+export const ProviderListCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("provider.list"),
+  payload: EmptyPayloadV1Schema,
+});
+
+export const ProviderUpsertCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("provider.upsert"),
+  payload: z.strictObject({
+    instance: ProviderUpsertSpecV1Schema,
+    /** Digest-CAS guard against the provider config file's current contents (`RoomParticipants
+     *  CatalogV1.sourceDigest`-style digest over the provider registry specifically); `null`
+     *  accepts whatever the file currently holds -- the same "no expectation yet" convention
+     *  `PhaseDefinitionUpsertV1.expectedRevision` already uses. */
+    expectedDigest: Sha256DigestSchema.nullable(),
+  }),
+});
+
+export const ProviderRemoveCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("provider.remove"),
+  payload: z.strictObject({
+    key: RoomProviderSchema,
+    expectedDigest: Sha256DigestSchema.nullable(),
+  }),
+});
+
+/**
+ * Carries the bare credential value ONCE, over the owner-only 0600 socket (Architecture decision
+ * 2). This operation's result MUST stay out of `DURABLE_COMMAND_RESULT_OPERATIONS`
+ * (`apps/daemon/src/command-runtime.ts`): it is never journaled to `<runtime>/command-results/`,
+ * so a durable replay ledger can never come to hold the secret. The daemon writes straight to the
+ * macOS Keychain and stores only the resulting `CredentialReferenceV1` in the provider config file.
+ */
+export const ProviderCredentialSetCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("provider.credential.set"),
+  payload: z.strictObject({
+    key: RoomProviderSchema,
+    secret: z.string().min(1).max(MAX_PROVIDER_CREDENTIAL_SECRET_LENGTH_V1),
+  }),
+});
+
+/** Runs OUTSIDE the serial executor, like `release.observe` (Architecture decision 3) -- a health
+ *  probe is a real process/network round trip and must not stall every other command. `key: null`
+ *  probes every configured instance. */
+export const ProviderHealthCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("provider.health"),
+  payload: z.strictObject({ key: RoomProviderSchema.nullable() }),
+});
+
+/**
+ * Studio settings (`settings.*`): see `settings.ts`'s module doc comment and "Architecture
+ * decisions" item 4. Deliberately narrow -- one kernel-owned key/value table, not a general
+ * preferences store.
+ */
+export const SettingsGetCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("settings.get"),
+  payload: z.strictObject({ key: StudioSettingKeyV1Schema }),
+});
+
+export const SettingsSetCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("settings.set"),
+  payload: z.strictObject({ key: StudioSettingKeyV1Schema, value: RoomProviderSchema }),
+});
+
+/**
+ * The honest token ledger's read side (`usage.summary`; Architecture decision 6). `sinceDays`
+ * bounds how far back the summary looks; see `token-usage.ts` for `UsageSummaryV1Schema` and its
+ * null-honest sums plus `unreportedCount`.
+ */
+export const UsageSummaryCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("usage.summary"),
+  payload: z.strictObject({ sinceDays: z.number().int().min(1).max(90) }),
 });
 
 export const StudioAssistantQueryCommandRequestV1Schema = z.strictObject({
@@ -750,6 +891,7 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   RoomPostCommandRequestV1Schema,
   RoomEventsCommandRequestV1Schema,
   RoomTypingCommandRequestV1Schema,
+  RoomUpdateCommandRequestV1Schema,
   RoomParticipantsListCommandRequestV1Schema,
   ReleaseObserveCommandRequestV1Schema,
   ReleaseProjectionCommandRequestV1Schema,
@@ -758,8 +900,17 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   SignalPauseCommandRequestV1Schema,
   SignalResumeCommandRequestV1Schema,
   SignalRunNowCommandRequestV1Schema,
+  SignalRescheduleCommandRequestV1Schema,
   InsightListCommandRequestV1Schema,
   StudioSnapshotCommandRequestV1Schema,
+  ProviderListCommandRequestV1Schema,
+  ProviderUpsertCommandRequestV1Schema,
+  ProviderRemoveCommandRequestV1Schema,
+  ProviderCredentialSetCommandRequestV1Schema,
+  ProviderHealthCommandRequestV1Schema,
+  SettingsGetCommandRequestV1Schema,
+  SettingsSetCommandRequestV1Schema,
+  UsageSummaryCommandRequestV1Schema,
   StudioAssistantQueryCommandRequestV1Schema,
   StudioAssistantIntentProposeCommandRequestV1Schema,
   StudioAssistantIntentExecuteCommandRequestV1Schema,
@@ -1189,6 +1340,11 @@ export const RoomTypingCommandResultV1Schema = z.strictObject({
   typingUntil: IsoInstantSchema,
 });
 
+export const RoomUpdateCommandResultV1Schema = z.strictObject({
+  operation: z.literal("room.update"),
+  room: RoomV1Schema,
+});
+
 export const RoomParticipantsListCommandResultV1Schema = z.strictObject({
   operation: z.literal("room.participants.list"),
   catalog: RoomParticipantsCatalogV1Schema,
@@ -1237,6 +1393,11 @@ export const SignalRunNowCommandResultV1Schema = z.strictObject({
   ]),
 });
 
+export const SignalRescheduleCommandResultV1Schema = z.strictObject({
+  operation: z.literal("signal.reschedule"),
+  signal: SignalV1Schema,
+});
+
 export const InsightListCommandResultV1Schema = z.strictObject({
   operation: z.literal("insight.list"),
   insights: z.array(SignalInsightV1Schema).max(1_000),
@@ -1250,6 +1411,52 @@ export const ReleaseObserveCommandResultV1Schema = z.strictObject({
 export const ReleaseProjectionCommandResultV1Schema = z.strictObject({
   operation: z.literal("release.projection"),
   projection: ReleaseProjectionV1Schema,
+});
+
+export const ProviderListCommandResultV1Schema = z.strictObject({
+  operation: z.literal("provider.list"),
+  providers: z.array(ProviderInstanceV1Schema).max(MAX_PROVIDER_INSTANCES_V1),
+});
+
+export const ProviderUpsertCommandResultV1Schema = z.strictObject({
+  operation: z.literal("provider.upsert"),
+  instance: ProviderInstanceV1Schema,
+  created: z.boolean(),
+  /** The provider config file's digest after this write -- the next CAS `expectedDigest`. */
+  digest: Sha256DigestSchema,
+});
+
+export const ProviderRemoveCommandResultV1Schema = z.strictObject({
+  operation: z.literal("provider.remove"),
+  removed: z.boolean(),
+  digest: Sha256DigestSchema,
+});
+
+/** Never echoes the secret; only the reference the daemon just wrote to the Keychain. */
+export const ProviderCredentialSetCommandResultV1Schema = z.strictObject({
+  operation: z.literal("provider.credential.set"),
+  key: RoomProviderSchema,
+  credentialReference: CredentialReferenceV1Schema,
+});
+
+export const ProviderHealthCommandResultV1Schema = z.strictObject({
+  operation: z.literal("provider.health"),
+  reports: z.array(ProviderHealthEntryV1Schema).max(MAX_PROVIDER_INSTANCES_V1),
+});
+
+export const SettingsGetCommandResultV1Schema = z.strictObject({
+  operation: z.literal("settings.get"),
+  entry: StudioSettingEntryV1Schema,
+});
+
+export const SettingsSetCommandResultV1Schema = z.strictObject({
+  operation: z.literal("settings.set"),
+  entry: StudioSettingEntryV1Schema,
+});
+
+export const UsageSummaryCommandResultV1Schema = z.strictObject({
+  operation: z.literal("usage.summary"),
+  summary: UsageSummaryV1Schema,
 });
 
 export const StudioAssistantQueryCommandResultV1Schema = z.strictObject({
@@ -1337,6 +1544,7 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   RoomPostCommandResultV1Schema,
   RoomEventsCommandResultV1Schema,
   RoomTypingCommandResultV1Schema,
+  RoomUpdateCommandResultV1Schema,
   RoomParticipantsListCommandResultV1Schema,
   ReleaseObserveCommandResultV1Schema,
   ReleaseProjectionCommandResultV1Schema,
@@ -1345,8 +1553,17 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   SignalPauseCommandResultV1Schema,
   SignalResumeCommandResultV1Schema,
   SignalRunNowCommandResultV1Schema,
+  SignalRescheduleCommandResultV1Schema,
   InsightListCommandResultV1Schema,
   StudioSnapshotCommandResultV1Schema,
+  ProviderListCommandResultV1Schema,
+  ProviderUpsertCommandResultV1Schema,
+  ProviderRemoveCommandResultV1Schema,
+  ProviderCredentialSetCommandResultV1Schema,
+  ProviderHealthCommandResultV1Schema,
+  SettingsGetCommandResultV1Schema,
+  SettingsSetCommandResultV1Schema,
+  UsageSummaryCommandResultV1Schema,
   StudioAssistantQueryCommandResultV1Schema,
   StudioAssistantIntentProposeCommandResultV1Schema,
   StudioAssistantIntentExecuteCommandResultV1Schema,

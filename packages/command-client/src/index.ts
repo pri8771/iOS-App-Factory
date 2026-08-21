@@ -1007,11 +1007,16 @@ export class CommandClient {
   }
 
   public async listRooms(
-    options: Readonly<{ limit?: number }> = {},
+    options: Readonly<{ limit?: number; includeArchived?: boolean }> = {},
     identity?: CommandIdentity,
     signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"room.list">> {
-    return await this.#request("room.list", { limit: options.limit ?? 50 }, identity, signal);
+    return await this.#request(
+      "room.list",
+      { limit: options.limit ?? 50, includeArchived: options.includeArchived ?? false },
+      identity,
+      signal,
+    );
   }
 
   /** Appends a human message to the single-writer transcript and wakes the moderator. */
@@ -1115,7 +1120,12 @@ export class CommandClient {
   }
 
   public async createSignal(
-    input: Readonly<{ name: string; watchDescription: string; scoutProvider: string }>,
+    input: Readonly<{
+      name: string;
+      watchDescription: string;
+      scoutProvider: string;
+      checkIntervalMinutes?: number | null;
+    }>,
     identity?: CommandIdentity,
     signal?: AbortSignal,
   ): Promise<CommandResultForOperationV1<"signal.create">> {
@@ -1125,6 +1135,7 @@ export class CommandClient {
         name: input.name,
         watchDescription: input.watchDescription,
         scoutProvider: RoomProviderSchema.parse(input.scoutProvider),
+        checkIntervalMinutes: input.checkIntervalMinutes ?? null,
       },
       identity,
       signal,

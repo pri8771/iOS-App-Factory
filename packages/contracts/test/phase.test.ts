@@ -5,6 +5,8 @@ import {
   PhaseDefinitionV1Schema,
   PhasePresetUpsertCommandV1Schema,
   PhasePresetV1Schema,
+  PhaseTokenBudgetV1Schema,
+  PhaseTurnPolicyV1Schema,
 } from "../src/index.js";
 
 const T0 = "2026-08-16T09:00:00.000Z";
@@ -209,6 +211,93 @@ describe("PhaseDefinitionV1", () => {
         upsert: { phase: phaseDraft(), expectedRevision: null },
       }),
     ).not.toThrow();
+  });
+
+  it("defaults prompt, topicScope, turnPolicy, and tokenBudget to null when omitted", () => {
+    const parsed = PhaseDefinitionV1Schema.parse(phase());
+    expect(parsed.prompt).toBeNull();
+    expect(parsed.topicScope).toBeNull();
+    expect(parsed.turnPolicy).toBeNull();
+    expect(parsed.tokenBudget).toBeNull();
+  });
+
+  it("accepts explicit prompt, topicScope, turnPolicy, and tokenBudget", () => {
+    const parsed = PhaseDefinitionV1Schema.parse(
+      phase({
+        prompt: "Operator briefing: keep the debate focused on the MVP boundary.",
+        topicScope: "Only discuss the contract phase's own scope.",
+        turnPolicy: { maxRounds: 6, perParticipantTurnCap: 2 },
+        tokenBudget: { maxTotalTokens: 50_000 },
+      }),
+    );
+    expect(parsed.turnPolicy).toEqual({ maxRounds: 6, perParticipantTurnCap: 2 });
+    expect(parsed.tokenBudget).toEqual({ maxTotalTokens: 50_000 });
+  });
+
+  it("bounds prompt and topicScope length", () => {
+    expect(() => PhaseDefinitionV1Schema.parse(phase({ prompt: "" }))).toThrow();
+    expect(() => PhaseDefinitionV1Schema.parse(phase({ prompt: "x".repeat(10_001) }))).toThrow();
+    expect(() => PhaseDefinitionV1Schema.parse(phase({ topicScope: "x".repeat(2_001) }))).toThrow();
+  });
+});
+
+describe("PhaseTurnPolicyV1Schema / PhaseTokenBudgetV1Schema", () => {
+  it("bounds maxRounds and perParticipantTurnCap to 1..12 and allows a null cap", () => {
+    expect(
+      PhaseTurnPolicyV1Schema.safeParse({ maxRounds: 1, perParticipantTurnCap: null }).success,
+    ).toBe(true);
+    expect(
+      PhaseTurnPolicyV1Schema.safeParse({ maxRounds: 12, perParticipantTurnCap: 12 }).success,
+    ).toBe(true);
+    expect(
+      PhaseTurnPolicyV1Schema.safeParse({ maxRounds: 13, perParticipantTurnCap: null }).success,
+    ).toBe(false);
+    expect(
+      PhaseTurnPolicyV1Schema.safeParse({ maxRounds: 0, perParticipantTurnCap: null }).success,
+    ).toBe(false);
+  });
+
+  it("requires a positive maxTotalTokens", () => {
+    expect(PhaseTokenBudgetV1Schema.safeParse({ maxTotalTokens: 1 }).success).toBe(true);
+    expect(PhaseTokenBudgetV1Schema.safeParse({ maxTotalTokens: 0 }).success).toBe(false);
+  });
+});
+
+describe("legacy compatibility: a stored phase definition predating prompt/topicScope/turnPolicy/tokenBudget", () => {
+  it("parses a phase definition JSON with none of the four new fields, defaulting all to null", () => {
+    // Exactly the shape `preset.upsert`/`phase.upsert` would have persisted before this wave --
+    // no `prompt`, `topicScope`, `turnPolicy`, or `tokenBudget` key at all.
+    const legacyStoredPhase = {
+      schemaVersion: 1,
+      phaseId: "contract",
+      name: "Contract",
+      purpose: "Define the user outcome, MVP boundary, and Definition of Done.",
+      mode: "solo",
+      cast: {
+        participants: [{ provider: "claude", persona: "contract-writer", readOnly: true }],
+        coordinator: null,
+        grader: null,
+      },
+      inputs: ["docs"],
+      rules: {
+        standard: ["rule.new.scope-before-breadth"],
+        yours: [],
+        requiredOutput: [],
+        acceptanceChecks: [],
+      },
+      outputs: [{ path: "docs/product/contract.md", schema: null }],
+      gates: [],
+      budget: { estimateMinutes: 20, timeoutSeconds: 1_800 },
+      revision: 0,
+      createdAt: T0,
+      updatedAt: T0,
+    };
+
+    const parsed = PhaseDefinitionV1Schema.parse(legacyStoredPhase);
+    expect(parsed.prompt).toBeNull();
+    expect(parsed.topicScope).toBeNull();
+    expect(parsed.turnPolicy).toBeNull();
+    expect(parsed.tokenBudget).toBeNull();
   });
 });
 

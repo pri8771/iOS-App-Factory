@@ -537,6 +537,7 @@
         "roomId": "30000000-0000-4000-8000-000000000001",
         "title": "Design review",
         "projectId": "00000000-0000-4000-8000-000000000001",
+        "flavor": "room",
         "createdAt": "2026-08-16T10:00:00.000Z",
         "updatedAt": "2026-08-16T10:05:00.000Z",
         "unattendedEnabled": false,
@@ -578,7 +579,8 @@
           "spentTokens": 100,
           "reservedTokens": 0,
           "unattendedSpentTokens": 0
-        }
+        },
+        "archivedAt": null
       }
     },
     {
@@ -642,7 +644,9 @@
           "kind": "committed",
           "messageSequence": 2,
           "tokensUsed": 100,
-          "revalidated": false
+          "revalidated": false,
+          "usage": null,
+          "costUsdMicros": null
         }
       }
     }

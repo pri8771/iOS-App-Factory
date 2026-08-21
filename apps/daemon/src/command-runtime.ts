@@ -799,6 +799,7 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "room.post":
     case "room.events":
     case "room.typing":
+    case "room.update":
     case "room.participants.list":
     case "release.observe":
     case "release.projection":
@@ -807,8 +808,17 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "signal.pause":
     case "signal.resume":
     case "signal.run-now":
+    case "signal.reschedule":
     case "insight.list":
     case "studio.snapshot":
+    case "provider.list":
+    case "provider.upsert":
+    case "provider.remove":
+    case "provider.credential.set":
+    case "provider.health":
+    case "settings.get":
+    case "settings.set":
+    case "usage.summary":
     case "studio.assistant.query":
     case "studio.assistant.intent.propose":
     case "studio.assistant.intent.execute":
@@ -1889,6 +1899,27 @@ async function executeRequest(
           loadProjectDocsSourcesV1(),
         ),
       };
+    // `provider.*`/`settings.*`/`room.update`/`usage.summary`/`signal.reschedule`: recognized by
+    // the wire protocol (`packages/contracts/src/v1/command-protocol.ts`) as of this contracts-only
+    // wave, but no daemon-side handler exists yet -- that lands in later waves (provider registry +
+    // settings-command-runtime + usage-command-runtime + room lifecycle + signal scheduler). Kept
+    // exhaustive, and honest about "recognized but not yet implemented" rather than falling through
+    // to `protocol.unsupported-operation`, which would incorrectly claim the operation is unknown.
+    case "provider.list":
+    case "provider.upsert":
+    case "provider.remove":
+    case "provider.credential.set":
+    case "provider.health":
+    case "settings.get":
+    case "settings.set":
+    case "room.update":
+    case "usage.summary":
+    case "signal.reschedule":
+      throw new CommandHandlerError(
+        "command.operation-not-yet-implemented",
+        `"${request.operation}" is recognized by the wire protocol but not yet implemented by this daemon build.`,
+        false,
+      );
     case "studio.assistant.query":
       return {
         operation: "studio.assistant.query",

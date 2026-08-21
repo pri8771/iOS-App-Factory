@@ -222,11 +222,17 @@ describe("buildRoomParticipantsCatalogSourceV1 (room.participants.list)", () => 
   it("projects providers by key/model/pinned CLI version and the roster verbatim", () => {
     const source = buildRoomParticipantsCatalogSourceV1(FULL_CONFIG);
     expect(source.providers).toEqual([
-      { provider: "codex", model: "gpt-test", cliVersion: "0.42.0" },
-      { provider: "claude", model: "sonnet", cliVersion: null },
+      { provider: "codex", roomProviderKey: null, model: "gpt-test", cliVersion: "0.42.0" },
+      { provider: "claude", roomProviderKey: null, model: "sonnet", cliVersion: null },
       // Ollama's model was left unset in the config; the catalog reports the effective default
-      // the adapter actually speaks, never an "unknown".
-      { provider: "ollama", model: expect.stringMatching(/^.+$/) as string, cliVersion: null },
+      // the adapter actually speaks, never an "unknown". `roomProviderKey` derivation (including
+      // the per-instance `openrouter-<id>` keys) is Wave 5 work, not this contracts-only wave.
+      {
+        provider: "ollama",
+        roomProviderKey: null,
+        model: expect.stringMatching(/^.+$/) as string,
+        cliVersion: null,
+      },
     ]);
     expect(source.roster).toEqual([
       {
@@ -271,7 +277,9 @@ describe("buildRoomParticipantsCatalogSourceV1 (room.participants.list)", () => 
       ollama: { baseUrl: "http://127.0.0.1:19999", model: "qwen2.5-coder:14b" },
     });
     expect(ports.participantsCatalog).toEqual({
-      providers: [{ provider: "ollama", model: "qwen2.5-coder:14b", cliVersion: null }],
+      providers: [
+        { provider: "ollama", roomProviderKey: null, model: "qwen2.5-coder:14b", cliVersion: null },
+      ],
       roster: [],
     });
   });

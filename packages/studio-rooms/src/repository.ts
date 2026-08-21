@@ -909,6 +909,10 @@ export class RoomRepository {
         messageSequence: message.sequence,
         tokensUsed: input.tokensUsed,
         revalidated: input.revalidated,
+        // The honest token ledger (contracts Architecture decision 6) is not wired up yet -- no
+        // adapter reports real usage/cost through this path until a later wave.
+        usage: null,
+        costUsdMicros: null,
       };
       this.#closeGrant(
         grant,

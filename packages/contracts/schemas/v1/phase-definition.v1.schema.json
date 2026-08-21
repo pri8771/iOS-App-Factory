@@ -237,11 +237,94 @@
       "type": "integer"
     },
     "__schema31": {
+      "anyOf": [
+        {
+          "maxLength": 10000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "__schema32": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "__schema33": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "maxRounds": {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "perParticipantTurnCap": {
+              "anyOf": [
+                {
+                  "maximum": 12,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "maxRounds",
+            "perParticipantTurnCap"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "__schema34": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "maxTotalTokens": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "maxTotalTokens"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "__schema35": {
       "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
-    "__schema32": {
+    "__schema36": {
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
       "type": "string"
@@ -330,7 +413,7 @@
       "$ref": "#/$defs/__schema5"
     },
     "createdAt": {
-      "$ref": "#/$defs/__schema32"
+      "$ref": "#/$defs/__schema36"
     },
     "gates": {
       "$ref": "#/$defs/__schema26"
@@ -350,11 +433,14 @@
     "phaseId": {
       "$ref": "#/$defs/__schema1"
     },
+    "prompt": {
+      "$ref": "#/$defs/__schema31"
+    },
     "purpose": {
       "$ref": "#/$defs/__schema3"
     },
     "revision": {
-      "$ref": "#/$defs/__schema31"
+      "$ref": "#/$defs/__schema35"
     },
     "rules": {
       "$ref": "#/$defs/__schema15"
@@ -362,8 +448,17 @@
     "schemaVersion": {
       "$ref": "#/$defs/__schema0"
     },
-    "updatedAt": {
+    "tokenBudget": {
+      "$ref": "#/$defs/__schema34"
+    },
+    "topicScope": {
       "$ref": "#/$defs/__schema32"
+    },
+    "turnPolicy": {
+      "$ref": "#/$defs/__schema33"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/__schema36"
     }
   },
   "required": [

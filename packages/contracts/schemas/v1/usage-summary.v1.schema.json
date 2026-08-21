@@ -1,0 +1,103 @@
+{
+  "$defs": {
+    "__schema0": {
+      "additionalProperties": false,
+      "properties": {
+        "cachedInputTokens": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "costUsdMicros": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dayKey": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string"
+        },
+        "inputTokens": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "outputTokens": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "providerKey": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        "unreportedCount": {
+          "$ref": "#/$defs/__schema1"
+        }
+      },
+      "required": [
+        "providerKey",
+        "model",
+        "dayKey",
+        "inputTokens",
+        "outputTokens",
+        "cachedInputTokens",
+        "costUsdMicros",
+        "unreportedCount"
+      ],
+      "type": "object"
+    },
+    "__schema1": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:usage-summary",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/__schema0"
+      },
+      "maxItems": 2000,
+      "type": "array"
+    },
+    "sinceDays": {
+      "maximum": 90,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "sinceDays",
+    "rows"
+  ],
+  "type": "object"
+}

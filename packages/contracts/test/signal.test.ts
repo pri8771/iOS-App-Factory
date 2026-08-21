@@ -63,6 +63,41 @@ describe("SignalV1Schema", () => {
     ).not.toThrow();
   });
 
+  it("defaults checkIntervalMinutes to null (manual-only) when omitted -- legacy signals predating the scheduler", () => {
+    const parsed = SignalV1Schema.parse({
+      schemaVersion: 1,
+      signalId: "8a000000-0000-4000-8000-000000000004",
+      name: "Watch",
+      watchDescription: "Watch something.",
+      scoutProvider: "codex",
+      status: "active",
+      createdAt: "2026-08-19T00:00:00.000Z",
+      lastCheckedAt: null,
+      checkCount: 0,
+      insightCount: 0,
+    });
+    expect(parsed.checkIntervalMinutes).toBeNull();
+  });
+
+  it("bounds checkIntervalMinutes to 5..10080 minutes when set", () => {
+    const base = {
+      schemaVersion: 1 as const,
+      signalId: "8a000000-0000-4000-8000-000000000005",
+      name: "Watch",
+      watchDescription: "Watch something.",
+      scoutProvider: "codex" as const,
+      status: "active" as const,
+      createdAt: "2026-08-19T00:00:00.000Z",
+      lastCheckedAt: null,
+      checkCount: 0,
+      insightCount: 0,
+    };
+    expect(SignalV1Schema.safeParse({ ...base, checkIntervalMinutes: 5 }).success).toBe(true);
+    expect(SignalV1Schema.safeParse({ ...base, checkIntervalMinutes: 10_080 }).success).toBe(true);
+    expect(SignalV1Schema.safeParse({ ...base, checkIntervalMinutes: 4 }).success).toBe(false);
+    expect(SignalV1Schema.safeParse({ ...base, checkIntervalMinutes: 10_081 }).success).toBe(false);
+  });
+
   it("rejects an unknown extra field (strict shape)", () => {
     expect(() =>
       SignalV1Schema.parse({

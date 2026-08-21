@@ -62,6 +62,10 @@ function phaseDraft(phaseId: string, overrides: Readonly<Record<string, unknown>
     outputs: [{ path: "docs/product/contract.md", schema: null }],
     gates: [],
     budget: { estimateMinutes: 20, timeoutSeconds: 1_800 },
+    prompt: null,
+    topicScope: null,
+    turnPolicy: null,
+    tokenBudget: null,
     ...overrides,
   };
 }
