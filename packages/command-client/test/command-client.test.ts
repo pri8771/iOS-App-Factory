@@ -1287,4 +1287,340 @@ describe("typed command client", () => {
     expect(received).toHaveLength(3);
     client.close();
   });
+
+  it("manages the provider registry: list, upsert, remove, and probe health", async () => {
+    const instance = {
+      key: "openrouter-fast",
+      family: "openrouter",
+      model: "openrouter/auto",
+      displayName: "OpenRouter (fast)",
+      credentialReference: null,
+    } as const;
+    const digest = `sha256:${"a".repeat(64)}`;
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const request = frame.request as Record<string, unknown>;
+        const result =
+          request.operation === "provider.list"
+            ? { operation: "provider.list", providers: [instance] }
+            : request.operation === "provider.upsert"
+              ? { operation: "provider.upsert", instance, created: true, digest }
+              : request.operation === "provider.remove"
+                ? { operation: "provider.remove", removed: true, digest }
+                : {
+                    operation: "provider.health",
+                    reports: [
+                      {
+                        key: "openrouter-fast",
+                        report: { status: "ok", detail: null, latencyMs: 120, version: null },
+                      },
+                    ],
+                  };
+        socket.end(
+          `${JSON.stringify({ protocolVersion: 1, requestId: frame.requestId, ok: true, result })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(client.listProviders(identity())).resolves.toMatchObject({
+      operation: "provider.list",
+      providers: [{ key: "openrouter-fast" }],
+    });
+    expect(received[0]).toMatchObject({ request: { operation: "provider.list", payload: {} } });
+
+    await expect(
+      client.upsertProvider(
+        {
+          key: "openrouter-fast",
+          family: "openrouter",
+          model: "openrouter/auto",
+          displayName: "OpenRouter (fast)",
+        },
+        null,
+        identity("00000000-0000-4000-8000-000000000021"),
+      ),
+    ).resolves.toMatchObject({ operation: "provider.upsert", created: true, digest });
+    expect(received[1]).toMatchObject({
+      request: {
+        operation: "provider.upsert",
+        payload: {
+          instance: { key: "openrouter-fast", family: "openrouter" },
+          expectedDigest: null,
+        },
+      },
+    });
+
+    await expect(
+      client.removeProvider(
+        "openrouter-fast",
+        digest,
+        identity("00000000-0000-4000-8000-000000000022"),
+      ),
+    ).resolves.toMatchObject({ operation: "provider.remove", removed: true, digest });
+    expect(received[2]).toMatchObject({
+      request: {
+        operation: "provider.remove",
+        payload: { key: "openrouter-fast", expectedDigest: digest },
+      },
+    });
+
+    await expect(
+      client.providerHealth(null, identity("00000000-0000-4000-8000-000000000023")),
+    ).resolves.toMatchObject({
+      operation: "provider.health",
+      reports: [{ key: "openrouter-fast", report: { status: "ok" } }],
+    });
+    expect(received[3]).toMatchObject({
+      request: { operation: "provider.health", payload: { key: null } },
+    });
+    client.close();
+  });
+
+  it("stores a provider credential without ever echoing the secret, and round-trips settings.get/set", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const request = frame.request as Record<string, unknown>;
+        const result =
+          request.operation === "provider.credential.set"
+            ? {
+                operation: "provider.credential.set",
+                key: "openrouter-fast",
+                credentialReference: {
+                  schemaVersion: 1,
+                  kind: "macos-keychain",
+                  service: "app-factory-provider-openrouter-fast",
+                  account: "openrouter-fast",
+                },
+              }
+            : request.operation === "settings.set"
+              ? {
+                  operation: "settings.set",
+                  entry: {
+                    key: "default-provider",
+                    value: "openrouter-fast",
+                    updatedAt: NOW.toISOString(),
+                  },
+                }
+              : {
+                  operation: "settings.get",
+                  entry: {
+                    key: "default-provider",
+                    value: "openrouter-fast",
+                    updatedAt: NOW.toISOString(),
+                  },
+                };
+        socket.end(
+          `${JSON.stringify({ protocolVersion: 1, requestId: frame.requestId, ok: true, result })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.setProviderCredential("openrouter-fast", "sk-super-secret", identity()),
+    ).resolves.toMatchObject({
+      operation: "provider.credential.set",
+      key: "openrouter-fast",
+      credentialReference: { kind: "macos-keychain" },
+    });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "provider.credential.set",
+        payload: { key: "openrouter-fast", secret: "sk-super-secret" },
+      },
+    });
+
+    await expect(
+      client.setSetting(
+        "default-provider",
+        "openrouter-fast",
+        identity("00000000-0000-4000-8000-000000000024"),
+      ),
+    ).resolves.toMatchObject({ operation: "settings.set", entry: { value: "openrouter-fast" } });
+    expect(received[1]).toMatchObject({
+      request: {
+        operation: "settings.set",
+        payload: { key: "default-provider", value: "openrouter-fast" },
+      },
+    });
+
+    await expect(
+      client.getSettings("default-provider", identity("00000000-0000-4000-8000-000000000025")),
+    ).resolves.toMatchObject({ operation: "settings.get", entry: { value: "openrouter-fast" } });
+    expect(received[2]).toMatchObject({
+      request: { operation: "settings.get", payload: { key: "default-provider" } },
+    });
+    client.close();
+  });
+
+  it("updates a room via a CAS patch and reads a usage summary", async () => {
+    const room = {
+      schemaVersion: 1,
+      roomId: "00000000-0000-4000-8000-000000000030",
+      title: "Renamed",
+      projectId: null,
+      flavor: "direct",
+      createdAt: NOW.toISOString(),
+      updatedAt: "2026-08-10T12:05:00.000Z",
+      unattendedEnabled: false,
+      headSequence: 0,
+      headMessageId: null,
+      lastHumanAt: null,
+      humanTypingUntil: null,
+      roundCounter: 0,
+      activeGrantId: null,
+      pendingTrigger: null,
+      agentCooldownEvents: 4,
+      participants: [
+        {
+          persona: "assistant",
+          provider: "openrouter-fast",
+          displayName: "Assistant",
+          position: 0,
+          benchedUntil: null,
+          benchReason: null,
+        },
+      ],
+      budget: {
+        dayKey: "2026-08-10",
+        dailyCeilingTokens: 200_000,
+        unattendedDailyCeilingTokens: 0,
+        maxTokensPerReply: 4_000,
+        spentTokens: 0,
+        reservedTokens: 0,
+        unattendedSpentTokens: 0,
+      },
+      archivedAt: null,
+    };
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        const request = frame.request as Record<string, unknown>;
+        const result =
+          request.operation === "room.update"
+            ? { operation: "room.update", room }
+            : {
+                operation: "usage.summary",
+                summary: {
+                  sinceDays: 7,
+                  rows: [
+                    {
+                      providerKey: "openrouter-fast",
+                      model: "openrouter/auto",
+                      dayKey: "2026-08-10",
+                      inputTokens: 120,
+                      outputTokens: 40,
+                      cachedInputTokens: null,
+                      costUsdMicros: null,
+                      unreportedCount: 0,
+                    },
+                  ],
+                },
+              };
+        socket.end(
+          `${JSON.stringify({ protocolVersion: 1, requestId: frame.requestId, ok: true, result })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.updateRoom(
+        {
+          roomId: "00000000-0000-4000-8000-000000000030",
+          expectedUpdatedAt: NOW.toISOString(),
+          patch: { title: "Renamed" },
+        },
+        identity(),
+      ),
+    ).resolves.toMatchObject({ operation: "room.update", room: { title: "Renamed" } });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "room.update",
+        payload: { roomId: "00000000-0000-4000-8000-000000000030", patch: { title: "Renamed" } },
+      },
+    });
+
+    await expect(
+      client.usageSummary(7, identity("00000000-0000-4000-8000-000000000026")),
+    ).resolves.toMatchObject({
+      operation: "usage.summary",
+      summary: { rows: [{ providerKey: "openrouter-fast", unreportedCount: 0 }] },
+    });
+    expect(received[1]).toMatchObject({
+      request: { operation: "usage.summary", payload: { sinceDays: 7 } },
+    });
+    client.close();
+  });
+
+  it("round-trips signal.reschedule against a fake server (the typed method works even though today's live daemon build refuses the operation as not-yet-implemented -- Wave 7 lights up the server)", async () => {
+    const signal = {
+      schemaVersion: 1,
+      signalId: "00000000-0000-4000-8000-000000000040",
+      name: "Pricing watch",
+      watchDescription: "Watch competitor pricing pages for changes.",
+      scoutProvider: "codex",
+      status: "active",
+      checkIntervalMinutes: 60,
+      checkCount: 0,
+      insightCount: 0,
+      lastCheckedAt: null,
+      createdAt: NOW.toISOString(),
+    };
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: true,
+            result: { operation: "signal.reschedule", signal },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.rescheduleSignal("00000000-0000-4000-8000-000000000040", 60, identity()),
+    ).resolves.toMatchObject({
+      operation: "signal.reschedule",
+      signal: { checkIntervalMinutes: 60 },
+    });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "signal.reschedule",
+        payload: { signalId: "00000000-0000-4000-8000-000000000040", checkIntervalMinutes: 60 },
+      },
+    });
+    client.close();
+  });
 });

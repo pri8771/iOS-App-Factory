@@ -34,12 +34,15 @@ import {
   ProjectPlanIdSchema,
   ProjectPlanProposeV1Schema,
   ProjectRegisterSourceV1Schema,
+  ProviderUpsertSpecV1Schema,
   RequestIdSchema,
   RoomCreateSpecV1Schema,
   RoomHumanHandleSchema,
   RoomIdSchema,
+  RoomUpdateSpecV1Schema,
   Sha256DigestSchema,
   StableKeySchema,
+  StudioSettingKeyV1Schema,
   TaskIdSchema,
   TaskSpecV1Schema,
   canonicalPortfolioReadModelDigestInputV1,
@@ -79,8 +82,10 @@ import {
   type ProjectPlanId,
   type ProjectPlanProposeV1,
   type ProjectRegisterSourceV1,
+  type ProviderUpsertSpecV1,
   type RequestId,
   type RoomCreateSpecV1,
+  type RoomUpdateSpecV1,
   type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
@@ -1225,6 +1230,164 @@ export class CommandClient {
       );
     }
     return result;
+  }
+
+  /** A durable CAS patch over an existing room (Architecture decision 7): title, ambient toggle,
+   *  cooldown window, archive, budget policy, and participant add/remove. See
+   *  `RoomUpdateSpecV1Schema`. */
+  public async updateRoom(
+    spec: RoomUpdateSpecV1,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"room.update">> {
+    return await this.#request("room.update", RoomUpdateSpecV1Schema.parse(spec), identity, signal);
+  }
+
+  /**
+   * The provider registry (Studio Settings -> Providers; Architecture decisions 2-3): the roster
+   * of AI providers/instances the daemon can dispatch a room, phase, or signal contribution to.
+   * `provider.list` is an owner surface -- it may return credential references, but the daemon
+   * never puts a raw secret in any `provider.*` result.
+   */
+  public async listProviders(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"provider.list">> {
+    return await this.#request("provider.list", {}, identity, signal);
+  }
+
+  /** Creates or reconfigures one provider instance; never carries a credential -- see
+   *  {@link setProviderCredential}. `expectedDigest` is a CAS guard against the provider config
+   *  file's current digest (`provider.list`/a prior upsert's own `digest`); `null` accepts
+   *  whatever the file currently holds. */
+  public async upsertProvider(
+    instance: ProviderUpsertSpecV1,
+    expectedDigest: Sha256Digest | string | null = null,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"provider.upsert">> {
+    return await this.#request(
+      "provider.upsert",
+      {
+        instance: ProviderUpsertSpecV1Schema.parse(instance),
+        expectedDigest: expectedDigest === null ? null : Sha256DigestSchema.parse(expectedDigest),
+      },
+      identity,
+      signal,
+    );
+  }
+
+  /** Removes one provider instance from the registry; `expectedDigest` is the same CAS guard as
+   *  {@link upsertProvider}. */
+  public async removeProvider(
+    key: string,
+    expectedDigest: Sha256Digest | string | null = null,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"provider.remove">> {
+    return await this.#request(
+      "provider.remove",
+      {
+        key: RoomProviderSchema.parse(key),
+        expectedDigest: expectedDigest === null ? null : Sha256DigestSchema.parse(expectedDigest),
+      },
+      identity,
+      signal,
+    );
+  }
+
+  /** Carries the bare credential value ONCE, over the owner-only 0600 socket (Architecture
+   *  decision 2) -- never journaled to a durable replay ledger. Returns only the
+   *  `CredentialReferenceV1` the daemon just wrote to the Keychain, never the secret itself. */
+  public async setProviderCredential(
+    key: string,
+    secret: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"provider.credential.set">> {
+    return await this.#request(
+      "provider.credential.set",
+      { key: RoomProviderSchema.parse(key), secret },
+      identity,
+      signal,
+    );
+  }
+
+  /** Runs OUTSIDE the serial executor, like {@link observeRelease} (Architecture decision 3) -- a
+   *  health probe is a real process/network round trip and must not stall every other command.
+   *  `key: null` (the default) probes every configured instance. */
+  public async providerHealth(
+    key: string | null = null,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"provider.health">> {
+    return await this.#request(
+      "provider.health",
+      { key: key === null ? null : RoomProviderSchema.parse(key) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Reads one Studio setting (Architecture decision 4); `entry.value`/`entry.updatedAt` are both
+   *  `null` until the first {@link setSetting}. */
+  public async getSettings(
+    key: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"settings.get">> {
+    return await this.#request(
+      "settings.get",
+      { key: StudioSettingKeyV1Schema.parse(key) },
+      identity,
+      signal,
+    );
+  }
+
+  /** Sets one Studio setting; the daemon validates `value` against the live provider catalog at
+   *  write time (Architecture decision 4). */
+  public async setSetting(
+    key: string,
+    value: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"settings.set">> {
+    return await this.#request(
+      "settings.set",
+      { key: StudioSettingKeyV1Schema.parse(key), value: RoomProviderSchema.parse(value) },
+      identity,
+      signal,
+    );
+  }
+
+  /** The honest token ledger's read side (Architecture decision 6); see `UsageSummaryV1Schema` for
+   *  its null-honest sums and `unreportedCount`. `sinceDays` bounds how far back the summary looks. */
+  public async usageSummary(
+    sinceDays = 7,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"usage.summary">> {
+    return await this.#request("usage.summary", { sinceDays }, identity, signal);
+  }
+
+  /**
+   * Sets or clears (`null`) a signal's scheduled check interval (Architecture decision 11). The
+   * operation is fully recognized by the wire protocol and this method round-trips against any
+   * server that answers it, but today's daemon build refuses every call with the honest
+   * `command.operation-not-yet-implemented` -- the scheduler itself is Wave 7's work.
+   */
+  public async rescheduleSignal(
+    signalId: string,
+    checkIntervalMinutes: number | null,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"signal.reschedule">> {
+    return await this.#request(
+      "signal.reschedule",
+      { signalId: SignalIdSchema.parse(signalId), checkIntervalMinutes },
+      identity,
+      signal,
+    );
   }
 
   async #request<Operation extends CommandOperationV1>(

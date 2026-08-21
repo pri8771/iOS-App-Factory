@@ -26,6 +26,9 @@ import {
   ExternalProviderV1Schema,
   GitBranchNameSchema,
   IsoInstantSchema,
+  MAX_ROOM_COOLDOWN_EVENTS_V1,
+  MAX_ROOM_EVENTS_LIMIT_V1,
+  MAX_ROOM_LIST_ITEMS_V1,
   MilestoneIdSchema,
   PhaseIdSchema,
   PhasePresetIdSchema,
@@ -41,7 +44,13 @@ import {
   ProjectPlanIdSchema,
   ProjectPlanItemIdSchema,
   ProjectPlanProposeV1Schema,
+  ProviderFamilyV1Schema,
+  ProviderUpsertSpecV1Schema,
   RepositoryIdSchema,
+  RoomCreateSpecV1Schema,
+  RoomFlavorV1Schema,
+  RoomIdSchema,
+  RoomUpdateSpecV1Schema,
   Sha256DigestSchema,
   StableKeySchema,
   TaskIdSchema,
@@ -68,6 +77,9 @@ import {
   type ProjectPlanProposeV1,
   type ProjectPlanV1,
   type ProjectRegisterSourceV1,
+  type ProviderUpsertSpecV1,
+  type RoomCreateSpecV1,
+  type RoomUpdateSpecV1,
   type Sha256Digest,
   type TaskId,
   type TaskSpecV1,
@@ -188,7 +200,24 @@ export type ParsedCliCommand =
       provider: ExternalProviderV1 | null;
       after: EffectListCursorV1 | null;
       limit: number;
-    }>;
+    }>
+  | Readonly<{ kind: "room.create"; spec: RoomCreateSpecV1 }>
+  | Readonly<{ kind: "room.list"; limit: number; includeArchived: boolean }>
+  | Readonly<{ kind: "room.post"; roomId: string; handle: string; body: string }>
+  | Readonly<{ kind: "room.events"; roomId: string; afterSequence: number; limit: number }>
+  | Readonly<{ kind: "room.update"; spec: RoomUpdateSpecV1 }>
+  | Readonly<{ kind: "provider.list" }>
+  | Readonly<{
+      kind: "provider.upsert";
+      instance: ProviderUpsertSpecV1;
+      expectedDigest: Sha256Digest | null;
+    }>
+  | Readonly<{ kind: "provider.remove"; key: string; expectedDigest: Sha256Digest | null }>
+  | Readonly<{ kind: "provider.credential.set"; key: string; secretEnvVar: string | null }>
+  | Readonly<{ kind: "provider.health"; key: string | null }>
+  | Readonly<{ kind: "settings.get"; key: string }>
+  | Readonly<{ kind: "settings.set"; key: string; value: string }>
+  | Readonly<{ kind: "usage.summary"; sinceDays: number }>;
 
 export type ParsedCliInvocation = Readonly<{
   outputMode: CliOutputMode;
@@ -286,6 +315,22 @@ function parsePositiveInteger(name: string, value: string | undefined, maximum: 
   return parsed;
 }
 
+/** Rooms use plain (unbranded) strings on the wire, like {@link parseRepositoryPath} -- the
+ *  daemon and command-client re-validate; this only fails fast, before contacting the daemon. */
+function parseRoomId(value: string | undefined): string {
+  if (value === undefined || value.length === 0) usageError("A room ID is required.");
+  if (!RoomIdSchema.safeParse(value).success) {
+    usageError("The room ID must be a canonical lowercase UUID.");
+  }
+  return value;
+}
+
+function parseBooleanOption(option: string, value: string): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  usageError(`${option} must be "true" or "false".`);
+}
+
 function parseRepositoryPath(value: string | undefined): string {
   if (value === undefined || value.length === 0) usageError("A repository path is required.");
   // The daemon may be a long-lived background process, so "relative to the daemon" is
@@ -298,6 +343,14 @@ function parsePlanDigest(value: string | undefined): Sha256Digest {
   const parsed = Sha256DigestSchema.safeParse(value);
   if (!parsed.success) {
     usageError("The plan digest must be a lowercase sha256 digest (sha256:<64 hex characters>).");
+  }
+  return parsed.data;
+}
+
+function parseSha256DigestOption(option: string, value: string): Sha256Digest {
+  const parsed = Sha256DigestSchema.safeParse(value);
+  if (!parsed.success) {
+    usageError(`${option} must be a lowercase sha256 digest (sha256:<64 hex characters>).`);
   }
   return parsed.data;
 }
@@ -1114,6 +1167,274 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     usageError("Plan requires one of: propose, show, edit, approve, execute, approve-gate, tick.");
   }
 
+  // Studio rooms: `room create` mints a roomId client-side (Architecture decision 1) unless --id
+  // names one -- required on a retry so the replayed payload is byte-identical. `--flavor direct`
+  // is a conversation: exactly one agent participant, ambient forced off by the moderator.
+  if (command === "room") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "create") {
+      const idValue = consumeOption(arguments_, "--id");
+      const roomId = idValue ?? randomUUID();
+      if (!RoomIdSchema.safeParse(roomId).success) {
+        usageError("--id must be a canonical lowercase UUID.");
+      }
+      const title = consumeOption(arguments_, "--title");
+      if (title === undefined || title.length === 0) usageError("--title is required.");
+      const projectValue = consumeOption(arguments_, "--project");
+      const flavor = parseEnumOption(
+        "--flavor",
+        consumeOption(arguments_, "--flavor") ?? "room",
+        RoomFlavorV1Schema,
+        RoomFlavorV1Schema.options,
+      );
+      const unattendedEnabled = consumeFlag(arguments_, "--unattended");
+      const cooldownValue = consumeOption(arguments_, "--cooldown-events");
+      const agentCooldownEvents =
+        cooldownValue === undefined
+          ? 4
+          : parsePositiveInteger("--cooldown-events", cooldownValue, MAX_ROOM_COOLDOWN_EVENTS_V1);
+      const participantValues = consumeRepeated(arguments_, "--participant");
+      if (participantValues.length === 0) {
+        usageError(
+          "At least one --participant persona:provider:displayName is required (e.g. " +
+            "--participant assistant:openrouter-fast:Assistant).",
+        );
+      }
+      const participants = participantValues.map((raw) => {
+        const parts = raw.split(":");
+        if (parts.length !== 3 || parts.some((part) => part.length === 0)) {
+          usageError("--participant must be persona:provider:displayName.");
+        }
+        const [persona, provider, displayName] = parts;
+        return { persona, provider, displayName };
+      });
+      const dailyCeilingValue = consumeOption(arguments_, "--daily-ceiling-tokens");
+      const unattendedCeilingValue = consumeOption(arguments_, "--unattended-ceiling-tokens");
+      const maxTokensPerReplyValue = consumeOption(arguments_, "--max-tokens-per-reply");
+      rejectUnexpected(arguments_);
+      const spec = RoomCreateSpecV1Schema.safeParse({
+        roomId,
+        title,
+        projectId: projectValue === undefined ? null : parseProjectId(projectValue),
+        flavor,
+        unattendedEnabled,
+        agentCooldownEvents,
+        participants,
+        budget: {
+          dailyCeilingTokens:
+            dailyCeilingValue === undefined
+              ? 200_000
+              : parsePositiveInteger("--daily-ceiling-tokens", dailyCeilingValue, 100_000_000),
+          unattendedDailyCeilingTokens:
+            unattendedCeilingValue === undefined
+              ? 0
+              : parseNonNegativeInteger("--unattended-ceiling-tokens", unattendedCeilingValue),
+          maxTokensPerReply:
+            maxTokensPerReplyValue === undefined
+              ? 4_000
+              : parsePositiveInteger("--max-tokens-per-reply", maxTokensPerReplyValue, 1_000_000),
+        },
+      });
+      if (!spec.success) usageError(`The room is invalid: ${spec.error.message}`);
+      return { outputMode, retryIdentity, command: { kind: "room.create", spec: spec.data } };
+    }
+    if (subcommand === "list") {
+      const limitValue = consumeOption(arguments_, "--limit");
+      const includeArchived = consumeFlag(arguments_, "--include-archived");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "room.list",
+          limit:
+            limitValue === undefined
+              ? 50
+              : parsePositiveInteger("--limit", limitValue, MAX_ROOM_LIST_ITEMS_V1),
+          includeArchived,
+        },
+      };
+    }
+    if (subcommand === "post") {
+      const roomId = parseRoomId(arguments_.shift());
+      const handle = consumeOption(arguments_, "--handle") ?? "owner";
+      const body = consumeOption(arguments_, "--body");
+      if (body === undefined || body.length === 0) usageError("--body is required.");
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "room.post", roomId, handle, body } };
+    }
+    if (subcommand === "events") {
+      const roomId = parseRoomId(arguments_.shift());
+      const afterValue = consumeOption(arguments_, "--after");
+      const limitValue = consumeOption(arguments_, "--limit");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "room.events",
+          roomId,
+          afterSequence:
+            afterValue === undefined ? 0 : parseNonNegativeInteger("--after", afterValue),
+          limit:
+            limitValue === undefined
+              ? 200
+              : parsePositiveInteger("--limit", limitValue, MAX_ROOM_EVENTS_LIMIT_V1),
+        },
+      };
+    }
+    if (subcommand === "update") {
+      const roomId = parseRoomId(arguments_.shift());
+      const expectedUpdatedAtValue = consumeOption(arguments_, "--expected-updated-at");
+      if (expectedUpdatedAtValue === undefined) usageError("--expected-updated-at is required.");
+      const expectedUpdatedAt = IsoInstantSchema.safeParse(expectedUpdatedAtValue);
+      if (!expectedUpdatedAt.success) {
+        usageError("--expected-updated-at must be a canonical ISO-8601 instant.");
+      }
+      const titleValue = consumeOption(arguments_, "--title");
+      const ambientValue = consumeOption(arguments_, "--ambient");
+      const archiveValue = consumeOption(arguments_, "--archive");
+      const cooldownValue = consumeOption(arguments_, "--cooldown-events");
+      const patch: Record<string, unknown> = {};
+      if (titleValue !== undefined) patch.title = titleValue;
+      if (ambientValue !== undefined) {
+        patch.unattendedEnabled = parseBooleanOption("--ambient", ambientValue);
+      }
+      if (archiveValue !== undefined)
+        patch.archived = parseBooleanOption("--archive", archiveValue);
+      if (cooldownValue !== undefined) {
+        patch.agentCooldownEvents = parsePositiveInteger(
+          "--cooldown-events",
+          cooldownValue,
+          MAX_ROOM_COOLDOWN_EVENTS_V1,
+        );
+      }
+      rejectUnexpected(arguments_);
+      const spec = RoomUpdateSpecV1Schema.safeParse({
+        roomId,
+        expectedUpdatedAt: expectedUpdatedAt.data,
+        patch,
+      });
+      if (!spec.success) usageError(`The room update is invalid: ${spec.error.message}`);
+      return { outputMode, retryIdentity, command: { kind: "room.update", spec: spec.data } };
+    }
+    usageError("Room requires one of: create, list, post, events, update.");
+  }
+
+  // The provider registry (Studio Settings -> Providers; Architecture decisions 2-3). `provider
+  // credential-set` NEVER takes the secret as an argument -- argv is visible to every other process
+  // on the machine via `ps`. It reads the secret from stdin (pipe it in) by default, or from a named
+  // environment variable with --secret-env VAR.
+  if (command === "provider") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "list") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "provider.list" } };
+    }
+    if (subcommand === "upsert") {
+      const key = arguments_.shift();
+      if (key === undefined || key.length === 0) usageError("A provider key is required.");
+      const family = parseEnumOption(
+        "--family",
+        consumeOption(arguments_, "--family"),
+        ProviderFamilyV1Schema,
+        ProviderFamilyV1Schema.options,
+      );
+      const model = consumeOption(arguments_, "--model");
+      if (model === undefined || model.length === 0) usageError("--model is required.");
+      const displayName = consumeOption(arguments_, "--display-name") ?? key;
+      const expectedDigestValue = consumeOption(arguments_, "--expected-digest");
+      const expectedDigest =
+        expectedDigestValue === undefined
+          ? null
+          : parseSha256DigestOption("--expected-digest", expectedDigestValue);
+      rejectUnexpected(arguments_);
+      const instance = ProviderUpsertSpecV1Schema.safeParse({ key, family, model, displayName });
+      if (!instance.success) {
+        usageError(`The provider instance is invalid: ${instance.error.message}`);
+      }
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "provider.upsert", instance: instance.data, expectedDigest },
+      };
+    }
+    if (subcommand === "remove") {
+      const key = arguments_.shift();
+      if (key === undefined || key.length === 0) usageError("A provider key is required.");
+      const expectedDigestValue = consumeOption(arguments_, "--expected-digest");
+      const expectedDigest =
+        expectedDigestValue === undefined
+          ? null
+          : parseSha256DigestOption("--expected-digest", expectedDigestValue);
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "provider.remove", key, expectedDigest },
+      };
+    }
+    if (subcommand === "credential-set") {
+      const key = arguments_.shift();
+      if (key === undefined || key.length === 0) usageError("A provider key is required.");
+      const secretEnvVar = consumeOption(arguments_, "--secret-env") ?? null;
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "provider.credential.set", key, secretEnvVar },
+      };
+    }
+    if (subcommand === "health") {
+      const key = arguments_.shift() ?? null;
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "provider.health", key } };
+    }
+    usageError("Provider requires one of: list, upsert, remove, credential-set, health.");
+  }
+
+  // Studio settings (Architecture decision 4): a small, cross-client preference table. The only key
+  // today is `default-provider`.
+  if (command === "settings") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "get") {
+      const key = arguments_.shift();
+      if (key === undefined || key.length === 0) usageError("A setting key is required.");
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "settings.get", key } };
+    }
+    if (subcommand === "set") {
+      const key = arguments_.shift();
+      if (key === undefined || key.length === 0) usageError("A setting key is required.");
+      const value = arguments_.shift();
+      if (value === undefined || value.length === 0) usageError("A setting value is required.");
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "settings.set", key, value } };
+    }
+    usageError("Settings requires one of: get, set.");
+  }
+
+  // The honest token ledger's read side (Architecture decision 6).
+  if (command === "usage") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "summary") {
+      const sinceDaysValue = consumeOption(arguments_, "--since-days");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "usage.summary",
+          sinceDays:
+            sinceDaysValue === undefined
+              ? 7
+              : parsePositiveInteger("--since-days", sinceDaysValue, 90),
+        },
+      };
+    }
+    usageError("Usage requires: summary.");
+  }
+
   usageError(`Unknown command: ${command}`);
 }
 
@@ -1913,15 +2234,52 @@ function findLastStepIdInState(
   return null;
 }
 
-export type CliEnvironment = Readonly<{
-  APP_FACTORY_SOCKET?: string;
-  APP_FACTORY_AUTH_TOKEN?: string;
-}>;
+export type CliEnvironment = Readonly<Record<string, string | undefined>> &
+  Readonly<{
+    APP_FACTORY_SOCKET?: string;
+    APP_FACTORY_AUTH_TOKEN?: string;
+  }>;
 
 export type CliIo = Readonly<{
   stdout: (value: string) => void;
   stderr: (value: string) => void;
+  /** Reads the whole of stdin as UTF-8 text. Only `provider credential-set` needs this (its
+   *  secret must never be an argv value -- `ps` on any other process can read argv); every other
+   *  command works without it. */
+  stdin?: () => Promise<string>;
 }>;
+
+/**
+ * Resolves the bare secret for `provider credential-set` (Architecture decision 2). NEVER accepts
+ * the secret as a CLI argument -- argv is visible to every other process on the machine via `ps`.
+ * `--secret-env VAR` reads a named environment variable; omitting it reads the whole of stdin
+ * (trailing newline trimmed), matching the `docker login --password-stdin` convention.
+ */
+async function resolveProviderCredentialSecret(
+  secretEnvVar: string | null,
+  environment: CliEnvironment,
+  io: CliIo,
+): Promise<string> {
+  if (secretEnvVar !== null) {
+    const value = environment[secretEnvVar];
+    if (value === undefined || value.length === 0) {
+      usageError(`Environment variable ${secretEnvVar} (named by --secret-env) is not set.`);
+    }
+    return value;
+  }
+  if (io.stdin === undefined) {
+    usageError(
+      "provider credential-set requires the secret on stdin (pipe it in) or --secret-env VAR.",
+    );
+  }
+  const secret = (await io.stdin()).replace(/\r?\n$/, "");
+  if (secret.length === 0) {
+    usageError(
+      "The secret read from stdin was empty. Pipe the secret in, or use --secret-env VAR.",
+    );
+  }
+  return secret;
+}
 
 export async function runCli(
   argv: readonly string[],
@@ -2264,6 +2622,80 @@ export async function runCli(
           identity,
         );
         break;
+      case "room.create":
+        result = await client.createRoom(invocation.command.spec, identity);
+        break;
+      case "room.list":
+        result = await client.listRooms(
+          {
+            limit: invocation.command.limit,
+            includeArchived: invocation.command.includeArchived,
+          },
+          identity,
+        );
+        break;
+      case "room.post":
+        result = await client.postToRoom(
+          invocation.command.roomId,
+          invocation.command.handle,
+          invocation.command.body,
+          identity,
+        );
+        break;
+      case "room.events":
+        result = await client.roomEvents(
+          invocation.command.roomId,
+          { afterSequence: invocation.command.afterSequence, limit: invocation.command.limit },
+          identity,
+        );
+        break;
+      case "room.update":
+        result = await client.updateRoom(invocation.command.spec, identity);
+        break;
+      case "provider.list":
+        result = await client.listProviders(identity);
+        break;
+      case "provider.upsert":
+        result = await client.upsertProvider(
+          invocation.command.instance,
+          invocation.command.expectedDigest,
+          identity,
+        );
+        break;
+      case "provider.remove":
+        result = await client.removeProvider(
+          invocation.command.key,
+          invocation.command.expectedDigest,
+          identity,
+        );
+        break;
+      case "provider.credential.set": {
+        // NEVER read the secret from argv (visible to any other process via `ps`): stdin by
+        // default, or a named environment variable with --secret-env.
+        const secret = await resolveProviderCredentialSecret(
+          invocation.command.secretEnvVar,
+          environment,
+          io,
+        );
+        result = await client.setProviderCredential(invocation.command.key, secret, identity);
+        break;
+      }
+      case "provider.health":
+        result = await client.providerHealth(invocation.command.key, identity);
+        break;
+      case "settings.get":
+        result = await client.getSettings(invocation.command.key, identity);
+        break;
+      case "settings.set":
+        result = await client.setSetting(
+          invocation.command.key,
+          invocation.command.value,
+          identity,
+        );
+        break;
+      case "usage.summary":
+        result = await client.usageSummary(invocation.command.sinceDays, identity);
+        break;
     }
     io.stdout(renderCommandResult(result, invocation.outputMode));
     return 0;
@@ -2275,12 +2707,21 @@ export async function runCli(
   }
 }
 
+async function readAllStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), "utf8"));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 const isDirectExecution =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isDirectExecution) {
   const exitCode = await runCli(process.argv.slice(2), process.env, {
     stdout: (value) => process.stdout.write(value),
     stderr: (value) => process.stderr.write(value),
+    stdin: readAllStdin,
   });
   process.exitCode = exitCode;
 }

@@ -26,6 +26,45 @@ const AUTHORIZATION = "test-authorization-token-32-bytes-minimum";
 const PLAN_DIGEST = `sha256:${"a".repeat(64)}`;
 const MILESTONE_ID = "00000000-0000-4000-8000-000000000021";
 const OTHER_MILESTONE_ID = "00000000-0000-4000-8000-000000000022";
+const ROOM_ID = "00000000-0000-4000-8000-000000000050";
+const FIXTURE_ROOM = {
+  schemaVersion: 1,
+  roomId: ROOM_ID,
+  title: "General",
+  projectId: null,
+  flavor: "room",
+  createdAt: NOW,
+  updatedAt: NOW,
+  unattendedEnabled: false,
+  headSequence: 0,
+  headMessageId: null,
+  lastHumanAt: null,
+  humanTypingUntil: null,
+  roundCounter: 0,
+  activeGrantId: null,
+  pendingTrigger: null,
+  agentCooldownEvents: 4,
+  participants: [
+    {
+      persona: "assistant",
+      provider: "openrouter-fast",
+      displayName: "Assistant",
+      position: 0,
+      benchedUntil: null,
+      benchReason: null,
+    },
+  ],
+  budget: {
+    dayKey: "2026-08-10",
+    dailyCeilingTokens: 200_000,
+    unattendedDailyCeilingTokens: 0,
+    maxTokensPerReply: 4_000,
+    spentTokens: 0,
+    reservedTokens: 0,
+    unattendedSpentTokens: 0,
+  },
+  archivedAt: null,
+};
 function withMilestoneOption(option: string, value: string): string[] {
   const argv = [...MILESTONE_UPSERT_ARGV];
   const index = argv.indexOf(option);
@@ -1345,7 +1384,8 @@ async function startFakeDaemon(
   return socketPath;
 }
 
-function fakeIo(): Readonly<{
+/** `stdinText`, when given, backs `io.stdin()` -- only `provider credential-set` tests need it. */
+function fakeIo(stdinText?: string): Readonly<{
   io: CliIo;
   captured: () => Readonly<{ stdout: string; stderr: string }>;
 }> {
@@ -1359,6 +1399,7 @@ function fakeIo(): Readonly<{
       stderr: (value: string) => {
         stderr += value;
       },
+      stdin: stdinText === undefined ? undefined : async () => stdinText,
     },
     captured: () => ({ stdout, stderr }),
   };
@@ -2688,5 +2729,549 @@ describe("runCli studio surface", () => {
     expect(captured().stdout).toBe(
       "cannot answer [no-milestone-target-date]: No milestone with a real target date exists yet.\n",
     );
+  });
+});
+
+describe("CLI argument parser: rooms, providers, settings, usage", () => {
+  it("parses room create with defaults, a minted room ID, and a single participant", () => {
+    const invocation = parseCliArguments([
+      "room",
+      "create",
+      "--title",
+      "General",
+      "--participant",
+      "assistant:openrouter-fast:Assistant",
+    ]);
+    if (invocation.command.kind !== "room.create") throw new Error("expected room.create");
+    expect(invocation.command.spec).toMatchObject({
+      title: "General",
+      projectId: null,
+      flavor: "room",
+      unattendedEnabled: false,
+      agentCooldownEvents: 4,
+      participants: [
+        { persona: "assistant", provider: "openrouter-fast", displayName: "Assistant" },
+      ],
+      budget: {
+        dailyCeilingTokens: 200_000,
+        unattendedDailyCeilingTokens: 0,
+        maxTokensPerReply: 4_000,
+      },
+    });
+    expect(invocation.command.spec.roomId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
+  });
+
+  it("parses room create with an explicit ID, direct flavor, ambient, and custom budget", () => {
+    const invocation = parseCliArguments([
+      "room",
+      "create",
+      "--id",
+      ROOM_ID,
+      "--title",
+      "Direct chat",
+      "--flavor",
+      "direct",
+      "--unattended",
+      "--participant",
+      "assistant:openrouter-fast:Assistant",
+      "--daily-ceiling-tokens",
+      "50000",
+      "--max-tokens-per-reply",
+      "1000",
+    ]);
+    if (invocation.command.kind !== "room.create") throw new Error("expected room.create");
+    expect(invocation.command.spec).toMatchObject({
+      roomId: ROOM_ID,
+      flavor: "direct",
+      unattendedEnabled: true,
+      budget: { dailyCeilingTokens: 50_000, maxTokensPerReply: 1_000 },
+    });
+  });
+
+  it("rejects room create without at least one --participant", () => {
+    expect(() => parseCliArguments(["room", "create", "--title", "General"])).toThrow(
+      CliUsageError,
+    );
+  });
+
+  it("parses room update with title/ambient/archive/cooldown patch fields", () => {
+    const invocation = parseCliArguments([
+      "room",
+      "update",
+      ROOM_ID,
+      "--expected-updated-at",
+      NOW,
+      "--title",
+      "Renamed",
+      "--ambient",
+      "true",
+      "--archive",
+      "false",
+      "--cooldown-events",
+      "6",
+    ]);
+    expect(invocation.command).toEqual({
+      kind: "room.update",
+      spec: {
+        roomId: ROOM_ID,
+        expectedUpdatedAt: NOW,
+        patch: {
+          title: "Renamed",
+          unattendedEnabled: true,
+          archived: false,
+          agentCooldownEvents: 6,
+        },
+      },
+    });
+  });
+
+  it("requires --expected-updated-at for room update", () => {
+    expect(() => parseCliArguments(["room", "update", ROOM_ID, "--title", "x"])).toThrow(
+      CliUsageError,
+    );
+  });
+
+  it("parses provider upsert, remove, credential-set, and health", () => {
+    expect(
+      parseCliArguments([
+        "provider",
+        "upsert",
+        "openrouter-fast",
+        "--family",
+        "openrouter",
+        "--model",
+        "openrouter/auto",
+        "--display-name",
+        "OpenRouter (fast)",
+      ]).command,
+    ).toEqual({
+      kind: "provider.upsert",
+      instance: {
+        key: "openrouter-fast",
+        family: "openrouter",
+        model: "openrouter/auto",
+        displayName: "OpenRouter (fast)",
+      },
+      expectedDigest: null,
+    });
+
+    expect(parseCliArguments(["provider", "remove", "openrouter-fast"]).command).toEqual({
+      kind: "provider.remove",
+      key: "openrouter-fast",
+      expectedDigest: null,
+    });
+
+    // The secret never appears anywhere in the parsed command -- only the env-var name it will
+    // be read from (or `null`, meaning "read stdin").
+    expect(parseCliArguments(["provider", "credential-set", "openrouter-fast"]).command).toEqual({
+      kind: "provider.credential.set",
+      key: "openrouter-fast",
+      secretEnvVar: null,
+    });
+    expect(
+      parseCliArguments([
+        "provider",
+        "credential-set",
+        "openrouter-fast",
+        "--secret-env",
+        "OPENROUTER_API_KEY",
+      ]).command,
+    ).toEqual({
+      kind: "provider.credential.set",
+      key: "openrouter-fast",
+      secretEnvVar: "OPENROUTER_API_KEY",
+    });
+
+    expect(parseCliArguments(["provider", "health"]).command).toEqual({
+      kind: "provider.health",
+      key: null,
+    });
+    expect(parseCliArguments(["provider", "health", "openrouter-fast"]).command).toEqual({
+      kind: "provider.health",
+      key: "openrouter-fast",
+    });
+  });
+
+  it("rejects an unknown --family before contacting the daemon", () => {
+    expect(() =>
+      parseCliArguments(["provider", "upsert", "k", "--family", "not-a-family", "--model", "m"]),
+    ).toThrow(CliUsageError);
+  });
+
+  it("parses settings get/set and usage summary", () => {
+    expect(parseCliArguments(["settings", "get", "default-provider"]).command).toEqual({
+      kind: "settings.get",
+      key: "default-provider",
+    });
+    expect(
+      parseCliArguments(["settings", "set", "default-provider", "openrouter-fast"]).command,
+    ).toEqual({ kind: "settings.set", key: "default-provider", value: "openrouter-fast" });
+    expect(parseCliArguments(["usage", "summary"]).command).toEqual({
+      kind: "usage.summary",
+      sinceDays: 7,
+    });
+    expect(parseCliArguments(["usage", "summary", "--since-days", "30"]).command).toEqual({
+      kind: "usage.summary",
+      sinceDays: 30,
+    });
+  });
+});
+
+describe("runCli rooms", () => {
+  it("creates a room", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "room.create") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "room.create", room: FIXTURE_ROOM, duplicate: false } };
+    });
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      [
+        "room",
+        "create",
+        "--id",
+        ROOM_ID,
+        "--title",
+        "General",
+        "--participant",
+        "assistant:openrouter-fast:Assistant",
+      ],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain(`room ${ROOM_ID}: "General"`);
+  });
+
+  it("lists rooms", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "room.list") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "room.list", rooms: [FIXTURE_ROOM] } };
+    });
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["room", "list"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain(ROOM_ID);
+    expect(captured().stdout).toContain("idle");
+  });
+
+  it("posts to a room and reads its events", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation === "room.post") {
+        return {
+          result: {
+            operation: "room.post",
+            message: {
+              schemaVersion: 1,
+              roomId: ROOM_ID,
+              messageId: "00000000-0000-4000-8000-000000000051",
+              sequence: 1,
+              occurredAt: NOW,
+              roundNumber: null,
+              grantId: null,
+              kind: "message",
+              author: { kind: "human", handle: "owner" },
+              body: "reply with one word",
+              mentions: [],
+            },
+            room: FIXTURE_ROOM,
+          },
+        };
+      }
+      if (operation === "room.events") {
+        return {
+          result: {
+            operation: "room.events",
+            room: FIXTURE_ROOM,
+            moderator: {
+              enabled: true,
+              attendance: "attended",
+              factoryBridge: { enabled: false, cursor: null },
+            },
+            messages: [],
+            nextAfterSequence: 0,
+          },
+        };
+      }
+      throw new Error(`Unexpected operation: ${operation}`);
+    });
+    const environment = { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION };
+
+    const post = fakeIo();
+    const postExit = await runCli(
+      ["room", "post", ROOM_ID, "--body", "reply with one word"],
+      environment,
+      post.io,
+    );
+    expect(postExit).toBe(0);
+    expect(post.captured().stdout).toContain(`room ${ROOM_ID}: posted #1`);
+
+    const events = fakeIo();
+    const eventsExit = await runCli(["room", "events", ROOM_ID], environment, events.io);
+    expect(eventsExit).toBe(0);
+    expect(events.captured().stdout).toContain("no messages");
+  });
+
+  it("updates a room via a CAS patch", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "room.update") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        result: {
+          operation: "room.update",
+          room: { ...FIXTURE_ROOM, title: "Renamed", updatedAt: "2026-08-10T12:05:00.000Z" },
+        },
+      };
+    });
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["room", "update", ROOM_ID, "--expected-updated-at", NOW, "--title", "Renamed"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain(`room ${ROOM_ID}: updated`);
+  });
+});
+
+describe("runCli providers, settings, and usage", () => {
+  const PROVIDER_INSTANCE = {
+    key: "openrouter-fast",
+    family: "openrouter",
+    model: "openrouter/auto",
+    displayName: "OpenRouter (fast)",
+    credentialReference: null,
+  };
+  const DIGEST = `sha256:${"a".repeat(64)}`;
+  const CREDENTIAL_REFERENCE = {
+    schemaVersion: 1,
+    kind: "macos-keychain",
+    service: "app-factory-provider-openrouter-fast",
+    account: "openrouter-fast",
+  };
+
+  it("lists, upserts, removes, and probes health for providers", async () => {
+    const seen: string[] = [];
+    const socketPath = await startFakeDaemon((operation) => {
+      seen.push(operation);
+      if (operation === "provider.list") {
+        return { result: { operation: "provider.list", providers: [PROVIDER_INSTANCE] } };
+      }
+      if (operation === "provider.upsert") {
+        return {
+          result: {
+            operation: "provider.upsert",
+            instance: PROVIDER_INSTANCE,
+            created: true,
+            digest: DIGEST,
+          },
+        };
+      }
+      if (operation === "provider.remove") {
+        return { result: { operation: "provider.remove", removed: true, digest: DIGEST } };
+      }
+      if (operation === "provider.health") {
+        return {
+          result: {
+            operation: "provider.health",
+            reports: [
+              {
+                key: "openrouter-fast",
+                report: { status: "ok", detail: null, latencyMs: 80, version: null },
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`Unexpected operation: ${operation}`);
+    });
+    const environment = { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION };
+
+    const list = fakeIo();
+    expect(await runCli(["provider", "list"], environment, list.io)).toBe(0);
+    expect(list.captured().stdout).toContain("openrouter-fast");
+
+    const upsert = fakeIo();
+    expect(
+      await runCli(
+        [
+          "provider",
+          "upsert",
+          "openrouter-fast",
+          "--family",
+          "openrouter",
+          "--model",
+          "openrouter/auto",
+        ],
+        environment,
+        upsert.io,
+      ),
+    ).toBe(0);
+    expect(upsert.captured().stdout).toContain("created");
+
+    const remove = fakeIo();
+    expect(await runCli(["provider", "remove", "openrouter-fast"], environment, remove.io)).toBe(0);
+    expect(remove.captured().stdout).toContain("removed");
+
+    const health = fakeIo();
+    expect(await runCli(["provider", "health"], environment, health.io)).toBe(0);
+    expect(health.captured().stdout).toContain("ok");
+
+    expect(seen).toEqual([
+      "provider.list",
+      "provider.upsert",
+      "provider.remove",
+      "provider.health",
+    ]);
+  });
+
+  it("stores a provider credential read from stdin, never from argv", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "provider.credential.set") {
+        throw new Error(`Unexpected operation: ${operation}`);
+      }
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "provider.credential.set",
+          key: "openrouter-fast",
+          credentialReference: CREDENTIAL_REFERENCE,
+        },
+      };
+    });
+    const { io, captured } = fakeIo("sk-super-secret\n");
+    const argv = ["provider", "credential-set", "openrouter-fast"];
+    const exitCode = await runCli(
+      argv,
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("credential stored");
+    expect(receivedPayload).toMatchObject({ key: "openrouter-fast", secret: "sk-super-secret" });
+    expect(argv.join(" ")).not.toContain("sk-super-secret");
+  });
+
+  it("stores a provider credential read from a named environment variable", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "provider.credential.set") {
+        throw new Error(`Unexpected operation: ${operation}`);
+      }
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "provider.credential.set",
+          key: "openrouter-fast",
+          credentialReference: CREDENTIAL_REFERENCE,
+        },
+      };
+    });
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["provider", "credential-set", "openrouter-fast", "--secret-env", "OPENROUTER_API_KEY"],
+      {
+        APP_FACTORY_SOCKET: socketPath,
+        APP_FACTORY_AUTH_TOKEN: AUTHORIZATION,
+        OPENROUTER_API_KEY: "sk-from-env",
+      },
+      io,
+    );
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain("credential stored");
+    expect(receivedPayload).toMatchObject({ key: "openrouter-fast", secret: "sk-from-env" });
+  });
+
+  it("fails clearly when neither stdin nor --secret-env supplies a credential-set secret", async () => {
+    const socketPath = await startFakeDaemon(() => {
+      throw new Error("should not contact the daemon");
+    });
+    const { io: ioNoStdin } = fakeIo(); // io.stdin is undefined -- no piped input configured.
+    const exitCode = await runCli(
+      ["provider", "credential-set", "openrouter-fast"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      ioNoStdin,
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  it("gets and sets a Studio setting", async () => {
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation === "settings.set") {
+        return {
+          result: {
+            operation: "settings.set",
+            entry: {
+              key: "default-provider",
+              value: (request?.payload as { value: string }).value,
+              updatedAt: NOW,
+            },
+          },
+        };
+      }
+      if (operation === "settings.get") {
+        return {
+          result: {
+            operation: "settings.get",
+            entry: { key: "default-provider", value: "openrouter-fast", updatedAt: NOW },
+          },
+        };
+      }
+      throw new Error(`Unexpected operation: ${operation}`);
+    });
+    const environment = { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION };
+
+    const set = fakeIo();
+    expect(
+      await runCli(["settings", "set", "default-provider", "openrouter-fast"], environment, set.io),
+    ).toBe(0);
+    expect(set.captured().stdout).toContain("default-provider = openrouter-fast");
+
+    const get = fakeIo();
+    expect(await runCli(["settings", "get", "default-provider"], environment, get.io)).toBe(0);
+    expect(get.captured().stdout).toContain("default-provider = openrouter-fast");
+  });
+
+  it("reads a usage summary honoring --since-days", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "usage.summary") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "usage.summary",
+          summary: {
+            sinceDays: 30,
+            rows: [
+              {
+                providerKey: "openrouter-fast",
+                model: "openrouter/auto",
+                dayKey: "2026-08-10",
+                inputTokens: 500,
+                outputTokens: 120,
+                cachedInputTokens: null,
+                costUsdMicros: null,
+                unreportedCount: 0,
+              },
+            ],
+          },
+        },
+      };
+    });
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["usage", "summary", "--since-days", "30"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toEqual({ sinceDays: 30 });
+    expect(captured().stdout).toContain("openrouter-fast");
+    expect(captured().stdout).toContain("unreported=0");
   });
 });
