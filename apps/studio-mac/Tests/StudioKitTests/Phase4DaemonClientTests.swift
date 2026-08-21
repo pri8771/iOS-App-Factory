@@ -52,6 +52,35 @@ final class Phase4DaemonClientTests: XCTestCase {
         XCTAssertEqual(result.phase.phaseId.rawValue, "build")
         let payload = try XCTUnwrap(server.frames.first?["request"]?["payload"])
         XCTAssertEqual(payload["expectedRevision"], .null)
+        // Wave 9c: an unset Wave-1 field crosses the wire as an explicit null, never an omitted key.
+        XCTAssertEqual(payload["phase"]?["prompt"], .null)
+        XCTAssertEqual(payload["phase"]?["topicScope"], .null)
+        XCTAssertEqual(payload["phase"]?["turnPolicy"], .null)
+        XCTAssertEqual(payload["phase"]?["tokenBudget"], .null)
+    }
+
+    /// The request-shape counterpart with every Wave-1 field populated — a `perParticipantTurnCap:
+    /// nil` inside a SET `turnPolicy` also writes its own explicit null (nullable-key discipline
+    /// nests one level deep, not just at the top).
+    func testUpsertPhaseSendsThePopulatedWave1FieldsVerbatim() async throws {
+        let server = try fixtureDispatchingServer()
+        defer { server.stop() }
+        let client = try makeClient(server)
+        let draft = PhaseDefinitionDraft(
+            phaseId: try PhaseId("architecture"), name: "Architecture", purpose: "Decide the approach.",
+            mode: .debate, cast: PhaseCast(participants: [], coordinator: nil, grader: nil), inputs: [.docs],
+            rules: PhaseRules(standard: [], yours: [], requiredOutput: [], acceptanceChecks: []), outputs: [],
+            gates: [], budget: PhaseBudget(estimateMinutes: 45, timeoutSeconds: 3_600),
+            prompt: "Focus on backend scalability.", topicScope: "Architecture only.",
+            turnPolicy: PhaseTurnPolicy(maxRounds: 4, perParticipantTurnCap: nil),
+            tokenBudget: PhaseTokenBudget(maxTotalTokens: 20_000))
+        _ = try await client.upsertPhase(draft, expectedRevision: 5)
+        let payload = try XCTUnwrap(server.frames.first?["request"]?["payload"])
+        XCTAssertEqual(payload["phase"]?["prompt"]?.stringValue, "Focus on backend scalability.")
+        XCTAssertEqual(payload["phase"]?["topicScope"]?.stringValue, "Architecture only.")
+        XCTAssertEqual(payload["phase"]?["turnPolicy"]?["maxRounds"], .number(4))
+        XCTAssertEqual(payload["phase"]?["turnPolicy"]?["perParticipantTurnCap"], .null)
+        XCTAssertEqual(payload["phase"]?["tokenBudget"]?["maxTotalTokens"], .number(20_000))
     }
 
     // MARK: Phase Runner — phase.run → phase.status transition

@@ -37,6 +37,10 @@
               "estimateMinutes": null,
               "timeoutSeconds": 900
             },
+            "prompt": null,
+            "topicScope": null,
+            "turnPolicy": null,
+            "tokenBudget": null,
             "revision": 0,
             "createdAt": "2026-08-16T22:00:00.000Z",
             "updatedAt": "2026-08-16T22:00:00.000Z"
@@ -107,6 +111,15 @@
             "budget": {
               "estimateMinutes": 45,
               "timeoutSeconds": 3600
+            },
+            "prompt": "Focus the debate on backend scalability trade-offs; skip visual design entirely.",
+            "topicScope": "Architecture only — no visual design, no product scoping.",
+            "turnPolicy": {
+              "maxRounds": 4,
+              "perParticipantTurnCap": 2
+            },
+            "tokenBudget": {
+              "maxTotalTokens": 20000
             },
             "revision": 0,
             "createdAt": "2026-08-16T22:00:00.000Z",

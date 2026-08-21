@@ -25,6 +25,18 @@ public struct PhaseEditorDraft: Equatable {
     public var gates: Set<TypedGateName>
     public var estimateMinutes: Int?
     public var timeoutSeconds: Int
+    /// An operator briefing PREPENDED to the synthesized instruction — empty string means "unset"
+    /// (`nil` on the wire), same convention `PhaseOutputDraft.schema` already uses.
+    public var prompt: String
+    public var topicScope: String
+    /// `nil` = no custom turn policy (the daemon's own default of 6 rounds applies) — the stepper
+    /// shows "default (6)" rather than inventing a number. Setting this is what makes
+    /// `perParticipantTurnCap` meaningful; the wire's `turnPolicy` is one object requiring
+    /// `maxRounds`, so a cap can never be sent while this is `nil`.
+    public var maxRounds: Int?
+    public var perParticipantTurnCap: Int?
+    /// `nil` = no token cap for this phase's run.
+    public var tokenBudgetMaxTotalTokens: Int?
 
     public init(from phase: PhaseDefinition) {
         name = phase.name
@@ -42,6 +54,11 @@ public struct PhaseEditorDraft: Equatable {
         gates = Set(phase.gates)
         estimateMinutes = phase.budget.estimateMinutes
         timeoutSeconds = phase.budget.timeoutSeconds
+        prompt = phase.prompt ?? ""
+        topicScope = phase.topicScope ?? ""
+        maxRounds = phase.turnPolicy?.maxRounds
+        perParticipantTurnCap = phase.turnPolicy?.perParticipantTurnCap
+        tokenBudgetMaxTotalTokens = phase.tokenBudget?.maxTotalTokens
     }
 
     /// True when `grader` names one of `participants` by `(provider, persona)` — checked live so the
@@ -58,6 +75,8 @@ public struct PhaseEditorDraft: Equatable {
             && (mode != .solo || participants.count == 1)
             && participants.allSatisfy { $0.isValid }
             && outputs.allSatisfy { $0.isValid }
+            && prompt.count <= maxPhasePromptLength
+            && topicScope.count <= maxPhaseTopicScopeLength
     }
 
     /// Builds the wire draft, or `nil` if any free-text field fails the branded pattern (already
@@ -66,13 +85,20 @@ public struct PhaseEditorDraft: Equatable {
         guard let cast = wireCast() else { return nil }
         let wireOutputs = outputs.compactMap { $0.wireValue() }
         guard wireOutputs.count == outputs.count else { return nil }
+        let wireTurnPolicy = maxRounds.map { PhaseTurnPolicy(maxRounds: $0, perParticipantTurnCap: perParticipantTurnCap) }
+        let wireTokenBudget = tokenBudgetMaxTotalTokens.map { PhaseTokenBudget(maxTotalTokens: $0) }
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTopicScope = topicScope.trimmingCharacters(in: .whitespacesAndNewlines)
         return PhaseDefinitionDraft(
             phaseId: phaseId, name: name, purpose: purpose, mode: mode, cast: cast,
             inputs: PhaseInputKind.allCases.filter { inputs.contains($0) },
             rules: PhaseRules(standard: standardRules, yours: yourRules, requiredOutput: requiredOutput,
                               acceptanceChecks: acceptanceChecks),
             outputs: wireOutputs, gates: TypedGateName.allCases.filter { gates.contains($0) },
-            budget: PhaseBudget(estimateMinutes: estimateMinutes, timeoutSeconds: timeoutSeconds))
+            budget: PhaseBudget(estimateMinutes: estimateMinutes, timeoutSeconds: timeoutSeconds),
+            prompt: trimmedPrompt.isEmpty ? nil : trimmedPrompt,
+            topicScope: trimmedTopicScope.isEmpty ? nil : trimmedTopicScope,
+            turnPolicy: wireTurnPolicy, tokenBudget: wireTokenBudget)
     }
 
     private func wireCast() -> PhaseCast? {
@@ -154,15 +180,26 @@ public struct PhaseEditorView: View {
     public var phase: PhaseDefinition
     public var presetId: PhasePresetId
     public var knownProjects: [(id: ProjectID, name: String)]
+    /// Instance keys sourced from `room.participants.list roomProviderKey` / `provider.list` (the
+    /// same catalog `RoomsModel`/`SettingsModel` already load) — feeds the cast provider pickers.
+    /// Empty means "no catalog available yet"; the cast rows fall back to free text, badged
+    /// NOT YET SOURCED, rather than presenting a picker with nothing in it.
+    public var providerCatalogKeys: [String]
     public var activeRun: PhaseRun?
     public var isSaving: Bool
     public var saveError: String?
     public var runLaunchError: String?
     public var decisionError: String?
+    /// Move-left/move-right — v1 reorder (Architecture decision 15; drag is deferred). `false` for
+    /// both at a not-yet-saved new-phase placeholder, which isn't part of any preset's `phases[]` yet.
+    public var canMoveLeft: Bool
+    public var canMoveRight: Bool
     public var onSave: (PhaseDefinitionDraft) async -> Void
     public var onRun: (ProjectID) async -> Void
     public var onApprove: (String?) async -> Void
     public var onReject: (String) async -> Void
+    public var onMoveLeft: () async -> Void
+    public var onMoveRight: () async -> Void
 
     @State private var draft: PhaseEditorDraft
     @State private var showingProjectPicker = false
@@ -172,21 +209,28 @@ public struct PhaseEditorView: View {
     @State private var rejectReason = ""
 
     public init(phase: PhaseDefinition, presetId: PhasePresetId, knownProjects: [(id: ProjectID, name: String)],
-               activeRun: PhaseRun?, isSaving: Bool, saveError: String?, runLaunchError: String?, decisionError: String?,
+               providerCatalogKeys: [String] = [], activeRun: PhaseRun?, isSaving: Bool, saveError: String?,
+               runLaunchError: String?, decisionError: String?, canMoveLeft: Bool = false, canMoveRight: Bool = false,
                onSave: @escaping (PhaseDefinitionDraft) async -> Void, onRun: @escaping (ProjectID) async -> Void,
-               onApprove: @escaping (String?) async -> Void, onReject: @escaping (String) async -> Void) {
+               onApprove: @escaping (String?) async -> Void, onReject: @escaping (String) async -> Void,
+               onMoveLeft: @escaping () async -> Void = {}, onMoveRight: @escaping () async -> Void = {}) {
         self.phase = phase
         self.presetId = presetId
         self.knownProjects = knownProjects
+        self.providerCatalogKeys = providerCatalogKeys
         self.activeRun = activeRun
         self.isSaving = isSaving
         self.saveError = saveError
         self.runLaunchError = runLaunchError
         self.decisionError = decisionError
+        self.canMoveLeft = canMoveLeft
+        self.canMoveRight = canMoveRight
         self.onSave = onSave
         self.onRun = onRun
         self.onApprove = onApprove
         self.onReject = onReject
+        self.onMoveLeft = onMoveLeft
+        self.onMoveRight = onMoveRight
         _draft = State(initialValue: PhaseEditorDraft(from: phase))
     }
 
@@ -197,6 +241,9 @@ public struct PhaseEditorView: View {
                 nameAndPurpose
                 modeSection
                 castSection
+                promptSection
+                topicScopeSection
+                turnPolicySection
                 inputsSection
                 rulesSection
                 outputsSection
@@ -221,8 +268,17 @@ public struct PhaseEditorView: View {
 
     private var header: some View {
         HStack {
-            Text(phase.name).font(HUDTypography.displayHeading).foregroundStyle(HUDTheme.ink)
+            Text(phase.name.isEmpty ? "Untitled stage" : phase.name).font(HUDTypography.displayHeading).foregroundStyle(HUDTheme.ink)
             HUDLabel(phase.phaseId.rawValue)
+            HStack(spacing: 2) {
+                Button { Task { await onMoveLeft() } } label: { Image(systemName: "chevron.left.circle") }
+                    .buttonStyle(.plain).disabled(!canMoveLeft)
+                    .help("Move this stage earlier")
+                Button { Task { await onMoveRight() } } label: { Image(systemName: "chevron.right.circle") }
+                    .buttonStyle(.plain).disabled(!canMoveRight)
+                    .help("Move this stage later")
+            }
+            .foregroundStyle(HUDTheme.mute)
             Spacer()
             ProvenanceBadge(.live("preset.list"), compact: true)
         }
@@ -271,7 +327,7 @@ public struct PhaseEditorView: View {
 
     private func castRow(role: String, provider: Binding<String>, persona: Binding<String>, onRemove: @escaping () -> Void) -> some View {
         HStack(spacing: HUDTheme.space.xs) {
-            TextField("provider", text: provider).textFieldStyle(.roundedBorder).frame(width: 110)
+            providerField(provider)
             TextField("persona (optional)", text: persona).textFieldStyle(.roundedBorder).frame(width: 150)
             Button(action: onRemove) { Image(systemName: "xmark.circle.fill") }
                 .buttonStyle(.plain).foregroundStyle(HUDTheme.mute)
@@ -285,10 +341,90 @@ public struct PhaseEditorView: View {
             }.toggleStyle(.switch).labelsHidden()
             HUDLabel(title)
             if role.wrappedValue != nil {
-                TextField("provider", text: Binding(get: { role.wrappedValue?.provider ?? "" }, set: { role.wrappedValue?.provider = $0 }))
-                    .textFieldStyle(.roundedBorder).frame(width: 110)
+                providerField(Binding(get: { role.wrappedValue?.provider ?? "" }, set: { role.wrappedValue?.provider = $0 }))
                 TextField("persona (optional)", text: Binding(get: { role.wrappedValue?.persona ?? "" }, set: { role.wrappedValue?.persona = $0 }))
                     .textFieldStyle(.roundedBorder).frame(width: 150)
+            }
+        }
+    }
+
+    /// A cast seat's model binding: a menu fed by `providerCatalogKeys` (Architecture decision 8 —
+    /// "model binding = instance keys") when the catalog has anything to offer, falling back to free
+    /// text badged NOT YET SOURCED when it doesn't (an empty catalog is never silently treated as "no
+    /// providers exist"). The current value is always kept selectable even if it has since fallen out
+    /// of the catalog, so an existing phase never shows a blank picker for a provider it already names.
+    private func providerField(_ provider: Binding<String>) -> some View {
+        Group {
+            if providerCatalogKeys.isEmpty {
+                HStack(spacing: 4) {
+                    TextField("provider", text: provider).textFieldStyle(.roundedBorder).frame(width: 110)
+                    ProvenanceBadge(.notYetSourced, compact: true)
+                }
+            } else {
+                let options = providerCatalogKeys.contains(provider.wrappedValue) || provider.wrappedValue.isEmpty
+                    ? providerCatalogKeys : [provider.wrappedValue] + providerCatalogKeys
+                Picker("", selection: provider) {
+                    Text("choose…").tag("")
+                    ForEach(options, id: \.self) { key in Text(key).tag(key) }
+                }.labelsHidden().frame(width: 150)
+            }
+        }
+    }
+
+    // MARK: Prompt / topic scope / turn policy (Wave-1 PhaseDefinition fields, Architecture decision 8)
+
+    private var promptSection: some View {
+        VStack(alignment: .leading, spacing: HUDTheme.space.xxs) {
+            HUDLabel("operator briefing — prepended to the synthesized instruction")
+            TextEditor(text: $draft.prompt)
+                .font(HUDTypography.monoValue)
+                .frame(minHeight: 70, maxHeight: 140)
+                .padding(4)
+                .background(RoundedRectangle(cornerRadius: 4).fill(HUDTheme.hull))
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(HUDTheme.hairline, lineWidth: 1))
+            if draft.prompt.count > maxPhasePromptLength {
+                Text("briefing exceeds \(maxPhasePromptLength) characters").font(HUDTypography.caption).foregroundStyle(HUDTheme.alert)
+            }
+        }
+    }
+
+    private var topicScopeSection: some View {
+        labeledField("topic scope") {
+            TextField("Free-text scope prompted to the cast (optional)", text: $draft.topicScope, axis: .vertical)
+                .textFieldStyle(.roundedBorder).lineLimit(1...3)
+        }
+    }
+
+    private var turnPolicySection: some View {
+        HStack(spacing: HUDTheme.space.l) {
+            labeledField("max rounds") {
+                HStack {
+                    Toggle(isOn: Binding(get: { draft.maxRounds != nil }, set: { on in
+                        draft.maxRounds = on ? 6 : nil
+                        if !on { draft.perParticipantTurnCap = nil }
+                    })) { EmptyView() }.toggleStyle(.switch).labelsHidden()
+                    if let rounds = draft.maxRounds {
+                        Stepper(value: Binding(get: { rounds }, set: { draft.maxRounds = $0 }), in: 1...maxPhaseTurnPolicyRounds) {
+                            Text("\(rounds)").font(HUDTypography.monoValue)
+                        }
+                    } else {
+                        Text("default (6)").font(HUDTypography.monoValue).foregroundStyle(HUDTheme.mute)
+                    }
+                }
+            }
+            labeledField("per-participant cap") {
+                HStack {
+                    Toggle(isOn: Binding(get: { draft.perParticipantTurnCap != nil }, set: { draft.perParticipantTurnCap = $0 ? 1 : nil })) {
+                        EmptyView()
+                    }.toggleStyle(.switch).labelsHidden().disabled(draft.maxRounds == nil)
+                    if let cap = draft.perParticipantTurnCap {
+                        Stepper(value: Binding(get: { cap }, set: { draft.perParticipantTurnCap = $0 }), in: 1...maxPhaseTurnPolicyRounds) {
+                            Text("\(cap)").font(HUDTypography.monoValue)
+                        }
+                    } else {
+                        Text("unbounded").font(HUDTypography.monoValue).foregroundStyle(HUDTheme.mute)
+                    }
+                }
             }
         }
     }
@@ -418,6 +554,21 @@ public struct PhaseEditorView: View {
             labeledField("timeout (sec)") {
                 Stepper(value: $draft.timeoutSeconds, in: 60...86_400, step: 60) {
                     Text("\(draft.timeoutSeconds)").font(HUDTypography.monoValue)
+                }
+            }
+            labeledField("token budget") {
+                HStack {
+                    Toggle(isOn: Binding(get: { draft.tokenBudgetMaxTotalTokens != nil },
+                                         set: { draft.tokenBudgetMaxTotalTokens = $0 ? 10_000 : nil })) {
+                        EmptyView()
+                    }.toggleStyle(.switch).labelsHidden()
+                    if let tokens = draft.tokenBudgetMaxTotalTokens {
+                        TextField("max total tokens", value: Binding(get: { tokens }, set: { draft.tokenBudgetMaxTotalTokens = max(1, $0) }),
+                                  format: .number)
+                            .textFieldStyle(.roundedBorder).frame(width: 100)
+                    } else {
+                        Text("unbounded").font(HUDTypography.monoValue).foregroundStyle(HUDTheme.mute)
+                    }
                 }
             }
         }

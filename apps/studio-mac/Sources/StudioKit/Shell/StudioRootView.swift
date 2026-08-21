@@ -196,23 +196,32 @@ public struct StudioRootView: View {
             PhasesScreen(
                 presets: store.phases.presets, isLoadingPresets: store.phases.isLoadingPresets,
                 presetsError: store.phases.presetsError, selectedPresetId: store.phases.selectedPresetId,
-                selectedPhaseId: store.phases.selectedPhaseId, knownProjects: store.knownProjects,
+                selectedPhaseId: store.phases.selectedPhaseId, selectedPhase: store.phases.selectedPhase,
+                selectedPhaseInsertIndex: store.phases.selectedPhaseInsertIndex, knownProjects: store.knownProjects,
+                providerCatalogKeys: store.providerCatalogKeys,
                 activeRuns: store.phases.activeRuns, isSaving: store.phases.isSaving, saveError: store.phases.saveError,
                 runLaunchError: store.phases.runLaunchError, decisionError: store.phases.decisionError,
                 recentRuns: store.phases.recentRuns, isLoadingRuns: store.phases.isLoadingRuns,
                 runsError: store.phases.runsError,
+                isCreatingPreset: store.phases.isCreatingPreset, createPresetError: store.phases.createPresetError,
                 onAppear: {
                     await store.phases.loadPresetsIfNeeded()
                     await store.phases.loadRecentRuns()
+                    if store.rooms.participantsCatalog == nil { await store.rooms.loadParticipantsCatalog() }
+                    if store.settings.providers.isEmpty { await store.settings.loadProviders() }
                 },
                 onSelectPreset: { store.phases.selectPreset($0) },
-                onSelectPhase: { store.phases.selectedPhaseId = $0 },
-                onSave: { draft in await store.phases.savePhase(draft) },
+                onSelectPhase: { store.phases.selectPhase($0) },
+                onInsertPhase: { index in store.phases.startNewPhase(insertAt: index) },
+                onSave: { draft, insertIndex in await store.phases.savePhase(draft, insertAt: insertIndex) },
                 onRun: { phase, projectId in
                     await store.phases.runPhase(phase, presetId: store.phases.selectedPresetId, projectId: projectId)
                 },
                 onApprove: { run, reason in await store.phases.approveRun(run, reason: reason) },
-                onReject: { run, reason in await store.phases.rejectRun(run, reason: reason) })
+                onReject: { run, reason in await store.phases.rejectRun(run, reason: reason) },
+                onMoveLeft: { phaseId in await store.phases.movePhaseLeft(phaseId) },
+                onMoveRight: { phaseId in await store.phases.movePhaseRight(phaseId) },
+                onCreatePreset: { name, appliesTo in await store.phases.createPreset(name: name, appliesTo: appliesTo) })
         }
     }
 

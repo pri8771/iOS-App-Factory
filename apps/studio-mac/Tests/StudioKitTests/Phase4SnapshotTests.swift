@@ -40,28 +40,68 @@ final class Phase4SnapshotTests: XCTestCase {
 
     // MARK: PHASES tab — preset selected
 
+    private let providerCatalogKeys = ["claude", "codex", "cursor", "openrouter-fast"]
+
     func testPhasesScreenPresetSelected() {
         let preset = presets[0]
         let screen = PhasesScreen(
             presets: presets, isLoadingPresets: false, presetsError: nil, selectedPresetId: preset.presetId,
-            selectedPhaseId: preset.phases[1].phaseId /* architecture: debate + grader */, knownProjects: knownProjects,
+            selectedPhaseId: preset.phases[1].phaseId /* architecture: debate + grader */,
+            selectedPhase: preset.phases[1], selectedPhaseInsertIndex: nil, knownProjects: knownProjects,
+            providerCatalogKeys: providerCatalogKeys,
             activeRuns: [preset.phases[2].phaseId: awaitingRun], isSaving: false, saveError: nil, runLaunchError: nil,
             decisionError: nil, recentRuns: recentRuns, isLoadingRuns: false, runsError: nil,
-            onAppear: {}, onSelectPreset: { _ in }, onSelectPhase: { _ in }, onSave: { _ in }, onRun: { _, _ in },
-            onApprove: { _, _ in }, onReject: { _, _ in })
+            isCreatingPreset: false, createPresetError: nil,
+            onAppear: {}, onSelectPreset: { _ in }, onSelectPhase: { _ in }, onInsertPhase: { _ in },
+            onSave: { _, _ in }, onRun: { _, _ in }, onApprove: { _, _ in }, onReject: { _, _ in },
+            onMoveLeft: { _ in }, onMoveRight: { _ in }, onCreatePreset: { _, _ in true })
         assertHUD(screen, size: CGSize(width: 1180, height: 640), named: "phases-screen")
     }
 
-    // MARK: Phase editor — a debate phase with a grader, standard + yours rules, gates
+    // MARK: Stage chain — selected/gated/run-badge variants
+
+    func testPhaseChainView() {
+        let preset = presets[0]
+        let chain = PhaseChainView(phases: preset.phases, selectedPhaseId: preset.phases[1].phaseId,
+                                   activeRuns: [preset.phases[2].phaseId: awaitingRun, preset.phases[3].phaseId: recentRuns[1]],
+                                   onSelect: { _ in }, onInsert: { _ in })
+            .frame(height: 100)
+            .background(HUDTheme.void)
+        assertHUD(chain, size: CGSize(width: 900, height: 100), named: "phase-chain-view")
+    }
+
+    func testPhaseChainViewEmpty() {
+        let chain = PhaseChainView(phases: [], selectedPhaseId: nil, activeRuns: [:], onSelect: { _ in }, onInsert: { _ in })
+            .frame(height: 100)
+            .background(HUDTheme.void)
+        assertHUD(chain, size: CGSize(width: 500, height: 100), named: "phase-chain-view-empty")
+    }
+
+    // MARK: Phase editor — a debate phase with a grader, standard + yours rules, gates, and the new
+    // Wave 9c fields (prompt/topicScope/turnPolicy/tokenBudget) populated
 
     func testPhaseEditor() {
-        let phase = presets[0].phases[1] // architecture: debate, grader, two standard rules
+        let phase = presets[0].phases[1] // architecture: debate, grader, two standard rules, non-null prompt/topicScope/turnPolicy/tokenBudget
         let editor = PhaseEditorView(phase: phase, presetId: presets[0].presetId, knownProjects: knownProjects,
-                                     activeRun: nil, isSaving: false, saveError: nil, runLaunchError: nil,
-                                     decisionError: nil, onSave: { _ in }, onRun: { _ in }, onApprove: { _ in },
-                                     onReject: { _ in })
+                                     providerCatalogKeys: providerCatalogKeys, activeRun: nil, isSaving: false,
+                                     saveError: nil, runLaunchError: nil, decisionError: nil,
+                                     canMoveLeft: true, canMoveRight: true,
+                                     onSave: { _ in }, onRun: { _ in }, onApprove: { _ in }, onReject: { _ in },
+                                     onMoveLeft: {}, onMoveRight: {})
             .background(HUDTheme.void)
-        assertHUD(editor, size: CGSize(width: 760, height: 900), named: "phase-editor")
+        assertHUD(editor, size: CGSize(width: 760, height: 1_040), named: "phase-editor")
+    }
+
+    /// The catalog-empty fallback: a free-text provider field badged NOT YET SOURCED, and the daemon's
+    /// default-turnPolicy/no-tokenBudget honest placeholders ("default (6)"/"unbounded").
+    func testPhaseEditorNoCatalog() {
+        let phase = presets[0].phases[0] // contract: solo, one participant, every Wave 9c field null
+        let editor = PhaseEditorView(phase: phase, presetId: presets[0].presetId, knownProjects: knownProjects,
+                                     providerCatalogKeys: [], activeRun: nil, isSaving: false, saveError: nil,
+                                     runLaunchError: nil, decisionError: nil, onSave: { _ in }, onRun: { _ in },
+                                     onApprove: { _ in }, onReject: { _ in })
+            .background(HUDTheme.void)
+        assertHUD(editor, size: CGSize(width: 760, height: 1_040), named: "phase-editor-no-catalog")
     }
 
     // MARK: Run status strip — awaiting-human

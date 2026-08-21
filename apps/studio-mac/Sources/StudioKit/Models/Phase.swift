@@ -150,6 +150,45 @@ public struct PhaseBudget: Hashable, Sendable, Codable {
     }
 }
 
+/// Bounds mirrored from `phase.ts` (`MAX_PHASE_TURN_POLICY_ROUNDS_V1`, etc.) for client-side stepper
+/// ranges and text-length hints — the daemon remains the enforcing source of truth.
+public let maxPhaseTurnPolicyRounds = 12
+public let maxPhasePromptLength = 10_000
+public let maxPhaseTopicScopeLength = 2_000
+
+/// Parameterizes the stage engine's four existing modes (Architecture decision 8) rather than a
+/// graph engine: `maxRounds` bounds how many polling rounds the phase-run executor drives before
+/// stopping regardless of mode; `perParticipantTurnCap`, when set, additionally bounds how many of
+/// those rounds any single cast member may speak in.
+public struct PhaseTurnPolicy: Hashable, Sendable, Codable {
+    public var maxRounds: Int
+    public var perParticipantTurnCap: Int?
+
+    public init(maxRounds: Int, perParticipantTurnCap: Int?) {
+        self.maxRounds = maxRounds
+        self.perParticipantTurnCap = perParticipantTurnCap
+    }
+
+    private enum CodingKeys: String, CodingKey { case maxRounds, perParticipantTurnCap }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(maxRounds, forKey: .maxRounds)
+        try c.encode(perParticipantTurnCap, forKey: .perParticipantTurnCap)
+    }
+}
+
+/// Enforced over KNOWN usage only (Architecture decision 6/8): a contribution whose provider
+/// reported no usage does not silently count as zero against this cap — the phase run's outcome
+/// notes partial enforcement whenever that happened.
+public struct PhaseTokenBudget: Hashable, Sendable, Codable {
+    public var maxTotalTokens: Int
+
+    public init(maxTotalTokens: Int) {
+        self.maxTotalTokens = maxTotalTokens
+    }
+}
+
 /// The editable content of a phase, independent of its revision history — what `phase.upsert` sends
 /// and what a `PhaseDefinition`'s durable record embeds verbatim.
 public struct PhaseDefinitionDraft: Hashable, Sendable, Codable {
@@ -164,10 +203,18 @@ public struct PhaseDefinitionDraft: Hashable, Sendable, Codable {
     /// Typed lifecycle gates (`TypedGateName`) this phase's completion is evidence for, if any.
     public var gates: [TypedGateName]
     public var budget: PhaseBudget
+    /// An operator briefing PREPENDED to the synthesized instruction (never a replacement) —
+    /// Architecture decision 8. `nil` when unset.
+    public var prompt: String?
+    /// Free-text scope prompted to the cast; never machine-enforced, same status as `rules.yours`.
+    public var topicScope: String?
+    public var turnPolicy: PhaseTurnPolicy?
+    public var tokenBudget: PhaseTokenBudget?
 
     public init(phaseId: PhaseId, name: String, purpose: String, mode: PhaseMode, cast: PhaseCast,
                 inputs: [PhaseInputKind], rules: PhaseRules, outputs: [PhaseOutput], gates: [TypedGateName],
-                budget: PhaseBudget) {
+                budget: PhaseBudget, prompt: String? = nil, topicScope: String? = nil,
+                turnPolicy: PhaseTurnPolicy? = nil, tokenBudget: PhaseTokenBudget? = nil) {
         self.phaseId = phaseId
         self.name = name
         self.purpose = purpose
@@ -178,6 +225,36 @@ public struct PhaseDefinitionDraft: Hashable, Sendable, Codable {
         self.outputs = outputs
         self.gates = gates
         self.budget = budget
+        self.prompt = prompt
+        self.topicScope = topicScope
+        self.turnPolicy = turnPolicy
+        self.tokenBudget = tokenBudget
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case phaseId, name, purpose, mode, cast, inputs, rules, outputs, gates, budget, prompt, topicScope,
+             turnPolicy, tokenBudget
+    }
+
+    /// Hand-written so every nullable field (`prompt`/`topicScope`/`turnPolicy`/`tokenBudget`) writes
+    /// an explicit `null` when unset rather than omitting the key — the daemon schema marks these
+    /// `.nullable().default(null)`, and this client always sends its own intent explicitly.
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(phaseId, forKey: .phaseId)
+        try c.encode(name, forKey: .name)
+        try c.encode(purpose, forKey: .purpose)
+        try c.encode(mode, forKey: .mode)
+        try c.encode(cast, forKey: .cast)
+        try c.encode(inputs, forKey: .inputs)
+        try c.encode(rules, forKey: .rules)
+        try c.encode(outputs, forKey: .outputs)
+        try c.encode(gates, forKey: .gates)
+        try c.encode(budget, forKey: .budget)
+        try c.encode(prompt, forKey: .prompt)
+        try c.encode(topicScope, forKey: .topicScope)
+        try c.encode(turnPolicy, forKey: .turnPolicy)
+        try c.encode(tokenBudget, forKey: .tokenBudget)
     }
 }
 
@@ -195,6 +272,10 @@ public struct PhaseDefinition: Hashable, Sendable, Codable, Identifiable {
     public var outputs: [PhaseOutput]
     public var gates: [TypedGateName]
     public var budget: PhaseBudget
+    public var prompt: String?
+    public var topicScope: String?
+    public var turnPolicy: PhaseTurnPolicy?
+    public var tokenBudget: PhaseTokenBudget?
     public var revision: Int
     public var createdAt: IsoInstant
     public var updatedAt: IsoInstant
@@ -203,12 +284,15 @@ public struct PhaseDefinition: Hashable, Sendable, Codable, Identifiable {
 
     public var draft: PhaseDefinitionDraft {
         PhaseDefinitionDraft(phaseId: phaseId, name: name, purpose: purpose, mode: mode, cast: cast, inputs: inputs,
-                             rules: rules, outputs: outputs, gates: gates, budget: budget)
+                             rules: rules, outputs: outputs, gates: gates, budget: budget, prompt: prompt,
+                             topicScope: topicScope, turnPolicy: turnPolicy, tokenBudget: tokenBudget)
     }
 
     public init(phaseId: PhaseId, name: String, purpose: String, mode: PhaseMode, cast: PhaseCast,
                 inputs: [PhaseInputKind], rules: PhaseRules, outputs: [PhaseOutput], gates: [TypedGateName],
-                budget: PhaseBudget, revision: Int, createdAt: IsoInstant, updatedAt: IsoInstant) {
+                budget: PhaseBudget, prompt: String? = nil, topicScope: String? = nil,
+                turnPolicy: PhaseTurnPolicy? = nil, tokenBudget: PhaseTokenBudget? = nil,
+                revision: Int, createdAt: IsoInstant, updatedAt: IsoInstant) {
         self.phaseId = phaseId
         self.name = name
         self.purpose = purpose
@@ -219,9 +303,41 @@ public struct PhaseDefinition: Hashable, Sendable, Codable, Identifiable {
         self.outputs = outputs
         self.gates = gates
         self.budget = budget
+        self.prompt = prompt
+        self.topicScope = topicScope
+        self.turnPolicy = turnPolicy
+        self.tokenBudget = tokenBudget
         self.revision = revision
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, phaseId, name, purpose, mode, cast, inputs, rules, outputs, gates, budget, prompt,
+             topicScope, turnPolicy, tokenBudget, revision, createdAt, updatedAt
+    }
+
+    /// Hand-written for the same nullable-key discipline as `PhaseDefinitionDraft.encode(to:)`.
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(schemaVersion, forKey: .schemaVersion)
+        try c.encode(phaseId, forKey: .phaseId)
+        try c.encode(name, forKey: .name)
+        try c.encode(purpose, forKey: .purpose)
+        try c.encode(mode, forKey: .mode)
+        try c.encode(cast, forKey: .cast)
+        try c.encode(inputs, forKey: .inputs)
+        try c.encode(rules, forKey: .rules)
+        try c.encode(outputs, forKey: .outputs)
+        try c.encode(gates, forKey: .gates)
+        try c.encode(budget, forKey: .budget)
+        try c.encode(prompt, forKey: .prompt)
+        try c.encode(topicScope, forKey: .topicScope)
+        try c.encode(turnPolicy, forKey: .turnPolicy)
+        try c.encode(tokenBudget, forKey: .tokenBudget)
+        try c.encode(revision, forKey: .revision)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encode(updatedAt, forKey: .updatedAt)
     }
 
     /// A concise cast summary for the presets list — e.g. "1 model", "3 models · panel", "◆ gate · you".

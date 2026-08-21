@@ -55,6 +55,13 @@
           "estimateMinutes": 60,
           "timeoutSeconds": 7200
         },
+        "prompt": null,
+        "topicScope": null,
+        "turnPolicy": {
+          "maxRounds": 6,
+          "perParticipantTurnCap": null
+        },
+        "tokenBudget": null,
         "revision": 0,
         "createdAt": "2026-08-16T22:00:00.000Z",
         "updatedAt": "2026-08-16T22:00:00.000Z"

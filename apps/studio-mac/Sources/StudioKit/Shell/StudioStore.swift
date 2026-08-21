@@ -147,6 +147,25 @@ public final class StudioStore {
         return result
     }
 
+    /// Every instance key Studio currently knows a provider exists under, from whichever of
+    /// `room.participants.list`/`provider.list` has been loaded — feeds the Stage builder's cast
+    /// provider pickers (Architecture decision 8: "model binding = instance keys"). Not itself a new
+    /// read: it only re-presents `rooms.participantsCatalog`/`settings.providers`, already fetched by
+    /// their own models. Sorted for a stable menu order; empty (never a guess) until at least one of
+    /// those has actually been read.
+    public var providerCatalogKeys: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for entry in rooms.participantsCatalog?.providers ?? [] {
+            let key = entry.roomProviderKey?.rawValue ?? entry.provider.rawValue
+            if seen.insert(key).inserted { result.append(key) }
+        }
+        for instance in settings.providers where seen.insert(instance.key.rawValue).inserted {
+            result.append(instance.key.rawValue)
+        }
+        return result.sorted()
+    }
+
     // MARK: Wire
 
     /// doctor, then the read models. Safe to call again (reconnect).

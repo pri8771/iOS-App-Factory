@@ -101,6 +101,11 @@ const architecturePhase = phase({
   },
   outputs: [{ path: "docs/architecture/decision.md", schema: null }],
   budget: { estimateMinutes: 45, timeoutSeconds: 3_600 },
+  // Wave 9c: exercises the non-null Wave-1 PhaseDefinition fields (Architecture decisions 8/15).
+  prompt: "Focus the debate on backend scalability trade-offs; skip visual design entirely.",
+  topicScope: "Architecture only — no visual design, no product scoping.",
+  turnPolicy: { maxRounds: 4, perParticipantTurnCap: 2 },
+  tokenBudget: { maxTotalTokens: 20_000 },
 });
 
 const buildPhase = phase({
@@ -120,6 +125,9 @@ const buildPhase = phase({
   },
   outputs: [{ path: "docs/progress/build-notes.md", schema: null }],
   budget: { estimateMinutes: 60, timeoutSeconds: 7_200 },
+  // A turnPolicy with no per-participant cap, and no prompt/topicScope/tokenBudget — the "some
+  // fields set, others still honestly null" shape.
+  turnPolicy: { maxRounds: 6, perParticipantTurnCap: null },
 });
 
 const readyPhase = phase({

@@ -71,6 +71,114 @@ final class Phase4ModelDecodingTests: XCTestCase {
         XCTAssertTrue(text.contains(#""estimateMinutes":null"#), text)
         XCTAssertTrue(text.contains(#""coordinator":null"#), text)
         XCTAssertTrue(text.contains(#""grader":null"#), text)
+        // Wave 9c: the four Wave-1 PhaseDefinition fields (Architecture decisions 8/15) follow the
+        // same nullable-key discipline — nil writes an explicit `null`, never an omitted key.
+        XCTAssertTrue(text.contains(#""prompt":null"#), text)
+        XCTAssertTrue(text.contains(#""topicScope":null"#), text)
+        XCTAssertTrue(text.contains(#""turnPolicy":null"#), text)
+        XCTAssertTrue(text.contains(#""tokenBudget":null"#), text)
+    }
+
+    // MARK: Wave 9c — the Wave-1 PhaseDefinition fields (prompt/topicScope/turnPolicy/tokenBudget)
+
+    /// `preset-list.response.json`'s "architecture" phase carries every new field non-null (recorded
+    /// by `scripts/record-phase4-fixtures.mjs`); "contract" carries them all null — both shapes
+    /// exercised through the real contracts, not hand-authored.
+    func testPresetListCarriesTheNewWave1FieldsHonestly() throws {
+        guard case .success(_, .presetList(let presets)) = try decode("preset-list.response.json") else {
+            return XCTFail("expected preset.list")
+        }
+        let architecture = presets[0].phases[1]
+        XCTAssertEqual(architecture.phaseId.rawValue, "architecture")
+        XCTAssertEqual(architecture.prompt, "Focus the debate on backend scalability trade-offs; skip visual design entirely.")
+        XCTAssertEqual(architecture.topicScope, "Architecture only — no visual design, no product scoping.")
+        XCTAssertEqual(architecture.turnPolicy, PhaseTurnPolicy(maxRounds: 4, perParticipantTurnCap: 2))
+        XCTAssertEqual(architecture.tokenBudget, PhaseTokenBudget(maxTotalTokens: 20_000))
+
+        let build = presets[0].phases[3]
+        XCTAssertEqual(build.phaseId.rawValue, "build")
+        XCTAssertNil(build.prompt)
+        XCTAssertNil(build.topicScope)
+        XCTAssertEqual(build.turnPolicy, PhaseTurnPolicy(maxRounds: 6, perParticipantTurnCap: nil))
+        XCTAssertNil(build.tokenBudget)
+
+        let contract = presets[0].phases[0]
+        XCTAssertEqual(contract.phaseId.rawValue, "contract")
+        XCTAssertNil(contract.prompt)
+        XCTAssertNil(contract.topicScope)
+        XCTAssertNil(contract.turnPolicy)
+        XCTAssertNil(contract.tokenBudget)
+    }
+
+    /// Round-trips a `PhaseDefinitionDraft` with every new field populated through encode/decode —
+    /// proves the hand-written `encode(to:)` and the synthesized `init(from:)` agree on the shape.
+    func testPhaseDefinitionDraftRoundTripsPopulatedWave1Fields() throws {
+        let draft = PhaseDefinitionDraft(
+            phaseId: try PhaseId("solo-phase"), name: "Solo", purpose: "purpose", mode: .solo,
+            cast: PhaseCast(participants: [], coordinator: nil, grader: nil), inputs: [],
+            rules: PhaseRules(standard: [], yours: [], requiredOutput: [], acceptanceChecks: []), outputs: [],
+            gates: [], budget: PhaseBudget(estimateMinutes: nil, timeoutSeconds: 60),
+            prompt: "Stay focused.", topicScope: "Backend only.",
+            turnPolicy: PhaseTurnPolicy(maxRounds: 3, perParticipantTurnCap: 1),
+            tokenBudget: PhaseTokenBudget(maxTotalTokens: 5_000))
+        let data = try JSONEncoder().encode(draft)
+        let decoded = try JSONDecoder().decode(PhaseDefinitionDraft.self, from: data)
+        XCTAssertEqual(decoded, draft)
+    }
+
+    /// A phase JSON WITHOUT the four new keys at all (not even as explicit nulls) must still decode —
+    /// the daemon's own schema defaults them, but the client is defensive too since they're marked
+    /// `.nullable().default(null)`, not required. Hand-authored deliberately: a fixture recorded
+    /// through the real (Wave-1-merged) contracts can never produce this legacy shape.
+    func testPhaseDefinitionDecodesALegacyPayloadMissingTheWave1KeysEntirely() throws {
+        let json = """
+        {
+          "schemaVersion": 1,
+          "phaseId": "legacy",
+          "name": "Legacy Phase",
+          "purpose": "Predates the Wave-1 fields.",
+          "mode": "solo",
+          "cast": { "participants": [], "coordinator": null, "grader": null },
+          "inputs": [],
+          "rules": { "standard": [], "yours": [], "requiredOutput": [], "acceptanceChecks": [] },
+          "outputs": [],
+          "gates": [],
+          "budget": { "estimateMinutes": null, "timeoutSeconds": 60 },
+          "revision": 0,
+          "createdAt": "2026-08-16T22:00:00.000Z",
+          "updatedAt": "2026-08-16T22:00:00.000Z"
+        }
+        """
+        let phase = try JSONDecoder().decode(PhaseDefinition.self, from: Data(json.utf8))
+        XCTAssertEqual(phase.phaseId.rawValue, "legacy")
+        XCTAssertNil(phase.prompt)
+        XCTAssertNil(phase.topicScope)
+        XCTAssertNil(phase.turnPolicy)
+        XCTAssertNil(phase.tokenBudget)
+    }
+
+    /// Same defensiveness for the draft shape (what `phase.upsert` itself carries).
+    func testPhaseDefinitionDraftDecodesALegacyPayloadMissingTheWave1KeysEntirely() throws {
+        let json = """
+        {
+          "phaseId": "legacy",
+          "name": "Legacy Phase",
+          "purpose": "Predates the Wave-1 fields.",
+          "mode": "solo",
+          "cast": { "participants": [], "coordinator": null, "grader": null },
+          "inputs": [],
+          "rules": { "standard": [], "yours": [], "requiredOutput": [], "acceptanceChecks": [] },
+          "outputs": [],
+          "gates": [],
+          "budget": { "estimateMinutes": null, "timeoutSeconds": 60 }
+        }
+        """
+        let draft = try JSONDecoder().decode(PhaseDefinitionDraft.self, from: Data(json.utf8))
+        XCTAssertEqual(draft.phaseId.rawValue, "legacy")
+        XCTAssertNil(draft.prompt)
+        XCTAssertNil(draft.topicScope)
+        XCTAssertNil(draft.turnPolicy)
+        XCTAssertNil(draft.tokenBudget)
     }
 
     // MARK: Phase Runner
