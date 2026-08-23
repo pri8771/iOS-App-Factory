@@ -2982,6 +2982,33 @@ describe("CLI argument parser: rooms, providers, settings, usage", () => {
         family: "openrouter",
         model: "openrouter/auto",
         displayName: "OpenRouter (fast)",
+        maxOutputTokens: null,
+      },
+      expectedDigest: null,
+    });
+
+    // --max-output-tokens is honored (ollama/openrouter only -- the daemon refuses it for
+    // codex/claude/gemini); omitted, it parses as null ("no preference," see above).
+    expect(
+      parseCliArguments([
+        "provider",
+        "upsert",
+        "openrouter-fast",
+        "--family",
+        "openrouter",
+        "--model",
+        "openrouter/auto",
+        "--max-output-tokens",
+        "1000",
+      ]).command,
+    ).toEqual({
+      kind: "provider.upsert",
+      instance: {
+        key: "openrouter-fast",
+        family: "openrouter",
+        model: "openrouter/auto",
+        displayName: "openrouter-fast",
+        maxOutputTokens: 1000,
       },
       expectedDigest: null,
     });
@@ -3174,6 +3201,7 @@ describe("runCli providers, settings, and usage", () => {
     model: "openrouter/auto",
     displayName: "OpenRouter (fast)",
     credentialReference: null,
+    maxOutputTokens: 1000,
   };
   const DIGEST = `sha256:${"a".repeat(64)}`;
   const CREDENTIAL_REFERENCE = {

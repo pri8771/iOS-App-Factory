@@ -61,6 +61,19 @@
       "pattern": "^[a-z][a-z0-9-]{0,63}$",
       "type": "string"
     },
+    "maxOutputTokens": {
+      "anyOf": [
+        {
+          "maximum": 8192,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "model": {
       "maxLength": 200,
       "minLength": 1,

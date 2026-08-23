@@ -9,7 +9,8 @@
       "family": "openrouter",
       "model": "meta-llama/llama-3.3-70b",
       "displayName": "OpenRouter — batch",
-      "credentialReference": null
+      "credentialReference": null,
+      "maxOutputTokens": 1000
     },
     "created": true,
     "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

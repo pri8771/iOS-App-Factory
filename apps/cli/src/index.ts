@@ -26,6 +26,7 @@ import {
   ExternalProviderV1Schema,
   GitBranchNameSchema,
   IsoInstantSchema,
+  MAX_PROVIDER_MAX_OUTPUT_TOKENS_V1,
   MAX_ROOM_COOLDOWN_EVENTS_V1,
   MAX_ROOM_EVENTS_LIMIT_V1,
   MAX_ROOM_LIST_ITEMS_V1,
@@ -1378,13 +1379,33 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
       const model = consumeOption(arguments_, "--model");
       if (model === undefined || model.length === 0) usageError("--model is required.");
       const displayName = consumeOption(arguments_, "--display-name") ?? key;
+      // Ollama/openrouter only (contracts' `ProviderMaxOutputTokensV1Schema` doc comment);
+      // codex/claude/gemini have no such config field and provider.upsert refuses a non-null value
+      // for them. Omitted here (null on the wire) means "no preference": the daemon preserves
+      // whatever an existing instance already had, or defaults a brand-new ollama/openrouter
+      // instance to 1000 rather than silently inheriting the adapters' 150-token room default.
+      const maxOutputTokensValue = consumeOption(arguments_, "--max-output-tokens");
+      const maxOutputTokens =
+        maxOutputTokensValue === undefined
+          ? null
+          : parsePositiveInteger(
+              "--max-output-tokens",
+              maxOutputTokensValue,
+              MAX_PROVIDER_MAX_OUTPUT_TOKENS_V1,
+            );
       const expectedDigestValue = consumeOption(arguments_, "--expected-digest");
       const expectedDigest =
         expectedDigestValue === undefined
           ? null
           : parseSha256DigestOption("--expected-digest", expectedDigestValue);
       rejectUnexpected(arguments_);
-      const instance = ProviderUpsertSpecV1Schema.safeParse({ key, family, model, displayName });
+      const instance = ProviderUpsertSpecV1Schema.safeParse({
+        key,
+        family,
+        model,
+        displayName,
+        maxOutputTokens,
+      });
       if (!instance.success) {
         usageError(`The provider instance is invalid: ${instance.error.message}`);
       }
@@ -1960,6 +1981,10 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
               (instance) =>
                 `${instance.key}\t${instance.family}\t${instance.model}\t${
                   instance.credentialReference === null ? "no credential" : "credential set"
+                }\tmaxOutputTokens=${
+                  instance.maxOutputTokens === null
+                    ? "family default"
+                    : String(instance.maxOutputTokens)
                 }`,
             )
             .join("\n")}\n`;

@@ -194,13 +194,21 @@ struct ProviderRow: View {
                 if isDefault { StatusPill(.blocked, label: "default", symbol: "star.fill") }
             }
             Text(instance.key.rawValue).font(HUDTypography.monoValue).foregroundStyle(HUDTheme.mute)
-            Text("model: \(instance.model)").font(HUDTypography.caption).foregroundStyle(HUDTheme.soft)
+            Text(modelLine).font(HUDTypography.caption).foregroundStyle(HUDTheme.soft)
             if instance.family == .openrouter {
                 Text(instance.credentialReference == nil ? "no key set" : "key set")
                     .font(HUDTypography.caption)
                     .foregroundStyle(instance.credentialReference == nil ? HUDTheme.gold : HUDTheme.mute)
             }
         }
+    }
+
+    /// Appends the configured output cap when this instance has one — codex/claude/gemini and an
+    /// ollama/openrouter instance with no explicit override stay a bare model line (honest: there is
+    /// nothing configured to report, not a fabricated "150" the wire never actually carries).
+    private var modelLine: String {
+        guard let maxOutputTokens = instance.maxOutputTokens else { return "model: \(instance.model)" }
+        return "model: \(instance.model) · max \(maxOutputTokens) tok"
     }
 
     private var actions: some View {
@@ -259,9 +267,10 @@ struct ProviderRow: View {
     let providers = [
         ProviderInstance(key: RoomProvider(unchecked: "codex"), family: .codex, model: "gpt-5-codex", displayName: "Codex", credentialReference: nil),
         ProviderInstance(key: RoomProvider(unchecked: "claude"), family: .claude, model: "claude-sonnet-4-5", displayName: "Claude", credentialReference: nil),
-        ProviderInstance(key: RoomProvider(unchecked: "ollama"), family: .ollama, model: "qwen2.5-coder:14b", displayName: "Ollama", credentialReference: nil),
+        ProviderInstance(key: RoomProvider(unchecked: "ollama"), family: .ollama, model: "qwen2.5-coder:14b", displayName: "Ollama", credentialReference: nil,
+                         maxOutputTokens: 1000),
         ProviderInstance(key: RoomProvider(unchecked: "openrouter-fast"), family: .openrouter, model: "google/gemini-2.5-flash", displayName: "OpenRouter — fast",
-                         credentialReference: CredentialReference(service: "app-factory-provider", account: "openrouter-fast")),
+                         credentialReference: CredentialReference(service: "app-factory-provider", account: "openrouter-fast"), maxOutputTokens: 500),
         ProviderInstance(key: RoomProvider(unchecked: "openrouter-deep"), family: .openrouter, model: "anthropic/claude-opus-4.1", displayName: "OpenRouter — deep", credentialReference: nil),
     ]
     return SettingsScreen(providers: providers, health: health, defaultProviderKey: RoomProvider(unchecked: "codex"))

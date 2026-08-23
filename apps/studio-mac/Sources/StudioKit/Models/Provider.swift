@@ -20,6 +20,14 @@ import Foundation
 public let maxProviderInstances = 32
 public let maxProviderCredentialSecretLength = 4_000
 public let maxProviderHealthDetailLength = 1_000
+/// `ProviderMaxOutputTokensV1Schema`'s bounds (provider.ts). `nil` (both on the wire and here) means
+/// "no explicit instance override" — the adapter's own family default applies (150 tokens, tuned for
+/// a terse turn-taking room contribution). A brand-new Ollama/OpenRouter instance created through
+/// `AddProviderSheet` defaults its own text field to `newProviderDefaultMaxOutputTokens` rather than
+/// leaving it empty, so an interactive chat reply never silently inherits that 150-token cap.
+public let minProviderMaxOutputTokens = 1
+public let maxProviderMaxOutputTokens = 8_192
+public let newProviderDefaultMaxOutputTokens = 1_000
 
 /// `ProviderFamilyV1` — deliberately its own type, not a reuse of `RoomCatalogProvider`
 /// (Room.swift): the TS source keeps `ProviderFamilyV1Schema` and `RoomCatalogProviderV1Schema` as
@@ -78,33 +86,76 @@ public struct ProviderInstance: Hashable, Sendable, Codable, Identifiable {
     public var model: String
     public var displayName: String
     public var credentialReference: CredentialReference?
+    /// `nil` for codex/claude/gemini (no such config field exists for those families) and for an
+    /// ollama/openrouter instance with no explicit override — see `minProviderMaxOutputTokens`'s
+    /// doc comment.
+    public var maxOutputTokens: Int?
 
     public var id: RoomProvider { key }
 
     public init(key: RoomProvider, family: ProviderFamily, model: String, displayName: String,
-                credentialReference: CredentialReference?) {
+                credentialReference: CredentialReference?, maxOutputTokens: Int? = nil) {
         self.key = key
         self.family = family
         self.model = model
         self.displayName = displayName
         self.credentialReference = credentialReference
+        self.maxOutputTokens = maxOutputTokens
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case key, family, model, displayName, credentialReference, maxOutputTokens
+    }
+
+    /// `maxOutputTokens` is `nullable`, not `optional`, on the wire (`.default(null)` only covers a
+    /// caller that omits it — the daemon itself always emits the key), so it is always encoded
+    /// explicitly, matching every other nullable field's discipline in this file.
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(key, forKey: .key)
+        try c.encode(family, forKey: .family)
+        try c.encode(model, forKey: .model)
+        try c.encode(displayName, forKey: .displayName)
+        try c.encode(credentialReference, forKey: .credentialReference)
+        try c.encode(maxOutputTokens, forKey: .maxOutputTokens)
     }
 }
 
 /// What a client proposes to `provider.upsert`. Never carries a credential (Architecture decision
 /// 2) — upsert only ever names or reconfigures an instance; the daemon preserves whatever
-/// `credentialReference` (if any) that instance already had.
+/// `credentialReference` (if any) that instance already had. `maxOutputTokens: nil` means "no
+/// preference" — retuning an existing instance preserves whatever it already had; a brand-new
+/// ollama/openrouter instance defaults to `newProviderDefaultMaxOutputTokens` daemon-side. Only
+/// ollama/openrouter honor it — codex/claude/gemini have no such config field, and `provider.upsert`
+/// refuses a non-null value for those families (`provider.field-not-applicable`) rather than
+/// silently dropping it.
 public struct ProviderUpsertSpec: Hashable, Sendable, Codable {
     public var key: RoomProvider
     public var family: ProviderFamily
     public var model: String
     public var displayName: String
+    public var maxOutputTokens: Int?
 
-    public init(key: RoomProvider, family: ProviderFamily, model: String, displayName: String) {
+    public init(key: RoomProvider, family: ProviderFamily, model: String, displayName: String,
+                maxOutputTokens: Int? = nil) {
         self.key = key
         self.family = family
         self.model = model
         self.displayName = displayName
+        self.maxOutputTokens = maxOutputTokens
+    }
+
+    private enum CodingKeys: String, CodingKey { case key, family, model, displayName, maxOutputTokens }
+
+    /// `maxOutputTokens` is `nullable`, not `optional`, on the wire, so it is always encoded
+    /// explicitly (`null` for "no preference"), never omitted.
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(key, forKey: .key)
+        try c.encode(family, forKey: .family)
+        try c.encode(model, forKey: .model)
+        try c.encode(displayName, forKey: .displayName)
+        try c.encode(maxOutputTokens, forKey: .maxOutputTokens)
     }
 }
 

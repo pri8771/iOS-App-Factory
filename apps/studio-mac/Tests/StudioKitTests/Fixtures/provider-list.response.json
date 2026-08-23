@@ -10,21 +10,24 @@
         "family": "codex",
         "model": "gpt-5-codex",
         "displayName": "Codex",
-        "credentialReference": null
+        "credentialReference": null,
+        "maxOutputTokens": null
       },
       {
         "key": "claude",
         "family": "claude",
         "model": "claude-sonnet-4-5",
         "displayName": "Claude",
-        "credentialReference": null
+        "credentialReference": null,
+        "maxOutputTokens": null
       },
       {
         "key": "ollama",
         "family": "ollama",
         "model": "qwen2.5-coder:14b",
         "displayName": "Ollama",
-        "credentialReference": null
+        "credentialReference": null,
+        "maxOutputTokens": 1000
       },
       {
         "key": "openrouter-fast",
@@ -36,14 +39,16 @@
           "kind": "macos-keychain",
           "service": "app-factory-provider",
           "account": "openrouter-fast"
-        }
+        },
+        "maxOutputTokens": 500
       },
       {
         "key": "openrouter-deep",
         "family": "openrouter",
         "model": "anthropic/claude-opus-4.1",
         "displayName": "OpenRouter — deep",
-        "credentialReference": null
+        "credentialReference": null,
+        "maxOutputTokens": null
       }
     ]
   }

@@ -51,6 +51,14 @@ final class ProviderClientTests: XCTestCase {
         XCTAssertEqual(openrouterFast.credentialReference?.service, "app-factory-provider")
         XCTAssertEqual(openrouterFast.credentialReference?.account, "openrouter-fast")
         XCTAssertNil(providers[4].credentialReference, "openrouter-deep is configured but not yet keyed")
+        // maxOutputTokens: absent from codex/claude (no such config field for those families, the
+        // schema's own default fills in an honest null), explicit on ollama/openrouter-fast, and the
+        // honest "never configured" null on openrouter-deep -- never a fabricated 150.
+        XCTAssertNil(providers[0].maxOutputTokens, "codex has no per-instance output-length knob")
+        XCTAssertNil(providers[1].maxOutputTokens, "claude has no per-instance output-length knob")
+        XCTAssertEqual(providers[2].maxOutputTokens, 1_000)
+        XCTAssertEqual(openrouterFast.maxOutputTokens, 500)
+        XCTAssertNil(providers[4].maxOutputTokens, "never explicitly configured")
     }
 
     func testProviderUpsertResultCarriesCreatedAndDigest() throws {
@@ -60,6 +68,9 @@ final class ProviderClientTests: XCTestCase {
         XCTAssertTrue(result.created)
         XCTAssertEqual(result.instance.key.rawValue, "openrouter-batch")
         XCTAssertTrue(result.digest.rawValue.hasPrefix("sha256:"))
+        // A brand-new instance created without an explicit maxOutputTokens defaults to 1000
+        // daemon-side (never the bare adapter fallback of 150) -- see provider-participants-config.ts.
+        XCTAssertEqual(result.instance.maxOutputTokens, 1_000)
     }
 
     func testProviderRemoveResult() throws {
@@ -250,6 +261,27 @@ final class ProviderClientTests: XCTestCase {
         encoder.outputFormatting = [.sortedKeys]
         let text = String(decoding: try encoder.encode(payload), as: UTF8.self)
         XCTAssertTrue(text.contains(#""expectedDigest":null"#), text)
+        // maxOutputTokens is nullable, not optional, on the wire -- omitted by the caller here, it
+        // must still be encoded explicitly as null ("no preference"), never dropped from the payload.
+        XCTAssertTrue(text.contains(#""maxOutputTokens":null"#), text)
+    }
+
+    func testProviderUpsertSpecEncodesAnExplicitMaxOutputTokens() throws {
+        let spec = ProviderUpsertSpec(key: try RoomProvider("ollama-fast"), family: .ollama, model: "qwen2.5:3b",
+                                      displayName: "Fast", maxOutputTokens: 1_000)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let text = String(decoding: try encoder.encode(spec), as: UTF8.self)
+        XCTAssertEqual(text, #"{"displayName":"Fast","family":"ollama","key":"ollama-fast","maxOutputTokens":1000,"model":"qwen2.5:3b"}"#)
+    }
+
+    func testProviderInstanceEncodesMaxOutputTokensExplicitlyEvenWhenNil() throws {
+        let instance = ProviderInstance(key: try RoomProvider("codex"), family: .codex, model: "gpt-5-codex",
+                                        displayName: "Codex", credentialReference: nil)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let text = String(decoding: try encoder.encode(instance), as: UTF8.self)
+        XCTAssertTrue(text.contains(#""maxOutputTokens":null"#), text)
     }
 
     func testProviderHealthPayloadEncodesNullKeyExplicitly() throws {
