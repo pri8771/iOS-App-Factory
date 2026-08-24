@@ -369,7 +369,13 @@ export function renderPlannerAgentPolicyV1(
     "2. Do not verify your own work: the trusted plane builds and tests your candidate after you finish. Do not run xcodebuild, simulators, or tests yourself; do not claim they passed.",
     "3. Do not use the network, credentials, package managers, or any tool outside the worktree.",
     "4. Do not modify Git state (no commits, branches, tags, stashes, or hooks) and never edit CI workflow files.",
-    "5. Keep the change minimal and complete for the task's stated objective and acceptance criteria; leave a one-paragraph summary of what you changed and why.",
+    // Existing test files are the trusted plane's verification authority: an agent that can
+    // rewrite them can weaken its own verification, so the protected-path policy rejects any
+    // candidate that touches one (`tests and test baselines are protected`). Adding NEW test
+    // files is allowed and expected. Say so explicitly -- the first real from-scratch build
+    // failed here because the agent edited the seeded test instead of adding its own.
+    "5. Tests may only be ADDED: create new test files for the behaviour you write. Never modify or delete an existing test file -- the trusted plane's verification depends on them, and a candidate that edits one is rejected outright.",
+    "6. Keep the change minimal and complete for the task's stated objective and acceptance criteria; leave a one-paragraph summary of what you changed and why.",
     "",
     rules.length === 0
       ? "Standard rules: (none compiled)"
