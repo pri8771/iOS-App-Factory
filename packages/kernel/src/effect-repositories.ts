@@ -17,6 +17,7 @@ import {
   Sha256DigestSchema,
   StepIdSchema,
   TaskSpecV1Schema,
+  isReleaseScopedApprovalSubjectV1,
   type ApprovalV1,
   type EffectListPageV1,
   type EffectListQueryV1,
@@ -75,36 +76,53 @@ export const LEGAL_EXTERNAL_EFFECT_TRANSITIONS = {
 
 type RequiredBinding = keyof EffectBinding;
 
+/**
+ * Which `ApprovalV1.subject` shape an action's approval must carry (Release Rail architecture
+ * decision 7). `"attempt"` is the existing, unchanged shape every action used before Wave 2:
+ * `assertSubjectMatchesAttempt` requires a non-null `attemptId`/`taskId`/`projectId` that resolves
+ * to a real attempt. `"release"` is the new shape, used only by `apple.upload-build`: `projectId` +
+ * `releaseId`, with `taskId`/`attemptId` both null (`isReleaseScopedApprovalSubjectV1`,
+ * `@app-factory/contracts`) -- a release-rail action has no backing task or attempt to bind to.
+ * `registerApproval` branches on this per-action; see its call site for the exact rule.
+ */
+type ExternalActionSubjectScope = "attempt" | "release";
+
 const EXTERNAL_ACTION_POLICIES = {
   "github.issue-create": {
     provider: "github",
     resourceTypes: ["github.issue"],
     requiredBindings: ["planDigest"],
+    subjectScope: "attempt",
   },
   "github.open-pr": {
     provider: "github",
     resourceTypes: ["github.pull-request"],
     requiredBindings: ["planDigest", "diffDigest", "commit"],
+    subjectScope: "attempt",
   },
   "github.merge": {
     provider: "github",
     resourceTypes: ["github.pull-request"],
     requiredBindings: ["planDigest", "diffDigest", "commit"],
+    subjectScope: "attempt",
   },
   "github.merge-pr": {
     provider: "github",
     resourceTypes: ["github.pull-request"],
     requiredBindings: ["planDigest", "diffDigest", "commit"],
+    subjectScope: "attempt",
   },
   "github.close-pr": {
     provider: "github",
     resourceTypes: ["github.pull-request"],
     requiredBindings: ["planDigest", "diffDigest"],
+    subjectScope: "attempt",
   },
   "jira.transition-issue": {
     provider: "jira",
     resourceTypes: ["jira.issue"],
     requiredBindings: ["planDigest", "diffDigest"],
+    subjectScope: "attempt",
   },
   // Project-provisioning actions emitted by
   // `@app-factory/work-tracking-integrations`'s `createProjectProvisionPlan`
@@ -116,26 +134,34 @@ const EXTERNAL_ACTION_POLICIES = {
     provider: "jira",
     resourceTypes: ["jira.project"],
     requiredBindings: ["planDigest"],
+    subjectScope: "attempt",
   },
   "jira.epic.ensure": {
     provider: "jira",
     resourceTypes: ["jira.issue"],
     requiredBindings: ["planDigest"],
+    subjectScope: "attempt",
   },
   "jira.issue.ensure": {
     provider: "jira",
     resourceTypes: ["jira.issue"],
     requiredBindings: ["planDigest"],
+    subjectScope: "attempt",
   },
   "github.repository.ensure": {
     provider: "github",
     resourceTypes: ["github.repository"],
     requiredBindings: ["planDigest"],
+    subjectScope: "attempt",
   },
+  // The one release-scoped action (Release Rail architecture decision 7). Already registered here
+  // since Wave 1; Wave 2 adds only `subjectScope: "release"` -- the required bindings and resource
+  // type are unchanged.
   "apple.upload-build": {
     provider: "apple",
     resourceTypes: ["apple.build"],
     requiredBindings: ["planDigest", "commit", "buildIdentityDigest"],
+    subjectScope: "release",
   },
 } as const satisfies Readonly<
   Record<
@@ -144,6 +170,7 @@ const EXTERNAL_ACTION_POLICIES = {
       provider: ExternalProviderV1;
       resourceTypes: readonly string[];
       requiredBindings: readonly RequiredBinding[];
+      subjectScope: ExternalActionSubjectScope;
     }>
   >
 >;
@@ -1912,12 +1939,31 @@ export function createEffectRepository(
           );
           return { ...existing, duplicate: true };
         }
-        const attempt = assertSubjectMatchesAttempt(
-          database,
-          approval.subject.attemptId ?? "",
-          approval.subject,
-        );
-        assertPolicyMatchesTaskSpec(attempt, approval.binding.policyDigest);
+        // Release Rail architecture decision 7: which subject shape is required is a property of
+        // the *action*, not a free choice at registration time. Every action registered before
+        // Wave 2 is `subjectScope: "attempt"` and takes this branch completely unchanged --
+        // `assertSubjectMatchesAttempt`/`assertPolicyMatchesTaskSpec`, in the same order, with the
+        // same failure modes. Only `apple.upload-build` (`subjectScope: "release"`) takes the new
+        // branch, which has no attempt/TaskSpec to check a policy digest against -- there is no
+        // attempt at all for a release-scoped approval -- so it checks only that the subject has
+        // the release-scoped shape `isReleaseScopedApprovalSubjectV1` (contracts) defines: project
+        // + release, no task, no attempt. A release-scoped subject submitted for an attempt-scoped
+        // action is still refused by the unchanged branch below (it requires a non-null attemptId);
+        // an attempt-scoped subject submitted for a release-scoped action is refused here.
+        if (requireActionPolicy(approval.action).subjectScope === "release") {
+          if (!isReleaseScopedApprovalSubjectV1(approval.subject)) {
+            fail(
+              `${approval.action} approval subject must be release-scoped (project + release, no task or attempt)`,
+            );
+          }
+        } else {
+          const attempt = assertSubjectMatchesAttempt(
+            database,
+            approval.subject.attemptId ?? "",
+            approval.subject,
+          );
+          assertPolicyMatchesTaskSpec(attempt, approval.binding.policyDigest);
+        }
         database
           .prepare(
             `INSERT INTO approvals(

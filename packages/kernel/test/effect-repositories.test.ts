@@ -689,6 +689,210 @@ describe("approval semantics", () => {
   });
 });
 
+// Release Rail architecture decision 7: `registerApproval` accepts either the existing attempt-
+// scoped subject shape (unchanged, proven above) or a release-scoped shape (`{projectId,
+// releaseId}`, `taskId`/`attemptId` both null) -- but only for an action whose
+// `EXTERNAL_ACTION_POLICIES` entry is release-scoped (`apple.upload-build`, currently the only
+// one). These tests cover both shapes and both mismatches: a release-scoped subject refused for an
+// attempt-scoped action, and an attempt-scoped subject refused for a release-scoped action.
+describe("release-scoped approval subject (architecture decision 7)", () => {
+  const RELEASE_APPROVAL_ID = "70000000-0000-4000-8000-000000000050";
+  const SECOND_RELEASE_APPROVAL_ID = "70000000-0000-4000-8000-000000000051";
+
+  function releaseScopedSubject() {
+    return { projectId: PROJECT_ID, taskId: null, attemptId: null, releaseId: RELEASE_ID };
+  }
+
+  function releaseApproval(approvalId = RELEASE_APPROVAL_ID) {
+    return {
+      ...approval(approvalId),
+      action: "apple.upload-build",
+      resourceType: "apple.build",
+      resourceKey: "com.example.app/1.0/7",
+      subject: releaseScopedSubject(),
+      binding: {
+        planDigest: PLAN_DIGEST,
+        diffDigest: null,
+        commit: EFFECT_COMMIT,
+        buildIdentityDigest: BUILD_DIGEST,
+        policyDigest: POLICY_DIGEST,
+      },
+    };
+  }
+
+  function trustedEffects(database: Database.Database) {
+    return createEffectRepository(database, {
+      verifyApprovalIssuance: (candidate) =>
+        candidate.issuerId === "trusted.approval-service" &&
+        candidate.attestationDigest === ATTESTATION_DIGEST &&
+        candidate.payloadDigest === PAYLOAD_DIGEST,
+    });
+  }
+
+  it("registers a release-scoped approval for apple.upload-build with no backing task or attempt", () => {
+    const { database } = openSeededDatabase();
+    const effects = trustedEffects(database);
+    const registered = effects.registerApproval(issuance(releaseApproval()));
+    expect(registered.duplicate).toBe(false);
+    expect(registered.approval.subject).toEqual(releaseScopedSubject());
+
+    const row = database
+      .prepare(
+        `SELECT subject_project_id AS projectId, subject_task_id AS taskId,
+                subject_attempt_id AS attemptId, subject_release_id AS releaseId
+         FROM approvals WHERE approval_id = ?`,
+      )
+      .get(RELEASE_APPROVAL_ID) as Readonly<{
+      projectId: string;
+      taskId: string | null;
+      attemptId: string | null;
+      releaseId: string;
+    }>;
+    expect(row).toEqual({
+      projectId: PROJECT_ID,
+      taskId: null,
+      attemptId: null,
+      releaseId: RELEASE_ID,
+    });
+
+    // Round-trips through the read path exactly like an attempt-scoped approval.
+    expect(effects.getApproval(RELEASE_APPROVAL_ID)?.approval.subject).toEqual(
+      releaseScopedSubject(),
+    );
+    database.close();
+  });
+
+  it("leaves the attempt-scoped path byte-identical: a real attempt-scoped approval still registers", () => {
+    // Proves the unchanged branch (`assertSubjectMatchesAttempt` / `assertPolicyMatchesTaskSpec`)
+    // still runs exactly as before for every pre-Wave-2 action, in the same database/schema that
+    // now also accepts release-scoped subjects.
+    const { database } = openSeededDatabase();
+    const effects = trustedEffects(database);
+    expect(effects.registerApproval(issuance())).toMatchObject({ duplicate: false });
+    expect(effects.getApproval(APPROVAL_ID)?.approval.subject).toEqual(subject());
+    database.close();
+  });
+
+  it("refuses a release-scoped subject for an attempt-scoped action", () => {
+    const { database } = openSeededDatabase();
+    const effects = trustedEffects(database);
+    expect(() =>
+      effects.registerApproval(
+        issuance({
+          ...approval(RELEASE_APPROVAL_ID),
+          subject: releaseScopedSubject(),
+        }),
+      ),
+    ).toThrow(/attempt, task, and project/);
+    expect(database.prepare("SELECT count(*) AS total FROM approvals").get()).toEqual({
+      total: 0,
+    });
+    database.close();
+  });
+
+  it("refuses an attempt-scoped subject for a release-scoped action", () => {
+    const { database } = openSeededDatabase();
+    const effects = trustedEffects(database);
+    expect(() =>
+      effects.registerApproval(
+        issuance({
+          ...releaseApproval(),
+          subject: subject(),
+        }),
+      ),
+    ).toThrow(/apple\.upload-build approval subject must be release-scoped/);
+    expect(database.prepare("SELECT count(*) AS total FROM approvals").get()).toEqual({
+      total: 0,
+    });
+    database.close();
+  });
+
+  it("refuses a half-release-scoped subject (release set, but task or attempt also set) at the SQL layer", () => {
+    // Belt-and-suspenders: the SQL trigger enforces the same two-shapes-only rule the TypeScript
+    // layer does, independent of which repository method is used to reach the table.
+    const { database } = openSeededDatabase();
+    expect(() =>
+      database
+        .prepare(
+          `INSERT INTO approvals (
+             approval_id, schema_version, action, resource_type, resource_key,
+             subject_project_id, subject_task_id, subject_attempt_id, subject_release_id,
+             payload_digest, plan_digest, diff_digest, commit_id, build_identity_digest,
+             policy_digest, actor_id, issuer_id, authenticated_at, issuance_envelope_digest,
+             issuance_attestation_digest, issuance_json, mode, standing_scope_json, issued_at,
+             expires_at, status, revoked_at, consumed_at, consumed_by_effect_id, payload_json
+           ) VALUES (
+             ?, 1, 'apple.upload-build', 'apple.build', 'com.example.app/1.0/7',
+             ?, ?, NULL, ?,
+             ?, ?, NULL, ?, ?,
+             ?, 'owner@example.com', 'trusted.approval-service', ?, ?,
+             ?, '{}', 'single-use', NULL, ?,
+             ?, 'active', NULL, NULL, NULL, '{}'
+           )`,
+        )
+        .run(
+          RELEASE_APPROVAL_ID,
+          PROJECT_ID,
+          TASK_ID,
+          RELEASE_ID,
+          PAYLOAD_DIGEST,
+          PLAN_DIGEST,
+          EFFECT_COMMIT,
+          BUILD_DIGEST,
+          POLICY_DIGEST,
+          T0,
+          ATTESTATION_DIGEST,
+          ATTESTATION_DIGEST,
+          T0,
+          EXPIRES,
+        ),
+    ).toThrow(/approval subject does not match attempt task\/project, or is not release-scoped/);
+    database.close();
+  });
+
+  it("still enforces the unchanged attempt-scoped SQL trigger for a subject that does not match a real attempt", () => {
+    const { database } = openSeededDatabase();
+    expect(() =>
+      database
+        .prepare(
+          `INSERT INTO approvals (
+             approval_id, schema_version, action, resource_type, resource_key,
+             subject_project_id, subject_task_id, subject_attempt_id, subject_release_id,
+             payload_digest, plan_digest, diff_digest, commit_id, build_identity_digest,
+             policy_digest, actor_id, issuer_id, authenticated_at, issuance_envelope_digest,
+             issuance_attestation_digest, issuance_json, mode, standing_scope_json, issued_at,
+             expires_at, status, revoked_at, consumed_at, consumed_by_effect_id, payload_json
+           ) VALUES (
+             ?, 1, 'github.merge-pr', 'github.pull-request', 'owner/repository#42',
+             ?, ?, ?, NULL,
+             ?, ?, ?, ?, ?,
+             ?, 'owner@example.com', 'trusted.approval-service', ?, ?,
+             ?, '{}', 'single-use', NULL, ?,
+             ?, 'active', NULL, NULL, NULL, '{}'
+           )`,
+        )
+        .run(
+          SECOND_RELEASE_APPROVAL_ID,
+          PROJECT_ID,
+          TASK_ID,
+          "70000000-0000-4000-8000-0000000000ff", // not a real attempt
+          PAYLOAD_DIGEST,
+          PLAN_DIGEST,
+          DIFF_DIGEST,
+          EFFECT_COMMIT,
+          BUILD_DIGEST,
+          POLICY_DIGEST,
+          T0,
+          ATTESTATION_DIGEST,
+          ATTESTATION_DIGEST,
+          T0,
+          EXPIRES,
+        ),
+    ).toThrow(/approval subject does not match attempt task\/project, or is not release-scoped/);
+    database.close();
+  });
+});
+
 describe("approval-bound effect planning", () => {
   it("matches every immutable input exactly, consumes once atomically, and replays one identity", () => {
     const { database, effects } = openSeededDatabase();
