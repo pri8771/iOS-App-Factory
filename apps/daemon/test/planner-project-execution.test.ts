@@ -184,7 +184,11 @@ describe("planner execution", () => {
       expect(plan.args[1]).toContain('-scheme "SampleApp"');
       // The scratch token appears exactly once per argument (materializeVerificationArgs' bound).
       expect(plan.args[1]?.split("{verificationScratch}").length).toBe(2);
-      expect(plan.args[1]).toContain("S={verificationScratch}; ");
+      // QUOTED: a runtime directory containing a space (the dev runbook's own
+      // `~/Library/Application Support/AppFactory/...` does) would otherwise end the shell
+      // assignment at the space, leaving the remainder to be executed as a command -- failing
+      // every check with exit 1 and a bare "No such file or directory".
+      expect(plan.args[1]).toContain('S="{verificationScratch}"; ');
       expect(plan.args[1]).toContain('-derivedDataPath "$S/derived-data"');
       // Generated OUTSIDE the read-only checkout and built from there.
       expect(plan.args[1]).toContain('--project "$S/gen"');

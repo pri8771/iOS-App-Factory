@@ -418,7 +418,11 @@ export function iosXcodegenVerificationPlansV1(
   // pointed at it (`-project`); the checkout is never written to and stays clean by construction.
   // The scratch token may appear at most ONCE per argument (`materializeVerificationArgs`), so
   // each script binds it to a shell variable first and derives every path from that.
-  const bind = `S=${VERIFICATION_SCRATCH_TOKEN}; mkdir -p "$S/gen" "$S/derived-data"`;
+  // The token is substituted verbatim, so the assignment MUST be quoted: a runtime directory
+  // containing a space (the runbook's own `~/Library/Application Support/AppFactory/...` does)
+  // otherwise ends the assignment at the space, and the shell tries to execute the remainder as a
+  // command -- every check then fails with a bare "No such file or directory" and exit 1.
+  const bind = `S="${VERIFICATION_SCRATCH_TOKEN}"; mkdir -p "$S/gen" "$S/derived-data"`;
   const generate = `"${verification.xcodegenExecutable}" generate --quiet --spec project.yml --project "$S/gen"`;
   const project = `-project "$S/gen/${moduleName}.xcodeproj"`;
   const build = `"${verification.xcodebuildExecutable}" build ${project} -scheme "${moduleName}" -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES -derivedDataPath "$S/derived-data"`;
