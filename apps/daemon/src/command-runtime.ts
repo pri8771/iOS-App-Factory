@@ -865,6 +865,12 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "room.typing":
     case "room.update":
     case "room.participants.list":
+    case "release.start":
+    case "release.promote":
+    case "release.archive":
+    case "release.upload":
+    case "release.submit":
+    case "release.status":
     case "release.observe":
     case "release.projection":
     case "signal.create":
@@ -1925,6 +1931,24 @@ async function executeRequest(
     case "room.update":
     case "room.participants.list":
       return executeRoomCommand(request, dependencies);
+    // `release.start`/`release.promote`/`release.archive`/`release.upload`/`release.submit`/
+    // `release.status`: recognized by the wire protocol (Release Rail Wave 1,
+    // `packages/contracts/src/v1/command-protocol.ts`) as of this contracts-only wave, but no
+    // daemon-side handler exists yet -- that lands in later waves (promotion W3, archive/sign W4,
+    // upload/confirm W5, submit W7). Kept exhaustive, and honest about "recognized but not yet
+    // implemented" rather than falling through to `protocol.unsupported-operation`, which would
+    // incorrectly claim the operation is unknown.
+    case "release.start":
+    case "release.promote":
+    case "release.archive":
+    case "release.upload":
+    case "release.submit":
+    case "release.status":
+      throw new CommandHandlerError(
+        "command.operation-not-yet-implemented",
+        `"${request.operation}" is recognized by the wire protocol but not yet implemented by this daemon build.`,
+        false,
+      );
     case "release.observe":
       // Never reached: the handler takes the observation outside the serial executor and persists
       // it itself (see `openDaemonCommandRuntime`). Kept exhaustive so a future dispatch here is a

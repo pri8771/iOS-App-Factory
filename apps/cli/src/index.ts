@@ -1936,6 +1936,13 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
               .join("\n");
       return `${providers}\n${roster}\nsourced ${catalog.sourcedAt} ${catalog.sourceDigest}\n`;
     }
+    case "release.start":
+    case "release.promote":
+    case "release.archive":
+    case "release.upload":
+    case "release.submit":
+    case "release.status":
+      return `release run ${result.run.releaseRunId}: ${result.run.stage} (rev ${String(result.run.revision)})\n`;
     case "release.observe":
       return `${renderAscReleaseObservation(result.observation)}`;
     case "release.projection": {

@@ -27,6 +27,7 @@ export * from "./project-registry.js";
 export * from "./provider.js";
 export * from "./release-observation.js";
 export * from "./release.js";
+export * from "./release-run.js";
 export * from "./room.js";
 export * from "./run-record.js";
 export * from "./settings.js";

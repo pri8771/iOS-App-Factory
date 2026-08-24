@@ -75,6 +75,9 @@ export type ProjectPlanId = z.infer<typeof ProjectPlanIdSchema>;
 export const PhaseRunIdSchema = LowercaseUuidSchema.brand<"PhaseRunId">();
 export type PhaseRunId = z.infer<typeof PhaseRunIdSchema>;
 
+export const ReleaseRunIdSchema = LowercaseUuidSchema.brand<"ReleaseRunId">();
+export type ReleaseRunId = z.infer<typeof ReleaseRunIdSchema>;
+
 export const IsoInstantSchema = z.iso
   .datetime({ offset: false, precision: 3 })
   .brand<"IsoInstant">();

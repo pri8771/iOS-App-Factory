@@ -1,0 +1,258 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema10": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "ascBuildId": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "confirmedAt": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/__schema7"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "submittedAt": {
+              "$ref": "#/$defs/__schema7"
+            }
+          },
+          "required": [
+            "submittedAt",
+            "ascBuildId",
+            "confirmedAt"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema11": {
+      "items": {
+        "$ref": "#/$defs/__schema12"
+      },
+      "maxItems": 20,
+      "type": "array"
+    },
+    "__schema12": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema13": {
+      "items": {
+        "$ref": "#/$defs/__schema14"
+      },
+      "maxItems": 50,
+      "type": "array"
+    },
+    "__schema14": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "type": "string"
+    },
+    "__schema2": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "__schema3": {
+      "maxLength": 255,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+      "type": "string"
+    },
+    "__schema4": {
+      "enum": [
+        "candidate",
+        "certified",
+        "archived",
+        "upload-approved",
+        "uploaded",
+        "processing",
+        "internal-testflight-available",
+        "device-smoke-passed"
+      ],
+      "type": "string"
+    },
+    "__schema5": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "__schema6": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "at": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "branch": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "promotedCommit": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "required": [
+            "promotedCommit",
+            "branch",
+            "at"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema7": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema8": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "archiveDigest": {
+              "$ref": "#/$defs/__schema9"
+            },
+            "at": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "buildNumber": {
+              "pattern": "^[1-9][0-9]{0,17}$",
+              "type": "string"
+            },
+            "exportedArtifactDigest": {
+              "$ref": "#/$defs/__schema9"
+            },
+            "marketingVersion": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            "receiptDigest": {
+              "$ref": "#/$defs/__schema9"
+            }
+          },
+          "required": [
+            "buildNumber",
+            "marketingVersion",
+            "archiveDigest",
+            "exportedArtifactDigest",
+            "receiptDigest",
+            "at"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema9": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:release-run",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "archive": {
+      "$ref": "#/$defs/__schema8"
+    },
+    "branch": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "createdAt": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "notes": {
+      "$ref": "#/$defs/__schema13"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "promotion": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "releaseId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "releaseRunId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "repositoryId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "revision": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "sourceCommit": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "stage": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "unevaluated": {
+      "$ref": "#/$defs/__schema11"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "upload": {
+      "$ref": "#/$defs/__schema10"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "releaseRunId",
+    "projectId",
+    "repositoryId",
+    "releaseId",
+    "sourceCommit",
+    "branch",
+    "stage",
+    "revision",
+    "promotion",
+    "archive",
+    "upload",
+    "unevaluated",
+    "notes",
+    "createdAt",
+    "updatedAt"
+  ],
+  "type": "object"
+}

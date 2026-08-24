@@ -31,6 +31,12 @@ import { ProjectPlanV1Schema } from "./project-plan.js";
 import { ProviderHealthReportV1Schema, ProviderInstanceV1Schema } from "./provider.js";
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
 import {
+  CandidateCertificationV1Schema,
+  ReleaseBuildNumberAllocationV1Schema,
+  ReleaseExportOptionsConfigV1Schema,
+  ReleaseRunV1Schema,
+} from "./release-run.js";
+import {
   RoomGrantV1Schema,
   RoomMessageV1Schema,
   RoomParticipantsCatalogV1Schema,
@@ -108,6 +114,30 @@ export const contractSchemaCatalogV1 = [
     fileName: "release-manifest.v1.schema.json",
     id: "urn:app-factory:contracts:v1:release-manifest",
     schema: ReleaseManifestV1Schema,
+  },
+  {
+    name: "release-run",
+    fileName: "release-run.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:release-run",
+    schema: ReleaseRunV1Schema,
+  },
+  {
+    name: "release-build-number-allocation",
+    fileName: "release-build-number-allocation.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:release-build-number-allocation",
+    schema: ReleaseBuildNumberAllocationV1Schema,
+  },
+  {
+    name: "release-export-options-config",
+    fileName: "release-export-options-config.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:release-export-options-config",
+    schema: ReleaseExportOptionsConfigV1Schema,
+  },
+  {
+    name: "candidate-certification",
+    fileName: "candidate-certification.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:candidate-certification",
+    schema: CandidateCertificationV1Schema,
   },
   {
     name: "asc-release-projection",
