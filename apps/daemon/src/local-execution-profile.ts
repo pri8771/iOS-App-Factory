@@ -824,18 +824,66 @@ export type BuiltCodexAgentFieldsV1 = Readonly<{
 }>;
 
 /**
+ * The Codex sandbox's default read-only paths: what every Codex-backed
+ * profile mode gets unless it explicitly overrides. This is the enrolled
+ * profile's own boundary -- Package.swift and Tests are read-only there
+ * because the ENROLLED project's Tests are the trusted verifier's own
+ * fixture: an agent that can rewrite the tests the trusted verifier runs
+ * can weaken its own verification, so the sandbox refuses to let it touch
+ * them at all, at the OS-permission-profile level, before any diff is even
+ * produced. Keep this default exactly as-is; it is a containment boundary,
+ * not a stylistic default.
+ */
+export const DEFAULT_CODEX_READ_ONLY_PATHS_V1 = ["Package.swift", "Tests"] as const;
+
+/**
  * Builds the real Codex agent and its trusted invocation fields for one
  * source repository. Every Codex-backed profile mode (the byte-pinned Swift
- * Greeter fixture and the config-driven enrolled-project profile) calls this
- * with the exact same factory-owned executable path/digest discipline, so
- * the agent construction itself never varies by mode -- only where the
- * surrounding project data comes from does.
+ * Greeter fixture, the config-driven enrolled-project profile, and planner
+ * execution) calls this with the exact same factory-owned executable
+ * path/digest discipline, so the agent construction itself never varies by
+ * mode -- only where the surrounding project data comes from, and which
+ * paths are read-only, does.
+ *
+ * `readOnlyPaths` is a per-call input, not a hardcoded constant, because the
+ * enrolled profile and planner execution have LEGITIMATELY DIFFERENT
+ * containment boundaries and always will:
+ *
+ *  - The enrolled profile (`loadEnrolledCodexProfile`) points at an existing
+ *    app (e.g. Hindsight) whose Tests directory is the trusted verifier's
+ *    own fixture. `Tests` must stay read-only there -- see
+ *    {@link DEFAULT_CODEX_READ_ONLY_PATHS_V1} above -- and this default is
+ *    what every existing caller keeps getting when it omits the parameter.
+ *
+ *  - Planner execution (`createPlannerProjectResolver` in
+ *    planner-project-execution.ts) runs a FROM-SCRATCH app that has no
+ *    tests until the agent writes them: its own task templates
+ *    (`project-plan-command-runtime.ts`'s `BUILD_TEMPLATES_V1`) deliberately
+ *    authorize writing under `Tests` (and `Sources`), and its reviewed
+ *    protected-path extension (`IOS_XCODEGEN_PROTECTED_PATH_EXTENSION_V1`)
+ *    already grants the narrower `test-file-addition` allowance -- new test
+ *    files may be ADDED, existing ones may never be MODIFIED or REMOVED,
+ *    enforced downstream at candidate verification
+ *    (`packages/git-workspace/src/workspace.ts`'s `classifyProtectedPath` /
+ *    `isPermittedTestFileAddition`), which sees the change kind this
+ *    sandbox-level check cannot. So planner execution passes its OWN
+ *    `readOnlyPaths` (see `PLANNER_CODEX_READ_ONLY_PATHS_V1`) that excludes
+ *    `Tests`/`Sources` but keeps `project.yml` and CI config read-only,
+ *    mirroring what its protected-path extension still protects (it grants
+ *    `test-file-addition` only, never `xcode-project-membership`).
+ *
+ * DO NOT collapse these back into one shared constant: doing so either
+ * re-breaks from-scratch builds (Tests read-only again) or silently weakens
+ * the enrolled profile's self-verification guarantee (Tests writable
+ * there). The two profiles disagreeing on this one path is the correct,
+ * reviewed state -- not a bug to "fix."
  */
 export async function buildCodexAgentForProject(
   profile: CodexAgentIdentityFieldsV1,
   sourceRepositoryPath: string,
   normalizedRuntime: string,
   dependencies: LocalExecutionProfileDependencies,
+  readOnlyPaths: readonly string[] = DEFAULT_CODEX_READ_ONLY_PATHS_V1,
 ): Promise<BuiltCodexAgentFieldsV1> {
   const isolationPaths = [
     [profile.codexHome, normalizedRuntime, "Codex home and Factory runtime"],
@@ -889,7 +937,7 @@ export async function buildCodexAgentForProject(
       TMPDIR: temporaryRoot,
       TZ: "UTC",
     },
-    readOnlyPaths: ["Package.swift", "Tests"],
+    readOnlyPaths,
     permissionProfileName: "factory_agent",
     registrationTimeoutMs: 10_000,
     pollMs: 25,

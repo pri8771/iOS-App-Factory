@@ -357,6 +357,55 @@ class DeterministicSwiftAgent implements LocalAgentAdapter {
   }
 }
 
+/**
+ * A legacy-protocol agent that touches nothing and reports it finished with no changes needed --
+ * modeling exactly the real scenario this class's tests below cover: a from-scratch scaffold whose
+ * acceptance criteria are already met by the seeded tree, so the honest implementing outcome is
+ * "nothing to change" rather than an invented edit.
+ */
+class NoOpAgent implements LocalAgentAdapter {
+  public readonly adapterId = "agent.no-op";
+  public readonly adapterVersion = "1.0.0";
+  public calls = 0;
+
+  public async run(context: LocalAgentRunContext): Promise<LocalAgentRunOutcome> {
+    this.calls += 1;
+    await context.assertActive();
+    return { kind: "succeeded", summary: "Nothing needed to change.", changedPaths: [] };
+  }
+}
+
+/** A trivial reviewer that only proves it can read the candidate tree back -- no content judgement. */
+function readableTreeReviewer(mirrorPath: string, reviewerRunId: RunId): IndependentReviewAdapter {
+  return {
+    reviewerId: "review.readable-tree",
+    reviewerVersion: "1.0.0",
+    reviewerRunId,
+    capabilities: {
+      readCandidate: true,
+      writeCandidate: false,
+      mutatePolicy: false,
+      approveRelease: false,
+    },
+    review: ({ reviewInputDigest, input }) => {
+      const readable =
+        spawnSync(GIT, ["--git-dir", mirrorPath, "ls-tree", "-r", input.candidateTree], {
+          encoding: "utf8",
+          env: { GIT_TERMINAL_PROMPT: "0", LANG: "C", LC_ALL: "C", PATH: "/usr/bin:/bin" },
+          shell: false,
+        }).status === 0;
+      return {
+        schemaVersion: 1,
+        reviewerId: "review.readable-tree",
+        reviewerVersion: "1.0.0",
+        reviewInputDigest,
+        verdict: readable ? "pass" : "changes-required",
+        findings: [],
+      };
+    },
+  };
+}
+
 type ProtocolMutation =
   | "none"
   | "missing-protocol-envelope"
@@ -1456,6 +1505,76 @@ describe("daemon verified local execution", () => {
       ).toHaveLength(1);
     },
   );
+
+  // Regression / feature coverage for the empty-candidate semantics fix: a legacy-protocol agent
+  // that honestly reports "finished, no changes needed" (LocalAgentRunOutcome's
+  // succeeded.changedPaths: []) settles its task as succeeded through the REAL scheduler, REAL
+  // durable journal, and REAL git-workspace commit machinery -- not just at the coordinator-unit-test
+  // level (packages/execution-engine/test/coordinator.test.ts covers that in isolation). This proves
+  // the new durability wiring end to end: #recordReportedNoChanges (written at the execute step) is
+  // actually read back by #reportedNoChanges at the verify step and threaded into
+  // coordinateVerifiedLocalCommit's reportedNoChanges.
+  it("settles a no-op task as succeeded with an empty broker commit through the real scheduler", async () => {
+    const f = fixture(500);
+    const agent = new NoOpAgent();
+    const mirrorPath = join(f.runtime, "local-execution", "git", "mirrors", `${REPOSITORY_ID}.git`);
+    const noOpProject: VerifiedLocalExecutionProject = {
+      repositoryId: REPOSITORY_ID,
+      sourceRepositoryPath: f.source,
+      allowedBaseCommit: f.baseCommit,
+      allowedBaseTree: f.baseTree,
+      taskSemanticProfileDigest: computeTaskSemanticProfileDigest(f.taskSpec),
+      policyBytes: f.policyBytes,
+      agent,
+      reviewerForRun: (runId) => readableTreeReviewer(mirrorPath, runId),
+      verificationPlans: [
+        {
+          checkId: "probe.true",
+          executable: "/usr/bin/true",
+          args: [],
+          environment: { LANG: "C", LC_ALL: "C", PATH: "/usr/bin:/bin" },
+          protectedFiles: {},
+          timeoutMs: 30_000,
+          terminationGraceMs: 1_000,
+          maxStdoutBytes: 65_536,
+          maxStderrBytes: 65_536,
+          toolVersions: [{ name: "true", version: "probe" }],
+        },
+      ],
+    };
+    const service = await start(f, agent, { count: 0 }, { projectOverride: noOpProject });
+    const client = clientFor(service);
+
+    const intake = await client.run(f.taskSpec);
+    await eventually(async () => {
+      const status = await client.status(intake.attemptId);
+      if (status.attempt.state === "failed") {
+        throw new Error(`no-op attempt failed: ${JSON.stringify(status.attempt.outcome)}`);
+      }
+      return status.attempt.state === "succeeded";
+    });
+
+    expect(agent.calls).toBe(1);
+    const refs = git(f.root, [
+      "--git-dir",
+      mirrorPath,
+      "for-each-ref",
+      "--format=%(objectname)",
+      `refs/app-factory/attempts/${intake.attemptId}`,
+    ]);
+    expect(refs).not.toBe("");
+    const commitSha = refs.trim();
+    expect(git(f.root, ["--git-dir", mirrorPath, "rev-parse", `${commitSha}^`])).toBe(f.baseCommit);
+    expect(git(f.root, ["--git-dir", mirrorPath, "rev-parse", `${commitSha}^{tree}`])).toBe(
+      f.baseTree,
+    );
+
+    // Replays idempotently across a fresh status read (the durable checkpoint/journal path, not a
+    // second agent invocation).
+    const replay = await client.status(intake.attemptId);
+    expect(replay.attempt.state).toBe("succeeded");
+    expect(agent.calls).toBe(1);
+  });
 
   it(
     "persists a complete V2 protocol closure and republishes it without relaunching the agent",

@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,6 +17,7 @@ import {
 } from "@app-factory/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { CodexLocalAgent } from "../src/codex-local-agent.js";
 import {
   startFactoryDaemonService,
   type FactoryDaemonService,
@@ -27,6 +29,7 @@ import {
   parsePlannerExecutionConfigV1,
   readXcodegenProjectName,
   renderPlannerAgentPolicyV1,
+  PLANNER_CODEX_READ_ONLY_PATHS_V1,
   type PlannerExecutionConfigV1,
 } from "../src/planner-project-execution.js";
 import { decodeReviewedPolicyPayload } from "../src/verified-local-executor.js";
@@ -395,4 +398,112 @@ describe("planner execution", () => {
       blocker: { code: "planner.fixture-no-writable-scope" },
     });
   });
+
+  // Regression coverage for the fail-closed "Authorized write path Tests overlaps read-only path
+  // Tests" bug: a from-scratch build's build-seed-repo item (project-plan-command-runtime.ts's
+  // BUILD_TEMPLATES_V1, scopePaths: ["Tests"]) must be able to resolve a real planner-codex-v1 agent
+  // whose Codex sandbox does NOT hold Tests read-only, unlike the enrolled profile's default (see
+  // buildCodexAgentForProject's doc in local-execution-profile.ts). This never spawns a real Codex
+  // CLI: profileDependencies.createCodexAgent intercepts buildCodexAgentForProject's call and captures
+  // exactly the CodexLocalAgentConfigurationV1.readOnlyPaths it was asked to build with.
+  it(
+    "resolves a planner-codex-v1 project with sandbox read-only paths that keep project.yml/CI protected but leave Tests writable",
+    { timeout: 60_000 },
+    async () => {
+      const root = await mkdtemp("/private/tmp/af-planner-codex-");
+      roots.push(root);
+      const runtime = join(root, "runtime");
+      mkdirSync(runtime, { recursive: true, mode: 0o700 });
+
+      const executable = join(root, "fake-codex");
+      const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
+      writeFileSync(executable, executableBytes, { mode: 0o700 });
+      const codexHome = join(root, "codex-home");
+      mkdirSync(codexHome, { recursive: true, mode: 0o700 });
+
+      const codexConfigInput = {
+        schemaVersion: 1,
+        mode: "planner-codex-v1",
+        reviewer: CONFIG_INPUT.reviewer,
+        verification: CONFIG_INPUT.verification,
+        executable,
+        executableDigest: `sha256:${createHash("sha256").update(executableBytes).digest("hex")}`,
+        expectedCliVersion: "0.147.0-alpha.1.2",
+        model: "gpt-test-pinned",
+        codexHome,
+      };
+
+      let capturedReadOnlyPaths: readonly string[] | undefined;
+      const diagnostics: string[] = [];
+      const service = await startFactoryDaemonService({
+        runtimeDirectory: runtime,
+        authorization: AUTHORIZATION,
+        daemonVersion: "0.1.0-planner-codex-execution-test",
+        pollIntervalMs: 5,
+        leaseDurationMs: 5_000,
+        plannerExecution: {
+          config: parsePlannerExecutionConfigV1(codexConfigInput),
+          verificationPlansFor: shellVerificationPlans,
+          onDiagnostic: (message) => diagnostics.push(message),
+          profileDependencies: {
+            createCodexAgent: async (configuration) => {
+              capturedReadOnlyPaths = configuration.readOnlyPaths;
+              return {
+                adapterId: "fake.codex",
+                adapterVersion: "0.0.0",
+              } as unknown as CodexLocalAgent;
+            },
+          },
+        },
+      });
+      services.push(service);
+      const client = createCommandClient({
+        socketPath: service.socketPath,
+        authorization: AUTHORIZATION,
+        origin: "cli",
+      });
+      clients.push(client);
+
+      const seeded = await seedWithoutToolchain(
+        client,
+        join(root, "src", "codex-rehearsal"),
+        "Codex Rehearsal",
+      );
+      expect(seeded.registered).toBe(true);
+      const repositoryId = seeded.repositoryId as RepositoryId;
+      const projectId = seeded.projectId;
+      if (repositoryId === null || projectId === null) throw new Error("seed did not register");
+
+      // Submitting any task for this repository forces the resolver to resolve the project, which
+      // builds the Codex agent (and hits the spy above) before it ever reaches the plan-authorization
+      // check -- so this task can be a "rogue" one (not part of any approved plan): it only needs to
+      // get far enough to construct the agent, which it always does before authorizeTask runs.
+      const policyDigest: Sha256Digest = decodeReviewedPolicyPayload(
+        renderPlannerAgentPolicyV1(loadStandardRuleStatementsV1()),
+      ).digest;
+      const probe = TaskSpecV1Schema.parse({
+        schemaVersion: 1,
+        taskId: "62000000-0000-4000-8000-000000000778",
+        projectId,
+        createdAt: "2026-08-18T18:00:00.000Z",
+        title: "Force planner Codex agent construction",
+        objective:
+          "Force the planner Codex agent to be built so its sandbox config can be inspected.",
+        acceptanceCriteria: [{ id: "ac-1", statement: "n/a", verification: "review" }],
+        base: { repositoryId, commit: seeded.enrollment.commitSha ?? seeded.scaffoldCommitSha },
+        requestedScope: { paths: ["Sources"] },
+        policyDigest,
+      });
+      const intake = await client.run(probe);
+      await eventually(
+        async () => (await client.status(intake.attemptId)).attempt.state === "blocked",
+      );
+      expect((await client.status(intake.attemptId)).attempt.blocker).toMatchObject({
+        code: "plan.task-not-in-approved-plan",
+      });
+
+      expect(capturedReadOnlyPaths).toEqual(PLANNER_CODEX_READ_ONLY_PATHS_V1);
+      expect(diagnostics).toEqual([]);
+    },
+  );
 });

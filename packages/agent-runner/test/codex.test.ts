@@ -193,6 +193,40 @@ describe("Codex invocation policy", () => {
     ).toThrow(/overlaps read-only path/);
   });
 
+  it("regression: an enrolled-style default keeps Tests read-only (exact-path overlap); a planner-style override does not", () => {
+    const workingDirectory = makeWorkspace();
+    const common = {
+      executable: "/usr/local/bin/codex",
+      model: "gpt-5.6-codex",
+      codexHome: "/private/tmp/codex-home",
+      outputSchemaPath: "/private/tmp/schema.json",
+    };
+
+    // The exact failure this seam guards against recurring: a profile whose readOnlyPaths still
+    // carries "Tests" (apps/daemon/src/local-execution-profile.ts's DEFAULT_CODEX_READ_ONLY_PATHS_V1,
+    // used by the enrolled and swift-greeter profiles) refuses ANY task authorized to write to
+    // Tests, reproducing "agent.invocation-rejected: Authorized write path Tests overlaps read-only
+    // path Tests" verbatim. This is CORRECT for the enrolled profile (Tests there is the trusted
+    // verifier's own fixture) -- it must keep failing closed.
+    expect(() =>
+      buildCodexInvocation(makeRunSpec({ workingDirectory, authorizedWritePaths: ["Tests"] }), {
+        ...common,
+        readOnlyPaths: ["Package.swift", "Tests"],
+      }),
+    ).toThrow("Authorized write path Tests overlaps read-only path Tests");
+
+    // Planner execution's own readOnlyPaths (apps/daemon/src/planner-project-execution.ts's
+    // PLANNER_CODEX_READ_ONLY_PATHS_V1 -- no Tests, no Sources) authorizes the exact same write
+    // scope without error: this is what lets a from-scratch build's build-seed-repo item
+    // (scopePaths: ["Tests"]) actually run instead of failing closed before the agent starts.
+    expect(() =>
+      buildCodexInvocation(makeRunSpec({ workingDirectory, authorizedWritePaths: ["Tests"] }), {
+        ...common,
+        readOnlyPaths: ["Package.swift", "project.yml", ".github"],
+      }),
+    ).not.toThrow();
+  });
+
   it("rejects every environment name outside the adapter-owned safe allowlist", () => {
     const workingDirectory = makeWorkspace();
     expect(() =>

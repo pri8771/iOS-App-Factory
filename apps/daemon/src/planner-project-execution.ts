@@ -604,6 +604,31 @@ export const IOS_XCODEGEN_PROTECTED_PATH_EXTENSION_V1: ProtectedPathPolicyExtens
   allowances: ["test-file-addition"],
 };
 
+/**
+ * The Codex sandbox's read-only paths for planner execution -- deliberately NOT
+ * `buildCodexAgentForProject`'s enrolled-profile default (see that function's doc in
+ * local-execution-profile.ts for the full containment-boundary rationale). A from-scratch app has no
+ * tests until the agent writes them: `BUILD_TEMPLATES_V1` above authorizes every build item to write
+ * under `Tests` (and `Sources`), so those two must NOT be sandbox-read-only here, or every build item
+ * fails closed with "Authorized write path Tests overlaps read-only path Tests" before the agent ever
+ * runs.
+ *
+ * What stays read-only mirrors what `IOS_XCODEGEN_PROTECTED_PATH_EXTENSION_V1` still protects, so the
+ * two containment layers agree: it grants `test-file-addition` only, never `xcode-project-membership`,
+ * so `project.yml` stays protected (classifyProtectedPath's default, unrelaxed here) -- and CI
+ * configuration is always protected with no relaxable class at all. No planner task template ever
+ * authorizes writing to either, so this is belt-and-suspenders: it stops a misbehaving or
+ * future-mistemplated task from even attempting the write at the sandbox level, instead of relying
+ * solely on post-hoc candidate-policy rejection. `Package.swift` is kept for the same reason
+ * (`buildCodexAgentForProject`'s enrolled default carries it, no planner template ever needs it, and
+ * classifyProtectedPath protects it unconditionally with no relaxable class either).
+ */
+export const PLANNER_CODEX_READ_ONLY_PATHS_V1 = [
+  "Package.swift",
+  "project.yml",
+  ".github",
+] as const;
+
 export type PlannerProjectResolver = Readonly<{
   resolveProject: (repositoryId: string) => Promise<VerifiedLocalExecutionProject | null>;
   /** sha256 of `policyBytes` -- what `plan.execute` must stamp on every submitted task. */
@@ -658,6 +683,7 @@ export function createPlannerProjectResolver(
         sourceRepositoryPath,
         dependencies.runtimeDirectory,
         dependencies.profileDependencies ?? {},
+        PLANNER_CODEX_READ_ONLY_PATHS_V1,
       );
       return {
         agent: built.agent,

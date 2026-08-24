@@ -120,6 +120,21 @@ export type VerifiedCommitCoordinatorInput = Readonly<{
   candidatePolicy: CandidatePolicy;
   verificationPlans: readonly TrustedVerificationPlanTemplate[];
   reviewer: IndependentReviewAdapter;
+  /**
+   * True exactly when the caller has durably, independently confirmed that the implementing agent's
+   * OWN outcome explicitly reported it finished with no changes needed (see
+   * `LocalAgentRunOutcome`'s `succeeded.changedPaths` in verified-local-executor.ts, and
+   * `#recordReportedNoChanges`/`#reportedNoChanges` there for how that self-report is captured
+   * durably and re-verified before this field is ever set true). This is NEVER inferred from the
+   * candidate diff being empty alone -- an empty diff with this false (the default) still fails
+   * closed exactly as before this field existed, because an empty diff can also mean the agent
+   * silently did nothing when it should have done something. Only the explicit self-report, combined
+   * with a FRESH passing run of trusted verification against the unchanged base tree (this function
+   * still runs the full test phase below; nothing about verification is skipped), lets an empty
+   * candidate proceed instead of being rejected. Defaults to false so every existing caller --
+   * everything that predates this field -- is byte-identical.
+   */
+  reportedNoChanges?: boolean;
 }>;
 
 export type VerifiedCommitCoordinatorPorts = Readonly<{
@@ -465,7 +480,16 @@ export async function coordinateVerifiedLocalCommit(
     inputValue.attemptWorkspace,
     candidatePolicy,
   );
-  if (candidate.changedPaths.length === 0) {
+  // An empty candidate is refused UNLESS the agent explicitly, durably reported it finished with no
+  // changes needed (see `reportedNoChanges`'s doc above) -- the ordinary case is a bug or a silently
+  // do-nothing agent, and stays rejected exactly as before this flag existed. When the flag is set,
+  // this function does NOT shortcut anything else: the (unchanged) candidate tree still goes through
+  // the full trusted-verification phase below, still gets independently reviewed, and still gets a
+  // broker commit -- an empty one (parent and candidate tree identical), which Git's plumbing
+  // (`commit-tree`) creates without complaint, unlike porcelain `git commit`. That keeps the exact
+  // same audit trail (evidence index, broker commit, checkpoint) every other completed task gets,
+  // instead of a special no-commit shortcut that would need its own parallel evidence shape.
+  if (candidate.changedPaths.length === 0 && inputValue.reportedNoChanges !== true) {
     throw new VerifiedCommitCoordinatorError(
       "A verified commit cannot be created for an empty candidate",
     );

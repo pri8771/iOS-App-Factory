@@ -2382,6 +2382,98 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
     }
   }
 
+  /**
+   * Durable marker: at `#runAgent` success, records that the implementing agent's OWN outcome
+   * explicitly reported it finished with `changedPaths: []` -- it looked at the current tree against
+   * the task's acceptance criteria and judged nothing needed to change. This is generic across every
+   * agent protocol (legacy, supervisor-v2, oci-v3): every one already computes
+   * `LocalAgentRunOutcome`'s `succeeded.changedPaths` uniformly; this just makes that one bit durable
+   * across a restart between the execute step (`#runAgent`, the only place that ever sees the live
+   * outcome) and the verify step (`#verifyAndCommit`, which may run in an entirely different process
+   * after a restart and only has durable state to read) -- exactly why `coordinateVerifiedLocalCommit`
+   * needs `reportedNoChanges` passed in rather than re-deriving it itself.
+   *
+   * Keyed by `eventDigest` -- the exact, already-verified digest of this run's own event log -- so a
+   * marker can never be misapplied to a different run of the same attempt (a retry under a higher
+   * fence produces a different event log and therefore a different key). `attemptId`/`fence`/
+   * `taskSpecDigest` are carried and re-checked anyway, matching this file's existing practice of
+   * cross-validating identity redundantly rather than trusting one field alone.
+   *
+   * Best-effort: any failure to write it just means the empty-candidate case falls back to the
+   * pre-existing fail-closed rejection later (`#reportedNoChanges` below returns false when the
+   * marker is missing) -- never a reason to fail an otherwise-successful execute step.
+   */
+  #recordReportedNoChanges(
+    attemptId: string,
+    fence: number,
+    taskSpecDigest: Sha256Digest,
+    eventDigest: Sha256Digest,
+  ): void {
+    try {
+      const directory = ensurePrivateDirectory(
+        safeChild(dirname(this.#paths.agentResultRoot), "reported-no-changes"),
+      );
+      const path = safeChild(directory, `${eventDigest.replace(":", "-")}.json`);
+      const marker = {
+        schemaVersion: 1,
+        attemptId: AttemptIdSchema.parse(attemptId),
+        fence,
+        taskSpecDigest,
+        eventDigest,
+      };
+      writeFileSync(path, `${JSON.stringify(marker)}\n`, { mode: PRIVATE_FILE_MODE, flag: "w" });
+    } catch {
+      // Best-effort: see the doc comment above.
+    }
+  }
+
+  /**
+   * Reads back the marker `#recordReportedNoChanges` writes, re-validating every bound field against
+   * the CURRENT context rather than trusting the file's own claims. Fails closed (returns false) on
+   * any absence, foreign ownership, unexpected shape, or mismatch -- never throws, since "no marker"
+   * is the overwhelmingly common, entirely legitimate case for every task that actually changed
+   * something.
+   */
+  #reportedNoChanges(
+    attemptId: string,
+    fence: number,
+    taskSpecDigest: Sha256Digest,
+    eventDigest: Sha256Digest,
+  ): boolean {
+    try {
+      const directory = safeChild(dirname(this.#paths.agentResultRoot), "reported-no-changes");
+      const path = safeChild(directory, `${eventDigest.replace(":", "-")}.json`);
+      const stats = lstatSync(path);
+      if (
+        stats.isSymbolicLink() ||
+        !stats.isFile() ||
+        stats.nlink !== 1 ||
+        (stats.mode & 0o077) !== 0 ||
+        (typeof process.getuid === "function" && stats.uid !== process.getuid()) ||
+        stats.size > MAX_AGENT_RESULT_BYTES
+      ) {
+        return false;
+      }
+      const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+      let bytes: Buffer;
+      try {
+        bytes = readFileSync(descriptor);
+      } finally {
+        closeSync(descriptor);
+      }
+      const parsed = JSON.parse(bytes.toString("utf8")) as Readonly<Record<string, unknown>>;
+      return (
+        parsed.schemaVersion === 1 &&
+        parsed.attemptId === AttemptIdSchema.parse(attemptId) &&
+        parsed.fence === fence &&
+        parsed.taskSpecDigest === taskSpecDigest &&
+        parsed.eventDigest === eventDigest
+      );
+    } catch {
+      return false;
+    }
+  }
+
   #classifyOciStartupEntry(
     entryInput: OciStartupEntryV1,
     inventoriedAgent: LocalAgentAdapter,
@@ -2674,6 +2766,14 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
           context.fence,
           protocolEvidence,
         );
+        if (outcome.kind === "succeeded" && outcome.changedPaths.length === 0) {
+          this.#recordReportedNoChanges(
+            context.attemptId,
+            context.fence,
+            bindings.taskSpecDigest,
+            protocolJournal.eventDigest,
+          );
+        }
         return schedulerOutcomeForAgentResult(protocolEvidence.result, protocolJournal.eventDigest);
       }
       // Any outcome that claims the agent ran to completion must carry the
@@ -2706,6 +2806,14 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
           context.fence,
           protocolEvidence,
         );
+        if (outcome.kind === "succeeded" && outcome.changedPaths.length === 0) {
+          this.#recordReportedNoChanges(
+            context.attemptId,
+            context.fence,
+            bindings.taskSpecDigest,
+            protocolJournal.eventDigest,
+          );
+        }
         return schedulerOutcomeForAgentResult(protocolEvidence.result, protocolJournal.eventDigest);
       }
       if (outcome.kind === "succeeded") {
@@ -2778,6 +2886,14 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
       adapterVersion: bindings.project.agent.adapterVersion,
       eventDigest,
     };
+    if (outcome.changedPaths.length === 0) {
+      this.#recordReportedNoChanges(
+        context.attemptId,
+        context.fence,
+        bindings.taskSpecDigest,
+        eventDigest,
+      );
+    }
     this.#assertActiveSynchronously(context.attemptId, context.fence);
     this.#publishAgentResult(result);
     return { kind: "succeeded", outputDigest: eventDigest };
@@ -2884,6 +3000,16 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
         ? {}
         : { protectedPathPolicyExtension: bindings.project.protectedPathPolicyExtension }),
     };
+    // `journal.agentFence` -- the fence recorded when the agent actually ran, which
+    // `#recordReportedNoChanges` was keyed under at that time -- not `context.fence` (the fence this
+    // verify step is running under now, which fence reconciliation across a restart can advance past
+    // the agent's own fence).
+    const reportedNoChanges = this.#reportedNoChanges(
+      context.attemptId,
+      journal.agentFence,
+      bindings.taskSpecDigest,
+      journal.eventDigest,
+    );
     const result = await this.#withHeartbeat(
       context,
       async (guard) =>
@@ -2903,6 +3029,7 @@ export class VerifiedLocalExecutionExecutor implements SchedulerStepExecutorPort
             candidatePolicy,
             verificationPlans: bindings.project.verificationPlans,
             reviewer: bindings.project.reviewerForRun(reviewerRunId),
+            reportedNoChanges,
           },
           {
             gitWorkspace: this.#gitWorkspace,

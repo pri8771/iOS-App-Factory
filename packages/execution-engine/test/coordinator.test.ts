@@ -127,7 +127,12 @@ function passingReviewer(calls: { count: number }): IndependentReviewAdapter {
 }
 
 function fixture(
-  options: Readonly<{ protectedEdit?: boolean; reviewer?: IndependentReviewAdapter }> = {},
+  options: Readonly<{
+    protectedEdit?: boolean;
+    reviewer?: IndependentReviewAdapter;
+    /** Leaves the attempt workspace identical to base -- a genuinely empty candidate. */
+    noChange?: boolean;
+  }> = {},
 ): Fixture {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "app-factory-execution-")));
   temporaryRoots.push(root);
@@ -173,7 +178,7 @@ function fixture(
   const workspace = manager.createAttemptWorkspace(mirror, ATTEMPT_ID, baseSha);
   if (options.protectedEdit === true) {
     writeFileSync(join(workspace.worktreePath, "tests", "app.test.ts"), "// weakened\n");
-  } else {
+  } else if (options.noChange !== true) {
     writeFileSync(join(workspace.worktreePath, "src", "app.ts"), "export const value = 2;\n");
   }
   const eventBytes = canonicalJsonBytes([
@@ -404,6 +409,104 @@ describe("verified local commit coordinator", () => {
     expect(reclaimedReplay.checkpoint.revision).toBe(5);
     expect(reclaimedReplay.checkpoint.fence).toBe(f.input.fence);
     expect(reviewCalls.count).toBe(1);
+  });
+
+  // Regression coverage for making the empty-candidate rejection conditional on `reportedNoChanges`
+  // (packages/execution-engine/src/coordinator.ts) instead of an unconditional throw: an empty diff
+  // must still fail closed by default -- this is the existing, byte-identical behavior every caller
+  // that predates this field keeps getting -- and only proceeds when the caller has durably,
+  // independently confirmed the agent's own outcome explicitly reported "finished, no changes
+  // needed" (see verified-local-executor.ts's `#recordReportedNoChanges`/`#reportedNoChanges`, which
+  // is the only real caller that ever sets this true).
+  it("refuses an empty candidate when the caller has not reported no changes were needed", async () => {
+    const f = fixture({ noChange: true });
+    await expect(coordinateVerifiedLocalCommit(f.input, ports(f))).rejects.toThrow(
+      "A verified commit cannot be created for an empty candidate",
+    );
+    // Explicitly false behaves exactly like omitted -- there is no ambiguous default.
+    await expect(
+      coordinateVerifiedLocalCommit({ ...f.input, reportedNoChanges: false }, ports(f)),
+    ).rejects.toThrow("A verified commit cannot be created for an empty candidate");
+  });
+
+  it("settles a reported no-op as a fully verified, reviewed, empty broker commit", async () => {
+    const reviewCalls = { count: 0 };
+    const f = fixture({ noChange: true, reviewer: passingReviewer(reviewCalls) });
+    const activeCalls: CoordinatorFenceCheckpoint[] = [];
+    const result = await coordinateVerifiedLocalCommit(
+      { ...f.input, reportedNoChanges: true },
+      ports(f, { active: (checkpoint) => activeCalls.push(checkpoint) }),
+    );
+
+    expect(result.checkpoint.phase).toBe("completed");
+    // The full pipeline still ran -- nothing was skipped: candidate verification, a real trusted-test
+    // pass, a real independent review call, and a real (empty) broker commit, exactly the same phases
+    // as the ordinary non-empty-diff success path above.
+    expect(activeCalls).toEqual([
+      "before-input-publication",
+      "before-candidate-verification",
+      "after-candidate-verification",
+      "before-candidate-checkpoint",
+      "before-tests",
+      "after-tests",
+      "before-test-bundle-publication",
+      "before-tests-checkpoint",
+      "before-review-evidence-publication",
+      "before-review",
+      "after-review",
+      "before-review-checkpoint",
+      "before-commit",
+      "during-commit-mutation",
+      "during-commit-mutation",
+      "after-commit",
+      "before-commit-checkpoint",
+      "before-evidence-publication",
+      "before-evidence-checkpoint",
+    ]);
+    expect(reviewCalls.count).toBe(1);
+    // The committed tree is IDENTICAL to the base tree -- a real, valid, empty Git commit (parent and
+    // tree the same), not a special no-commit shortcut.
+    const baseTree = git(f.source, ["rev-parse", "HEAD^{tree}"]);
+    expect(result.evidence.index.candidateTree).toBe(baseTree);
+    expect(
+      git(f.root, [
+        "--git-dir",
+        f.mirror.mirrorPath,
+        "rev-parse",
+        `${result.commit.commitSha}^{tree}`,
+      ]),
+    ).toBe(baseTree);
+    expect(
+      git(f.root, ["--git-dir", f.mirror.mirrorPath, "rev-parse", `${result.commit.commitSha}^`]),
+    ).toBe(f.taskSpec.base.commit);
+    expect(markerValue(f)).toBe(result.commit.commitSha);
+
+    // Replays idempotently exactly like the non-empty path, including across a reclaimed fence.
+    const replay = await coordinateVerifiedLocalCommit(
+      { ...f.input, reportedNoChanges: true },
+      ports(f),
+    );
+    expect(replay.commit).toEqual(result.commit);
+    expect(replay.evidence.indexDigest).toBe(result.evidence.indexDigest);
+    expect(reviewCalls.count).toBe(1);
+  });
+
+  it("still fails closed on a reported no-op when trusted verification actually fails", async () => {
+    const f = fixture({ noChange: true });
+    const plan = f.input.verificationPlans[0];
+    if (plan === undefined) throw new Error("fixture verification plan is missing");
+    const failingInput: VerifiedCommitCoordinatorInput = {
+      ...f.input,
+      reportedNoChanges: true,
+      verificationPlans: [{ ...plan, executable: "/usr/bin/false" }],
+    };
+    // The self-report alone never bypasses verification: a genuinely failing trusted check on the
+    // unchanged base tree still fails the attempt, exactly as it would for a non-empty candidate.
+    await expect(coordinateVerifiedLocalCommit(failingInput, ports(f))).rejects.toThrow(
+      "Trusted verification did not pass cleanly",
+    );
+    // And no broker commit marker was ever published for this attempt.
+    expect(markerValue(f)).toBeNull();
   });
 
   it("rejects a protected-path candidate before tests, review, or commit", async () => {
