@@ -14,6 +14,7 @@ import {
   type RunId,
   type Sha256Digest,
   type TaskSpecV1,
+  type VerificationClaimsV1,
 } from "@app-factory/contracts";
 import type { EvidenceStore } from "@app-factory/evidence-store";
 import type {
@@ -70,8 +71,8 @@ import {
 } from "./verification-scratch.js";
 
 export class VerifiedCommitCoordinatorError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "VerifiedCommitCoordinatorError";
   }
 }
@@ -162,6 +163,67 @@ function nowInstant(now: () => Date): IsoInstant {
 
 function sameCanonical(left: unknown, right: unknown): boolean {
   return canonicalJsonBytes(left).equals(canonicalJsonBytes(right));
+}
+
+// Bound how much of a captured stream lands in the (private, 0600) failure-diagnostics file: the
+// end of the output is what usually carries the actual error, so keep the tail rather than the head.
+const VERIFICATION_FAILURE_STREAM_TAIL_BYTES = 16 * 1024;
+
+function describeStreamTail(label: string, bytes: Buffer): string {
+  if (bytes.byteLength === 0) return `${label}: (empty)`;
+  const tail = bytes.subarray(
+    Math.max(0, bytes.byteLength - VERIFICATION_FAILURE_STREAM_TAIL_BYTES),
+  );
+  const truncated = tail.byteLength < bytes.byteLength;
+  return `${label} (${String(bytes.byteLength)} bytes${truncated ? ", showing tail" : ""}):\n${tail.toString("utf8")}`;
+}
+
+/**
+ * Every reason `coordinateVerifiedLocalCommit` could have rejected this check, plus the check's own
+ * output, rendered for the operator-only failure-diagnostics file (never the wire, never evidence --
+ * see `#recordFailureDiagnostic` in verified-local-executor.ts). Before this existed the coordinator's
+ * own cross-checks (digest/argv/tool-version equality) and the verifier's pass/fail booleans
+ * (exitCode, timedOut, outputLimitExceeded, protectedFilesUnchanged, checkoutCleanAfter) were folded
+ * into one generic "did not pass cleanly" message with nothing to tell them apart -- an attempt could
+ * fail for any of a dozen reasons and an operator had no way to tell which, since the verifier's own
+ * scratch directory (and the check's real stdout/stderr) is always cleaned up, pass or fail.
+ */
+function describeVerificationFailure(
+  template: Readonly<{ checkId: string; toolVersions: readonly unknown[] }>,
+  expectedTree: string,
+  claims: VerificationClaimsV1,
+  result: TrustedVerificationRun,
+  argvMatchesTemplate: boolean,
+  toolVersionsMatch: boolean,
+  stdoutDigestMatches: boolean,
+  stderrDigestMatches: boolean,
+): string {
+  const reasons: string[] = [];
+  if (!stdoutDigestMatches)
+    reasons.push("recorded stdout digest does not match the evidence store");
+  if (!stderrDigestMatches)
+    reasons.push("recorded stderr digest does not match the evidence store");
+  if (claims.checkId !== template.checkId) {
+    reasons.push(`checkId mismatch (claimed ${claims.checkId})`);
+  }
+  if (!argvMatchesTemplate) reasons.push("argv did not match the reviewed verification template");
+  if (!toolVersionsMatch)
+    reasons.push("toolVersions did not match the reviewed verification template");
+  if (!claims.passed) reasons.push("verifier reported passed=false");
+  if (claims.exitCode !== 0) reasons.push(`exitCode=${String(claims.exitCode)}`);
+  if (claims.checkoutTree !== expectedTree)
+    reasons.push("checkoutTree did not match the candidate");
+  if (result.timedOut) reasons.push("timed out");
+  if (result.outputLimitExceeded) reasons.push("stdout/stderr exceeded the output limit");
+  if (!result.protectedFilesUnchanged) reasons.push("a protected file changed during the check");
+  if (!result.checkoutCleanAfter) reasons.push("the checkout was not clean after the check");
+  return [
+    `checkId=${template.checkId} reasons=[${reasons.join("; ") || "none matched -- inspect claims/result directly"}]`,
+    `argv=${JSON.stringify(claims.argv)}`,
+    `exitCode=${String(claims.exitCode)} passed=${String(claims.passed)} timedOut=${String(result.timedOut)} outputLimitExceeded=${String(result.outputLimitExceeded)} protectedFilesUnchanged=${String(result.protectedFilesUnchanged)} checkoutCleanAfter=${String(result.checkoutCleanAfter)}`,
+    describeStreamTail("stdout", result.stdout),
+    describeStreamTail("stderr", result.stderr),
+  ].join("\n");
 }
 
 function normalizedScopes(scopes: readonly string[]): readonly string[] {
@@ -515,16 +577,20 @@ export async function coordinateVerifiedLocalCommit(
         const claims = VerificationClaimsV1Schema.parse(result.claims);
         const stdoutDigest = ports.evidenceStore.putBlob(result.stdout);
         const stderrDigest = ports.evidenceStore.putBlob(result.stderr);
+        const stdoutDigestMatches = stdoutDigest === result.stdoutDigest;
+        const stderrDigestMatches = stderrDigest === result.stderrDigest;
+        const argvMatchesTemplate = verificationArgvMatchesTemplate(claims.argv, template, {
+          attemptId,
+          fence,
+          exactFence: true,
+        });
+        const toolVersionsMatch = sameCanonical(claims.toolVersions, template.toolVersions);
         if (
-          stdoutDigest !== result.stdoutDigest ||
-          stderrDigest !== result.stderrDigest ||
+          !stdoutDigestMatches ||
+          !stderrDigestMatches ||
           claims.checkId !== template.checkId ||
-          !verificationArgvMatchesTemplate(claims.argv, template, {
-            attemptId,
-            fence,
-            exactFence: true,
-          }) ||
-          !sameCanonical(claims.toolVersions, template.toolVersions) ||
+          !argvMatchesTemplate ||
+          !toolVersionsMatch ||
           !claims.passed ||
           claims.exitCode !== 0 ||
           claims.checkoutTree !== candidate.candidateTreeId ||
@@ -535,6 +601,20 @@ export async function coordinateVerifiedLocalCommit(
         ) {
           throw new VerifiedCommitCoordinatorError(
             `Trusted verification did not pass cleanly: ${claims.checkId}`,
+            {
+              cause: new Error(
+                describeVerificationFailure(
+                  template,
+                  candidate.candidateTreeId,
+                  claims,
+                  result,
+                  argvMatchesTemplate,
+                  toolVersionsMatch,
+                  stdoutDigestMatches,
+                  stderrDigestMatches,
+                ),
+              ),
+            },
           );
         }
         const record: TrustedTestRecordV1 = {
