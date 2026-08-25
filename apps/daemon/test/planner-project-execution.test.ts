@@ -30,6 +30,7 @@ import {
   readXcodegenProjectName,
   renderPlannerAgentPolicyV1,
   PLANNER_CODEX_READ_ONLY_PATHS_V1,
+  SMOKE_MIN_BYTES_PER_MEGAPIXEL,
   type PlannerExecutionConfigV1,
 } from "../src/planner-project-execution.js";
 import { decodeReviewedPolicyPayload } from "../src/verified-local-executor.js";
@@ -145,6 +146,20 @@ describe("planner execution", () => {
     expect(config.codex).toBeUndefined();
     expect(config.verification.path).toBe("/usr/bin:/bin:/opt/homebrew/bin");
     expect(config.verification.buildTimeoutMs).toBe(600_000);
+    expect(config.verification.testTimeoutMs).toBe(900_000);
+    expect(config.verification.smokeTimeoutMs).toBe(900_000);
+    expect(
+      parsePlannerExecutionConfigV1({
+        ...CONFIG_INPUT,
+        verification: { ...CONFIG_INPUT.verification, smokeTimeoutMs: 120_000 },
+      }).verification.smokeTimeoutMs,
+    ).toBe(120_000);
+    expect(() =>
+      parsePlannerExecutionConfigV1({
+        ...CONFIG_INPUT,
+        verification: { ...CONFIG_INPUT.verification, smokeTimeoutMs: 1_000 },
+      }),
+    ).toThrow(/smokeTimeoutMs must be an integer/);
     expect(() =>
       parsePlannerExecutionConfigV1({ ...CONFIG_INPUT, mode: "planner-codex-v1" }),
     ).toThrow(/non-exact shape/);
@@ -180,7 +195,11 @@ describe("planner execution", () => {
   it("builds ios-xcodegen-v1 verification plans on the project's own scheme, GET-free and scratch-bound", () => {
     const config = parsePlannerExecutionConfigV1(CONFIG_INPUT);
     const plans = iosXcodegenVerificationPlansV1("SampleApp", config.verification);
-    expect(plans.map((plan) => plan.checkId)).toEqual(["build.xcodegen-app", "test.xcodegen-unit"]);
+    expect(plans.map((plan) => plan.checkId)).toEqual([
+      "build.xcodegen-app",
+      "test.xcodegen-unit",
+      "smoke.launch-screenshot",
+    ]);
     for (const plan of plans) {
       expect(plan.executable).toBe("/bin/sh");
       expect(plan.args[1]).toContain('"/opt/homebrew/bin/xcodegen" generate');
@@ -201,9 +220,44 @@ describe("planner execution", () => {
     expect(plans[1]?.args[1]).toContain(
       '-destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest"',
     );
+    expect(plans[0]?.timeoutMs).toBe(config.verification.buildTimeoutMs);
+    expect(plans[1]?.timeoutMs).toBe(config.verification.testTimeoutMs);
+    expect(plans[2]?.timeoutMs).toBe(config.verification.smokeTimeoutMs);
+
+    // smoke.launch-screenshot: builds for the OPERATOR'S real simulator (not the generic
+    // destination build.xcodegen-app uses, because this build must actually run on the concrete
+    // simulator booted below), resolves the app bundle under Debug-iphonesimulator, boots/reuses
+    // the named simulator by an EXACT device-name match (not a substring one), installs, launches,
+    // derives the bundle id from the built Info.plist (never hardcoded), screenshots, and never
+    // shuts the simulator down (only the app is terminated).
+    const smoke = plans[2]?.args[1] ?? "";
+    expect(smoke).toContain('-destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest"');
+    expect(smoke).toContain(
+      'APP="$S/derived-data/Build/Products/Debug-iphonesimulator/SampleApp.app"',
+    );
+    expect(smoke).toContain('SIM_NAME="iPhone 17 Pro"');
+    expect(smoke).toContain("xcrun simctl list devices available");
+    expect(smoke).toContain('xcrun simctl bootstatus "$UDID" -b');
+    expect(smoke).toContain('xcrun simctl install "$UDID" "$APP"');
+    expect(smoke).toContain('PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"');
+    expect(smoke).toContain('xcrun simctl launch "$UDID" "$BUNDLE_ID"');
+    expect(smoke).toContain('xcrun simctl io "$UDID" screenshot "$S/launch.png"');
+    expect(smoke).toContain('xcrun simctl terminate "$UDID" "$BUNDLE_ID"');
+    expect(smoke).not.toContain("simctl shutdown");
+    expect(smoke).toContain("BYTES_PER_MEGAPIXEL=$(( (BYTES * 1000000) / (WIDTH * HEIGHT) ))");
+    expect(smoke).toContain(`MIN_BYTES_PER_MEGAPIXEL=${String(SMOKE_MIN_BYTES_PER_MEGAPIXEL)}`);
+
     expect(() => iosXcodegenVerificationPlansV1("bad name", config.verification)).toThrow(
       /unsupported XcodeGen project name/,
     );
+    // A destination with no name= cannot resolve a simulator to boot -- fail at composition time,
+    // with a clear message, instead of a confusing shell error deep inside the trusted verifier.
+    expect(() =>
+      iosXcodegenVerificationPlansV1("SampleApp", {
+        ...config.verification,
+        simulatorDestination: "platform=iOS Simulator,OS=latest",
+      }),
+    ).toThrow(/has no name=/);
   });
 
   it(
