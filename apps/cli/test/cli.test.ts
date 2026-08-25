@@ -3655,3 +3655,222 @@ describe("runCli signals", () => {
     expect(captured().stdout).toContain(SIGNAL_ID);
   });
 });
+
+describe("CLI argument parser: release", () => {
+  const RELEASE_REPOSITORY_ID = "00000000-0000-4000-8000-000000000060";
+  const RELEASE_RUN_ID = "00000000-0000-4000-8000-000000000061";
+  const SOURCE_COMMIT = "a".repeat(40);
+
+  it("parses release start", () => {
+    expect(
+      parseCliArguments([
+        "release",
+        "start",
+        "--project",
+        PROJECT_ID,
+        "--repository",
+        RELEASE_REPOSITORY_ID,
+        "--commit",
+        SOURCE_COMMIT,
+        "--branch",
+        "main",
+      ]),
+    ).toEqual({
+      outputMode: "human",
+      retryIdentity: null,
+      command: {
+        kind: "release.start",
+        projectId: PROJECT_ID,
+        repositoryId: RELEASE_REPOSITORY_ID,
+        sourceCommit: SOURCE_COMMIT,
+        branch: "main",
+      },
+    });
+  });
+
+  it("parses release promote", () => {
+    expect(
+      parseCliArguments(["release", "promote", RELEASE_RUN_ID, "--expected-revision", "1"]),
+    ).toEqual({
+      outputMode: "human",
+      retryIdentity: null,
+      command: { kind: "release.promote", releaseRunId: RELEASE_RUN_ID, expectedRevision: 1 },
+    });
+  });
+
+  it("parses release status", () => {
+    expect(parseCliArguments(["release", "status", RELEASE_RUN_ID])).toEqual({
+      outputMode: "human",
+      retryIdentity: null,
+      command: { kind: "release.status", releaseRunId: RELEASE_RUN_ID },
+    });
+  });
+
+  it("rejects release start missing --branch", () => {
+    expect(() =>
+      parseCliArguments([
+        "release",
+        "start",
+        "--project",
+        PROJECT_ID,
+        "--repository",
+        RELEASE_REPOSITORY_ID,
+        "--commit",
+        SOURCE_COMMIT,
+      ]),
+    ).toThrow(CliUsageError);
+  });
+
+  it("rejects release start with a malformed commit", () => {
+    expect(() =>
+      parseCliArguments([
+        "release",
+        "start",
+        "--project",
+        PROJECT_ID,
+        "--repository",
+        RELEASE_REPOSITORY_ID,
+        "--commit",
+        "not-a-sha",
+        "--branch",
+        "main",
+      ]),
+    ).toThrow(CliUsageError);
+  });
+
+  it("rejects release promote missing --expected-revision", () => {
+    expect(() => parseCliArguments(["release", "promote", RELEASE_RUN_ID])).toThrow(CliUsageError);
+  });
+
+  it("rejects an unknown release subcommand", () => {
+    expect(() => parseCliArguments(["release", "cancel"])).toThrow(CliUsageError);
+  });
+});
+
+describe("runCli release", () => {
+  const RELEASE_REPOSITORY_ID = "00000000-0000-4000-8000-000000000060";
+  const SOURCE_COMMIT = "a".repeat(40);
+
+  function fixtureRun(overrides: Readonly<Record<string, unknown>> = {}) {
+    return {
+      schemaVersion: 1,
+      releaseRunId: "00000000-0000-4000-8000-000000000061",
+      projectId: PROJECT_ID,
+      repositoryId: RELEASE_REPOSITORY_ID,
+      releaseId: "00000000-0000-4000-8000-000000000062",
+      sourceCommit: SOURCE_COMMIT,
+      branch: "main",
+      stage: "certified",
+      revision: 1,
+      promotion: null,
+      archive: null,
+      upload: null,
+      unevaluated: ["quality.coherence"],
+      notes: ["release.start: quality.candidate.plan-verification-passed passed -- ok."],
+      createdAt: NOW,
+      updatedAt: NOW,
+      ...overrides,
+    };
+  }
+
+  it("starts a release from --project/--repository/--commit/--branch", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "release.start") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return { result: { operation: "release.start", run: fixtureRun(), created: true } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      [
+        "release",
+        "start",
+        "--project",
+        PROJECT_ID,
+        "--repository",
+        RELEASE_REPOSITORY_ID,
+        "--commit",
+        SOURCE_COMMIT,
+        "--branch",
+        "main",
+      ],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toMatchObject({
+      projectId: PROJECT_ID,
+      repositoryId: RELEASE_REPOSITORY_ID,
+      sourceCommit: SOURCE_COMMIT,
+      branch: "main",
+    });
+    expect(captured().stdout).toContain(fixtureRun().releaseRunId);
+    expect(captured().stdout).toContain("certified");
+  });
+
+  it("promotes a release with --expected-revision", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "release.promote") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return { result: { operation: "release.promote", run: fixtureRun({ revision: 2 }) } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["release", "promote", fixtureRun().releaseRunId, "--expected-revision", "1"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toMatchObject({
+      releaseRunId: fixtureRun().releaseRunId,
+      expectedRevision: 1,
+    });
+    expect(captured().stdout).toContain("rev 2");
+  });
+
+  it("reads release status", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "release.status") throw new Error(`Unexpected operation: ${operation}`);
+      return { result: { operation: "release.status", run: fixtureRun() } };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["release", "status", fixtureRun().releaseRunId],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(captured().stdout).toContain(fixtureRun().releaseRunId);
+    expect(captured().stdout).toContain("certified");
+  });
+
+  it("surfaces a CAS conflict from release.promote as a non-zero exit", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "release.promote") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        error: {
+          code: "release-run.revision-conflict",
+          message: "Release run is at revision 2, not 1.",
+          retryable: true,
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      ["release", "promote", fixtureRun().releaseRunId, "--expected-revision", "1"],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).not.toBe(0);
+    expect(captured().stderr).toContain("release-run.revision-conflict");
+  });
+});

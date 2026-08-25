@@ -90,6 +90,84 @@ function singleArtifactDigest(
 }
 
 /**
+ * The shared re-verification closure both exports below drive: re-derives a succeeded attempt's
+ * full `VerifiedExecutionEvidence` (broker commit AND trusted-test claims) from durable evidence
+ * only. Factored out so `createEvidenceBrokerCommitResolverV1` (which only needs the broker commit)
+ * and `createVerifiedExecutionEvidenceResolverV1` (Release Rail Wave 3's `release.start`, which also
+ * needs the trusted-test `VerificationClaimsV1`) can never drift apart on what "re-verified" means.
+ */
+function resolveVerifiedExecutionEvidence(
+  options: CreateEvidenceBrokerCommitResolverOptions,
+  gitWorkspace: GitWorkspaceManager,
+  attempt: ExecutionAttemptV1,
+): VerifiedExecutionEvidence {
+  const taskSpec = requireTaskSpec(options.repositories, attempt);
+  const record = readStore(
+    () => options.evidenceStore.findManifestRecord(attempt.attemptId),
+    "The private evidence store could not be read.",
+  );
+  if (record === null) {
+    integrityFailure(`No evidence manifest exists for attempt ${attempt.attemptId}.`);
+  }
+  const storage = readStore(
+    () => options.evidenceStore.verify(attempt.attemptId),
+    "The evidence manifest failed storage integrity verification.",
+  );
+  if (storage.manifestDigest !== record.digest) {
+    integrityFailure("The evidence manifest changed while it was being verified.");
+  }
+  const commitEvidence = storage.evidence.find(
+    (item): item is Extract<EvidenceV1, { kind: "commit" }> => item.kind === "commit",
+  );
+  if (commitEvidence === undefined) {
+    integrityFailure(`Attempt ${attempt.attemptId}'s evidence carries no commit record.`);
+  }
+  const indexDigest = singleArtifactDigest(
+    commitEvidence,
+    EXECUTION_EVIDENCE_INDEX_LOGICAL_NAME,
+    EXECUTION_EVIDENCE_INDEX_MEDIA_TYPE,
+  );
+  if (indexDigest === null) {
+    integrityFailure("The commit evidence carries no execution evidence index artifact.");
+  }
+
+  let mirror;
+  try {
+    mirror = gitWorkspace.openExistingMirror({
+      runtimeRoot: options.gitRuntimeRoot,
+      repositoryId: taskSpec.base.repositoryId,
+    });
+  } catch (error) {
+    throw new CommandHandlerError(
+      "plan.mirror-not-registered",
+      `The Factory mirror for repository ${taskSpec.base.repositoryId} could not be opened${
+        error instanceof Error ? ` (${error.message})` : ""
+      }.`,
+      false,
+    );
+  }
+
+  try {
+    return verifyExecutionEvidenceIndex({
+      indexDigest,
+      evidenceStore: options.evidenceStore,
+      gitWorkspace,
+      mirror,
+    });
+  } catch (error) {
+    const detail =
+      error instanceof ExecutionEvidenceError ||
+      error instanceof GitWorkspaceError ||
+      error instanceof EvidenceStoreError
+        ? error.message
+        : "the execution closure could not be re-verified";
+    integrityFailure(
+      `Attempt ${attempt.attemptId}'s execution closure did not re-verify: ${detail}.`,
+    );
+  }
+}
+
+/**
  * Builds the synchronous `resolveBrokerCommit` port `ProjectPlanExecutionDependencies` requires.
  * Fails closed (a thrown `CommandHandlerError`) rather than returning a guessed or partial record
  * whenever the attempt's evidence closure does not fully re-verify.
@@ -100,73 +178,22 @@ export function createEvidenceBrokerCommitResolverV1(
   const gitWorkspace = new GitWorkspaceManager(
     options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable },
   );
+  return (attempt: ExecutionAttemptV1): BrokerCommitRecord =>
+    resolveVerifiedExecutionEvidence(options, gitWorkspace, attempt).brokerCommit;
+}
 
-  return (attempt: ExecutionAttemptV1): BrokerCommitRecord => {
-    const taskSpec = requireTaskSpec(options.repositories, attempt);
-    const record = readStore(
-      () => options.evidenceStore.findManifestRecord(attempt.attemptId),
-      "The private evidence store could not be read.",
-    );
-    if (record === null) {
-      integrityFailure(`No evidence manifest exists for attempt ${attempt.attemptId}.`);
-    }
-    const storage = readStore(
-      () => options.evidenceStore.verify(attempt.attemptId),
-      "The evidence manifest failed storage integrity verification.",
-    );
-    if (storage.manifestDigest !== record.digest) {
-      integrityFailure("The evidence manifest changed while it was being verified.");
-    }
-    const commitEvidence = storage.evidence.find(
-      (item): item is Extract<EvidenceV1, { kind: "commit" }> => item.kind === "commit",
-    );
-    if (commitEvidence === undefined) {
-      integrityFailure(`Attempt ${attempt.attemptId}'s evidence carries no commit record.`);
-    }
-    const indexDigest = singleArtifactDigest(
-      commitEvidence,
-      EXECUTION_EVIDENCE_INDEX_LOGICAL_NAME,
-      EXECUTION_EVIDENCE_INDEX_MEDIA_TYPE,
-    );
-    if (indexDigest === null) {
-      integrityFailure("The commit evidence carries no execution evidence index artifact.");
-    }
-
-    let mirror;
-    try {
-      mirror = gitWorkspace.openExistingMirror({
-        runtimeRoot: options.gitRuntimeRoot,
-        repositoryId: taskSpec.base.repositoryId,
-      });
-    } catch (error) {
-      throw new CommandHandlerError(
-        "plan.mirror-not-registered",
-        `The Factory mirror for repository ${taskSpec.base.repositoryId} could not be opened${
-          error instanceof Error ? ` (${error.message})` : ""
-        }.`,
-        false,
-      );
-    }
-
-    let verified: VerifiedExecutionEvidence;
-    try {
-      verified = verifyExecutionEvidenceIndex({
-        indexDigest,
-        evidenceStore: options.evidenceStore,
-        gitWorkspace,
-        mirror,
-      });
-    } catch (error) {
-      const detail =
-        error instanceof ExecutionEvidenceError ||
-        error instanceof GitWorkspaceError ||
-        error instanceof EvidenceStoreError
-          ? error.message
-          : "the execution closure could not be re-verified";
-      integrityFailure(
-        `Attempt ${attempt.attemptId}'s execution closure did not re-verify: ${detail}.`,
-      );
-    }
-    return verified.brokerCommit;
-  };
+/**
+ * Release Rail Wave 3 (`release.start`): the same fail-closed re-verification as
+ * {@link createEvidenceBrokerCommitResolverV1}, but returning the FULL `VerifiedExecutionEvidence`
+ * closure -- `release.start` needs the trusted-test `VerificationClaimsV1` (`.trustedTests`) as well
+ * as the broker commit, to feed `@app-factory/quality`'s `certifyCandidateSubsetV1`.
+ */
+export function createVerifiedExecutionEvidenceResolverV1(
+  options: CreateEvidenceBrokerCommitResolverOptions,
+): (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence {
+  const gitWorkspace = new GitWorkspaceManager(
+    options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable },
+  );
+  return (attempt: ExecutionAttemptV1): VerifiedExecutionEvidence =>
+    resolveVerifiedExecutionEvidence(options, gitWorkspace, attempt);
 }

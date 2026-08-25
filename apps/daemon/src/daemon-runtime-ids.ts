@@ -22,6 +22,7 @@ export type DaemonRuntimeIdPurpose =
   | "phase-run"
   | "phase-run-room"
   | "asc-release-observation"
+  | "release-run"
   | "signal"
   | "signal-insight";
 

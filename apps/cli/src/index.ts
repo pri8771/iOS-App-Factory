@@ -25,6 +25,7 @@ import {
   ExternalEffectStateV1Schema,
   ExternalProviderV1Schema,
   GitBranchNameSchema,
+  GitObjectIdSchema,
   IsoInstantSchema,
   MAX_PROVIDER_MAX_OUTPUT_TOKENS_V1,
   MAX_ROOM_COOLDOWN_EVENTS_V1,
@@ -47,6 +48,7 @@ import {
   ProjectPlanProposeV1Schema,
   ProviderFamilyV1Schema,
   ProviderUpsertSpecV1Schema,
+  ReleaseRunIdSchema,
   RepositoryIdSchema,
   RoomCreateSpecV1Schema,
   RoomFlavorV1Schema,
@@ -64,6 +66,7 @@ import {
   type ExternalEffectStateV1,
   type ExternalProviderV1,
   type GitBranchName,
+  type GitObjectId,
   type PhaseId,
   type PhasePresetId,
   type PhaseRunId,
@@ -79,6 +82,8 @@ import {
   type ProjectPlanV1,
   type ProjectRegisterSourceV1,
   type ProviderUpsertSpecV1,
+  type ReleaseRunId,
+  type RepositoryId,
   type RoomCreateSpecV1,
   type RoomUpdateSpecV1,
   type Sha256Digest,
@@ -187,6 +192,15 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "release.observe"; buildsLimit: number }>
   | Readonly<{ kind: "release.projection" }>
   | Readonly<{
+      kind: "release.start";
+      projectId: ProjectId;
+      repositoryId: RepositoryId;
+      sourceCommit: GitObjectId;
+      branch: GitBranchName;
+    }>
+  | Readonly<{ kind: "release.promote"; releaseRunId: ReleaseRunId; expectedRevision: number }>
+  | Readonly<{ kind: "release.status"; releaseRunId: ReleaseRunId }>
+  | Readonly<{
       kind: "signal.create";
       name: string;
       watchDescription: string;
@@ -279,6 +293,27 @@ function parseRepositoryIdOption(value: string | undefined): string | null {
   if (value === undefined) return null;
   const parsed = RepositoryIdSchema.safeParse(value);
   if (!parsed.success) usageError("--repository must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
+function parseRepositoryId(value: string | undefined): RepositoryId {
+  if (value === undefined) usageError("--repository is required.");
+  const parsed = RepositoryIdSchema.safeParse(value);
+  if (!parsed.success) usageError("--repository must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
+function parseGitObjectId(option: string, value: string | undefined): GitObjectId {
+  if (value === undefined) usageError(`${option} is required.`);
+  const parsed = GitObjectIdSchema.safeParse(value);
+  if (!parsed.success) usageError(`${option} must be a full Git object ID (SHA-1 or SHA-256).`);
+  return parsed.data;
+}
+
+function parseReleaseRunId(value: string | undefined): ReleaseRunId {
+  if (value === undefined) usageError("A release run ID is required.");
+  const parsed = ReleaseRunIdSchema.safeParse(value);
+  if (!parsed.success) usageError("The release run ID must be a canonical lowercase UUID.");
   return parsed.data;
 }
 
@@ -797,6 +832,8 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
 
   // `release projection` reads the latest persisted App Store Connect observation; `release observe`
   // takes a fresh one (GET-only, through the daemon's composed observer; refused when unconfigured).
+  // `release start`/`promote`/`status` (Release Rail Wave 3) drive one `ReleaseRunV1` through
+  // certification and local promotion.
   if (command === "release") {
     const subcommand = arguments_.shift();
     if (subcommand === "projection") {
@@ -812,7 +849,39 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
           : parsePositiveInteger("--builds-limit", buildsLimitValue, 200);
       return { outputMode, retryIdentity, command: { kind: "release.observe", buildsLimit } };
     }
-    usageError("Release requires one of: projection, observe.");
+    if (subcommand === "start") {
+      const projectId = parseProjectId(consumeOption(arguments_, "--project"));
+      const repositoryId = parseRepositoryId(consumeOption(arguments_, "--repository"));
+      const sourceCommit = parseGitObjectId("--commit", consumeOption(arguments_, "--commit"));
+      const branchValue = consumeOption(arguments_, "--branch");
+      if (branchValue === undefined) usageError("--branch is required.");
+      const branch = parseBranchNameOption(branchValue);
+      if (branch === null) usageError("--branch must be a valid Git branch name.");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "release.start", projectId, repositoryId, sourceCommit, branch },
+      };
+    }
+    if (subcommand === "promote") {
+      const releaseRunId = parseReleaseRunId(arguments_.shift());
+      const expectedRevision = parseExpectedRevisionOption(
+        consumeOption(arguments_, "--expected-revision"),
+      );
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "release.promote", releaseRunId, expectedRevision },
+      };
+    }
+    if (subcommand === "status") {
+      const releaseRunId = parseReleaseRunId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "release.status", releaseRunId } };
+    }
+    usageError("Release requires one of: projection, observe, start, promote, status.");
   }
 
   // `signal create/list/pause/resume/run-now`: the first slice of the Signal -> Insight ->
@@ -2648,6 +2717,27 @@ export async function runCli(
         break;
       case "release.projection":
         result = await client.releaseProjection(identity);
+        break;
+      case "release.start":
+        result = await client.startRelease(
+          {
+            projectId: invocation.command.projectId,
+            repositoryId: invocation.command.repositoryId,
+            sourceCommit: invocation.command.sourceCommit,
+            branch: invocation.command.branch,
+          },
+          identity,
+        );
+        break;
+      case "release.promote":
+        result = await client.promoteRelease(
+          invocation.command.releaseRunId,
+          invocation.command.expectedRevision,
+          identity,
+        );
+        break;
+      case "release.status":
+        result = await client.releaseStatus(invocation.command.releaseRunId, identity);
         break;
       case "signal.create":
         result = await client.createSignal(

@@ -17,6 +17,7 @@ import {
   CommandResponseV1Schema,
   EffectListQueryV1Schema,
   GitBranchNameSchema,
+  GitObjectIdSchema,
   IsoInstantSchema,
   MirrorProjectionV1Schema,
   PhaseDefinitionUpsertV1Schema,
@@ -35,6 +36,8 @@ import {
   ProjectPlanProposeV1Schema,
   ProjectRegisterSourceV1Schema,
   ProviderUpsertSpecV1Schema,
+  ReleaseRunIdSchema,
+  RepositoryIdSchema,
   RequestIdSchema,
   RoomCreateSpecV1Schema,
   RoomHumanHandleSchema,
@@ -1122,6 +1125,67 @@ export class CommandClient {
       );
     }
     return result;
+  }
+
+  /**
+   * Release Rail Wave 3: certifies the repository's currently verified commit into a fresh
+   * `ReleaseRunV1` (the honest `candidate -> certified` subset). Always creates a run, even an
+   * uncertified one (`run.stage === "candidate"`, its failing checks recorded in `run.notes`).
+   */
+  public async startRelease(
+    input: Readonly<{
+      projectId: string;
+      repositoryId: string;
+      sourceCommit: string;
+      branch: string;
+    }>,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.start">> {
+    return await this.#request(
+      "release.start",
+      {
+        projectId: ProjectIdSchema.parse(input.projectId),
+        repositoryId: RepositoryIdSchema.parse(input.repositoryId),
+        sourceCommit: GitObjectIdSchema.parse(input.sourceCommit),
+        branch: GitBranchNameSchema.parse(input.branch),
+      },
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * Fast-forwards a certified release run's source commit onto its recorded branch in the real
+   * source repository (local-only: no network, no push). `expectedRevision` is the run's own CAS
+   * guard, from a prior `release.start`/`release.promote`/`release.status` result.
+   */
+  public async promoteRelease(
+    releaseRunId: string,
+    expectedRevision: number,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.promote">> {
+    return await this.#request(
+      "release.promote",
+      { releaseRunId: ReleaseRunIdSchema.parse(releaseRunId), expectedRevision },
+      identity,
+      signal,
+    );
+  }
+
+  /** Reads one release run's current durable state. */
+  public async releaseStatus(
+    releaseRunId: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.status">> {
+    return await this.#request(
+      "release.status",
+      { releaseRunId: ReleaseRunIdSchema.parse(releaseRunId) },
+      identity,
+      signal,
+    );
   }
 
   public async createSignal(

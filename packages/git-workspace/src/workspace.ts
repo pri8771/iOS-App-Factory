@@ -214,6 +214,30 @@ export type BrokerCommitExpectation = Readonly<{
 
 export type BrokerCommitMutationGuard = () => void;
 
+/**
+ * Release Rail Wave 3 (`promoteBrokerCommitToBranch`). Identifies where a verified broker commit
+ * should land: a real branch, already checked out, in the exact repository this mirror was
+ * enrolled from -- never an arbitrary path the caller names, and never a bare/remote push.
+ */
+export type PromoteBrokerCommitTargetV1 = Readonly<{
+  targetRepositoryPath: string;
+  branch: string;
+}>;
+
+/**
+ * What actually moved: returned by `promoteBrokerCommitToBranch`, and shaped so a daemon-side
+ * caller can narrow it directly onto `ReleaseRunV1.promotion` (`{ promotedCommit: toCommit, branch,
+ * at }`) while keeping `fromCommit`/`treeDigest` for its own evidence/notes.
+ */
+export type PromotedBrokerCommitV1 = Readonly<{
+  repositoryId: string;
+  attemptId: string;
+  fromCommit: string;
+  toCommit: string;
+  branch: string;
+  treeDigest: string;
+}>;
+
 export type GitWorkspaceManagerOptions = Readonly<{
   gitExecutable?: string;
   verificationCheckpoint?: (worktreePath: string) => void;
@@ -2294,6 +2318,178 @@ export class GitWorkspaceManager {
     const tip = chain[chain.length - 1];
     if (tip === undefined) throw new GitWorkspaceError("Immutable mirror binding chain is empty");
     return tip;
+  }
+
+  /**
+   * Release Rail Wave 3: fast-forwards a real branch in the source repository onto a verified
+   * broker commit from this mirror -- the automated form of the owner's proven by-hand recipe
+   * (`git fetch "$MIRROR" refs/app-factory/attempts/<id>:refs/factory/<label>` then
+   * `git merge --ff-only`). Local-only (release-rail architecture decision 4): no network, no
+   * credentials, no remote, no push. It NEVER force-updates a ref and NEVER creates a merge commit;
+   * a target that has diverged from the broker commit fails closed rather than being reconciled.
+   *
+   * `git-workspace` was, before this method, strictly one-directional (source -> Factory mirror
+   * only); this is the one new capability that writes back to the source repository, so every input
+   * is independently re-derived or re-verified rather than trusted from the caller. `expectation`
+   * names the commit by its attempt/base/tree/diff identity, never a bare SHA:
+   * `inspectBrokerCommit` re-derives the actual commit object from this mirror's own Git objects
+   * (ref lookup, parent-ancestry, tree, and header/message checks -- see `#readBrokerCommitOrNull`)
+   * before anything below trusts it as "toCommit". The target path is checked against the mirror's
+   * OWN sealed enrollment binding (`#readSealedRootBinding`) as well as its ownership marker, not
+   * merely against whatever path the caller happens to pass -- a mirror that was never enrolled
+   * through `prepareImmutableMirror` (no sealed binding on disk) cannot promote at all.
+   *
+   * Refuses -- fails closed with `GitWorkspaceError`, and never mutates the target -- when: the
+   * target path is not this mirror's own recorded source repository; the target path is not a real
+   * Git working tree rooted exactly there; `target.branch` is not the exact branch currently checked
+   * out (a detached HEAD refuses too); the target's working tree carries ANY uncommitted change
+   * (staged, unstaged, or untracked) or an in-progress merge; or the fast-forward itself is not
+   * possible (the target has diverged from, or shares no history with, the broker commit).
+   *
+   * Idempotent: if the target branch's HEAD already IS the broker commit, this returns the same
+   * record without touching the target again -- safe to retry after a crash or an already-completed
+   * promotion.
+   */
+  promoteBrokerCommitToBranch(
+    mirrorInput: FactoryMirror,
+    expectation: BrokerCommitExpectation,
+    target: PromoteBrokerCommitTargetV1,
+  ): PromotedBrokerCommitV1 {
+    const mirror = this.#validateMirror(mirrorInput);
+    const sealed = this.#readSealedRootBinding(mirror);
+    assertNormalizedAbsolute(target.targetRepositoryPath, "Target repository path");
+    if (
+      sealed.sourceRepositoryPath !== target.targetRepositoryPath ||
+      mirror.sourceRepositoryPath !== target.targetRepositoryPath
+    ) {
+      throw new GitWorkspaceError(
+        "Target repository is not this mirror's own recorded source repository",
+      );
+    }
+    this.#validateSource(mirror.runtimeRoot, target.targetRepositoryPath);
+    // Proves `expectation` names a genuine broker commit in THIS mirror; never trusts a
+    // caller-supplied SHA directly (see this method's own doc comment).
+    const broker = this.inspectBrokerCommit(mirror, expectation);
+    this.#git(mirror.runtimeRoot, ["check-ref-format", "--branch", target.branch]);
+
+    const status = this.#git(mirror.runtimeRoot, [
+      "-C",
+      target.targetRepositoryPath,
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=all",
+    ])
+      .stdout.toString("utf8")
+      .trim();
+    if (status.length > 0) {
+      throw new GitWorkspaceError(
+        "Target repository working tree is not clean; refusing to promote onto a dirty tree",
+      );
+    }
+    const mergeInProgress = this.#git(
+      mirror.runtimeRoot,
+      ["-C", target.targetRepositoryPath, "rev-parse", "--quiet", "--verify", "MERGE_HEAD"],
+      [0, 1],
+    );
+    if (mergeInProgress.status === 0) {
+      throw new GitWorkspaceError(
+        "Target repository has an in-progress merge; refusing to promote",
+      );
+    }
+
+    const currentBranch = this.#git(
+      mirror.runtimeRoot,
+      ["-C", target.targetRepositoryPath, "symbolic-ref", "--quiet", "--short", "HEAD"],
+      [0, 1],
+    );
+    if (currentBranch.status !== 0) {
+      throw new GitWorkspaceError("Target repository HEAD is detached; refusing to promote");
+    }
+    const checkedOutBranch = currentBranch.stdout.toString("utf8").trim();
+    if (checkedOutBranch !== target.branch) {
+      throw new GitWorkspaceError(
+        `Target repository has "${checkedOutBranch}" checked out, not the requested branch "${target.branch}"; refusing to promote`,
+      );
+    }
+
+    const fromCommit = this.#resolveCommit(
+      mirror.runtimeRoot,
+      target.targetRepositoryPath,
+      "HEAD",
+      "Target branch HEAD",
+    );
+    if (fromCommit === broker.commitSha) {
+      return {
+        repositoryId: mirror.repositoryId,
+        attemptId: expectation.attemptId,
+        fromCommit,
+        toCommit: fromCommit,
+        branch: target.branch,
+        treeDigest: broker.candidateTreeId,
+      };
+    }
+
+    // Mirrors the owner's proven by-hand recipe exactly: fetch the broker ref, by name, straight
+    // out of the mirror into a Factory-owned local ref -- `git fetch` cannot take a bare SHA.
+    const localRefName = `refs/app-factory/promotions/${expectation.attemptId}`;
+    this.#git(mirror.runtimeRoot, [
+      "-C",
+      target.targetRepositoryPath,
+      "fetch",
+      "--no-tags",
+      "--",
+      mirror.mirrorPath,
+      `+${broker.refName}:${localRefName}`,
+    ]);
+    const fetchedSha = this.#resolveCommit(
+      mirror.runtimeRoot,
+      target.targetRepositoryPath,
+      localRefName,
+      "Fetched broker commit",
+    );
+    if (fetchedSha !== broker.commitSha) {
+      throw new GitWorkspaceError(
+        "Fetched broker commit does not match this mirror's own broker commit",
+      );
+    }
+
+    const merge = this.#git(
+      mirror.runtimeRoot,
+      ["-C", target.targetRepositoryPath, "merge", "--ff-only", localRefName],
+      [0, 1, 128],
+    );
+    if (merge.status !== 0) {
+      const detail = merge.stderr.toString("utf8").trim().slice(0, 2_000);
+      throw new GitWorkspaceError(
+        `Target branch "${target.branch}" cannot be fast-forwarded to the verified broker commit ${broker.commitSha}: target has diverged or shares no history with it${detail.length > 0 ? ` (${detail})` : ""}`,
+      );
+    }
+
+    const toCommit = this.#resolveCommit(
+      mirror.runtimeRoot,
+      target.targetRepositoryPath,
+      "HEAD",
+      "Target branch HEAD",
+    );
+    if (toCommit === fromCommit) {
+      throw new GitWorkspaceError(
+        `Target branch "${target.branch}" already contains the verified broker commit ${broker.commitSha} in its history, but its HEAD (${fromCommit}) is not exactly that commit; refusing to promote`,
+      );
+    }
+    if (toCommit !== broker.commitSha) {
+      throw new GitWorkspaceError(
+        "Promotion completed but the target branch does not point at the verified broker commit",
+      );
+    }
+
+    return {
+      repositoryId: mirror.repositoryId,
+      attemptId: expectation.attemptId,
+      fromCommit,
+      toCommit,
+      branch: target.branch,
+      treeDigest: broker.candidateTreeId,
+    };
   }
 
   createTrustedVerificationCheckout(

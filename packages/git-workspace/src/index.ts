@@ -25,4 +25,6 @@ export {
   type ImmutableMirrorBinding,
   type ImmutableMirrorBindingTip,
   type PrepareImmutableMirrorInput,
+  type PromoteBrokerCommitTargetV1,
+  type PromotedBrokerCommitV1,
 } from "./workspace.js";

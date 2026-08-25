@@ -35,6 +35,7 @@ import {
   type CommandRequestV1,
   type CommandResultV1,
   type EffectPumpStatusV1,
+  type ExecutionAttemptV1,
   type IsoInstant,
   type PolicyLockV1,
   type PortfolioProjectReadModelV1,
@@ -64,6 +65,7 @@ import {
   type FactoryRepositories,
 } from "@app-factory/kernel";
 import { verifyCanonicalObservationAttestation } from "@app-factory/effect-worker";
+import type { VerifiedExecutionEvidence } from "@app-factory/execution-engine";
 import { GitWorkspaceManager } from "@app-factory/git-workspace";
 import { EvidenceStore } from "@app-factory/evidence-store";
 import { decideTaskPolicyBinding } from "@app-factory/policy-engine";
@@ -132,9 +134,18 @@ import {
   tickProjectPlanV1,
   type ProjectPlanExecutionDependencies,
 } from "./project-plan-command-runtime.js";
-import { createEvidenceBrokerCommitResolverV1 } from "./project-plan-broker-commit-resolver.js";
+import {
+  createEvidenceBrokerCommitResolverV1,
+  createVerifiedExecutionEvidenceResolverV1,
+} from "./project-plan-broker-commit-resolver.js";
 import { createRegistryBackedProjectPlanMirrorPortV1 } from "./project-plan-mirror-port.js";
 import { executeProjectSeedCommand } from "./project-seed-command-runtime.js";
+import {
+  buildReleaseStatusResultV1,
+  executeReleasePromoteCommand,
+  executeReleaseStartCommand,
+  type ReleaseRunRuntimeDependencies,
+} from "./release-run-runtime.js";
 import {
   buildAssistantIntentDispatchRequestV1,
   buildStudioSnapshotV1,
@@ -198,6 +209,8 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "room.post",
   "room.update",
   "release.observe",
+  "release.start",
+  "release.promote",
   "signal.create",
   "signal.pause",
   "signal.resume",
@@ -431,6 +444,15 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * with no extra configuration.
    */
   planExecution?: ProjectPlanExecutionDependencies;
+  /**
+   * Release Rail Wave 3 (`release.start`/`release.promote`): resolves a succeeded attempt's full
+   * re-verified execution-evidence closure (broker commit AND trusted-test claims). Default: the
+   * same fail-closed re-verification `planExecution.resolveBrokerCommit` uses
+   * (`createVerifiedExecutionEvidenceResolverV1`), widened to also return the trusted-test claims
+   * `release.start` needs for `@app-factory/quality`'s `certifyCandidateSubsetV1`. Test seam:
+   * override to avoid needing a full real execution-evidence-index closure in unit tests.
+   */
+  resolveVerifiedExecutionEvidence?: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
   /**
    * Idempotently self-registers the single project the configured local execution profile prepared
    * a Factory mirror for into the Project Registry at every daemon start (Seam (a) of the
@@ -1682,6 +1704,25 @@ function upsertProjectMilestone(
   }
 }
 
+/** Assembles `release-run-runtime.ts`'s dependency bundle from pieces `executeRequest` already has. */
+function buildReleaseRunRuntimeDependencies(
+  repositories: FactoryRepositories,
+  dependencies: Readonly<{
+    evidenceStore: EvidenceStore;
+    runExportMirrors: RunExportMirrorPort;
+    resolveVerifiedExecutionEvidence: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
+    idFactory: DaemonRuntimeIdFactory;
+  }>,
+): ReleaseRunRuntimeDependencies {
+  return {
+    repositories,
+    mirrors: dependencies.runExportMirrors,
+    evidenceStore: dependencies.evidenceStore,
+    resolveVerifiedExecutionEvidence: dependencies.resolveVerifiedExecutionEvidence,
+    idFactory: dependencies.idFactory,
+  };
+}
+
 async function executeRequest(
   repositories: FactoryRepositories,
   database: ReturnType<typeof openMigratedFactoryDatabase>,
@@ -1710,6 +1751,7 @@ async function executeRequest(
     projectRegistryGitWorkspace: GitWorkspaceManager;
     gitRuntimeRoot: string;
     releaseObserver: ReleaseObserverPort;
+    resolveVerifiedExecutionEvidence: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1931,19 +1973,31 @@ async function executeRequest(
     case "room.update":
     case "room.participants.list":
       return executeRoomCommand(request, dependencies);
-    // `release.start`/`release.promote`/`release.archive`/`release.upload`/`release.submit`/
-    // `release.status`: recognized by the wire protocol (Release Rail Wave 1,
-    // `packages/contracts/src/v1/command-protocol.ts`) as of this contracts-only wave, but no
-    // daemon-side handler exists yet -- that lands in later waves (promotion W3, archive/sign W4,
-    // upload/confirm W5, submit W7). Kept exhaustive, and honest about "recognized but not yet
-    // implemented" rather than falling through to `protocol.unsupported-operation`, which would
-    // incorrectly claim the operation is unknown.
+    // `release.start`/`release.promote`/`release.status`: Release Rail Wave 3 (promotion). See
+    // `release-run-runtime.ts`'s module doc comment for why both mutating ops run inside this same
+    // serial executor rather than on the `release.observe`-style bypass.
     case "release.start":
+      return executeReleaseStartCommand(
+        buildReleaseRunRuntimeDependencies(repositories, dependencies),
+        request,
+        dependencies.observedAt,
+      );
     case "release.promote":
+      return executeReleasePromoteCommand(
+        buildReleaseRunRuntimeDependencies(repositories, dependencies),
+        request,
+        dependencies.observedAt,
+      );
+    case "release.status":
+      return buildReleaseStatusResultV1(repositories, request);
+    // `release.archive`/`release.upload`/`release.submit`: recognized by the wire protocol (Release
+    // Rail Wave 1, `packages/contracts/src/v1/command-protocol.ts`), but no daemon-side handler
+    // exists yet -- that lands in later waves (archive/sign W4, upload/confirm W5, submit W7). Kept
+    // exhaustive, and honest about "recognized but not yet implemented" rather than falling through
+    // to `protocol.unsupported-operation`, which would incorrectly claim the operation is unknown.
     case "release.archive":
     case "release.upload":
     case "release.submit":
-    case "release.status":
       throw new CommandHandlerError(
         "command.operation-not-yet-implemented",
         `"${request.operation}" is recognized by the wire protocol but not yet implemented by this daemon build.`,
@@ -2253,6 +2307,14 @@ export async function openDaemonCommandRuntime(
     }),
     policyDigest: options.planPolicyDigest ?? Sha256DigestSchema.parse(`sha256:${"0".repeat(64)}`),
   };
+  const resolveVerifiedExecutionEvidence =
+    options.resolveVerifiedExecutionEvidence ??
+    createVerifiedExecutionEvidenceResolverV1({
+      repositories,
+      evidenceStore,
+      gitRuntimeRoot,
+      ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
+    });
   const phaseGitPortOptions = {
     gitRuntimeRoot,
     projectRegistry: repositories.projectRegistry,
@@ -2580,6 +2642,7 @@ export async function openDaemonCommandRuntime(
           projectRegistryGitWorkspace,
           gitRuntimeRoot,
           releaseObserver,
+          resolveVerifiedExecutionEvidence,
         }),
       );
       // A human post is the moderator's cue; the wake happens after the

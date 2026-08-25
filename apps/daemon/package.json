@@ -34,6 +34,7 @@
     "@app-factory/project-sdk": "workspace:*",
     "@app-factory/provider-http-adapters": "workspace:*",
     "@app-factory/provider-transport": "workspace:*",
+    "@app-factory/quality": "workspace:*",
     "@app-factory/scheduler": "workspace:*",
     "@app-factory/studio-room-adapters": "workspace:*",
     "@app-factory/studio-rooms": "workspace:*",
