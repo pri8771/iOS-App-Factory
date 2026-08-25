@@ -1021,6 +1021,85 @@ describe("typed command client", () => {
     client.close();
   });
 
+  it("sends the strict release.archive payload with exportOptions.schemaVersion filled in", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: true,
+            result: {
+              operation: "release.archive",
+              run: fixtureReleaseRun({
+                revision: 2,
+                stage: "archived",
+                promotion: {
+                  promotedCommit: "a".repeat(40),
+                  branch: "main",
+                  at: NOW.toISOString(),
+                },
+                archive: {
+                  buildNumber: "1",
+                  marketingVersion: "1.0",
+                  archiveDigest: `sha256:${"1".repeat(64)}`,
+                  exportedArtifactDigest: `sha256:${"2".repeat(64)}`,
+                  receiptDigest: `sha256:${"3".repeat(64)}`,
+                  at: NOW.toISOString(),
+                },
+              }),
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.archiveRelease(
+        {
+          releaseRunId: "00000000-0000-4000-8000-000000000070",
+          expectedRevision: 1,
+          exportOptions: {
+            teamId: "ABCD123456",
+            method: "app-store-connect",
+            destination: "export",
+            signingStyle: "automatic",
+            bundleIdOverride: "com.example.app",
+          },
+          marketingVersion: "1.0",
+        },
+        identity(),
+      ),
+    ).resolves.toMatchObject({ operation: "release.archive", run: { stage: "archived" } });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "release.archive",
+        payload: {
+          releaseRunId: "00000000-0000-4000-8000-000000000070",
+          expectedRevision: 1,
+          exportOptions: {
+            schemaVersion: 1,
+            teamId: "ABCD123456",
+            method: "app-store-connect",
+            destination: "export",
+            signingStyle: "automatic",
+            bundleIdOverride: "com.example.app",
+          },
+          marketingVersion: "1.0",
+        },
+      },
+    });
+    client.close();
+  });
+
   it("asks the assistant with a strict scoped query payload", async () => {
     const received: Record<string, unknown>[] = [];
     const socketPath = await createFakeServer(

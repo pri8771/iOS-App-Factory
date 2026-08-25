@@ -676,6 +676,17 @@ export const ReleaseArchiveCommandRequestV1Schema = z.strictObject({
     releaseRunId: ReleaseRunIdSchema,
     expectedRevision: PositiveSafeIntegerSchema,
     exportOptions: ReleaseExportOptionsConfigV1Schema,
+    /**
+     * Wave 4: the exact marketing version (`MARKETING_VERSION`) baked into the archive as a build
+     * setting -- see `ReleaseRunArchiveV1Schema.marketingVersion` (release-run.ts), whose shape this
+     * mirrors. Wave 1 did not anticipate a payload field for it (the archive/upload/submit payloads
+     * were provisional, "later waves own" placeholders per this schema's own module doc comment);
+     * Wave 4 is the first to give `release.archive` a real handler, so it adds the one field that
+     * handler genuinely needs. `exportOptions.bundleIdOverride` (non-null, required by the Wave 4
+     * handler though left nullable here for exportOptions' own general shape) supplies the bundle ID
+     * the same call allocates a build number for -- see `release-archive-runtime.ts`.
+     */
+    marketingVersion: z.string().min(1).max(100),
   }),
 });
 

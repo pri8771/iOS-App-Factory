@@ -180,6 +180,8 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   phaseProviderCatalog?: OpenDaemonCommandRuntimeOptions["phaseProviderCatalog"];
   /** Default inert: see `OpenDaemonCommandRuntimeOptions.releaseObserver`. */
   releaseObserver?: OpenDaemonCommandRuntimeOptions["releaseObserver"];
+  /** Default inert: see `OpenDaemonCommandRuntimeOptions.releaseArchiver` (Release Rail Wave 4). */
+  releaseArchiver?: OpenDaemonCommandRuntimeOptions["releaseArchiver"];
   /**
    * Default OFF: omit to keep `provider.*` degraded (Architecture decisions 2-3). When set, builds
    * the real `ProviderRegistryPort` (`provider-command-runtime.ts`) over the SAME participants
@@ -739,6 +741,9 @@ export async function startFactoryDaemonService(
       ...(options.releaseObserver === undefined
         ? {}
         : { releaseObserver: options.releaseObserver }),
+      ...(options.releaseArchiver === undefined
+        ? {}
+        : { releaseArchiver: options.releaseArchiver }),
       initializeDatabase: (database) => {
         const plannerResolver =
           options.plannerExecution === undefined || plannerPolicy === null

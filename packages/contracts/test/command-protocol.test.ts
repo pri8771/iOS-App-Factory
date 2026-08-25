@@ -150,10 +150,11 @@ describe("command protocol V1", () => {
           schemaVersion: 1,
           teamId: "796XH483R4",
           method: "app-store-connect",
-          destination: "upload",
+          destination: "export",
           signingStyle: "automatic",
-          bundleIdOverride: null,
+          bundleIdOverride: "com.example.app",
         },
+        marketingVersion: "1.0",
       },
     ],
     [

@@ -147,6 +147,15 @@ import {
   type ReleaseRunRuntimeDependencies,
 } from "./release-run-runtime.js";
 import {
+  completeReleaseArchive,
+  prepareReleaseArchive,
+  recordReleaseArchiveFailure,
+  INERT_RELEASE_ARCHIVER_PORT,
+  type ReleaseArchiveOutcomeV1,
+  type ReleaseArchiveRuntimeDependencies,
+  type ReleaseArchiverPort,
+} from "./release-archive-runtime.js";
+import {
   buildAssistantIntentDispatchRequestV1,
   buildStudioSnapshotV1,
   computeAssistantAnswerV1,
@@ -211,6 +220,7 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "release.observe",
   "release.start",
   "release.promote",
+  "release.archive",
   "signal.create",
   "signal.pause",
   "signal.resume",
@@ -487,6 +497,12 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * `release.observer-not-configured`; `release.projection` still serves persisted observations.
    */
   releaseObserver?: ReleaseObserverPort;
+  /**
+   * Release Rail Wave 4: the `process-supervisor`-backed archiver `release.archive` runs the actual
+   * `xcodegen`/`xcodebuild` work through, opt-in by `APP_FACTORY_RELEASE_CONFIG`. Defaults to the
+   * inert port: `release.archive` refuses with `release.archiver-not-configured`.
+   */
+  releaseArchiver?: ReleaseArchiverPort;
   /**
    * The reviewed policy digest `plan.execute`/`plan.tick` stamp on every task they submit when no
    * explicit `planExecution` is supplied. Planner execution (`planner-project-execution.ts`) sets it
@@ -1723,6 +1739,24 @@ function buildReleaseRunRuntimeDependencies(
   };
 }
 
+/** Assembles `release-archive-runtime.ts`'s dependency bundle -- Wave 4's own narrower analogue of
+ *  `buildReleaseRunRuntimeDependencies` (no `evidenceStore`/`idFactory`: `release.archive` mints no
+ *  new IDs and re-verifies evidence only through `resolveVerifiedExecutionEvidence`, never reading
+ *  the evidence manifest directly the way `release.start` does). */
+function buildReleaseArchiveRuntimeDependencies(
+  repositories: FactoryRepositories,
+  dependencies: Readonly<{
+    runExportMirrors: RunExportMirrorPort;
+    resolveVerifiedExecutionEvidence: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
+  }>,
+): ReleaseArchiveRuntimeDependencies {
+  return {
+    repositories,
+    mirrors: dependencies.runExportMirrors,
+    resolveVerifiedExecutionEvidence: dependencies.resolveVerifiedExecutionEvidence,
+  };
+}
+
 async function executeRequest(
   repositories: FactoryRepositories,
   database: ReturnType<typeof openMigratedFactoryDatabase>,
@@ -1990,12 +2024,11 @@ async function executeRequest(
       );
     case "release.status":
       return buildReleaseStatusResultV1(repositories, request);
-    // `release.archive`/`release.upload`/`release.submit`: recognized by the wire protocol (Release
-    // Rail Wave 1, `packages/contracts/src/v1/command-protocol.ts`), but no daemon-side handler
-    // exists yet -- that lands in later waves (archive/sign W4, upload/confirm W5, submit W7). Kept
-    // exhaustive, and honest about "recognized but not yet implemented" rather than falling through
-    // to `protocol.unsupported-operation`, which would incorrectly claim the operation is unknown.
-    case "release.archive":
+    // `release.upload`/`release.submit`: recognized by the wire protocol (Release Rail Wave 1,
+    // `packages/contracts/src/v1/command-protocol.ts`), but no daemon-side handler exists yet --
+    // that lands in later waves (upload/confirm W5, submit W7). Kept exhaustive, and honest about
+    // "recognized but not yet implemented" rather than falling through to
+    // `protocol.unsupported-operation`, which would incorrectly claim the operation is unknown.
     case "release.upload":
     case "release.submit":
       throw new CommandHandlerError(
@@ -2010,6 +2043,16 @@ async function executeRequest(
       throw new CommandHandlerError(
         "release.observe-misrouted",
         "release.observe is handled by the command runtime's observe path, not by executeRequest.",
+        false,
+      );
+    case "release.archive":
+      // Never reached: `release.archive`'s actual `xcodebuild` work runs OUTSIDE the serial
+      // executor and persists its own result (see `openDaemonCommandRuntime`'s `archiveRelease`),
+      // mirroring `release.observe` exactly (a minutes-long round trip must not stall every other
+      // command). Kept exhaustive so a future dispatch here is a deliberate decision, not an accident.
+      throw new CommandHandlerError(
+        "release.archive-misrouted",
+        "release.archive is handled by the command runtime's archive path, not by executeRequest.",
         false,
       );
     case "release.projection":
@@ -2394,6 +2437,7 @@ export async function openDaemonCommandRuntime(
     providerCatalog: phaseProviderCatalog,
   };
   const releaseObserver = options.releaseObserver ?? INERT_RELEASE_OBSERVER_PORT;
+  const releaseArchiver = options.releaseArchiver ?? INERT_RELEASE_ARCHIVER_PORT;
   const serial = new SerialExecutor();
   let closed = false;
 
@@ -2452,6 +2496,101 @@ export async function openDaemonCommandRuntime(
         operation: "release.observe",
         observation: recorded.observation,
       });
+      try {
+        await options.commandResultLedgerBoundary?.({ request, result });
+        const persisted = await persistLedgerEntry(paths, {
+          ledgerVersion: RESULT_LEDGER_VERSION,
+          request,
+          result,
+        });
+        assertMatchingRequest(persisted.request, request);
+        return persisted.result;
+      } catch {
+        throw new CommandHandlerError(
+          "command.result-persistence-ambiguous",
+          "The command may have completed, but its durable result could not be confirmed. Retry with the same command ID and issuedAt.",
+          true,
+        );
+      }
+    });
+  };
+
+  /**
+   * `release.archive` (Release Rail Wave 4): the actual `xcodebuild` work is a real, minutes-long
+   * subprocess and runs OUTSIDE the serial executor -- see `release-archive-runtime.ts`'s module doc
+   * comment for why this mirrors `release.observe` exactly (a slow round trip must not stall every
+   * other command) even though the round trip here is local, not a network call. Three phases:
+   * `prepareReleaseArchive` (fast, inside serial: CAS/stage check, re-verify promotion, allocate the
+   * build number), `releaseArchiver.archive` (slow, outside serial: xcodegen/xcodebuild), then
+   * `completeReleaseArchive`/`recordReleaseArchiveFailure` (inside serial again: persist the outcome
+   * -- a FAILURE still writes a durable revision carrying the captured failure detail, never a
+   * thrown-away error message; the plan's own risk note is exactly the hours a discarded failing
+   * check cost on 2026-08-21). A configured-but-idle daemon refuses before doing ANY work (no wasted
+   * build-number allocation) when no `APP_FACTORY_RELEASE_CONFIG` archiver is composed.
+   */
+  const archiveRelease = async (
+    request: Extract<CommandRequestV1, { operation: "release.archive" }>,
+  ): Promise<CommandResultV1> => {
+    if (!releaseArchiver.configured) {
+      throw new CommandHandlerError(
+        "release.archiver-not-configured",
+        "release.archive requires APP_FACTORY_RELEASE_CONFIG to be configured on this daemon build.",
+        false,
+      );
+    }
+    const original = await serial.run(async () => {
+      if (closed) throw closedError();
+      const entry = await readLedgerEntry(paths, request.commandId);
+      if (entry !== null) assertMatchingRequest(entry.request, request);
+      return entry;
+    });
+    if (original !== null) return original.result;
+
+    const observedAt = IsoInstantSchema.parse(now());
+    assertPlausibleClientTimestamps(request, observedAt);
+    const archiveDependencies = buildReleaseArchiveRuntimeDependencies(repositories, {
+      runExportMirrors,
+      resolveVerifiedExecutionEvidence,
+    });
+    const preparation = await serial.run(async () => {
+      if (closed) throw closedError();
+      return prepareReleaseArchive(archiveDependencies, request, observedAt);
+    });
+
+    let outcome: ReleaseArchiveOutcomeV1;
+    try {
+      outcome = await releaseArchiver.archive(
+        preparation.stepInput,
+        AbortSignal.timeout(60 * 60 * 1_000),
+      );
+    } catch (error) {
+      // `ReleaseArchiveStepFailedError` (a specific xcodegen/xcodebuild step's outcome, with a
+      // bounded stderr tail already formatted into its message) and any other `Error` this port can
+      // throw (a misconfigured exportOptions allowlist mismatch, a supervised-run blocker, ...) are
+      // handled identically here: both already carry a clear, complete diagnostic in `.message`.
+      const detail = error instanceof Error ? error.message : String(error);
+      const completedAt = IsoInstantSchema.parse(now());
+      await serial.run(async () => {
+        if (closed) throw closedError();
+        recordReleaseArchiveFailure(archiveDependencies, preparation, detail, completedAt);
+      });
+      throw new CommandHandlerError(
+        "release.archive-failed",
+        `release.archive failed: ${detail}`,
+        true,
+      );
+    }
+
+    return await serial.run(async () => {
+      if (closed) throw closedError();
+      const raced = await readLedgerEntry(paths, request.commandId);
+      if (raced !== null) {
+        assertMatchingRequest(raced.request, request);
+        return raced.result;
+      }
+      const completedAt = IsoInstantSchema.parse(now());
+      const run = completeReleaseArchive(archiveDependencies, preparation, outcome, completedAt);
+      const result = CommandResultV1Schema.parse({ operation: "release.archive", run });
       try {
         await options.commandResultLedgerBoundary?.({ request, result });
         const persisted = await persistLedgerEntry(paths, {
@@ -2601,6 +2740,7 @@ export async function openDaemonCommandRuntime(
     if (closed) throw closedError();
     const request = CommandRequestV1Schema.parse(requestInput);
     if (request.operation === "release.observe") return await observeRelease(request);
+    if (request.operation === "release.archive") return await archiveRelease(request);
     if (request.operation === "signal.run-now") return await runSignalNow(request);
     if (request.operation === "provider.credential.set")
       return await setProviderCredential(request);

@@ -3745,6 +3745,89 @@ describe("CLI argument parser: release", () => {
   it("rejects an unknown release subcommand", () => {
     expect(() => parseCliArguments(["release", "cancel"])).toThrow(CliUsageError);
   });
+
+  it("parses release archive", () => {
+    expect(
+      parseCliArguments([
+        "release",
+        "archive",
+        RELEASE_RUN_ID,
+        "--expected-revision",
+        "1",
+        "--team-id",
+        "ABCD123456",
+        "--bundle-id",
+        "com.example.app",
+        "--marketing-version",
+        "1.0",
+      ]),
+    ).toEqual({
+      outputMode: "human",
+      retryIdentity: null,
+      command: {
+        kind: "release.archive",
+        releaseRunId: RELEASE_RUN_ID,
+        expectedRevision: 1,
+        teamId: "ABCD123456",
+        bundleId: "com.example.app",
+        marketingVersion: "1.0",
+        timeoutSeconds: 1_800,
+      },
+    });
+  });
+
+  it("parses release archive with an explicit --timeout-seconds", () => {
+    const parsed = parseCliArguments([
+      "release",
+      "archive",
+      RELEASE_RUN_ID,
+      "--expected-revision",
+      "1",
+      "--team-id",
+      "ABCD123456",
+      "--bundle-id",
+      "com.example.app",
+      "--marketing-version",
+      "1.0",
+      "--timeout-seconds",
+      "60",
+    ]);
+    expect(parsed.command).toMatchObject({ timeoutSeconds: 60 });
+  });
+
+  it("rejects release archive with a malformed --team-id", () => {
+    expect(() =>
+      parseCliArguments([
+        "release",
+        "archive",
+        RELEASE_RUN_ID,
+        "--expected-revision",
+        "1",
+        "--team-id",
+        "not-a-team-id",
+        "--bundle-id",
+        "com.example.app",
+        "--marketing-version",
+        "1.0",
+      ]),
+    ).toThrow(CliUsageError);
+  });
+
+  it("rejects release archive missing --marketing-version", () => {
+    expect(() =>
+      parseCliArguments([
+        "release",
+        "archive",
+        RELEASE_RUN_ID,
+        "--expected-revision",
+        "1",
+        "--team-id",
+        "ABCD123456",
+        "--bundle-id",
+        "com.example.app",
+      ]),
+    ).toThrow(CliUsageError);
+  });
 });
 
 describe("runCli release", () => {
@@ -3872,5 +3955,100 @@ describe("runCli release", () => {
 
     expect(exitCode).not.toBe(0);
     expect(captured().stderr).toContain("release-run.revision-conflict");
+  });
+
+  it("archives a release from --team-id/--bundle-id/--marketing-version", async () => {
+    let receivedPayload: unknown;
+    const socketPath = await startFakeDaemon((operation, _requestId, request) => {
+      if (operation !== "release.archive") throw new Error(`Unexpected operation: ${operation}`);
+      receivedPayload = request?.payload;
+      return {
+        result: {
+          operation: "release.archive",
+          run: fixtureRun({
+            revision: 2,
+            stage: "archived",
+            promotion: { promotedCommit: SOURCE_COMMIT, branch: "main", at: NOW },
+            archive: {
+              buildNumber: "1",
+              marketingVersion: "1.0",
+              archiveDigest: `sha256:${"1".repeat(64)}`,
+              exportedArtifactDigest: `sha256:${"2".repeat(64)}`,
+              receiptDigest: `sha256:${"3".repeat(64)}`,
+              at: NOW,
+            },
+          }),
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      [
+        "release",
+        "archive",
+        fixtureRun().releaseRunId,
+        "--expected-revision",
+        "1",
+        "--team-id",
+        "ABCD123456",
+        "--bundle-id",
+        "com.example.app",
+        "--marketing-version",
+        "1.0",
+      ],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(receivedPayload).toMatchObject({
+      releaseRunId: fixtureRun().releaseRunId,
+      expectedRevision: 1,
+      exportOptions: {
+        teamId: "ABCD123456",
+        method: "app-store-connect",
+        destination: "export",
+        signingStyle: "automatic",
+        bundleIdOverride: "com.example.app",
+      },
+      marketingVersion: "1.0",
+    });
+    expect(captured().stdout).toContain("archived");
+  });
+
+  it("surfaces an unconfigured archiver from release.archive as a non-zero exit", async () => {
+    const socketPath = await startFakeDaemon((operation) => {
+      if (operation !== "release.archive") throw new Error(`Unexpected operation: ${operation}`);
+      return {
+        error: {
+          code: "release.archiver-not-configured",
+          message: "release.archive requires APP_FACTORY_RELEASE_CONFIG.",
+          retryable: false,
+        },
+      };
+    });
+
+    const { io, captured } = fakeIo();
+    const exitCode = await runCli(
+      [
+        "release",
+        "archive",
+        fixtureRun().releaseRunId,
+        "--expected-revision",
+        "1",
+        "--team-id",
+        "ABCD123456",
+        "--bundle-id",
+        "com.example.app",
+        "--marketing-version",
+        "1.0",
+      ],
+      { APP_FACTORY_SOCKET: socketPath, APP_FACTORY_AUTH_TOKEN: AUTHORIZATION },
+      io,
+    );
+
+    expect(exitCode).not.toBe(0);
+    expect(captured().stderr).toContain("release.archiver-not-configured");
   });
 });

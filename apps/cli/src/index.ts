@@ -201,6 +201,15 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "release.promote"; releaseRunId: ReleaseRunId; expectedRevision: number }>
   | Readonly<{ kind: "release.status"; releaseRunId: ReleaseRunId }>
   | Readonly<{
+      kind: "release.archive";
+      releaseRunId: ReleaseRunId;
+      expectedRevision: number;
+      teamId: string;
+      bundleId: string;
+      marketingVersion: string;
+      timeoutSeconds: number;
+    }>
+  | Readonly<{
       kind: "signal.create";
       name: string;
       watchDescription: string;
@@ -881,7 +890,46 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
       rejectUnexpected(arguments_);
       return { outputMode, retryIdentity, command: { kind: "release.status", releaseRunId } };
     }
-    usageError("Release requires one of: projection, observe, start, promote, status.");
+    if (subcommand === "archive") {
+      const releaseRunId = parseReleaseRunId(arguments_.shift());
+      const expectedRevision = parseExpectedRevisionOption(
+        consumeOption(arguments_, "--expected-revision"),
+      );
+      const teamId = consumeOption(arguments_, "--team-id");
+      if (teamId === undefined || !/^[A-Z0-9]{10}$/.test(teamId)) {
+        usageError("--team-id is required and must be a 10-character Apple Developer Team ID.");
+      }
+      const bundleId = consumeOption(arguments_, "--bundle-id");
+      if (bundleId === undefined || bundleId.length < 3) {
+        usageError(
+          "--bundle-id is required (the reverse-DNS bundle ID this archive is built for).",
+        );
+      }
+      const marketingVersion = consumeOption(arguments_, "--marketing-version");
+      if (marketingVersion === undefined || marketingVersion.length === 0) {
+        usageError("--marketing-version is required, e.g. 1.0.");
+      }
+      const timeoutSecondsValue = consumeOption(arguments_, "--timeout-seconds");
+      const timeoutSeconds =
+        timeoutSecondsValue === undefined
+          ? 1_800
+          : parsePositiveInteger("--timeout-seconds", timeoutSecondsValue, 86_400);
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "release.archive",
+          releaseRunId,
+          expectedRevision,
+          teamId,
+          bundleId,
+          marketingVersion,
+          timeoutSeconds,
+        },
+      };
+    }
+    usageError("Release requires one of: projection, observe, start, promote, archive, status.");
   }
 
   // `signal create/list/pause/resume/run-now`: the first slice of the Signal -> Insight ->
@@ -2457,7 +2505,17 @@ export async function runCli(
     return 2;
   }
 
-  const client = createCommandClient({ socketPath, authorization, origin: "cli" });
+  // `release archive` runs a real, minutes-long local xcodebuild chain on the daemon side (Release
+  // Rail Wave 4); every other command keeps the client's default 30s transport timeout, but this one
+  // needs its own generous, operator-controlled ceiling (`--timeout-seconds`, default 30 minutes).
+  const client = createCommandClient({
+    socketPath,
+    authorization,
+    origin: "cli",
+    ...(invocation.command.kind === "release.archive"
+      ? { timeoutMs: invocation.command.timeoutSeconds * 1_000 }
+      : {}),
+  });
   const identity =
     invocation.retryIdentity === null
       ? client.createIdentity()
@@ -2738,6 +2796,23 @@ export async function runCli(
         break;
       case "release.status":
         result = await client.releaseStatus(invocation.command.releaseRunId, identity);
+        break;
+      case "release.archive":
+        result = await client.archiveRelease(
+          {
+            releaseRunId: invocation.command.releaseRunId,
+            expectedRevision: invocation.command.expectedRevision,
+            exportOptions: {
+              teamId: invocation.command.teamId,
+              method: "app-store-connect",
+              destination: "export",
+              signingStyle: "automatic",
+              bundleIdOverride: invocation.command.bundleId,
+            },
+            marketingVersion: invocation.command.marketingVersion,
+          },
+          identity,
+        );
         break;
       case "signal.create":
         result = await client.createSignal(

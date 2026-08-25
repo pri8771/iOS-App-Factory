@@ -36,6 +36,7 @@ import {
   ProjectPlanProposeV1Schema,
   ProjectRegisterSourceV1Schema,
   ProviderUpsertSpecV1Schema,
+  ReleaseExportOptionsConfigV1Schema,
   ReleaseRunIdSchema,
   RepositoryIdSchema,
   RequestIdSchema,
@@ -1183,6 +1184,47 @@ export class CommandClient {
     return await this.#request(
       "release.status",
       { releaseRunId: ReleaseRunIdSchema.parse(releaseRunId) },
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * Release Rail Wave 4: allocates a build number and archives + exports a certified release run
+   * through the daemon's `process-supervisor`-backed archiver (`xcodegen generate` ->
+   * `xcodebuild archive` -> `xcodebuild -exportArchive`), advancing `certified -> archived`. This is
+   * a real, minutes-long local subprocess chain -- callers that construct their OWN `CommandClient`
+   * (rather than going through the CLI, which does this for `release archive` automatically) should
+   * pass a `timeoutMs` at construction generous enough to outlast it; the per-call `signal` here
+   * only cancels client-side waiting, it does not shorten the daemon's own transport timeout.
+   */
+  public async archiveRelease(
+    input: Readonly<{
+      releaseRunId: string;
+      expectedRevision: number;
+      exportOptions: Readonly<{
+        teamId: string;
+        method: "app-store-connect";
+        destination: "export";
+        signingStyle: "automatic";
+        bundleIdOverride: string | null;
+      }>;
+      marketingVersion: string;
+    }>,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.archive">> {
+    return await this.#request(
+      "release.archive",
+      {
+        releaseRunId: ReleaseRunIdSchema.parse(input.releaseRunId),
+        expectedRevision: input.expectedRevision,
+        exportOptions: ReleaseExportOptionsConfigV1Schema.parse({
+          schemaVersion: 1,
+          ...input.exportOptions,
+        }),
+        marketingVersion: input.marketingVersion,
+      },
       identity,
       signal,
     );

@@ -131,7 +131,10 @@ function deriveReleaseIdV1(projectId: string): string {
   return ReleaseIdSchema.parse(deterministicReleaseId(projectId));
 }
 
-function mapReleaseRunUpsertError(error: unknown): never {
+/** Exported for Wave 4 (`release-archive-runtime.ts`): the same `ReleaseRunRepository.upsert`
+ *  error mapping, reused rather than re-implemented for `release.archive`'s own success/failure
+ *  persistence writes. */
+export function mapReleaseRunUpsertError(error: unknown): never {
   if (error instanceof ReleaseRunUpsertError) {
     throw new CommandHandlerError(
       error.code === "release-run.identity-conflict" ? "command.identity-conflict" : error.code,
@@ -147,9 +150,19 @@ function mapReleaseRunUpsertError(error: unknown): never {
  * the FULL execution-evidence closure for the attempt that produced the mirror's CURRENT tip. Fails
  * closed (a typed `CommandHandlerError`) at every step; see the module doc comment for why only the
  * mirror's current tip is ever eligible.
+ *
+ * Exported for Wave 4 (`release-archive-runtime.ts`): `release.archive` re-verifies the promotion is
+ * still current against this SAME fail-closed resolution before it archives, exactly as this
+ * function's own doc comment anticipated -- never a second, independently-written re-derivation.
+ * Takes only the narrow slice of `ReleaseRunRuntimeDependencies` it actually reads (not the full
+ * bundle -- `evidenceStore`/`idFactory` are `release.start`-only) so Wave 4's own dependency bundle,
+ * which has no `evidenceStore`, satisfies this signature without carrying a field it never uses.
  */
-function resolveVerifiedReleaseSourceV1(
-  dependencies: ReleaseRunRuntimeDependencies,
+export function resolveVerifiedReleaseSourceV1(
+  dependencies: Pick<
+    ReleaseRunRuntimeDependencies,
+    "repositories" | "mirrors" | "resolveVerifiedExecutionEvidence"
+  >,
   repositoryId: RepositoryId,
   sourceCommit: string,
 ): Readonly<{

@@ -28,6 +28,11 @@ import {
   type ReleaseObserverPort,
 } from "./release-command-runtime.js";
 import {
+  createReleaseArchiverPort,
+  loadReleaseArchiveConfigFile,
+  type ReleaseArchiverPort,
+} from "./release-archive-runtime.js";
+import {
   loadPhaseParticipantsPortV1,
   loadPhaseProviderCatalogPortV1,
   loadRoomsSubsystemConfiguration,
@@ -83,6 +88,16 @@ export type DaemonProcessEnvironment = Readonly<{
    */
   APP_FACTORY_ASC_OBSERVER_CONFIG?: string;
   /**
+   * Default OFF (unset). Absolute path to the release archive config
+   * (`release-archive-runtime.ts`'s `ReleaseArchiveConfigV1`: the reviewed `xcodegen`/`xcodebuild`
+   * executables, PATH/USER, a private scratch root, and the allowed `teamId`/`method`/`destination`/
+   * `signingStyle` -- names only, no secrets). When set, `release.archive` can run the real
+   * `xcodegen generate` -> `xcodebuild archive` -> `xcodebuild -exportArchive` chain under
+   * `process-supervisor`; when unset, `release.archive` refuses with
+   * `release.archiver-not-configured`.
+   */
+  APP_FACTORY_RELEASE_CONFIG?: string;
+  /**
    * Default OFF (unset). Absolute path to the planner execution config
    * (`planner-project-execution.ts`'s `PlannerExecutionConfigV1`: `planner-codex-v1` with the Codex
    * identity fields, or `planner-fixture-v1`; the reviewer; the `ios-xcodegen-v1` verification
@@ -106,6 +121,7 @@ export type DaemonProcessConfiguration = Readonly<{
   phaseProviderCatalog?: RoomProviderCatalogPort;
   providerRegistry?: ProviderRegistryConfiguration;
   releaseObserver?: ReleaseObserverPort;
+  releaseArchiver?: ReleaseArchiverPort;
   plannerExecution?: Readonly<{ config: PlannerExecutionConfigV1 }>;
 }>;
 
@@ -423,6 +439,26 @@ export async function loadDaemonProcessConfiguration(
       throw error;
     }
   }
+  let releaseArchiver: ReleaseArchiverPort | undefined;
+  if (
+    environment.APP_FACTORY_RELEASE_CONFIG !== undefined &&
+    environment.APP_FACTORY_RELEASE_CONFIG.length > 0
+  ) {
+    const releaseConfigPath = absolutePath(
+      environment.APP_FACTORY_RELEASE_CONFIG,
+      "APP_FACTORY_RELEASE_CONFIG",
+    );
+    try {
+      releaseArchiver = createReleaseArchiverPort({
+        config: loadReleaseArchiveConfigFile(releaseConfigPath),
+      });
+    } catch (error) {
+      if (error instanceof LocalExecutionProfileConfigurationError) {
+        configurationError(error.message);
+      }
+      throw error;
+    }
+  }
   const signalSchedulerEnabled = booleanFlag(
     "APP_FACTORY_SIGNAL_SCHEDULER_ENABLED",
     environment.APP_FACTORY_SIGNAL_SCHEDULER_ENABLED,
@@ -478,6 +514,7 @@ export async function loadDaemonProcessConfiguration(
     ...(phaseProviderCatalog === undefined ? {} : { phaseProviderCatalog }),
     ...(providerRegistry === undefined ? {} : { providerRegistry }),
     ...(releaseObserver === undefined ? {} : { releaseObserver }),
+    ...(releaseArchiver === undefined ? {} : { releaseArchiver }),
     ...(plannerExecution === undefined ? {} : { plannerExecution }),
   };
 }

@@ -4551,6 +4551,11 @@
                   ],
                   "type": "object"
                 },
+                "marketingVersion": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "releaseRunId": {
                   "$ref": "#/$defs/__schema0"
                 }
@@ -4558,7 +4563,8 @@
               "required": [
                 "releaseRunId",
                 "expectedRevision",
-                "exportOptions"
+                "exportOptions",
+                "marketingVersion"
               ],
               "type": "object"
             },
