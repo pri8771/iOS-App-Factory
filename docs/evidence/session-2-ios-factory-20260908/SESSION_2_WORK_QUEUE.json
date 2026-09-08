@@ -6,14 +6,14 @@
       "order": 1,
       "jira": "OR-27",
       "stable_id": "IF-T012",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": []
     },
     {
       "order": 2,
       "jira": "OR-26",
       "stable_id": "IF-T013",
-      "status": "queued",
+      "status": "completed",
       "depends_on": [
         "OR-27"
       ]
@@ -22,7 +22,7 @@
       "order": 3,
       "jira": "OR-28",
       "stable_id": "IF-T014",
-      "status": "queued",
+      "status": "partial_migration_and_intent_table",
       "depends_on": [
         "OR-26"
       ]
@@ -31,7 +31,7 @@
       "order": 4,
       "jira": "OR-29",
       "stable_id": "IF-T015",
-      "status": "queued",
+      "status": "completed_fake_transport",
       "depends_on": [
         "OR-28"
       ]
@@ -49,7 +49,7 @@
       "order": 6,
       "jira": "OR-31",
       "stable_id": "IF-T017",
-      "status": "queued",
+      "status": "partial_conformance",
       "depends_on": [
         "OR-30"
       ]
@@ -99,7 +99,7 @@
       "order": 11,
       "jira": "OR-63",
       "stable_id": "IF-T049",
-      "status": "queued",
+      "status": "partial_offline_docs",
       "depends_on": [
         "OR-38",
         "OR-42"
@@ -108,5 +108,6 @@
         "OR-36 excluded; offline path docs only"
       ]
     }
-  ]
+  ],
+  "updated_at": "2026-09-08T18:24:16.213918Z"
 }
