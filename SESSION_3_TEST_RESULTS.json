@@ -88,7 +88,11 @@
         "skip": 0
       },
       "result": "pass",
-      "classification": "unsigned_simulator_partial_evidence"
+      "classification": "unsigned_simulator_partial_evidence",
+      "network": false,
+      "provider": false,
+      "xcode": true,
+      "simulator": true
     },
     {
       "command": "xcodebuild test -project AuraFit.xcodeproj -scheme AuraFit -configuration Debug -destination \"platform=iOS Simulator,id=A4A5AFF2-59AD-44FE-BAC3-BC845CEE1ACF\" -derivedDataPath /tmp/AuraFit-S3-OR25-UI-DerivedData -resultBundlePath /tmp/AuraFit-S3-OR25-UI.xcresult -only-testing:AuraFitUITests CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=",
@@ -109,7 +113,11 @@
         "skip": 0
       },
       "result": "pass",
-      "classification": "unsigned_simulator_ui_smoke_partial_evidence"
+      "classification": "unsigned_simulator_ui_smoke_partial_evidence",
+      "network": false,
+      "provider": false,
+      "xcode": true,
+      "simulator": true
     }
   ],
   "failureClassification": [],
