@@ -713,7 +713,7 @@ describe("migration 0020 (release-runs) application", () => {
     });
 
     // Apply migration 0020.
-    expect(runMigrations(db)).toEqual({ currentVersion: 20, newlyAppliedVersions: [20] });
+    expect(runMigrations(db)).toEqual({ currentVersion: 21, newlyAppliedVersions: [20, 21] });
 
     // The legacy row survived the rebuild byte-for-byte.
     const row = db

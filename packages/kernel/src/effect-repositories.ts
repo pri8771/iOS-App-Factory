@@ -209,7 +209,7 @@ type ApprovalRow = Readonly<{
 
 type EffectRow = Readonly<{
   effect_id: string;
-  attempt_id: string;
+  attempt_id: string | null;
   action: string;
   operation_marker: string;
   provider: string;
@@ -1249,6 +1249,20 @@ function assertAttemptAllowsNewSend(context: AttemptTaskRow): void {
   }
 }
 
+function assertEffectAllowsNewSend(
+  database: Database.Database,
+  effect: ExternalEffectV1,
+): void {
+  if (effect.attemptId === null) {
+    if (!isReleaseScopedApprovalSubjectV1(effect.subject)) {
+      fail("release-scoped effect subject must identify project and release only");
+    }
+    return;
+  }
+  const attempt = assertSubjectMatchesAttempt(database, effect.attemptId, effect.subject);
+  assertAttemptAllowsNewSend(attempt);
+}
+
 function parsePlanningOrigin(input: PlanExternalEffectInput["origin"]): ParsedPlanningOrigin {
   return {
     checkpointId: EventIdSchema.parse(input.checkpointId),
@@ -1277,6 +1291,9 @@ function assertPlanningOrigin(
   origin: ParsedPlanningOrigin,
   observedAt: IsoInstant,
 ): void {
+  if (effect.attemptId === null) {
+    fail("attempt-scoped planning origin cannot be used for a release-scoped effect");
+  }
   const attempt = assertSubjectMatchesAttempt(database, effect.attemptId, effect.subject);
   assertPolicyMatchesTaskSpec(attempt, effect.policyDigest);
   assertAttemptAllowsNewSend(attempt);
@@ -1859,17 +1876,31 @@ function claim(
     // Terminal or paused attempts may never start a new mutation. Read-only
     // reconciliation deliberately remains eligible after termination because
     // an already-sent provider request still has to be classified truthfully.
+    // Release-scoped Apple upload effects have no attempt row; they claim via
+    // release subject columns alone (migration 0021).
     const row = database
       .prepare(
         `SELECT o.effect_id AS effectId, o.revision AS revision
          FROM effect_outbox o
          JOIN external_effects e ON e.effect_id = o.effect_id
          JOIN approvals a ON a.approval_id = e.approval_id
-         JOIN attempts attempt ON attempt.attempt_id = e.attempt_id
+         LEFT JOIN attempts attempt ON attempt.attempt_id = e.attempt_id
          WHERE ${eligibility}
            AND (
-             @purpose = 'reconcile'
-             OR (attempt.state = 'running' AND attempt.desired_state = 'running')
+             (
+               e.attempt_id IS NOT NULL
+               AND attempt.attempt_id IS NOT NULL
+               AND (
+                 @purpose = 'reconcile'
+                 OR (attempt.state = 'running' AND attempt.desired_state = 'running')
+               )
+             )
+             OR (
+               e.attempt_id IS NULL
+               AND e.subject_release_id IS NOT NULL
+               AND e.subject_task_id IS NULL
+               AND e.subject_attempt_id IS NULL
+             )
            )
            AND (o.locked_by IS NULL OR o.locked_until <= @observedAt)
          ORDER BY
@@ -2285,8 +2316,7 @@ export function createEffectRepository(
       const transaction = database.transaction(() => {
         const context = assertActiveClaim(database, input);
         const current = context.persisted.effect;
-        const attempt = assertSubjectMatchesAttempt(database, current.attemptId, current.subject);
-        assertAttemptAllowsNewSend(attempt);
+        assertEffectAllowsNewSend(database, current);
         if (current.approvalId === null) fail(`effect has no approval: ${current.effectId}`);
         const approval = readApproval(database, current.approvalId);
         if (approval === null) fail(`approval does not exist: ${current.approvalId}`);
@@ -2344,12 +2374,7 @@ export function createEffectRepository(
       if (context.persisted.effect.state !== "sent") {
         fail(`dispatch token requires sent state: ${context.persisted.effect.state}`);
       }
-      const attempt = assertSubjectMatchesAttempt(
-        database,
-        context.persisted.effect.attemptId,
-        context.persisted.effect.subject,
-      );
-      assertAttemptAllowsNewSend(attempt);
+      assertEffectAllowsNewSend(database, context.persisted.effect);
       if (context.persisted.effect.approvalId === null) {
         fail(`effect has no approval: ${context.persisted.effect.effectId}`);
       }

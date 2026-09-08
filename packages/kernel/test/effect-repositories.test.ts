@@ -912,7 +912,9 @@ describe("approval-bound effect planning", () => {
       { ...plan(base), binding: { ...plan(base).binding, buildIdentityDigest: OBSERVED_DIGEST } },
     ];
     for (const mismatch of mismatches) {
-      expect(() => effects.planExternalEffect(mismatch)).toThrow(/does not match|must be/);
+      expect(() => effects.planExternalEffect(mismatch)).toThrow(
+        /does not match|must be|matching attempt/,
+      );
       expect(effects.getApproval(APPROVAL_ID)?.approval.status).toBe("active");
     }
 
@@ -1932,7 +1934,9 @@ describe("fenced outbox delivery and reconciliation", () => {
            WHERE effect_id = ?`,
         )
         .run(T2, EFFECT_ID),
-    ).toThrow(/illegal external effect state transition/);
+    ).toThrow(
+      /illegal external effect state transition|durable provider rejection evidence is required/,
+    );
 
     const sendClaim = requireClaim(
       effects.claimNextSend({

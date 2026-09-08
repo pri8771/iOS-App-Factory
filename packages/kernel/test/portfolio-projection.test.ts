@@ -216,8 +216,8 @@ describe("local portfolio projection", () => {
       .run(JSON.stringify(succeeded.outcome), T1, T1, JSON.stringify(succeeded), attempt.attemptId);
 
     expect(runMigrations(database)).toEqual({
-      currentVersion: 20,
-      newlyAppliedVersions: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+      currentVersion: 21,
+      newlyAppliedVersions: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
     });
     expect(createFactoryRepositories(database).portfolio.listProjectSummaries()).toEqual([
       {

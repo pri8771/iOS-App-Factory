@@ -104,17 +104,11 @@ export const ExternalEffectV1Schema = z
   .superRefine((effect, context) => {
     const { subject, attemptId } = effect;
     if (attemptId !== null) {
-      if (
-        subject.attemptId !== attemptId ||
-        subject.taskId === null ||
-        subject.projectId === null ||
-        subject.releaseId !== null
-      ) {
+      if (subject.attemptId !== attemptId || subject.taskId === null || subject.projectId === null) {
         context.addIssue({
           code: "custom",
           path: ["attemptId"],
-          message:
-            "attempt-scoped effect requires matching attempt/task/project subject and null releaseId",
+          message: "attempt-scoped effect requires matching attempt/task/project subject",
         });
       }
       return;

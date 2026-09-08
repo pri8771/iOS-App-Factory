@@ -538,3 +538,13 @@ export class AdapterRegistry {
     );
   }
 }
+
+export {
+  createFakeAppleUploadTransportV1,
+  createDisabledRealAppleUploadTransportV1,
+} from "./fake-apple-upload-transport.js";
+export type {
+  FakeAppleUploadScenarioV1,
+  FakeAppleUploadTransportV1,
+  RealAppleUploadTransportV1,
+} from "./fake-apple-upload-transport.js";
