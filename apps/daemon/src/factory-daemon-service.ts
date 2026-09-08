@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 
-import { AdapterRegistry } from "@app-factory/adapter-sdk";
+import { AdapterRegistry, createFakeAppleUploadAdapterV1 } from "@app-factory/adapter-sdk";
 import { AttemptIdSchema, Sha256DigestSchema, type AttemptId } from "@app-factory/contracts";
 import { createCredentialBroker, type CredentialBroker } from "@app-factory/credential-broker";
 import { GitWorkspaceManager } from "@app-factory/git-workspace";
@@ -544,9 +544,13 @@ export async function startFactoryDaemonService(
     effectsConfig?.enabled === true
       ? (context) => {
           const registry = new AdapterRegistry();
-          // The registry starts empty by contract; this is the one typed
-          // seam a later task uses to register real provider adapters.
-          effectsConfig.configureAdapters?.(registry);
+          if (effectsConfig.configureAdapters !== undefined) {
+            // Explicit composition owns the full adapter set (tests may inject fakes or leave empty).
+            effectsConfig.configureAdapters(registry);
+          } else {
+            // Session-2 offline default: fake Apple upload only; real transport stays disabled.
+            registry.register(createFakeAppleUploadAdapterV1());
+          }
           const subsystem = createEffectSubsystem({
             ownerId,
             effects: context.effects,

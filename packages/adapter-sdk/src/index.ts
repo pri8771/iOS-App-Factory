@@ -548,3 +548,4 @@ export type {
   FakeAppleUploadTransportV1,
   RealAppleUploadTransportV1,
 } from "./fake-apple-upload-transport.js";
+export { createFakeAppleUploadAdapterV1 } from "./fake-apple-upload-adapter.js";
