@@ -1435,6 +1435,14 @@ export class CommandClient {
     );
   }
 
+  /** OR-23: source-attributed effective provider/phase configuration (never includes secrets). */
+  public async getEffectiveConfiguration(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"config.effective">> {
+    return await this.#request("config.effective", {}, identity, signal);
+  }
+
   /** Reads one Studio setting (Architecture decision 4); `entry.value`/`entry.updatedAt` are both
    *  `null` until the first {@link setSetting}. */
   public async getSettings(

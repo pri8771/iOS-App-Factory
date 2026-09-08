@@ -6,6 +6,7 @@ export * from "./catalog.js";
 export * from "./command.js";
 export * from "./command-protocol.js";
 export * from "./effect-read-model.js";
+export * from "./effective-config.js";
 export * from "./evidence.js";
 export * from "./event.js";
 export * from "./execution.js";

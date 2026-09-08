@@ -207,6 +207,7 @@ describe("command protocol V1", () => {
     ["provider.credential.set", { key: "openrouter-fast", secret: "sk-test-secret" }],
     ["provider.health", { key: null }],
     ["provider.health", { key: "codex" }],
+    ["config.effective", {}],
     ["settings.get", { key: "default-provider" }],
     ["settings.set", { key: "default-provider", value: "openrouter-fast" }],
     ["usage.summary", { sinceDays: 30 }],

@@ -2,11 +2,8 @@ import { z } from "zod";
 
 import { AttemptListPageV1Schema, AttemptListQueryV1Schema } from "./attempt-read-model.js";
 import { CommandOriginV1Schema } from "./command.js";
-import {
-  EffectListPageV1Schema,
-  EffectListQueryV1Schema,
-  EffectStatusV1Schema,
-} from "./effect-read-model.js";
+import { EffectListPageV1Schema, EffectListQueryV1Schema, EffectStatusV1Schema } from "./effect-read-model.js";
+import { EffectiveConfigurationV1Schema } from "./effective-config.js";
 import {
   EvidenceKindV1Schema,
   EvidenceManifestV1Schema,
@@ -880,6 +877,16 @@ export const ProviderHealthCommandRequestV1Schema = z.strictObject({
  * decisions" item 4. Deliberately narrow -- one kernel-owned key/value table, not a general
  * preferences store.
  */
+/**
+ * OR-23 / IF-T008: source-attributed effective provider/phase configuration. Read-only; never
+ * returns secrets or raw environment values.
+ */
+export const ConfigEffectiveCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("config.effective"),
+  payload: EmptyPayloadV1Schema,
+});
+
 export const SettingsGetCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("settings.get"),
@@ -998,6 +1005,7 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProviderRemoveCommandRequestV1Schema,
   ProviderCredentialSetCommandRequestV1Schema,
   ProviderHealthCommandRequestV1Schema,
+  ConfigEffectiveCommandRequestV1Schema,
   SettingsGetCommandRequestV1Schema,
   SettingsSetCommandRequestV1Schema,
   UsageSummaryCommandRequestV1Schema,
@@ -1567,6 +1575,11 @@ export const ProviderHealthCommandResultV1Schema = z.strictObject({
   reports: z.array(ProviderHealthEntryV1Schema).max(MAX_PROVIDER_INSTANCES_V1),
 });
 
+export const ConfigEffectiveCommandResultV1Schema = z.strictObject({
+  operation: z.literal("config.effective"),
+  configuration: EffectiveConfigurationV1Schema,
+});
+
 export const SettingsGetCommandResultV1Schema = z.strictObject({
   operation: z.literal("settings.get"),
   entry: StudioSettingEntryV1Schema,
@@ -1690,6 +1703,7 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProviderRemoveCommandResultV1Schema,
   ProviderCredentialSetCommandResultV1Schema,
   ProviderHealthCommandResultV1Schema,
+  ConfigEffectiveCommandResultV1Schema,
   SettingsGetCommandResultV1Schema,
   SettingsSetCommandResultV1Schema,
   UsageSummaryCommandResultV1Schema,

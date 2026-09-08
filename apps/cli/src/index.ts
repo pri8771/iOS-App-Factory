@@ -241,6 +241,7 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "provider.remove"; key: string; expectedDigest: Sha256Digest | null }>
   | Readonly<{ kind: "provider.credential.set"; key: string; secretEnvVar: string | null }>
   | Readonly<{ kind: "provider.health"; key: string | null }>
+  | Readonly<{ kind: "config.effective" }>
   | Readonly<{ kind: "settings.get"; key: string }>
   | Readonly<{ kind: "settings.set"; key: string; value: string }>
   | Readonly<{ kind: "usage.summary"; sinceDays: number }>;
@@ -1566,6 +1567,15 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
     usageError("Provider requires one of: list, upsert, remove, credential-set, health.");
   }
 
+  if (command === "config") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "effective") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "config.effective" } };
+    }
+    usageError('Config requires subcommand "effective".');
+  }
+
   // Studio settings (Architecture decision 4): a small, cross-client preference table. The only key
   // today is `default-provider`.
   if (command === "settings") {
@@ -2129,6 +2139,19 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
                 }`,
             )
             .join("\n")}\n`;
+    case "config.effective": {
+      const cfg = result.configuration;
+      const providerLines =
+        cfg.providers.length === 0
+          ? "  (no providers)"
+          : cfg.providers
+              .map(
+                (entry) =>
+                  `  ${entry.key}\t${entry.family}\treq=${String(entry.requestedModel.value)}(${entry.requestedModel.source})\tobs=${String(entry.observedModel.value)}(${entry.observedModel.source})\tstate=${entry.configurationState}`,
+              )
+              .join("\n");
+      return `effective configuration @ ${cfg.sourcedAt}\ndefaultProvider=${String(cfg.defaultProvider.key.value)} (${cfg.defaultProvider.key.source})\nproviders:\n${providerLines}\nphaseRoles=${String(cfg.phaseRoles.length)}\n`;
+    }
     case "settings.get":
     case "settings.set":
       return `${result.entry.key} = ${result.entry.value ?? "(unset)"}${
@@ -2922,6 +2945,9 @@ export async function runCli(
       }
       case "provider.health":
         result = await client.providerHealth(invocation.command.key, identity);
+        break;
+      case "config.effective":
+        result = await client.getEffectiveConfiguration(identity);
         break;
       case "settings.get":
         result = await client.getSettings(invocation.command.key, identity);

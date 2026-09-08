@@ -184,6 +184,7 @@ import {
   type SignalScoutParticipantsPort,
 } from "./signal-command-runtime.js";
 import { buildSettingsGetResultV1, executeSettingsSetCommand } from "./settings-command-runtime.js";
+import { buildConfigEffectiveResultV1 } from "./effective-config-runtime.js";
 import { buildUsageSummaryResultV1 } from "./usage-command-runtime.js";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
@@ -924,6 +925,7 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "provider.remove":
     case "provider.credential.set":
     case "provider.health":
+    case "config.effective":
     case "settings.get":
     case "settings.set":
     case "usage.summary":
@@ -2102,6 +2104,34 @@ async function executeRequest(
       return dependencies.providerRegistry === null
         ? { operation: "provider.list", providers: [] }
         : dependencies.providerRegistry.list(request);
+    case "config.effective": {
+      const listResult =
+        dependencies.providerRegistry === null
+          ? { operation: "provider.list" as const, providers: [] as const }
+          : dependencies.providerRegistry.list({
+              schemaVersion: request.schemaVersion,
+              commandId: request.commandId,
+              issuedAt: request.issuedAt,
+              origin: request.origin,
+              operation: "provider.list",
+              payload: {},
+            });
+      const providers = listResult.operation === "provider.list" ? listResult.providers : [];
+      const defaultProviderSetting = repositories.studioSettings.get("default-provider");
+      // RoomParticipantsCatalogSourceV1 intentionally omits sourceDigest (wire digest is stamped
+      // only when answering room.participants.list). Leave null rather than inventing a digest.
+      return buildConfigEffectiveResultV1({
+        sourcedAt: dependencies.observedAt,
+        defaultProviderSetting,
+        providers,
+        registryDigest: null,
+        registryUnavailableReason:
+          dependencies.providerRegistry === null
+            ? "No provider registry is composed on this daemon (APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG unset)."
+            : null,
+        presets: [...repositories.phasePresets.listAll()],
+      });
+    }
     case "provider.upsert":
       if (dependencies.providerRegistry === null) throw providerRegistryNotConfiguredError();
       return await dependencies.providerRegistry.upsert(request);
