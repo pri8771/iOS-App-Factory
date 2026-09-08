@@ -289,7 +289,7 @@ describe("daemon process configuration", () => {
       mirrorMode: "prepared-immutable",
       sourceIdentityDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
       allowedBaseCommit: git(sourceRepositoryPath, ["rev-parse", "HEAD"]),
-      allowedBaseTree: "4b0f3837c058d6aa3438fc6d0c386324fd074005",
+      allowedBaseTree: "e69344ba899cb78fb5ad51ab56f9b4750d0b13b9",
       taskSemanticProfileDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
       agent: {
         adapterId: "fixture.swift-greeter-agent",

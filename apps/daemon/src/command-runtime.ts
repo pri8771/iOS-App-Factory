@@ -35,6 +35,7 @@ import {
   type CommandRequestV1,
   type CommandResultV1,
   type EffectPumpStatusV1,
+  type ExecutionAttemptV1,
   type IsoInstant,
   type PolicyLockV1,
   type PortfolioProjectReadModelV1,
@@ -64,6 +65,7 @@ import {
   type FactoryRepositories,
 } from "@app-factory/kernel";
 import { verifyCanonicalObservationAttestation } from "@app-factory/effect-worker";
+import type { VerifiedExecutionEvidence } from "@app-factory/execution-engine";
 import { GitWorkspaceManager } from "@app-factory/git-workspace";
 import { EvidenceStore } from "@app-factory/evidence-store";
 import { decideTaskPolicyBinding } from "@app-factory/policy-engine";
@@ -132,9 +134,27 @@ import {
   tickProjectPlanV1,
   type ProjectPlanExecutionDependencies,
 } from "./project-plan-command-runtime.js";
-import { createEvidenceBrokerCommitResolverV1 } from "./project-plan-broker-commit-resolver.js";
+import {
+  createEvidenceBrokerCommitResolverV1,
+  createVerifiedExecutionEvidenceResolverV1,
+} from "./project-plan-broker-commit-resolver.js";
 import { createRegistryBackedProjectPlanMirrorPortV1 } from "./project-plan-mirror-port.js";
 import { executeProjectSeedCommand } from "./project-seed-command-runtime.js";
+import {
+  buildReleaseStatusResultV1,
+  executeReleasePromoteCommand,
+  executeReleaseStartCommand,
+  type ReleaseRunRuntimeDependencies,
+} from "./release-run-runtime.js";
+import {
+  completeReleaseArchive,
+  prepareReleaseArchive,
+  recordReleaseArchiveFailure,
+  INERT_RELEASE_ARCHIVER_PORT,
+  type ReleaseArchiveOutcomeV1,
+  type ReleaseArchiveRuntimeDependencies,
+  type ReleaseArchiverPort,
+} from "./release-archive-runtime.js";
 import {
   buildAssistantIntentDispatchRequestV1,
   buildStudioSnapshotV1,
@@ -164,6 +184,7 @@ import {
   type SignalScoutParticipantsPort,
 } from "./signal-command-runtime.js";
 import { buildSettingsGetResultV1, executeSettingsSetCommand } from "./settings-command-runtime.js";
+import { buildConfigEffectiveResultV1 } from "./effective-config-runtime.js";
 import { buildUsageSummaryResultV1 } from "./usage-command-runtime.js";
 const RESULT_LEDGER_VERSION = 1;
 const MAX_LEDGER_ENTRY_BYTES = 8 * 1024 * 1024;
@@ -198,6 +219,9 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "room.post",
   "room.update",
   "release.observe",
+  "release.start",
+  "release.promote",
+  "release.archive",
   "signal.create",
   "signal.pause",
   "signal.resume",
@@ -432,6 +456,15 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    */
   planExecution?: ProjectPlanExecutionDependencies;
   /**
+   * Release Rail Wave 3 (`release.start`/`release.promote`): resolves a succeeded attempt's full
+   * re-verified execution-evidence closure (broker commit AND trusted-test claims). Default: the
+   * same fail-closed re-verification `planExecution.resolveBrokerCommit` uses
+   * (`createVerifiedExecutionEvidenceResolverV1`), widened to also return the trusted-test claims
+   * `release.start` needs for `@app-factory/quality`'s `certifyCandidateSubsetV1`. Test seam:
+   * override to avoid needing a full real execution-evidence-index closure in unit tests.
+   */
+  resolveVerifiedExecutionEvidence?: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
+  /**
    * Idempotently self-registers the single project the configured local execution profile prepared
    * a Factory mirror for into the Project Registry at every daemon start (Seam (a) of the
    * project-registry task), so `studio.snapshot`/`plan.execute`/`phase.run` see it as a real
@@ -465,6 +498,12 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * `release.observer-not-configured`; `release.projection` still serves persisted observations.
    */
   releaseObserver?: ReleaseObserverPort;
+  /**
+   * Release Rail Wave 4: the `process-supervisor`-backed archiver `release.archive` runs the actual
+   * `xcodegen`/`xcodebuild` work through, opt-in by `APP_FACTORY_RELEASE_CONFIG`. Defaults to the
+   * inert port: `release.archive` refuses with `release.archiver-not-configured`.
+   */
+  releaseArchiver?: ReleaseArchiverPort;
   /**
    * The reviewed policy digest `plan.execute`/`plan.tick` stamp on every task they submit when no
    * explicit `planExecution` is supplied. Planner execution (`planner-project-execution.ts`) sets it
@@ -865,6 +904,12 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "room.typing":
     case "room.update":
     case "room.participants.list":
+    case "release.start":
+    case "release.promote":
+    case "release.archive":
+    case "release.upload":
+    case "release.submit":
+    case "release.status":
     case "release.observe":
     case "release.projection":
     case "signal.create":
@@ -880,6 +925,7 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "provider.remove":
     case "provider.credential.set":
     case "provider.health":
+    case "config.effective":
     case "settings.get":
     case "settings.set":
     case "usage.summary":
@@ -1676,6 +1722,43 @@ function upsertProjectMilestone(
   }
 }
 
+/** Assembles `release-run-runtime.ts`'s dependency bundle from pieces `executeRequest` already has. */
+function buildReleaseRunRuntimeDependencies(
+  repositories: FactoryRepositories,
+  dependencies: Readonly<{
+    evidenceStore: EvidenceStore;
+    runExportMirrors: RunExportMirrorPort;
+    resolveVerifiedExecutionEvidence: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
+    idFactory: DaemonRuntimeIdFactory;
+  }>,
+): ReleaseRunRuntimeDependencies {
+  return {
+    repositories,
+    mirrors: dependencies.runExportMirrors,
+    evidenceStore: dependencies.evidenceStore,
+    resolveVerifiedExecutionEvidence: dependencies.resolveVerifiedExecutionEvidence,
+    idFactory: dependencies.idFactory,
+  };
+}
+
+/** Assembles `release-archive-runtime.ts`'s dependency bundle -- Wave 4's own narrower analogue of
+ *  `buildReleaseRunRuntimeDependencies` (no `evidenceStore`/`idFactory`: `release.archive` mints no
+ *  new IDs and re-verifies evidence only through `resolveVerifiedExecutionEvidence`, never reading
+ *  the evidence manifest directly the way `release.start` does). */
+function buildReleaseArchiveRuntimeDependencies(
+  repositories: FactoryRepositories,
+  dependencies: Readonly<{
+    runExportMirrors: RunExportMirrorPort;
+    resolveVerifiedExecutionEvidence: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
+  }>,
+): ReleaseArchiveRuntimeDependencies {
+  return {
+    repositories,
+    mirrors: dependencies.runExportMirrors,
+    resolveVerifiedExecutionEvidence: dependencies.resolveVerifiedExecutionEvidence,
+  };
+}
+
 async function executeRequest(
   repositories: FactoryRepositories,
   database: ReturnType<typeof openMigratedFactoryDatabase>,
@@ -1704,6 +1787,7 @@ async function executeRequest(
     projectRegistryGitWorkspace: GitWorkspaceManager;
     gitRuntimeRoot: string;
     releaseObserver: ReleaseObserverPort;
+    resolveVerifiedExecutionEvidence: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -1925,6 +2009,35 @@ async function executeRequest(
     case "room.update":
     case "room.participants.list":
       return executeRoomCommand(request, dependencies);
+    // `release.start`/`release.promote`/`release.status`: Release Rail Wave 3 (promotion). See
+    // `release-run-runtime.ts`'s module doc comment for why both mutating ops run inside this same
+    // serial executor rather than on the `release.observe`-style bypass.
+    case "release.start":
+      return executeReleaseStartCommand(
+        buildReleaseRunRuntimeDependencies(repositories, dependencies),
+        request,
+        dependencies.observedAt,
+      );
+    case "release.promote":
+      return executeReleasePromoteCommand(
+        buildReleaseRunRuntimeDependencies(repositories, dependencies),
+        request,
+        dependencies.observedAt,
+      );
+    case "release.status":
+      return buildReleaseStatusResultV1(repositories, request);
+    // `release.upload`/`release.submit`: recognized by the wire protocol (Release Rail Wave 1,
+    // `packages/contracts/src/v1/command-protocol.ts`), but no daemon-side handler exists yet --
+    // that lands in later waves (upload/confirm W5, submit W7). Kept exhaustive, and honest about
+    // "recognized but not yet implemented" rather than falling through to
+    // `protocol.unsupported-operation`, which would incorrectly claim the operation is unknown.
+    case "release.upload":
+    case "release.submit":
+      throw new CommandHandlerError(
+        "command.operation-not-yet-implemented",
+        `"${request.operation}" is recognized by the wire protocol but not yet implemented by this daemon build.`,
+        false,
+      );
     case "release.observe":
       // Never reached: the handler takes the observation outside the serial executor and persists
       // it itself (see `openDaemonCommandRuntime`). Kept exhaustive so a future dispatch here is a
@@ -1932,6 +2045,16 @@ async function executeRequest(
       throw new CommandHandlerError(
         "release.observe-misrouted",
         "release.observe is handled by the command runtime's observe path, not by executeRequest.",
+        false,
+      );
+    case "release.archive":
+      // Never reached: `release.archive`'s actual `xcodebuild` work runs OUTSIDE the serial
+      // executor and persists its own result (see `openDaemonCommandRuntime`'s `archiveRelease`),
+      // mirroring `release.observe` exactly (a minutes-long round trip must not stall every other
+      // command). Kept exhaustive so a future dispatch here is a deliberate decision, not an accident.
+      throw new CommandHandlerError(
+        "release.archive-misrouted",
+        "release.archive is handled by the command runtime's archive path, not by executeRequest.",
         false,
       );
     case "release.projection":
@@ -1981,6 +2104,34 @@ async function executeRequest(
       return dependencies.providerRegistry === null
         ? { operation: "provider.list", providers: [] }
         : dependencies.providerRegistry.list(request);
+    case "config.effective": {
+      const listResult =
+        dependencies.providerRegistry === null
+          ? { operation: "provider.list" as const, providers: [] as const }
+          : dependencies.providerRegistry.list({
+              schemaVersion: request.schemaVersion,
+              commandId: request.commandId,
+              issuedAt: request.issuedAt,
+              origin: request.origin,
+              operation: "provider.list",
+              payload: {},
+            });
+      const providers = listResult.operation === "provider.list" ? listResult.providers : [];
+      const defaultProviderSetting = repositories.studioSettings.get("default-provider");
+      // RoomParticipantsCatalogSourceV1 intentionally omits sourceDigest (wire digest is stamped
+      // only when answering room.participants.list). Leave null rather than inventing a digest.
+      return buildConfigEffectiveResultV1({
+        sourcedAt: dependencies.observedAt,
+        defaultProviderSetting,
+        providers,
+        registryDigest: null,
+        registryUnavailableReason:
+          dependencies.providerRegistry === null
+            ? "No provider registry is composed on this daemon (APP_FACTORY_ROOMS_PARTICIPANTS_CONFIG unset)."
+            : null,
+        presets: [...repositories.phasePresets.listAll()],
+      });
+    }
     case "provider.upsert":
       if (dependencies.providerRegistry === null) throw providerRegistryNotConfiguredError();
       return await dependencies.providerRegistry.upsert(request);
@@ -2229,6 +2380,14 @@ export async function openDaemonCommandRuntime(
     }),
     policyDigest: options.planPolicyDigest ?? Sha256DigestSchema.parse(`sha256:${"0".repeat(64)}`),
   };
+  const resolveVerifiedExecutionEvidence =
+    options.resolveVerifiedExecutionEvidence ??
+    createVerifiedExecutionEvidenceResolverV1({
+      repositories,
+      evidenceStore,
+      gitRuntimeRoot,
+      ...(options.gitExecutable === undefined ? {} : { gitExecutable: options.gitExecutable }),
+    });
   const phaseGitPortOptions = {
     gitRuntimeRoot,
     projectRegistry: repositories.projectRegistry,
@@ -2308,6 +2467,7 @@ export async function openDaemonCommandRuntime(
     providerCatalog: phaseProviderCatalog,
   };
   const releaseObserver = options.releaseObserver ?? INERT_RELEASE_OBSERVER_PORT;
+  const releaseArchiver = options.releaseArchiver ?? INERT_RELEASE_ARCHIVER_PORT;
   const serial = new SerialExecutor();
   let closed = false;
 
@@ -2366,6 +2526,101 @@ export async function openDaemonCommandRuntime(
         operation: "release.observe",
         observation: recorded.observation,
       });
+      try {
+        await options.commandResultLedgerBoundary?.({ request, result });
+        const persisted = await persistLedgerEntry(paths, {
+          ledgerVersion: RESULT_LEDGER_VERSION,
+          request,
+          result,
+        });
+        assertMatchingRequest(persisted.request, request);
+        return persisted.result;
+      } catch {
+        throw new CommandHandlerError(
+          "command.result-persistence-ambiguous",
+          "The command may have completed, but its durable result could not be confirmed. Retry with the same command ID and issuedAt.",
+          true,
+        );
+      }
+    });
+  };
+
+  /**
+   * `release.archive` (Release Rail Wave 4): the actual `xcodebuild` work is a real, minutes-long
+   * subprocess and runs OUTSIDE the serial executor -- see `release-archive-runtime.ts`'s module doc
+   * comment for why this mirrors `release.observe` exactly (a slow round trip must not stall every
+   * other command) even though the round trip here is local, not a network call. Three phases:
+   * `prepareReleaseArchive` (fast, inside serial: CAS/stage check, re-verify promotion, allocate the
+   * build number), `releaseArchiver.archive` (slow, outside serial: xcodegen/xcodebuild), then
+   * `completeReleaseArchive`/`recordReleaseArchiveFailure` (inside serial again: persist the outcome
+   * -- a FAILURE still writes a durable revision carrying the captured failure detail, never a
+   * thrown-away error message; the plan's own risk note is exactly the hours a discarded failing
+   * check cost on 2026-08-21). A configured-but-idle daemon refuses before doing ANY work (no wasted
+   * build-number allocation) when no `APP_FACTORY_RELEASE_CONFIG` archiver is composed.
+   */
+  const archiveRelease = async (
+    request: Extract<CommandRequestV1, { operation: "release.archive" }>,
+  ): Promise<CommandResultV1> => {
+    if (!releaseArchiver.configured) {
+      throw new CommandHandlerError(
+        "release.archiver-not-configured",
+        "release.archive requires APP_FACTORY_RELEASE_CONFIG to be configured on this daemon build.",
+        false,
+      );
+    }
+    const original = await serial.run(async () => {
+      if (closed) throw closedError();
+      const entry = await readLedgerEntry(paths, request.commandId);
+      if (entry !== null) assertMatchingRequest(entry.request, request);
+      return entry;
+    });
+    if (original !== null) return original.result;
+
+    const observedAt = IsoInstantSchema.parse(now());
+    assertPlausibleClientTimestamps(request, observedAt);
+    const archiveDependencies = buildReleaseArchiveRuntimeDependencies(repositories, {
+      runExportMirrors,
+      resolveVerifiedExecutionEvidence,
+    });
+    const preparation = await serial.run(async () => {
+      if (closed) throw closedError();
+      return prepareReleaseArchive(archiveDependencies, request, observedAt);
+    });
+
+    let outcome: ReleaseArchiveOutcomeV1;
+    try {
+      outcome = await releaseArchiver.archive(
+        preparation.stepInput,
+        AbortSignal.timeout(60 * 60 * 1_000),
+      );
+    } catch (error) {
+      // `ReleaseArchiveStepFailedError` (a specific xcodegen/xcodebuild step's outcome, with a
+      // bounded stderr tail already formatted into its message) and any other `Error` this port can
+      // throw (a misconfigured exportOptions allowlist mismatch, a supervised-run blocker, ...) are
+      // handled identically here: both already carry a clear, complete diagnostic in `.message`.
+      const detail = error instanceof Error ? error.message : String(error);
+      const completedAt = IsoInstantSchema.parse(now());
+      await serial.run(async () => {
+        if (closed) throw closedError();
+        recordReleaseArchiveFailure(archiveDependencies, preparation, detail, completedAt);
+      });
+      throw new CommandHandlerError(
+        "release.archive-failed",
+        `release.archive failed: ${detail}`,
+        true,
+      );
+    }
+
+    return await serial.run(async () => {
+      if (closed) throw closedError();
+      const raced = await readLedgerEntry(paths, request.commandId);
+      if (raced !== null) {
+        assertMatchingRequest(raced.request, request);
+        return raced.result;
+      }
+      const completedAt = IsoInstantSchema.parse(now());
+      const run = completeReleaseArchive(archiveDependencies, preparation, outcome, completedAt);
+      const result = CommandResultV1Schema.parse({ operation: "release.archive", run });
       try {
         await options.commandResultLedgerBoundary?.({ request, result });
         const persisted = await persistLedgerEntry(paths, {
@@ -2515,6 +2770,7 @@ export async function openDaemonCommandRuntime(
     if (closed) throw closedError();
     const request = CommandRequestV1Schema.parse(requestInput);
     if (request.operation === "release.observe") return await observeRelease(request);
+    if (request.operation === "release.archive") return await archiveRelease(request);
     if (request.operation === "signal.run-now") return await runSignalNow(request);
     if (request.operation === "provider.credential.set")
       return await setProviderCredential(request);
@@ -2556,6 +2812,7 @@ export async function openDaemonCommandRuntime(
           projectRegistryGitWorkspace,
           gitRuntimeRoot,
           releaseObserver,
+          resolveVerifiedExecutionEvidence,
         }),
       );
       // A human post is the moderator's cue; the wake happens after the

@@ -31,10 +31,13 @@ import {
 import { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
 export { defaultWait, interruptibleWait, type DaemonLoopWait } from "./daemon-loop-wait.js";
 import { createEffectSubsystem, type EffectSubsystem } from "./effect-pump.js";
+import type { PhaseParticipantsPort } from "./phase-run-executor.js";
 import { createProviderRegistryPort, type VersionProbePort } from "./provider-command-runtime.js";
 import { createKernelFactoryEventSource } from "./room-factory-event-source.js";
 import {
   buildRoomsCompositionV1,
+  createPhaseParticipantsHandleV1,
+  type PhaseParticipantsHandleV1,
   type RoomParticipantsConfigV1,
 } from "./room-participants-config.js";
 import {
@@ -177,6 +180,8 @@ export type StartFactoryDaemonServiceOptions = Readonly<{
   phaseProviderCatalog?: OpenDaemonCommandRuntimeOptions["phaseProviderCatalog"];
   /** Default inert: see `OpenDaemonCommandRuntimeOptions.releaseObserver`. */
   releaseObserver?: OpenDaemonCommandRuntimeOptions["releaseObserver"];
+  /** Default inert: see `OpenDaemonCommandRuntimeOptions.releaseArchiver` (Release Rail Wave 4). */
+  releaseArchiver?: OpenDaemonCommandRuntimeOptions["releaseArchiver"];
   /**
    * Default OFF: omit to keep `provider.*` degraded (Architecture decisions 2-3). When set, builds
    * the real `ProviderRegistryPort` (`provider-command-runtime.ts`) over the SAME participants
@@ -467,6 +472,25 @@ export async function startFactoryDaemonService(
     handle: RoomsSubsystemHandle | null;
     context: InitializeRoomsContext | null;
   } = { handle: null, context: null };
+  /**
+   * Wave 5's hot-swap (`RoomsSubsystemHandle`), extended to `phase.run`/signal-scout provider
+   * resolution -- see `createPhaseParticipantsHandleV1`'s doc comment for why this was missing:
+   * the pool `phase.run`/the signal scheduler drew from was built once at daemon start and never
+   * reloaded, so a provider added through Settings lit up rooms immediately but not phases/signals
+   * until a restart. Seeded from whatever `phaseParticipants`/`phaseProviderCatalog` this daemon
+   * started with (may be the inert/throwing default below -- rooms or the provider registry may be
+   * disabled entirely), reloaded in lockstep with the rooms swap by `reloadRoomsFromConfig`, below.
+   */
+  const phaseParticipantsHandle: PhaseParticipantsHandleV1 = createPhaseParticipantsHandleV1({
+    phaseParticipants: options.phaseParticipants ?? { resolve: () => null },
+    providerCatalog: options.phaseProviderCatalog ?? {
+      resolve: (provider) => {
+        throw new Error(
+          `No provider catalog is configured for token-usage attribution (resolving "${String(provider)}").`,
+        );
+      },
+    },
+  });
   const signalSchedulerState: { subsystem: SignalSchedulerSubsystem | null } = { subsystem: null };
   let loop: BackgroundSchedulerLoop | null = null;
   let closing = false;
@@ -619,17 +643,26 @@ export async function startFactoryDaemonService(
    * (Architecture decision 3): rebuilds the moderator/contributor/providerCatalog from the
    * freshly-written participants config and swaps it into the live `RoomsSubsystemHandle`,
    * preserving every OTHER setting `roomsConfig` originally specified (a test-injected clock,
-   * `onError`/`onRound`, `dormancyMs`, ...). A no-op when rooms were never enabled at all -- the
-   * write to the config file already happened; there is simply nothing to swap.
+   * `onError`/`onRound`, `dormancyMs`, ...). Also reloads `phaseParticipantsHandle` from the SAME
+   * `buildRoomsCompositionV1` call -- one config read, one composition, both live pools updated
+   * together, so rooms and phases/signals can never disagree about which providers exist. The
+   * `phaseParticipantsHandle` reload runs unconditionally (even if rooms themselves were never
+   * enabled) since it has no subsystem to stop/start, only a resolver to swap; the ROOMS swap below
+   * stays a no-op when rooms were never enabled at all -- the write to the config file already
+   * happened, there is simply no moderator subsystem to swap.
    */
   const reloadRoomsFromConfig = async (
     nextParticipantsConfig: RoomParticipantsConfigV1,
     attested: boolean,
   ): Promise<void> => {
+    const { subsystemConfiguration, phaseParticipants, providerCatalog } = buildRoomsCompositionV1(
+      nextParticipantsConfig,
+      attested,
+    );
+    phaseParticipantsHandle.reload({ phaseParticipants, providerCatalog });
     if (roomsState.handle === null || roomsState.context === null || roomsConfig === undefined) {
       return;
     }
-    const { subsystemConfiguration } = buildRoomsCompositionV1(nextParticipantsConfig, attested);
     const merged: RoomSubsystemConfiguration = {
       ...roomsConfig,
       ...subsystemConfiguration,
@@ -695,15 +728,22 @@ export async function startFactoryDaemonService(
               sourceRepositoryPath: project.sourceRepositoryPath,
             };
       })(),
-      ...(options.phaseParticipants === undefined
-        ? {}
-        : { phaseParticipants: options.phaseParticipants }),
-      ...(options.phaseProviderCatalog === undefined
-        ? {}
-        : { phaseProviderCatalog: options.phaseProviderCatalog }),
+      // `phaseParticipantsHandle.port`/`.providerCatalog` (not `options.phaseParticipants`/
+      // `options.phaseProviderCatalog` directly): STABLE objects whose `resolve` reads whatever
+      // `reloadRoomsFromConfig` most recently adopted, so `phase.run` and `signal.run-now` (which
+      // derives its own scout pool from this SAME `phaseParticipants`, see command-runtime.ts)
+      // resolve a provider added through Settings with no daemon restart. Passing these
+      // unconditionally is behavior-preserving when neither option was ever configured: the
+      // handle's own seed falls back to the exact same inert/throwing defaults
+      // `openDaemonCommandRuntime` would otherwise supply on its own.
+      phaseParticipants: phaseParticipantsHandle.port,
+      phaseProviderCatalog: phaseParticipantsHandle.providerCatalog,
       ...(options.releaseObserver === undefined
         ? {}
         : { releaseObserver: options.releaseObserver }),
+      ...(options.releaseArchiver === undefined
+        ? {}
+        : { releaseArchiver: options.releaseArchiver }),
       initializeDatabase: (database) => {
         const plannerResolver =
           options.plannerExecution === undefined || plannerPolicy === null
@@ -762,9 +802,9 @@ export async function startFactoryDaemonService(
             : { leaseDurationMs: options.leaseDurationMs }),
         });
         // Signal scheduler (Wave 7, Architecture decision 11): built over the SAME database handle
-        // and the SAME `phaseParticipants`/`phaseProviderCatalog` ports `phase.run` and
-        // `signal.run-now` use -- default OFF (`signalScheduler.enabled` unset or false), matching
-        // `effects`/`rooms`'s own opt-in shape.
+        // and the SAME live `phaseParticipantsHandle` `phase.run` and `signal.run-now` use --
+        // default OFF (`signalScheduler.enabled` unset or false), matching `effects`/`rooms`'s own
+        // opt-in shape.
         const signalSchedulerConfig = options.signalScheduler;
         if (signalSchedulerConfig?.enabled === true) {
           const schedulerRepositories: SignalSchedulerRepositories =
@@ -772,24 +812,21 @@ export async function startFactoryDaemonService(
           // Signals reuse the SAME configured room-participant adapters phases do (no separate
           // "which providers may scout" configuration exists) -- the exact coercion
           // `command-runtime.ts`'s own `signalScoutParticipants` already relies on.
+          // `phaseParticipantsHandle.port` (not `options.phaseParticipants`): the scheduler runs in
+          // the background across the daemon's whole lifetime, so its scout pool must track
+          // `provider.upsert`/`remove` the SAME way `phase.run`/`signal.run-now` now do -- resolving
+          // through the live handle rather than the one-time value this closure would otherwise
+          // capture at daemon start.
           const scoutParticipants: SignalScoutParticipantsPort = {
             resolve: (provider) =>
-              options.phaseParticipants?.resolve(
-                provider as Parameters<
-                  NonNullable<OpenDaemonCommandRuntimeOptions["phaseParticipants"]>["resolve"]
-                >[0],
-              ) ?? null,
+              phaseParticipantsHandle.port.resolve(
+                provider as Parameters<PhaseParticipantsPort["resolve"]>[0],
+              ),
           };
           signalSchedulerState.subsystem = createSignalSchedulerSubsystem({
             repositories: schedulerRepositories,
             scoutParticipants,
-            providerCatalog: options.phaseProviderCatalog ?? {
-              resolve: (provider) => {
-                throw new Error(
-                  `No provider catalog is configured for signal token-usage attribution (resolving "${String(provider)}").`,
-                );
-              },
-            },
+            providerCatalog: phaseParticipantsHandle.providerCatalog,
             ...(signalSchedulerConfig.pollIntervalMs === undefined
               ? {}
               : { pollIntervalMs: signalSchedulerConfig.pollIntervalMs }),

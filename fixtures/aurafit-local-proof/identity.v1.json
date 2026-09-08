@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "kind": "aurafit-local-proof-v1",
+  "product": "AuraFit",
+  "scheme": "AuraFit",
+  "configuration": "Release",
+  "bundleId": "com.pchordia.aurafit",
+  "allowedBaseCommit": "1b717b921a52b4612005eb102b5ac18a69b04993",
+  "allowedBaseTree": "e50c36da7a1ebcf1ecaf5c4f880394568b2c72f8",
+  "signing": "forbidden",
+  "archive": "forbidden",
+  "appleApis": "forbidden",
+  "notes": [
+    "Factory-local AuraFit-shaped identity pin for OR-22 deterministic proof.",
+    "Does not copy Hindsight configuration or invoke Xcode archive/sign/upload."
+  ]
+}

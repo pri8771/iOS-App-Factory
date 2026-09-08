@@ -9,8 +9,10 @@ import {
 } from "../src/daemon-entrypoint.js";
 import {
   buildPhaseParticipantsPortV1,
+  buildProviderCatalogPortV1,
   buildRoomParticipantsCatalogSourceV1,
   buildRoomSubsystemConfiguration,
+  createPhaseParticipantsHandleV1,
   parseRoomParticipantsConfigV1,
   RoomParticipantsConfigurationError,
   type RoomOllamaParticipantConfigV1,
@@ -529,6 +531,61 @@ describe("buildPhaseParticipantsPortV1 (Seam (b): phase.run's composed roster)",
     const adapter = port.resolve("ollama" as never);
     expect(adapter).not.toBeNull();
     expect(adapter?.provider).toBe("ollama");
+  });
+});
+
+describe("createPhaseParticipantsHandleV1 (Gap 2: phase.run/signal-scout hot-swap)", () => {
+  it("resolves through whichever pool was most recently reloaded, and fails closed for a provider dropped from it", () => {
+    const before = {
+      schemaVersion: 1 as const,
+      ollama: { model: "qwen2.5:3b" },
+    };
+    const after = {
+      schemaVersion: 1 as const,
+      ollama: { model: "qwen2.5:3b" },
+      claude: { executable: "/usr/bin/true", model: "sonnet" },
+    };
+    const handle = createPhaseParticipantsHandleV1({
+      phaseParticipants: buildPhaseParticipantsPortV1(before),
+      providerCatalog: buildProviderCatalogPortV1(before),
+    });
+
+    // Seeded from `before`: ollama resolves, claude does not.
+    expect(handle.port.resolve("ollama" as never)).not.toBeNull();
+    expect(handle.port.resolve("claude" as never)).toBeNull();
+    expect(handle.providerCatalog.resolve("ollama" as never)).toEqual({
+      family: "ollama",
+      model: "qwen2.5:3b",
+    });
+    expect(() => handle.providerCatalog.resolve("claude" as never)).toThrow();
+
+    // `port`/`providerCatalog` are the SAME stable objects before and after reload -- a caller that
+    // captured them once (exactly like `factory-daemon-service.ts`'s `openDaemonCommandRuntime`
+    // options) never needs to re-fetch anything.
+    const { port, providerCatalog } = handle;
+
+    handle.reload({
+      phaseParticipants: buildPhaseParticipantsPortV1(after),
+      providerCatalog: buildProviderCatalogPortV1(after),
+    });
+
+    // Reloaded: claude now resolves too, through the exact same object references.
+    expect(port).toBe(handle.port);
+    expect(providerCatalog).toBe(handle.providerCatalog);
+    expect(port.resolve("claude" as never)).not.toBeNull();
+    expect(providerCatalog.resolve("claude" as never)).toEqual({
+      family: "claude",
+      model: "sonnet",
+    });
+
+    // A provider REMOVED by the next reload fails the NEXT resolution closed -- the existing
+    // null/throw paths, never a special case.
+    handle.reload({
+      phaseParticipants: buildPhaseParticipantsPortV1(before),
+      providerCatalog: buildProviderCatalogPortV1(before),
+    });
+    expect(port.resolve("claude" as never)).toBeNull();
+    expect(() => providerCatalog.resolve("claude" as never)).toThrow();
   });
 });
 

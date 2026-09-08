@@ -25,7 +25,10 @@ const keychainRef = (account) => ({
 // Five configured instances: codex/claude/ollama authenticate outside the Keychain path (CLI
 // session or loopback, never a bare key — `credentialReference: null`); two named OpenRouter
 // instances, one with a stored BYOK reference and one not yet configured, so the Swift decode test
-// sees both nullable-credential branches in one list.
+// sees both nullable-credential branches in one list. `maxOutputTokens` mixes all three shapes a
+// client must render: absent from codex/claude (no such config field for those families — the
+// schema's `.default(null)` fills it in as an honest null), an explicit override on ollama and
+// openrouter-fast, and the honest "never configured" null on openrouter-deep.
 const providers = [
   {
     key: "codex",
@@ -47,6 +50,7 @@ const providers = [
     model: "qwen2.5-coder:14b",
     displayName: "Ollama",
     credentialReference: null,
+    maxOutputTokens: 1000,
   },
   {
     key: "openrouter-fast",
@@ -54,6 +58,7 @@ const providers = [
     model: "google/gemini-2.5-flash",
     displayName: "OpenRouter — fast",
     credentialReference: keychainRef("openrouter-fast"),
+    maxOutputTokens: 500,
   },
   {
     key: "openrouter-deep",
@@ -61,6 +66,7 @@ const providers = [
     model: "anthropic/claude-opus-4.1",
     displayName: "OpenRouter — deep",
     credentialReference: null,
+    maxOutputTokens: null,
   },
 ];
 
@@ -74,6 +80,9 @@ const fixtures = {
       model: "meta-llama/llama-3.3-70b",
       displayName: "OpenRouter — batch",
       credentialReference: null,
+      // A brand-new instance created without an explicit maxOutputTokens defaults to 1000 (the
+      // daemon's own new-instance default), never the bare adapter fallback of 150.
+      maxOutputTokens: 1000,
     },
     created: true,
     digest: fakeDigest("b"),

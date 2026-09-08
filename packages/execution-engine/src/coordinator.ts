@@ -14,6 +14,7 @@ import {
   type RunId,
   type Sha256Digest,
   type TaskSpecV1,
+  type VerificationClaimsV1,
 } from "@app-factory/contracts";
 import type { EvidenceStore } from "@app-factory/evidence-store";
 import type {
@@ -70,8 +71,8 @@ import {
 } from "./verification-scratch.js";
 
 export class VerifiedCommitCoordinatorError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "VerifiedCommitCoordinatorError";
   }
 }
@@ -119,6 +120,21 @@ export type VerifiedCommitCoordinatorInput = Readonly<{
   candidatePolicy: CandidatePolicy;
   verificationPlans: readonly TrustedVerificationPlanTemplate[];
   reviewer: IndependentReviewAdapter;
+  /**
+   * True exactly when the caller has durably, independently confirmed that the implementing agent's
+   * OWN outcome explicitly reported it finished with no changes needed (see
+   * `LocalAgentRunOutcome`'s `succeeded.changedPaths` in verified-local-executor.ts, and
+   * `#recordReportedNoChanges`/`#reportedNoChanges` there for how that self-report is captured
+   * durably and re-verified before this field is ever set true). This is NEVER inferred from the
+   * candidate diff being empty alone -- an empty diff with this false (the default) still fails
+   * closed exactly as before this field existed, because an empty diff can also mean the agent
+   * silently did nothing when it should have done something. Only the explicit self-report, combined
+   * with a FRESH passing run of trusted verification against the unchanged base tree (this function
+   * still runs the full test phase below; nothing about verification is skipped), lets an empty
+   * candidate proceed instead of being rejected. Defaults to false so every existing caller --
+   * everything that predates this field -- is byte-identical.
+   */
+  reportedNoChanges?: boolean;
 }>;
 
 export type VerifiedCommitCoordinatorPorts = Readonly<{
@@ -162,6 +178,67 @@ function nowInstant(now: () => Date): IsoInstant {
 
 function sameCanonical(left: unknown, right: unknown): boolean {
   return canonicalJsonBytes(left).equals(canonicalJsonBytes(right));
+}
+
+// Bound how much of a captured stream lands in the (private, 0600) failure-diagnostics file: the
+// end of the output is what usually carries the actual error, so keep the tail rather than the head.
+const VERIFICATION_FAILURE_STREAM_TAIL_BYTES = 16 * 1024;
+
+function describeStreamTail(label: string, bytes: Buffer): string {
+  if (bytes.byteLength === 0) return `${label}: (empty)`;
+  const tail = bytes.subarray(
+    Math.max(0, bytes.byteLength - VERIFICATION_FAILURE_STREAM_TAIL_BYTES),
+  );
+  const truncated = tail.byteLength < bytes.byteLength;
+  return `${label} (${String(bytes.byteLength)} bytes${truncated ? ", showing tail" : ""}):\n${tail.toString("utf8")}`;
+}
+
+/**
+ * Every reason `coordinateVerifiedLocalCommit` could have rejected this check, plus the check's own
+ * output, rendered for the operator-only failure-diagnostics file (never the wire, never evidence --
+ * see `#recordFailureDiagnostic` in verified-local-executor.ts). Before this existed the coordinator's
+ * own cross-checks (digest/argv/tool-version equality) and the verifier's pass/fail booleans
+ * (exitCode, timedOut, outputLimitExceeded, protectedFilesUnchanged, checkoutCleanAfter) were folded
+ * into one generic "did not pass cleanly" message with nothing to tell them apart -- an attempt could
+ * fail for any of a dozen reasons and an operator had no way to tell which, since the verifier's own
+ * scratch directory (and the check's real stdout/stderr) is always cleaned up, pass or fail.
+ */
+function describeVerificationFailure(
+  template: Readonly<{ checkId: string; toolVersions: readonly unknown[] }>,
+  expectedTree: string,
+  claims: VerificationClaimsV1,
+  result: TrustedVerificationRun,
+  argvMatchesTemplate: boolean,
+  toolVersionsMatch: boolean,
+  stdoutDigestMatches: boolean,
+  stderrDigestMatches: boolean,
+): string {
+  const reasons: string[] = [];
+  if (!stdoutDigestMatches)
+    reasons.push("recorded stdout digest does not match the evidence store");
+  if (!stderrDigestMatches)
+    reasons.push("recorded stderr digest does not match the evidence store");
+  if (claims.checkId !== template.checkId) {
+    reasons.push(`checkId mismatch (claimed ${claims.checkId})`);
+  }
+  if (!argvMatchesTemplate) reasons.push("argv did not match the reviewed verification template");
+  if (!toolVersionsMatch)
+    reasons.push("toolVersions did not match the reviewed verification template");
+  if (!claims.passed) reasons.push("verifier reported passed=false");
+  if (claims.exitCode !== 0) reasons.push(`exitCode=${String(claims.exitCode)}`);
+  if (claims.checkoutTree !== expectedTree)
+    reasons.push("checkoutTree did not match the candidate");
+  if (result.timedOut) reasons.push("timed out");
+  if (result.outputLimitExceeded) reasons.push("stdout/stderr exceeded the output limit");
+  if (!result.protectedFilesUnchanged) reasons.push("a protected file changed during the check");
+  if (!result.checkoutCleanAfter) reasons.push("the checkout was not clean after the check");
+  return [
+    `checkId=${template.checkId} reasons=[${reasons.join("; ") || "none matched -- inspect claims/result directly"}]`,
+    `argv=${JSON.stringify(claims.argv)}`,
+    `exitCode=${String(claims.exitCode)} passed=${String(claims.passed)} timedOut=${String(result.timedOut)} outputLimitExceeded=${String(result.outputLimitExceeded)} protectedFilesUnchanged=${String(result.protectedFilesUnchanged)} checkoutCleanAfter=${String(result.checkoutCleanAfter)}`,
+    describeStreamTail("stdout", result.stdout),
+    describeStreamTail("stderr", result.stderr),
+  ].join("\n");
 }
 
 function normalizedScopes(scopes: readonly string[]): readonly string[] {
@@ -403,7 +480,16 @@ export async function coordinateVerifiedLocalCommit(
     inputValue.attemptWorkspace,
     candidatePolicy,
   );
-  if (candidate.changedPaths.length === 0) {
+  // An empty candidate is refused UNLESS the agent explicitly, durably reported it finished with no
+  // changes needed (see `reportedNoChanges`'s doc above) -- the ordinary case is a bug or a silently
+  // do-nothing agent, and stays rejected exactly as before this flag existed. When the flag is set,
+  // this function does NOT shortcut anything else: the (unchanged) candidate tree still goes through
+  // the full trusted-verification phase below, still gets independently reviewed, and still gets a
+  // broker commit -- an empty one (parent and candidate tree identical), which Git's plumbing
+  // (`commit-tree`) creates without complaint, unlike porcelain `git commit`. That keeps the exact
+  // same audit trail (evidence index, broker commit, checkpoint) every other completed task gets,
+  // instead of a special no-commit shortcut that would need its own parallel evidence shape.
+  if (candidate.changedPaths.length === 0 && inputValue.reportedNoChanges !== true) {
     throw new VerifiedCommitCoordinatorError(
       "A verified commit cannot be created for an empty candidate",
     );
@@ -515,16 +601,20 @@ export async function coordinateVerifiedLocalCommit(
         const claims = VerificationClaimsV1Schema.parse(result.claims);
         const stdoutDigest = ports.evidenceStore.putBlob(result.stdout);
         const stderrDigest = ports.evidenceStore.putBlob(result.stderr);
+        const stdoutDigestMatches = stdoutDigest === result.stdoutDigest;
+        const stderrDigestMatches = stderrDigest === result.stderrDigest;
+        const argvMatchesTemplate = verificationArgvMatchesTemplate(claims.argv, template, {
+          attemptId,
+          fence,
+          exactFence: true,
+        });
+        const toolVersionsMatch = sameCanonical(claims.toolVersions, template.toolVersions);
         if (
-          stdoutDigest !== result.stdoutDigest ||
-          stderrDigest !== result.stderrDigest ||
+          !stdoutDigestMatches ||
+          !stderrDigestMatches ||
           claims.checkId !== template.checkId ||
-          !verificationArgvMatchesTemplate(claims.argv, template, {
-            attemptId,
-            fence,
-            exactFence: true,
-          }) ||
-          !sameCanonical(claims.toolVersions, template.toolVersions) ||
+          !argvMatchesTemplate ||
+          !toolVersionsMatch ||
           !claims.passed ||
           claims.exitCode !== 0 ||
           claims.checkoutTree !== candidate.candidateTreeId ||
@@ -535,6 +625,20 @@ export async function coordinateVerifiedLocalCommit(
         ) {
           throw new VerifiedCommitCoordinatorError(
             `Trusted verification did not pass cleanly: ${claims.checkId}`,
+            {
+              cause: new Error(
+                describeVerificationFailure(
+                  template,
+                  candidate.candidateTreeId,
+                  claims,
+                  result,
+                  argvMatchesTemplate,
+                  toolVersionsMatch,
+                  stdoutDigestMatches,
+                  stderrDigestMatches,
+                ),
+              ),
+            },
           );
         }
         const record: TrustedTestRecordV1 = {

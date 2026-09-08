@@ -116,6 +116,9 @@ importers:
       '@app-factory/provider-transport':
         specifier: workspace:*
         version: link:../../packages/provider-transport
+      '@app-factory/quality':
+        specifier: workspace:*
+        version: link:../../packages/quality
       '@app-factory/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler

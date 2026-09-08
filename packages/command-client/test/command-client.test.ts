@@ -826,6 +826,280 @@ describe("typed command client", () => {
     client.close();
   });
 
+  function fixtureReleaseRun(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      schemaVersion: 1,
+      releaseRunId: "00000000-0000-4000-8000-000000000070",
+      projectId: "00000000-0000-4000-8000-000000000071",
+      repositoryId: "00000000-0000-4000-8000-000000000072",
+      releaseId: "00000000-0000-4000-8000-000000000073",
+      sourceCommit: "a".repeat(40),
+      branch: "main",
+      stage: "certified",
+      revision: 1,
+      promotion: null,
+      archive: null,
+      upload: null,
+      unevaluated: ["quality.coherence"],
+      notes: [],
+      createdAt: NOW.toISOString(),
+      updatedAt: NOW.toISOString(),
+      ...overrides,
+    };
+  }
+
+  it("sends the strict release.start payload and parses branded IDs before sending", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: true,
+            result: { operation: "release.start", run: fixtureReleaseRun(), created: true },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.startRelease(
+        {
+          projectId: "00000000-0000-4000-8000-000000000071",
+          repositoryId: "00000000-0000-4000-8000-000000000072",
+          sourceCommit: "a".repeat(40),
+          branch: "main",
+        },
+        identity(),
+      ),
+    ).resolves.toMatchObject({ operation: "release.start", created: true });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "release.start",
+        payload: {
+          projectId: "00000000-0000-4000-8000-000000000071",
+          repositoryId: "00000000-0000-4000-8000-000000000072",
+          sourceCommit: "a".repeat(40),
+          branch: "main",
+        },
+      },
+    });
+    client.close();
+  });
+
+  it("rejects an invalid release.start input before it ever reaches the socket", async () => {
+    const socketPath = await createFakeServer(
+      onRequest((_frame, socket) => {
+        socket.end(`${JSON.stringify(releaseProjectionResponse("unused"))}\n`);
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+    await expect(
+      client.startRelease(
+        {
+          projectId: "00000000-0000-4000-8000-000000000071",
+          repositoryId: "00000000-0000-4000-8000-000000000072",
+          sourceCommit: "not-a-git-object-id",
+          branch: "main",
+        },
+        identity(),
+      ),
+    ).rejects.toThrow();
+    client.close();
+  });
+
+  it("sends the strict release.promote payload", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: true,
+            result: { operation: "release.promote", run: fixtureReleaseRun({ revision: 2 }) },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.promoteRelease("00000000-0000-4000-8000-000000000070", 1, identity()),
+    ).resolves.toMatchObject({ operation: "release.promote", run: { revision: 2 } });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "release.promote",
+        payload: { releaseRunId: "00000000-0000-4000-8000-000000000070", expectedRevision: 1 },
+      },
+    });
+    client.close();
+  });
+
+  it("surfaces a release.promote CAS conflict as a typed CommandClientError", async () => {
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: false,
+            error: {
+              code: "release-run.revision-conflict",
+              message: "Release run is at revision 2, not 1.",
+              retryable: true,
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+    await expect(
+      client.promoteRelease("00000000-0000-4000-8000-000000000070", 1, identity()),
+    ).rejects.toMatchObject<Partial<CommandClientError>>({
+      code: "release-run.revision-conflict",
+      retryable: true,
+    });
+    client.close();
+  });
+
+  it("reads release.status with a strict releaseRunId-only payload", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: true,
+            result: { operation: "release.status", run: fixtureReleaseRun() },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.releaseStatus("00000000-0000-4000-8000-000000000070", identity()),
+    ).resolves.toMatchObject({ operation: "release.status" });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "release.status",
+        payload: { releaseRunId: "00000000-0000-4000-8000-000000000070" },
+      },
+    });
+    client.close();
+  });
+
+  it("sends the strict release.archive payload with exportOptions.schemaVersion filled in", async () => {
+    const received: Record<string, unknown>[] = [];
+    const socketPath = await createFakeServer(
+      onRequest((frame, socket) => {
+        received.push(frame);
+        socket.end(
+          `${JSON.stringify({
+            protocolVersion: 1,
+            requestId: frame.requestId,
+            ok: true,
+            result: {
+              operation: "release.archive",
+              run: fixtureReleaseRun({
+                revision: 2,
+                stage: "archived",
+                promotion: {
+                  promotedCommit: "a".repeat(40),
+                  branch: "main",
+                  at: NOW.toISOString(),
+                },
+                archive: {
+                  buildNumber: "1",
+                  marketingVersion: "1.0",
+                  archiveDigest: `sha256:${"1".repeat(64)}`,
+                  exportedArtifactDigest: `sha256:${"2".repeat(64)}`,
+                  receiptDigest: `sha256:${"3".repeat(64)}`,
+                  at: NOW.toISOString(),
+                },
+              }),
+            },
+          })}\n`,
+        );
+      }),
+    );
+    const client = createCommandClient({
+      socketPath,
+      authorization: AUTHORIZATION,
+      origin: "cli",
+      now: () => NOW,
+    });
+
+    await expect(
+      client.archiveRelease(
+        {
+          releaseRunId: "00000000-0000-4000-8000-000000000070",
+          expectedRevision: 1,
+          exportOptions: {
+            teamId: "ABCD123456",
+            method: "app-store-connect",
+            destination: "export",
+            signingStyle: "automatic",
+            bundleIdOverride: "com.example.app",
+          },
+          marketingVersion: "1.0",
+        },
+        identity(),
+      ),
+    ).resolves.toMatchObject({ operation: "release.archive", run: { stage: "archived" } });
+    expect(received[0]).toMatchObject({
+      request: {
+        operation: "release.archive",
+        payload: {
+          releaseRunId: "00000000-0000-4000-8000-000000000070",
+          expectedRevision: 1,
+          exportOptions: {
+            schemaVersion: 1,
+            teamId: "ABCD123456",
+            method: "app-store-connect",
+            destination: "export",
+            signingStyle: "automatic",
+            bundleIdOverride: "com.example.app",
+          },
+          marketingVersion: "1.0",
+        },
+      },
+    });
+    client.close();
+  });
+
   it("asks the assistant with a strict scoped query payload", async () => {
     const received: Record<string, unknown>[] = [];
     const socketPath = await createFakeServer(

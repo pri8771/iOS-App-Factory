@@ -50,6 +50,28 @@ export type ProviderFamilyV1 = z.infer<typeof ProviderFamilyV1Schema>;
 
 export const MAX_PROVIDER_INSTANCES_V1 = 32 as const;
 
+export const MIN_PROVIDER_MAX_OUTPUT_TOKENS_V1 = 1 as const;
+export const MAX_PROVIDER_MAX_OUTPUT_TOKENS_V1 = 8_192 as const;
+
+/**
+ * Per-instance output cap, shared by `ProviderInstanceV1` (what the instance is currently
+ * configured with) and `ProviderUpsertSpecV1` (what a caller proposes). `null` means "no explicit
+ * instance override" -- the adapter's own family default applies (`OLLAMA_PARTICIPANT_MAX_OUTPUT
+ * _TOKENS`/`OPENROUTER_PARTICIPANT_MAX_OUTPUT_TOKENS`, both 150, tuned for turn-taking rooms where
+ * a short contribution is the point). 150 is too tight for an interactive chat reply, which is
+ * exactly the gap this field closes: `apps/daemon/src/room-participants-config.ts`'s
+ * `upsertProviderInstanceV1` defaults a NEW ollama/openrouter instance to 1000 (not null) when a
+ * caller omits this field, so an instance created through Settings never silently inherits the
+ * 150-token room default. Only Ollama and OpenRouter instances honor it -- codex/claude/gemini have
+ * no such knob in their config (their CLI subprocess picks its own output length), and
+ * `provider.upsert` refuses a non-null value for those families rather than silently ignoring it.
+ */
+const ProviderMaxOutputTokensV1Schema = z
+  .int()
+  .min(MIN_PROVIDER_MAX_OUTPUT_TOKENS_V1)
+  .max(MAX_PROVIDER_MAX_OUTPUT_TOKENS_V1)
+  .nullable();
+
 export const ProviderInstanceV1Schema = z.strictObject({
   key: RoomProviderSchema,
   family: ProviderFamilyV1Schema,
@@ -57,6 +79,10 @@ export const ProviderInstanceV1Schema = z.strictObject({
   model: z.string().min(1).max(200),
   displayName: z.string().min(1).max(100),
   credentialReference: CredentialReferenceV1Schema.nullable(),
+  /** See {@link ProviderMaxOutputTokensV1Schema}'s doc comment. `.default(null)` so a config
+   *  predating this field (codex/claude/gemini always, or an ollama/openrouter instance configured
+   *  by hand before this field existed) still parses as an honest "no override configured." */
+  maxOutputTokens: ProviderMaxOutputTokensV1Schema.default(null),
 });
 export type ProviderInstanceV1 = z.infer<typeof ProviderInstanceV1Schema>;
 
@@ -71,6 +97,12 @@ export const ProviderUpsertSpecV1Schema = z.strictObject({
   family: ProviderFamilyV1Schema,
   model: z.string().min(1).max(200),
   displayName: z.string().min(1).max(100),
+  /** See {@link ProviderMaxOutputTokensV1Schema}'s doc comment. `.default(null)` (omitted on the
+   *  wire = null = "caller has no preference") keeps every pre-existing caller/fixture that never
+   *  sent this field parsing unchanged -- retuning an existing instance without it preserves
+   *  whatever the instance already had; creating a new ollama/openrouter instance without it gets
+   *  the daemon's 1000-token default instead of the bare adapter fallback. */
+  maxOutputTokens: ProviderMaxOutputTokensV1Schema.default(null),
 });
 export type ProviderUpsertSpecV1 = z.infer<typeof ProviderUpsertSpecV1Schema>;
 

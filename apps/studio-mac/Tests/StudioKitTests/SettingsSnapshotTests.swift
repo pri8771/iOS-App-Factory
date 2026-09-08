@@ -24,9 +24,10 @@ final class SettingsSnapshotTests: XCTestCase {
         [
             ProviderInstance(key: RoomProvider(unchecked: "codex"), family: .codex, model: "gpt-5-codex", displayName: "Codex", credentialReference: nil),
             ProviderInstance(key: RoomProvider(unchecked: "claude"), family: .claude, model: "claude-sonnet-4-5", displayName: "Claude", credentialReference: nil),
-            ProviderInstance(key: RoomProvider(unchecked: "ollama"), family: .ollama, model: "qwen2.5-coder:14b", displayName: "Ollama", credentialReference: nil),
+            ProviderInstance(key: RoomProvider(unchecked: "ollama"), family: .ollama, model: "qwen2.5-coder:14b", displayName: "Ollama", credentialReference: nil,
+                             maxOutputTokens: 1_000),
             ProviderInstance(key: RoomProvider(unchecked: "openrouter-fast"), family: .openrouter, model: "google/gemini-2.5-flash", displayName: "OpenRouter — fast",
-                             credentialReference: CredentialReference(service: "app-factory-provider", account: "openrouter-fast")),
+                             credentialReference: CredentialReference(service: "app-factory-provider", account: "openrouter-fast"), maxOutputTokens: 500),
             ProviderInstance(key: RoomProvider(unchecked: "openrouter-deep"), family: .openrouter, model: "anthropic/claude-opus-4.1", displayName: "OpenRouter — deep", credentialReference: nil),
         ]
     }
@@ -65,7 +66,7 @@ final class SettingsSnapshotTests: XCTestCase {
             AddProviderSheet(onUpsert: { _ in .failure(AssistantBackendError("preview only")) },
                              onSetCredential: { _, _ in .failure(AssistantBackendError("preview only")) },
                              onDone: { _ in }),
-            size: CGSize(width: 520, height: 420), named: "add-provider-sheet-openrouter-details")
+            size: CGSize(width: 520, height: 480), named: "add-provider-sheet-openrouter-details")
     }
 
     /// The credential step reached after a successful OpenRouter upsert.

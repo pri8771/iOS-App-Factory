@@ -7,6 +7,7 @@ import {
   EffectListQueryV1Schema,
   EffectStatusV1Schema,
 } from "./effect-read-model.js";
+import { EffectiveConfigurationV1Schema } from "./effective-config.js";
 import {
   EvidenceKindV1Schema,
   EvidenceManifestV1Schema,
@@ -46,6 +47,7 @@ import {
 } from "./phase-run.js";
 import {
   AbsolutePathSchema,
+  ApprovalIdSchema,
   AssistantIntentIdSchema,
   AttemptIdSchema,
   CommandIdSchema,
@@ -56,9 +58,11 @@ import {
   NamespacedCodeSchema,
   NonNegativeSafeIntegerSchema,
   PhaseRunIdSchema,
+  PositiveSafeIntegerSchema,
   ProjectIdSchema,
   ProjectPlanIdSchema,
   RelativePathSchema,
+  ReleaseRunIdSchema,
   RepositoryIdSchema,
   RequestIdSchema,
   SchemaVersionV1Schema,
@@ -109,6 +113,7 @@ import {
   AssistantQueryV1Schema,
 } from "./studio-assistant.js";
 import { AscReleaseObservationV1Schema, ReleaseProjectionV1Schema } from "./release-observation.js";
+import { ReleaseExportOptionsConfigV1Schema, ReleaseRunV1Schema } from "./release-run.js";
 import { StudioSnapshotV1Schema } from "./studio-snapshot.js";
 import { TaskSpecV1Schema } from "./task-spec.js";
 import { UsageSummaryV1Schema } from "./token-usage.js";
@@ -633,6 +638,86 @@ export const StudioSnapshotCommandRequestV1Schema = z.strictObject({
 });
 
 /**
+ * Release Rail Wave 1 (`release.start`/`release.promote`/`release.archive`/`release.upload`/
+ * `release.submit`/`release.status`): the wire shapes for the runtime record (`ReleaseRunV1`,
+ * `@app-factory/contracts`'s `release-run.ts`) that drives a `ReleaseManifestV1` (release.ts)
+ * through its eight stages. No daemon handler exists yet for any of these six operations -- see
+ * `command-runtime.ts`'s "recognized but not yet implemented" placeholder -- later waves own
+ * promotion (W3), archive/sign (W4), upload/confirm (W5), and submit (W7). `expectedRevision` is
+ * every mutating operation's CAS guard against `ReleaseRunV1.revision`, the same optimistic-
+ * concurrency convention `phase.upsert`/`preset.upsert` already use for their own revisioned
+ * records. `release.upload`/`release.submit` each require an `approvalId`: the owner gate is
+ * `upload-approved` (architecture decision 8) -- everything up to and including `archived` may run
+ * unattended, but nothing that crosses to Apple does so without an explicit human approval.
+ */
+export const ReleaseStartCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.start"),
+  payload: z.strictObject({
+    projectId: ProjectIdSchema,
+    repositoryId: RepositoryIdSchema,
+    sourceCommit: GitObjectIdSchema,
+    branch: GitBranchNameSchema,
+  }),
+});
+
+export const ReleasePromoteCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.promote"),
+  payload: z.strictObject({
+    releaseRunId: ReleaseRunIdSchema,
+    expectedRevision: PositiveSafeIntegerSchema,
+  }),
+});
+
+export const ReleaseArchiveCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.archive"),
+  payload: z.strictObject({
+    releaseRunId: ReleaseRunIdSchema,
+    expectedRevision: PositiveSafeIntegerSchema,
+    exportOptions: ReleaseExportOptionsConfigV1Schema,
+    /**
+     * Wave 4: the exact marketing version (`MARKETING_VERSION`) baked into the archive as a build
+     * setting -- see `ReleaseRunArchiveV1Schema.marketingVersion` (release-run.ts), whose shape this
+     * mirrors. Wave 1 did not anticipate a payload field for it (the archive/upload/submit payloads
+     * were provisional, "later waves own" placeholders per this schema's own module doc comment);
+     * Wave 4 is the first to give `release.archive` a real handler, so it adds the one field that
+     * handler genuinely needs. `exportOptions.bundleIdOverride` (non-null, required by the Wave 4
+     * handler though left nullable here for exportOptions' own general shape) supplies the bundle ID
+     * the same call allocates a build number for -- see `release-archive-runtime.ts`.
+     */
+    marketingVersion: z.string().min(1).max(100),
+  }),
+});
+
+export const ReleaseUploadCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.upload"),
+  payload: z.strictObject({
+    releaseRunId: ReleaseRunIdSchema,
+    expectedRevision: PositiveSafeIntegerSchema,
+    approvalId: ApprovalIdSchema,
+  }),
+});
+
+export const ReleaseSubmitCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.submit"),
+  payload: z.strictObject({
+    releaseRunId: ReleaseRunIdSchema,
+    expectedRevision: PositiveSafeIntegerSchema,
+    approvalId: ApprovalIdSchema,
+  }),
+});
+
+export const ReleaseStatusCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.status"),
+  payload: z.strictObject({ releaseRunId: ReleaseRunIdSchema }),
+});
+
+/**
  * Studio Phase 6 step B. `release.observe` takes ONE fresh, strictly read-only App Store Connect
  * observation through the daemon's composed observer (`packages/asc-adapter`: bounded GETs only,
  * credential resolved just in time by the broker) and persists it durably; refused with
@@ -796,6 +881,16 @@ export const ProviderHealthCommandRequestV1Schema = z.strictObject({
  * decisions" item 4. Deliberately narrow -- one kernel-owned key/value table, not a general
  * preferences store.
  */
+/**
+ * OR-23 / IF-T008: source-attributed effective provider/phase configuration. Read-only; never
+ * returns secrets or raw environment values.
+ */
+export const ConfigEffectiveCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("config.effective"),
+  payload: EmptyPayloadV1Schema,
+});
+
 export const SettingsGetCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("settings.get"),
@@ -893,6 +988,12 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   RoomTypingCommandRequestV1Schema,
   RoomUpdateCommandRequestV1Schema,
   RoomParticipantsListCommandRequestV1Schema,
+  ReleaseStartCommandRequestV1Schema,
+  ReleasePromoteCommandRequestV1Schema,
+  ReleaseArchiveCommandRequestV1Schema,
+  ReleaseUploadCommandRequestV1Schema,
+  ReleaseSubmitCommandRequestV1Schema,
+  ReleaseStatusCommandRequestV1Schema,
   ReleaseObserveCommandRequestV1Schema,
   ReleaseProjectionCommandRequestV1Schema,
   SignalCreateCommandRequestV1Schema,
@@ -908,6 +1009,7 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ProviderRemoveCommandRequestV1Schema,
   ProviderCredentialSetCommandRequestV1Schema,
   ProviderHealthCommandRequestV1Schema,
+  ConfigEffectiveCommandRequestV1Schema,
   SettingsGetCommandRequestV1Schema,
   SettingsSetCommandRequestV1Schema,
   UsageSummaryCommandRequestV1Schema,
@@ -1403,6 +1505,39 @@ export const InsightListCommandResultV1Schema = z.strictObject({
   insights: z.array(SignalInsightV1Schema).max(1_000),
 });
 
+export const ReleaseStartCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.start"),
+  run: ReleaseRunV1Schema,
+  /** True when a new run was opened; false when an existing open run for this release was
+   *  returned instead (idempotent by commandId, matching `room.create`'s `duplicate` field). */
+  created: z.boolean(),
+});
+
+export const ReleasePromoteCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.promote"),
+  run: ReleaseRunV1Schema,
+});
+
+export const ReleaseArchiveCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.archive"),
+  run: ReleaseRunV1Schema,
+});
+
+export const ReleaseUploadCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.upload"),
+  run: ReleaseRunV1Schema,
+});
+
+export const ReleaseSubmitCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.submit"),
+  run: ReleaseRunV1Schema,
+});
+
+export const ReleaseStatusCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.status"),
+  run: ReleaseRunV1Schema,
+});
+
 export const ReleaseObserveCommandResultV1Schema = z.strictObject({
   operation: z.literal("release.observe"),
   observation: AscReleaseObservationV1Schema,
@@ -1442,6 +1577,11 @@ export const ProviderCredentialSetCommandResultV1Schema = z.strictObject({
 export const ProviderHealthCommandResultV1Schema = z.strictObject({
   operation: z.literal("provider.health"),
   reports: z.array(ProviderHealthEntryV1Schema).max(MAX_PROVIDER_INSTANCES_V1),
+});
+
+export const ConfigEffectiveCommandResultV1Schema = z.strictObject({
+  operation: z.literal("config.effective"),
+  configuration: EffectiveConfigurationV1Schema,
 });
 
 export const SettingsGetCommandResultV1Schema = z.strictObject({
@@ -1546,6 +1686,12 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   RoomTypingCommandResultV1Schema,
   RoomUpdateCommandResultV1Schema,
   RoomParticipantsListCommandResultV1Schema,
+  ReleaseStartCommandResultV1Schema,
+  ReleasePromoteCommandResultV1Schema,
+  ReleaseArchiveCommandResultV1Schema,
+  ReleaseUploadCommandResultV1Schema,
+  ReleaseSubmitCommandResultV1Schema,
+  ReleaseStatusCommandResultV1Schema,
   ReleaseObserveCommandResultV1Schema,
   ReleaseProjectionCommandResultV1Schema,
   SignalCreateCommandResultV1Schema,
@@ -1561,6 +1707,7 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ProviderRemoveCommandResultV1Schema,
   ProviderCredentialSetCommandResultV1Schema,
   ProviderHealthCommandResultV1Schema,
+  ConfigEffectiveCommandResultV1Schema,
   SettingsGetCommandResultV1Schema,
   SettingsSetCommandResultV1Schema,
   UsageSummaryCommandResultV1Schema,

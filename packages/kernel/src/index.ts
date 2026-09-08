@@ -8,6 +8,7 @@ export * from "./phase-run-repositories.js";
 export * from "./project-plan-repositories.js";
 export * from "./project-registry-repositories.js";
 export * from "./asc-release-observation-repositories.js";
+export * from "./release-run-repositories.js";
 export * from "./signal-repositories.js";
 export * from "./settings-repositories.js";
 export * from "./token-usage-repositories.js";

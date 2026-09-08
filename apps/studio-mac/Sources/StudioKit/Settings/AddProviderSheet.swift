@@ -8,13 +8,14 @@ import SwiftUI
 // an operator editing the config file by hand can supply), so the picker below never offers them; see
 // `SettingsScreen`'s header comment for the read-only row treatment those two families get instead.
 //
-// `ProviderUpsertSpecV1`'s wire shape is exactly `{key, family, model, displayName}` — no `baseUrl`
-// field exists for Ollama (confirmed against `apps/daemon/src/room-participants-config.ts`'s
-// `upsertProviderInstanceV1`, which only ever writes `model`/`displayName` into the ollama config
-// slot). This sheet therefore asks only for what the wire actually accepts; a new Ollama instance
-// gets the daemon's own default `http://127.0.0.1:11434` until an operator edits the participants
-// config file by hand (see docs/operations/studio-dev-runbook.md) — the sheet says so rather than
-// showing a field that would silently do nothing.
+// `ProviderUpsertSpecV1`'s wire shape is exactly `{key, family, model, displayName, maxOutputTokens}`
+// — no `baseUrl` field exists for Ollama (confirmed against
+// `apps/daemon/src/room-participants-config.ts`'s `upsertProviderInstanceV1`, which only ever writes
+// `model`/`displayName`/`maxOutputTokens` into the ollama/openrouter config slot). This sheet
+// therefore asks only for what the wire actually accepts; a new Ollama instance gets the daemon's
+// own default `http://127.0.0.1:11434` until an operator edits the participants config file by hand
+// (see docs/operations/studio-dev-runbook.md) — the sheet says so rather than showing a field that
+// would silently do nothing.
 //
 // OpenRouter's second step (and the standalone `SetProviderCredentialSheet`, for adding or rotating
 // an existing instance's key from its row) both embed `CredentialEntryFields`: a `SecureField` whose
@@ -48,6 +49,10 @@ public struct AddProviderSheet: View {
     @State private var model = ""
     @State private var displayName = ""
     @State private var displayNameEdited = false
+    /// Defaults to `newProviderDefaultMaxOutputTokens` (not blank): a brand-new instance created
+    /// through this sheet must not silently inherit the adapters' 150-token room default, which is
+    /// far too tight for an interactive chat reply.
+    @State private var maxOutputTokensText = String(newProviderDefaultMaxOutputTokens)
     @State private var isSubmitting = false
     @State private var errorText: String?
     @State private var created: ProviderInstance?
@@ -55,9 +60,18 @@ public struct AddProviderSheet: View {
     private var trimmedId: String { idSuffix.trimmingCharacters(in: .whitespaces) }
     private var key: RoomProvider? { try? RoomProvider(family.keyPrefix + trimmedId) }
     private var suggestedDisplayName: String { trimmedId.isEmpty ? family.label : "\(family.label) — \(trimmedId)" }
+    private var trimmedMaxOutputTokens: String { maxOutputTokensText.trimmingCharacters(in: .whitespaces) }
+    /// `nil` submission value = "no preference" (family default); blank is a deliberate, valid
+    /// choice, not a validation failure — see `maxOutputTokensIsValid`.
+    private var maxOutputTokensValue: Int? { trimmedMaxOutputTokens.isEmpty ? nil : Int(trimmedMaxOutputTokens) }
+    private var maxOutputTokensIsValid: Bool {
+        guard !trimmedMaxOutputTokens.isEmpty else { return true }
+        guard let value = Int(trimmedMaxOutputTokens) else { return false }
+        return value >= minProviderMaxOutputTokens && value <= maxProviderMaxOutputTokens
+    }
     private var canSubmit: Bool {
         key != nil && !model.trimmingCharacters(in: .whitespaces).isEmpty
-            && !displayName.trimmingCharacters(in: .whitespaces).isEmpty
+            && !displayName.trimmingCharacters(in: .whitespaces).isEmpty && maxOutputTokensIsValid
     }
 
     public var body: some View {
@@ -90,6 +104,19 @@ public struct AddProviderSheet: View {
             field("Model", text: $model, placeholder: family.modelPlaceholder)
             field("Display name", text: $displayName, placeholder: suggestedDisplayName)
                 .onChange(of: displayName) { _, _ in displayNameEdited = true }
+            VStack(alignment: .leading, spacing: 2) {
+                field("Max output tokens", text: $maxOutputTokensText, placeholder: String(newProviderDefaultMaxOutputTokens))
+                Text("Interactive chat needs more headroom than a terse room turn, so this defaults to "
+                     + "\(newProviderDefaultMaxOutputTokens). Leave empty to use the adapter's own family "
+                     + "default (150) instead.")
+                    .font(HUDTypography.caption).foregroundStyle(HUDTheme.mute)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !maxOutputTokensIsValid {
+                    Text("Must be empty or a whole number from \(minProviderMaxOutputTokens) to \(maxProviderMaxOutputTokens).")
+                        .font(HUDTypography.caption).foregroundStyle(HUDTheme.alert)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             if family == .ollama {
                 Text("No base-URL field here — provider.upsert has no wire field for it. A new Ollama "
                      + "instance answers to the daemon's default (127.0.0.1:11434) until you edit the "
@@ -126,7 +153,8 @@ public struct AddProviderSheet: View {
         isSubmitting = true
         let spec = ProviderUpsertSpec(key: key, family: family.providerFamily,
                                       model: model.trimmingCharacters(in: .whitespaces),
-                                      displayName: displayName.trimmingCharacters(in: .whitespaces))
+                                      displayName: displayName.trimmingCharacters(in: .whitespaces),
+                                      maxOutputTokens: maxOutputTokensValue)
         Task {
             let result = await onUpsert(spec)
             isSubmitting = false

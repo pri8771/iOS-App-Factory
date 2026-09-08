@@ -21,6 +21,7 @@ import { studioSettingsMigration } from "./migrations/0016-studio-settings.js";
 import { tokenUsageMigration } from "./migrations/0017-token-usage.js";
 import { roomLifecycleMigration } from "./migrations/0018-room-lifecycle.js";
 import { signalScheduleMigration } from "./migrations/0019-signal-schedule.js";
+import { releaseRunsMigration } from "./migrations/0020-release-runs.js";
 import type { SqlMigration } from "./migration-types.js";
 
 export type { SqlMigration } from "./migration-types.js";
@@ -62,6 +63,7 @@ export const FACTORY_MIGRATIONS: readonly SqlMigration[] = [
   tokenUsageMigration,
   roomLifecycleMigration,
   signalScheduleMigration,
+  releaseRunsMigration,
 ];
 
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;

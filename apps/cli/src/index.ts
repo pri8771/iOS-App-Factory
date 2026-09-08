@@ -25,7 +25,9 @@ import {
   ExternalEffectStateV1Schema,
   ExternalProviderV1Schema,
   GitBranchNameSchema,
+  GitObjectIdSchema,
   IsoInstantSchema,
+  MAX_PROVIDER_MAX_OUTPUT_TOKENS_V1,
   MAX_ROOM_COOLDOWN_EVENTS_V1,
   MAX_ROOM_EVENTS_LIMIT_V1,
   MAX_ROOM_LIST_ITEMS_V1,
@@ -46,6 +48,7 @@ import {
   ProjectPlanProposeV1Schema,
   ProviderFamilyV1Schema,
   ProviderUpsertSpecV1Schema,
+  ReleaseRunIdSchema,
   RepositoryIdSchema,
   RoomCreateSpecV1Schema,
   RoomFlavorV1Schema,
@@ -63,6 +66,7 @@ import {
   type ExternalEffectStateV1,
   type ExternalProviderV1,
   type GitBranchName,
+  type GitObjectId,
   type PhaseId,
   type PhasePresetId,
   type PhaseRunId,
@@ -78,6 +82,8 @@ import {
   type ProjectPlanV1,
   type ProjectRegisterSourceV1,
   type ProviderUpsertSpecV1,
+  type ReleaseRunId,
+  type RepositoryId,
   type RoomCreateSpecV1,
   type RoomUpdateSpecV1,
   type Sha256Digest,
@@ -186,6 +192,24 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "release.observe"; buildsLimit: number }>
   | Readonly<{ kind: "release.projection" }>
   | Readonly<{
+      kind: "release.start";
+      projectId: ProjectId;
+      repositoryId: RepositoryId;
+      sourceCommit: GitObjectId;
+      branch: GitBranchName;
+    }>
+  | Readonly<{ kind: "release.promote"; releaseRunId: ReleaseRunId; expectedRevision: number }>
+  | Readonly<{ kind: "release.status"; releaseRunId: ReleaseRunId }>
+  | Readonly<{
+      kind: "release.archive";
+      releaseRunId: ReleaseRunId;
+      expectedRevision: number;
+      teamId: string;
+      bundleId: string;
+      marketingVersion: string;
+      timeoutSeconds: number;
+    }>
+  | Readonly<{
       kind: "signal.create";
       name: string;
       watchDescription: string;
@@ -217,6 +241,7 @@ export type ParsedCliCommand =
   | Readonly<{ kind: "provider.remove"; key: string; expectedDigest: Sha256Digest | null }>
   | Readonly<{ kind: "provider.credential.set"; key: string; secretEnvVar: string | null }>
   | Readonly<{ kind: "provider.health"; key: string | null }>
+  | Readonly<{ kind: "config.effective" }>
   | Readonly<{ kind: "settings.get"; key: string }>
   | Readonly<{ kind: "settings.set"; key: string; value: string }>
   | Readonly<{ kind: "usage.summary"; sinceDays: number }>;
@@ -278,6 +303,27 @@ function parseRepositoryIdOption(value: string | undefined): string | null {
   if (value === undefined) return null;
   const parsed = RepositoryIdSchema.safeParse(value);
   if (!parsed.success) usageError("--repository must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
+function parseRepositoryId(value: string | undefined): RepositoryId {
+  if (value === undefined) usageError("--repository is required.");
+  const parsed = RepositoryIdSchema.safeParse(value);
+  if (!parsed.success) usageError("--repository must be a canonical lowercase UUID.");
+  return parsed.data;
+}
+
+function parseGitObjectId(option: string, value: string | undefined): GitObjectId {
+  if (value === undefined) usageError(`${option} is required.`);
+  const parsed = GitObjectIdSchema.safeParse(value);
+  if (!parsed.success) usageError(`${option} must be a full Git object ID (SHA-1 or SHA-256).`);
+  return parsed.data;
+}
+
+function parseReleaseRunId(value: string | undefined): ReleaseRunId {
+  if (value === undefined) usageError("A release run ID is required.");
+  const parsed = ReleaseRunIdSchema.safeParse(value);
+  if (!parsed.success) usageError("The release run ID must be a canonical lowercase UUID.");
   return parsed.data;
 }
 
@@ -796,6 +842,8 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
 
   // `release projection` reads the latest persisted App Store Connect observation; `release observe`
   // takes a fresh one (GET-only, through the daemon's composed observer; refused when unconfigured).
+  // `release start`/`promote`/`status` (Release Rail Wave 3) drive one `ReleaseRunV1` through
+  // certification and local promotion.
   if (command === "release") {
     const subcommand = arguments_.shift();
     if (subcommand === "projection") {
@@ -811,7 +859,78 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
           : parsePositiveInteger("--builds-limit", buildsLimitValue, 200);
       return { outputMode, retryIdentity, command: { kind: "release.observe", buildsLimit } };
     }
-    usageError("Release requires one of: projection, observe.");
+    if (subcommand === "start") {
+      const projectId = parseProjectId(consumeOption(arguments_, "--project"));
+      const repositoryId = parseRepositoryId(consumeOption(arguments_, "--repository"));
+      const sourceCommit = parseGitObjectId("--commit", consumeOption(arguments_, "--commit"));
+      const branchValue = consumeOption(arguments_, "--branch");
+      if (branchValue === undefined) usageError("--branch is required.");
+      const branch = parseBranchNameOption(branchValue);
+      if (branch === null) usageError("--branch must be a valid Git branch name.");
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "release.start", projectId, repositoryId, sourceCommit, branch },
+      };
+    }
+    if (subcommand === "promote") {
+      const releaseRunId = parseReleaseRunId(arguments_.shift());
+      const expectedRevision = parseExpectedRevisionOption(
+        consumeOption(arguments_, "--expected-revision"),
+      );
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: { kind: "release.promote", releaseRunId, expectedRevision },
+      };
+    }
+    if (subcommand === "status") {
+      const releaseRunId = parseReleaseRunId(arguments_.shift());
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "release.status", releaseRunId } };
+    }
+    if (subcommand === "archive") {
+      const releaseRunId = parseReleaseRunId(arguments_.shift());
+      const expectedRevision = parseExpectedRevisionOption(
+        consumeOption(arguments_, "--expected-revision"),
+      );
+      const teamId = consumeOption(arguments_, "--team-id");
+      if (teamId === undefined || !/^[A-Z0-9]{10}$/.test(teamId)) {
+        usageError("--team-id is required and must be a 10-character Apple Developer Team ID.");
+      }
+      const bundleId = consumeOption(arguments_, "--bundle-id");
+      if (bundleId === undefined || bundleId.length < 3) {
+        usageError(
+          "--bundle-id is required (the reverse-DNS bundle ID this archive is built for).",
+        );
+      }
+      const marketingVersion = consumeOption(arguments_, "--marketing-version");
+      if (marketingVersion === undefined || marketingVersion.length === 0) {
+        usageError("--marketing-version is required, e.g. 1.0.");
+      }
+      const timeoutSecondsValue = consumeOption(arguments_, "--timeout-seconds");
+      const timeoutSeconds =
+        timeoutSecondsValue === undefined
+          ? 1_800
+          : parsePositiveInteger("--timeout-seconds", timeoutSecondsValue, 86_400);
+      rejectUnexpected(arguments_);
+      return {
+        outputMode,
+        retryIdentity,
+        command: {
+          kind: "release.archive",
+          releaseRunId,
+          expectedRevision,
+          teamId,
+          bundleId,
+          marketingVersion,
+          timeoutSeconds,
+        },
+      };
+    }
+    usageError("Release requires one of: projection, observe, start, promote, archive, status.");
   }
 
   // `signal create/list/pause/resume/run-now`: the first slice of the Signal -> Insight ->
@@ -1378,13 +1497,33 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
       const model = consumeOption(arguments_, "--model");
       if (model === undefined || model.length === 0) usageError("--model is required.");
       const displayName = consumeOption(arguments_, "--display-name") ?? key;
+      // Ollama/openrouter only (contracts' `ProviderMaxOutputTokensV1Schema` doc comment);
+      // codex/claude/gemini have no such config field and provider.upsert refuses a non-null value
+      // for them. Omitted here (null on the wire) means "no preference": the daemon preserves
+      // whatever an existing instance already had, or defaults a brand-new ollama/openrouter
+      // instance to 1000 rather than silently inheriting the adapters' 150-token room default.
+      const maxOutputTokensValue = consumeOption(arguments_, "--max-output-tokens");
+      const maxOutputTokens =
+        maxOutputTokensValue === undefined
+          ? null
+          : parsePositiveInteger(
+              "--max-output-tokens",
+              maxOutputTokensValue,
+              MAX_PROVIDER_MAX_OUTPUT_TOKENS_V1,
+            );
       const expectedDigestValue = consumeOption(arguments_, "--expected-digest");
       const expectedDigest =
         expectedDigestValue === undefined
           ? null
           : parseSha256DigestOption("--expected-digest", expectedDigestValue);
       rejectUnexpected(arguments_);
-      const instance = ProviderUpsertSpecV1Schema.safeParse({ key, family, model, displayName });
+      const instance = ProviderUpsertSpecV1Schema.safeParse({
+        key,
+        family,
+        model,
+        displayName,
+        maxOutputTokens,
+      });
       if (!instance.success) {
         usageError(`The provider instance is invalid: ${instance.error.message}`);
       }
@@ -1426,6 +1565,15 @@ export function parseCliArguments(argv: readonly string[]): ParsedCliInvocation 
       return { outputMode, retryIdentity, command: { kind: "provider.health", key } };
     }
     usageError("Provider requires one of: list, upsert, remove, credential-set, health.");
+  }
+
+  if (command === "config") {
+    const subcommand = arguments_.shift();
+    if (subcommand === "effective") {
+      rejectUnexpected(arguments_);
+      return { outputMode, retryIdentity, command: { kind: "config.effective" } };
+    }
+    usageError('Config requires subcommand "effective".');
   }
 
   // Studio settings (Architecture decision 4): a small, cross-client preference table. The only key
@@ -1915,6 +2063,13 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
               .join("\n");
       return `${providers}\n${roster}\nsourced ${catalog.sourcedAt} ${catalog.sourceDigest}\n`;
     }
+    case "release.start":
+    case "release.promote":
+    case "release.archive":
+    case "release.upload":
+    case "release.submit":
+    case "release.status":
+      return `release run ${result.run.releaseRunId}: ${result.run.stage} (rev ${String(result.run.revision)})\n`;
     case "release.observe":
       return `${renderAscReleaseObservation(result.observation)}`;
     case "release.projection": {
@@ -1960,6 +2115,10 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
               (instance) =>
                 `${instance.key}\t${instance.family}\t${instance.model}\t${
                   instance.credentialReference === null ? "no credential" : "credential set"
+                }\tmaxOutputTokens=${
+                  instance.maxOutputTokens === null
+                    ? "family default"
+                    : String(instance.maxOutputTokens)
                 }`,
             )
             .join("\n")}\n`;
@@ -1980,6 +2139,19 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
                 }`,
             )
             .join("\n")}\n`;
+    case "config.effective": {
+      const cfg = result.configuration;
+      const providerLines =
+        cfg.providers.length === 0
+          ? "  (no providers)"
+          : cfg.providers
+              .map(
+                (entry) =>
+                  `  ${entry.key}\t${entry.family}\treq=${String(entry.requestedModel.value)}(${entry.requestedModel.source})\tobs=${String(entry.observedModel.value)}(${entry.observedModel.source})\tstate=${entry.configurationState}`,
+              )
+              .join("\n");
+      return `effective configuration @ ${cfg.sourcedAt}\ndefaultProvider=${String(cfg.defaultProvider.key.value)} (${cfg.defaultProvider.key.source})\nproviders:\n${providerLines}\nphaseRoles=${String(cfg.phaseRoles.length)}\n`;
+    }
     case "settings.get":
     case "settings.set":
       return `${result.entry.key} = ${result.entry.value ?? "(unset)"}${
@@ -2356,7 +2528,17 @@ export async function runCli(
     return 2;
   }
 
-  const client = createCommandClient({ socketPath, authorization, origin: "cli" });
+  // `release archive` runs a real, minutes-long local xcodebuild chain on the daemon side (Release
+  // Rail Wave 4); every other command keeps the client's default 30s transport timeout, but this one
+  // needs its own generous, operator-controlled ceiling (`--timeout-seconds`, default 30 minutes).
+  const client = createCommandClient({
+    socketPath,
+    authorization,
+    origin: "cli",
+    ...(invocation.command.kind === "release.archive"
+      ? { timeoutMs: invocation.command.timeoutSeconds * 1_000 }
+      : {}),
+  });
   const identity =
     invocation.retryIdentity === null
       ? client.createIdentity()
@@ -2617,6 +2799,44 @@ export async function runCli(
       case "release.projection":
         result = await client.releaseProjection(identity);
         break;
+      case "release.start":
+        result = await client.startRelease(
+          {
+            projectId: invocation.command.projectId,
+            repositoryId: invocation.command.repositoryId,
+            sourceCommit: invocation.command.sourceCommit,
+            branch: invocation.command.branch,
+          },
+          identity,
+        );
+        break;
+      case "release.promote":
+        result = await client.promoteRelease(
+          invocation.command.releaseRunId,
+          invocation.command.expectedRevision,
+          identity,
+        );
+        break;
+      case "release.status":
+        result = await client.releaseStatus(invocation.command.releaseRunId, identity);
+        break;
+      case "release.archive":
+        result = await client.archiveRelease(
+          {
+            releaseRunId: invocation.command.releaseRunId,
+            expectedRevision: invocation.command.expectedRevision,
+            exportOptions: {
+              teamId: invocation.command.teamId,
+              method: "app-store-connect",
+              destination: "export",
+              signingStyle: "automatic",
+              bundleIdOverride: invocation.command.bundleId,
+            },
+            marketingVersion: invocation.command.marketingVersion,
+          },
+          identity,
+        );
+        break;
       case "signal.create":
         result = await client.createSignal(
           {
@@ -2725,6 +2945,9 @@ export async function runCli(
       }
       case "provider.health":
         result = await client.providerHealth(invocation.command.key, identity);
+        break;
+      case "config.effective":
+        result = await client.getEffectiveConfiguration(identity);
         break;
       case "settings.get":
         result = await client.getSettings(invocation.command.key, identity);

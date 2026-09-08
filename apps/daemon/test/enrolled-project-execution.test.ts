@@ -8,11 +8,13 @@ import { VERIFICATION_SCRATCH_TOKEN } from "@app-factory/execution-engine";
 import { GitWorkspaceManager } from "@app-factory/git-workspace";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { CodexLocalAgent } from "../src/codex-local-agent.js";
 import {
   EnrolledProjectExecutionConfigurationError,
   loadEnrolledProjectExecutionConfiguration,
 } from "../src/enrolled-project-execution.js";
 import {
+  DEFAULT_CODEX_READ_ONLY_PATHS_V1,
   LocalExecutionProfileConfigurationError,
   loadLocalExecutionProfile,
 } from "../src/local-execution-profile.js";
@@ -343,6 +345,28 @@ describe("enrolled-codex-v1 local execution profile", () => {
         approveRelease: false,
       },
     });
+  });
+
+  // Regression coverage for making readOnlyPaths a per-call input of
+  // buildCodexAgentForProject (apps/daemon/src/local-execution-profile.ts) instead of a hardcoded
+  // constant: the enrolled profile is one of the two existing callers that must keep getting the
+  // exact same default it always has -- Package.swift and Tests read-only -- byte-identical, with no
+  // override. (Planner execution's own override is covered in planner-project-execution.test.ts.)
+  it("keeps the enrolled profile's default Codex sandbox read-only paths (Package.swift, Tests) unless the caller overrides them", async () => {
+    const fixture = await createFixture();
+    const { profilePath } = await writeCodexProfile(fixture.root, fixture.projectConfigurationFile);
+
+    let capturedReadOnlyPaths: readonly string[] | undefined;
+    const loaded = await loadLocalExecutionProfile(profilePath, fixture.runtime, {
+      containmentAttestationPath: await writeAttestation(fixture.root),
+      createCodexAgent: async (configuration) => {
+        capturedReadOnlyPaths = configuration.readOnlyPaths;
+        return { adapterId: "fake.codex", adapterVersion: "0.0.0" } as unknown as CodexLocalAgent;
+      },
+    });
+
+    expect(capturedReadOnlyPaths).toEqual(DEFAULT_CODEX_READ_ONLY_PATHS_V1);
+    expect(loaded.projects).toHaveLength(1);
   });
 
   // The three tests below cover the maxTurns config-wiring fix: a hardcoded

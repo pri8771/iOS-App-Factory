@@ -128,6 +128,52 @@ describe("command protocol V1", () => {
     ],
     ["room.update", { roomId: ROOM_ID, expectedUpdatedAt: NOW, patch: { archived: true } }],
     ["room.participants.list", {}],
+    [
+      "release.start",
+      {
+        projectId: "00000000-0000-4000-8000-000000000103",
+        repositoryId: "00000000-0000-4000-8000-000000000105",
+        sourceCommit: "a".repeat(40),
+        branch: "main",
+      },
+    ],
+    [
+      "release.promote",
+      { releaseRunId: "00000000-0000-4000-8000-000000000106", expectedRevision: 1 },
+    ],
+    [
+      "release.archive",
+      {
+        releaseRunId: "00000000-0000-4000-8000-000000000106",
+        expectedRevision: 2,
+        exportOptions: {
+          schemaVersion: 1,
+          teamId: "796XH483R4",
+          method: "app-store-connect",
+          destination: "export",
+          signingStyle: "automatic",
+          bundleIdOverride: "com.example.app",
+        },
+        marketingVersion: "1.0",
+      },
+    ],
+    [
+      "release.upload",
+      {
+        releaseRunId: "00000000-0000-4000-8000-000000000106",
+        expectedRevision: 3,
+        approvalId: "00000000-0000-4000-8000-000000000107",
+      },
+    ],
+    [
+      "release.submit",
+      {
+        releaseRunId: "00000000-0000-4000-8000-000000000106",
+        expectedRevision: 4,
+        approvalId: "00000000-0000-4000-8000-000000000107",
+      },
+    ],
+    ["release.status", { releaseRunId: "00000000-0000-4000-8000-000000000106" }],
     ["release.observe", { buildsLimit: 5 }],
     ["release.projection", {}],
     ["preset.list", {}],
@@ -161,6 +207,7 @@ describe("command protocol V1", () => {
     ["provider.credential.set", { key: "openrouter-fast", secret: "sk-test-secret" }],
     ["provider.health", { key: null }],
     ["provider.health", { key: "codex" }],
+    ["config.effective", {}],
     ["settings.get", { key: "default-provider" }],
     ["settings.set", { key: "default-provider", value: "openrouter-fast" }],
     ["usage.summary", { sinceDays: 30 }],
@@ -176,6 +223,12 @@ describe("command protocol V1", () => {
     expect(COMMAND_OPERATIONS_V1).toContain("preset.upsert");
     expect(COMMAND_OPERATIONS_V1).toContain("phase.upsert");
     expect(COMMAND_OPERATIONS_V1).toContain("room.participants.list");
+    expect(COMMAND_OPERATIONS_V1).toContain("release.start");
+    expect(COMMAND_OPERATIONS_V1).toContain("release.promote");
+    expect(COMMAND_OPERATIONS_V1).toContain("release.archive");
+    expect(COMMAND_OPERATIONS_V1).toContain("release.upload");
+    expect(COMMAND_OPERATIONS_V1).toContain("release.submit");
+    expect(COMMAND_OPERATIONS_V1).toContain("release.status");
     expect(COMMAND_OPERATIONS_V1).toContain("release.observe");
     expect(COMMAND_OPERATIONS_V1).toContain("release.projection");
     expect(COMMAND_OPERATIONS_V1).toContain("room.update");

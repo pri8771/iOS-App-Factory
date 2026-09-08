@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,6 +17,7 @@ import {
 } from "@app-factory/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { CodexLocalAgent } from "../src/codex-local-agent.js";
 import {
   startFactoryDaemonService,
   type FactoryDaemonService,
@@ -27,6 +29,8 @@ import {
   parsePlannerExecutionConfigV1,
   readXcodegenProjectName,
   renderPlannerAgentPolicyV1,
+  PLANNER_CODEX_READ_ONLY_PATHS_V1,
+  SMOKE_MIN_BYTES_PER_MEGAPIXEL,
   type PlannerExecutionConfigV1,
 } from "../src/planner-project-execution.js";
 import { decodeReviewedPolicyPayload } from "../src/verified-local-executor.js";
@@ -142,6 +146,20 @@ describe("planner execution", () => {
     expect(config.codex).toBeUndefined();
     expect(config.verification.path).toBe("/usr/bin:/bin:/opt/homebrew/bin");
     expect(config.verification.buildTimeoutMs).toBe(600_000);
+    expect(config.verification.testTimeoutMs).toBe(900_000);
+    expect(config.verification.smokeTimeoutMs).toBe(900_000);
+    expect(
+      parsePlannerExecutionConfigV1({
+        ...CONFIG_INPUT,
+        verification: { ...CONFIG_INPUT.verification, smokeTimeoutMs: 120_000 },
+      }).verification.smokeTimeoutMs,
+    ).toBe(120_000);
+    expect(() =>
+      parsePlannerExecutionConfigV1({
+        ...CONFIG_INPUT,
+        verification: { ...CONFIG_INPUT.verification, smokeTimeoutMs: 1_000 },
+      }),
+    ).toThrow(/smokeTimeoutMs must be an integer/);
     expect(() =>
       parsePlannerExecutionConfigV1({ ...CONFIG_INPUT, mode: "planner-codex-v1" }),
     ).toThrow(/non-exact shape/);
@@ -177,14 +195,22 @@ describe("planner execution", () => {
   it("builds ios-xcodegen-v1 verification plans on the project's own scheme, GET-free and scratch-bound", () => {
     const config = parsePlannerExecutionConfigV1(CONFIG_INPUT);
     const plans = iosXcodegenVerificationPlansV1("SampleApp", config.verification);
-    expect(plans.map((plan) => plan.checkId)).toEqual(["build.xcodegen-app", "test.xcodegen-unit"]);
+    expect(plans.map((plan) => plan.checkId)).toEqual([
+      "build.xcodegen-app",
+      "test.xcodegen-unit",
+      "smoke.launch-screenshot",
+    ]);
     for (const plan of plans) {
       expect(plan.executable).toBe("/bin/sh");
       expect(plan.args[1]).toContain('"/opt/homebrew/bin/xcodegen" generate');
       expect(plan.args[1]).toContain('-scheme "SampleApp"');
       // The scratch token appears exactly once per argument (materializeVerificationArgs' bound).
       expect(plan.args[1]?.split("{verificationScratch}").length).toBe(2);
-      expect(plan.args[1]).toContain("S={verificationScratch}; ");
+      // QUOTED: a runtime directory containing a space (the dev runbook's own
+      // `~/Library/Application Support/AppFactory/...` does) would otherwise end the shell
+      // assignment at the space, leaving the remainder to be executed as a command -- failing
+      // every check with exit 1 and a bare "No such file or directory".
+      expect(plan.args[1]).toContain('S="{verificationScratch}"; ');
       expect(plan.args[1]).toContain('-derivedDataPath "$S/derived-data"');
       // Generated OUTSIDE the read-only checkout and built from there.
       expect(plan.args[1]).toContain('--project "$S/gen"');
@@ -194,9 +220,44 @@ describe("planner execution", () => {
     expect(plans[1]?.args[1]).toContain(
       '-destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest"',
     );
+    expect(plans[0]?.timeoutMs).toBe(config.verification.buildTimeoutMs);
+    expect(plans[1]?.timeoutMs).toBe(config.verification.testTimeoutMs);
+    expect(plans[2]?.timeoutMs).toBe(config.verification.smokeTimeoutMs);
+
+    // smoke.launch-screenshot: builds for the OPERATOR'S real simulator (not the generic
+    // destination build.xcodegen-app uses, because this build must actually run on the concrete
+    // simulator booted below), resolves the app bundle under Debug-iphonesimulator, boots/reuses
+    // the named simulator by an EXACT device-name match (not a substring one), installs, launches,
+    // derives the bundle id from the built Info.plist (never hardcoded), screenshots, and never
+    // shuts the simulator down (only the app is terminated).
+    const smoke = plans[2]?.args[1] ?? "";
+    expect(smoke).toContain('-destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest"');
+    expect(smoke).toContain(
+      'APP="$S/derived-data/Build/Products/Debug-iphonesimulator/SampleApp.app"',
+    );
+    expect(smoke).toContain('SIM_NAME="iPhone 17 Pro"');
+    expect(smoke).toContain("xcrun simctl list devices available");
+    expect(smoke).toContain('xcrun simctl bootstatus "$UDID" -b');
+    expect(smoke).toContain('xcrun simctl install "$UDID" "$APP"');
+    expect(smoke).toContain('PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"');
+    expect(smoke).toContain('xcrun simctl launch "$UDID" "$BUNDLE_ID"');
+    expect(smoke).toContain('xcrun simctl io "$UDID" screenshot "$S/launch.png"');
+    expect(smoke).toContain('xcrun simctl terminate "$UDID" "$BUNDLE_ID"');
+    expect(smoke).not.toContain("simctl shutdown");
+    expect(smoke).toContain("BYTES_PER_MEGAPIXEL=$(( (BYTES * 1000000) / (WIDTH * HEIGHT) ))");
+    expect(smoke).toContain(`MIN_BYTES_PER_MEGAPIXEL=${String(SMOKE_MIN_BYTES_PER_MEGAPIXEL)}`);
+
     expect(() => iosXcodegenVerificationPlansV1("bad name", config.verification)).toThrow(
       /unsupported XcodeGen project name/,
     );
+    // A destination with no name= cannot resolve a simulator to boot -- fail at composition time,
+    // with a clear message, instead of a confusing shell error deep inside the trusted verifier.
+    expect(() =>
+      iosXcodegenVerificationPlansV1("SampleApp", {
+        ...config.verification,
+        simulatorDestination: "platform=iOS Simulator,OS=latest",
+      }),
+    ).toThrow(/has no name=/);
   });
 
   it(
@@ -391,4 +452,112 @@ describe("planner execution", () => {
       blocker: { code: "planner.fixture-no-writable-scope" },
     });
   });
+
+  // Regression coverage for the fail-closed "Authorized write path Tests overlaps read-only path
+  // Tests" bug: a from-scratch build's build-seed-repo item (project-plan-command-runtime.ts's
+  // BUILD_TEMPLATES_V1, scopePaths: ["Tests"]) must be able to resolve a real planner-codex-v1 agent
+  // whose Codex sandbox does NOT hold Tests read-only, unlike the enrolled profile's default (see
+  // buildCodexAgentForProject's doc in local-execution-profile.ts). This never spawns a real Codex
+  // CLI: profileDependencies.createCodexAgent intercepts buildCodexAgentForProject's call and captures
+  // exactly the CodexLocalAgentConfigurationV1.readOnlyPaths it was asked to build with.
+  it(
+    "resolves a planner-codex-v1 project with sandbox read-only paths that keep project.yml/CI protected but leave Tests writable",
+    { timeout: 60_000 },
+    async () => {
+      const root = await mkdtemp("/private/tmp/af-planner-codex-");
+      roots.push(root);
+      const runtime = join(root, "runtime");
+      mkdirSync(runtime, { recursive: true, mode: 0o700 });
+
+      const executable = join(root, "fake-codex");
+      const executableBytes = Buffer.from("#!/bin/sh\nexit 1\n", "utf8");
+      writeFileSync(executable, executableBytes, { mode: 0o700 });
+      const codexHome = join(root, "codex-home");
+      mkdirSync(codexHome, { recursive: true, mode: 0o700 });
+
+      const codexConfigInput = {
+        schemaVersion: 1,
+        mode: "planner-codex-v1",
+        reviewer: CONFIG_INPUT.reviewer,
+        verification: CONFIG_INPUT.verification,
+        executable,
+        executableDigest: `sha256:${createHash("sha256").update(executableBytes).digest("hex")}`,
+        expectedCliVersion: "0.147.0-alpha.1.2",
+        model: "gpt-test-pinned",
+        codexHome,
+      };
+
+      let capturedReadOnlyPaths: readonly string[] | undefined;
+      const diagnostics: string[] = [];
+      const service = await startFactoryDaemonService({
+        runtimeDirectory: runtime,
+        authorization: AUTHORIZATION,
+        daemonVersion: "0.1.0-planner-codex-execution-test",
+        pollIntervalMs: 5,
+        leaseDurationMs: 5_000,
+        plannerExecution: {
+          config: parsePlannerExecutionConfigV1(codexConfigInput),
+          verificationPlansFor: shellVerificationPlans,
+          onDiagnostic: (message) => diagnostics.push(message),
+          profileDependencies: {
+            createCodexAgent: async (configuration) => {
+              capturedReadOnlyPaths = configuration.readOnlyPaths;
+              return {
+                adapterId: "fake.codex",
+                adapterVersion: "0.0.0",
+              } as unknown as CodexLocalAgent;
+            },
+          },
+        },
+      });
+      services.push(service);
+      const client = createCommandClient({
+        socketPath: service.socketPath,
+        authorization: AUTHORIZATION,
+        origin: "cli",
+      });
+      clients.push(client);
+
+      const seeded = await seedWithoutToolchain(
+        client,
+        join(root, "src", "codex-rehearsal"),
+        "Codex Rehearsal",
+      );
+      expect(seeded.registered).toBe(true);
+      const repositoryId = seeded.repositoryId as RepositoryId;
+      const projectId = seeded.projectId;
+      if (repositoryId === null || projectId === null) throw new Error("seed did not register");
+
+      // Submitting any task for this repository forces the resolver to resolve the project, which
+      // builds the Codex agent (and hits the spy above) before it ever reaches the plan-authorization
+      // check -- so this task can be a "rogue" one (not part of any approved plan): it only needs to
+      // get far enough to construct the agent, which it always does before authorizeTask runs.
+      const policyDigest: Sha256Digest = decodeReviewedPolicyPayload(
+        renderPlannerAgentPolicyV1(loadStandardRuleStatementsV1()),
+      ).digest;
+      const probe = TaskSpecV1Schema.parse({
+        schemaVersion: 1,
+        taskId: "62000000-0000-4000-8000-000000000778",
+        projectId,
+        createdAt: "2026-08-18T18:00:00.000Z",
+        title: "Force planner Codex agent construction",
+        objective:
+          "Force the planner Codex agent to be built so its sandbox config can be inspected.",
+        acceptanceCriteria: [{ id: "ac-1", statement: "n/a", verification: "review" }],
+        base: { repositoryId, commit: seeded.enrollment.commitSha ?? seeded.scaffoldCommitSha },
+        requestedScope: { paths: ["Sources"] },
+        policyDigest,
+      });
+      const intake = await client.run(probe);
+      await eventually(
+        async () => (await client.status(intake.attemptId)).attempt.state === "blocked",
+      );
+      expect((await client.status(intake.attemptId)).attempt.blocker).toMatchObject({
+        code: "plan.task-not-in-approved-plan",
+      });
+
+      expect(capturedReadOnlyPaths).toEqual(PLANNER_CODEX_READ_ONLY_PATHS_V1);
+      expect(diagnostics).toEqual([]);
+    },
+  );
 });

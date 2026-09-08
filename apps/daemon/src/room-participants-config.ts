@@ -528,6 +528,10 @@ export type RoomProviderSlotV1 = Readonly<{
   cliVersion: string | null;
   displayName: string;
   credentialReference: CredentialReferenceV1 | null;
+  /** `null` for codex/claude/gemini (no such config field exists for those families) and for an
+   *  ollama/openrouter instance with no explicit override configured -- see contracts'
+   *  `ProviderMaxOutputTokensV1Schema` doc comment. */
+  maxOutputTokens: number | null;
 }>;
 
 function defaultDisplayName(family: ProviderFamilyV1, instanceKey: string): string {
@@ -552,6 +556,7 @@ export function enumerateProviderSlotsV1(
       cliVersion: config.codex.expectedCliVersion ?? null,
       displayName: config.codex.displayName ?? defaultDisplayName("codex", "codex"),
       credentialReference: null,
+      maxOutputTokens: null,
     });
   }
   if (config.claude !== undefined) {
@@ -562,6 +567,7 @@ export function enumerateProviderSlotsV1(
       cliVersion: null,
       displayName: config.claude.displayName ?? defaultDisplayName("claude", "claude"),
       credentialReference: null,
+      maxOutputTokens: null,
     });
   }
   if (config.gemini !== undefined) {
@@ -572,6 +578,7 @@ export function enumerateProviderSlotsV1(
       cliVersion: null,
       displayName: config.gemini.displayName ?? defaultDisplayName("gemini", "gemini"),
       credentialReference: null,
+      maxOutputTokens: null,
     });
   }
   for (const instance of normalizeOllamaInstances(config.ollama)) {
@@ -583,6 +590,7 @@ export function enumerateProviderSlotsV1(
       cliVersion: null,
       displayName: instance.displayName ?? defaultDisplayName("ollama", key),
       credentialReference: null,
+      maxOutputTokens: instance.maxOutputTokens ?? null,
     });
   }
   for (const instance of config.openrouter ?? []) {
@@ -594,6 +602,7 @@ export function enumerateProviderSlotsV1(
       cliVersion: null,
       displayName: instance.displayName ?? defaultDisplayName("openrouter", key),
       credentialReference: instance.credentialReference,
+      maxOutputTokens: instance.maxOutputTokens ?? null,
     });
   }
   return slots;
@@ -950,6 +959,60 @@ export function buildRoomsCompositionV1(
 }
 
 /**
+ * Hot-swap indirection over the `phase.run`/signal-scout provider pool -- the read-side sibling of
+ * `RoomsSubsystemHandle` (`room-subsystem.ts`) for `PhaseParticipantsPort`/`RoomProviderCatalogPort`.
+ * Closes the gap Wave 5's hot-swap left open: `buildPhaseParticipantsPortV1`'s pool was built once
+ * at daemon start (`daemon-entrypoint.ts` -> `loadPhaseParticipantsPortV1`) and handed to
+ * `openDaemonCommandRuntime`/the signal scheduler as a static value, so a provider added through
+ * Settings lit up ROOMS immediately (`RoomsSubsystemHandle.swap`) but not `phase.run`/
+ * `signal.run-now`/the unattended signal scheduler until a full daemon restart.
+ *
+ * `port`/`providerCatalog` are STABLE objects -- their `resolve` closures read whichever pool
+ * `reload` most recently adopted -- so every consumer that captures `handle.port`/
+ * `handle.providerCatalog` ONCE (`factory-daemon-service.ts`'s `openDaemonCommandRuntime` options,
+ * and the signal scheduler subsystem) sees a swap take effect on its NEXT call, with no re-wiring.
+ * `provider.upsert`/`remove`/`credential.set`'s existing reload callback (the SAME one that calls
+ * `RoomsSubsystemHandle.swap`) calls this handle's `reload` with the `phaseParticipants`/
+ * `providerCatalog` from the SAME `buildRoomsCompositionV1` call already used for the rooms swap --
+ * rooms and phases/signals can never disagree about which providers are configured.
+ *
+ * Call-time resolution, exactly like the rooms swap: `resolve` is invoked fresh on every
+ * `phase.run` contribution and every signal scout call, never cached across `reload`s. Work already
+ * in flight when `reload` runs keeps whatever `ParticipantAdapter` it already resolved (resolution
+ * happens once, at the start of that call) -- never torn down mid-flight. A provider REMOVED from
+ * the pool simply stops resolving on the NEXT call, through machinery that already existed:
+ * `PhaseParticipantsPort.resolve` answers `null` (the existing `participant-unconfigured` failure
+ * path) and `RoomProviderCatalogPort.resolve` throws (the existing "No provider is configured..."
+ * path) -- both fail closed honestly, no new error path required.
+ */
+export type PhaseParticipantsHandleV1 = Readonly<{
+  port: PhaseParticipantsPort;
+  providerCatalog: RoomProviderCatalogPort;
+  reload(
+    next: Readonly<{
+      phaseParticipants: PhaseParticipantsPort;
+      providerCatalog: RoomProviderCatalogPort;
+    }>,
+  ): void;
+}>;
+
+export function createPhaseParticipantsHandleV1(
+  initial: Readonly<{
+    phaseParticipants: PhaseParticipantsPort;
+    providerCatalog: RoomProviderCatalogPort;
+  }>,
+): PhaseParticipantsHandleV1 {
+  let current = initial;
+  return {
+    port: { resolve: (provider) => current.phaseParticipants.resolve(provider) },
+    providerCatalog: { resolve: (provider) => current.providerCatalog.resolve(provider) },
+    reload: (next) => {
+      current = next;
+    },
+  };
+}
+
+/**
  * Top-level daemon entrypoint hook: loads and validates the participants config -- a MISSING file
  * starts an empty registry, never a startup-killing error -- and gates real adapter activation on
  * the containment attestation (Architecture decision 3). Always returns `enabled: true`: rooms are
@@ -1201,6 +1264,34 @@ function assertProviderInstanceLimitV1(config: RoomParticipantsConfigV1): void {
 }
 
 /**
+ * `provider.upsert`'s default for a brand-NEW ollama/openrouter instance whose caller omitted
+ * `maxOutputTokens` (contracts' `ProviderMaxOutputTokensV1Schema` doc comment): explicit and
+ * generous rather than leaving the config field absent, which would silently inherit
+ * `OLLAMA_PARTICIPANT_MAX_OUTPUT_TOKENS`/`OPENROUTER_PARTICIPANT_MAX_OUTPUT_TOKENS` (150) -- a
+ * limit sized for a terse turn-taking room contribution, not an interactive chat reply, which is
+ * exactly the gap a Settings-created instance must not fall into. 150 stays untouched as the
+ * adapters' own fallback constant for configs that never set this field at all (existing configs,
+ * and retuning an instance that never had one).
+ */
+const NEW_PROVIDER_INSTANCE_DEFAULT_MAX_OUTPUT_TOKENS_V1 = 1_000;
+
+/** `upsertProviderInstanceV1`'s shared numeric-family (ollama/openrouter) resolution: an explicit
+ *  `spec.maxOutputTokens` always wins; omitted (`null` on the wire) preserves whatever the existing
+ *  instance already had, or -- for a brand-new instance -- applies
+ *  {@link NEW_PROVIDER_INSTANCE_DEFAULT_MAX_OUTPUT_TOKENS_V1}. Returns `undefined` only when there
+ *  is truly nothing to record (retuning an instance that never had an explicit value and the caller
+ *  didn't set one either), so the caller can spread it in as an optional field. */
+function resolveMaxOutputTokensOnUpsertV1(
+  specValue: number | null,
+  existingValue: number | undefined,
+  created: boolean,
+): number | undefined {
+  if (specValue !== null) return specValue;
+  if (created) return NEW_PROVIDER_INSTANCE_DEFAULT_MAX_OUTPUT_TOKENS_V1;
+  return existingValue;
+}
+
+/**
  * Builds the NEXT `RoomParticipantsConfigV1` with `spec` applied over the CURRENT one -- pure, no
  * I/O. Creating a brand-new codex/claude instance is refused
  * (`provider.family-requires-local-configuration`): `executable`/`codexHome`/runner-and-scratch
@@ -1208,6 +1299,10 @@ function assertProviderInstanceLimitV1(config: RoomParticipantsConfigV1): void {
  * already exist in the file (configured once by hand) before `provider.upsert` may retune their
  * `model`/`displayName`. A brand-new OpenRouter instance is created with `credentialReference:
  * null` -- catalog-visible, not yet adapter-activated until `provider.credential.set` funds it.
+ * `spec.maxOutputTokens` is refused outright (`provider.field-not-applicable`) for codex/claude/
+ * gemini -- those families have no such config field at all (their CLI subprocess picks its own
+ * output length), so silently dropping a caller-supplied value would be dishonest; ollama and
+ * openrouter instances honor it via {@link resolveMaxOutputTokensOnUpsertV1}.
  */
 export function upsertProviderInstanceV1(
   config: RoomParticipantsConfigV1,
@@ -1221,6 +1316,12 @@ export function upsertProviderInstanceV1(
         registryError(
           "provider.family-requires-local-configuration",
           "A new codex instance cannot be created over the wire: executable/codexHome/runnerRoot/scratchRoot are machine-local paths only an operator editing the config file directly can supply. Configure codex once by hand, then provider.upsert may update its model/displayName.",
+        );
+      }
+      if (spec.maxOutputTokens !== null) {
+        registryError(
+          "provider.field-not-applicable",
+          "maxOutputTokens is not applicable to a codex instance: codex runs as a CLI subprocess with no per-instance output-length knob in this registry. Omit maxOutputTokens (or send null).",
         );
       }
       next = {
@@ -1239,6 +1340,12 @@ export function upsertProviderInstanceV1(
           "A new claude instance cannot be created over the wire: executable is a machine-local path only an operator editing the config file directly can supply. Configure claude once by hand, then provider.upsert may update its model/displayName.",
         );
       }
+      if (spec.maxOutputTokens !== null) {
+        registryError(
+          "provider.field-not-applicable",
+          "maxOutputTokens is not applicable to a claude instance: claude runs as a CLI subprocess with no per-instance output-length knob in this registry. Omit maxOutputTokens (or send null).",
+        );
+      }
       next = {
         config: {
           ...config,
@@ -1253,6 +1360,12 @@ export function upsertProviderInstanceV1(
         registryError(
           "provider.family-requires-local-configuration",
           "A new gemini instance cannot be created over the wire: executable is a machine-local path only an operator editing the config file directly can supply. Configure gemini once by hand, then provider.upsert may update its model/displayName.",
+        );
+      }
+      if (spec.maxOutputTokens !== null) {
+        registryError(
+          "provider.field-not-applicable",
+          "maxOutputTokens is not applicable to a gemini instance: gemini runs as a CLI subprocess with no per-instance output-length knob in this registry. Omit maxOutputTokens (or send null).",
         );
       }
       next = {
@@ -1272,10 +1385,25 @@ export function upsertProviderInstanceV1(
         );
       }
       const created = config.ollama === undefined;
+      // The `Array.isArray` refusal above already ruled out the array member of this union for
+      // this branch; TypeScript does not narrow a `readonly T[]` union member out of the `false`
+      // branch on its own (the same known checker limitation `normalizeOllamaInstances` casts
+      // around), so the legacy singular shape is recovered explicitly here too.
+      const existingLegacy = config.ollama as RoomOllamaParticipantConfigV1 | undefined;
+      const maxOutputTokens = resolveMaxOutputTokensOnUpsertV1(
+        spec.maxOutputTokens,
+        existingLegacy?.maxOutputTokens,
+        created,
+      );
       next = {
         config: {
           ...config,
-          ollama: { ...config.ollama, model: spec.model, displayName: spec.displayName },
+          ollama: {
+            ...existingLegacy,
+            model: spec.model,
+            displayName: spec.displayName,
+            ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
+          },
         },
         created,
       };
@@ -1292,11 +1420,17 @@ export function upsertProviderInstanceV1(
       const index = instances.findIndex((instance) => instance.id === identity.id);
       const created = index === -1;
       const existing = created ? undefined : instances[index];
+      const maxOutputTokens = resolveMaxOutputTokensOnUpsertV1(
+        spec.maxOutputTokens,
+        existing?.maxOutputTokens,
+        created,
+      );
       const nextInstance: RoomOllamaInstanceConfigV1 = {
         ...(existing ?? {}),
         id: identity.id,
         model: spec.model,
         displayName: spec.displayName,
+        ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
       };
       next = {
         config: {
@@ -1320,11 +1454,17 @@ export function upsertProviderInstanceV1(
         );
       }
       const existing = created ? undefined : instances[index];
+      const maxOutputTokens = resolveMaxOutputTokensOnUpsertV1(
+        spec.maxOutputTokens,
+        existing?.maxOutputTokens,
+        created,
+      );
       const nextInstance: RoomOpenRouterParticipantConfigV1 = {
         ...(existing ?? { credentialReference: null }),
         id: identity.id,
         model: spec.model,
         displayName: spec.displayName,
+        ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
       };
       next = {
         config: {
@@ -1458,6 +1598,7 @@ export function providerInstanceFromSlotV1(slot: RoomProviderSlotV1): ProviderIn
     model: slot.model,
     displayName: slot.displayName,
     credentialReference: slot.credentialReference,
+    maxOutputTokens: slot.maxOutputTokens,
   };
 }
 

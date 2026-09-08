@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "__schema3": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema4": {
+      "items": {
+        "$ref": "#/$defs/__schema5"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "type": "array"
+    },
+    "__schema5": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/__schema6"
+        },
+        "detail": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "passed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "passed",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "__schema6": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema7": {
+      "items": {
+        "$ref": "#/$defs/__schema6"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "type": "array"
+    },
+    "__schema8": {
+      "type": "boolean"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:candidate-certification",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "candidateCommit": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "certified": {
+      "$ref": "#/$defs/__schema8"
+    },
+    "checks": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "evaluatedAt": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "releaseId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "unevaluated": {
+      "$ref": "#/$defs/__schema7"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "releaseId",
+    "projectId",
+    "candidateCommit",
+    "evaluatedAt",
+    "checks",
+    "unevaluated",
+    "certified"
+  ],
+  "type": "object"
+}

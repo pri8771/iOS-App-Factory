@@ -17,6 +17,7 @@ import {
   CommandResponseV1Schema,
   EffectListQueryV1Schema,
   GitBranchNameSchema,
+  GitObjectIdSchema,
   IsoInstantSchema,
   MirrorProjectionV1Schema,
   PhaseDefinitionUpsertV1Schema,
@@ -35,6 +36,9 @@ import {
   ProjectPlanProposeV1Schema,
   ProjectRegisterSourceV1Schema,
   ProviderUpsertSpecV1Schema,
+  ReleaseExportOptionsConfigV1Schema,
+  ReleaseRunIdSchema,
+  RepositoryIdSchema,
   RequestIdSchema,
   RoomCreateSpecV1Schema,
   RoomHumanHandleSchema,
@@ -1124,6 +1128,108 @@ export class CommandClient {
     return result;
   }
 
+  /**
+   * Release Rail Wave 3: certifies the repository's currently verified commit into a fresh
+   * `ReleaseRunV1` (the honest `candidate -> certified` subset). Always creates a run, even an
+   * uncertified one (`run.stage === "candidate"`, its failing checks recorded in `run.notes`).
+   */
+  public async startRelease(
+    input: Readonly<{
+      projectId: string;
+      repositoryId: string;
+      sourceCommit: string;
+      branch: string;
+    }>,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.start">> {
+    return await this.#request(
+      "release.start",
+      {
+        projectId: ProjectIdSchema.parse(input.projectId),
+        repositoryId: RepositoryIdSchema.parse(input.repositoryId),
+        sourceCommit: GitObjectIdSchema.parse(input.sourceCommit),
+        branch: GitBranchNameSchema.parse(input.branch),
+      },
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * Fast-forwards a certified release run's source commit onto its recorded branch in the real
+   * source repository (local-only: no network, no push). `expectedRevision` is the run's own CAS
+   * guard, from a prior `release.start`/`release.promote`/`release.status` result.
+   */
+  public async promoteRelease(
+    releaseRunId: string,
+    expectedRevision: number,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.promote">> {
+    return await this.#request(
+      "release.promote",
+      { releaseRunId: ReleaseRunIdSchema.parse(releaseRunId), expectedRevision },
+      identity,
+      signal,
+    );
+  }
+
+  /** Reads one release run's current durable state. */
+  public async releaseStatus(
+    releaseRunId: string,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.status">> {
+    return await this.#request(
+      "release.status",
+      { releaseRunId: ReleaseRunIdSchema.parse(releaseRunId) },
+      identity,
+      signal,
+    );
+  }
+
+  /**
+   * Release Rail Wave 4: allocates a build number and archives + exports a certified release run
+   * through the daemon's `process-supervisor`-backed archiver (`xcodegen generate` ->
+   * `xcodebuild archive` -> `xcodebuild -exportArchive`), advancing `certified -> archived`. This is
+   * a real, minutes-long local subprocess chain -- callers that construct their OWN `CommandClient`
+   * (rather than going through the CLI, which does this for `release archive` automatically) should
+   * pass a `timeoutMs` at construction generous enough to outlast it; the per-call `signal` here
+   * only cancels client-side waiting, it does not shorten the daemon's own transport timeout.
+   */
+  public async archiveRelease(
+    input: Readonly<{
+      releaseRunId: string;
+      expectedRevision: number;
+      exportOptions: Readonly<{
+        teamId: string;
+        method: "app-store-connect";
+        destination: "export";
+        signingStyle: "automatic";
+        bundleIdOverride: string | null;
+      }>;
+      marketingVersion: string;
+    }>,
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"release.archive">> {
+    return await this.#request(
+      "release.archive",
+      {
+        releaseRunId: ReleaseRunIdSchema.parse(input.releaseRunId),
+        expectedRevision: input.expectedRevision,
+        exportOptions: ReleaseExportOptionsConfigV1Schema.parse({
+          schemaVersion: 1,
+          ...input.exportOptions,
+        }),
+        marketingVersion: input.marketingVersion,
+      },
+      identity,
+      signal,
+    );
+  }
+
   public async createSignal(
     input: Readonly<{
       name: string;
@@ -1327,6 +1433,14 @@ export class CommandClient {
       identity,
       signal,
     );
+  }
+
+  /** OR-23: source-attributed effective provider/phase configuration (never includes secrets). */
+  public async getEffectiveConfiguration(
+    identity?: CommandIdentity,
+    signal?: AbortSignal,
+  ): Promise<CommandResultForOperationV1<"config.effective">> {
+    return await this.#request("config.effective", {}, identity, signal);
   }
 
   /** Reads one Studio setting (Architecture decision 4); `entry.value`/`entry.updatedAt` are both

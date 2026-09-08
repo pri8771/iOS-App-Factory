@@ -45,12 +45,12 @@ const GIT = "/usr/bin/git";
 const SWIFT = "/usr/bin/swift";
 const GREP = "/usr/bin/grep";
 const GREETER_PATH = "Sources/Greeter/GreetingFormatter.swift";
-const EXPECTED_BASE_TREE = "4b0f3837c058d6aa3438fc6d0c386324fd074005";
+const EXPECTED_BASE_TREE = "e69344ba899cb78fb5ad51ab56f9b4750d0b13b9";
 const EXPECTED_BASE_MANIFEST = Buffer.from(
   [
     "100644 blob 2d9f16e2d276179d73c91ec2022a23834caec180\t.gitignore",
     "100644 blob ba365538503399f0d8cda16808f76407e74cc512\tFactoryAcceptance/FarewellAcceptanceTests.swift",
-    "100644 blob 15a7eada3bf5493c68f0e00eb64a4631d8db2d57\tPackage.swift",
+    "100644 blob bf74be34ddeeb4bd17e66e4116abd4d4960cc4a7\tPackage.swift",
     "100644 blob dc7b2f98268e7b12393d1eb6b4257da099fc2ce5\tREADME.md",
     "100644 blob 1eed1d0f1f6959207bf20ad06e1f7356c49c90a4\tSources/Greeter/GreetingFormatter.swift",
     "100644 blob 5e298d99dce8fa241fdb89572acdced70e2f2e57\tTests/GreeterTests/GreetingFormatterTests.swift",
@@ -67,7 +67,7 @@ const EXPECTED_FILE_DIGESTS = {
     "sha256:7cc4bc464be520b6dcc822fbc82166f2f3d362dfbf756d75a0cffc1be2df6433",
   ),
   "Package.swift": trustedDigest(
-    "sha256:7c21ff14bed5b7537f2ded41db38c51538c43c8eb5c160b38a89a66ff811d0ab",
+    "sha256:8e943f1ea8f37eb7410fe65eded9ec6cf4d7e1769669b2f9ed537a806121cb15",
   ),
   "README.md": trustedDigest(
     "sha256:8d0ec00a1ba95c899662662a0c3cc785fa2e4fc8bfb612e64f640c10a9e8aeda",

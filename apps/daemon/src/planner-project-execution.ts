@@ -98,6 +98,10 @@ export type PlannerVerificationConfigV1 = Readonly<{
   toolVersions: readonly Readonly<{ name: string; version: string }>[];
   buildTimeoutMs: number;
   testTimeoutMs: number;
+  /** `smoke.launch-screenshot` builds for the simulator, boots it, installs, launches, and
+   *  screenshots -- slower than a plain build/test (simulator cold boot can take well over a
+   *  minute), so it gets its own generous timeout rather than sharing `testTimeoutMs`. */
+  smokeTimeoutMs: number;
 }>;
 
 export type PlannerExecutionConfigV1 = Readonly<{
@@ -171,7 +175,7 @@ function parseVerification(value: unknown): PlannerVerificationConfigV1 {
       "toolVersions",
     ],
     `${CONFIG_LABEL}: verification has an unsupported or non-exact shape.`,
-    ["path", "user", "buildTimeoutMs", "testTimeoutMs"],
+    ["path", "user", "buildTimeoutMs", "testTimeoutMs", "smokeTimeoutMs"],
   );
   if (value.profile !== "ios-xcodegen-v1") {
     configurationError(`${CONFIG_LABEL}: verification.profile must be "ios-xcodegen-v1".`);
@@ -237,6 +241,13 @@ function parseVerification(value: unknown): PlannerVerificationConfigV1 {
     testTimeoutMs: boundedInteger(
       value.testTimeoutMs,
       "verification.testTimeoutMs",
+      10_000,
+      3_600_000,
+      900_000,
+    ),
+    smokeTimeoutMs: boundedInteger(
+      value.smokeTimeoutMs,
+      "verification.smokeTimeoutMs",
       10_000,
       3_600_000,
       900_000,
@@ -369,7 +380,13 @@ export function renderPlannerAgentPolicyV1(
     "2. Do not verify your own work: the trusted plane builds and tests your candidate after you finish. Do not run xcodebuild, simulators, or tests yourself; do not claim they passed.",
     "3. Do not use the network, credentials, package managers, or any tool outside the worktree.",
     "4. Do not modify Git state (no commits, branches, tags, stashes, or hooks) and never edit CI workflow files.",
-    "5. Keep the change minimal and complete for the task's stated objective and acceptance criteria; leave a one-paragraph summary of what you changed and why.",
+    // Existing test files are the trusted plane's verification authority: an agent that can
+    // rewrite them can weaken its own verification, so the protected-path policy rejects any
+    // candidate that touches one (`tests and test baselines are protected`). Adding NEW test
+    // files is allowed and expected. Say so explicitly -- the first real from-scratch build
+    // failed here because the agent edited the seeded test instead of adding its own.
+    "5. Tests may only be ADDED: create new test files for the behaviour you write. Never modify or delete an existing test file -- the trusted plane's verification depends on them, and a candidate that edits one is rejected outright.",
+    "6. Keep the change minimal and complete for the task's stated objective and acceptance criteria; leave a one-paragraph summary of what you changed and why.",
     "",
     rules.length === 0
       ? "Standard rules: (none compiled)"
@@ -418,7 +435,11 @@ export function iosXcodegenVerificationPlansV1(
   // pointed at it (`-project`); the checkout is never written to and stays clean by construction.
   // The scratch token may appear at most ONCE per argument (`materializeVerificationArgs`), so
   // each script binds it to a shell variable first and derives every path from that.
-  const bind = `S=${VERIFICATION_SCRATCH_TOKEN}; mkdir -p "$S/gen" "$S/derived-data"`;
+  // The token is substituted verbatim, so the assignment MUST be quoted: a runtime directory
+  // containing a space (the runbook's own `~/Library/Application Support/AppFactory/...` does)
+  // otherwise ends the assignment at the space, and the shell tries to execute the remainder as a
+  // command -- every check then fails with a bare "No such file or directory" and exit 1.
+  const bind = `S="${VERIFICATION_SCRATCH_TOKEN}"; mkdir -p "$S/gen" "$S/derived-data"`;
   const generate = `"${verification.xcodegenExecutable}" generate --quiet --spec project.yml --project "$S/gen"`;
   const project = `-project "$S/gen/${moduleName}.xcodeproj"`;
   const build = `"${verification.xcodebuildExecutable}" build ${project} -scheme "${moduleName}" -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES -derivedDataPath "$S/derived-data"`;
@@ -438,11 +459,146 @@ export function iosXcodegenVerificationPlansV1(
       args: ["-c", `set -e; ${bind}; ${generate}; ${test}`],
       timeoutMs: verification.testTimeoutMs,
     },
+    {
+      ...shared,
+      checkId: "smoke.launch-screenshot",
+      executable: "/bin/sh",
+      args: ["-c", smokeLaunchScreenshotScript(moduleName, project, verification)],
+      timeoutMs: verification.smokeTimeoutMs,
+    },
   ];
   // Fail at composition time, not at the first attempt, if a template ever violates the
   // coordinator's one-token-per-argument rule.
   for (const plan of plans) assertVerificationArgsTemplate(plan.args);
   return plans;
+}
+
+/**
+ * Bytes-per-megapixel below which a screenshot is almost certainly near-uniform (blank/black),
+ * not real rendered UI -- see `smokeLaunchScreenshotScript`'s doc for the heuristic's honest
+ * limits. Exported so the proof/test suite can assert against the same constant the check uses.
+ *
+ * A PER-PIXEL ratio, not a flat byte count, because the flat count does not port across simulator
+ * resolutions and -- worse -- was empirically wrong even at one resolution: a first version of
+ * this check used a flat 40,000-byte floor on the reasoning that "a near-uniform PNG compresses to
+ * almost nothing." Live-proof runs against the real "Letters" app on an iPhone 17 Pro simulator
+ * (1206x2622, `xcrun simctl io screenshot`) falsified that: a genuinely solid-black `ContentView`
+ * (only the status bar drawn over it) produced a 70,420-byte PNG -- comfortably ABOVE the flat
+ * floor, so that version would have PASSED the exact "Letters" incident it exists to catch. The
+ * real app's actual empty state (an icon, a headline, two lines of body text, and a button, mostly
+ * on a plain white background) produced 125,551 bytes at the same resolution. Per megapixel that
+ * is ~22,270 bytes/MP for the solid-black screen versus ~39,705 bytes/MP for the real one -- a
+ * clearly separated, resolution-normalized signal the flat count did not give. 30,000 sits roughly
+ * in between, with margin on both sides against those two measurements.
+ */
+export const SMOKE_MIN_BYTES_PER_MEGAPIXEL = 30_000;
+
+/**
+ * `smoke.launch-screenshot`: the check the "Letters" incident was missing. `build.xcodegen-app`
+ * and `test.xcodegen-unit` only prove the candidate compiles and its unit tests pass -- neither
+ * ever launches the app or looks at a rendered screen, which is exactly how a build+tests-green
+ * candidate reached TestFlight with zero interactive controls. This check builds for the real
+ * simulator named in `verification.simulatorDestination`, boots it, installs and launches the
+ * app, screenshots it, and fails if the screenshot is missing, tiny, or looks near-uniform.
+ *
+ * Composed at plan-build time (not embedded as a runtime shell computation) so a malformed
+ * `simulatorDestination` fails closed here, with a clear message, rather than as a confusing
+ * shell error deep inside the trusted verifier.
+ */
+function smokeLaunchScreenshotScript(
+  moduleName: string,
+  project: string,
+  verification: PlannerVerificationConfigV1,
+): string {
+  // `platform=iOS Simulator,name=iPhone 17 Pro,OS=latest` -> `iPhone 17 Pro`. simctl identifies
+  // simulators by name (there is no `-destination` string to hand it directly), so the operator's
+  // own destination is the only source of truth for which device to boot.
+  const nameMatch = /(?:^|,)\s*name=([^,]+)/.exec(verification.simulatorDestination);
+  const simulatorName = nameMatch?.[1]?.trim();
+  if (simulatorName === undefined || simulatorName.length === 0) {
+    throw new TypeError(
+      `ios-xcodegen-v1: verification.simulatorDestination has no name= for smoke.launch-screenshot: ${JSON.stringify(verification.simulatorDestination)}`,
+    );
+  }
+  // The name is embedded as a shell double-quoted literal below (`SIM_NAME="..."`) -- reject
+  // anything that could break out of that quoting instead of producing a confusing shell error.
+  if (/["\\\0]/.test(simulatorName)) {
+    configurationError(
+      `${CONFIG_LABEL}: verification.simulatorDestination's name= is not a safe shell literal: ${JSON.stringify(simulatorName)}`,
+    );
+  }
+  // Same scratch/generate conventions as the other two checks: the read-only checkout is never
+  // written to, and the token appears exactly once (in `bind`, reused verbatim) for this whole
+  // argument. Built for the OPERATOR'S OWN destination (not the generic one `build.xcodegen-app`
+  // uses) because this build must actually run on the concrete simulator booted below.
+  const bind = `S="${VERIFICATION_SCRATCH_TOKEN}"; mkdir -p "$S/gen" "$S/derived-data"`;
+  const generate = `"${verification.xcodegenExecutable}" generate --quiet --spec project.yml --project "$S/gen"`;
+  const build = `"${verification.xcodebuildExecutable}" build ${project} -scheme "${moduleName}" -destination "${verification.simulatorDestination}" CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES -derivedDataPath "$S/derived-data"`;
+  const appPath = `"$S/derived-data/Build/Products/Debug-iphonesimulator/${moduleName}.app"`;
+  const steps: readonly string[] = [
+    "set -e",
+    bind,
+    generate,
+    build,
+    `APP=${appPath}`,
+    'test -d "$APP" || { echo "smoke.launch-screenshot: FAIL - built app not found at $APP"; exit 1; }',
+    `SIM_NAME="${simulatorName}"`,
+    // Exact device-name match, not a substring one: `simctl list devices` would otherwise let
+    // "iPhone 17 Pro" match "iPhone 17 Pro Max" too. Trims the leading indentation, splits the
+    // line on the first " (", and compares the WHOLE device name against $SIM_NAME. When more
+    // than one installed runtime has a device by this name, this takes the first one `simctl
+    // list` reports; that is fine here (any compatible-runtime simulator can run a build made for
+    // "iOS Simulator"), just not necessarily the same instance `-destination ...,OS=latest` would
+    // pick for the OTHER two checks' builds.
+    'UDID=$(xcrun simctl list devices available | awk -v name="$SIM_NAME" \'{ line = $0; sub(/^[ \\t]+/, "", line); p = index(line, " ("); if (p > 0) { devname = substr(line, 1, p - 1); if (devname == name) { rest = substr(line, p + 2); c = index(rest, ")"); print substr(rest, 1, c - 1); exit } } }\')',
+    'if [ -z "$UDID" ]; then echo "smoke.launch-screenshot: FAIL - no available simulator named $SIM_NAME (xcrun simctl list devices available)"; exit 1; fi',
+    // `bootstatus -b` boots the device if it is not already booted/booting and then waits for it
+    // to finish booting either way -- this is the "tolerate already booted" handling: `simctl
+    // boot` alone exits non-zero when the device is already booted, `bootstatus -b` does not.
+    'xcrun simctl bootstatus "$UDID" -b >/dev/null',
+    'xcrun simctl install "$UDID" "$APP"',
+    // The bundle id is read from what was actually built, never hardcoded.
+    'BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")',
+    'if [ -z "$BUNDLE_ID" ]; then echo "smoke.launch-screenshot: FAIL - could not read CFBundleIdentifier from $APP/Info.plist"; exit 1; fi',
+    'xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null',
+    // A bounded wait for the first frame to render before the screenshot -- not a substitute for
+    // a real "did it finish launching" signal (none is asked for here), just enough for a cold
+    // SwiftUI launch to get past its first render pass.
+    "sleep 4",
+    'xcrun simctl io "$UDID" screenshot "$S/launch.png"',
+    // Never `simctl shutdown`: this check may be reusing a simulator the operator (or another
+    // check) already had booted, and the task's own instruction is to never shut down a
+    // simulator this check did not boot. The simplest way to honor that unconditionally is to
+    // never shut one down at all -- only the app itself is torn down.
+    'xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true',
+    'test -s "$S/launch.png" || { echo "smoke.launch-screenshot: FAIL - screenshot missing or empty at $S/launch.png"; exit 1; }',
+    'BYTES=$(wc -c < "$S/launch.png" | tr -d " ")',
+    "WIDTH=$(sips -g pixelWidth \"$S/launch.png\" 2>/dev/null | awk '/pixelWidth/ {print $2}')",
+    "HEIGHT=$(sips -g pixelHeight \"$S/launch.png\" 2>/dev/null | awk '/pixelHeight/ {print $2}')",
+    'if [ -z "$WIDTH" ] || [ -z "$HEIGHT" ] || [ "$WIDTH" -lt 200 ] || [ "$HEIGHT" -lt 200 ]; then echo "smoke.launch-screenshot: FAIL - unreadable or too-small screenshot dimensions (${WIDTH}x${HEIGHT})"; exit 1; fi',
+    // Bytes-per-megapixel, not a flat byte count -- see SMOKE_MIN_BYTES_PER_MEGAPIXEL's doc for
+    // why (a flat floor was live-proved wrong: it let a genuinely solid-black screen through).
+    "BYTES_PER_MEGAPIXEL=$(( (BYTES * 1000000) / (WIDTH * HEIGHT) ))",
+    // The heuristic itself, and its honest limits: a near-uniform image (all-black, all-white, a
+    // single solid color filling the whole frame) compresses far denser under PNG's DEFLATE, per
+    // pixel, than a real rendered screen does -- text, icons, a list, even a single sparse empty
+    // state. A screenshot below this many bytes per megapixel is therefore almost certainly
+    // blank/near-uniform. This catches EXACTLY that failure mode (the "Letters" incident: zero
+    // interactive controls, an empty screen) and nothing more: it does NOT verify the screen shows
+    // the RIGHT content, just that it is not empty/uniform. A screen that is "wrong but busy" (the
+    // wrong view, a crash overlay, a permissions dialog) passes this check by design -- that is
+    // `quality.presentation-matrix`/`quality.coherence`'s job, still unevaluated by this factory
+    // (see `packages/quality/src/candidate-certification.ts`), not this one's. The threshold is
+    // also only empirically separated at ONE data point on each side (see
+    // SMOKE_MIN_BYTES_PER_MEGAPIXEL's doc) -- a real screen sparser than the "Letters" empty state
+    // (e.g. a single small logo on a plain background) could conceivably still read as
+    // near-uniform and fail this check; that is a false-positive-failure risk this check accepts
+    // in exchange for actually catching the incident it exists for.
+    `MIN_BYTES_PER_MEGAPIXEL=${String(SMOKE_MIN_BYTES_PER_MEGAPIXEL)}`,
+    'if [ "$BYTES_PER_MEGAPIXEL" -lt "$MIN_BYTES_PER_MEGAPIXEL" ]; then echo "smoke.launch-screenshot: FAIL - screenshot is $BYTES bytes for ${WIDTH}x${HEIGHT}px ($BYTES_PER_MEGAPIXEL bytes/megapixel, need >= $MIN_BYTES_PER_MEGAPIXEL) -- this sparse at this resolution is almost certainly a blank/near-uniform screen"; exit 1; fi',
+    'echo "smoke.launch-screenshot: PASS - $BYTES bytes, ${WIDTH}x${HEIGHT}px ($BYTES_PER_MEGAPIXEL bytes/megapixel), $S/launch.png"',
+  ];
+  return steps.join("; ");
 }
 
 /** `name:` from the project's own `project.yml` at a commit, read from the sealed mirror. */
@@ -600,6 +756,31 @@ export const IOS_XCODEGEN_PROTECTED_PATH_EXTENSION_V1: ProtectedPathPolicyExtens
   allowances: ["test-file-addition"],
 };
 
+/**
+ * The Codex sandbox's read-only paths for planner execution -- deliberately NOT
+ * `buildCodexAgentForProject`'s enrolled-profile default (see that function's doc in
+ * local-execution-profile.ts for the full containment-boundary rationale). A from-scratch app has no
+ * tests until the agent writes them: `BUILD_TEMPLATES_V1` above authorizes every build item to write
+ * under `Tests` (and `Sources`), so those two must NOT be sandbox-read-only here, or every build item
+ * fails closed with "Authorized write path Tests overlaps read-only path Tests" before the agent ever
+ * runs.
+ *
+ * What stays read-only mirrors what `IOS_XCODEGEN_PROTECTED_PATH_EXTENSION_V1` still protects, so the
+ * two containment layers agree: it grants `test-file-addition` only, never `xcode-project-membership`,
+ * so `project.yml` stays protected (classifyProtectedPath's default, unrelaxed here) -- and CI
+ * configuration is always protected with no relaxable class at all. No planner task template ever
+ * authorizes writing to either, so this is belt-and-suspenders: it stops a misbehaving or
+ * future-mistemplated task from even attempting the write at the sandbox level, instead of relying
+ * solely on post-hoc candidate-policy rejection. `Package.swift` is kept for the same reason
+ * (`buildCodexAgentForProject`'s enrolled default carries it, no planner template ever needs it, and
+ * classifyProtectedPath protects it unconditionally with no relaxable class either).
+ */
+export const PLANNER_CODEX_READ_ONLY_PATHS_V1 = [
+  "Package.swift",
+  "project.yml",
+  ".github",
+] as const;
+
 export type PlannerProjectResolver = Readonly<{
   resolveProject: (repositoryId: string) => Promise<VerifiedLocalExecutionProject | null>;
   /** sha256 of `policyBytes` -- what `plan.execute` must stamp on every submitted task. */
@@ -654,6 +835,7 @@ export function createPlannerProjectResolver(
         sourceRepositoryPath,
         dependencies.runtimeDirectory,
         dependencies.profileDependencies ?? {},
+        PLANNER_CODEX_READ_ONLY_PATHS_V1,
       );
       return {
         agent: built.agent,

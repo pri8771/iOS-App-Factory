@@ -46,6 +46,7 @@ import { ProjectPlanRepository } from "./project-plan-repositories.js";
 import { PhaseRunRepository } from "./phase-run-repositories.js";
 import { AscReleaseObservationRepository } from "./asc-release-observation-repositories.js";
 import { ProjectRegistryRepository } from "./project-registry-repositories.js";
+import { ReleaseBuildNumberRepository, ReleaseRunRepository } from "./release-run-repositories.js";
 import { SignalInsightRepository, SignalRepository } from "./signal-repositories.js";
 import { StudioSettingsRepository } from "./settings-repositories.js";
 import { TokenUsageRepository } from "./token-usage-repositories.js";
@@ -660,6 +661,8 @@ export class FactoryRepositories {
   public readonly signalInsights: SignalInsightRepository;
   public readonly studioSettings: StudioSettingsRepository;
   public readonly tokenUsage: TokenUsageRepository;
+  public readonly releaseRuns: ReleaseRunRepository;
+  public readonly releaseBuildNumbers: ReleaseBuildNumberRepository;
 
   public constructor(private readonly database: Database.Database) {
     this.commands = new CommandRepository(database);
@@ -683,6 +686,8 @@ export class FactoryRepositories {
     this.signalInsights = new SignalInsightRepository(database);
     this.studioSettings = new StudioSettingsRepository(database);
     this.tokenUsage = new TokenUsageRepository(database);
+    this.releaseRuns = new ReleaseRunRepository(database);
+    this.releaseBuildNumbers = new ReleaseBuildNumberRepository(database);
   }
 
   public createTaskAttempt(input: CreateTaskAttemptInput): CreatedTaskAttempt {
