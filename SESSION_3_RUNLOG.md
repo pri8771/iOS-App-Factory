@@ -24,3 +24,9 @@ Start (UTC): `2026-09-08T14:00:17Z`
 | 2026-09-08T14:16:00Z | Distinct-model review (gpt-5.5): pass_with_nonblocking. |
 | 2026-09-08T14:18:39Z | Closeout artifacts authored. |
 
+
+| 2026-09-08T15:17:35Z | Push authorized: origin/codex/or-23-or-22-aurafit-proof-20260908 @ 9f980cd. |
+| 2026-09-08T15:11:37Z | OR-25 AuraFitTests unsigned simulator: 93 passed. |
+| 2026-09-08T15:13:32Z | OR-25 AuraFitUITests unsigned simulator: 1 passed. |
+| 2026-09-08T15:17:35Z | OR-25 partial evidence recorded; certification not claimed. |
+

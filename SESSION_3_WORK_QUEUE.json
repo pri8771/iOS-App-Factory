@@ -96,8 +96,8 @@
       "lane": "D",
       "jiraKey": "OR-25",
       "stableTask": "IF-T011",
-      "state": "not_admitted_timebox",
-      "assignedAgent": null,
+      "state": "partial_simulator_checks_passed_certification_pending",
+      "assignedAgent": "integration_owner_direct",
       "modelRoute": null,
       "ownedGlobs": [],
       "dependencies": [
