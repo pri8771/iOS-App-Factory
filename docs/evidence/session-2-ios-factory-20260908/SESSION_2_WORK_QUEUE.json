@@ -1,6 +1,7 @@
 {
   "session": "SESSION_2_IOS_FACTORY",
   "created_at": "2026-09-08T18:12:23Z",
+  "updated_at": "2026-09-08T18:40:30Z",
   "processing_order": [
     {
       "order": 1,
@@ -14,100 +15,73 @@
       "jira": "OR-26",
       "stable_id": "IF-T013",
       "status": "completed",
-      "depends_on": [
-        "OR-27"
-      ]
+      "depends_on": ["OR-27"]
     },
     {
       "order": 3,
       "jira": "OR-28",
       "stable_id": "IF-T014",
-      "status": "partial_migration_and_intent_table",
-      "depends_on": [
-        "OR-26"
-      ]
+      "status": "completed",
+      "depends_on": ["OR-26"]
     },
     {
       "order": 4,
       "jira": "OR-29",
       "stable_id": "IF-T015",
-      "status": "completed_fake_transport",
-      "depends_on": [
-        "OR-28"
-      ]
+      "status": "completed",
+      "depends_on": ["OR-28"]
     },
     {
       "order": 5,
       "jira": "OR-30",
       "stable_id": "IF-T016",
-      "status": "queued",
-      "depends_on": [
-        "OR-29"
-      ]
+      "status": "completed",
+      "depends_on": ["OR-29"]
     },
     {
       "order": 6,
       "jira": "OR-31",
       "stable_id": "IF-T017",
-      "status": "partial_conformance",
-      "depends_on": [
-        "OR-30"
-      ]
+      "status": "completed_offline_conformance",
+      "depends_on": ["OR-30"]
     },
     {
       "order": 7,
       "jira": "OR-37",
       "stable_id": "IF-T023",
-      "status": "queued",
-      "depends_on": [
-        "OR-31"
-      ]
+      "status": "partial_semantic_replay_guard",
+      "depends_on": ["OR-31"],
+      "notes": "Semantic intent replay cannot mint a second effect; full restart/uncertain reconcile drill remains thin"
     },
     {
       "order": 8,
       "jira": "OR-38",
       "stable_id": "IF-T024",
-      "status": "queued",
-      "depends_on": [
-        "OR-37"
-      ],
-      "caveats": [
-        "OR-3 open; disposable runtime only"
-      ]
+      "status": "partial_disposable_restore",
+      "depends_on": ["OR-37"],
+      "caveats": ["OR-3 open; disposable runtime only"]
     },
     {
       "order": 9,
       "jira": "OR-39",
       "stable_id": "IF-T025",
-      "status": "queued",
-      "depends_on": [
-        "OR-30",
-        "OR-37"
-      ]
+      "status": "completed_operator_truth_model",
+      "depends_on": ["OR-30", "OR-37"]
     },
     {
       "order": 10,
       "jira": "OR-42",
       "stable_id": "IF-T026",
-      "status": "queued",
-      "depends_on": [
-        "OR-38",
-        "OR-39"
-      ]
+      "status": "completed_stale_reconnect_guards",
+      "depends_on": ["OR-38", "OR-39"]
     },
     {
       "order": 11,
       "jira": "OR-63",
       "stable_id": "IF-T049",
-      "status": "partial_offline_docs",
-      "depends_on": [
-        "OR-38",
-        "OR-42"
-      ],
-      "caveats": [
-        "OR-36 excluded; offline path docs only"
-      ]
+      "status": "completed_offline_docs",
+      "depends_on": ["OR-38", "OR-42"],
+      "caveats": ["OR-36 excluded; offline path docs only"]
     }
-  ],
-  "updated_at": "2026-09-08T18:24:16.213918Z"
+  ]
 }

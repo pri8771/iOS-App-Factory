@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "recorded_at_utc": "2026-09-08T18:46:00Z",
+  "tested_sha": "d189e2bb9b4f6acc0f2841e27736d4a090102741",
+  "confirmed_absent": [
+    "apple_network_contact",
+    "app_store_connect_write",
+    "testflight_upload",
+    "signing_mutation",
+    "xcodebuild_archive_for_transport",
+    "xcrun_altool",
+    "transporter",
+    "physical_device_action",
+    "jira_write",
+    "merge_of_pr1_or_this_branch",
+    "force_push",
+    "secret_commit",
+    "hindsight_roam_letters_anjali_svara_mala_digital_temple_edits"
+  ],
+  "notes": "Only fake/offline transports and local unit tests were exercised. Real Apple upload transport remains disabled by default."
+}
