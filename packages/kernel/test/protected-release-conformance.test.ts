@@ -67,7 +67,7 @@ function seedReleaseRun(db: ReturnType<typeof database>) {
   });
 }
 
-describe("OR-31 protected release offline conformance (partial)", () => {
+describe("OR-31 protected release offline conformance", () => {
   it("fails closed on stale and ambiguous max-build observations", () => {
     expect(() =>
       assertUsableProviderBuildObservationV1(

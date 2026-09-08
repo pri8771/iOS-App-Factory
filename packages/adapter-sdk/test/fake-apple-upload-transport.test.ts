@@ -52,4 +52,38 @@ describe("fake apple upload transport", () => {
     expect(capability.blockerCode).toBe("apple.upload.transport-disabled");
     expect(() => transport.send()).toThrow(/transport-disabled/);
   });
+
+  it("covers rejection, timeout-uncertain, and identity-mismatch outcomes", () => {
+    const base = {
+      effectId: randomUUID() as never,
+      releaseRunId: randomUUID() as never,
+      identityDigest: DIGEST,
+      now: NOW,
+      identity: {
+        schemaVersion: 1 as const,
+        repositoryId: randomUUID() as never,
+        sourceCommit: "a".repeat(40),
+        sourceTree: "b".repeat(40),
+        policyDigest: DIGEST,
+        projectId: randomUUID() as never,
+        releaseId: randomUUID() as never,
+        releaseRunId: randomUUID() as never,
+        appBundleId: "com.pchordia.aurafit",
+        marketingVersion: "1.0",
+        buildNumber: "12",
+        archiveDigest: DIGEST,
+        exportedArtifactDigest: DIGEST,
+        destination: "app-store-connect-internal" as const,
+        transportProtocol: "app-factory.fake-apple-upload.v1" as const,
+        transportProtocolVersion: 1,
+      },
+    };
+    expect(createFakeAppleUploadTransportV1("rejected").send(base).outcome).toBe("rejected");
+    expect(createFakeAppleUploadTransportV1("timeout").send(base).outcome).toBe(
+      "timeout-uncertain",
+    );
+    expect(createFakeAppleUploadTransportV1("wrong-identity").send(base).outcome).toBe(
+      "identity-mismatch",
+    );
+  });
 });
