@@ -19,11 +19,19 @@ public struct ReleaseRailState: Hashable, Sendable {
     /// Last `release.projection` / `release.observe` error, if any (already stringified by the store).
     public var error: String?
     public var isObserving: Bool
+    /// Optional Session-2 protected-release operator truth (offline/fake path only).
+    public var protectedRelease: ProtectedReleaseOperatorSnapshot?
 
-    public init(projection: ReleaseProjection?, error: String? = nil, isObserving: Bool = false) {
+    public init(
+        projection: ReleaseProjection?,
+        error: String? = nil,
+        isObserving: Bool = false,
+        protectedRelease: ProtectedReleaseOperatorSnapshot? = nil
+    ) {
         self.projection = projection
         self.error = error
         self.isObserving = isObserving
+        self.protectedRelease = protectedRelease
     }
 
     /// Where the rows came from: live when an observation exists, else not yet sourced.
@@ -70,7 +78,37 @@ public struct ReleaseRailView: View {
             if let error = state.error {
                 note(error, role: .alert)
             }
+            if let protectedRelease = state.protectedRelease {
+                protectedReleasePanel(protectedRelease)
+            }
         }
+    }
+
+    @ViewBuilder
+    private func protectedReleasePanel(_ snapshot: ProtectedReleaseOperatorSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: HUDTheme.space.xxs) {
+            Text("PROTECTED RELEASE (OFFLINE)")
+                .font(HUDTypography.monoLabel)
+                .tracking(HUDTypography.labelTracking)
+                .foregroundStyle(HUDTheme.faint)
+            Text("stage \(snapshot.stage.label) · rev \(snapshot.revision) · \(snapshot.effectTruth.label)")
+                .font(HUDTypography.monoValue)
+                .foregroundStyle(HUDTheme.ink)
+            Text(snapshot.transportProtocol)
+                .font(HUDTypography.monoLabel)
+                .foregroundStyle(HUDTheme.mute)
+            if snapshot.realTransportEnabled {
+                note("real Apple transport unexpectedly enabled", role: .alert)
+            } else {
+                note("real Apple transport disabled; fake/offline path only")
+            }
+            if !snapshot.safeActions.isEmpty {
+                Text(snapshot.safeActions.joined(separator: " · "))
+                    .font(HUDTypography.caption)
+                    .foregroundStyle(HUDTheme.mute)
+            }
+        }
+        .padding(.top, HUDTheme.space.xs)
     }
 
     // MARK: Header
