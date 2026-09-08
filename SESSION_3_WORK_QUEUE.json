@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "CURSOR-S3-20260908",
+  "integrationOwner": {
+    "role": "integration_owner",
+    "agentRoute": "parent-subagent Composer integration owner",
+    "owns": [
+      "SESSION_3_*.json",
+      "SESSION_3_*.md",
+      "packages/contracts/**",
+      "apps/daemon/src/command-runtime.ts",
+      "apps/cli/src/index.ts",
+      "package.json",
+      "pnpm-lock.yaml",
+      "JIRA_OUTBOX.md"
+    ]
+  },
+  "lanes": [
+    {
+      "lane": "A",
+      "jiraKey": "OR-23",
+      "stableTask": "IF-T008",
+      "state": "done",
+      "assignedAgent": "integration_owner_direct",
+      "modelRoute": "inherit",
+      "ownedGlobs": [
+        "packages/contracts/src/v1/effective-config.ts",
+        "packages/contracts/test/effective-config.test.ts",
+        "apps/daemon/src/effective-config-runtime.ts",
+        "apps/daemon/test/effective-config-runtime.test.ts",
+        "apps/studio-mac/Sources/StudioKit/Models/EffectiveConfig.swift",
+        "apps/studio-mac/Sources/StudioKit/Settings/EffectiveConfigPanel.swift",
+        "apps/studio-mac/Tests/StudioKitTests/EffectiveConfigDecodingTests.swift"
+      ],
+      "dependencies": [],
+      "checks": [
+        "pnpm --filter @app-factory/contracts test",
+        "vitest run apps/daemon/test/effective-config-runtime.test.ts"
+      ],
+      "acceptanceFocus": [
+        "effective provider/phase config with source attribution",
+        "defaults vs overrides",
+        "unavailable/stale/invalid",
+        "secret redaction",
+        "requested vs observed model identity"
+      ]
+    },
+    {
+      "lane": "B",
+      "jiraKey": "OR-22",
+      "stableTask": "IF-T009",
+      "state": "done",
+      "assignedAgent": "integration_owner_direct",
+      "modelRoute": "inherit",
+      "ownedGlobs": [
+        "fixtures/aurafit-local-proof/**",
+        "apps/daemon/src/aurafit-local-fixture-execution.ts",
+        "apps/daemon/test/aurafit-local-fixture-execution.test.ts"
+      ],
+      "dependencies": [
+        "Lane A contracts for provenance fields if shared; otherwise self-contained"
+      ],
+      "checks": [
+        "vitest run apps/daemon/test/aurafit-local-fixture-execution.test.ts"
+      ],
+      "acceptanceFocus": [
+        "AuraFit-shaped local non-signing fixture",
+        "fail-closed identity/scheme/config/replay/timeout/review/drift"
+      ]
+    },
+    {
+      "lane": "C",
+      "jiraKey": "OR-24",
+      "stableTask": "IF-T010",
+      "state": "partial_evidence_recorded_apple_unknown",
+      "assignedAgent": "integration_owner_direct",
+      "modelRoute": "inherit",
+      "ownedGlobs": [
+        "SESSION_3_EVIDENCE_INDEX.json",
+        "docs/operations/session-3-aurafit-local-enrollment-evidence.md"
+      ],
+      "dependencies": [
+        "OR-18 accepted AuraFit source decision"
+      ],
+      "checks": [
+        "read-only AuraFit enrollment scan",
+        "read-only xcodebuild -list / toolchain versions"
+      ],
+      "acceptanceFocus": [
+        "local enrollment map",
+        "Mac/toolchain evidence without Apple mutation",
+        "unknown Apple facts remain blockers"
+      ]
+    },
+    {
+      "lane": "D",
+      "jiraKey": "OR-25",
+      "stableTask": "IF-T011",
+      "state": "not_admitted_timebox",
+      "assignedAgent": null,
+      "modelRoute": null,
+      "ownedGlobs": [],
+      "dependencies": [
+        "Lane B local proof",
+        "Lane C enrollment evidence"
+      ],
+      "checks": [
+        "optional AuraFit unit/simulator CODE_SIGNING_ALLOWED=NO"
+      ],
+      "acceptanceFocus": [
+        "source-bound product checks without archive/sign/upload"
+      ]
+    }
+  ],
+  "rejectedOrNotAdmitted": [
+    {
+      "item": "Hindsight any access",
+      "reason": "Session brief non-goal; AuraFit is pilot."
+    },
+    {
+      "item": "Apple archive/sign/upload/submit",
+      "reason": "Explicitly prohibited."
+    },
+    {
+      "item": "New Jira issues",
+      "reason": "Reuse OR-23/22/24/25 only."
+    }
+  ]
+}

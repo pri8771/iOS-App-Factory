@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "finalCodeSha": "bfc162a26955fb28d1405aabb06243fa4001f3fd",
+  "baseSha": "ff8f38dd62709c5549b4fcfbaef3c861c8bc7f3f",
+  "machine": {"hostname": "Apple-M5-Pro-87", "node": "v24.18.0", "pnpm": "10.33.2", "xcode": "Xcode 26.6 / 17F113"},
+  "commands": [
+    {
+      "command": "pnpm install --frozen-lockfile",
+      "cwd": "/Users/pchordia/code/factory/worktrees/CURSOR-S3-20260908",
+      "startUtc": "2026-09-08T14:13:55Z",
+      "endUtc": "2026-09-08T14:13:56Z",
+      "exitCode": 0,
+      "network": false,
+      "provider": false,
+      "xcode": false,
+      "simulator": false,
+      "signing": false,
+      "apple": false,
+      "device": false,
+      "notes": "Lockfile unchanged; required for isolated worktree toolchain."
+    },
+    {
+      "command": "pnpm --filter @app-factory/contracts build && pnpm exec vitest run packages/contracts/test/effective-config.test.ts packages/contracts/test/command-protocol.test.ts apps/daemon/test/effective-config-runtime.test.ts apps/daemon/test/aurafit-local-fixture-execution.test.ts --maxWorkers=4",
+      "cwd": "/Users/pchordia/code/factory/worktrees/CURSOR-S3-20260908",
+      "startUtc": "2026-09-08T14:14:14Z",
+      "endUtc": "2026-09-08T14:14:15Z",
+      "exitCode": 0,
+      "testedSha": "bfc162a26955fb28d1405aabb06243fa4001f3fd",
+      "totals": {"pass": 99, "fail": 0, "skip": 0},
+      "result": "pass"
+    },
+    {
+      "command": "pnpm schemas:generate && pnpm schemas:check",
+      "cwd": "/Users/pchordia/code/factory/worktrees/CURSOR-S3-20260908",
+      "exitCode": 0,
+      "result": "pass"
+    },
+    {
+      "command": "pnpm --filter @app-factory/{daemon,cli,command-client} exec tsc -b --pretty false",
+      "cwd": "/Users/pchordia/code/factory/worktrees/CURSOR-S3-20260908",
+      "exitCode": 0,
+      "result": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "cwd": "/Users/pchordia/code/factory/worktrees/CURSOR-S3-20260908",
+      "exitCode": 0,
+      "result": "pass"
+    },
+    {
+      "command": "xcodebuild -list -project AuraFit.xcodeproj (read-only Lane C)",
+      "cwd": "/Users/pchordia/Documents/wip_apps/ios_apps/aurafit",
+      "startUtc": "2026-09-08T14:14:37Z",
+      "endUtc": "2026-09-08T14:14:39Z",
+      "exitCode": 0,
+      "xcode": true,
+      "simulator": false,
+      "signing": false,
+      "apple": false,
+      "device": false,
+      "result": "pass"
+    }
+  ],
+  "failureClassification": [],
+  "laneD": {"state": "not_run", "reason": "Deferred; OR-25 left blocked/verification-pending after OR-23/22/24 admission and timebox."}
+}

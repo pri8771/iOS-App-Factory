@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "CURSOR-S3-20260908",
+  "briefPath": "/Users/pchordia/Documents/ChatGPT/Astra/planning/cursor-five-sessions-2026-09-08/SESSION_3_IOS_FACTORY_AURAFIT_MULTITASK_4H.md",
+  "localTimestamp": "2026-09-08T10:00:17-0400",
+  "utcTimestamp": "2026-09-08T14:00:17Z",
+  "machine": {
+    "hostname": "Apple-M5-Pro-87",
+    "os": {
+      "productName": "macOS",
+      "productVersion": "26.6.2",
+      "buildVersion": "25G83"
+    }
+  },
+  "cursorRoute": "Auto / Multitask continuation; integration owner",
+  "requestedModel": null,
+  "requestedModelReason": "Parent kickoff did not expose a requested model slug to this subagent.",
+  "actualModel": null,
+  "actualModelReason": "Runtime does not expose a stable model identifier to this agent process.",
+  "admittedJiraKeys": ["OR-23", "OR-22", "OR-24", "OR-25"],
+  "sources": {
+    "factory": {
+      "observedCheckout": "/Users/pchordia/code/factory/worktrees/studio-wave1",
+      "observedBranch": "integration/studio-wave1",
+      "observedHead": "ff8f38dd62709c5549b4fcfbaef3c861c8bc7f3f",
+      "observedTreeClean": true,
+      "upstream": "origin/integration/studio-wave1",
+      "aheadBehindCachedUpstream": { "ahead": 10, "behind": 0 },
+      "sessionWorktree": "/Users/pchordia/code/factory/worktrees/CURSOR-S3-20260908",
+      "sessionBranch": "codex/or-23-or-22-aurafit-proof-20260908",
+      "sessionBaseHead": "ff8f38dd62709c5549b4fcfbaef3c861c8bc7f3f",
+      "instructionHashes": {
+        "AGENTS.md": "e83164928b9409f7db14f87c079ee36a9442d6c15f0ee1efefbff3b4ab68d15d",
+        "CLAUDE.md": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+        "package.json": "7c73daadb35868c8a4f24598bb42b9711ffab2c1a50d6d1009f91fc9dfa94fba",
+        "pnpm-lock.yaml": "1a8bb715551faf79262fc2bd853853837bea0850ed62d3944abe22f63bbdaf82"
+      }
+    },
+    "aurafit": {
+      "observedCheckout": "/Users/pchordia/Documents/wip_apps/ios_apps/aurafit",
+      "observedBranch": "release/1.0-3-full-free",
+      "observedHead": "1b717b921a52b4612005eb102b5ac18a69b04993",
+      "observedTree": "e50c36da7a1ebcf1ecaf5c4f880394568b2c72f8",
+      "observedTreeClean": true,
+      "upstream": "origin/release/1.0-3-full-free",
+      "scheme": "AuraFit",
+      "bundleId": "com.pchordia.aurafit",
+      "archiveConfiguration": "Release",
+      "sessionWorktree": null,
+      "sessionWorktreeReason": "Not created at start; admitted only if Lane C requires an AuraFit-side change.",
+      "instructionHashes": {
+        "AGENTS.md": "39753e29387f98dd3bee3dbf1f4c6f8f6cf2f7dd08087d85559be0829f6350dd"
+      }
+    }
+  },
+  "dependencyStatus": {
+    "node": "v24.18.0",
+    "npm": "11.16.0",
+    "pnpmLockPresent": true,
+    "lockfileMutationPlanned": false,
+    "xcodebuild": "Xcode 26.6 / Build 17F113",
+    "simulatorDevicesObserved": true,
+    "networkRequiredForImplementation": false
+  },
+  "prohibitedActionsConfirmedAtStart": [
+    "no_hindsight_access",
+    "no_push_pr_merge",
+    "no_archive_sign_upload_submit",
+    "no_apple_mutation",
+    "no_paid_provider_use_planned"
+  ],
+  "notes": [
+    "Session brief selects AuraFit as pilot; Hindsight remains out of scope.",
+    "Jira live read 2026-09-08: OR-23/OR-22/OR-24/OR-25 are To Do with implementation-hold labels; session brief authorizes bounded local implementation/verification only."
+  ]
+}
