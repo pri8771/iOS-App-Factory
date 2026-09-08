@@ -2,7 +2,12 @@
   "schemaVersion": 1,
   "finalCodeSha": "bfc162a26955fb28d1405aabb06243fa4001f3fd",
   "baseSha": "ff8f38dd62709c5549b4fcfbaef3c861c8bc7f3f",
-  "machine": {"hostname": "Apple-M5-Pro-87", "node": "v24.18.0", "pnpm": "10.33.2", "xcode": "Xcode 26.6 / 17F113"},
+  "machine": {
+    "hostname": "Apple-M5-Pro-87",
+    "node": "v24.18.0",
+    "pnpm": "10.33.2",
+    "xcode": "Xcode 26.6 / 17F113"
+  },
   "commands": [
     {
       "command": "pnpm install --frozen-lockfile",
@@ -26,7 +31,11 @@
       "endUtc": "2026-09-08T14:14:15Z",
       "exitCode": 0,
       "testedSha": "bfc162a26955fb28d1405aabb06243fa4001f3fd",
-      "totals": {"pass": 99, "fail": 0, "skip": 0},
+      "totals": {
+        "pass": 99,
+        "fail": 0,
+        "skip": 0
+      },
       "result": "pass"
     },
     {
@@ -59,8 +68,75 @@
       "apple": false,
       "device": false,
       "result": "pass"
+    },
+    {
+      "command": "xcodebuild test -project AuraFit.xcodeproj -scheme AuraFit -configuration Debug -destination \"platform=iOS Simulator,id=A4A5AFF2-59AD-44FE-BAC3-BC845CEE1ACF\" -derivedDataPath /tmp/AuraFit-S3-OR25-DerivedData -resultBundlePath /tmp/AuraFit-S3-OR25.xcresult -only-testing:AuraFitTests CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=",
+      "cwd": "/Users/pchordia/Documents/wip_apps/ios_apps/worktrees/aurafit-CURSOR-S3-20260908",
+      "startUtc": "2026-09-08T15:11:37Z",
+      "endUtc": "2026-09-08T15:13:20Z",
+      "exitCode": 0,
+      "testedSha": "1b717b921a52b4612005eb102b5ac18a69b04993",
+      "testedTree": "e50c36da7a1ebcf1ecaf5c4f880394568b2c72f8",
+      "xcodeVersion": "Xcode 26.6 / 17F113",
+      "configuration": "Debug",
+      "signing": false,
+      "apple": false,
+      "device": false,
+      "totals": {
+        "pass": 93,
+        "fail": 0,
+        "skip": 0
+      },
+      "result": "pass",
+      "classification": "unsigned_simulator_partial_evidence"
+    },
+    {
+      "command": "xcodebuild test -project AuraFit.xcodeproj -scheme AuraFit -configuration Debug -destination \"platform=iOS Simulator,id=A4A5AFF2-59AD-44FE-BAC3-BC845CEE1ACF\" -derivedDataPath /tmp/AuraFit-S3-OR25-UI-DerivedData -resultBundlePath /tmp/AuraFit-S3-OR25-UI.xcresult -only-testing:AuraFitUITests CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=",
+      "cwd": "/Users/pchordia/Documents/wip_apps/ios_apps/worktrees/aurafit-CURSOR-S3-20260908",
+      "startUtc": "2026-09-08T15:13:32Z",
+      "endUtc": "2026-09-08T15:17:04Z",
+      "exitCode": 0,
+      "testedSha": "1b717b921a52b4612005eb102b5ac18a69b04993",
+      "testedTree": "e50c36da7a1ebcf1ecaf5c4f880394568b2c72f8",
+      "xcodeVersion": "Xcode 26.6 / 17F113",
+      "configuration": "Debug",
+      "signing": false,
+      "apple": false,
+      "device": false,
+      "totals": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "result": "pass",
+      "classification": "unsigned_simulator_ui_smoke_partial_evidence"
     }
   ],
   "failureClassification": [],
-  "laneD": {"state": "not_run", "reason": "Deferred; OR-25 left blocked/verification-pending after OR-23/22/24 admission and timebox."}
+  "laneD": {
+    "state": "partial_simulator_checks_passed_certification_pending",
+    "jiraKey": "OR-25",
+    "sourceSha": "1b717b921a52b4612005eb102b5ac18a69b04993",
+    "sourceTree": "e50c36da7a1ebcf1ecaf5c4f880394568b2c72f8",
+    "unitTotals": {
+      "pass": 93,
+      "fail": 0,
+      "skip": 0
+    },
+    "uiTotals": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "nonClaims": [
+      "physical_device",
+      "archive",
+      "signing",
+      "testflight",
+      "candidate_certification",
+      "photo_fixture_matrix",
+      "extended_journey_certification"
+    ]
+  },
+  "evidenceTipSha": "215be8fb6df6eb21813e41c3f111f541cbb396ca"
 }
