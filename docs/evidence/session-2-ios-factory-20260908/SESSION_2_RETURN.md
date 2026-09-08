@@ -21,7 +21,8 @@
 - Branch: `codex/or-27-or-42-release-engine-20260908`
 - Base / stacked tip: `e490a14473d614f3b9ab013e1319584a0345d5b5` (PR #1 still open / not merged into `integration/studio-wave1`)
 - FINAL_CODE_SHA: `d189e2bb9b4f6acc0f2841e27736d4a090102741`
-- Evidence commits may follow this SHA and name it without self-hash loops
+- Evidence commit naming that SHA: `2e09f7e5bb6dd8c3afe4798ee5186cfd9b2280b4`
+- Draft PR: https://github.com/pri8771/iOS-App-Factory/pull/2 (base = PR #1 branch)
 
 ## Admitted tasks
 
@@ -67,4 +68,4 @@ Evidence packet files committed after FINAL_CODE_SHA; working tree should be cle
 
 ## Suggested next step
 
-Push branch and open/update draft PR stacked on PR #1; sync Jira from outbox only after human review.
+Draft PR https://github.com/pri8771/iOS-App-Factory/pull/2 is open stacked on PR #1. Sync Jira from outbox after human review; do not merge until PR #1 lands and CI is green.
