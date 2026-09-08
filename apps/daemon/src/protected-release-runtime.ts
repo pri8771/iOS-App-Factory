@@ -13,9 +13,12 @@ import {
   type ReleaseRunV1,
   type Sha256Digest,
 } from "@app-factory/contracts";
+import type { EvidenceStore } from "@app-factory/evidence-store";
 import {
+  canonicalJson,
   computeReleaseIdentityDigestV1,
   ReleaseRunUpsertError,
+  type ArtifactRepository,
   type EffectRepository,
   type FactoryRepositories,
 } from "@app-factory/kernel";
@@ -28,12 +31,16 @@ export type ProtectedReleaseRuntimeDependencies = Readonly<{
   repositories: FactoryRepositories;
   effects: EffectRepository;
   database: Database.Database;
+  artifacts: ArtifactRepository;
+  evidenceStore: EvidenceStore;
   /**
    * Resolves the immutable source tree OID for the archived run. Injected so offline tests can
    * supply a fixture tree without requiring a live git workspace.
    */
   resolveSourceTree: (run: ReleaseRunV1) => string;
 }>;
+
+type ConfirmKind = Extract<CommandResultV1, { operation: "release.confirm" }>["confirmation"];
 
 function deterministicUuid(seed: string): string {
   const digest = createHash("sha256").update(seed, "utf8").digest("hex");
@@ -100,6 +107,34 @@ function readUploadIntentEffectId(
   return row?.effectId ?? null;
 }
 
+function persistIdentityPayloadArtifact(
+  dependencies: ProtectedReleaseRuntimeDependencies,
+  identity: ReleaseIdentityV1,
+  identityDigest: Sha256Digest,
+  recordedAt: IsoInstant,
+): void {
+  const bytes = Buffer.from(canonicalJson(identity), "utf8");
+  const storedDigest = dependencies.evidenceStore.putBlob(bytes);
+  if (storedDigest !== identityDigest) {
+    throw new CommandHandlerError(
+      "release.upload-payload-digest-mismatch",
+      "canonical identity payload digest does not match ReleaseIdentity digest",
+      false,
+    );
+  }
+  if (dependencies.artifacts.findByDigest(identityDigest) !== null) return;
+  dependencies.artifacts.record({
+    artifact: {
+      digest: identityDigest,
+      byteLength: bytes.byteLength,
+      mediaType: "application/json",
+      logicalName: `protected-release-identity.${identity.releaseRunId}.json`,
+    },
+    storagePath: dependencies.evidenceStore.blobPath(identityDigest),
+    recordedAt,
+  });
+}
+
 /**
  * OR-28 / OR-29: `release.upload` — plan release-scoped effect + intent + consume approval + CAS to
  * `upload-approved`. Does not invoke a provider transport (receipt remains null).
@@ -119,6 +154,20 @@ export function executeReleaseUploadCommand(
       false,
     );
   }
+
+  // Idempotent replay must win before CAS expectedRevision checks: after the first success the head
+  // revision has already advanced, so a blind revision compare would falsely conflict.
+  const prior = dependencies.repositories.releaseRuns.findRevisionByCommandId(request.commandId);
+  if (prior !== null) {
+    const effectId = readUploadIntentEffectId(dependencies.database, releaseRunId);
+    return {
+      operation: "release.upload",
+      run: prior,
+      effectId: effectId === null ? null : EffectIdSchema.parse(effectId),
+      receipt: null,
+    };
+  }
+
   if (head.revision !== request.payload.expectedRevision) {
     throw new CommandHandlerError(
       "release-run.revision-conflict",
@@ -132,17 +181,6 @@ export function executeReleaseUploadCommand(
       `release.upload requires stage archived; run is ${head.stage}`,
       false,
     );
-  }
-
-  const prior = dependencies.repositories.releaseRuns.findRevisionByCommandId(request.commandId);
-  if (prior !== null) {
-    const effectId = readUploadIntentEffectId(dependencies.database, releaseRunId);
-    return {
-      operation: "release.upload",
-      run: prior,
-      effectId: effectId === null ? null : EffectIdSchema.parse(effectId),
-      receipt: null,
-    };
   }
 
   const approval = dependencies.effects.getApproval(approvalId);
@@ -193,11 +231,13 @@ export function executeReleaseUploadCommand(
     );
   }
 
+  const authorizedAt = IsoInstantSchema.parse(observedAt);
+  persistIdentityPayloadArtifact(dependencies, identity, identityDigest, authorizedAt);
+
   const effectId = EffectIdSchema.parse(
     deterministicUuid(`app-factory.release.upload.effect\0${request.commandId}`),
   );
   const intentId = deterministicUuid(`app-factory.release.upload.intent\0${request.commandId}`);
-  const authorizedAt = IsoInstantSchema.parse(observedAt);
   const nextRun: ReleaseRunV1 = {
     ...head,
     stage: "upload-approved",
@@ -277,6 +317,7 @@ export function executeReleaseUploadCommand(
 /**
  * OR-30: `release.confirm` — observation-only stage advance from a retained upload effect.
  * Never consumes an approval, never creates a second effect, never invokes send.
+ * Each successful call advances at most one stage when the retained effect is healthy.
  */
 export function executeReleaseConfirmCommand(
   dependencies: ProtectedReleaseRuntimeDependencies,
@@ -293,13 +334,6 @@ export function executeReleaseConfirmCommand(
       false,
     );
   }
-  if (head.revision !== request.payload.expectedRevision) {
-    throw new CommandHandlerError(
-      "release-run.revision-conflict",
-      `release run ${releaseRunId} is at revision ${String(head.revision)}, expected ${String(request.payload.expectedRevision)}`,
-      false,
-    );
-  }
 
   const prior = dependencies.repositories.releaseRuns.findRevisionByCommandId(request.commandId);
   if (prior !== null) {
@@ -307,11 +341,19 @@ export function executeReleaseConfirmCommand(
       operation: "release.confirm",
       run: prior,
       effectId,
-      confirmation: mapConfirmationFromRun(
+      confirmation: confirmationFromPersistedRun(
         prior,
         dependencies.effects.getEffect(effectId)?.effect.state ?? null,
       ),
     };
+  }
+
+  if (head.revision !== request.payload.expectedRevision) {
+    throw new CommandHandlerError(
+      "release-run.revision-conflict",
+      `release run ${releaseRunId} is at revision ${String(head.revision)}, expected ${String(request.payload.expectedRevision)}`,
+      false,
+    );
   }
 
   const persisted = dependencies.effects.getEffect(effectId);
@@ -336,72 +378,83 @@ export function executeReleaseConfirmCommand(
   }
 
   const effectState = persisted.effect.state;
-  const confirmation = mapConfirmationFromEffectState(effectState);
+  const decision = decideConfirmation(head.stage, effectState);
   const authorizedAt = IsoInstantSchema.parse(observedAt);
   let next = head;
 
-  if (confirmation === "uploaded" && head.stage === "upload-approved") {
-    const resource = dependencies.effects.getExternalResource(effectId);
-    next = {
-      ...head,
-      stage: "uploaded",
-      revision: head.revision + 1,
-      updatedAt: authorizedAt,
-      upload: {
-        submittedAt: persisted.effect.updatedAt,
-        ascBuildId: resource?.providerResourceId ?? `pending:${effectId}`,
-        confirmedAt: null,
-      },
-      notes: [...head.notes, `release.confirm: observed uploaded via effect ${effectId}`].slice(-50),
-    };
-  } else if (confirmation === "processing" && head.stage === "uploaded") {
-    next = {
-      ...head,
-      stage: "processing",
-      revision: head.revision + 1,
-      updatedAt: authorizedAt,
-      notes: [...head.notes, `release.confirm: processing via effect ${effectId}`].slice(-50),
-    };
-  } else if (
-    confirmation === "internal-testflight-available" &&
-    head.stage === "processing" &&
-    head.upload !== null
-  ) {
-    next = {
-      ...head,
-      stage: "internal-testflight-available",
-      revision: head.revision + 1,
-      updatedAt: authorizedAt,
-      upload: {
-        ...head.upload,
-        confirmedAt: authorizedAt,
-      },
-      notes: [
-        ...head.notes,
-        `release.confirm: internal TestFlight available via effect ${effectId}`,
-      ].slice(-50),
-    };
-  } else if (
-    confirmation === "held" ||
-    confirmation === "uncertain" ||
-    confirmation === "rejected" ||
-    confirmation === "identity-mismatch"
-  ) {
-    next = {
-      ...head,
-      revision: head.revision + 1,
-      updatedAt: authorizedAt,
-      notes: [
-        ...head.notes,
-        `release.confirm: held (${confirmation}) for effect ${effectId} state=${effectState}`,
-      ].slice(-50),
-    };
-  } else {
-    throw new CommandHandlerError(
-      "release.confirm-stage-hold",
-      `release.confirm cannot advance from ${head.stage} with effect state ${effectState}`,
-      false,
-    );
+  switch (decision.confirmation) {
+    case "uploaded": {
+      const resource = dependencies.effects.getExternalResource(effectId);
+      next = {
+        ...head,
+        stage: "uploaded",
+        revision: head.revision + 1,
+        updatedAt: authorizedAt,
+        upload: {
+          submittedAt: persisted.effect.updatedAt,
+          ascBuildId: resource?.providerResourceId ?? `pending:${effectId}`,
+          confirmedAt: null,
+        },
+        notes: [...head.notes, `release.confirm: observed uploaded via effect ${effectId}`].slice(
+          -50,
+        ),
+      };
+      break;
+    }
+    case "processing":
+      next = {
+        ...head,
+        stage: "processing",
+        revision: head.revision + 1,
+        updatedAt: authorizedAt,
+        notes: [...head.notes, `release.confirm: processing via effect ${effectId}`].slice(-50),
+      };
+      break;
+    case "internal-testflight-available":
+      if (head.upload === null) {
+        throw new CommandHandlerError(
+          "release.confirm-upload-missing",
+          `release.confirm cannot reach internal-testflight-available without an upload record`,
+          false,
+        );
+      }
+      next = {
+        ...head,
+        stage: "internal-testflight-available",
+        revision: head.revision + 1,
+        updatedAt: authorizedAt,
+        upload: {
+          ...head.upload,
+          confirmedAt: authorizedAt,
+        },
+        notes: [
+          ...head.notes,
+          `release.confirm: internal TestFlight available via effect ${effectId}`,
+        ].slice(-50),
+      };
+      break;
+    case "held":
+    case "uncertain":
+    case "rejected":
+    case "identity-mismatch":
+      next = {
+        ...head,
+        revision: head.revision + 1,
+        updatedAt: authorizedAt,
+        notes: [
+          ...head.notes,
+          `release.confirm: held (${decision.confirmation}) for effect ${effectId} state=${effectState}`,
+        ].slice(-50),
+      };
+      break;
+    default: {
+      const _exhaustive: never = decision.confirmation;
+      throw new CommandHandlerError(
+        "release.confirm-unhandled",
+        `unhandled confirmation ${_exhaustive}`,
+        false,
+      );
+    }
   }
 
   try {
@@ -416,7 +469,7 @@ export function executeReleaseConfirmCommand(
       operation: "release.confirm",
       run: upserted.run,
       effectId,
-      confirmation,
+      confirmation: decision.confirmation,
     };
   } catch (error) {
     if (error instanceof ReleaseRunUpsertError) mapReleaseRunUpsertError(error);
@@ -424,35 +477,40 @@ export function executeReleaseConfirmCommand(
   }
 }
 
-function mapConfirmationFromEffectState(
-  state: string,
-): Extract<CommandResultV1, { operation: "release.confirm" }>["confirmation"] {
-  switch (state) {
-    case "confirmed":
-    case "observed":
-      return "uploaded";
+function decideConfirmation(
+  stage: ReleaseRunV1["stage"],
+  effectState: string,
+): Readonly<{ confirmation: ConfirmKind }> {
+  switch (effectState) {
     case "unknown":
-      return "uncertain";
+      return { confirmation: "uncertain" };
     case "rejected":
-      return "rejected";
+      return { confirmation: "rejected" };
     case "manual-intervention":
-      return "identity-mismatch";
+      return { confirmation: "identity-mismatch" };
     case "planned":
     case "sent":
-      return "held";
+      return { confirmation: "held" };
+    case "observed":
+    case "confirmed":
+      if (stage === "upload-approved") return { confirmation: "uploaded" };
+      if (stage === "uploaded") return { confirmation: "processing" };
+      if (stage === "processing") return { confirmation: "internal-testflight-available" };
+      if (stage === "internal-testflight-available") {
+        return { confirmation: "internal-testflight-available" };
+      }
+      return { confirmation: "held" };
     default:
-      return "held";
+      return { confirmation: "held" };
   }
 }
 
-function mapConfirmationFromRun(
-  run: ReleaseRunV1,
-  effectState: string | null,
-): Extract<CommandResultV1, { operation: "release.confirm" }>["confirmation"] {
+function confirmationFromPersistedRun(run: ReleaseRunV1, effectState: string | null): ConfirmKind {
   if (run.stage === "internal-testflight-available") return "internal-testflight-available";
   if (run.stage === "processing") return "processing";
   if (run.stage === "uploaded") return "uploaded";
   if (effectState === "unknown") return "uncertain";
   if (effectState === "rejected") return "rejected";
+  if (effectState === "manual-intervention") return "identity-mismatch";
   return "held";
 }
