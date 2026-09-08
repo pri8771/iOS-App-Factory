@@ -1,11 +1,7 @@
 import { z } from "zod";
 
 import { ProviderFamilyV1Schema, ProviderHealthStatusV1Schema } from "./provider.js";
-import {
-  IsoInstantSchema,
-  SchemaVersionV1Schema,
-  Sha256DigestSchema,
-} from "./primitives.js";
+import { IsoInstantSchema, SchemaVersionV1Schema, Sha256DigestSchema } from "./primitives.js";
 import { RoomProviderSchema } from "./room.js";
 
 /**

@@ -1,46 +1,42 @@
 {
-  "devicesAndConfigurations" : [
+  "devicesAndConfigurations": [
     {
-      "device" : {
-        "architecture" : "arm64",
-        "deviceId" : "A4A5AFF2-59AD-44FE-BAC3-BC845CEE1ACF",
-        "deviceName" : "iPhone Air",
-        "modelName" : "iPhone Air",
-        "osBuildNumber" : "23E254a",
-        "osVersion" : "26.4.1",
-        "platform" : "iOS Simulator"
+      "device": {
+        "architecture": "arm64",
+        "deviceId": "A4A5AFF2-59AD-44FE-BAC3-BC845CEE1ACF",
+        "deviceName": "iPhone Air",
+        "modelName": "iPhone Air",
+        "osBuildNumber": "23E254a",
+        "osVersion": "26.4.1",
+        "platform": "iOS Simulator"
       },
-      "expectedFailures" : 0,
-      "failedTests" : 0,
-      "passedTests" : 93,
-      "skippedTests" : 0,
-      "testPlanConfiguration" : {
-        "configurationId" : "1",
-        "configurationName" : "Test Scheme Action"
+      "expectedFailures": 0,
+      "failedTests": 0,
+      "passedTests": 93,
+      "skippedTests": 0,
+      "testPlanConfiguration": {
+        "configurationId": "1",
+        "configurationName": "Test Scheme Action"
       }
     }
   ],
-  "environmentDescription" : "AuraFit · Built with macOS 26.6.2",
-  "expectedFailures" : 0,
-  "failedTests" : 0,
-  "finishTime" : 1788880395.777,
-  "passedTests" : 93,
-  "result" : "Passed",
-  "skippedTests" : 0,
-  "startTime" : 1788880299.287,
-  "statistics" : [
-
-  ],
-  "testFailures" : [
-
-  ],
-  "title" : "Test - AuraFit",
-  "topInsights" : [
+  "environmentDescription": "AuraFit · Built with macOS 26.6.2",
+  "expectedFailures": 0,
+  "failedTests": 0,
+  "finishTime": 1788880395.777,
+  "passedTests": 93,
+  "result": "Passed",
+  "skippedTests": 0,
+  "startTime": 1788880299.287,
+  "statistics": [],
+  "testFailures": [],
+  "title": "Test - AuraFit",
+  "topInsights": [
     {
-      "category" : "Longest Test Runs",
-      "impact" : "35% of duration",
-      "text" : "2 longest test runs with outlier durations exceeding 0.12s (three standard deviations)"
+      "category": "Longest Test Runs",
+      "impact": "35% of duration",
+      "text": "2 longest test runs with outlier durations exceeding 0.12s (three standard deviations)"
     }
   ],
-  "totalTestCount" : 93
+  "totalTestCount": 93
 }

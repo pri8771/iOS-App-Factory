@@ -5,6 +5,7 @@
 - Session brief Lane D allowed simulator/local checks with no archive/sign/upload/device install
 
 ## Source binding
+
 - AuraFit worktree: `/Users/pchordia/Documents/wip_apps/ios_apps/worktrees/aurafit-CURSOR-S3-20260908` (detached, created this continuation)
 - HEAD: `1b717b921a52b4612005eb102b5ac18a69b04993`
 - Tree: `e50c36da7a1ebcf1ecaf5c4f880394568b2c72f8`
@@ -15,6 +16,7 @@
 - Tracked archive configuration (historical/accepted decision): Release — **not exercised**
 
 ## Commands (unsigned)
+
 Working directory: `/Users/pchordia/Documents/wip_apps/ios_apps/worktrees/aurafit-CURSOR-S3-20260908`
 
 1. Unit/integration (`-only-testing:AuraFitTests`)
@@ -35,10 +37,12 @@ Working directory: `/Users/pchordia/Documents/wip_apps/ios_apps/worktrees/aurafi
    - totals: **1 passed / 0 failed / 0 skipped**
 
 ## Retained digests
+
 - `xcresult-summary.json` sha256=aba2ed635decb67fba28177606928a04e3cb9c5fef0410e43ae345694c411231
 - `xcresult-ui-summary.json` sha256=eea4d6a6e148442c998c2249996590d598118d987d480bf80d3e9778c1033cba
 
 ## Explicit non-claims / remaining gaps vs IF-T011-AURA acceptance
+
 - No archive, export, signing identity use, ASC/TestFlight, or physical-device install
 - APP-R05 photo fixture matrix (dark/bright/blurry/etc.) **not** re-executed as a certified matrix in this session
 - Import permission/privacy/delete/share journey coverage beyond existing automated suites **not** separately certified
@@ -47,4 +51,5 @@ Working directory: `/Users/pchordia/Documents/wip_apps/ios_apps/worktrees/aurafi
 - Historical AuraFit physical waiver **not** inherited
 
 ## Prohibited actions confirmed absent
+
 - No Apple account mutation, Keychain secret readout, Hindsight access, push of AuraFit, or distribution artifact creation

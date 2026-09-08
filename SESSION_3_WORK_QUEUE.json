@@ -60,9 +60,7 @@
       "dependencies": [
         "Lane A contracts for provenance fields if shared; otherwise self-contained"
       ],
-      "checks": [
-        "vitest run apps/daemon/test/aurafit-local-fixture-execution.test.ts"
-      ],
+      "checks": ["vitest run apps/daemon/test/aurafit-local-fixture-execution.test.ts"],
       "acceptanceFocus": [
         "AuraFit-shaped local non-signing fixture",
         "fail-closed identity/scheme/config/replay/timeout/review/drift"
@@ -79,9 +77,7 @@
         "SESSION_3_EVIDENCE_INDEX.json",
         "docs/operations/session-3-aurafit-local-enrollment-evidence.md"
       ],
-      "dependencies": [
-        "OR-18 accepted AuraFit source decision"
-      ],
+      "dependencies": ["OR-18 accepted AuraFit source decision"],
       "checks": [
         "read-only AuraFit enrollment scan",
         "read-only xcodebuild -list / toolchain versions"
@@ -100,16 +96,9 @@
       "assignedAgent": "integration_owner_direct",
       "modelRoute": null,
       "ownedGlobs": [],
-      "dependencies": [
-        "Lane B local proof",
-        "Lane C enrollment evidence"
-      ],
-      "checks": [
-        "optional AuraFit unit/simulator CODE_SIGNING_ALLOWED=NO"
-      ],
-      "acceptanceFocus": [
-        "source-bound product checks without archive/sign/upload"
-      ]
+      "dependencies": ["Lane B local proof", "Lane C enrollment evidence"],
+      "checks": ["optional AuraFit unit/simulator CODE_SIGNING_ALLOWED=NO"],
+      "acceptanceFocus": ["source-bound product checks without archive/sign/upload"]
     }
   ],
   "rejectedOrNotAdmitted": [

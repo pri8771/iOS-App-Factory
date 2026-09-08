@@ -8,6 +8,7 @@
 - Porcelain empty: 0
 
 ## Instruction / enrollment file map
+
 - present: AGENTS.md sha256=39753e29387f98dd3bee3dbf1f4c6f8f6cf2f7dd08087d85559be0829f6350dd
 - present: .factory/AGENTS.factory.md sha256=dbf4b1b92f85bd1654006f8dca6c20de6064795ff464c4b31485de7dc1539c18
 - present: .factory/project-context.json sha256=8c3ef83a99895f832e93742cf864612a6247a7610d59f12a8dabb35aa9b887f5
@@ -17,6 +18,7 @@
 - present: quality/quality-manifest.json sha256=1e32fea92ba887348e84ac8a718b518b103b36d2462873282bd52a7789310dbb
 
 ## Xcode project identity (read-only)
+
 ```
 Command line invocation:
     /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -list -project /Users/pchordia/Documents/wip_apps/ios_apps/aurafit/AuraFit.xcodeproj
@@ -43,13 +45,15 @@ Information about project "AuraFit":
 - Tracked archive configuration (accepted decision): Release
 
 ## Mac / toolchain (read-only)
+
 - hostname: Apple-M5-Pro-87
 - macOS: 26.6.2 (25G83)
-- xcodebuild: Xcode 26.6 Build version 17F113 
+- xcodebuild: Xcode 26.6 Build version 17F113
 - xcode-select path: /Applications/Xcode.app/Contents/Developer
 - Available simulators include AuraFitAgentDevice: 1
 
 ## Explicit unknowns (Apple / account / device — blockers, not confirmed)
+
 - signing identities: unknown (Keychain not inspected)
 - Developer Program membership/roles/agreements: unknown
 - App Store Connect app record / Internal TestFlight group: unknown
@@ -57,6 +61,7 @@ Information about project "AuraFit":
 - physical device slot acceptance: unknown
 
 ## Enrollment change
+
 - AuraFit product worktree not created; no AuraFit files modified.
 - Factory-side local proof fixture added under fixtures/aurafit-local-proof/ (OR-22).
 - Hindsight was not accessed.

@@ -1,11 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import {
-  RelativePathSchema,
-  Sha256DigestSchema,
-  type Sha256Digest,
-} from "@app-factory/contracts";
+import { RelativePathSchema, Sha256DigestSchema, type Sha256Digest } from "@app-factory/contracts";
 
 /**
  * OR-22 / IF-T009: bounded AuraFit-shaped local fixture.
@@ -178,15 +174,17 @@ export function assertAuraFitLocalIdentity(identity: AuraFitLocalIdentityV1): vo
   }
 }
 
-export function executeAuraFitLocalFixture(options: Readonly<{
-  identity: AuraFitLocalIdentityV1;
-  intent: AuraFitLocalExecutionIntentV1;
-  store: AuraFitLocalFixtureStore;
-  /** Simulated elapsed milliseconds for timeout classification. */
-  elapsedMs?: number;
-  /** Explicit refusal if a caller asks for signing/archive. */
-  requestedOperation?: "local-proof" | "archive" | "sign";
-}>): AuraFitLocalFixtureResultV1 {
+export function executeAuraFitLocalFixture(
+  options: Readonly<{
+    identity: AuraFitLocalIdentityV1;
+    intent: AuraFitLocalExecutionIntentV1;
+    store: AuraFitLocalFixtureStore;
+    /** Simulated elapsed milliseconds for timeout classification. */
+    elapsedMs?: number;
+    /** Explicit refusal if a caller asks for signing/archive. */
+    requestedOperation?: "local-proof" | "archive" | "sign";
+  }>,
+): AuraFitLocalFixtureResultV1 {
   const { identity, intent, store } = options;
   assertAuraFitLocalIdentity(identity);
 
@@ -204,7 +202,10 @@ export function executeAuraFitLocalFixture(options: Readonly<{
   }
 
   if (!intent.scheme) {
-    throw new AuraFitLocalFixtureError("aurafit.missing-scheme", "Execution intent omitted scheme.");
+    throw new AuraFitLocalFixtureError(
+      "aurafit.missing-scheme",
+      "Execution intent omitted scheme.",
+    );
   }
   if (!intent.configuration) {
     throw new AuraFitLocalFixtureError(
