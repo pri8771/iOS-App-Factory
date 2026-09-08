@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { ApprovalSubjectV1Schema } from "./approval.js";
 import {
+  EffectIdSchema,
   GitBranchNameSchema,
   GitObjectIdSchema,
   IsoInstantSchema,
@@ -11,6 +12,7 @@ import {
   ReleaseIdSchema,
   ReleaseRunIdSchema,
   RepositoryIdSchema,
+  RunIdSchema,
   SchemaVersionV1Schema,
   Sha256DigestSchema,
 } from "./primitives.js";
@@ -314,6 +316,195 @@ export function isReleaseScopedApprovalSubjectV1(subjectInput: unknown): boolean
     subject.attemptId === null
   );
 }
+
+// ---------------------------------------------------------------------------
+// Canonical protected-release identity (OR-27 / IF-T012)
+// ---------------------------------------------------------------------------
+
+/**
+ * One immutable identity for a protected release command. Callers never supply a competing
+ * identity at send time: upload/confirm bind only through retained approval/intent digests that
+ * cover these fields. `transportProtocol` names the adapter contract; live Apple transports remain
+ * disabled by default and are out of scope for the offline factory path.
+ */
+export const ProtectedReleaseTransportProtocolV1Schema = z.enum([
+  "app-factory.fake-apple-upload.v1",
+  "app-factory.apple-upload.v1",
+]);
+export type ProtectedReleaseTransportProtocolV1 = z.infer<
+  typeof ProtectedReleaseTransportProtocolV1Schema
+>;
+
+export const ReleaseIdentityV1Schema = z.strictObject({
+  schemaVersion: SchemaVersionV1Schema,
+  repositoryId: RepositoryIdSchema,
+  sourceCommit: GitObjectIdSchema,
+  sourceTree: GitObjectIdSchema,
+  policyDigest: Sha256DigestSchema,
+  projectId: ProjectIdSchema,
+  releaseId: ReleaseIdSchema,
+  releaseRunId: ReleaseRunIdSchema,
+  appBundleId: BundleIdSchema,
+  marketingVersion: z.string().min(1).max(100),
+  buildNumber: IosBuildNumberSchema,
+  archiveDigest: Sha256DigestSchema,
+  exportedArtifactDigest: Sha256DigestSchema,
+  destination: z.literal("app-store-connect-internal"),
+  transportProtocol: ProtectedReleaseTransportProtocolV1Schema,
+  transportProtocolVersion: PositiveSafeIntegerSchema,
+});
+export type ReleaseIdentityV1 = z.infer<typeof ReleaseIdentityV1Schema>;
+
+/**
+ * Deterministic provider observation used by durable build-number reservation (OR-26). Unknown stays
+ * unknown: only `known-maximum` and `explicitly-empty` authorize allocation. Stale observations
+ * (wall clock past `freshnessDeadline`) and `ambiguous`/`unavailable` fail closed.
+ */
+export const ProviderBuildObservationKindV1Schema = z.enum([
+  "known-maximum",
+  "explicitly-empty",
+  "ambiguous",
+  "unavailable",
+]);
+export type ProviderBuildObservationKindV1 = z.infer<typeof ProviderBuildObservationKindV1Schema>;
+
+export const ProviderBuildObservationV1Schema = z
+  .strictObject({
+    schemaVersion: SchemaVersionV1Schema,
+    observationId: RunIdSchema,
+    bundleId: BundleIdSchema,
+    platform: z.literal("ios"),
+    observedAt: IsoInstantSchema,
+    freshnessDeadline: IsoInstantSchema,
+    kind: ProviderBuildObservationKindV1Schema,
+    maximumBuildNumber: IosBuildNumberSchema.nullable(),
+    evidenceDigest: Sha256DigestSchema,
+  })
+  .superRefine((observation, context) => {
+    if (observation.freshnessDeadline < observation.observedAt) {
+      context.addIssue({
+        code: "custom",
+        path: ["freshnessDeadline"],
+        message: "freshnessDeadline precedes observedAt",
+      });
+    }
+    if (observation.kind === "known-maximum" && observation.maximumBuildNumber === null) {
+      context.addIssue({
+        code: "custom",
+        path: ["maximumBuildNumber"],
+        message: "known-maximum observations require maximumBuildNumber",
+      });
+    }
+    if (observation.kind === "explicitly-empty" && observation.maximumBuildNumber !== null) {
+      context.addIssue({
+        code: "custom",
+        path: ["maximumBuildNumber"],
+        message: "explicitly-empty observations must not carry a maximumBuildNumber",
+      });
+    }
+    if (
+      (observation.kind === "ambiguous" || observation.kind === "unavailable") &&
+      observation.maximumBuildNumber !== null
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["maximumBuildNumber"],
+        message: `${observation.kind} observations must not invent a maximumBuildNumber`,
+      });
+    }
+  });
+export type ProviderBuildObservationV1 = z.infer<typeof ProviderBuildObservationV1Schema>;
+
+export class ProviderBuildObservationError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "ProviderBuildObservationError";
+  }
+}
+
+/**
+ * Derives the exclusive lower bound for the next reserved build number from a fresh provider
+ * observation. Returns the observed maximum for `known-maximum`, and `0` for `explicitly-empty`
+ * (so the first allocation becomes `"1"`). Never invents a bound for unknown/stale/ambiguous input.
+ */
+export function assertUsableProviderBuildObservationV1(
+  observationInput: unknown,
+  nowInput: unknown,
+): ProviderBuildObservationV1 & { exclusiveLowerBound: bigint } {
+  const observation = ProviderBuildObservationV1Schema.parse(observationInput);
+  const now = IsoInstantSchema.parse(nowInput);
+  if (now > observation.freshnessDeadline) {
+    throw new ProviderBuildObservationError(
+      `provider build observation ${observation.observationId} is stale at ${now}`,
+    );
+  }
+  switch (observation.kind) {
+    case "known-maximum":
+      return {
+        ...observation,
+        exclusiveLowerBound: BigInt(observation.maximumBuildNumber as string),
+      };
+    case "explicitly-empty":
+      return { ...observation, exclusiveLowerBound: 0n };
+    case "ambiguous":
+      throw new ProviderBuildObservationError(
+        `provider build observation ${observation.observationId} is ambiguous`,
+      );
+    case "unavailable":
+      throw new ProviderBuildObservationError(
+        `provider build observation ${observation.observationId} is unavailable`,
+      );
+    default: {
+      const _exhaustive: never = observation.kind;
+      throw new ProviderBuildObservationError(`unsupported observation kind: ${_exhaustive}`);
+    }
+  }
+}
+
+/**
+ * Sanitized upload/processing receipt retained after a fake or (later) live transport. Never carries
+ * credentials, absolute local paths, or raw provider payloads.
+ */
+export const SanitizedReleaseTransportReceiptV1Schema = z.strictObject({
+  schemaVersion: SchemaVersionV1Schema,
+  effectId: EffectIdSchema,
+  releaseRunId: ReleaseRunIdSchema,
+  identityDigest: Sha256DigestSchema,
+  transportProtocol: ProtectedReleaseTransportProtocolV1Schema,
+  outcome: z.enum([
+    "accepted",
+    "rejected",
+    "timeout-uncertain",
+    "identity-mismatch",
+    "duplicate-provider-receipt",
+    "malformed-receipt",
+  ]),
+  providerCorrelationKey: z.string().min(1).max(1_000).nullable(),
+  providerBuildId: z.string().min(1).max(500).nullable(),
+  reasonCode: NamespacedCodeSchema.nullable(),
+  recordedAt: IsoInstantSchema,
+  detailDigest: Sha256DigestSchema.nullable(),
+});
+export type SanitizedReleaseTransportReceiptV1 = z.infer<
+  typeof SanitizedReleaseTransportReceiptV1Schema
+>;
+
+/**
+ * Capability probe for protected upload transports. Real Apple transport stays unavailable by
+ * default and must return an actionable blocker rather than silently falling back.
+ */
+export const ProtectedReleaseTransportCapabilityV1Schema = z.strictObject({
+  schemaVersion: SchemaVersionV1Schema,
+  transportProtocol: ProtectedReleaseTransportProtocolV1Schema,
+  available: z.boolean(),
+  enabledByDefault: z.boolean(),
+  blockerCode: NamespacedCodeSchema.nullable(),
+  summary: z.string().min(1).max(1_000),
+  checkedAt: IsoInstantSchema,
+});
+export type ProtectedReleaseTransportCapabilityV1 = z.infer<
+  typeof ProtectedReleaseTransportCapabilityV1Schema
+>;
 
 // ---------------------------------------------------------------------------
 // CandidateCertificationV1 (architecture decision 6)

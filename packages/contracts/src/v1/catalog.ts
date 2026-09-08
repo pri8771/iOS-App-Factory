@@ -32,9 +32,13 @@ import { ProviderHealthReportV1Schema, ProviderInstanceV1Schema } from "./provid
 import { QualityReportV1Schema, ReleaseManifestV1Schema } from "./release.js";
 import {
   CandidateCertificationV1Schema,
+  ProtectedReleaseTransportCapabilityV1Schema,
+  ProviderBuildObservationV1Schema,
   ReleaseBuildNumberAllocationV1Schema,
   ReleaseExportOptionsConfigV1Schema,
+  ReleaseIdentityV1Schema,
   ReleaseRunV1Schema,
+  SanitizedReleaseTransportReceiptV1Schema,
 } from "./release-run.js";
 import {
   RoomGrantV1Schema,
@@ -126,6 +130,30 @@ export const contractSchemaCatalogV1 = [
     fileName: "release-build-number-allocation.v1.schema.json",
     id: "urn:app-factory:contracts:v1:release-build-number-allocation",
     schema: ReleaseBuildNumberAllocationV1Schema,
+  },
+  {
+    name: "release-identity",
+    fileName: "release-identity.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:release-identity",
+    schema: ReleaseIdentityV1Schema,
+  },
+  {
+    name: "provider-build-observation",
+    fileName: "provider-build-observation.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:provider-build-observation",
+    schema: ProviderBuildObservationV1Schema,
+  },
+  {
+    name: "sanitized-release-transport-receipt",
+    fileName: "sanitized-release-transport-receipt.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:sanitized-release-transport-receipt",
+    schema: SanitizedReleaseTransportReceiptV1Schema,
+  },
+  {
+    name: "protected-release-transport-capability",
+    fileName: "protected-release-transport-capability.v1.schema.json",
+    id: "urn:app-factory:contracts:v1:protected-release-transport-capability",
+    schema: ProtectedReleaseTransportCapabilityV1Schema,
   },
   {
     name: "release-export-options-config",

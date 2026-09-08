@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "__schema0": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema1": {
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "__schema2": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:release-identity",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appBundleId": {
+      "maxLength": 255,
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+$",
+      "type": "string"
+    },
+    "archiveDigest": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "buildNumber": {
+      "pattern": "^[1-9][0-9]{0,17}$",
+      "type": "string"
+    },
+    "destination": {
+      "const": "app-store-connect-internal",
+      "type": "string"
+    },
+    "exportedArtifactDigest": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "marketingVersion": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+    },
+    "policyDigest": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "releaseId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "releaseRunId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "repositoryId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "sourceCommit": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "sourceTree": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "transportProtocol": {
+      "enum": [
+        "app-factory.fake-apple-upload.v1",
+        "app-factory.apple-upload.v1"
+      ],
+      "type": "string"
+    },
+    "transportProtocolVersion": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "repositoryId",
+    "sourceCommit",
+    "sourceTree",
+    "policyDigest",
+    "projectId",
+    "releaseId",
+    "releaseRunId",
+    "appBundleId",
+    "marketingVersion",
+    "buildNumber",
+    "archiveDigest",
+    "exportedArtifactDigest",
+    "destination",
+    "transportProtocol",
+    "transportProtocolVersion"
+  ],
+  "type": "object"
+}

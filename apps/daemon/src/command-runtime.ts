@@ -908,6 +908,7 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "release.promote":
     case "release.archive":
     case "release.upload":
+    case "release.confirm":
     case "release.submit":
     case "release.status":
     case "release.observe":
@@ -2026,12 +2027,13 @@ async function executeRequest(
       );
     case "release.status":
       return buildReleaseStatusResultV1(repositories, request);
-    // `release.upload`/`release.submit`: recognized by the wire protocol (Release Rail Wave 1,
-    // `packages/contracts/src/v1/command-protocol.ts`), but no daemon-side handler exists yet --
-    // that lands in later waves (upload/confirm W5, submit W7). Kept exhaustive, and honest about
+    // `release.upload`/`release.confirm`/`release.submit`: recognized by the wire protocol.
+    // Upload/confirm land in the Session-2 protected-release engine (fake transport only);
+    // submit remains a later live-authorization wave. Kept exhaustive, and honest about
     // "recognized but not yet implemented" rather than falling through to
     // `protocol.unsupported-operation`, which would incorrectly claim the operation is unknown.
     case "release.upload":
+    case "release.confirm":
     case "release.submit":
       throw new CommandHandlerError(
         "command.operation-not-yet-implemented",

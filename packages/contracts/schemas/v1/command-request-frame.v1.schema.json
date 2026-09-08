@@ -4642,6 +4642,56 @@
               "$ref": "#/$defs/__schema2"
             },
             "operation": {
+              "const": "release.confirm",
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "effectId": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "expectedRevision": {
+                  "$ref": "#/$defs/__schema62"
+                },
+                "releaseRunId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "releaseRunId",
+                "expectedRevision",
+                "effectId"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "commandId",
+            "issuedAt",
+            "origin",
+            "operation",
+            "payload"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commandId": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "issuedAt": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "operation": {
               "const": "release.submit",
               "type": "string"
             },

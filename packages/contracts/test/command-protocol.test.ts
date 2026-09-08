@@ -166,6 +166,14 @@ describe("command protocol V1", () => {
       },
     ],
     [
+      "release.confirm",
+      {
+        releaseRunId: "00000000-0000-4000-8000-000000000106",
+        expectedRevision: 4,
+        effectId: "00000000-0000-4000-8000-000000000108",
+      },
+    ],
+    [
       "release.submit",
       {
         releaseRunId: "00000000-0000-4000-8000-000000000106",

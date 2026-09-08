@@ -9,9 +9,12 @@ import {
   ReleaseBuildNumberAllocationError,
   ReleaseBuildNumberAllocationV1Schema,
   ReleaseExportOptionsConfigV1Schema,
+  ReleaseIdentityV1Schema,
   CandidateCertificationV1Schema,
+  ProviderBuildObservationError,
   assertReleaseRunAdvancement,
   assertBuildNumberAllocationV1,
+  assertUsableProviderBuildObservationV1,
   isReleaseScopedApprovalSubjectV1,
   type ReleaseRunV1,
   type ReleaseStageV1,
@@ -468,5 +471,97 @@ describe("CandidateCertificationV1Schema", () => {
         certified: true,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("protected release identity and provider build observation (OR-27/OR-26)", () => {
+  it("accepts a complete ReleaseIdentityV1 for the fake transport protocol", () => {
+    const identity = ReleaseIdentityV1Schema.parse({
+      schemaVersion: 1,
+      repositoryId: REPOSITORY_ID,
+      sourceCommit: COMMIT,
+      sourceTree: "b".repeat(40),
+      policyDigest: DIGEST_A,
+      projectId: PROJECT_ID,
+      releaseId: RELEASE_ID,
+      releaseRunId: RELEASE_RUN_ID,
+      appBundleId: "com.pchordia.aurafit",
+      marketingVersion: "1.0",
+      buildNumber: "12",
+      archiveDigest: DIGEST_A,
+      exportedArtifactDigest: DIGEST_B,
+      destination: "app-store-connect-internal",
+      transportProtocol: "app-factory.fake-apple-upload.v1",
+      transportProtocolVersion: 1,
+    });
+    expect(identity.appBundleId).toBe("com.pchordia.aurafit");
+  });
+
+  it("derives exclusive lower bounds only from fresh known-maximum or explicitly-empty observations", () => {
+    const known = assertUsableProviderBuildObservationV1(
+      {
+        schemaVersion: 1,
+        observationId: randomUUID(),
+        bundleId: "com.pchordia.aurafit",
+        platform: "ios",
+        observedAt: NOW,
+        freshnessDeadline: LATER,
+        kind: "known-maximum",
+        maximumBuildNumber: "7",
+        evidenceDigest: DIGEST_A,
+      },
+      NOW,
+    );
+    expect(known.exclusiveLowerBound).toBe(7n);
+
+    const empty = assertUsableProviderBuildObservationV1(
+      {
+        schemaVersion: 1,
+        observationId: randomUUID(),
+        bundleId: "com.pchordia.aurafit",
+        platform: "ios",
+        observedAt: NOW,
+        freshnessDeadline: LATER,
+        kind: "explicitly-empty",
+        maximumBuildNumber: null,
+        evidenceDigest: DIGEST_A,
+      },
+      NOW,
+    );
+    expect(empty.exclusiveLowerBound).toBe(0n);
+
+    expect(() =>
+      assertUsableProviderBuildObservationV1(
+        {
+          schemaVersion: 1,
+          observationId: randomUUID(),
+          bundleId: "com.pchordia.aurafit",
+          platform: "ios",
+          observedAt: NOW,
+          freshnessDeadline: LATER,
+          kind: "ambiguous",
+          maximumBuildNumber: null,
+          evidenceDigest: DIGEST_A,
+        },
+        NOW,
+      ),
+    ).toThrow(ProviderBuildObservationError);
+
+    expect(() =>
+      assertUsableProviderBuildObservationV1(
+        {
+          schemaVersion: 1,
+          observationId: randomUUID(),
+          bundleId: "com.pchordia.aurafit",
+          platform: "ios",
+          observedAt: NOW,
+          freshnessDeadline: NOW,
+          kind: "known-maximum",
+          maximumBuildNumber: "3",
+          evidenceDigest: DIGEST_A,
+        },
+        LATER,
+      ),
+    ).toThrow(/stale/);
   });
 });
