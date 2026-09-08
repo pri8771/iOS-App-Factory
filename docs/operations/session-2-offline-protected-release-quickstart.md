@@ -10,8 +10,8 @@ Status: offline / simulated only. Real Apple, signing, TestFlight, and device st
 4. Obtain a fresh deterministic provider build observation (`known-maximum` or `explicitly-empty`).
 5. Reserve the next build with `allocateNextAgainstObservation` (stale/ambiguous observations fail closed).
 6. Issue a single-use `apple.upload-build` approval bound to the exact `ReleaseIdentityV1` digests.
-7. Run `release.upload` once the joint intent/effect/approval/CAS transaction is wired for the run.
-8. Dispatch only through the fake transport; persist sanitized receipts.
+7. Run `release.upload` with an artifact-bound `apple.upload-build` approval; the daemon plans the release-scoped effect, persists the upload intent, consumes the approval once, and CAS-advances the run to `upload-approved` without contacting Apple (`receipt` remains null).
+8. Dispatch only through the fake transport (`app-factory.fake-apple-upload.v1`); real transport stays disabled.
 9. Run `release.confirm` with the retained `effectId` for observation-only stage advances.
 
 ## Safe restart
