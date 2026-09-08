@@ -51,6 +51,7 @@ import {
   AssistantIntentIdSchema,
   AttemptIdSchema,
   CommandIdSchema,
+  EffectIdSchema,
   EvidenceIdSchema,
   GitBranchNameSchema,
   GitObjectIdSchema,
@@ -701,6 +702,20 @@ export const ReleaseUploadCommandRequestV1Schema = z.strictObject({
   }),
 });
 
+/**
+ * OR-27: bounded provider observation / confirmation for an already retained upload effect.
+ * Observation only -- never consumes an approval, creates a second effect, or invokes send.
+ */
+export const ReleaseConfirmCommandRequestV1Schema = z.strictObject({
+  ...RequestMetadataV1Shape,
+  operation: z.literal("release.confirm"),
+  payload: z.strictObject({
+    releaseRunId: ReleaseRunIdSchema,
+    expectedRevision: PositiveSafeIntegerSchema,
+    effectId: EffectIdSchema,
+  }),
+});
+
 export const ReleaseSubmitCommandRequestV1Schema = z.strictObject({
   ...RequestMetadataV1Shape,
   operation: z.literal("release.submit"),
@@ -992,6 +1007,7 @@ export const CommandRequestV1Schema = z.discriminatedUnion("operation", [
   ReleasePromoteCommandRequestV1Schema,
   ReleaseArchiveCommandRequestV1Schema,
   ReleaseUploadCommandRequestV1Schema,
+  ReleaseConfirmCommandRequestV1Schema,
   ReleaseSubmitCommandRequestV1Schema,
   ReleaseStatusCommandRequestV1Schema,
   ReleaseObserveCommandRequestV1Schema,
@@ -1526,6 +1542,23 @@ export const ReleaseArchiveCommandResultV1Schema = z.strictObject({
 export const ReleaseUploadCommandResultV1Schema = z.strictObject({
   operation: z.literal("release.upload"),
   run: ReleaseRunV1Schema,
+  effectId: EffectIdSchema.nullable(),
+  receipt: z.null(),
+});
+
+export const ReleaseConfirmCommandResultV1Schema = z.strictObject({
+  operation: z.literal("release.confirm"),
+  run: ReleaseRunV1Schema,
+  effectId: EffectIdSchema,
+  confirmation: z.enum([
+    "held",
+    "uploaded",
+    "processing",
+    "internal-testflight-available",
+    "uncertain",
+    "rejected",
+    "identity-mismatch",
+  ]),
 });
 
 export const ReleaseSubmitCommandResultV1Schema = z.strictObject({
@@ -1690,6 +1723,7 @@ export const CommandResultV1Schema = z.discriminatedUnion("operation", [
   ReleasePromoteCommandResultV1Schema,
   ReleaseArchiveCommandResultV1Schema,
   ReleaseUploadCommandResultV1Schema,
+  ReleaseConfirmCommandResultV1Schema,
   ReleaseSubmitCommandResultV1Schema,
   ReleaseStatusCommandResultV1Schema,
   ReleaseObserveCommandResultV1Schema,

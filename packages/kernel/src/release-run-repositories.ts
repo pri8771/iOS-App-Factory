@@ -10,6 +10,7 @@ import {
   ReleaseRunV1Schema,
   assertBuildNumberAllocationV1,
   assertReleaseRunAdvancement,
+  assertUsableProviderBuildObservationV1,
   type ReleaseBuildNumberAllocationV1,
   type ReleaseRunV1,
 } from "@app-factory/contracts";
@@ -387,6 +388,66 @@ export class ReleaseBuildNumberRepository {
         schemaVersion: 1,
         bundleId,
         buildNumber: (highest + 1n).toString(),
+        releaseRunId,
+        allocatedAt,
+      });
+      assertBuildNumberAllocationV1(existing, candidate);
+
+      this.database
+        .prepare(
+          `INSERT INTO release_build_numbers(
+             allocation_id, schema_version, bundle_id, build_number, release_run_id, allocated_at
+           ) VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          randomUUID(),
+          candidate.schemaVersion,
+          candidate.bundleId,
+          candidate.buildNumber,
+          candidate.releaseRunId,
+          candidate.allocatedAt,
+        );
+      return candidate;
+    });
+    return persist.immediate();
+  }
+
+  /**
+   * OR-26: allocate the next build number against a deterministic provider observation. Stale,
+   * ambiguous, or unavailable observations fail closed. The reserved number is strictly greater
+   * than both the durable local maximum and the observation's exclusive lower bound.
+   */
+  public allocateNextAgainstObservation(
+    bundleIdInput: unknown,
+    releaseRunIdInput: unknown,
+    observationInput: unknown,
+    nowInput: unknown,
+  ): ReleaseBuildNumberAllocationV1 {
+    const bundleId = parseBundleId(bundleIdInput);
+    const releaseRunId = ReleaseRunIdSchema.parse(releaseRunIdInput);
+    const allocatedAt = IsoInstantSchema.parse(nowInput);
+    const usable = assertUsableProviderBuildObservationV1(observationInput, allocatedAt);
+    if (usable.bundleId !== bundleId) {
+      throw new TypeError(
+        `provider observation bundleId ${usable.bundleId} does not match allocation bundleId ${bundleId}`,
+      );
+    }
+
+    const persist = this.database.transaction((): ReleaseBuildNumberAllocationV1 => {
+      const existingRows = this.database
+        .prepare(`${BUILD_NUMBER_SELECT} WHERE bundle_id = ?`)
+        .all(bundleId) as readonly BuildNumberRow[];
+      const existing = existingRows.map(decodeAllocation);
+      const localHighest = existing.reduce((max, allocation) => {
+        const value = BigInt(allocation.buildNumber);
+        return value > max ? value : max;
+      }, 0n);
+      const exclusiveLower =
+        localHighest > usable.exclusiveLowerBound ? localHighest : usable.exclusiveLowerBound;
+      const candidate = ReleaseBuildNumberAllocationV1Schema.parse({
+        schemaVersion: 1,
+        bundleId,
+        buildNumber: (exclusiveLower + 1n).toString(),
         releaseRunId,
         allocatedAt,
       });

@@ -1,0 +1,95 @@
+{
+  "$defs": {
+    "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "__schema2": {
+      "maxLength": 255,
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+$",
+      "type": "string"
+    },
+    "__schema3": {
+      "const": "ios",
+      "type": "string"
+    },
+    "__schema4": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
+      "type": "string"
+    },
+    "__schema5": {
+      "enum": [
+        "known-maximum",
+        "explicitly-empty",
+        "ambiguous",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "__schema6": {
+      "anyOf": [
+        {
+          "pattern": "^[1-9][0-9]{0,17}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema7": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:provider-build-observation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bundleId": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "evidenceDigest": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "freshnessDeadline": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "kind": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "maximumBuildNumber": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "observationId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "observedAt": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "platform": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "observationId",
+    "bundleId",
+    "platform",
+    "observedAt",
+    "freshnessDeadline",
+    "kind",
+    "maximumBuildNumber",
+    "evidenceDigest"
+  ],
+  "type": "object"
+}

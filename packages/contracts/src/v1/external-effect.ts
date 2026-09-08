@@ -73,27 +73,60 @@ export const ExternalObservationV1Schema = z.strictObject({
 });
 export type ExternalObservationV1 = z.infer<typeof ExternalObservationV1Schema>;
 
-export const ExternalEffectV1Schema = z.strictObject({
-  schemaVersion: SchemaVersionV1Schema,
-  effectId: EffectIdSchema,
-  attemptId: AttemptIdSchema,
-  action: NamespacedCodeSchema,
-  operationMarker: OperationMarkerV1Schema,
-  target: ExternalTargetV1Schema,
-  subject: ApprovalSubjectV1Schema,
-  payloadDigest: Sha256DigestSchema,
-  policyDigest: Sha256DigestSchema,
-  approvalId: ApprovalIdSchema.nullable(),
-  state: ExternalEffectStateV1Schema,
-  revision: NonNegativeSafeIntegerSchema,
-  sendCount: NonNegativeSafeIntegerSchema,
-  providerCorrelationKey: z.string().min(1).max(1_000).nullable(),
-  createdAt: IsoInstantSchema,
-  updatedAt: IsoInstantSchema,
-  lastObservedAt: IsoInstantSchema.nullable(),
-  nextReconcileAt: IsoInstantSchema.nullable(),
-  detailDigest: Sha256DigestSchema.nullable(),
-});
+/**
+ * External effects are either attempt-scoped (legacy task outbox path: non-null `attemptId` matching
+ * an attempt-scoped `subject`) or release-scoped (protected Apple upload path: null `attemptId` with
+ * a release-scoped `subject`). Mixed shapes fail closed. Kernel action policy decides which actions
+ * may use which scope; this schema only enforces internal coherence.
+ */
+export const ExternalEffectV1Schema = z
+  .strictObject({
+    schemaVersion: SchemaVersionV1Schema,
+    effectId: EffectIdSchema,
+    attemptId: AttemptIdSchema.nullable(),
+    action: NamespacedCodeSchema,
+    operationMarker: OperationMarkerV1Schema,
+    target: ExternalTargetV1Schema,
+    subject: ApprovalSubjectV1Schema,
+    payloadDigest: Sha256DigestSchema,
+    policyDigest: Sha256DigestSchema,
+    approvalId: ApprovalIdSchema.nullable(),
+    state: ExternalEffectStateV1Schema,
+    revision: NonNegativeSafeIntegerSchema,
+    sendCount: NonNegativeSafeIntegerSchema,
+    providerCorrelationKey: z.string().min(1).max(1_000).nullable(),
+    createdAt: IsoInstantSchema,
+    updatedAt: IsoInstantSchema,
+    lastObservedAt: IsoInstantSchema.nullable(),
+    nextReconcileAt: IsoInstantSchema.nullable(),
+    detailDigest: Sha256DigestSchema.nullable(),
+  })
+  .superRefine((effect, context) => {
+    const { subject, attemptId } = effect;
+    if (attemptId !== null) {
+      if (subject.attemptId !== attemptId || subject.taskId === null || subject.projectId === null) {
+        context.addIssue({
+          code: "custom",
+          path: ["attemptId"],
+          message: "attempt-scoped effect requires matching attempt/task/project subject",
+        });
+      }
+      return;
+    }
+    if (
+      subject.attemptId !== null ||
+      subject.taskId !== null ||
+      subject.projectId === null ||
+      subject.releaseId === null
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["attemptId"],
+        message:
+          "release-scoped effect requires null attemptId/taskId and non-null projectId/releaseId",
+      });
+    }
+  });
 export type ExternalEffectV1 = z.infer<typeof ExternalEffectV1Schema>;
 
 export const ExternalResourceV1Schema = z.strictObject({

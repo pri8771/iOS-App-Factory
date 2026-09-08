@@ -30,6 +30,7 @@ import {
   type GitObjectId,
   type IsoInstant,
   type NamespacedCode,
+  type ReleaseRunV1,
   type Sha256Digest,
   type TaskSpecV1,
 } from "@app-factory/contracts";
@@ -37,6 +38,10 @@ import type Database from "better-sqlite3";
 
 import { canonicalJson, computeTaskSpecDigest } from "./canonical-json.js";
 import { assertActiveAttemptLease } from "./durability-repositories.js";
+import {
+  ReleaseRunRepository,
+  type UpsertReleaseRunInput,
+} from "./release-run-repositories.js";
 
 export const MAX_EFFECT_OUTBOX_LEASE_MS = 5 * 60 * 1_000;
 export const MAX_EFFECT_RECONCILE_BACKOFF_MS = 24 * 60 * 60 * 1_000;
@@ -209,7 +214,7 @@ type ApprovalRow = Readonly<{
 
 type EffectRow = Readonly<{
   effect_id: string;
-  attempt_id: string;
+  attempt_id: string | null;
   action: string;
   operation_marker: string;
   provider: string;
@@ -522,12 +527,46 @@ export type ConfirmObservedInput = ClaimedEffectMutationInput &
     confirmationEvidenceDigest: unknown;
   }>;
 
+export type PlanProtectedReleaseUploadInput = Readonly<{
+  effect: unknown;
+  binding: Readonly<{
+    planDigest: unknown;
+    diffDigest: unknown;
+    commit: unknown;
+    buildIdentityDigest: unknown;
+  }>;
+  authorizedAt: unknown;
+  availableAt: unknown;
+  identityDigest: unknown;
+  intentId: unknown;
+  releaseRunUpsert: UpsertReleaseRunInput;
+}>;
+
+export type PlanProtectedReleaseUploadResult = Readonly<{
+  effect: ExternalEffectV1;
+  binding: EffectBinding;
+  standingScope: null;
+  intentDigest: Sha256Digest;
+  identityDigest: Sha256Digest;
+  availableAt: IsoInstant;
+  run: ReleaseRunV1;
+  duplicate: boolean;
+}>;
+
 export type EffectRepository = Readonly<{
   registerApproval(input: RegisterApprovalInput): RegisterApprovalResult;
   getApproval(approvalId: unknown): PersistedApproval | null;
   revokeApproval(approvalId: unknown, revokedAt: unknown): PersistedApproval;
   expireApproval(approvalId: unknown, observedAt: unknown): PersistedApproval;
   planExternalEffect(input: PlanExternalEffectInput): PlanExternalEffectResult;
+  /**
+   * OR-28: atomically plan a release-scoped `apple.upload-build` effect, persist the upload intent,
+   * consume the one-time artifact-bound approval, and CAS-advance the release run to
+   * `upload-approved`. Never invokes a provider transport.
+   */
+  planProtectedReleaseUpload(
+    input: PlanProtectedReleaseUploadInput,
+  ): PlanProtectedReleaseUploadResult;
   getEffect(effectId: unknown): PersistedEffect | null;
   getExternalResource(effectId: unknown): ExternalResourceV1 | null;
   claimNextSend(input: ClaimEffectInput): EffectOutboxClaim | null;
@@ -1249,6 +1288,20 @@ function assertAttemptAllowsNewSend(context: AttemptTaskRow): void {
   }
 }
 
+function assertEffectAllowsNewSend(
+  database: Database.Database,
+  effect: ExternalEffectV1,
+): void {
+  if (effect.attemptId === null) {
+    if (!isReleaseScopedApprovalSubjectV1(effect.subject)) {
+      fail("release-scoped effect subject must identify project and release only");
+    }
+    return;
+  }
+  const attempt = assertSubjectMatchesAttempt(database, effect.attemptId, effect.subject);
+  assertAttemptAllowsNewSend(attempt);
+}
+
 function parsePlanningOrigin(input: PlanExternalEffectInput["origin"]): ParsedPlanningOrigin {
   return {
     checkpointId: EventIdSchema.parse(input.checkpointId),
@@ -1277,6 +1330,9 @@ function assertPlanningOrigin(
   origin: ParsedPlanningOrigin,
   observedAt: IsoInstant,
 ): void {
+  if (effect.attemptId === null) {
+    fail("attempt-scoped planning origin cannot be used for a release-scoped effect");
+  }
   const attempt = assertSubjectMatchesAttempt(database, effect.attemptId, effect.subject);
   assertPolicyMatchesTaskSpec(attempt, effect.policyDigest);
   assertAttemptAllowsNewSend(attempt);
@@ -1859,17 +1915,31 @@ function claim(
     // Terminal or paused attempts may never start a new mutation. Read-only
     // reconciliation deliberately remains eligible after termination because
     // an already-sent provider request still has to be classified truthfully.
+    // Release-scoped Apple upload effects have no attempt row; they claim via
+    // release subject columns alone (migration 0021).
     const row = database
       .prepare(
         `SELECT o.effect_id AS effectId, o.revision AS revision
          FROM effect_outbox o
          JOIN external_effects e ON e.effect_id = o.effect_id
          JOIN approvals a ON a.approval_id = e.approval_id
-         JOIN attempts attempt ON attempt.attempt_id = e.attempt_id
+         LEFT JOIN attempts attempt ON attempt.attempt_id = e.attempt_id
          WHERE ${eligibility}
            AND (
-             @purpose = 'reconcile'
-             OR (attempt.state = 'running' AND attempt.desired_state = 'running')
+             (
+               e.attempt_id IS NOT NULL
+               AND attempt.attempt_id IS NOT NULL
+               AND (
+                 @purpose = 'reconcile'
+                 OR (attempt.state = 'running' AND attempt.desired_state = 'running')
+               )
+             )
+             OR (
+               e.attempt_id IS NULL
+               AND e.subject_release_id IS NOT NULL
+               AND e.subject_task_id IS NULL
+               AND e.subject_attempt_id IS NULL
+             )
            )
            AND (o.locked_by IS NULL OR o.locked_until <= @observedAt)
          ORDER BY
@@ -2264,6 +2334,231 @@ export function createEffectRepository(
       return transaction.immediate();
     },
 
+    planProtectedReleaseUpload(input) {
+      const effect = ExternalEffectV1Schema.parse(input.effect);
+      assertSubjectSemantics(effect.subject);
+      if (effect.action !== "apple.upload-build") {
+        fail("protected release upload requires apple.upload-build");
+      }
+      if (
+        requireActionPolicy(effect.action).provider !== effect.target.provider ||
+        !effect.target.resourceType.startsWith(`${effect.target.provider}.`) ||
+        !effect.operationMarker.startsWith(`app-factory:v1:${effect.target.provider}:`)
+      ) {
+        fail("effect provider must be bound by its action, resource type, and operation marker");
+      }
+      if (effect.attemptId !== null || !isReleaseScopedApprovalSubjectV1(effect.subject)) {
+        fail("protected release upload requires a release-scoped effect with null attemptId");
+      }
+      if (
+        effect.approvalId === null ||
+        effect.state !== "planned" ||
+        effect.revision !== 0 ||
+        effect.sendCount !== 0 ||
+        effect.providerCorrelationKey !== null ||
+        effect.lastObservedAt !== null ||
+        effect.nextReconcileAt !== null ||
+        effect.detailDigest !== null ||
+        effect.createdAt !== effect.updatedAt
+      ) {
+        fail("new external effect must be an approval-bound pristine planned snapshot");
+      }
+      const approvalId = effect.approvalId;
+      const binding: EffectBinding = {
+        planDigest: parseNullableDigest(input.binding.planDigest),
+        diffDigest: parseNullableDigest(input.binding.diffDigest),
+        commit: parseNullableCommit(input.binding.commit),
+        buildIdentityDigest: parseNullableDigest(input.binding.buildIdentityDigest),
+      };
+      const authorizedAt = IsoInstantSchema.parse(input.authorizedAt);
+      const availableAt = IsoInstantSchema.parse(input.availableAt);
+      const identityDigest = Sha256DigestSchema.parse(input.identityDigest);
+      const intentId = EventIdSchema.parse(input.intentId);
+      assertSame("effect creation time", effect.createdAt, authorizedAt);
+      if (availableAt < authorizedAt) fail("outbox availability cannot precede authorization");
+      assertSafeResourceKey(effect.target.resourceKey);
+      assertActionSpecificBindings(effect.action, binding);
+      if (binding.buildIdentityDigest !== identityDigest) {
+        fail("upload binding buildIdentityDigest must equal the protected release identity digest");
+      }
+      if (binding.commit === null || binding.planDigest === null) {
+        fail("protected release upload requires planDigest and commit bindings");
+      }
+      const intentDigest = computeExternalEffectIntentDigest(effect, binding);
+      const releaseRuns = new ReleaseRunRepository(database);
+
+      const transaction = database.transaction((): PlanProtectedReleaseUploadResult => {
+        const byId = readEffect(database, effect.effectId);
+        const byMarker = readEffectByMarker(database, effect.operationMarker);
+        const byIntent = readEffectByIntent(database, intentDigest);
+        let duplicateEffect: PersistedEffect | null = null;
+        if (byId !== null || byMarker !== null) {
+          if (
+            byId === null ||
+            byMarker === null ||
+            byId.effect.effectId !== byMarker.effect.effectId
+          ) {
+            fail("effect id or operation marker collides with a different immutable effect");
+          }
+          assertEffectIdentityMatches(byId, effect, binding, null, availableAt, intentDigest);
+          duplicateEffect = byId;
+        } else if (byIntent !== null) {
+          assertSemanticReplayMatches(byIntent, effect, binding, intentDigest);
+          duplicateEffect = byIntent;
+        }
+
+        if (duplicateEffect !== null) {
+          const existingIntent = database
+            .prepare(
+              `SELECT identity_digest AS identityDigest, intent_digest AS intentDigest,
+                      release_run_id AS releaseRunId, approval_id AS approvalId
+               FROM release_upload_intents WHERE effect_id = ?`,
+            )
+            .get(duplicateEffect.effect.effectId) as
+            | Readonly<{
+                identityDigest: string;
+                intentDigest: string;
+                releaseRunId: string;
+                approvalId: string;
+              }>
+            | undefined;
+          if (existingIntent === undefined) {
+            fail("protected release effect exists without a durable upload intent");
+          }
+          assertSame("upload intent digest", existingIntent.intentDigest, intentDigest);
+          assertSame("upload identity digest", existingIntent.identityDigest, identityDigest);
+          assertSame("upload intent approval", existingIntent.approvalId, approvalId);
+          // Idempotent only by the original release-run commandId. A different command that
+          // collides on semantic intent must not consume another CAS revision or mint a second
+          // upload-approved advance.
+          const byCommand = releaseRuns.findRevisionByCommandId(input.releaseRunUpsert.commandId);
+          if (byCommand !== null) {
+            return {
+              effect: duplicateEffect.effect,
+              binding: duplicateEffect.binding,
+              standingScope: null,
+              intentDigest,
+              identityDigest,
+              availableAt: duplicateEffect.availableAt,
+              run: byCommand,
+              duplicate: true,
+            };
+          }
+          fail(
+            "protected release upload intent already exists; replay must reuse the original commandId",
+          );
+        }
+
+        const approval = readApproval(database, approvalId);
+        if (approval === null) fail(`approval does not exist: ${approvalId}`);
+        assertApprovalMatchesPlanning(approval, effect, binding, authorizedAt, null);
+
+        database
+          .prepare(
+            `INSERT INTO external_effects(
+               effect_id, schema_version, attempt_id, action, operation_marker, provider,
+               resource_type, resource_key, subject_project_id, subject_task_id,
+               subject_attempt_id, subject_release_id, payload_digest, policy_digest,
+               plan_digest, diff_digest, commit_id, build_identity_digest, standing_scope,
+               intent_digest, available_at, approval_id,
+               state, revision, send_count, provider_correlation_key, created_at, updated_at,
+               last_observed_at, next_reconcile_at, detail_digest, payload_json
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            effect.effectId,
+            effect.schemaVersion,
+            effect.attemptId,
+            effect.action,
+            effect.operationMarker,
+            effect.target.provider,
+            effect.target.resourceType,
+            effect.target.resourceKey,
+            effect.subject.projectId,
+            effect.subject.taskId,
+            effect.subject.attemptId,
+            effect.subject.releaseId,
+            effect.payloadDigest,
+            effect.policyDigest,
+            binding.planDigest,
+            binding.diffDigest,
+            binding.commit,
+            binding.buildIdentityDigest,
+            null,
+            intentDigest,
+            availableAt,
+            effect.approvalId,
+            effect.state,
+            effect.revision,
+            effect.sendCount,
+            effect.providerCorrelationKey,
+            effect.createdAt,
+            effect.updatedAt,
+            effect.lastObservedAt,
+            effect.nextReconcileAt,
+            effect.detailDigest,
+            JSON.stringify(effect),
+          );
+        database
+          .prepare(
+            `INSERT INTO effect_outbox(
+               effect_id, schema_version, available_at, locked_by, locked_until, fence, revision
+             ) VALUES (?, 1, ?, NULL, NULL, 0, 0)`,
+          )
+          .run(effect.effectId, availableAt);
+        insertTransition(database, effect.effectId, null, "planned", authorizedAt, null, 0, null);
+        consumeSingleUseApproval(database, approval, effect.effectId, authorizedAt);
+
+        const upserted = releaseRuns.upsert(input.releaseRunUpsert);
+        if (upserted.run.stage !== "upload-approved") {
+          fail("protected release upload must CAS-advance the run to upload-approved");
+        }
+        if (upserted.run.releaseId !== effect.subject.releaseId) {
+          fail("protected release upload run releaseId must match effect subject");
+        }
+        if (upserted.run.projectId !== effect.subject.projectId) {
+          fail("protected release upload run projectId must match effect subject");
+        }
+
+        database
+          .prepare(
+            `INSERT INTO release_upload_intents(
+               intent_id, schema_version, release_run_id, effect_id, approval_id,
+               identity_digest, intent_digest, created_at, payload_json
+             ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            intentId,
+            upserted.run.releaseRunId,
+            effect.effectId,
+            approvalId,
+            identityDigest,
+            intentDigest,
+            authorizedAt,
+            JSON.stringify({
+              schemaVersion: 1,
+              releaseRunId: upserted.run.releaseRunId,
+              effectId: effect.effectId,
+              approvalId,
+              identityDigest,
+              intentDigest,
+            }),
+          );
+
+        return {
+          effect,
+          binding,
+          standingScope: null,
+          intentDigest,
+          identityDigest,
+          availableAt,
+          run: upserted.run,
+          duplicate: false,
+        };
+      });
+      return transaction.immediate();
+    },
+
     getEffect(effectId) {
       return readEffect(database, EffectIdSchema.parse(effectId));
     },
@@ -2285,8 +2580,7 @@ export function createEffectRepository(
       const transaction = database.transaction(() => {
         const context = assertActiveClaim(database, input);
         const current = context.persisted.effect;
-        const attempt = assertSubjectMatchesAttempt(database, current.attemptId, current.subject);
-        assertAttemptAllowsNewSend(attempt);
+        assertEffectAllowsNewSend(database, current);
         if (current.approvalId === null) fail(`effect has no approval: ${current.effectId}`);
         const approval = readApproval(database, current.approvalId);
         if (approval === null) fail(`approval does not exist: ${current.approvalId}`);
@@ -2344,12 +2638,7 @@ export function createEffectRepository(
       if (context.persisted.effect.state !== "sent") {
         fail(`dispatch token requires sent state: ${context.persisted.effect.state}`);
       }
-      const attempt = assertSubjectMatchesAttempt(
-        database,
-        context.persisted.effect.attemptId,
-        context.persisted.effect.subject,
-      );
-      assertAttemptAllowsNewSend(attempt);
+      assertEffectAllowsNewSend(database, context.persisted.effect);
       if (context.persisted.effect.approvalId === null) {
         fail(`effect has no approval: ${context.persisted.effect.effectId}`);
       }

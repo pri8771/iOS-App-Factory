@@ -1,0 +1,40 @@
+{
+  "session": "SESSION_2_IOS_FACTORY",
+  "final_code_sha": "d189e2bb9b4f6acc0f2841e27736d4a090102741",
+  "base_sha": "e490a14473d614f3b9ab013e1319584a0345d5b5",
+  "stacked_on": "github.com/pri8771/iOS-App-Factory/pull/1",
+  "artifacts": [
+    "SESSION_2_START_STATE.json",
+    "SESSION_2_WORK_QUEUE.json",
+    "SESSION_2_OWNERSHIP.md",
+    "SESSION_2_RUNLOG.md",
+    "SESSION_2_TEST_RESULTS.json",
+    "SESSION_2_EVIDENCE_INDEX.json",
+    "SESSION_2_RELEASE_STATE_MACHINE.md",
+    "SESSION_2_THREAT_MODEL.md",
+    "SESSION_2_DISTINCT_MODEL_REVIEW.md",
+    "SESSION_2_PROHIBITED_ACTION_RECEIPT.json",
+    "SESSION_2_JIRA_OUTBOX.md",
+    "SESSION_2_RETURN.md"
+  ],
+  "commits_since_base": [
+    "d189e2b OR-28 OR-30: fix upload replay and confirm stage path",
+    "09b8484 OR-31: expand offline transport outcome conformance",
+    "fa2e283 OR-39 OR-42: expose honest Studio protected-release operator truth",
+    "7e2f278 OR-30 OR-63: implement release.upload and release.confirm",
+    "24e20df OR-29: wire fake Apple upload adapter into daemon effects",
+    "d070223 OR-28: atomically plan protected release upload intents",
+    "805f492 OR-31 OR-63: add offline conformance tests and operator quickstart",
+    "eda167c OR-28 OR-29: release-scoped effects migration and fake upload transport",
+    "53280ab OR-26: reserve build numbers against deterministic observations",
+    "f32c039 OR-27: finalize protected release contracts and offline threat model"
+  ],
+  "focused_tests": {
+    "files_passed": 10,
+    "tests_passed": 215,
+    "failed": 0
+  },
+  "reviewer_decision": "approve",
+  "reviewer_actual_model": "GPT-5.5",
+  "independence": "unverified_provider_family"
+}

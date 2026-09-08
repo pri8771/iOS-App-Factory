@@ -42,6 +42,7 @@ import {
   type PortfolioReadModelV1,
   type ProjectId,
   type ProjectTimelineV1,
+  type ReleaseRunV1,
   type RoomFactoryBridgeStatusV1,
   type RoomId,
   type RoomParticipantsCatalogV1,
@@ -147,6 +148,10 @@ import {
   type ReleaseRunRuntimeDependencies,
 } from "./release-run-runtime.js";
 import {
+  executeReleaseConfirmCommand,
+  executeReleaseUploadCommand,
+} from "./protected-release-runtime.js";
+import {
   completeReleaseArchive,
   prepareReleaseArchive,
   recordReleaseArchiveFailure,
@@ -222,6 +227,8 @@ const DURABLE_COMMAND_RESULT_OPERATIONS: ReadonlySet<CommandRequestV1["operation
   "release.start",
   "release.promote",
   "release.archive",
+  "release.upload",
+  "release.confirm",
   "signal.create",
   "signal.pause",
   "signal.resume",
@@ -464,6 +471,12 @@ export type OpenDaemonCommandRuntimeOptions = Readonly<{
    * override to avoid needing a full real execution-evidence-index closure in unit tests.
    */
   resolveVerifiedExecutionEvidence?: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
+  /**
+   * Session-2 protected release: resolves the immutable source tree OID for `release.upload`
+   * identity reconstruction. Defaults to a fail-closed stub; tests and compositions that exercise
+   * offline upload must inject a fixture or git-backed resolver.
+   */
+  resolveProtectedReleaseSourceTree?: (run: ReleaseRunV1) => string;
   /**
    * Idempotently self-registers the single project the configured local execution profile prepared
    * a Factory mirror for into the Project Registry at every daemon start (Seam (a) of the
@@ -908,6 +921,7 @@ function expectedKernelCommand(request: CommandRequestV1): unknown | null {
     case "release.promote":
     case "release.archive":
     case "release.upload":
+    case "release.confirm":
     case "release.submit":
     case "release.status":
     case "release.observe":
@@ -1788,6 +1802,7 @@ async function executeRequest(
     gitRuntimeRoot: string;
     releaseObserver: ReleaseObserverPort;
     resolveVerifiedExecutionEvidence: (attempt: ExecutionAttemptV1) => VerifiedExecutionEvidence;
+    resolveProtectedReleaseSourceTree: (run: ReleaseRunV1) => string;
   }>,
 ): Promise<CommandResultV1> {
   switch (request.operation) {
@@ -2026,12 +2041,33 @@ async function executeRequest(
       );
     case "release.status":
       return buildReleaseStatusResultV1(repositories, request);
-    // `release.upload`/`release.submit`: recognized by the wire protocol (Release Rail Wave 1,
-    // `packages/contracts/src/v1/command-protocol.ts`), but no daemon-side handler exists yet --
-    // that lands in later waves (upload/confirm W5, submit W7). Kept exhaustive, and honest about
-    // "recognized but not yet implemented" rather than falling through to
-    // `protocol.unsupported-operation`, which would incorrectly claim the operation is unknown.
     case "release.upload":
+      return executeReleaseUploadCommand(
+        {
+          repositories,
+          effects: dependencies.effects,
+          database,
+          artifacts: repositories.artifacts,
+          evidenceStore: dependencies.evidenceStore,
+          resolveSourceTree: dependencies.resolveProtectedReleaseSourceTree,
+        },
+        request,
+        dependencies.observedAt,
+      );
+    case "release.confirm":
+      return executeReleaseConfirmCommand(
+        {
+          repositories,
+          effects: dependencies.effects,
+          database,
+          artifacts: repositories.artifacts,
+          evidenceStore: dependencies.evidenceStore,
+          resolveSourceTree: dependencies.resolveProtectedReleaseSourceTree,
+        },
+        request,
+        dependencies.observedAt,
+      );
+    // `release.submit` remains a later live-authorization wave.
     case "release.submit":
       throw new CommandHandlerError(
         "command.operation-not-yet-implemented",
@@ -2813,6 +2849,15 @@ export async function openDaemonCommandRuntime(
           gitRuntimeRoot,
           releaseObserver,
           resolveVerifiedExecutionEvidence,
+          resolveProtectedReleaseSourceTree:
+            options.resolveProtectedReleaseSourceTree ??
+            ((_run) => {
+              throw new CommandHandlerError(
+                "release.upload-source-tree-unresolved",
+                "release.upload requires resolveProtectedReleaseSourceTree to be composed for offline identity reconstruction",
+                false,
+              );
+            }),
         }),
       );
       // A human post is the moderator's cue; the wake happens after the

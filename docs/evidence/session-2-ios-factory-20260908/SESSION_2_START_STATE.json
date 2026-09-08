@@ -1,0 +1,178 @@
+{
+  "session": "SESSION_2_IOS_FACTORY",
+  "session_doc": "/Users/pchordia/Documents/ChatGPT/Astra/planning/cursor-72h-2026-09-08/SESSION_2_IOS_FACTORY.md",
+  "timestamp_local": "2026-09-08T14:12:23-04:00",
+  "timestamp_utc": "2026-09-08T18:12:23Z",
+  "timezone": "America/New_York",
+  "host": "Apple-M5-Pro-87",
+  "os": "Darwin 25.6.0 arm64",
+  "macos_product_version": "26.6.2",
+  "macos_build": "25G83",
+  "requested_cursor_route": "Auto with Multitask",
+  "actual_exposed_author_model": null,
+  "actual_exposed_author_model_reason": "Agent process did not expose provider model identity",
+  "worktree": "/Users/pchordia/code/factory/worktrees/CURSOR-IOS-72H-20260908",
+  "branch": "codex/or-27-or-42-release-engine-20260908",
+  "base": {
+    "kind": "stacked_continuation",
+    "pr": "https://github.com/pri8771/iOS-App-Factory/pull/1",
+    "pr_state": "OPEN",
+    "pr_head_ref": "codex/or-23-or-22-aurafit-proof-20260908",
+    "verified_tip_sha": "e490a14473d614f3b9ab013e1319584a0345d5b5",
+    "observed_head_sha": "e490a14473d614f3b9ab013e1319584a0345d5b5",
+    "observed_tree_sha": "a719529ab7015ac1ae147ccf2e5ecb34cab297db",
+    "integration_studio_wave1_sha": "ff8f38dd62709c5549b4fcfbaef3c861c8bc7f3f",
+    "pr1_merged_into_integration": false,
+    "stacked_dependency": "Depends on PR #1 tip e490a14473d614f3b9ab013e1319584a0345d5b5 until merged into integration/studio-wave1"
+  },
+  "porcelain": "?? docs/evidence/",
+  "upstream": null,
+  "upstream_reason": "New local branch not yet pushed",
+  "instruction_hashes": {
+    "SESSION_2_IOS_FACTORY.md": "01ed01d9047799f5fa7c56297c2b36d514d735538e7b8f6f6ba75b9b16434cbc",
+    "COORDINATOR_CLOSEOUT_AND_JIRA_SYNC.md": "c8cc3a43b133e60c9b5671d7de1b52146c69f5bd994b05c2b6a10db230cdcc44",
+    "SESSION_3_RETURN.md": "b8933ab09ef6c4e8042ac197be6b34e1495c2ee8b2fb4ab50c68e91d00c95d68",
+    "PROJECT.md": "9b87a8a2cca81c174f84a1c40d435f9496342aa1fbd91b0db70aa00c2bf1edea",
+    "TASK_INDEX.md": "fa714dd375374566bccbb81cb0886dfeca905939946303e12bfbb0ebe2e2ac46",
+    "issues.json": "a9f148232bd1370088c438d52d5ddbeb52d2bc42efdbbe80b4d331a80312e07a"
+  },
+  "candidate_jira_state": {
+    "OR-27": {
+      "stable_id": "IF-T012",
+      "live_status": "In Review",
+      "predecessors_live": {
+        "OR-2": "Done",
+        "OR-18": "Done"
+      },
+      "admission": "admitted",
+      "admission_reason": "Predecessors Done; offline contract finalization authorized by SESSION_2; resolve joint atomicity and release-aware effect subject gates from overnight SOURCE_FACTS"
+    },
+    "OR-26": {
+      "stable_id": "IF-T013",
+      "live_status": "To Do",
+      "predecessors_live": {
+        "OR-19": "To Do",
+        "OR-27": "In Review"
+      },
+      "admission": "deferred_until_OR-27_code",
+      "admission_reason": "Depends on OR-27 finalize; OR-19 IF-T006 Jira audit remains open but is non-blocking for offline fake-provider reservation per session offline-predecessor rule once OR-27 contracts land"
+    },
+    "OR-28": {
+      "stable_id": "IF-T014",
+      "live_status": "To Do",
+      "admission": "queued_after_OR-26"
+    },
+    "OR-29": {
+      "stable_id": "IF-T015",
+      "live_status": "To Do",
+      "admission": "queued_after_OR-28"
+    },
+    "OR-30": {
+      "stable_id": "IF-T016",
+      "live_status": "To Do",
+      "admission": "queued_after_OR-29"
+    },
+    "OR-31": {
+      "stable_id": "IF-T017",
+      "live_status": "To Do",
+      "admission": "queued_after_OR-30"
+    },
+    "OR-37": {
+      "stable_id": "IF-T023",
+      "live_status": "To Do",
+      "admission": "queued_after_OR-31"
+    },
+    "OR-38": {
+      "stable_id": "IF-T024",
+      "live_status": "To Do",
+      "predecessors_live": {
+        "OR-3": "To Do",
+        "OR-37": "To Do"
+      },
+      "admission": "queued_with_caveat",
+      "admission_reason": "OR-3 preservation bundle open; disposable-runtime restore only"
+    },
+    "OR-39": {
+      "stable_id": "IF-T025",
+      "live_status": "To Do",
+      "admission": "queued_after_OR-30_OR-37"
+    },
+    "OR-42": {
+      "stable_id": "IF-T026",
+      "live_status": "To Do",
+      "admission": "queued_after_OR-38_OR-39"
+    },
+    "OR-63": {
+      "stable_id": "IF-T049",
+      "live_status": "To Do",
+      "predecessors_live": {
+        "OR-36": "To Do",
+        "OR-38": "To Do",
+        "OR-42": "To Do"
+      },
+      "admission": "queued_offline_docs_only",
+      "admission_reason": "OR-36 device excluded; write offline-path quickstart/runbook only"
+    }
+  },
+  "admitted_tasks": [
+    {
+      "jira": "OR-27",
+      "stable_id": "IF-T012",
+      "lane": "A",
+      "status": "admitted"
+    }
+  ],
+  "excluded_tasks": [
+    "OR-32",
+    "OR-33",
+    "OR-34",
+    "OR-35",
+    "OR-36",
+    "OR-40",
+    "OR-41",
+    "OR-43",
+    "OR-44",
+    "OR-45",
+    "OR-46",
+    "OR-47",
+    "OR-48",
+    "OR-49",
+    "OR-50",
+    "OR-51",
+    "OR-52",
+    "OR-53",
+    "OR-54",
+    "OR-55",
+    "OR-56",
+    "OR-57",
+    "OR-58",
+    "OR-59",
+    "OR-60",
+    "OR-61",
+    "OR-62",
+    "OR-64",
+    "OR-65",
+    "OR-66",
+    "OR-67",
+    "OR-68",
+    "OR-69",
+    "OR-70",
+    "OR-71"
+  ],
+  "unknown_facts": {
+    "actual_author_model": null,
+    "provider_token_categories": null,
+    "provider_cost_usd": null,
+    "active_work_time_seconds": null
+  },
+  "aurafit_fixture": {
+    "repository": "pri8771/aurafit",
+    "local_source": "/Users/pchordia/Documents/wip_apps/ios_apps/aurafit",
+    "scheme": "AuraFit",
+    "bundle_id": "com.pchordia.aurafit",
+    "archive_configuration": "Release"
+  },
+  "transport_policy": "fake_offline_only_real_apple_transport_disabled",
+  "no_active_overlapping_branch": true,
+  "overlapping_branch_check": "No local/remote branch codex/or-27-or-42-release-engine-20260908 existed before create; PR #1 branch left untouched"
+}

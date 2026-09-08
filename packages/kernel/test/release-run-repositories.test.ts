@@ -505,6 +505,99 @@ describe("ReleaseBuildNumberRepository", () => {
     ).toThrow(/append-only/);
     db.close();
   });
+
+  it("OR-26 allocates above a fresh known-maximum provider observation", () => {
+    const db = database("build-numbers-obs");
+    seedReleaseRun(db);
+    const repo = new ReleaseBuildNumberRepository(db);
+    const allocation = repo.allocateNextAgainstObservation(
+      BUNDLE_ID,
+      RELEASE_RUN_ID,
+      {
+        schemaVersion: 1,
+        observationId: "9c000000-0000-4000-8000-0000000000e1",
+        bundleId: BUNDLE_ID,
+        platform: "ios",
+        observedAt: T0,
+        freshnessDeadline: T3,
+        kind: "known-maximum",
+        maximumBuildNumber: "41",
+        evidenceDigest: ARCHIVE_DIGEST,
+      },
+      T1,
+    );
+    expect(allocation.buildNumber).toBe("42");
+    db.close();
+  });
+
+  it("OR-26 fails closed on stale or ambiguous provider observations", () => {
+    const db = database("build-numbers-obs-fail");
+    seedReleaseRun(db);
+    const repo = new ReleaseBuildNumberRepository(db);
+    expect(() =>
+      repo.allocateNextAgainstObservation(
+        BUNDLE_ID,
+        RELEASE_RUN_ID,
+        {
+          schemaVersion: 1,
+          observationId: "9c000000-0000-4000-8000-0000000000e2",
+          bundleId: BUNDLE_ID,
+          platform: "ios",
+          observedAt: T0,
+          freshnessDeadline: T1,
+          kind: "known-maximum",
+          maximumBuildNumber: "5",
+          evidenceDigest: ARCHIVE_DIGEST,
+        },
+        T2,
+      ),
+    ).toThrow(/stale/);
+    expect(() =>
+      repo.allocateNextAgainstObservation(
+        BUNDLE_ID,
+        RELEASE_RUN_ID,
+        {
+          schemaVersion: 1,
+          observationId: "9c000000-0000-4000-8000-0000000000e3",
+          bundleId: BUNDLE_ID,
+          platform: "ios",
+          observedAt: T0,
+          freshnessDeadline: T3,
+          kind: "ambiguous",
+          maximumBuildNumber: null,
+          evidenceDigest: ARCHIVE_DIGEST,
+        },
+        T1,
+      ),
+    ).toThrow(/ambiguous/);
+    db.close();
+  });
+
+  it("OR-26 respects the higher of local durable max and provider exclusive lower bound", () => {
+    const db = database("build-numbers-obs-local");
+    seedReleaseRun(db);
+    const repo = new ReleaseBuildNumberRepository(db);
+    repo.allocateNext(BUNDLE_ID, RELEASE_RUN_ID, T0); // "1"
+    repo.allocateNext(BUNDLE_ID, RELEASE_RUN_ID, T1); // "2"
+    const allocation = repo.allocateNextAgainstObservation(
+      BUNDLE_ID,
+      RELEASE_RUN_ID,
+      {
+        schemaVersion: 1,
+        observationId: "9c000000-0000-4000-8000-0000000000e4",
+        bundleId: BUNDLE_ID,
+        platform: "ios",
+        observedAt: T0,
+        freshnessDeadline: T3,
+        kind: "explicitly-empty",
+        maximumBuildNumber: null,
+        evidenceDigest: ARCHIVE_DIGEST,
+      },
+      T2,
+    );
+    expect(allocation.buildNumber).toBe("3");
+    db.close();
+  });
 });
 
 describe("migration 0020 (release-runs) application", () => {
@@ -620,7 +713,7 @@ describe("migration 0020 (release-runs) application", () => {
     });
 
     // Apply migration 0020.
-    expect(runMigrations(db)).toEqual({ currentVersion: 20, newlyAppliedVersions: [20] });
+    expect(runMigrations(db)).toEqual({ currentVersion: 21, newlyAppliedVersions: [20, 21] });
 
     // The legacy row survived the rebuild byte-for-byte.
     const row = db

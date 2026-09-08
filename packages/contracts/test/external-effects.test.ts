@@ -55,10 +55,13 @@ describe("approval and external-effect contracts", () => {
 
   it("models ambiguous provider state without calling it success", () => {
     const effectId = randomUUID();
+    const attemptId = randomUUID();
+    const projectId = randomUUID();
+    const taskId = randomUUID();
     const effect = ExternalEffectV1Schema.parse({
       schemaVersion: 1,
       effectId,
-      attemptId: randomUUID(),
+      attemptId,
       action: "apple.upload-build",
       operationMarker: `app-factory:v1:apple:upload:${effectId}`,
       target: {
@@ -66,7 +69,12 @@ describe("approval and external-effect contracts", () => {
         resourceType: "apple.build",
         resourceKey: "com.example.app/1.0/7",
       },
-      subject: subject(),
+      subject: {
+        projectId,
+        taskId,
+        attemptId,
+        releaseId: null,
+      },
       payloadDigest: DIGEST,
       policyDigest: DIGEST,
       approvalId: randomUUID(),
@@ -82,6 +90,80 @@ describe("approval and external-effect contracts", () => {
     });
     expect(effect.state).toBe("unknown");
     expect(effect.state).not.toBe("confirmed");
+  });
+
+  it("accepts a release-scoped upload effect with null attemptId", () => {
+    const effectId = randomUUID();
+    const projectId = randomUUID();
+    const releaseId = randomUUID();
+    const effect = ExternalEffectV1Schema.parse({
+      schemaVersion: 1,
+      effectId,
+      attemptId: null,
+      action: "apple.upload-build",
+      operationMarker: `app-factory:v1:apple:upload:${effectId}`,
+      target: {
+        provider: "apple",
+        resourceType: "apple.build",
+        resourceKey: "com.pchordia.aurafit/1.0/12",
+      },
+      subject: {
+        projectId,
+        taskId: null,
+        attemptId: null,
+        releaseId,
+      },
+      payloadDigest: DIGEST,
+      policyDigest: DIGEST,
+      approvalId: randomUUID(),
+      state: "planned",
+      revision: 0,
+      sendCount: 0,
+      providerCorrelationKey: null,
+      createdAt: NOW,
+      updatedAt: NOW,
+      lastObservedAt: null,
+      nextReconcileAt: null,
+      detailDigest: null,
+    });
+    expect(effect.attemptId).toBeNull();
+    expect(effect.subject.releaseId).toBe(releaseId);
+  });
+
+  it("rejects mixed attempt/release effect subject shapes", () => {
+    const effectId = randomUUID();
+    expect(
+      ExternalEffectV1Schema.safeParse({
+        schemaVersion: 1,
+        effectId,
+        attemptId: null,
+        action: "apple.upload-build",
+        operationMarker: `app-factory:v1:apple:upload:${effectId}`,
+        target: {
+          provider: "apple",
+          resourceType: "apple.build",
+          resourceKey: "com.pchordia.aurafit/1.0/12",
+        },
+        subject: {
+          projectId: randomUUID(),
+          taskId: randomUUID(),
+          attemptId: null,
+          releaseId: randomUUID(),
+        },
+        payloadDigest: DIGEST,
+        policyDigest: DIGEST,
+        approvalId: randomUUID(),
+        state: "planned",
+        revision: 0,
+        sendCount: 0,
+        providerCorrelationKey: null,
+        createdAt: NOW,
+        updatedAt: NOW,
+        lastObservedAt: null,
+        nextReconcileAt: null,
+        detailDigest: null,
+      }).success,
+    ).toBe(false);
   });
 
   it("keeps observed external resource identity separate from intended effect", () => {
@@ -124,10 +206,13 @@ describe("approval and external-effect contracts", () => {
   });
 
   it("rejects unversioned markers, unknown fields, and unsupported providers", () => {
+    const attemptId = randomUUID();
+    const projectId = randomUUID();
+    const taskId = randomUUID();
     const base = {
       schemaVersion: 1,
       effectId: randomUUID(),
-      attemptId: randomUUID(),
+      attemptId,
       action: "github.open-pr",
       operationMarker: "ad-hoc-marker",
       target: {
@@ -135,7 +220,12 @@ describe("approval and external-effect contracts", () => {
         resourceType: "github.pull-request",
         resourceKey: "owner/repository:branch",
       },
-      subject: subject(),
+      subject: {
+        projectId,
+        taskId,
+        attemptId,
+        releaseId: null,
+      },
       payloadDigest: DIGEST,
       policyDigest: DIGEST,
       approvalId: null,

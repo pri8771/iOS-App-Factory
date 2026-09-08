@@ -1,0 +1,22 @@
+{
+  "tested_sha": "d189e2bb9b4f6acc0f2841e27736d4a090102741",
+  "suite": "focused_session2_runtime",
+  "command": "vitest contracts+kernel+adapter protected-release suites",
+  "cwd": "/Users/pchordia/code/factory/worktrees/CURSOR-IOS-72H-20260908",
+  "started_at_utc": "2026-09-08T18:45:19Z",
+  "ended_at_utc": "2026-09-08T18:45:19Z",
+  "wall_duration_seconds": null,
+  "exit_code": 0,
+  "totals": {
+    "files_passed": 10,
+    "tests_passed": 215,
+    "failed": 0,
+    "skipped": 0,
+    "breakdown": {
+      "contracts": 134,
+      "kernel": 76,
+      "adapter_sdk": 5
+    }
+  },
+  "network_provider_xcode_simulator_signing_apple_device_activity": false
+}

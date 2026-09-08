@@ -1,99 +1,19 @@
 {
   "$defs": {
     "__schema0": {
+      "const": 1,
+      "type": "number"
+    },
+    "__schema1": {
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
       "type": "string"
     },
-    "__schema1": {
-      "maxLength": 128,
-      "minLength": 3,
-      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
-      "type": "string"
-    },
-    "__schema2": {
-      "pattern": "^sha256:[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "__schema3": {
+    "__schema10": {
       "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },
-    "__schema4": {
-      "format": "date-time",
-      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
-      "type": "string"
-    }
-  },
-  "$id": "urn:app-factory:contracts:v1:external-effect",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
-  "properties": {
-    "action": {
-      "$ref": "#/$defs/__schema1"
-    },
-    "approvalId": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/__schema0"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "attemptId": {
-      "$ref": "#/$defs/__schema0"
-    },
-    "createdAt": {
-      "$ref": "#/$defs/__schema4"
-    },
-    "detailDigest": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/__schema2"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "effectId": {
-      "$ref": "#/$defs/__schema0"
-    },
-    "lastObservedAt": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/__schema4"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "nextReconcileAt": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/__schema4"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "operationMarker": {
-      "maxLength": 500,
-      "minLength": 16,
-      "pattern": "^app-factory:v1:[a-z0-9][a-z0-9:._-]+$",
-      "type": "string"
-    },
-    "payloadDigest": {
-      "$ref": "#/$defs/__schema2"
-    },
-    "policyDigest": {
-      "$ref": "#/$defs/__schema2"
-    },
-    "providerCorrelationKey": {
+    "__schema11": {
       "anyOf": [
         {
           "maxLength": 1000,
@@ -105,81 +25,64 @@
         }
       ]
     },
-    "revision": {
-      "$ref": "#/$defs/__schema3"
-    },
-    "schemaVersion": {
-      "const": 1,
-      "type": "number"
-    },
-    "sendCount": {
-      "$ref": "#/$defs/__schema3"
-    },
-    "state": {
-      "enum": [
-        "planned",
-        "sent",
-        "observed",
-        "confirmed",
-        "unknown",
-        "manual-intervention",
-        "rejected"
-      ],
+    "__schema12": {
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$",
       "type": "string"
     },
-    "subject": {
-      "additionalProperties": false,
-      "properties": {
-        "attemptId": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/__schema0"
-            },
-            {
-              "type": "null"
-            }
-          ]
+    "__schema13": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema12"
         },
-        "projectId": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/__schema0"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "releaseId": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/__schema0"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "taskId": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/__schema0"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        {
+          "type": "null"
         }
-      },
-      "required": [
-        "projectId",
-        "taskId",
-        "attemptId",
-        "releaseId"
-      ],
-      "type": "object"
+      ]
     },
-    "target": {
+    "__schema14": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema12"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema15": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema7"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema2": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema3": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z][a-z0-9]*)+$",
+      "type": "string"
+    },
+    "__schema4": {
+      "maxLength": 500,
+      "minLength": 16,
+      "pattern": "^app-factory:v1:[a-z0-9][a-z0-9:._-]+$",
+      "type": "string"
+    },
+    "__schema5": {
       "additionalProperties": false,
       "properties": {
         "provider": {
@@ -201,7 +104,7 @@
           "type": "string"
         },
         "resourceType": {
-          "$ref": "#/$defs/__schema1"
+          "$ref": "#/$defs/__schema3"
         }
       },
       "required": [
@@ -211,8 +114,145 @@
       ],
       "type": "object"
     },
-    "updatedAt": {
+    "__schema6": {
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "projectId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "releaseId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "taskId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "projectId",
+        "taskId",
+        "attemptId",
+        "releaseId"
+      ],
+      "type": "object"
+    },
+    "__schema7": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "__schema8": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/__schema1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "__schema9": {
+      "enum": [
+        "planned",
+        "sent",
+        "observed",
+        "confirmed",
+        "unknown",
+        "manual-intervention",
+        "rejected"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:app-factory:contracts:v1:external-effect",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "approvalId": {
+      "$ref": "#/$defs/__schema8"
+    },
+    "attemptId": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "createdAt": {
+      "$ref": "#/$defs/__schema12"
+    },
+    "detailDigest": {
+      "$ref": "#/$defs/__schema15"
+    },
+    "effectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "lastObservedAt": {
+      "$ref": "#/$defs/__schema13"
+    },
+    "nextReconcileAt": {
+      "$ref": "#/$defs/__schema14"
+    },
+    "operationMarker": {
       "$ref": "#/$defs/__schema4"
+    },
+    "payloadDigest": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "policyDigest": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "providerCorrelationKey": {
+      "$ref": "#/$defs/__schema11"
+    },
+    "revision": {
+      "$ref": "#/$defs/__schema10"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "sendCount": {
+      "$ref": "#/$defs/__schema10"
+    },
+    "state": {
+      "$ref": "#/$defs/__schema9"
+    },
+    "subject": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "target": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/__schema12"
     }
   },
   "required": [

@@ -222,4 +222,33 @@ final class ReleaseRailTests: XCTestCase {
                     .background(HUDTheme.void),
                   size: CGSize(width: 960, height: 140), named: "release-rail-empty-unconfigured")
     }
+
+    // MARK: Protected release operator truth (OR-39 / OR-42)
+
+    func testProtectedReleaseCancelDoesNotClaimRemoteUndone() {
+        XCTAssertEqual(
+            ProtectedReleaseEffectTruth.canceledLocally.label,
+            "canceled locally (remote not undone)"
+        )
+        XCTAssertFalse(ProtectedReleaseEffectTruth.canceledLocally.mayAuthorizeNewEffect)
+    }
+
+    func testProtectedReleaseStaleRevisionCannotAuthorizeUpload() throws {
+        let generatedAt = try IsoInstant(validating: "2026-09-08T18:00:00.000Z")
+        let snapshot = ProtectedReleaseOperatorSnapshot(
+            releaseRunId: "9c000000-0000-4000-8000-000000000004",
+            stage: .uploadApproved,
+            revision: 4,
+            effectTruth: .uncertain,
+            identityDigest: "sha256:" + String(repeating: "a", count: 64),
+            effectId: "9c000000-0000-4000-8000-000000000006",
+            transportProtocol: "app-factory.fake-apple-upload.v1",
+            realTransportEnabled: false,
+            evidenceBasisAt: generatedAt,
+            safeActions: ["refresh status", "reconcile from observation"],
+            generatedAt: generatedAt
+        )
+        XCTAssertFalse(snapshot.authorizesProtectedUpload(expectedRevision: 3))
+        XCTAssertFalse(snapshot.authorizesProtectedUpload(expectedRevision: 4))
+    }
 }

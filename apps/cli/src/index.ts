@@ -2067,6 +2067,7 @@ export function renderCommandResult(result: CommandResultV1, mode: CliOutputMode
     case "release.promote":
     case "release.archive":
     case "release.upload":
+    case "release.confirm":
     case "release.submit":
     case "release.status":
       return `release run ${result.run.releaseRunId}: ${result.run.stage} (rev ${String(result.run.revision)})\n`;
