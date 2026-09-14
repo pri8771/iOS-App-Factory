@@ -1,0 +1,444 @@
+{
+  "a11y_issues" : [
+    {
+      "detail" : "Text clipped",
+      "screen" : "-455b9d979febcc5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 131072)"
+    },
+    {
+      "detail" : "Text clipped",
+      "screen" : "-455b9d979febcc5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 131072)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-455b9d979febcc5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "bb26f24492b7ffa",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "bb26f24492b7ffa",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "bb26f24492b7ffa",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast failed",
+      "screen" : "bb26f24492b7ffa",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Text clipped",
+      "screen" : "-6d108a78bd55ae7c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 131072)"
+    },
+    {
+      "detail" : "Text clipped",
+      "screen" : "-6d108a78bd55ae7c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 131072)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-6d108a78bd55ae7c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast failed",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Potentially inaccessible text",
+      "screen" : "58d8e3da79da679a",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 2)"
+    }
+  ],
+  "back_violations" : [
+    {
+      "after_visiting" : "bb26f24492b7ffa",
+      "expected" : "-542e36241092ae8f",
+      "got" : "28567410a6604301",
+      "via" : {
+        "id" : "study.addDeckButton",
+        "kind" : "button",
+        "label" : "Add Deck"
+      }
+    }
+  ],
+  "bounded" : {
+    "screens" : false,
+    "time" : false
+  },
+  "crashes" : [
+
+  ],
+  "dead_taps" : [
+    {
+      "screen" : "-542e36241092ae8f",
+      "tapped" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Study"
+      }
+    },
+    {
+      "screen" : "-542e36241092ae8f",
+      "tapped" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Study"
+      }
+    },
+    {
+      "screen" : "28567410a6604301",
+      "tapped" : {
+        "id" : "tabBar.studyTab",
+        "kind" : "tab",
+        "label" : "Study"
+      }
+    },
+    {
+      "screen" : "28567410a6604301",
+      "tapped" : {
+        "id" : "tabBar.studyTab",
+        "kind" : "button",
+        "label" : "Study"
+      }
+    },
+    {
+      "screen" : "bb26f24492b7ffa",
+      "tapped" : {
+        "id" : "deckEditor.saveButton",
+        "kind" : "navbutton",
+        "label" : "Save"
+      }
+    }
+  ],
+  "edges" : [
+    {
+      "from" : "-542e36241092ae8f",
+      "to" : "-5b1ae8416200a5d1",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Stats"
+      }
+    },
+    {
+      "from" : "-542e36241092ae8f",
+      "to" : "-455b9d979febcc5c",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "-542e36241092ae8f",
+      "to" : "-5b1ae8416200a5d1",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Stats"
+      }
+    },
+    {
+      "from" : "-5b1ae8416200a5d1",
+      "to" : "-542e36241092ae8f",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Study"
+      }
+    },
+    {
+      "from" : "-542e36241092ae8f",
+      "to" : "-455b9d979febcc5c",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "-455b9d979febcc5c",
+      "to" : "-542e36241092ae8f",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Study"
+      }
+    },
+    {
+      "from" : "-542e36241092ae8f",
+      "to" : "bb26f24492b7ffa",
+      "via" : {
+        "id" : "study.addDeckButton",
+        "kind" : "button",
+        "label" : "Add Deck"
+      }
+    },
+    {
+      "from" : "28567410a6604301",
+      "to" : "-cf46d488c308d3a",
+      "via" : {
+        "id" : "tabBar.statsTab",
+        "kind" : "tab",
+        "label" : "Stats"
+      }
+    },
+    {
+      "from" : "28567410a6604301",
+      "to" : "-6d108a78bd55ae7c",
+      "via" : {
+        "id" : "tabBar.settingsTab",
+        "kind" : "tab",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "28567410a6604301",
+      "to" : "-cf46d488c308d3a",
+      "via" : {
+        "id" : "tabBar.statsTab",
+        "kind" : "button",
+        "label" : "Stats"
+      }
+    },
+    {
+      "from" : "-cf46d488c308d3a",
+      "to" : "28567410a6604301",
+      "via" : {
+        "id" : "tabBar.studyTab",
+        "kind" : "tab",
+        "label" : "Study"
+      }
+    },
+    {
+      "from" : "28567410a6604301",
+      "to" : "-6d108a78bd55ae7c",
+      "via" : {
+        "id" : "tabBar.settingsTab",
+        "kind" : "button",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "-6d108a78bd55ae7c",
+      "to" : "28567410a6604301",
+      "via" : {
+        "id" : "tabBar.studyTab",
+        "kind" : "tab",
+        "label" : "Study"
+      }
+    },
+    {
+      "from" : "28567410a6604301",
+      "to" : "bb26f24492b7ffa",
+      "via" : {
+        "id" : "study.addDeckButton",
+        "kind" : "button",
+        "label" : "Add Deck"
+      }
+    },
+    {
+      "from" : "bb26f24492b7ffa",
+      "to" : "28567410a6604301",
+      "via" : {
+        "id" : "deckEditor.cancelButton",
+        "kind" : "navbutton",
+        "label" : "Cancel"
+      }
+    },
+    {
+      "from" : "28567410a6604301",
+      "to" : "bb26f24492b7ffa",
+      "via" : {
+        "id" : "study.empty.action",
+        "kind" : "button",
+        "label" : "Add Deck"
+      }
+    },
+    {
+      "from" : "bb26f24492b7ffa",
+      "to" : "58d8e3da79da679a",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Emoji"
+      }
+    },
+    {
+      "from" : "-542e36241092ae8f",
+      "to" : "bb26f24492b7ffa",
+      "via" : {
+        "id" : "study.empty.action",
+        "kind" : "button",
+        "label" : "Add Deck"
+      }
+    }
+  ],
+  "flows" : [
+    {
+      "failure" : "step 1: no tappable element ‘tabBar.settingsTab’",
+      "name" : "View Gap & Limitations register",
+      "passed" : false
+    }
+  ],
+  "screens" : [
+    {
+      "path" : [
+        {
+          "id" : "",
+          "kind" : "tab",
+          "label" : "Stats"
+        }
+      ],
+      "screenshot" : "02_screen_-5b1ae8416200a5d1.png",
+      "sig" : "-5b1ae8416200a5d1"
+    },
+    {
+      "path" : [
+        {
+          "id" : "study.addDeckButton",
+          "kind" : "button",
+          "label" : "Add Deck"
+        }
+      ],
+      "screenshot" : "04_screen_bb26f24492b7ffa.png",
+      "sig" : "bb26f24492b7ffa"
+    },
+    {
+      "path" : [
+
+      ],
+      "screenshot" : "01_screen_-542e36241092ae8f.png",
+      "sig" : "-542e36241092ae8f"
+    },
+    {
+      "path" : [
+        {
+          "id" : "tabBar.statsTab",
+          "kind" : "tab",
+          "label" : "Stats"
+        }
+      ],
+      "screenshot" : "06_screen_-cf46d488c308d3a.png",
+      "sig" : "-cf46d488c308d3a"
+    },
+    {
+      "path" : [
+        {
+          "id" : "tabBar.settingsTab",
+          "kind" : "tab",
+          "label" : "Settings"
+        }
+      ],
+      "screenshot" : "07_screen_-6d108a78bd55ae7c.png",
+      "sig" : "-6d108a78bd55ae7c"
+    },
+    {
+      "path" : [
+        {
+          "id" : "study.addDeckButton",
+          "kind" : "button",
+          "label" : "Add Deck"
+        },
+        {
+          "id" : "",
+          "kind" : "button",
+          "label" : "Emoji"
+        }
+      ],
+      "screenshot" : "08_screen_58d8e3da79da679a.png",
+      "sig" : "58d8e3da79da679a"
+    },
+    {
+      "path" : [
+        {
+          "id" : "",
+          "kind" : "tab",
+          "label" : "Settings"
+        }
+      ],
+      "screenshot" : "03_screen_-455b9d979febcc5c.png",
+      "sig" : "-455b9d979febcc5c"
+    },
+    {
+      "path" : [
+
+      ],
+      "screenshot" : "05_screen_28567410a6604301.png",
+      "sig" : "28567410a6604301"
+    }
+  ],
+  "target" : "com.recallapp.ios"
+}

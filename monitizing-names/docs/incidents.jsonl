@@ -1,0 +1,1 @@
+{"ts": "2026-07-31 01:00:57", "gate": "release_gate", "detail": "last verification failed (no runnable iOS app: no .xcodeproj/.xcworkspace found.)", "blamed_phases": ["tech_specs", "build_coordination"]}

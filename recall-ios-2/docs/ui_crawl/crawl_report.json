@@ -1,0 +1,41 @@
+{
+  "a11y_issues" : [
+
+  ],
+  "back_violations" : [
+
+  ],
+  "crashes" : [
+
+  ],
+  "dead_taps" : [
+    {
+      "screen" : "1f276cb7f85edf57",
+      "tapped" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Decks"
+      }
+    }
+  ],
+  "edges" : [
+
+  ],
+  "flows" : [
+    {
+      "failure" : "step 1: no tappable element ‘rootTab.settingsTab’",
+      "name" : "Enable demo data and review all decks",
+      "passed" : false
+    }
+  ],
+  "screens" : [
+    {
+      "path" : [
+
+      ],
+      "screenshot" : "01_screen_1f276cb7f85edf57.png",
+      "sig" : "1f276cb7f85edf57"
+    }
+  ],
+  "target" : "com.recall.RecallApp"
+}

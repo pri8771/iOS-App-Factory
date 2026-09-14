@@ -1,1 +1,0 @@
-Design a premium iOS collector's valuation app called Provenance. Archival/museum-catalog aesthetic, dark neutral background, serif display type, photo-forward item cards, condition timeline view, value-over-time chart screen. Include empty state, item detail screen, insurance-export preview.

@@ -1,0 +1,390 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "ExerciseKind",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum ExerciseKind: String, Codable, CaseIterable, Sendable { case squat, pushUp, plank }",
+      "owning_lane": "data_domain",
+      "notes": "Discriminator on WorkoutSession; drives which rule engine/metric fields are populated."
+    },
+    {
+      "name": "SessionStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SessionStatus: String, Codable, Sendable { case inProgress, finalizing, completed, completedEndedEarly }",
+      "owning_lane": "data_domain",
+      "notes": "finalizing added explicitly so a crash between End-tap and write-complete is reconciled identically to inProgress, not mistaken for a clean completion."
+    },
+    {
+      "name": "HealthKitWriteStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum HealthKitWriteStatus: String, Codable, Sendable { case notAttempted, written, deniedPermission, failed, entitlementUnavailable }",
+      "owning_lane": "data_domain",
+      "notes": "entitlementUnavailable covers the presumed-blocked-without-paid-account case from ios_architecture_review."
+    },
+    {
+      "name": "FormFlagRecord",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct FormFlagRecord: Codable, Hashable, Sendable { let ruleID: String; let jointsInvolved: [String]; let measuredDegrees: Double; let thresholdDegrees: Double; let message: String; let occurredAtElapsed: TimeInterval }",
+      "owning_lane": "data_domain",
+      "notes": "message must always name the specific measured/threshold values per DEC-next_steps_small-003, never generic text."
+    },
+    {
+      "name": "WorkoutSession",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class WorkoutSession { var id: UUID; var exercise: ExerciseKind; var startedAt: Date; var elapsedTime: TimeInterval; var repCount: Int?; var holdDuration: TimeInterval?; var outOfFormSeconds: TimeInterval?; var formFlags: [FormFlagRecord]; var clipRelativePath: String?; var isDemo: Bool; var sessionStatus: SessionStatus; var lastPersistedRepCount: Int; var lastPersistedElapsedTime: TimeInterval; var classifierWasOverridden: Bool; var healthKitWriteStatus: HealthKitWriteStatus }",
+      "owning_lane": "data_domain",
+      "notes": "Flat model, no inheritance, per DEC-ios_architecture_review-006. repCount populated for squat/pushUp; holdDuration+outOfFormSeconds for plank."
+    },
+    {
+      "name": "Joint",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum Joint: String, Codable, CaseIterable, Sendable { case nose, leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist, leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle }",
+      "owning_lane": "data_domain",
+      "notes": "Subset of VNHumanBodyPoseObservation.JointName actually consumed by rule engines."
+    },
+    {
+      "name": "JointFrame",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct JointFrame: Sendable { let timestamp: TimeInterval; let points: [Joint: JointPoint] } ; struct JointPoint: Sendable { let location: CGPoint; let confidence: Float }",
+      "owning_lane": "data_domain",
+      "notes": "The single decoupling type \u2014 rule engines, classifier, and demo fixtures all consume this, never VNHumanBodyPoseObservation directly."
+    },
+    {
+      "name": "PoseObservationAdapter",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum PoseObservationAdapter { static func selectPrimaryObservation(_ observations: [VNHumanBodyPoseObservation]) -> VNHumanBodyPoseObservation?; static func makeJointFrame(from observation: VNHumanBodyPoseObservation, timestamp: TimeInterval) -> JointFrame }",
+      "owning_lane": "services_utilities",
+      "notes": "selectPrimaryObservation picks largest bounding-box area, tie-broken by average joint confidence, to handle multi-person-in-frame."
+    },
+    {
+      "name": "ExerciseRuleEngine",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ExerciseRuleEngine { var exercise: ExerciseKind { get }; mutating func ingest(_ frame: JointFrame) -> [RuleEngineEvent]; mutating func reset() }",
+      "owning_lane": "data_domain",
+      "notes": "Returns an array since a single frame can both count a rep and emit a flag."
+    },
+    {
+      "name": "RuleEngineEvent",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RuleEngineEvent: Sendable { case repCounted(totalReps: Int); case formFlag(FormFlagRecord); case holdProgress(isOutOfForm: Bool, cumulativeOutOfFormSeconds: TimeInterval) }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "SquatRuleEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SquatRuleEngine: ExerciseRuleEngine { init(standingThresholdDegrees: Double = 160, depthThresholdDegrees: Double = 100, minDwellFrames: Int = 3) }",
+      "owning_lane": "data_domain",
+      "notes": "Knee angle (hip-knee-ankle), averaged both legs with confidence-weighted single-leg fallback; flags 'Squat depth: hips only reached ~Xdeg knee bend (target: below 100deg)' when a rep's minimum stays above 100."
+    },
+    {
+      "name": "PushUpRuleEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PushUpRuleEngine: ExerciseRuleEngine { init(standingThresholdDegrees: Double = 160, depthThresholdDegrees: Double = 90, minDwellFrames: Int = 3) }",
+      "owning_lane": "data_domain",
+      "notes": "Elbow angle (shoulder-elbow-wrist); same flag pattern as squat naming measured degrees."
+    },
+    {
+      "name": "PlankRuleEngine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PlankRuleEngine: ExerciseRuleEngine { init(targetHipAngleDegrees: Double = 180, toleranceDegrees: Double = 15, sustainedSeconds: TimeInterval = 1.0) }",
+      "owning_lane": "data_domain",
+      "notes": "Hip angle (shoulder-hip-ankle); accrues outOfFormSeconds once out-of-tolerance for sustainedSeconds, flag names sagging vs. piking direction."
+    },
+    {
+      "name": "RepStateMachine",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RepStateMachine { init(enterThreshold: Double, exitThreshold: Double, minDwellFrames: Int); mutating func update(measurement: Double) -> RepStateTransition? } ; enum RepStateTransition { case enteredBottom, exitedBottom(reachedDepth: Bool) }",
+      "owning_lane": "data_domain",
+      "notes": "Shared hysteresis/debounce primitive used by all three rule engines per DEC-product_research-005."
+    },
+    {
+      "name": "ExerciseClassifier",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol ExerciseClassifier { var methodDescription: String { get }; mutating func classify(_ frame: JointFrame) -> ExerciseKind? }",
+      "owning_lane": "data_domain",
+      "notes": "methodDescription is the exact user-facing disclosure string, must render in onboarding + Settings."
+    },
+    {
+      "name": "HeuristicExerciseClassifier",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct HeuristicExerciseClassifier: ExerciseClassifier { init(rollingWindowSeconds: TimeInterval = 2.0) }",
+      "owning_lane": "data_domain",
+      "notes": "No bundled Core ML model \u2014 torso-orientation + joint-cyclicity-variance heuristic, documented in-app per DEC-prompt_contract-003."
+    },
+    {
+      "name": "CaptureSessionModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class CaptureSessionModel { private(set) var phase: CapturePhase; func startCapture(exercise: ExerciseKind?, isDemo: Bool) async; func overrideClassifiedExercise(_ exercise: ExerciseKind); func endSet() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Sole writer to SwiftData and sole publisher to WatchRelay per DEC-design_handoff-001. Sets sessionStatus to .finalizing synchronously the instant endSet() is called, before the write completes."
+    },
+    {
+      "name": "CapturePhase",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CapturePhase: Sendable { case checkingCapability; case blocked(CameraCapabilityStatus); case readyToRecord(aligned: Bool); case inSession(repCount: Int, elapsed: TimeInterval, exercise: ExerciseKind); case finalizing }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "CameraCapabilityStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CameraCapabilityStatus: Sendable { case ready, noHardware, denied, restricted }",
+      "owning_lane": "services_utilities",
+      "notes": "Three distinct honest sub-states per DEC-detailed_discussion-004."
+    },
+    {
+      "name": "CameraCapabilityDetecting",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CameraCapabilityDetecting { func currentStatus() -> CameraCapabilityStatus }",
+      "owning_lane": "services_utilities",
+      "notes": "Both Home and the capture modal call this independently per DEC-design_handoff-009."
+    },
+    {
+      "name": "VisionPoseProcessor",
+      "kind": "function",
+      "language": "swift",
+      "signature": "final class VisionPoseProcessor: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate { var onJointFrame: (@Sendable (JointFrame) -> Void)?; func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) }",
+      "owning_lane": "services_utilities",
+      "notes": "alwaysDiscardsLateVideoFrames = true on the output; runs off-main, hops to MainActor only via onJointFrame delivery."
+    },
+    {
+      "name": "WatchRelay",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol WatchRelay { var isReachable: Bool { get }; var isPairedAndInstalled: Bool { get }; func sendRepUpdate(_ update: WatchRepUpdate) throws; func pushLastKnownState(_ snapshot: WatchSessionSnapshot) }",
+      "owning_lane": "data_domain",
+      "notes": "Concrete WCSession-backed conformance lives in services_utilities; a FakeWatchRelay for tests lives alongside the test target."
+    },
+    {
+      "name": "WatchRepUpdate",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WatchRepUpdate: Codable, Sendable { let repCount: Int; let elapsedTime: TimeInterval; let exercise: ExerciseKind }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "WatchSessionSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WatchSessionSnapshot: Codable, Sendable { let hasActiveSession: Bool; let repCount: Int?; let elapsedTime: TimeInterval?; let exercise: ExerciseKind? }",
+      "owning_lane": "data_domain",
+      "notes": "Delivered via updateApplicationContext so a Watch opened after the fact shows last-known state."
+    },
+    {
+      "name": "SessionRepository",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@ModelActor actor SessionRepository { func startSession(exercise: ExerciseKind, isDemo: Bool) -> PersistentIdentifier; func persistIncrementalProgress(id: PersistentIdentifier, repCount: Int?, elapsedTime: TimeInterval, holdDuration: TimeInterval?, outOfFormSeconds: TimeInterval?); func appendFormFlag(id: PersistentIdentifier, flag: FormFlagRecord); func markFinalizing(id: PersistentIdentifier); func finalize(id: PersistentIdentifier, endedEarly: Bool); func fetchSessions(includeDemo: Bool, exercise: ExerciseKind?) -> [WorkoutSession] }",
+      "owning_lane": "data_domain",
+      "notes": "All active-session writes go through this background actor, never the main ModelContext, per DEC-ios_architecture_review-007."
+    },
+    {
+      "name": "SessionReconciliationService",
+      "kind": "function",
+      "language": "swift",
+      "signature": "struct SessionReconciliationService { func reconcileOrphanedSessions(in repository: SessionRepository) async -> Int }",
+      "owning_lane": "polish_resilience",
+      "notes": "Runs at launch; treats both .inProgress and .finalizing orphans as .completedEndedEarly."
+    },
+    {
+      "name": "isDemoQueryFilter",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SessionQuerying { static func predicate(includeDemo: Bool, exercise: ExerciseKind?) -> Predicate<WorkoutSession> }",
+      "owning_lane": "data_domain",
+      "notes": "Single reusable predicate used identically by Charts, HealthKit write eligibility, and export, per DEC-detailed_discussion-006."
+    },
+    {
+      "name": "CapabilityGap",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CapabilityGap: Identifiable, Codable, Sendable { let id: UUID; let category: GapCategory; let title: String; let detail: String; let detectedAt: Date } ; enum GapCategory: String, Codable, Sendable { case camera, watch, healthKit, catalystSync, storeKit }",
+      "owning_lane": "polish_resilience",
+      "notes": null
+    },
+    {
+      "name": "KnownLimitsStore",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class KnownLimitsStore { private(set) var gaps: [CapabilityGap]; func record(_ gap: CapabilityGap) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Pre-seeded at launch with the HealthKit-entitlement-presumed-blocked gap per DEC-ios_architecture_review-010."
+    },
+    {
+      "name": "HealthKitWriting",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol HealthKitWriting { func requestAuthorization() async -> HealthKitAuthStatus; func writeWorkout(session: WorkoutSession) async -> HealthKitWriteStatus } ; enum HealthKitAuthStatus: Sendable { case notDetermined, authorized, denied, unavailableEntitlement }",
+      "owning_lane": "services_utilities",
+      "notes": "Write-only scope, type+duration only, no energy estimate, per DEC-detailed_discussion-005."
+    },
+    {
+      "name": "DemoFixtureProvider",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum DemoFixtureProvider { static func loadFixture() -> DemoFixture } ; struct DemoFixture: Sendable { let frames: [JointFrame]; let exercise: ExerciseKind; let videoResourceName: String }",
+      "owning_lane": "data_domain",
+      "notes": "Same canned JointFrame sequence backs both this and the rule-engine unit tests, proving fixture and live pipeline are provably the same code path."
+    },
+    {
+      "name": "SessionExportArchive",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SessionExportArchive: Codable, Sendable { let schemaVersion: Int; let exportedAt: Date; let sessions: [WorkoutSessionExportDTO] }",
+      "owning_lane": "data_domain",
+      "notes": "Only path by which Catalyst's local store gets real (non-demo) data, per DEC-ios_architecture_review-001."
+    },
+    {
+      "name": "SessionExportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SessionExportService { func exportArchive(includeDemo: Bool) throws -> URL }",
+      "owning_lane": "services_utilities",
+      "notes": "iPhone-side only; user-initiated, AirDrop/Files/cable transfer, never automatic sync."
+    },
+    {
+      "name": "SessionImportService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol SessionImportService { func importArchive(from url: URL) throws -> Int }",
+      "owning_lane": "services_utilities",
+      "notes": "Catalyst-side only; returns count of sessions imported into Catalyst's own local SwiftData store."
+    },
+    {
+      "name": "HomeView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct HomeView: View",
+      "owning_lane": "primary_ui",
+      "notes": "Reads CapturePhase-adjacent capability state and last-session recap; never itself writes SwiftData."
+    },
+    {
+      "name": "CaptureRootView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CaptureRootView: View { let model: CaptureSessionModel }",
+      "owning_lane": "primary_ui",
+      "notes": "fullScreenCover content; presents SilhouetteAlignmentGuide/RepHeroCounter/ClassifierChip/AmberRuleAnnotation/FinalizingProgressRing per CapturePhase."
+    },
+    {
+      "name": "PostSetSummarySheet",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct PostSetSummarySheet: View { let session: WorkoutSession }",
+      "owning_lane": "primary_ui",
+      "notes": "Reuses SessionDetailView content per DEC-design_discussion-006."
+    },
+    {
+      "name": "HistoryView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct HistoryView: View",
+      "owning_lane": "primary_ui",
+      "notes": "List/calendar, demo rows dashed+badged."
+    },
+    {
+      "name": "SessionDetailView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SessionDetailView: View { let session: WorkoutSession }",
+      "owning_lane": "primary_ui",
+      "notes": "On Catalyst, adds CatalystClipScrubber + SkeletonOverlayToggle via #if targetEnvironment(macCatalyst)."
+    },
+    {
+      "name": "ExerciseTrendChart",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ExerciseTrendChart: View { let exercise: ExerciseKind }",
+      "owning_lane": "primary_ui",
+      "notes": "Queries via SessionQuerying.predicate(includeDemo: false, ...); shows 'demo sessions excluded' disclosure when any exist."
+    },
+    {
+      "name": "SettingsView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SettingsView: View",
+      "owning_lane": "primary_ui",
+      "notes": "Unfinished should-have rows route to KnownLimitsView, never a dead control, per DEC-design_discussion-007."
+    },
+    {
+      "name": "KnownLimitsView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct KnownLimitsView: View { let store: KnownLimitsStore }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "CatalystBrowserView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CatalystBrowserView: View",
+      "owning_lane": "primary_ui",
+      "notes": "NavigationSplitView sidebar reading Catalyst's own local store; gated #if targetEnvironment(macCatalyst)."
+    },
+    {
+      "name": "WatchIdleView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WatchIdleView: View { let snapshot: WatchSessionSnapshot }",
+      "owning_lane": "primary_ui",
+      "notes": "Shows honest 'iPhone unreachable' glance, never a spinner."
+    },
+    {
+      "name": "WatchInSessionView",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct WatchInSessionView: View { let update: WatchRepUpdate }",
+      "owning_lane": "primary_ui",
+      "notes": "Haptic per received rep update."
+    },
+    {
+      "name": "Theme",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum Theme { enum Colors {}; enum Typography {}; enum Spacing {}; enum Radii {} }",
+      "owning_lane": "primary_ui",
+      "notes": "Literal source for every token from design_handoff (amberStroke/amberText split, RepHero Dynamic Type rule, 8pt grid)."
+    },
+    {
+      "name": "AccessibilityAnnouncer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum AccessibilityAnnouncer { static func announceRep(_ count: Int); static func announceFlag(_ flag: FormFlagRecord) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Posts AccessibilityNotification.Announcement explicitly per DEC-design_handoff-007, not label diffing."
+    },
+    {
+      "name": "InterruptionCoordinator",
+      "kind": "function",
+      "language": "swift",
+      "signature": "final class InterruptionCoordinator { func observeCaptureSession(_ session: AVCaptureSession, model: CaptureSessionModel) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Routes AVCaptureSession.wasInterruptedNotification into the same endSet()-as-endedEarly path used for backgrounding/crash, per DEC-ios_architecture_review-004."
+    }
+  ],
+  "errors": []
+}

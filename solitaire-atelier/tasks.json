@@ -1,0 +1,819 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Core value types: Suit, Rank, Card, PileID, DrawMode, CardBack, GameState (named fields), TerminalState, WinSummary",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelier/Domain/Models/Suit.swift",
+        "SolitaireAtelier/Domain/Models/Rank.swift",
+        "SolitaireAtelier/Domain/Models/Card.swift",
+        "SolitaireAtelier/Domain/Models/PileID.swift",
+        "SolitaireAtelier/Domain/Models/DrawMode.swift",
+        "SolitaireAtelier/Domain/Models/CardBack.swift",
+        "SolitaireAtelier/Domain/Models/GameState.swift",
+        "SolitaireAtelier/Domain/Models/TerminalState.swift",
+        "SolitaireAtelier/Domain/Models/WinSummary.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "Card.id is a computed property, not stored, verified by a test that mutates isFaceUp and asserts id is unchanged",
+        "GameState uses named fields (stock, waste, foundations: [Suit:[Card]], tableau: [[Card]]), never a PileID-keyed dictionary",
+        "Round-trip Codable unit test passes for GameState with a non-trivial mid-game board"
+      ],
+      "requirement_ids": [
+        "R-002",
+        "R-003",
+        "R-004"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-002",
+      "title": "Move validation core: Move, MoveOutcome, canMove/attemptMove including tableau run relocation",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelier/Domain/Rules/Move.swift",
+        "SolitaireAtelier/Domain/Rules/MoveOutcome.swift",
+        "SolitaireAtelier/Domain/Rules/MoveValidator.swift",
+        "SolitaireAtelier/Domain/Rules/RunRelocation.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Single shared validation path used for single-card and multi-card run moves, no duplicated legality logic",
+        "Foundation moves enforce ascending same-suit; tableau moves enforce alternating-color descending; only Kings placeable into empty tableau columns",
+        "Unit tests cover single-destination auto-execute, multi-destination ambiguous, and zero-destination blocked outcomes"
+      ],
+      "requirement_ids": [
+        "R-005",
+        "R-006",
+        "R-007",
+        "R-008"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-003",
+      "title": "InteractionState FSM and selection/ambiguity resolution",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelier/Domain/Interaction/InteractionState.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "InteractionState is the sole source of truth for idle/sourceSelected/resolvingMove/dealing/terminal",
+        "State transitions are unit-tested for every MoveOutcome case"
+      ],
+      "requirement_ids": [
+        "R-009"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-004",
+      "title": "Undo stack: GameStateSnapshot, capped-200 LIFO, integrated into save/restore",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelier/Domain/Models/GameStateSnapshot.swift",
+        "SolitaireAtelier/Domain/Rules/UndoStack.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Push on every settled mutation, pop restores exact prior GameState including face-up/face-down state",
+        "Stack caps at 200 entries, oldest evicted first, no redo mechanism present anywhere"
+      ],
+      "requirement_ids": [
+        "R-010"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-005",
+      "title": "DrawOneStuckDetector: exact static legality pass",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelier/Domain/Rules/StuckDetector.swift",
+        "SolitaireAtelier/Domain/Rules/DrawOneStuckDetector.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "StuckDetector protocol defined; DrawOneStuckDetector never false-positives on a randomized fuzz suite of 10,000+ legal-move sequences",
+        "No stock-recycle simulation present, per locked design"
+      ],
+      "requirement_ids": [
+        "R-011"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-006",
+      "title": "DrawThreeStuckDetector: conservative approximation + adversarial fixtures",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelier/Domain/Rules/DrawThreeStuckDetector.swift"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Hand-constructed adversarial fixture suite (board with exactly one legal move buried in a specific stock-cycle position) passes with zero false-stuck results",
+        "Documented in code comments as a conservative approximation distinct from draw-1's exact pass"
+      ],
+      "requirement_ids": [
+        "R-012",
+        "R-013"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-007",
+      "title": "RestoreIntegrityService: post-decode semantic validation",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelier/Domain/Persistence/RestoreIntegrityService.swift",
+        "SolitaireAtelier/Domain/Persistence/ValidationResult.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Rejects a decodable board with duplicate cards, missing ranks-per-suit, illegal stacking, or non-monotonic foundations, returning invalid(reason:)",
+        "Unit tests use hand-crafted corrupt-but-decodable fixtures, not just malformed JSON"
+      ],
+      "requirement_ids": [
+        "R-014"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-008",
+      "title": "GameEngine assembly: bootstrap, newGame (RNG seam), selectCard, attemptMove, drawFromStock, undo, setDrawMode, timer, flushPersistence",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelier/Domain/GameEngine.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-003",
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Public API matches interfaces-json signature exactly; this file is frozen for other lanes to consume via @Environment, not edit",
+        "newGame defaults to SystemRandomNumberGenerator in every production call site; injectable rng parameter is unreachable from any UI code path",
+        "Timer starts strictly on first confirmed move or stock draw, never on selection/deal/app-open"
+      ],
+      "requirement_ids": [
+        "R-015",
+        "R-016",
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": null,
+      "claimed_at": null
+    },
+    {
+      "id": "T-009",
+      "title": "Domain unit + randomized fuzz/invariant test suite",
+      "owner_lane": "data_domain",
+      "files": [
+        "SolitaireAtelierTests/Domain/"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Fuzz suite asserts 52 unique cards always accounted for, foundation ranks never exceed King, stuck never fires while a legal move exists, run for both draw modes",
+        "Full undo-then-redo-of-play (exact state restoration) covered for multi-step sequences"
+      ],
+      "requirement_ids": [
+        "R-018"
+      ],
+      "status": "pending",
+      "claimed_by": null,
+      "claimed_at": null
+    },
+    {
+      "id": "T-010",
+      "title": "AtomicFileWriter (temp-write-then-swap)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelier/Persistence/AtomicFileWriter.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "Write failure mid-operation never leaves a truncated/corrupt file at the target path",
+        "Unit test simulates a kill between temp-write and swap and asserts the prior file is untouched"
+      ],
+      "requirement_ids": [
+        "R-019"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-011",
+      "title": "PersistenceStore protocol, RestoreOutcome, PersistenceError",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelier/Persistence/PersistenceStore.swift",
+        "SolitaireAtelier/Persistence/RestoreOutcome.swift",
+        "SolitaireAtelier/Persistence/PersistenceError.swift"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "load() returns RestoreOutcome<Model> directly, never throws",
+        "Three cases (restored/fallbackDefault/dataLoss) all constructible and unit-testable independently"
+      ],
+      "requirement_ids": [
+        "R-020"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-012",
+      "title": "GameSaveStore actor: load/save/flush, debounce 300-500ms floor, integrity validation on load",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelier/Persistence/GameSaveStore.swift",
+        "SolitaireAtelier/Persistence/GameSaveFile.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "load() calls RestoreIntegrityService.validate before returning .restored; semantic failure maps to .dataLoss, never silently resumed",
+        "save() debounced with write-coalescing; flush() bypasses debounce for the background-transition path",
+        "Debounce constant documented as a floor per DEC-project_plan-005, not silently lowered"
+      ],
+      "requirement_ids": [
+        "R-021",
+        "R-022"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-013",
+      "title": "StatsLogStore actor: two-case event stream + incrementally-updated DrawModeStats cache",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelier/Persistence/StatsLogStore.swift",
+        "SolitaireAtelier/Persistence/StatsLogFile.swift",
+        "SolitaireAtelier/Domain/Models/StatsEvent.swift",
+        "SolitaireAtelier/Domain/Models/DrawModeStats.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "gameStarted written durably at session start, before any moves; gameEnded written on completion/abandonment",
+        "append() updates the raw event log and the relevant DrawModeStats cache atomically in one write, never drifting"
+      ],
+      "requirement_ids": [
+        "R-023",
+        "R-024"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-014",
+      "title": "SettingsStore actor",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelier/Persistence/SettingsStore.swift",
+        "SolitaireAtelier/Persistence/SettingsFile.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Independent atomic write/read from GameSave and StatsLog; a corrupt Settings.json cannot block either of the other two files from loading"
+      ],
+      "requirement_ids": [
+        "R-025"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-015",
+      "title": "AppRestoreCoordinator: concurrent 3-file load, single hasFinishedInitialLoad gate",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelier/Persistence/AppRestoreCoordinator.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "All three stores load concurrently (async let), hasFinishedInitialLoad flips exactly once",
+        "No per-tab loading state exists anywhere in the codebase"
+      ],
+      "requirement_ids": [
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-016",
+      "title": "HapticsService implementation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelier/Interaction/HapticsService.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "moveAccepted/blockedMove/stockDraw/undo/won/stuckDetected each call the correct generator type (rigid impact for blocked, notification success/warning reserved for win/stuck only)",
+        "Single call site \u2014 no haptic trigger exists anywhere outside this file"
+      ],
+      "requirement_ids": [
+        "R-027"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-017",
+      "title": "Persistence + lifecycle test suite: corrupt/invalid fixtures, timer-freeze-before-flush ordering",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelierTests/Persistence/"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-013",
+        "T-014",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "Corrupt-JSON and semantically-invalid-but-decodable fixtures both resolve to .dataLoss with a reason",
+        "Test proves elapsedSeconds is frozen before GameSaveStore.flush() fires on a simulated scenePhase background transition"
+      ],
+      "requirement_ids": [
+        "R-028"
+      ],
+      "status": "pending",
+      "claimed_by": null,
+      "claimed_at": null
+    },
+    {
+      "id": "T-000",
+      "title": "Project scaffolding, module skeleton, CI dependency-lint gate, themed LaunchScreen shell",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "SolitaireAtelier.xcodeproj",
+        "SolitaireAtelier/App/",
+        "SolitaireAtelier/DesignSystem/",
+        "SolitaireAtelier/Domain/",
+        "SolitaireAtelier/Persistence/",
+        "SolitaireAtelier/Features/Game/",
+        "SolitaireAtelier/Features/Stats/",
+        "SolitaireAtelier/Features/Settings/",
+        "SolitaireAtelier/Interaction/",
+        "SolitaireAtelier/DebugTools/",
+        "SolitaireAtelier/Info.plist",
+        "SolitaireAtelier/Base.lproj/LaunchScreen.storyboard",
+        "ci/dependency_lint.sh"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Project builds and runs to a blank card-table-colored (not white) screen with zero warnings",
+        "CI step fails the build if any non-Apple SwiftPM package reference exists in project.pbxproj",
+        "Folder skeleton matches the locked module layout exactly, no extra top-level folders"
+      ],
+      "requirement_ids": [
+        "R-001",
+        "R-030",
+        "R-031"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-018",
+      "title": "Theme.swift: type scale, spacing, radii, light/dark Scene color roles, fixed card-color constants",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/DesignSystem/Theme.swift"
+      ],
+      "depends_on": [
+        "T-000"
+      ],
+      "acceptance_criteria": [
+        "Every token from design_handoff's numeric spec is present; zero font/size/color/radius literals permitted anywhere else in the view layer (enforced by T-030's static check)",
+        "Card front/back/ink colors are single fixed constants with no light/dark variant pair"
+      ],
+      "requirement_ids": [
+        "R-029",
+        "R-032"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-019",
+      "title": "Bespoke CardGlyphs: embossed rank/suit Shape library",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/DesignSystem/CardGlyphs/"
+      ],
+      "depends_on": [
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "All 13 ranks x 4 suits render as distinct vector Shapes, no SF Symbols reused as suit glyphs",
+        "Glyph zone is flat, high-contrast, free of texture/gradient/specular treatment per locked design constraint"
+      ],
+      "requirement_ids": [
+        "R-033"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-020",
+      "title": "CardView renderer + CardVisualState + cardWidth formula",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/DesignSystem/CardView.swift",
+        "SolitaireAtelier/DesignSystem/CardVisualState.swift",
+        "SolitaireAtelier/DesignSystem/CardWidth.swift"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Single renderer handles face-up, face-down, selected, legalDestination, and blocked states, keyed by card.id",
+        "cardWidth(contentWidth:) implements the locked clamp formula and is unit-tested at common iPhone widths"
+      ],
+      "requirement_ids": [
+        "R-034"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-021",
+      "title": "CardGalleryDebugView: legibility gate artifact (BLOCKING)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "SolitaireAtelier/DebugTools/CardGalleryDebugView.swift"
+      ],
+      "depends_on": [
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Renders all 52 CardViews at the real cardWidth() output, from default Dynamic Type through accessibility1",
+        "Manual legibility pass recorded as PASS before any task depending on this one may start; a FAIL blocks T-022 onward and reopens T-019/T-020"
+      ],
+      "requirement_ids": [
+        "R-035"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-022",
+      "title": "DealOrchestrator / AnimationPlan pure planning layer + Reduce Motion branch",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/Interaction/DealOrchestrator.swift",
+        "SolitaireAtelier/Interaction/AnimationPlan.swift"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "dealFresh/transit are pure functions, unit-tested without any view hierarchy",
+        "Reduce Motion branch produces the strict 150ms opacity-only fade with zero translate/stagger, applied identically to deal/flip/transit"
+      ],
+      "requirement_ids": [
+        "R-036",
+        "R-037"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-023",
+      "title": "GameView + pile views + tap-to-move wiring + matchedGeometryEffect transit",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/Features/Game/GameView.swift",
+        "SolitaireAtelier/Features/Game/PileSlotView.swift",
+        "SolitaireAtelier/Interaction/DestinationAccessibilityAction.swift"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-022",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "All selection/highlight/ambiguity rendering reads from GameEngine.interaction only, zero parallel @State booleans",
+        "Ambiguous-destination taps expose each legal destination as a discrete .accessibilityAction, not just a visual highlight",
+        "Deal/flip animation plays only on genuinely fresh deal (first launch or explicit New Game), never on a resumed cold launch"
+      ],
+      "requirement_ids": [
+        "R-038",
+        "R-039",
+        "R-040"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-024",
+      "title": "WinOverlay, StuckOverlay, DrawModeConfirmSheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/Features/Game/WinOverlay.swift",
+        "SolitaireAtelier/Features/Game/StuckOverlay.swift",
+        "SolitaireAtelier/Features/Game/DrawModeConfirmSheet.swift"
+      ],
+      "depends_on": [
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "WinOverlay and StuckOverlay are separate types, never a merged enum-driven overlay",
+        "New Game and draw-mode-change both route through the identical confirmation sheet component when a game is unfinished"
+      ],
+      "requirement_ids": [
+        "R-041",
+        "R-042"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-025",
+      "title": "StatsView + StatsModeFilter + EmptyStatePanel + DataLossPanel",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/Features/Stats/StatsView.swift",
+        "SolitaireAtelier/Features/Stats/StatsModeFilter.swift",
+        "SolitaireAtelier/Features/Stats/EmptyStatePanel.swift",
+        "SolitaireAtelier/Features/Stats/DataLossPanel.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-018"
+      ],
+      "acceptance_criteria": [
+        "A never-played mode shows EmptyStatePanel (inviting icon/copy); a semantically-invalid restored stats file shows DataLossPanel (distinct icon, explicit data-loss copy, reset action) \u2014 the two are never visually interchangeable",
+        "bestTimeSeconds nil renders literally as 'N/A', never a fabricated or zero value"
+      ],
+      "requirement_ids": [
+        "R-043",
+        "R-044",
+        "R-045"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-026",
+      "title": "SettingsView + DrawModeSetting + CardBackPicker",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/Features/Settings/SettingsView.swift",
+        "SolitaireAtelier/Features/Settings/DrawModeSetting.swift",
+        "SolitaireAtelier/Features/Settings/CardBackPicker.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-018",
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Card-back selection applies live with no confirmation; draw-mode change always routes through DrawModeConfirmSheet when a game is in progress",
+        "No draw-mode control exists anywhere on the Game screen",
+        "Local-data-is-not-backed-up disclosure copy present"
+      ],
+      "requirement_ids": [
+        "R-046",
+        "R-047",
+        "R-048"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-027",
+      "title": "SolitaireTabHost root TabView, gated by AppRestoreCoordinator",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/Features/SolitaireTabHost.swift"
+      ],
+      "depends_on": [
+        "T-023",
+        "T-025",
+        "T-026",
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "App launches directly into resumed game or fresh deal with zero interstitial menu screen",
+        "First paint across all three tabs gated by the single hasFinishedInitialLoad flag"
+      ],
+      "requirement_ids": [
+        "R-049"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-028",
+      "title": "RecoveryBanner + ErrorToast components and wiring into Game/Settings failure paths",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "SolitaireAtelier/DesignSystem/Components/RecoveryBanner.swift",
+        "SolitaireAtelier/DesignSystem/Components/ErrorToast.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-014",
+        "T-023",
+        "T-026"
+      ],
+      "acceptance_criteria": [
+        "Game-restore failure plays the normal deal animation then layers a dismissible RecoveryBanner after settling, never a blocking modal",
+        "Settings persistence fallback shows a lightweight ErrorToast, defaults are substituted and disclosed, never silently applied"
+      ],
+      "requirement_ids": [
+        "R-050",
+        "R-051"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-029",
+      "title": "App root wiring: DI, scenePhase handling, timer-freeze-before-flush ordering (integrator task)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "SolitaireAtelier/App/SolitaireAtelierApp.swift"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-015",
+        "T-016",
+        "T-027"
+      ],
+      "acceptance_criteria": [
+        "GameEngine, stores, and HapticsService are constructed once at the App root and injected via @Environment",
+        "On scenePhase .background: engine.freezeTimer() completes before GameSaveStore.flush() is invoked, verified by T-017's ordering test",
+        "This file is edited only via this task; no lane may add to it outside an explicit integration checkpoint"
+      ],
+      "requirement_ids": [
+        "R-017",
+        "R-052"
+      ],
+      "status": "pending",
+      "claimed_by": null,
+      "claimed_at": null
+    },
+    {
+      "id": "T-030",
+      "title": "Accessibility identifiers/labels audit + performAccessibilityAudit() in UI tests",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "SolitaireAtelier/Features/",
+        "SolitaireAtelierUITests/AccessibilityAuditTests.swift"
+      ],
+      "depends_on": [
+        "T-023",
+        "T-024",
+        "T-025",
+        "T-026",
+        "T-027"
+      ],
+      "acceptance_criteria": [
+        "Every custom-rendered view has an explicit accessibilityIdentifier for UI-test hooks, not just a VoiceOver label",
+        "performAccessibilityAudit() runs in the UI test suite and passes with zero violations",
+        "Suit color is never the only cue distinguishing red/black \u2014 a shape-level cue is present"
+      ],
+      "requirement_ids": [
+        "R-053",
+        "R-054"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-031",
+      "title": "XCUITest flows: cold launch deal, blocked-move feedback, both confirmation paths, Stats empty/data-loss states, no-overlap layout audit",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "SolitaireAtelierUITests/GameFlowTests.swift",
+        "SolitaireAtelierUITests/StatsFlowTests.swift",
+        "SolitaireAtelierUITests/LayoutOverlapTests.swift"
+      ],
+      "depends_on": [
+        "T-027",
+        "T-028",
+        "T-030"
+      ],
+      "acceptance_criteria": [
+        "Every flow declared in flows-json has a corresponding passing XCUITest",
+        "No two text/control elements overlap on any screen in either light or dark appearance at default and accessibility1 Dynamic Type"
+      ],
+      "requirement_ids": [
+        "R-055",
+        "R-001"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-032",
+      "title": "Light/dark art-directed lighting scenes (felt, shadow, pewter tokens) \u2014 no card recoloring",
+      "owner_lane": "primary_ui",
+      "files": [
+        "SolitaireAtelier/DesignSystem/Theme.swift",
+        "SolitaireAtelier/Features/Game/TableBackgroundView.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Light mode reads as daylight-through-a-window, dark mode as lamp-only-at-night, verified as genuinely distinct lighting narratives, not an inverted palette",
+        "Card front/back/ink colors are provably unchanged between appearances (same token references in both)"
+      ],
+      "requirement_ids": [
+        "R-056"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    }
+  ],
+  "errors": []
+}

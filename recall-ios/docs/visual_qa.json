@@ -1,0 +1,20 @@
+{
+  "models": [
+    "gemma3:4b",
+    "qwen2.5vl:3b"
+  ],
+  "screenshots": [
+    "docs/screenshots/main_light.png",
+    "docs/screenshots/main_dark.png"
+  ],
+  "verdict": "FAIL",
+  "score": 50,
+  "issues": [
+    {
+      "screen": "main_dark.png",
+      "severity": "high",
+      "note": "gemma3:4b: BAD"
+    }
+  ],
+  "inconclusive": []
+}

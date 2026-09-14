@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "onboarding to sample-partner preview reaches a legible Today card",
+      "steps": [
+        {
+          "tap": "onboarding.getStarted"
+        },
+        {
+          "type": "Alex",
+          "into": "onboarding.yourNameField"
+        },
+        {
+          "type": "Jordan",
+          "into": "onboarding.theirNameField"
+        },
+        {
+          "tap": "onboarding.yourCityField"
+        },
+        {
+          "tap": "onboarding.citySearchResult.0"
+        },
+        {
+          "tap": "onboarding.theirCityField"
+        },
+        {
+          "tap": "onboarding.citySearchResult.0"
+        },
+        {
+          "tap": "onboarding.previewSamplePartner"
+        },
+        {
+          "assert_exists": "today.globeView"
+        },
+        {
+          "assert_exists": "today.distanceReadout"
+        }
+      ]
+    },
+    {
+      "name": "redeem join code discards sample data with a confirmation beat",
+      "steps": [
+        {
+          "tap": "onboarding.redeemCodeButton"
+        },
+        {
+          "type": "SAMPLE-CODE",
+          "into": "onboarding.redeemCodeField"
+        },
+        {
+          "tap": "onboarding.redeemConfirm"
+        },
+        {
+          "tap": "onboarding.redeemConfirmDiscardSample"
+        },
+        {
+          "assert_exists": "today.distanceReadout"
+        }
+      ]
+    },
+    {
+      "name": "answer today's prompt and reach the gated-reveal complete state",
+      "steps": [
+        {
+          "tap": "today.answerButton"
+        },
+        {
+          "type": "Miso ramen, alone.",
+          "into": "answerSheet.textField"
+        },
+        {
+          "tap": "answerSheet.submitButton"
+        },
+        {
+          "assert_exists": "today.awaitingThemLabel"
+        },
+        {
+          "assert_exists": "today.cardCompleteState"
+        }
+      ]
+    },
+    {
+      "name": "compose and share triggers the animated-export paywall",
+      "steps": [
+        {
+          "tap": "today.composeShareButton"
+        },
+        {
+          "assert_exists": "composeShare.skinPicker"
+        },
+        {
+          "tap": "composeShare.animatedToggle"
+        },
+        {
+          "assert_exists": "paywall.title"
+        },
+        {
+          "back": true
+        },
+        {
+          "tap": "composeShare.exportStatic"
+        },
+        {
+          "assert_exists": "composeShare.watermarkLabel"
+        }
+      ]
+    },
+    {
+      "name": "timeline archives the completed card",
+      "steps": [
+        {
+          "tap": "today.timelineButton"
+        },
+        {
+          "assert_exists": "timeline.list"
+        },
+        {
+          "back": true
+        }
+      ]
+    },
+    {
+      "name": "reunion is reachable and triggers the paywall for free users",
+      "steps": [
+        {
+          "tap": "today.reunionButton"
+        },
+        {
+          "assert_exists": "paywall.title"
+        },
+        {
+          "back": true
+        }
+      ]
+    },
+    {
+      "name": "settings shows minimal rows and add-connection triggers the paywall",
+      "steps": [
+        {
+          "tap": "today.settingsButton"
+        },
+        {
+          "assert_exists": "settings.notificationCadenceRow"
+        },
+        {
+          "tap": "settings.addConnectionButton"
+        },
+        {
+          "assert_exists": "paywall.title"
+        },
+        {
+          "back": true
+        }
+      ]
+    }
+  ]
+}

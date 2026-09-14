@@ -1,0 +1,193 @@
+{
+  "a11y_issues" : [
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-58e72e112f9070e2",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-58e72e112f9070e2",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-58e72e112f9070e2",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-58e72e112f9070e2",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Hit area is too small",
+      "screen" : "-1e3dc908fa458437",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 4)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-1e3dc908fa458437",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-1e3dc908fa458437",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-1e3dc908fa458437",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-1e3dc908fa458437",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "1b9d872c027242e9",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "1b9d872c027242e9",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "1b9d872c027242e9",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "1b9d872c027242e9",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "36ba6d4ffbae6d84",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "36ba6d4ffbae6d84",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are unsupported",
+      "screen" : "36ba6d4ffbae6d84",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "36ba6d4ffbae6d84",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "36ba6d4ffbae6d84",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    }
+  ],
+  "back_violations" : [
+
+  ],
+  "bounded" : {
+    "screens" : false,
+    "time" : false
+  },
+  "crashes" : [
+
+  ],
+  "dead_taps" : [
+    {
+      "screen" : "-58e72e112f9070e2",
+      "tapped" : {
+        "id" : "tabBar.today",
+        "kind" : "button",
+        "label" : "Today tab"
+      }
+    }
+  ],
+  "edges" : [
+    {
+      "from" : "-58e72e112f9070e2",
+      "to" : "-1e3dc908fa458437",
+      "via" : {
+        "id" : "tabBar.archive",
+        "kind" : "button",
+        "label" : "Archive tab"
+      }
+    },
+    {
+      "from" : "-58e72e112f9070e2",
+      "to" : "1b9d872c027242e9",
+      "via" : {
+        "id" : "tabBar.wrapped",
+        "kind" : "button",
+        "label" : "Wrapped tab"
+      }
+    },
+    {
+      "from" : "-58e72e112f9070e2",
+      "to" : "36ba6d4ffbae6d84",
+      "via" : {
+        "id" : "tabBar.settings",
+        "kind" : "button",
+        "label" : "Settings tab"
+      }
+    }
+  ],
+  "flows" : [
+    {
+      "failure" : "step 9: expected ‘settings.auraPlusUnlockedBadge’ on screen",
+      "name" : "Complete check-in, purchase Aura+, then regenerate today's card",
+      "passed" : false
+    }
+  ],
+  "screens" : [
+    {
+      "path" : [
+
+      ],
+      "screenshot" : "01_screen_-58e72e112f9070e2.png",
+      "sig" : "-58e72e112f9070e2"
+    },
+    {
+      "path" : [
+        {
+          "id" : "tabBar.archive",
+          "kind" : "button",
+          "label" : "Archive tab"
+        }
+      ],
+      "screenshot" : "02_screen_-1e3dc908fa458437.png",
+      "sig" : "-1e3dc908fa458437"
+    },
+    {
+      "path" : [
+        {
+          "id" : "tabBar.wrapped",
+          "kind" : "button",
+          "label" : "Wrapped tab"
+        }
+      ],
+      "screenshot" : "03_screen_1b9d872c027242e9.png",
+      "sig" : "1b9d872c027242e9"
+    },
+    {
+      "path" : [
+        {
+          "id" : "tabBar.settings",
+          "kind" : "button",
+          "label" : "Settings tab"
+        }
+      ],
+      "screenshot" : "04_screen_36ba6d4ffbae6d84.png",
+      "sig" : "36ba6d4ffbae6d84"
+    }
+  ],
+  "target" : "com.aura.app"
+}

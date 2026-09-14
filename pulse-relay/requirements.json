@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "Native SwiftUI iOS client backed by a real, separately-deployed backend service (not local-only/offline) reachable from the device.",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "Auth flow with session persistence across force-quit \u2014 a fresh account can sign in and returning users resume signed-in state.",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "Zero-state onboarding never dead-ends: a user with no pod can always create a pod or join one via invite code/link.",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "Trust-graph/pod membership is enforced as a hard filter on all request read/write operations \u2014 no non-member visibility or mutation.",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "Posting a same-day relay request contains no child PII (no name/photo/face fields).",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "Post confirmation shows honest delivery-count copy ('Sent to N pod members') based on real push-token/registration status, with a warning when delivery looks uncertain.",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "Server-side event handling must commit the CAS write and submit the APNs payload within a strict, server-owned bound (target: <=2s happy-path from action receipt). End-to-end device receipt is required to be demonstrated in the two-device demo but is an observed outcome subject to Apple push infrastructure variance, not a hard contractual pass/fail metric.",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "Data model supports multiple simultaneously-open requests per pod, each independently identified and acceptable.",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "Accept arbitration uses a genuine server-side compare-and-swap write; polling or client-side arbitration is not used as a stand-in.",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "Concurrent accepts from two devices resolve deterministically to exactly one confirmed winner and one explicit 'already covered by [name]' loser, sourced from the CAS write result.",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "No optimistic UI confirmation anywhere: post/accept/release/complete/withdraw all show an explicit awaiting-confirmation state until real backend acknowledgment.",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "Release ('I can no longer cover this') is available only to the current accepter, reopens the request, and re-notifies the pod within roughly 30 seconds.",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "A requester-only 'withdrawn' terminal state exists for open/still-open/reopened unclaimed requests, arbitrated via the same CAS path, triggers a re-notify, and never produces an audit/receipt artifact.",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "'Withdrawn' and 'release' are mutually exclusive by state \u2014 only one is ever visible/available to a given user for a given request.",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "An unfulfilled request shows a visible, numeric elapsed-time 'still open' state with a re-broadcast action, never a static pending label.",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "Marking a handoff complete produces exactly one immutable audit/receipt object with an internal view and a privacy-filtered shareable projection (no child name/address).",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "Every outcome-affecting action carries a client-generated idempotent action ID; the server handles duplicates idempotently.",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "A force-quit mid-accept (after tap, before ack) followed by relaunch reconciles from server truth with no duplicate writes and no false local state.",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "Same-day cutoffs and elapsed/aging calculations are computed server-side in UTC plus a pod home timezone set at pod creation \u2014 no client-local-time logic.",
+      "core": true
+    },
+    {
+      "id": "R-020",
+      "text": "The pod creator can revoke and reissue the join code; the old code is invalidated immediately.",
+      "core": true
+    },
+    {
+      "id": "R-021",
+      "text": "The audit/receipt record persists after either party deletes their account, rendering the departed party as a placeholder.",
+      "core": true
+    },
+    {
+      "id": "R-022",
+      "text": "UI copy explicitly states 'accepted' means a trusted member claimed responsibility, never that arrival/help is guaranteed.",
+      "core": true
+    },
+    {
+      "id": "R-023",
+      "text": "A brand-new pod with no other members shows a distinct empty state/CTA ('share the invite'), separate from 'pod has members but nobody has responded' (re-broadcast/escalate CTA).",
+      "core": true
+    },
+    {
+      "id": "R-024",
+      "text": "Both the post funnel and the accept/resolve/complete funnel implement and can demonstrate all four states: loading, empty, error, success.",
+      "core": true
+    },
+    {
+      "id": "R-025",
+      "text": "No GPS/live location, ETA, or map features anywhere in the app.",
+      "core": true
+    },
+    {
+      "id": "R-026",
+      "text": "No in-app chat/DM thread; only the request card plus one optional short note.",
+      "core": true
+    },
+    {
+      "id": "R-027",
+      "text": "No payments, tipping, or monetary fields anywhere in the app.",
+      "core": true
+    },
+    {
+      "id": "R-028",
+      "text": "No recurring or future-scheduled requests \u2014 every request is same-day only.",
+      "core": true
+    },
+    {
+      "id": "R-029",
+      "text": "No persistent scrollable request-history/feed screen beyond individual per-request receipts.",
+      "core": true
+    },
+    {
+      "id": "R-030",
+      "text": "No pod-admin console or member-management UI beyond create-pod-get-code and the one revoke/reissue capability.",
+      "core": true
+    },
+    {
+      "id": "R-031",
+      "text": "No moderation/report/mute/remove tooling in v1; this limitation is stated plainly in onboarding/help copy.",
+      "core": true
+    },
+    {
+      "id": "R-032",
+      "text": "No UI implies identity verification or background-check vetting; any trust indicator is labeled honestly as self-reported/peer-vouched.",
+      "core": true
+    },
+    {
+      "id": "R-033",
+      "text": "Matching/visibility is restricted to pre-established trust-graph/pod membership; there is no open stranger/proximity matching.",
+      "core": true
+    },
+    {
+      "id": "R-034",
+      "text": "The entire build is one native SwiftUI app in a single Xcode project \u2014 no portfolio split, no sibling apps.",
+      "core": true
+    },
+    {
+      "id": "R-035",
+      "text": "Distinctive visual design implemented via one tokenized Theme.swift file (type/spacing/color), referenced everywhere with zero hardcoded font/spacing/color literals elsewhere, and full dark-mode semantic coverage verified on every core screen in both appearances.",
+      "core": true
+    },
+    {
+      "id": "R-036",
+      "text": "The free tier includes every core relay action (post/accept/release/complete/withdraw and the resulting receipt) fully and forever for at least one pod; nothing in the state machine is gated behind payment.",
+      "core": true
+    },
+    {
+      "id": "R-037",
+      "text": "The literal two-phone side-by-side acceptance demo passes: two real seeded accounts on two real devices, one shows confirmed and the other shows 'already covered by [name]' within a second or two, zero chat, zero manual reconciliation.",
+      "core": true
+    },
+    {
+      "id": "R-038",
+      "text": "Subscription-tier features (multi-pod membership, exportable/signed receipt history, critical-alert notification bypass) are out of implementation scope for this build \u2014 no StoreKit integration, no paywall screen, no gated core behavior; at most an inert, unused entitlement field may exist in the schema.",
+      "core": false
+    },
+    {
+      "id": "R-039",
+      "text": "Mutual-exclusion invariants for withdraw vs release, and pod-membership checks, are enforced as state-machine/server invariants, not merely UI conventions that could be bypassed by direct API calls.",
+      "core": true
+    }
+  ]
+}

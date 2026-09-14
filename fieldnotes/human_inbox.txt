@@ -1,0 +1,19 @@
+Extensive diagnosis tonight on enable_demo_data's toggle (see prior
+inbox entries too). RULED OUT via direct instrumented builds + crawler
+runs: (1) accessibilityIdentifier placement — correct; (2) custom
+Binding(get:set:) vs plain @State+.onChange — rewrote to @State,
+IDENTICAL zero-log result; (3) .disabled(isDemoActionInFlight) being
+stuck true — code shows it can't be, starts false, reset via defer.
+A log statement at the VERY FIRST LINE of the state-change handler
+(before any guard) produces ZERO output across every test, meaning the
+tap event itself never reaches SwiftUI's toggle interaction handling
+at all, despite the crawler reporting the tap step succeeded (failure
+is always step 4 — the post-toggle assertion — never step 2, the tap
+itself). This needs actual debugger/Instruments-level touch-delivery
+inspection to diagnose further, which isn't available in this
+environment tonight. Recommend: if this keeps blocking the gate, accept
+it as a known Simulator/XCUITest limitation for this specific control
+and adjust the flow to not depend on the toggle's automated
+verification (manual QA note in Gaps instead), rather than continuing
+to guess at app-code causes — the app code has been shown correct by
+every test run.

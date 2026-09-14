@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "App makes zero network calls for its own data/backend; no accounts; fully functional in airplane mode (StoreKit 2 purchase/entitlement-refresh calls to Apple are the sole named exception).",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "Squat rep counting uses a real, documented geometric rule (hip-knee-ankle angle) on Vision pose joints, with a debounce/hysteresis state machine.",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "Squat form-flagging surfaces a specific, anatomically-worded warning (e.g. depth) naming the joints/angle/rep involved, never generic text.",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "Push-up rep counting uses its own independently implemented and validated geometric rule (elbow angle), not squat's math relabeled.",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "Push-up form-flagging surfaces a specific rule-named warning (e.g. elbow angle threshold).",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "Plank uses a distinct hold-based session metric (duration + cumulative out-of-form seconds/instances), not a repCount field.",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "Plank form-flagging surfaces a specific rule-named warning (e.g. hip sag/pike relative to shoulder-hip-ankle line).",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "Exercise classification (Core ML model or documented heuristic fallback) auto-selects the exercise from the pose stream.",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "The classification method (model vs. heuristic) is disclosed somewhere a normal user will actually see it, not just in code/docs.",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "Capture flow includes on-screen camera-placement guidance addressing 2D-pose angle legibility.",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "Camera-unavailable detection distinguishes three honest states: no hardware (Simulator), access denied (with Settings deep-link), access restricted (MDM).",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "Home/capture surface implements four distinct designed states: empty/first-run, capability-blocked, ready-to-record, in-session.",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "Sessions persist via SwiftData: exercise, rep count or hold-metric, duration, flagged form issues, optional clip reference; survives relaunch.",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "Rep count/elapsed time are persisted incrementally during a session, not only at clean finalize.",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "On launch, any session left in an in-progress state is retroactively finalized as 'ended early' using whatever data was saved.",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "Rep counts are never user-editable after the fact.",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "History view (calendar/list) and at least one per-exercise Swift Charts trend are present and populate immediately after a session ends.",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "A demo-session toggle seeds a deterministic pre-recorded pose fixture that walks the identical real pipeline (not a separate mocked screen), visibly labeled as demo.",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "Demo-session data is fenced from real trend aggregates, HealthKit writes, and exports via a single shared isDemo predicate at the persistence/query layer.",
+      "core": true
+    },
+    {
+      "id": "R-020",
+      "text": "Settings provides per-exercise enable/disable.",
+      "core": true
+    },
+    {
+      "id": "R-021",
+      "text": "A persistent, always-reachable Known Limits screen lists every detected Simulator/hardware/entitlement capability gap, timestamped.",
+      "core": true
+    },
+    {
+      "id": "R-022",
+      "text": "On session completion, with explicit permission, an HKWorkout is written with type and duration only (no fabricated energy estimate).",
+      "core": false
+    },
+    {
+      "id": "R-023",
+      "text": "HealthKit permission denial still allows the session to save locally in full, with no crash.",
+      "core": false
+    },
+    {
+      "id": "R-024",
+      "text": "Settings shows live HealthKit authorization status with a re-request path.",
+      "core": false
+    },
+    {
+      "id": "R-025",
+      "text": "watchOS companion mirrors live rep count and elapsed time via WatchConnectivity during a set, with a haptic tap per counted rep.",
+      "core": false
+    },
+    {
+      "id": "R-026",
+      "text": "iPhone-side code handles the Watch being unreachable/unpaired/not-installed without crashing or hanging, demonstrated in Simulator (no paired Watch).",
+      "core": false
+    },
+    {
+      "id": "R-027",
+      "text": "Mac Catalyst target browses past sessions and steps frame-by-frame through a recorded clip with pose skeleton overlay.",
+      "core": false
+    },
+    {
+      "id": "R-028",
+      "text": "Recorded clips are stored in an app-private, backup-excluded container; a failed/partial clip write never loses the rest of the session's data.",
+      "core": false
+    },
+    {
+      "id": "R-029",
+      "text": "Full local data export/erase is available, deterministic, and remains local-only; erase deletes actual clip files, not just database rows.",
+      "core": false
+    },
+    {
+      "id": "R-030",
+      "text": "StoreKit 2 (Formcheck Pro) gates unlimited history, full chart depth, Catalyst review, HealthKit write, and export; entitlement is cached and honored offline indefinitely, never revoked mid-session.",
+      "core": false
+    },
+    {
+      "id": "R-031",
+      "text": "A locally rendered, share-sheet-only summary card (rep count, duration, one form note as text/chart image) can never embed the underlying camera clip or a frame.",
+      "core": false
+    },
+    {
+      "id": "R-032",
+      "text": "No exercise beyond squat/push-up/plank is offered; no manual logging of other movements exists.",
+      "core": true
+    }
+  ]
+}

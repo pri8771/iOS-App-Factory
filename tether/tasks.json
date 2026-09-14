@@ -1,0 +1,673 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "SwiftData Connection & pairing models",
+      "owner_lane": "data_domain",
+      "files": [
+        "Tether/Models/Connection.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Connection entity models two paired users with stable identifiers",
+        "Schema supports one active Connection per pairing"
+      ],
+      "requirement_ids": [
+        "R-001"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-002",
+      "title": "Pairing via join link / deep link handling",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/PairingService.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Join link generates a unique, resolvable pairing token",
+        "Opening the link on a second device links to the same Connection"
+      ],
+      "requirement_ids": [
+        "R-003"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-003",
+      "title": "SwiftData Card/Prompt/Answer models",
+      "owner_lane": "data_domain",
+      "files": [
+        "Tether/Models/Card.swift",
+        "Tether/Models/Answer.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Card references a Prompt and up to two Answers (mine/theirs)",
+        "Model supports the awaitingBoth/awaitingMe/awaitingThem/complete states"
+      ],
+      "requirement_ids": [
+        "R-002"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-004",
+      "title": "Bundled 60-day prompt list content & indexing",
+      "owner_lane": "data_domain",
+      "files": [
+        "Tether/Resources/Prompts.json",
+        "Tether/Models/PromptCatalog.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "60 distinct prompts ship in the bundle",
+        "Catalog exposes lookup by day index"
+      ],
+      "requirement_ids": [
+        "R-004"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-005",
+      "title": "App navigation shell",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/RootTabView.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Tabs for Today, Timeline, Compose, Settings are reachable",
+        "Selected tab persists across launches"
+      ],
+      "requirement_ids": [
+        "R-014"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-006",
+      "title": "LocalSyncService protocol definition",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/LocalSyncService.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Protocol exposes submitAnswer, observePartnerAnswer, and connection-state hooks",
+        "No concrete implementation is hardcoded into consumers; all access goes through the protocol"
+      ],
+      "requirement_ids": [
+        "R-008"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-007",
+      "title": "Timer-driven simulated partner implementation",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/SimulatedPartnerSyncService.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Implements LocalSyncService with a real Timer-driven delay before delivering the partner's answer",
+        "Never returns a pre-completed/hardcoded fixture as the partner answer"
+      ],
+      "requirement_ids": [
+        "R-009"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-008",
+      "title": "Card view UI for gated-reveal states",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/CardView.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Renders distinct visuals for awaitingBoth, awaitingMe, awaitingThem, and complete",
+        "State changes reflect immediately when the underlying Card updates"
+      ],
+      "requirement_ids": [
+        "R-006"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-009",
+      "title": "Answer sheet UI",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/AnswerSheetView.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "User can type and submit an answer for the current day's card",
+        "Draft text is held in view state before submission"
+      ],
+      "requirement_ids": [
+        "R-007"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-010",
+      "title": "Reveal UI for completed cards",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/RevealView.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "Both answers are displayed side by side once a card is complete",
+        "Reveal is only reachable once both answers exist"
+      ],
+      "requirement_ids": [
+        "R-010"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-011",
+      "title": "Tether+ entitlement & StoreKit purchase flow",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/EntitlementService.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "User can purchase/restore Tether+ via StoreKit",
+        "Entitlement state is queryable synchronously by feature-gated views"
+      ],
+      "requirement_ids": [
+        "R-011"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-012",
+      "title": "Paywall gating framework",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/PaywallGate.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "Single reusable gate checks entitlement before exposing a premium action",
+        "Non-entitled users see a consistent paywall prompt"
+      ],
+      "requirement_ids": [
+        "R-012"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-013",
+      "title": "Daily prompt local notifications",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/NotificationScheduler.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "A local notification is scheduled once per canonical day for the active prompt",
+        "Rescheduling on relaunch does not duplicate pending notifications"
+      ],
+      "requirement_ids": [
+        "R-015"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-014",
+      "title": "Daily card creation/scheduling logic",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/CardScheduler.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Exactly one Card is created per Connection per canonical day",
+        "Re-launching the app never creates a duplicate Card for the same day"
+      ],
+      "requirement_ids": [
+        "R-005"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-015",
+      "title": "Compose & Share skin enum architecture",
+      "owner_lane": "data_domain",
+      "files": [
+        "Tether/Models/ShareSkin.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Skin is modeled as an enum/protocol extension point with only 'classic indigo' populated",
+        "Adding a new skin requires no changes to call sites, only a new case/conformance"
+      ],
+      "requirement_ids": [
+        "R-013"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-016",
+      "title": "Answer submission: haptic tick + state transition",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/AnswerSubmissionService.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-006",
+        "T-008",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Submitting an answer fires a crisp .rigid tick haptic",
+        "Card moves to awaitingThem, or to complete if the partner already answered"
+      ],
+      "requirement_ids": [
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-017",
+      "title": "Answer submission save-failure retry/error state",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tether/Views/AnswerSheetView.swift",
+        "Tether/Services/AnswerSubmissionService.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "If the SwiftData save fails, the Answer sheet keeps the typed draft visible",
+        "An explicit retry/error UI is shown instead of silently discarding input or crashing"
+      ],
+      "requirement_ids": [
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-018",
+      "title": "Answer finality & uneditable lock UI",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/CardView.swift",
+        "Tether/Views/RevealView.swift"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Once both answers exist, both become permanently uneditable",
+        "A visible 'sealed/final' indicator appears at the moment of submission completion, not just later"
+      ],
+      "requirement_ids": [
+        "R-018"
+      ],
+      "status": "pending",
+      "claimed_by": "claude",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-019",
+      "title": "Canonical UTC day boundary utility",
+      "owner_lane": "data_domain",
+      "files": [
+        "Tether/Models/Connection+DayBoundary.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Day boundary is computed once at the Connection level using UTC, not either user's local calendar day",
+        "All card 'today' and streak logic reads from this single utility"
+      ],
+      "requirement_ids": [
+        "R-019"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-020",
+      "title": "Gated-reveal state machine",
+      "owner_lane": "services_utilities",
+      "files": [
+        "Tether/Services/GatedRevealStateMachine.swift"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-007",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "States are exactly awaitingBoth -> awaitingThem/awaitingMe -> complete, no additional states",
+        "Machine drives all transitions through the LocalSyncService protocol",
+        "Simulated partner transitions arrive via the timer-driven service, never a pre-completed fixture"
+      ],
+      "requirement_ids": [
+        "R-020"
+      ],
+      "status": "pending",
+      "claimed_by": "gemini",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-021",
+      "title": "Seeded-fixture tests for state machine edge cases",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tether/Tests/GatedRevealStateMachineTests.swift"
+      ],
+      "depends_on": [
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Deterministic seeded test covers simultaneous both-answer-same-tick",
+        "Deterministic seeded test covers simulated partner's timer firing while app is backgrounded mid-submission",
+        "Deterministic seeded test covers simulated partner's timer firing while the Answer sheet is open with an uncommitted draft, asserting the open draft is untouched and not lost"
+      ],
+      "requirement_ids": [
+        "R-021"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-022",
+      "title": "Heartbeat haptic on foregrounded partner answer",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tether/Services/HapticsService.swift"
+      ],
+      "depends_on": [
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "A two-beat .soft haptic ~140ms apart fires when the partner's answer lands while app is foregrounded",
+        "Test explicitly documents this is not required/tested for backgrounded delivery"
+      ],
+      "requirement_ids": [
+        "R-022"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-023",
+      "title": "Completion success haptic + tether snap animation",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tether/Views/CardView.swift",
+        "Tether/Services/HapticsService.swift"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "A success notification haptic fires on card completion",
+        "Tether visual snaps taut in sync with the crisp tick"
+      ],
+      "requirement_ids": [
+        "R-023"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-024",
+      "title": "Streak computation: personal vs shared",
+      "owner_lane": "data_domain",
+      "files": [
+        "Tether/Models/StreakCalculator.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Personal answer streak counts consecutive canonical days the user answered",
+        "Shared completion streak counts consecutive canonical days both answers completed the card",
+        "Both values are independently queryable"
+      ],
+      "requirement_ids": [
+        "R-024"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-025",
+      "title": "Streak UI: personal vs shared display",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/StreakView.swift"
+      ],
+      "depends_on": [
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "Personal answer streak and shared completion streak are shown as visually distinct values",
+        "No merged/ambiguous single streak number is shown"
+      ],
+      "requirement_ids": [
+        "R-024"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-026",
+      "title": "Streak break attribution UI",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/StreakView.swift",
+        "Tether/Models/StreakCalculator.swift"
+      ],
+      "depends_on": [
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "When the completion streak breaks, UI legibly states whether the user or the partner failed to answer",
+        "Attribution is correct for both single-sided and mutual misses"
+      ],
+      "requirement_ids": [
+        "R-025"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-027",
+      "title": "Missed-day streak reset + visible surfacing",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tether/Models/StreakCalculator.swift",
+        "Tether/Views/StreakView.swift"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "A missed canonical UTC day resets the completion streak to 0 the following day",
+        "The reset is visibly surfaced in the UI, not just silently applied"
+      ],
+      "requirement_ids": [
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-028",
+      "title": "Prompt wraparound with 'answered before' badge",
+      "owner_lane": "data_domain",
+      "files": [
+        "Tether/Models/PromptCatalog.swift",
+        "Tether/Views/CardView.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "After the 60-day list is exhausted, prompts repeat starting from day 1",
+        "A visible 'you've answered this before' badge appears on repeated prompts"
+      ],
+      "requirement_ids": [
+        "R-027"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-029",
+      "title": "Timeline of completed cards",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/TimelineView.swift"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Every completed card appears in a vertical Timeline in chronological order",
+        "Tapping a past card lets the user relive it and re-share it"
+      ],
+      "requirement_ids": [
+        "R-028"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-030",
+      "title": "Compose & Share base PNG export",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Tether/Views/ComposeShareView.swift",
+        "Tether/Services/ShareExportService.swift"
+      ],
+      "depends_on": [
+        "T-015"
+      ],
+      "acceptance_criteria": [
+        "User can pick the classic indigo skin, preview the result, and export a static PNG",
+        "Exported PNG is watermarked with the join link",
+        "Base static export has no paywall for any user"
+      ],
+      "requirement_ids": [
+        "R-029"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-031",
+      "title": "Animated export toggle & paywall gating",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Tether/Views/ComposeShareView.swift",
+        "Tether/Services/ShareExportService.swift"
+      ],
+      "depends_on": [
+        "T-012",
+        "T-030"
+      ],
+      "acceptance_criteria": [
+        "Animated-export toggle is visible to all users",
+        "Free users see correct paywall gating when enabling it",
+        "Entitled Tether+ users see an explicit 'coming soon' state, with no crash, silent no-op, or fake file produced"
+      ],
+      "requirement_ids": [
+        "R-030"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    }
+  ],
+  "errors": []
+}

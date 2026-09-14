@@ -1,0 +1,376 @@
+{
+  "schema_version": 1,
+  "summaries": [
+    {
+      "phase": "prompt_contract",
+      "one_paragraph_summary": "This phase converted the original Recall prompt into a locked execution contract: a fully offline SwiftUI/SwiftData/Swift Charts iOS app with six core features (decks/cards, SM-2 scheduling, review sessions, stats, CSV import/export, local reminders), where SM-2 correctness is the top-priority, non-negotiable deliverable. The contract mandates that SM-2 ship as an isolated pure module with tests for first-review, lapse-reset, ease-factor floor, and local-calendar-day/DST boundary handling; that every grade persists immediately so a force-quit mid-session loses only ephemeral summary state; that the demo-data toggle seeds visibly-badged, fully-deletable sample decks rather than data indistinguishable from real content; that CSV import handles a defined set of adversarial malformed-row cases with no silent drops; that the reminder toggle reflects true OS permission state rather than optimistic intent; and that cloud sync, shared decks, and a marketplace are treated as explicit, honestly-documented gaps with no stubbed or implied UI. A 14-item numbered testable-requirements list and full non-goals list were finalized for later phases to check the shipped app against.",
+      "key_decisions": [
+        "DEC-prompt_contract-001",
+        "DEC-prompt_contract-002",
+        "DEC-prompt_contract-003",
+        "DEC-prompt_contract-004",
+        "DEC-prompt_contract-005",
+        "DEC-prompt_contract-006"
+      ],
+      "open_risks": [
+        "SM-2 day-boundary/DST test correctness is the single highest-risk item and must be implemented and proven before any UI work begins",
+        "Demo-data badging/deletion must be enforced consistently across every screen (deck list, stats, review) or it will quietly violate the no-fake-data rule",
+        "Force-quit persistence guarantee needs an actual manual or automated verification pass later, not just an architectural claim",
+        "CSV adversarial-case handling could be under-scoped if later phases implement only the happy path first"
+      ]
+    },
+    {
+      "phase": "product_research",
+      "one_paragraph_summary": "This phase framed Recall's likely audience as offline-tolerant, retention-focused learners (language learners, exam/certification students, professionals with recurring review needs) who value on-device data trust over cloud convenience, consistent with the app's no-sync, no-accounts constraints. It positioned the app against Anki, Quizlet, and Brainscape (explicitly labeled as general-knowledge ASSUMPTIONs, not sourced from any fetched URL), with the differentiation angle being mobile-native review speed, offline-first trust, and provably correct SM-2 scheduling rather than social or sync features. It recommended native iOS interaction patterns for the first build (tap-to-reveal plus haptic grading, keyboard-first card editing, Swift Charts for real data only, no network-implying loading UI) and a narrow four-screen architecture (Decks, Review, Stats, Settings) with strict empty-state discipline. Five risk areas were named for later phases to design against: DST/calendar-day scheduling trust risk, potential churn from users used to cloud sync, an explicitly unresolved question about CSV import preview performance on large files, reminders/archival as the app's primary trust anchors in the absence of accounts, and the risk of scope dilution from non-core features like tags or markdown. Claude's round-1 contribution was lost to a server error, so this wrap-up folded a pragmatist review into the synthesis rather than running an additional round, since no substantive disagreement was in evidence.",
+      "key_decisions": [
+        "DEC-product_research-001",
+        "DEC-product_research-002",
+        "DEC-product_research-003",
+        "DEC-product_research-004",
+        "DEC-product_research-005"
+      ],
+      "open_risks": [
+        "Calendar-day/DST scheduling correctness remains the single highest-trust-impact item and must be verified, not assumed, when SM-2 is implemented",
+        "CSV import preview/validation performance on large files is explicitly unresolved and needs a real decision in the build/architecture phase",
+        "No-sync churn risk can only be mitigated by review-flow speed and reliability, not by any compensating feature, per the locked non-goals",
+        "Reminder and archival reliability carry outsized trust weight in an account-less app and must be verified against true OS permission state, not just implemented"
+      ]
+    },
+    {
+      "phase": "portfolio_selection",
+      "one_paragraph_summary": "This phase confirmed Recall is a single-app build rather than a portfolio parent: the original prompt names exactly one app with one coherent, tightly-coupled feature set (decks/cards, SM-2 scheduling, review sessions, stats, CSV import/export, local reminders) that depends on a single SwiftData graph and one source of truth for persistence and permission state. Both participants independently rejected splitting into sibling projects (feature-area apps, a reminder-only companion, or any sync/marketplace-implying child app) as inventing scope not requested and as directly threatening the interruption-safety and immediate-persistence guarantees locked in during prompt_contract. The selected app is recall-ios-2 (Education/Study productivity, slug 'recall', build=true), and no portfolio-json manifest was produced since this is explicitly not a portfolio parent. The next phase should proceed directly into product debate/architecture for Recall, carrying forward the four-screen structure (Decks, Review, Stats, Settings) and six core features already locked in prior phases.",
+      "key_decisions": [
+        "DEC-portfolio_selection-001"
+      ],
+      "open_risks": [
+        "If later phases misread the phase name 'portfolio_selection' as license to add a second app or companion surface (widget, Mac app, lite variant), it would violate this phase's explicit single-app decision and dilute focus on SM-2 correctness",
+        "The single-source-of-truth boundary (one SwiftData graph, one persistence/permission model) must be enforced structurally in the architecture phase or the force-quit-durability and demo-badging guarantees become hard to test consistently"
+      ]
+    },
+    {
+      "phase": "initial_discussion",
+      "one_paragraph_summary": "This phase locked Recall's product promise as trustworthy, provably-correct SM-2 scheduling for a fully offline flashcard app (not flashcard authoring/polish as the differentiator), aimed at self-directed learners who review in short, frequent, often low-connectivity bursts and expect a zero-setup, already-correct due list every session. The core loop was defined precisely: scope selection, load-only-truly-due-cards-for-the-current-local-calendar-day, reveal, grade, immediate synchronous persistence, and an accurate end-of-session summary, with interruption-safety (including force-quit) as a hard invariant. Two refinements beyond the prior phases' framing were added: (1) due-ness must be computed live at display-time via one single shared function used identically across every screen that shows it (deck badges, scope selector, notifications, stats), rather than cached or reimplemented per screen, to prevent timezone/DST/travel-induced desync between what different screens claim is due; (2) mixed-deck ('all decks') review sessions must retain per-card deck identity so the session summary can honestly attribute again-rate per deck rather than only in aggregate. Hard scope boundaries (single app, four screens, two-column CSV only, no cloud/accounts/marketplace/tags/rich text) and a ten-item measurable success criteria list were reaffirmed and finalized for the architecture phase to build against.",
+      "key_decisions": [
+        "DEC-initial_discussion-001",
+        "DEC-initial_discussion-002",
+        "DEC-initial_discussion-003",
+        "DEC-initial_discussion-004",
+        "DEC-initial_discussion-005",
+        "DEC-initial_discussion-006"
+      ],
+      "open_risks": [
+        "The shared live due-computation function must actually be implemented as a single call site consumed everywhere, not approximated by several similar-but-subtly-different implementations, or the DST/travel desync risk it was meant to close reappears",
+        "Per-deck attribution in mixed-deck sessions requires a data-model decision (deck reference visible at the session/summary layer) that the architecture phase must make explicitly, not leave implicit",
+        "SM-2 day-boundary/DST correctness remains the single highest-risk, highest-priority test surface carried forward from every prior phase"
+      ]
+    },
+    {
+      "phase": "per_app_product_brief",
+      "one_paragraph_summary": "This phase produced Recall's full product brief. Target users are self-directed offline learners (language learners, exam/cert candidates, recurring-knowledge professionals); paying users are the subset whose study load has outgrown a light setup. The free tier is a genuinely complete product: up to 3 active non-demo decks, unlimited cards, full SM-2 scheduling and review flow (byte-for-byte identical to paid, forever), full keyboard-fast editing, CSV export always free, and a basic Stats view (retention rate + today's due count). The paid subscription unlocks exactly four things, all already-locked features with zero new algorithms: unlimited decks, the 30-day forecast chart, the daily-history chart, CSV import, and the daily local reminder \u2014 resolving a round-1 disagreement where Codex initially proposed net-new premium analytics/diagnostic features (exam-mode presets, trim recommendations, an 'integrity pack') before conceding in round 2 that these would introduce unspec'd new decision logic and violate the locked six-core-feature scope boundary. Lapsed-subscription behavior is fully specified: over-cap decks are retained in full and locked (never deleted), and a locked deck's SM-2 due-state keeps advancing in real time rather than freezing, since freezing would itself be a hidden entitlement-contingent scheduling behavior. Demo decks are explicitly excluded from the deck-cap count via the same shared counting function used everywhere the cap appears, preventing a bait-and-switch when demo mode is toggled. The only network touchpoint in the app is the on-device-verified StoreKit 2 purchase transaction; cloud sync stays unbuilt but the SwiftData schema is kept CloudKit-shaped as a documented future path with zero sync UI in v1. Growth relies entirely on the already-required CSV export/import flow functioning as an informal share and migration mechanic in niche study communities, with no invented sharing or marketplace feature. Competitive positioning is 'provable local trust' \u2014 a pure, tested SM-2 module and true offline/interruption-safe operation \u2014 against Anki, Quizlet, and Brainscape (the Brainscape claim remains labeled ASSUMPTION per the earlier research phase).",
+      "key_decisions": [
+        "DEC-per_app_product_brief-001",
+        "DEC-per_app_product_brief-002",
+        "DEC-per_app_product_brief-003",
+        "DEC-per_app_product_brief-004",
+        "DEC-per_app_product_brief-005",
+        "DEC-per_app_product_brief-006",
+        "DEC-per_app_product_brief-007",
+        "DEC-per_app_product_brief-008",
+        "DEC-per_app_product_brief-009"
+      ],
+      "open_risks": [
+        "The lapsed-subscription and demo-cap-exclusion acceptance tests are specified but not yet built or run \u2014 the architecture/build phase must actually implement and verify them, not just inherit the spec as given",
+        "The shared deck-cap-counting function (with demo exclusion) must be implemented as one real call site, not approximated per screen, mirroring the same risk already flagged for the shared due-computation function",
+        "StoreKit 2 entitlement plumbing (Transaction.updates observer running for the app's lifetime, restore-purchases path, .storekit config for local testing) is specified in principle here but needs concrete implementation ownership in the build phase"
+      ]
+    },
+    {
+      "phase": "next_steps_small",
+      "one_paragraph_summary": "This phase locked Recall's first buildable slice: a fully-tested pure SM-2 module (first-review, lapse-reset, ease-floor, calendar-day/DST boundary, no SwiftData/SwiftUI dependency); deck create/edit/archive and keyboard-fast card create/edit; a single-deck review workflow (reveal, four-button grade, immediate synchronous persistence before advancing, honest end-of-session summary); and two inline numbers (today's due count, retention rate) shown as plain text with no dedicated Stats screen. The due-card query is built scope-general (`dueCards(scope: Set<Deck>)`) from day one to avoid future rewrite, but this slice's UI exposes only single-deck review \u2014 no all-decks entry point, cross-deck ordering, or mixed-deck summary ships yet. The demo-data toggle is cut from this slice: SM-2 correctness is proven by its unit tests alone, and UI-level wiring is verified by a manual simulator clock-jump rather than seeded history, with a one-tap create-deck-to-review empty-state flow standing in as the first-run payoff. CSV import/export, both stats charts, the daily reminder, and the entire StoreKit subscription system are all explicit, named fast-follow cuts. Validation is fully behavioral: SM-2 unit tests passing, a full airplane-mode run, a grade/force-quit/relaunch persistence check, a grade/clock-jump/relaunch due-computation check, an end-to-end single-deck session to summary, and designed empty states for zero decks and zero due cards. This resolves all three items left open after round 1 (all-decks scope, demo data, minimal stats) via direct technical argument rather than a coordinator override \u2014 Codex's UI-risk-minimization concerns and Claude's build-it-right-once concerns both got satisfied without either side conceding the thing they actually cared about.",
+      "key_decisions": [
+        "DEC-next_steps_small-001",
+        "DEC-next_steps_small-002",
+        "DEC-next_steps_small-003",
+        "DEC-next_steps_small-004",
+        "DEC-next_steps_small-005",
+        "DEC-next_steps_small-006",
+        "DEC-next_steps_small-007"
+      ],
+      "open_risks": [
+        "The scope-general due-query must actually be implemented as one function used by both this slice's single-deck call site and the future all-decks call site \u2014 if the build phase writes a second, similar-but-different query when all-decks ships, the entire point of building it general now is lost",
+        "The clock-jump integration check substituting for demo-data-based day-boundary verification needs a concrete, repeatable procedure (e.g. a documented simulator date-override step) owned by the build/verification phase, not left implicit",
+        "Demo data, the all-decks UI entry point, CSV import/export, stats charts, reminders, and StoreKit are all real, already-specced scope for a near-term follow-up slice \u2014 none of these cuts should be misread as permanently dropped features when the next build phase scopes its own work"
+      ]
+    },
+    {
+      "phase": "detailed_discussion",
+      "one_paragraph_summary": "This phase closed out Recall's detailed requirements/edge-case analysis, resolving every ambiguity Claude's round-1 skeptic pass surfaced. The full SM-2 grade formula is now locked end-to-end: initial ease 2.5, interval steps of 1 day then 6 days then ease-driven growth; Again resets repetitions/interval and drops ease by 0.20 (floor 1.3, from DEC-prompt_contract-001); Hard drops ease by 0.15 and grows the interval by a fixed \u00d71.2 multiplier decoupled from ease (chosen over an ease-scaled \u00d70.8 variant after a worked example showed the ease-scaled version could make Hard grow faster than Good at high ease, an unacceptable pathology); Good multiplies by ease unchanged; Easy multiplies by ease\u00d71.3 and raises ease by 0.15. A mandatory unit test asserting Hard always underperforms Good from the same state is required to guard this invariant. Review sessions snapshot their due-card queue once at scope-selection time and never re-query the live shared due function mid-session, preventing a timezone/midnight rollover from mutating an in-progress queue; outside an active session, the one shared due function remains the single live source of truth everywhere due-ness is shown. An Again grade never requeues within the same session. CSV export/import stays strictly two columns (front, back) in both directions with `note` permanently excluded and documented as a known limitation, using RFC4180-compliant parsing; duplicate rows (whitespace-trimmed, case-sensitive exact front+back match within the target deck) are skipped per-row with a visible reason rather than imported or silently merged, while all other valid rows in the same file still commit, making re-import idempotent. The daily reminder's notification text carries no live due-count claim, only a generic truthful message, with any numeric count shown solely in-app via the shared due function. Demo-flagged review events use full real SM-2 scheduling for their own deck but are excluded by default from aggregate 'all decks' retention/due stats. Archiving and permanent deletion are modeled as two separate, distinctly-behaved actions: archive is fully reversible and keeps a deck editable/exportable, while delete is an explicit, separately confirmed, cascading destructive action.",
+      "key_decisions": [
+        "DEC-detailed_discussion-001",
+        "DEC-detailed_discussion-002",
+        "DEC-detailed_discussion-003",
+        "DEC-detailed_discussion-004",
+        "DEC-detailed_discussion-005",
+        "DEC-detailed_discussion-006",
+        "DEC-detailed_discussion-007",
+        "DEC-detailed_discussion-008"
+      ],
+      "open_risks": [
+        "The Hard-grade unit test (ease 2.8/interval 20, assert result meaningfully less than Good's) must actually be written into the test suite during the build phase, not just referenced here as an intention",
+        "The session-snapshot behavior (queue frozen at scope-selection time) must be implemented as an actual snapshot mechanism, not approximated by a query that happens to run once and is later mistakenly re-invoked on view refresh",
+        "The CSV duplicate-skip logic and its idempotency property need an explicit acceptance test (import a file, import it again, confirm zero new duplicate cards) during the build/verification phase",
+        "All eight decisions from this phase need to be carried into architecture/build faithfully \u2014 this phase resolved the 'what exactly happens' questions, but none of it has been implemented or tested yet"
+      ]
+    },
+    {
+      "phase": "app_features",
+      "one_paragraph_summary": "This phase locked Recall's full must/should/could/won't feature contract for the finished, graded app, resolving both disagreements left open after round 1. Framing: this phase's must-have list defines the complete shipped app per the original prompt and the locked 14-item testable-requirements list, not a restatement of the next_steps_small first-build slice \u2014 sequencing across build passes stays governed entirely by that earlier phase. On that basis, the full must-have list is: the pure/tested SM-2 module; deck/card CRUD with keyboard-fast editing; a single shared due-computation function; review sessions supporting both single-deck and all-decks scope with session-snapshotted queues and per-card deck attribution; synchronous grade persistence with force-quit safety; an honest session summary; a real Stats screen (genuine Swift Charts views, not an inline-number stand-in) with 30-day forecast, daily history, and retention rate, excluding demo data from aggregates; CSV export/import with RFC4180 parsing, preview, per-row error reporting, and duplicate-skip idempotency; a daily local reminder with permission-truthful UI and non-numeric notification text; a demo-data toggle with real badging, cap-exclusion, and full deletion on disable; distinct archive-vs-delete actions; and designed empty states, including a new requirement that the all-decks empty state must distinguish 'nothing due in this deck' from 'nothing due anywhere' with a scope-appropriate action. The StoreKit 2 subscription/paywall \u2014 introduced in a later monetization-strategy phase and absent from both the original prompt and the locked 14-item list \u2014 is scoped as should-have rather than must-have, with an explicit free-only v1 fallback (no cap, no paywall UI) if it isn't built, and reuse of the already-locked entitlement/lapse model if it is. A final cross-cutting rule closes the phase: every must-have requirement requires a fully real implementation, never a placeholder or shim standing in for the specified behavior. Cloud sync, shared decks, and a marketplace remain explicit, honestly-documented non-goals; no other scope beyond what's listed here was added.",
+      "key_decisions": [
+        "DEC-app_features-001",
+        "DEC-app_features-002",
+        "DEC-app_features-003",
+        "DEC-app_features-004"
+      ],
+      "open_risks": [
+        "The Stats screen and CSV import/export are now musts for the finished app but were explicitly cut from next_steps_small's first build slice \u2014 the build phase must actually schedule and implement them in a later pass rather than letting the slice-1 scope quietly become the final scope",
+        "StoreKit's should-have status means the free-only fallback (no cap, no paywall UI) must be a deliberate, real decision point during build, not an accidental omission mistaken for an incomplete must-have",
+        "The mixed-session/all-decks empty-state distinction (DEC-app_features-004) needs to actually be designed and built when the all-decks UI entry point ships, not merged into a single generic empty state for expedience",
+        "R-017 (must-haves must be fully real, not placeholders) needs to be an active check during build verification and the adherence gate, not just a written principle"
+      ]
+    },
+    {
+      "phase": "design_discussion",
+      "one_paragraph_summary": "This phase locked Recall's complete design spec. Design language is 'Field Ledger' \u2014 a bookkeeper's-ledger precision-instrument metaphor (tabular numerals, ruled-line dividers, spare cream/ink palette, one restrained ink-blue accent) expressed only through structure and typography, explicitly never through paper-texture/skeuomorphic decoration \u2014 chosen over 'Interval Compass' because the product's locked promise is proving a schedule is correct and auditable (a record-keeping claim), not a navigational one, and ledger language passes the phase's own 'swap the app name' specificity test where compass language does not. Navigation is three persistent tabs (Decks, Stats, Settings) with Review implemented as a focused full-screen flow (no tab bar) entered from a 'Review Due (N)' action on Decks or a per-deck action, never as a fourth idle tab \u2014 this keeps exactly one surface (Decks) rendering the live due-count, avoiding a tab-badge/button duplicate-counter drift risk. Two simplifications were cut from the original review-flow proposal: no 'session loaded' interstitial screen (the due count lives on the entry button, tapping goes straight to card one) and no persisted 'resume session' concept (synchronous per-grade persistence plus a fresh snapshot on every Review entry already guarantees no data loss after interruption, so a separate resumable-session entity would be unneeded new state). The signature interaction is the review card's real 3D-rotation flip on reveal, followed by the chosen grade 'posting' the new interval as a small peeling tag (e.g. '\u2192 6d'), capped under 300ms with a same-speed Reduce Motion crossfade fallback \u2014 the only place deliberate animation budget is spent. The default-looking app (plain List/Form/stock chrome/system-blue) is explicitly rejected in favor of custom deck cards with a due-count stamp and interval sparkline, a full-bleed physically-flipping review card, a Theme.swift-defined ink-blue accent, and an unmistakable diagonal 'DEMO' stamp on demo content. Full screen inventory, primary user flow, per-screen state models (including the app_features-mandated distinct empty states for 'nothing due in this deck' vs 'nothing due across all decks'), and accessibility requirements (44\u00d744 targets, VoiceOver announcing grade consequences, Dynamic Type without truncation, color never the sole signal) were all finalized and are ready for the architecture/build phase.",
+      "key_decisions": [
+        "DEC-design_discussion-001",
+        "DEC-design_discussion-002",
+        "DEC-design_discussion-003",
+        "DEC-design_discussion-004",
+        "DEC-design_discussion-005",
+        "DEC-design_discussion-006"
+      ],
+      "open_risks": [
+        "The 'ledger-as-structure-never-decoration' constraint must be actively enforced during build \u2014 it's easy for a rushed implementation to drift back toward literal paper/scrapbook styling since the metaphor's name still invites it",
+        "Cutting the persisted-resume concept relies entirely on the session-snapshot-plus-synchronous-persist guarantee actually being implemented correctly (DEC-detailed_discussion-001/DEC-prompt_contract-002); if that guarantee has any gap, there is now no resume-affordance safety net to fall back on",
+        "The single-due-count-surface rule (Decks screen only, no tab badge) must be enforced as one shared call site during build, consistent with the project's standing 'one function, never reimplemented per screen' discipline, or the drift risk this decision was meant to close reappears",
+        "The signature flip/posting animation's 300ms ceiling and Reduce Motion crossfade need to actually be measured and verified during build, not just specified here"
+      ]
+    },
+    {
+      "phase": "design_handoff",
+      "one_paragraph_summary": "This phase finalized Recall's complete, build-ready design handoff. Typography is system Dynamic Type throughout with no custom font, since only San Francisco reliably delivers true tabular figures via .monospacedDigit() \u2014 the actual mechanism (not the cream background) that sells the Field Ledger metaphor. The canonical token table locks a 4pt spacing grid (s1=4 through s10=40, with s2/s4/s6/s8 as default general-purpose steps), four-tier corner radii (8/12/18/24, plus a full-circle grade-pill radius), and one semantic color palette with two corrections made mid-phase: a malformed divider hex was fixed, and the demo-content color was moved from amber (which collided visually with the warning/Hard color, especially in dark mode) to a distinct violet/plum, preserving the standing requirement that demo content be unmistakable. Navigation stays three tabs (Decks/Stats/Settings) with Review as a fullScreenCover flow and exactly one live due-count surface in the whole app. Three engineering constraints are locked as binding, not optional notes: the Review queue must be captured as a plain array at scope-selection time and never fetched via SwiftData's live @Query (which would silently break the already-locked session-snapshot rule and threaten the force-quit/clock-jump acceptance tests), per-deck due counts must come from one batched fetch rather than one query per row, and demo-data exclusion from aggregate Stats must be a fetch predicate rather than a post-fetch filter. A previously-proposed 'Preparing due cards\u2026' loading line was cut for directly contradicting the already-locked no-interstitial decision from design_discussion. The full component inventory (including exact flip-mechanics handling for the review card's front/back faces to avoid mirrored text and stray hit-testing), per-screen state models, motion/haptics specs, and accessibility requirements were all finalized. No external Claude Design pass is planned \u2014 the spec is judged numerically complete enough for a SwiftUI builder to implement Theme.swift and every screen directly from this document.",
+      "key_decisions": [
+        "DEC-design_handoff-001",
+        "DEC-design_handoff-002",
+        "DEC-design_handoff-003",
+        "DEC-design_handoff-004",
+        "DEC-design_handoff-005",
+        "DEC-design_handoff-006"
+      ],
+      "open_risks": [
+        "The @Query-vs-snapshot-array constraint is the single highest-risk implementation detail in the whole design; if a builder reaches for @Query out of habit inside the Review view, the interruption-safety guarantees this project has protected since prompt_contract will break in a way that looks like a flaky bug, not an architecture violation",
+        "The review card's front/back flip mechanics (rotation-angle-keyed visibility swap at the 90\u00b0 midpoint, hit-testing disabled on the hidden face) are a specific, easy-to-get-wrong implementation detail that must be built exactly as specified or the flip will show mirrored text or accept stray double-taps",
+        "The 'ledger-as-structure-never-decoration' constraint from design_discussion still needs active enforcement during build since nothing about the token table itself prevents a rushed implementation from adding paper-texture flourish",
+        "The corrected demoBadge violet and fixed divider hex need to actually be typed into Theme.swift correctly during build \u2014 this phase caught one transcription error already, so the final values should be double-checked against this document rather than any earlier draft in the phase history"
+      ]
+    },
+    {
+      "phase": "ios_architecture_review",
+      "one_paragraph_summary": "This phase locked Recall's binding architecture decisions ahead of tech_specs. RecallCore ships as a real local Swift Package with zero SwiftData/SwiftUI imports and an injected Clock protocol (SystemClock/TestClock) so DST and calendar-day-boundary unit tests are deterministic on CI, kept distinct from the separate simulator-clock-jump app-level integration test. The app layer uses MV over ceremony-heavy MVVM, with dedicated DueQueryService and SessionEngine @Observable services enforcing the 'one shared function' rule as a type rather than a convention. Grade and demo-flag fields are modeled as raw Int/Bool, never Swift enums with associated values, because SwiftData's #Predicate macro can't reliably filter those and would otherwise force a silent fallback to already-banned post-fetch filtering; no @Attribute(.unique) is used anywhere, preserving the CloudKit-shaped-schema requirement from an earlier phase. Every grade write calls context.save() synchronously rather than relying on SwiftData's autosave timing, and the force-quit/relaunch persistence guarantee is verified by a real automated XCUITest rather than a manual checklist step. The notification-permission toggle re-polls true OS authorization state on every scenePhase transition to .active rather than caching the original grant, and Background Modes capability stays fully unchecked in the target \u2014 no background fetch, no silent push \u2014 since due-ness is always computed live at display time and the daily reminder's repeating UNCalendarNotificationTrigger handles time zone/DST recalculation via the OS with no app-side rescheduling needed. StoreKit remains deferred behind a single EntitlementGate service reporting unlimited access for now, making a future paid tier additive rather than a rewrite. CSV import rejects non-UTF8 files outright with one clear error, hard-caps single-file import at exactly 10,000 rows with a plain-language over-cap message, and parses off the main actor. A PrivacyInfo.xcprivacy manifest declaring zero data collection is required. Finally, the phase closed out its two previously untouched required-output items by declaring zero ML/CoreML and zero AR/ARKit surface anywhere in the app, since no locked feature calls for either. The fallback Codex seat (local Qwen2.5 Coder, standing in for an unavailable gpt-5.3-codex-spark) never engaged with these proposals point-by-point across two rounds, closing round 2 with a bare 'PASS'; since no concrete objection was raised despite an explicit invitation to do so, and the fallback model's generic agreement in round 1 didn't contradict any of it, these were locked as this phase's authoritative output rather than left open for a third round.",
+      "key_decisions": [
+        "DEC-ios_architecture_review-001",
+        "DEC-ios_architecture_review-002",
+        "DEC-ios_architecture_review-003",
+        "DEC-ios_architecture_review-004",
+        "DEC-ios_architecture_review-005",
+        "DEC-ios_architecture_review-006",
+        "DEC-ios_architecture_review-007",
+        "DEC-ios_architecture_review-008",
+        "DEC-ios_architecture_review-009",
+        "DEC-ios_architecture_review-010"
+      ],
+      "open_risks": [
+        "Because the Codex seat never substantively engaged with these decisions (both rounds returned generic or empty responses from a fallback model), there was no adversarial pressure-testing of these specific technical choices beyond Claude's own self-review \u2014 the build phase should treat these as directionally sound but worth a sanity check from whoever actually implements them",
+        "The 10,000-row CSV cap and the exact XCUITest force-quit scenario need to actually be implemented and run, not just specified here, mirroring a risk pattern that has recurred across nearly every previous phase in this project",
+        "The EntitlementGate abstraction only pays off if every future cap-check call site actually goes through it \u2014 a builder reaching for a shortcut inline check would quietly reintroduce the rewrite risk this decision was meant to avoid",
+        "The Background-Modes-unchecked and zero-ML/AR decisions are easy to violate accidentally via default Xcode project templates or capability checkboxes enabled out of habit rather than intent \u2014 worth an explicit build-time check against the target's capabilities list"
+      ]
+    },
+    {
+      "phase": "tech_specs",
+      "one_paragraph_summary": "This phase locked Recall's complete technical specification. Architecture: RecallCore ships as a Clock-injected pure Swift Package (SM-2 engine, shared due-computation, RFC4180 CSV parser/writer); the app layer is MV with dedicated DueQueryService and SessionEngine @Observable services. Data model: Deck and Card are SwiftData @Model classes (a competing Codable-struct/async-repository sketch from the fallback Codex seat was explicitly rejected as incompatible with already-locked #Predicate/batched-fetch constraints), joined by a new third model, ReviewLogEntry, a durable per-grading-event log required because Card alone only tracks current schedule state and can't back the daily-history chart, retention rate, or per-deck session attribution. Cards belong permanently to their creation deck with no moveCard function anywhere in the contract, an intentional omission tied to denormalized isDemo/deckID fields. The CloudKit-shape rule was sharpened to a concrete check: every relationship Optional, every non-optional attribute defaulted. Testing gained two new elements: a DEBUG-only DebugClockOverride launch-argument clock that turns the manual simulator-clock-jump check into a real automated XCUITest proving the app-level due-computation wiring (in addition to, not instead of, TestClock-based pure-module unit tests), and a previously-unnamed backward-clock-jump safety test ensuring a rewound system clock can't make an already-graded card look due again. A new UI touchpoint, SM2Engine.previewOutcomes, computes all four grade outcomes without mutation, feeding both the already-required VoiceOver consequence label and a new small interval-preview caption under each grade button from one shared source. The three-tier test strategy (RecallCoreTests, RecallAppTests, RecallAppUITests) and the RecallApp/RecallCore project file layout were locked as binding. Across both rounds the fallback Codex seat (local Qwen2.5 Coder, standing in for an unavailable gpt-5.3-codex-spark) never substantively engaged with any of these specific proposals, closing with a bare 'PASS' in round 2; since no concrete objection was raised despite explicit invitation, and the one place its sketch genuinely conflicted with locked constraints was identified and resolved, these were finalized as this phase's authoritative output.",
+      "key_decisions": [
+        "DEC-tech_specs-001",
+        "DEC-tech_specs-002",
+        "DEC-tech_specs-003",
+        "DEC-tech_specs-004",
+        "DEC-tech_specs-005",
+        "DEC-tech_specs-006",
+        "DEC-tech_specs-007",
+        "DEC-tech_specs-008"
+      ],
+      "open_risks": [
+        "None of this was adversarially pressure-tested by a substantive second seat \u2014 both rounds got generic or empty responses from a fallback model \u2014 so the build phase should treat these as directionally sound but worth a sanity check from whoever actually implements them",
+        "ReviewLogEntry, the DebugClockOverride XCUITest, the backward-clock-jump test, and the previewOutcomes-driven button captions all need to actually be implemented and verified during build, not just specified here, mirroring a risk pattern that has recurred across nearly every phase in this project",
+        "The interval-preview caption under each grade button is a genuine (if small) new UI surface not previously specified in design_handoff \u2014 the build phase must slot it into ReviewGradeRow using existing tokens without violating the 'ledger, not clutter' constraint, not invent new styling for it",
+        "The 'cards never move between decks' lock depends on no future phase quietly adding a moveCard convenience without the explicit justification pass this decision requires"
+      ]
+    },
+    {
+      "phase": "project_plan",
+      "one_paragraph_summary": "This phase locked Recall's build sequencing plan across two rounds, with the fallback Codex seat (local Qwen2.5 Coder, standing in for an unavailable gpt-5.3-codex-spark, and unavailable entirely in round 2 due to rate-limit cooldown) never substantively engaging with the sequencing itself. The locked plan: RecallCore's interface freezes on day one so downstream lanes can build against it while its full mandated test suite hardens in parallel (M1); Theme.swift and the SwiftData schema (Deck/Card/ReviewLogEntry, CloudKit-shape constraints, a deliberately minimal single-version migration plan) start the same day with zero dependency on RecallCore (M1b/M1c); a real adversarial review pass on RecallCore is required before the services layer starts, since none has happened across two prior architecture phases; the services layer (DueQueryService, SessionEngine, GradeRecorder, EntitlementGate, NotificationScheduler, DemoDataService, CSVImportCoordinator) is built with tests alongside each service (M2); Decks and single-deck Review ship next with measured (not assumed) review-flow speed and early skeleton versions of the force-quit and DebugClockOverride XCUITests requiring three consecutive clean runs before closing (M3); Stats, CSV import/export, and the daily reminder run in parallel with M3 since they only depend on M2, with an explicit chart-collision check at maximum Dynamic Type and a dedicated design pass for realistic demo-data seeding (M4); all-decks scope and mixed-session attribution follow (M5); StoreKit is should-have, explicit-gate, last-sequenced scope (M6), attempted only if all must-haves are done and verified with time remaining. Round 2 added three concrete constraints on StoreKit specifically, catching a real design conflict in the round-1 StoreKit walkthrough: EntitlementGate must never cache entitlement state (e.g. in Keychain) since that would create a second source of truth that can drift from Transaction.currentEntitlements, and must instead re-derive live status on every scenePhase-active transition exactly like the existing NotificationScheduler pattern; StoreKit's definition of done is local .storekit-file simulator testing only, since no App Store Connect access exists anywhere in this project's scope; and its acceptance test is that swapping in a real StoreKitEntitlementProvider requires zero changes outside EntitlementGate itself. Estimates throughout are relative (Large/Medium/Small) and checkpoint-gated rather than calendar-dated, consistent with the project's standing rule against fabricated claims.",
+      "key_decisions": [
+        "DEC-project_plan-001",
+        "DEC-project_plan-002",
+        "DEC-project_plan-003",
+        "DEC-project_plan-004",
+        "DEC-project_plan-005",
+        "DEC-project_plan-006",
+        "DEC-project_plan-007",
+        "DEC-project_plan-008",
+        "DEC-project_plan-009",
+        "DEC-project_plan-010"
+      ],
+      "open_risks": [
+        "The RecallCore adversarial review gate (DEC-project_plan-003) has no assigned owner or concrete trigger mechanism beyond 'before M2 starts' \u2014 the build phase needs to make this a real checkpoint, not a paragraph that gets skimmed past",
+        "The three-consecutive-clean-runs bar for the force-quit and DebugClockOverride XCUITests needs to actually be enforced during build, not quietly relaxed under time pressure the way tech_specs explicitly warned against",
+        "None of this plan was adversarially pressure-tested by a substantive second seat \u2014 round 1 got an off-topic StoreKit response and round 2 got no response at all due to rate-limiting \u2014 so the task-assignment phase should treat this as directionally sound but worth a sanity check",
+        "The parallel M3/M4 sequencing assumes Stats/CSV/Reminders truly have no hidden dependency on the Review screen; if the build phase discovers one, the parallel-track assumption needs to be revisited rather than silently forcing sequential work into a parallel-labeled milestone"
+      ]
+    },
+    {
+      "phase": "task_assignments",
+      "one_paragraph_summary": "This phase locked Recall's complete build-execution plan across two rounds, with the fallback Codex seat (local Qwen2.5 Coder, standing in for gpt-5.3-codex-spark) producing a generic, spec-inconsistent tasks-json in round 1 (wrong file paths, an undifferentiated RecallCore task, invented network-caching concerns, and an ungated StoreKit task violating the locked go/no-go gate) and a bare 'PASS' with no engagement in round 2. Claude's plan is the one adopted: four build lanes with exclusive per-file ownership (data_domain: RecallCore/ + Models/; services_utilities: Services/ + RecallAppTests/; primary_ui: Screens/ + Components/; polish_resilience: Theme.swift, Support/, RecallAppUITests/, docs) plus exactly two integrator-owned files (RecallApp.swift, RootTabView.swift) sole-edited by primary_ui once their dependencies exist. A real adversarial-review pass on RecallCore (T-009) hard-blocks the entire services layer. StoreKit is entirely absent from the 31-task backlog, consistent with its explicit should-have gate. Deck management splits into a Decks list screen and a DeckDetailScreen push destination owning card CRUD, archive/unarchive, permanent delete, and CSV export, with the archive-vs-delete requirement (R-015) correctly attributed to the task that actually implements it after Claude caught its own round-1 misattribution. The flows-json UI-crawl contract covers seven journeys (first review, all-decks review via demo data, Stats rendering, demo-data disable, archive/unarchive, permanent delete, CSV export) using accessibilityIdentifier-driven tap/type/assert_exists steps; CSV import is deliberately excluded from that gate since the system document picker can't be reliably scripted, with its correctness instead proven by service-layer tests and documented manual verification. A late catch fixed DemoDataService's seed acceptance criteria to guarantee cards due today, not just historically, so the demo-data review flow doesn't spuriously fail against an empty state. No branch naming or merge-strategy details were re-litigated in round 2 beyond round 1's already-adopted small-frequent-merge, exclusive-ownership approach.",
+      "key_decisions": [
+        "DEC-task_assignments-001",
+        "DEC-task_assignments-002",
+        "DEC-task_assignments-003",
+        "DEC-task_assignments-004",
+        "DEC-task_assignments-005",
+        "DEC-task_assignments-006"
+      ],
+      "open_risks": [
+        "Every accessibilityIdentifier named in flows-json (decks.firstDeckRow, deckDetail.exportButton, review.revealArea, etc.) is a contract the primary_ui build tasks must implement verbatim or the UI-crawl gate fails every journey \u2014 this needs to be treated as binding, not a suggestion",
+        "The RecallCore adversarial-review gate (T-009) still has no assigned reviewer beyond 'polish_resilience', and its effectiveness depends entirely on it actually checking the locked formula/calendar/CSV specs rather than closing on a clean bill of health that didn't really check",
+        "The three-consecutive-clean-runs bar for the two XCUITests (T-028, T-029) and the demo-seed due-today guarantee (T-018) both need real enforcement during build, not a quiet downgrade under time pressure",
+        "None of this backlog was adversarially pressure-tested by a substantive second seat across either round \u2014 the build phase should treat it as directionally sound but worth a sanity check from whoever actually implements it"
+      ]
+    },
+    {
+      "phase": "implementation_readiness_gate",
+      "one_paragraph_summary": "This phase served as Recall's final pre-build gate and confirmed the full stack (prompt contract through task_assignments) is coherent enough to build from without inventing new product, design, or architecture decisions. The fallback Codex seat again passed with no substantive engagement, continuing a pattern present in nearly every phase of this project. Claude's read-through surfaced four real, narrow, non-architectural problems, all resolved in this phase rather than deferred: (1) a genuine bug in the locked flows-json where the 'review all decks' journey asserted a grade-button label existed before the card-reveal tap that makes grade buttons appear at all, and repeated the mistake on the second card \u2014 fixed by reordering reveal-then-assert/grade throughout that flow; (2) the RecallCore adversarial-review gate (T-009), flagged as unowned across three consecutive prior phases, now has a concrete process constraint: it cannot be self-certified by the data_domain lane that wrote RecallCore, and its closing artifact must cite specific functions/lines checked against the locked formula/calendar/CSV specs rather than general confidence language; (3) a silent contradiction between project_plan's 'all-decks scope is milestone M5, sequenced strictly last' framing and task_assignments' actual backlog (which already ships all-decks UI in T-021/T-023 alongside single-deck review, since the underlying scope-general services were already built in M2) is resolved by explicitly declaring the merge intentional, superseding project_plan's M5 sequencing note while leaving the StoreKit M6 go/no-go gate untouched; (4) T-007's acceptance criteria gained an explicit line requiring the Card model's optional note field, closing a minor spec omission. With these four corrections applied, the 31-task backlog, four-lane exclusive-ownership model, and seven-flow UI-crawl contract from task_assignments stand as the final, unmodified scope for build.",
+      "key_decisions": [
+        "DEC-implementation_readiness_gate-001",
+        "DEC-implementation_readiness_gate-002",
+        "DEC-implementation_readiness_gate-003",
+        "DEC-implementation_readiness_gate-004"
+      ],
+      "open_risks": [
+        "The T-009 non-self-review constraint is only as strong as its enforcement during build \u2014 if the same person effectively fills both the data_domain and polish_resilience roles, the 'not self-certified' rule needs a real second reviewer to mean anything",
+        "The corrected flows-json step order must actually be carried into the RecallAppUITests implementation verbatim, or the same false-failure bug reappears at the test-authoring stage",
+        "No phase in this entire project has received substantive adversarial pressure-testing from a second model seat \u2014 every phase's fallback Codex passed or stayed silent \u2014 so all locked decisions, including this gate's, are only as good as Claude's single-perspective review and deserve a sanity check once real implementation begins",
+        "This phase resolved cross-document contradictions but did not re-verify feasibility of any timing/performance claim (e.g. review-flow speed, CSV parse time) against real hardware \u2014 those remain to be measured during build as project_plan already specified"
+      ]
+    },
+    {
+      "phase": "build_coordination",
+      "one_paragraph_summary": "This build_coordination phase ran six iterations and closed with a complete, thoroughly cross-reviewed SwiftUI UI layer for all four locked screens (Decks, Review, Stats, Settings) plus every required sheet, a full Theme token system, a zero-collection privacy manifest, five real UI tests, and an honest GAPS.md and INTEGRATION_CHECKLIST.md documenting every assumption the UI made against an unimplemented interface contract \u2014 but it closes without a runnable app. The data_domain and services_utilities lanes produced zero files across all six rounds (Codex CLI unavailable five times, rate-limited once), meaning RecallCore (the SM2 engine, Clock, DueComputation, CSV parser/writer), the SwiftData models (Deck, Card, ReviewLogEntry), and every service (GradeRecorder, EntitlementGate, NotificationScheduler, DemoDataService, CSVImportCoordinator) were never built; CSV import has no UI at all; and no Xcode project or app entry point exists, since creating one before real source landed would have meant either an empty shell or the integrator fabricating the SM2 engine, which would violate this project's core rule that SM2 must be real and adversarially tested rather than integrator-improvised. Within that constraint, the two Claude-run UI lanes repeatedly self-audited and fixed real defects across all six rounds (a keyboard-chaining bug, a stuck-post-retry-state bug, a Menu-hiding flows.json violation affecting 4 of 7 declared journeys, a SwiftData #Predicate relationship-traversal reliability risk fixed in two places, six missing accessibility identifiers), and the integrator made one binding cross-lane decision \u2014 Swift 5 language mode (not Swift 6 strict concurrency) for the future RecallApp target, recorded in PROJECT_CONVENTIONS.md \u2014 to resolve a real Sendable-conformance compile error baked into the frozen interfaces.json contract (ReviewScope: Sendable wrapping a non-Sendable Deck) before it could surprise whoever eventually creates the project. The phase closes on explicit instruction that this was the final iteration, not because the app is functional: the honest state is a well-specified, well-tested UI design with nothing underneath it able to compile or run.",
+      "key_decisions": [
+        "DEC-build_coordination-swift-language-mode"
+      ],
+      "open_risks": [
+        "The app does not compile or run in its current state \u2014 RecallCore, the SwiftData models, and the entire services layer were never delivered across six iterations, and this is the terminal state of this phase, not a temporary gap",
+        "CSV import (a locked must-have core feature) has zero UI built anywhere in the repo, confirmed by grep showing no references to CSVImportCoordinator/CSVParser/EntitlementGate",
+        "No Xcode project, Package.swift source, or app entry point exists; RecallCore/Package.swift is an empty manifest with no implementation behind it",
+        "If and when data_domain/services_utilities eventually deliver real code, it must be checked against INTEGRATION_CHECKLIST.md's documented assumptions (Deck/Card convenience inits, NotificationScheduler's no-arg init, Clock.calendar) since none of those were ever confirmed against a real interface",
+        "The mandatory SM2 unit test suite (first-review, lapse-reset, ease-floor, calendar-day/DST boundary, backward-clock-jump) \u2014 this project's single highest-priority, most-repeated requirement across every prior phase \u2014 does not exist anywhere in this repo"
+      ]
+    },
+    {
+      "phase": "write_tests",
+      "one_paragraph_summary": "This write_tests phase, across six iterations, took Recall from a UI-only shell with no compilable code underneath it to a fully wired app with real test coverage. RecallCore (SM2Engine, DueComputation, CSV parser/writer) was implemented and given a mandatory-spec-matching test suite; the SwiftData models (Deck/Card/ReviewLogEntry) and all five services (GradeRecorder, NotificationScheduler, EntitlementProviding, DemoDataService, CSVImportCoordinator) were built and verified correct against real APIs; a full CSV import UI (file picker to preview to commit) was added along with its test coverage; and the integrator created RecallApp.xcodeproj \u2014 the first Xcode project this app has ever had \u2014 using Xcode 16's file-system-synchronized-group format, plus RecallApp.swift and RootTabView.swift as the app entry point. Iteration 4 produced this project's only real compiler signal ever (a failed xcodebuild run reporting three missing-import errors), which was fixed along with a proactively-found second instance of the same pattern. By the final iteration, RecallAppTests held ten real test files (models, all five services, DueQueryService, SessionEngine including its GradeRecorder-failure error path, and StatsMetrics) plus two XCUITests (force-quit mid-session persistence, DebugClockOverride-driven day-boundary proof), and the integrator fixed one concrete bug this phase's own test-writing surfaced: StatsMetrics.dueForecast was silently dropping overdue cards from the 30-day forecast instead of bucketing them into today, disagreeing with the shared DueComputation.isDue rule used everywhere else in the app \u2014 fixed by clamping negative day-offsets to zero, with the test that had documented it as a known XCTExpectFailure defect converted into a real passing assertion. The phase closes on explicit instruction as the last build iteration, with the honest caveat that no xcodebuild/swift test execution was ever available in this sandbox across all six iterations beyond the one build_verification run in iteration 4 \u2014 every other verification, including the integrator's own, was hand-tracing against source, not compiler confirmation.",
+      "key_decisions": [],
+      "open_risks": [
+        "The Xcode project has been confirmed to compile only once (iteration 4's build_verification run, which found and led to fixing three missing-import errors) \u2014 no run since has confirmed the fixes from iterations 4-6 actually produce a clean build, so the next real xcodebuild/xcodebuild test execution is still the first full confirmation this project will have ever had",
+        "NotificationScheduler has zero unit test coverage since it wraps UNUserNotificationCenter directly with no injected abstraction seam \u2014 an acknowledged, not silently skipped, gap",
+        "The two XCUITests (force-quit persistence, DebugClockOverride day-boundary) have never executed even once; the project's own three-consecutive-clean-runs bar for closing their milestone hasn't started",
+        "The dueForecast overdue-card fix applied in this final iteration has not been compiler-verified or run, only hand-traced consistent with every other verification this phase",
+        "All ten RecallAppTests files, all five RecallCoreTests files, and both XCUITests remain hand-verified only as this phase closes \u2014 build_verification's next run is the first point any of this gets real compiler/test-runner confirmation"
+      ]
+    },
+    {
+      "phase": "build_verification",
+      "one_paragraph_summary": "The external verifier reported a clean xcodebuild compile of the complete Recall app for the iOS Simulator on the first attempt (attempt 0), with zero compile errors \u2014 the first confirmed successful build across this project's entire history, covering RecallCore, the SwiftData models, all five services, the four-screen SwiftUI UI including the CSV import flow, and all RecallCoreTests/RecallAppTests/RecallAppUITests files. Both participants attempted to run xcodebuild themselves and were sandbox-blocked, so neither could independently re-derive the verifier's result; instead both did manual source audits as a cross-check, confirming no import drift, a real (non-StoreKit) free-tier EntitlementProviding fallback, and that every mandated high-priority test (SM-2 formula table with the Hard-vs-Good pathology check, DST-transition test, backward-clock-jump test, force-quit persistence XCUITest, DebugClockOverride day-boundary XCUITest) exists as a real, non-trivial, non-skipped test body. No compile errors meant no repair work was needed this round. The key caveat both agreed on: a clean build confirms compilation only, not that xcodebuild test was actually invoked or that any test passed with reported pass/fail counts \u2014 no tool execution in this project's history has ever produced that signal, so the SM-2 suite's correctness remains hand-verified rather than compiler-proven pending a future test-action run.",
+      "key_decisions": [],
+      "open_risks": [
+        "No tool run in this project's history has ever executed the xcodebuild test action and reported real pass/fail counts \u2014 only this clean build and one earlier partial build (write_tests iteration 4) are actual compiler confirmations; the full RecallCoreTests/RecallAppTests/RecallAppUITests suites remain hand-verified only, not tool-verified as passing",
+        "NotificationScheduler has zero unit test coverage (no injected abstraction seam around UNUserNotificationCenter) \u2014 an acknowledged, documented gap, not a silent omission",
+        "The two XCUITests (force-quit persistence, DebugClockOverride day-boundary) have not accumulated any of their own locked three-consecutive-clean-runs closure bar \u2014 a single clean build does not satisfy that milestone",
+        "If a future phase gets real xcodebuild test execution and it surfaces failures, the iteration-4 method (fix the specific error, then sweep the whole tree for the same pattern before declaring closed) should be reapplied rather than a narrower fix"
+      ]
+    },
+    {
+      "phase": "human_qa_checklist",
+      "one_paragraph_summary": "This phase produced Recall's manual QA checklist, deliberately weighted around the central fact carried forward from build_verification: the app has only ever had a confirmed clean xcodebuild compile, never a confirmed xcodebuild test run, so this checklist is the first real verification the project's highest-stakes guarantees (SM-2 correctness, force-quit mid-session persistence, day-boundary/DST due-computation) will ever receive. The checklist covers twelve workflow areas with concrete simulator steps and expected results: first-launch/empty-state and keyboard-fast card entry; single-deck review including a designed adversarial check that grade buttons are truly absent (not just hidden) pre-reveal, an Again-doesn't-requeue check, and the \u2605-marked force-quit/relaunch persistence test; a \u2605-marked day-boundary test using either simulator clock advancement or the DebugClockOverride launch argument, checked for consistency across every due-count surface; all-decks review including per-deck summary attribution and distinct empty-state wording from single-deck scope; Stats empty/sparse handling and a targeted re-check of the late-fixed dueForecast overdue-card bug (fixed by hand, never compiler-verified); full adversarial CSV export/import coverage (clean, quoted-comma, duplicate, malformed, non-UTF8 rows) since import is explicitly excluded from automated UI-crawl testing and this checklist is its only verification surface; reminder permission handling including OS-level revocation while backgrounded; demo-data badging and genuine deletion-not-hiding on disable; archive-vs-delete as distinct confirmed actions; accessibility (VoiceOver grade-consequence announcements, max Dynamic Type chart-collision check, Reduce Motion crossfade equivalence); an offline/airplane-mode sweep; and an explicit negative-check section confirming no paywall, deck-cap, or cloud-sync/marketplace UI exists anywhere, consistent with this build's free-tier-only StoreKit-deferred scope. Known gaps are stated plainly rather than softened: no compiler-confirmed test-suite pass exists anywhere in this project's history, NotificationScheduler has zero automated coverage, and both XCUITests have run at most once against the project's own three-consecutive-clean-runs closure bar.",
+      "key_decisions": [
+        "DEC-human_qa_checklist-001",
+        "DEC-human_qa_checklist-002",
+        "DEC-human_qa_checklist-003"
+      ],
+      "open_risks": [
+        "No item in this checklist has actually been executed yet by a human \u2014 this phase produced the checklist itself, not QA results; the force-quit and day-boundary checks in particular need to actually be run before this app's core correctness claims can be considered verified beyond hand-tracing",
+        "If the force-quit or day-boundary manual check fails, this project has no prior automated signal to fall back on (both XCUITests have never been confirmed to pass by a compiler), so a failure here would be a genuinely new, unverified-until-now discovery, not a regression against a previously-passing test",
+        "The dueForecast overdue-card fix from the final write_tests iteration has never been compiler-verified or manually checked \u2014 this checklist's Stats section is the first opportunity to confirm it actually works",
+        "CSV import's manual checklist coverage is the only verification this feature's actual UI will ever receive outside unit tests, so any gap in how thoroughly a human runs that section directly translates to unverified production risk"
+      ]
+    },
+    {
+      "phase": "app_store_readiness",
+      "one_paragraph_summary": "This phase produced Recall's App Store launch-readiness assessment, and its central verdict is that the app is not yet launch-ready \u2014 not because of unfinished product scope, but because the human QA checklist's two highest-stakes items (force-quit mid-session persistence, day-boundary/DebugClockOverride due-computation) have never actually been executed by a person; only a clean xcodebuild compile has ever been confirmed across this project's entire history, and this phase refused to let that be quietly upgraded into a launch-ready signal. Everything else needed for submission was locked and is ready to execute in parallel with that QA run: App Store positioning built around 'provable local trust' (real SM-2, true offline-by-design) rather than generic study-app language, with an explicit honest disclosure that there's no cloud sync by design; a six-screenshot plan captured from a live simulator with demo data enabled (Decks, Review flip/grade, Stats, CSV import preview, Settings); a 'Data Not Collected' privacy label across every category, accurate given the zero-collection PrivacyInfo.xcprivacy manifest and total absence of network code; locked notification-permission explainer copy including the mandatory 'enable later from Settings' honesty line; a near-zero subscription/paywall review risk since no paywall was built, with the real pre-submission task being a grep for leftover paywall-shaped UI strings from before StoreKit was deferred; and a clean 4+ age rating. The phase's one genuinely new finding, not surfaced in any of the nine prior phases, is that a privacy policy URL and a support URL are both mandatory App Store Connect fields that have never been created anywhere in this project \u2014 resolved as a cheap, one-time static artifact (a GitHub Pages privacy policy page plus a real support email or GitHub Issues link), explicitly distinguished from the infrastructure-shaped gaps (cloud sync, shared decks, marketplace) this project is barred from faking. Codex was unavailable (rate-limited) for this phase's only round, so this closes on Claude's single pass, consistent with the pattern across nearly every phase of this project.",
+      "key_decisions": [
+        "DEC-app_store_readiness-001",
+        "DEC-app_store_readiness-002",
+        "DEC-app_store_readiness-003",
+        "DEC-app_store_readiness-004",
+        "DEC-app_store_readiness-005",
+        "DEC-app_store_readiness-006",
+        "DEC-app_store_readiness-007",
+        "DEC-app_store_readiness-008"
+      ],
+      "open_risks": [
+        "The human QA checklist, including its two starred highest-priority items, still has not been executed by anyone as of this phase closing \u2014 this is the single hard blocker standing between this app and a genuine launch-ready verdict",
+        "The privacy policy page and support contact identified as missing in this phase have been specified but not yet actually created/hosted \u2014 this is real, sequenced work for whoever executes launch prep next, not something this phase's write-up satisfies by itself",
+        "Screenshots have been planned in detail but not captured \u2014 they require an actual simulator run with demo data seeded, which has also never happened in this project's history",
+        "The paywall-remnant grep check is specified but unexecuted; if any leftover Pro/Premium/Upgrade string does exist in the shipped UI, it would be a genuine, previously-undetected App Review rejection risk"
+      ]
+    },
+    {
+      "phase": "final_review",
+      "one_paragraph_summary": "This final_review phase closed Recall's ten-phase build with a deliberately honest 'code-complete, unverified' verdict rather than a 'done' one. What's real: a complete four-screen SwiftUI app (Decks, Review, Stats, Settings) with every required sheet including a working CSV import flow, backed by a genuine dependency-free RecallCore Swift Package (SM2Engine with the full locked formula table, DueComputation, RFC4180 CSV parser/writer, Clock-injected for deterministic testing), a three-model CloudKit-shaped SwiftData schema, all five services with an honest free-tier EntitlementGate, a full Theme.swift token system, a zero-collection privacy manifest, a working Xcode project, and real test files (5 RecallCoreTests, 10 RecallAppTests, 2 XCUITests) covering every mandated case including the Hard-vs-Good pathology guard and the backward-clock-jump safety test. What's not real yet: no xcodebuild test execution has ever run in this project's history, the human QA checklist (including its two starred force-quit/day-boundary items) has never been executed by a person, NotificationScheduler has zero automated coverage by design, both XCUITests have never accumulated even one clean run toward their own required three-consecutive bar, CSV import's UI has only ever been exercised by unit-test fixtures, and app-store launch artifacts (screenshots, privacy policy page, support URL, paywall-string grep) remain specified but uncreated. Prompt coverage against the original six core features and the hard rule on gaps (cloud sync/shared decks/marketplace honestly documented, never stubbed) is complete at the specification and implementation level. The explicit go/no-go decision: No-Go for App Store submission until the human QA checklist is actually run with recorded pass/fail, particularly its two highest-stakes items; Conditional go for local simulator use and continued iteration, since the app should build and run as specified for anyone who opens the Xcode project. Codex was unavailable for this phase's only round, consistent with its absence or rubber-stamp pattern across nearly every phase of this project, so this review closes on Claude's single, deliberately skeptical pass rather than manufactured two-party consensus.",
+      "key_decisions": [
+        "DEC-final_review-001",
+        "DEC-final_review-002"
+      ],
+      "open_risks": [
+        "The human QA checklist, especially its two starred items, has never been executed by anyone \u2014 this is the single fact that should govern how any reader interprets every 'VERIFIED' label in this project's history",
+        "No xcodebuild test execution has ever happened; the entire test suite's correctness remains hand-traced, not compiler-confirmed",
+        "The T-009 RecallCore adversarial-review gate's actual execution (non-self-certified, line-by-line citation against the locked specs) cannot be confirmed from this phase's vantage point and should be checked directly against the build_coordination transcript before being trusted",
+        "Launch-prep artifacts (screenshots, privacy policy, support URL, paywall-string grep) are fully specified but none have been created",
+        "Every phase in this project's history closed on a single Claude pass with Codex absent or non-substantive \u2014 all locked decisions, including this final one, are the product of one perspective's diligence, not adversarial pressure-testing, and deserve a real second look before being treated as final"
+      ]
+    },
+    {
+      "phase": "portfolio_audit",
+      "one_paragraph_summary": "This portfolio_audit phase confirmed, with no dissent, that Recall is correctly a single-app build and marked the audit not applicable per the phase playbook's own rule for single-app runs. Expected app count (1) matches actual (1, recall-ios-2); there are no sibling project folders, no child app workflows to validate, no portfolio-json manifest (correctly absent since this was never a portfolio parent), and no category was skipped or silently collapsed across any of the prior ten-plus phases \u2014 no companion widget, Mac app, or utility surface was ever introduced. Codex was unavailable (rate-limited) for this phase's only round, consistent with its absence across nearly every phase of this project, so the call rests on Claude's single pass, which is appropriate here since there was no substantive disagreement to adjudicate. The phase's one added-value contribution beyond confirming non-applicability was a backfill note for ticket-tracker import: final_review's four already-named follow-ups (run the human QA checklist for real starting with force-quit/day-boundary, obtain one real xcodebuild test execution, confirm the T-009 RecallCore adversarial review gate had genuine non-self-certified engagement rather than another rubber stamp, and create the launch artifacts \u2014 privacy policy page, support URL, six screenshots, paywall-string grep) map cleanly to four backlog tickets, with an explicit warning that any ticket summarizing build status must preserve the 'compiled cleanly, but tests never executed' caveat rather than let it flatten into a plain passing build checkbox during import.",
+      "key_decisions": [
+        "DEC-portfolio_audit-001",
+        "DEC-portfolio_audit-002"
+      ],
+      "open_risks": [
+        "No shell access outside this session's sandboxed .agent_cwd means a stray sibling folder in the broader iOS-App-Factory directory tree, if one existed, could not be personally ruled out \u2014 though nothing in any phase's decision log ever proposed creating one",
+        "If this project's follow-up items are backfilled into a ticket tracker, there is a real risk that the 'compiled cleanly, tests never run' distinction gets lost in translation to a simple pass/fail build status, undoing ten phases of deliberate honesty about verification state",
+        "This phase ran last, after final_review already delivered a No-Go verdict \u2014 an unusual position in the sequence for a portfolio check, though not a substantive gap given the single-app nature of this project"
+      ]
+    }
+  ]
+}

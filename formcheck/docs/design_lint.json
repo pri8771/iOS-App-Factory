@@ -1,0 +1,23 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "rule": "todo_marker",
+      "file": "App/FormcheckApp.swift",
+      "line": 34,
+      "detail": "// TODO(primary_ui): once History reads through @Query, confirm this launch-time"
+    },
+    {
+      "rule": "empty_action",
+      "file": "Features/Home/HomeView.swift",
+      "line": 287,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (Button(\"Cancel\", role: .cancel) {})"
+    },
+    {
+      "rule": "empty_action",
+      "file": "Features/Home/HomeView.swift",
+      "line": 293,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (Button(\"OK\", role: .cancel) {})"
+    }
+  ]
+}

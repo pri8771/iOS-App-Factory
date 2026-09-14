@@ -1,0 +1,54 @@
+{
+  "bundle_id": "com.aura.app",
+  "screens": 4,
+  "edges": 3,
+  "crashes": [],
+  "dead_taps": [
+    {
+      "screen": "-58e72e112f9070e2",
+      "tapped": {
+        "id": "tabBar.today",
+        "kind": "button",
+        "label": "Today tab"
+      }
+    }
+  ],
+  "back_violations": [],
+  "flows": [
+    {
+      "failure": "",
+      "name": "Complete daily check-in, reveal today's Aura, and share it",
+      "passed": true
+    },
+    {
+      "failure": "step 4: expected \u2018archive.grid\u2019 on screen",
+      "name": "Enable demo history and browse the archive grid",
+      "passed": false
+    },
+    {
+      "failure": "step 5: expected \u2018archive.trendChart\u2019 on screen",
+      "name": "View the mood trend chart inside Archive",
+      "passed": false
+    },
+    {
+      "failure": "step 4: expected \u2018wrapped.posterImage\u2019 on screen",
+      "name": "View the monthly Wrapped recap once demo history unlocks it",
+      "passed": false
+    },
+    {
+      "failure": "step 4: expected \u2018settings.auraPlusUnlockedBadge\u2019 on screen",
+      "name": "Purchase Aura+ via the local StoreKit configuration",
+      "passed": false
+    },
+    {
+      "failure": "step 3: expected \u2018Nothing to Restore\u2019 on screen",
+      "name": "Restore purchases shows the honest nothing-to-restore state",
+      "passed": false
+    },
+    {
+      "failure": "step 9: expected \u2018settings.auraPlusUnlockedBadge\u2019 on screen",
+      "name": "Complete check-in, purchase Aura+, then regenerate today's card",
+      "passed": false
+    }
+  ]
+}

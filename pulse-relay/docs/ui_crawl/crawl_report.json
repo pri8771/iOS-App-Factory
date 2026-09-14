@@ -1,0 +1,54 @@
+{
+  "a11y_issues" : [
+    {
+      "detail" : "Text clipped",
+      "screen" : "7ed2f64bff8866ef",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 131072)"
+    },
+    {
+      "detail" : "Text clipped",
+      "screen" : "7ed2f64bff8866ef",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 131072)"
+    }
+  ],
+  "back_violations" : [
+
+  ],
+  "bounded" : {
+    "screens" : false,
+    "time" : false
+  },
+  "crashes" : [
+
+  ],
+  "dead_taps" : [
+    {
+      "screen" : "7ed2f64bff8866ef",
+      "tapped" : {
+        "id" : "authGate.signInWithAppleButton",
+        "kind" : "button",
+        "label" : "Sign in with Apple"
+      }
+    }
+  ],
+  "edges" : [
+
+  ],
+  "flows" : [
+    {
+      "failure" : "step 1: no tappable element ‘relayBoard.firstRequestCard’",
+      "name" : "Complete a claimed request and view the receipt",
+      "passed" : false
+    }
+  ],
+  "screens" : [
+    {
+      "path" : [
+
+      ],
+      "screenshot" : "01_screen_7ed2f64bff8866ef.png",
+      "sig" : "7ed2f64bff8866ef"
+    }
+  ],
+  "target" : "com.pulserelay.app"
+}

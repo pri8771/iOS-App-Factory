@@ -1,0 +1,662 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Xcode project + WaypointKit package scaffolding, two targets, App Group entitlement",
+      "owner_lane": "data_domain",
+      "files": [
+        "Waypoint.xcodeproj/project.pbxproj",
+        "Waypoint/Waypoint.entitlements",
+        "WaypointWidget/WaypointWidget.entitlements",
+        "WaypointKit/Package.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Both targets (Waypoint app, WaypointWidget extension) build empty and run in Simulator",
+        "WaypointKit compiles with an @Model type imported into both targets, or the shared-sources fallback is adopted in this same task if it doesn't",
+        "App Group entitlement present on both targets with matching group identifier"
+      ],
+      "requirement_ids": [
+        "R-034"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-002",
+      "title": "SwiftData schema: Trip/Day/Stop/Traveler/Expense/ExpenseSplit/PackingItem/PackingTemplate + versioned schema plan",
+      "owner_lane": "data_domain",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/Models/Trip.swift",
+        "WaypointKit/Sources/WaypointKit/Models/Day.swift",
+        "WaypointKit/Sources/WaypointKit/Models/Stop.swift",
+        "WaypointKit/Sources/WaypointKit/Models/Traveler.swift",
+        "WaypointKit/Sources/WaypointKit/Models/Expense.swift",
+        "WaypointKit/Sources/WaypointKit/Models/ExpenseSplit.swift",
+        "WaypointKit/Sources/WaypointKit/Models/PackingItem.swift",
+        "WaypointKit/Sources/WaypointKit/Models/PackingTemplate.swift",
+        "WaypointKit/Sources/WaypointKit/Schema/WaypointSchemaV1.swift",
+        "WaypointKit/Sources/WaypointKit/Schema/WaypointMigrationPlan.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Stop.day is non-optional",
+        "Expense/ExpenseSplit store amountCents/shareCents as Int with a computed Decimal accessor",
+        "Schema is registered via VersionedSchema/SchemaMigrationPlan, not an unversioned container"
+      ],
+      "requirement_ids": [
+        "R-002",
+        "R-011",
+        "R-017",
+        "R-031"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-003",
+      "title": "ModelConfiguration/ModelContainerFactory with App Group + explicit cloudKitDatabase .none",
+      "owner_lane": "data_domain",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/Persistence/ModelContainerFactory.swift",
+        "WaypointKit/Sources/WaypointKit/Persistence/AppGroupConstants.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Single ModelConfiguration used by both app and widget targets",
+        "cloudKitDatabase explicitly set to .none, not left unset",
+        "groupContainer points at the shared App Group used elsewhere for the debug date hook"
+      ],
+      "requirement_ids": [
+        "R-034",
+        "R-036"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-004",
+      "title": "Date-range math, day shrink-guard, and the atomic StopReorderService.moveStop",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/Services/DayRangeGuard.swift",
+        "WaypointKit/Sources/WaypointKit/Services/Trip+DateMath.swift",
+        "WaypointKit/Sources/WaypointKit/Services/StopReorderService.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Single-day and same-start-end-day trips compute correct day counts",
+        "moveStop reassigns day + reindexes sortIndex on both source and destination in one save, rolling back on throw",
+        "DayRangeGuard.affectedStops blocks a shrink that would orphan stops and returns the specific stops"
+      ],
+      "requirement_ids": [
+        "R-001",
+        "R-003",
+        "R-004",
+        "R-006"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-005",
+      "title": "CurrentDateProvider debug hook + ActiveTripResolver",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/Services/CurrentDateProvider.swift",
+        "WaypointKit/Sources/WaypointKit/Services/ActiveTripResolver.swift"
+      ],
+      "depends_on": [
+        "T-003"
+      ],
+      "acceptance_criteria": [
+        "#if DEBUG override reads from the App Group UserDefaults suite and is physically absent from release builds",
+        "activeTrip(in:now:) is the only 'is this trip active today' logic in the codebase, used identically by app/widget/Live Activity"
+      ],
+      "requirement_ids": [
+        "R-036",
+        "R-038"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-006",
+      "title": "Theme.swift full token set",
+      "owner_lane": "primary_ui",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/UI/Theme.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Type scale, 8pt spacing grid, corner radii, and light+dark semantic color pairs all present with no literal font/color/spacing values left for views to invent",
+        "Ledger Numeral tabular style defined for all time/money display"
+      ],
+      "requirement_ids": [
+        "R-046"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-007",
+      "title": "Shared components: DemoStampBadge, CategoryPin, EmptyStateCard, TicketStubBackground",
+      "owner_lane": "primary_ui",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/UI/DemoStampBadge.swift",
+        "WaypointKit/Sources/WaypointKit/UI/CategoryPin.swift",
+        "WaypointKit/Sources/WaypointKit/UI/EmptyStateCard.swift",
+        "WaypointKit/Sources/WaypointKit/UI/TicketStubBackground.swift"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "One EmptyStateCard implementation reused everywhere an empty state appears",
+        "CategoryPin carries an accessibility label naming category + stop name",
+        "DemoStampBadge renders identically wherever it's used (app, widget, Live Activity)"
+      ],
+      "requirement_ids": [
+        "R-032",
+        "R-045"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-008",
+      "title": "DemoSeeder singleton with deliberately unroutable stop",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/Services/DemoSeeder.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Toggling demo on/off repeatedly never creates a duplicate or touches a real trip",
+        "At least one seeded stop uses structurally unroutable (open-ocean) coordinates",
+        "Every demo-trip field is marked isDemo == true"
+      ],
+      "requirement_ids": [
+        "R-032",
+        "R-037",
+        "R-044"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-009",
+      "title": "TripGateChecker.canCreateTrip (non-demo trip count gate)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/Services/TripGateChecker.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "existingTripCount passed in explicitly excludes isDemo == true trips",
+        "Function is pure and independently unit-testable with isPro hardcoded false"
+      ],
+      "requirement_ids": [
+        "R-039"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-010",
+      "title": "TripSwitcher + trip create/edit with inline shrink-guard and creation gating",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waypoint/Features/TripSwitcher/TripSwitcherView.swift",
+        "Waypoint/Features/TripSwitcher/TripEditView.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Shrinking a date range that would orphan stops blocks inline and lists the affected stops, not a separate error screen",
+        "New Trip disabled with upsell copy once non-demo trip count is at the free-tier cap"
+      ],
+      "requirement_ids": [
+        "R-001",
+        "R-006",
+        "R-039",
+        "R-045"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-011",
+      "title": "DayView hub: list + selection state + drag reorder + Move-to + page-flip animation",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waypoint/Features/DayView/DayView.swift",
+        "Waypoint/Features/DayView/StopListView.swift",
+        "Waypoint/Features/DayView/LedgerPageFlip.swift",
+        "Waypoint/Features/DayView/StopDetailSheet.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-007",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Exactly one @State selectedStopID drives both list and map, no dual-synced state",
+        "Drag gesture and the 'Move to...' context menu both call StopReorderService.moveStop, never a separate implementation",
+        "Page-flip animation runs only after the underlying save completes, never optimistically"
+      ],
+      "requirement_ids": [
+        "R-002",
+        "R-003",
+        "R-004",
+        "R-005",
+        "R-010"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-012",
+      "title": "MapKit pane: MKDirections routing + approximate fallback + two-way pin/list binding",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waypoint/Features/DayView/DayMapView.swift",
+        "Waypoint/Features/DayView/RouteResolver.swift"
+      ],
+      "depends_on": [
+        "T-011"
+      ],
+      "acceptance_criteria": [
+        "MKDirections failure (e.g. the demo's open-ocean stop) renders a straight-line polyline with a visible 'approximate' indicator, never a silent blank map",
+        "Tapping a pin updates the same selectedStopID the list uses, and vice versa"
+      ],
+      "requirement_ids": [
+        "R-007",
+        "R-008",
+        "R-009",
+        "R-010"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-013",
+      "title": "StopReorderService adversarial test suite (10x/20x cross-day regression)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaypointTests/StopReorderServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "A stop driven across 3+ days in 10+ rapid Move-to calls exists in exactly one day at every intermediate check",
+        "Test runs against an in-memory ModelContainer with no UI involvement"
+      ],
+      "requirement_ids": [
+        "R-004",
+        "R-005"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-014",
+      "title": "SettlementEngine (integer cents) + TravelerDeletionGuard",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/Services/SettlementEngine.swift",
+        "WaypointKit/Sources/WaypointKit/Services/TravelerDeletionGuard.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "computeBalances sums to exactly zero across all travelers",
+        "minimumTransactions produces the mathematically minimal payment set with remainder cents assigned to the payer",
+        "TravelerDeletionGuard blocks deletion while the traveler is a payer or split participant on any expense and returns the specific expenses"
+      ],
+      "requirement_ids": [
+        "R-012",
+        "R-013",
+        "R-014",
+        "R-015",
+        "R-016",
+        "R-031"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-015",
+      "title": "SettlementEngine/TravelerDeletionGuard adversarial + stress test suite",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaypointTests/SettlementEngineTests.swift",
+        "WaypointTests/TravelerDeletionGuardTests.swift"
+      ],
+      "depends_on": [
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "5+ traveler case with mixed split methods and an excluded-payer scenario produces the correct minimal transaction count",
+        "A non-100%-summing percentage entry is rejected before it ever reaches SettlementEngine",
+        "8-traveler/40-expense stress case completes with correct sum-identity",
+        "TravelerDeletionGuard has its own passing/failing case pair"
+      ],
+      "requirement_ids": [
+        "R-013",
+        "R-014",
+        "R-015",
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-016",
+      "title": "Travelers / expense entry / settle-up UI",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waypoint/Features/Money/TravelersView.swift",
+        "Waypoint/Features/Money/ExpenseEntryView.swift",
+        "Waypoint/Features/Money/SettleUpView.swift"
+      ],
+      "depends_on": [
+        "T-014",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Percentage entries not summing to 100% show an inline error stating the actual sum, never auto-rescaled",
+        "Settle-up shows the ledger arithmetic proving the totals, not just the final payment list",
+        "All money entry/display uses Decimal, never Double"
+      ],
+      "requirement_ids": [
+        "R-011",
+        "R-012",
+        "R-013",
+        "R-014",
+        "R-015",
+        "R-031"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-017",
+      "title": "Packing checklist + packed-% + templates UI",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waypoint/Features/Packing/PackingView.swift",
+        "Waypoint/Features/Packing/PackingTemplateView.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Packed-% recomputes live as items are checked",
+        "Saving a template and reapplying it to a different trip creates independent PackingItem rows, not shared references"
+      ],
+      "requirement_ids": [
+        "R-017",
+        "R-018",
+        "R-019"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-018",
+      "title": "CalendarExportService (full-access EventKit, identifier-based dedup)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "WaypointKit/Sources/WaypointKit/Services/CalendarExportService.swift"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Re-exporting the same day updates existing events via stored calendarEventIdentifier rather than creating duplicates",
+        "Permission denied, permission restricted, and externally-deleted-event are three distinct returned outcomes, not one generic failure",
+        "Model objects are never held across the async EventKit await boundary"
+      ],
+      "requirement_ids": [
+        "R-023",
+        "R-024",
+        "R-025",
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-019",
+      "title": "Calendar export summary sheet UI",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waypoint/Features/Calendar/CalendarExportSummarySheet.swift"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Shows explicit created/updated counts on re-export",
+        "Permission-denied and externally-deleted-event states have distinct copy, not a shared generic message"
+      ],
+      "requirement_ids": [
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-020",
+      "title": "iPad two-pane split view scoped to DayView",
+      "owner_lane": "primary_ui",
+      "files": [
+        "Waypoint/Features/DayView/DayViewSplit.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "NavigationSplitView activates only within DayView, not app-wide",
+        "Independent-pane interaction (selecting a stop in one pane updates the other without collapsing to one column) confirmed on at least two iPad sizes and both orientations"
+      ],
+      "requirement_ids": [
+        "R-029",
+        "R-030"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-021",
+      "title": "Home-screen widget: NextStopWidget + TimelineProvider + deep link",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "WaypointWidget/NextStopWidget.swift",
+        "WaypointWidget/NextStopTimelineProvider.swift",
+        "WaypointWidget/WaypointWidgetBundle.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-003",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "No active trip renders an honest 'no active trip' state, never a stale or fabricated stop",
+        "widgetURL opens the app directly to the corresponding trip/day"
+      ],
+      "requirement_ids": [
+        "R-027",
+        "R-028"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-022",
+      "title": "Live Activity: ActivityAttributes + ActivityConfiguration + LiveActivityController",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "WaypointWidget/TripActivityAttributes.swift",
+        "WaypointWidget/TripLiveActivity.swift",
+        "WaypointKit/Sources/WaypointKit/Services/LiveActivityController.swift"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "areActivitiesEnabled is checked before every request, pushType is always nil",
+        "Denying the Live Activity permission or running on an unsupported OS/device results in no crash and no Live Activity, observed not just coded",
+        "Countdown uses Text(timerInterval:) with update() called only on an actual next-stop change"
+      ],
+      "requirement_ids": [
+        "R-020",
+        "R-021",
+        "R-022",
+        "R-035"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-023",
+      "title": "StoreKit dual-product paywall + restore/lapse handling",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Waypoint/Store/PaywallView.swift",
+        "Waypoint/Store/StoreController.swift",
+        "Waypoint/Configuration.storekit"
+      ],
+      "depends_on": [
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Annual subscription and lifetime purchase both unlock identical Pro features via Transaction.currentEntitlements",
+        "A lapsed subscription or failed restore leaves all existing trip data intact and only locks new-trip creation past the cap and Pro-only surfaces"
+      ],
+      "requirement_ids": [
+        "R-040",
+        "R-041"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-024",
+      "title": "Privacy manifest + accessibility + dark-mode verification pass",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "Waypoint/PrivacyInfo.xcprivacy",
+        "Waypoint/Accessibility/AccessibilityAudit.md"
+      ],
+      "depends_on": [
+        "T-006",
+        "T-011",
+        "T-012"
+      ],
+      "acceptance_criteria": [
+        "PrivacyInfo.xcprivacy declares the UserDefaults usage reason",
+        "Dynamic Type reflows ticket-stub cards taller without ever clipping a time or money value",
+        "Card and pin contrast verified against WCAG in both light and dark"
+      ],
+      "requirement_ids": [
+        "R-042",
+        "R-046",
+        "R-005"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Build-verification: trigger every degradation path and observe the result",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "WaypointTests/DegradationVerificationChecklist.md"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-018",
+        "T-020",
+        "T-022",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Calendar permission actually denied and the resulting UI state observed, not inferred from code",
+        "Live Activity actually denied/unsupported and the resulting no-crash/no-activity state observed",
+        "MKDirections failure actually observed producing the approximate fallback",
+        "iPad independent-pane behavior actually observed on two sizes and both orientations, not assumed from NavigationSplitView usage alone"
+      ],
+      "requirement_ids": [
+        "R-022",
+        "R-026",
+        "R-030",
+        "R-043"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "README: Simulator run instructions + Gaps section",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "README.md"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Gaps section explicitly names live traffic/flight data, iCloud sync, and destination-timezone-aware itineraries as out of scope",
+        "Step-by-step Xcode/Simulator run instructions, including how to enable the demo trip toggle"
+      ],
+      "requirement_ids": [
+        "R-033"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 2
+    }
+  ],
+  "errors": []
+}

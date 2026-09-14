@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "Honest first launch, then enable demo trip",
+      "steps": [
+        {
+          "assert_exists": "No trips yet"
+        },
+        {
+          "tap": "settings.tabButton"
+        },
+        {
+          "tap": "settings.demoTripToggle"
+        },
+        {
+          "assert_exists": "DEMO"
+        }
+      ]
+    },
+    {
+      "name": "Create a single-day trip and see correct day math",
+      "steps": [
+        {
+          "tap": "tripSwitcher.newTripButton"
+        },
+        {
+          "type": "Weekend Getaway",
+          "into": "tripEdit.nameField"
+        },
+        {
+          "tap": "tripEdit.saveButton"
+        },
+        {
+          "assert_exists": "Weekend Getaway"
+        }
+      ]
+    },
+    {
+      "name": "Add a stop and reorder it within a day via Move-to",
+      "steps": [
+        {
+          "tap": "dayView.addStopButton"
+        },
+        {
+          "type": "Morning Coffee",
+          "into": "stopDetail.nameField"
+        },
+        {
+          "tap": "stopDetail.saveButton"
+        },
+        {
+          "assert_exists": "Morning Coffee"
+        },
+        {
+          "tap": "dayView.stopRow.moveToButton"
+        },
+        {
+          "assert_exists": "Move to..."
+        }
+      ]
+    },
+    {
+      "name": "Log a mixed-split expense and reject a bad percentage entry",
+      "steps": [
+        {
+          "tap": "money.addTravelerButton"
+        },
+        {
+          "type": "Priya",
+          "into": "travelers.nameField"
+        },
+        {
+          "tap": "travelers.saveButton"
+        },
+        {
+          "tap": "money.addExpenseButton"
+        },
+        {
+          "type": "120",
+          "into": "expenseEntry.amountField"
+        },
+        {
+          "tap": "expenseEntry.splitMethodPercentage"
+        },
+        {
+          "type": "60",
+          "into": "expenseEntry.percentageField"
+        },
+        {
+          "tap": "expenseEntry.saveButton"
+        },
+        {
+          "assert_exists": "must sum to 100%"
+        }
+      ]
+    },
+    {
+      "name": "Settle up shows minimal transactions with matching arithmetic",
+      "steps": [
+        {
+          "tap": "money.settleUpButton"
+        },
+        {
+          "assert_exists": "Settle Up"
+        }
+      ]
+    },
+    {
+      "name": "Observe the approximate-route fallback on the demo's unroutable stop",
+      "steps": [
+        {
+          "tap": "dayView.mapTabButton"
+        },
+        {
+          "assert_exists": "Approximate"
+        }
+      ]
+    },
+    {
+      "name": "Export a day to Calendar, then re-export and see honest counts",
+      "steps": [
+        {
+          "tap": "dayView.calendarExportButton"
+        },
+        {
+          "assert_exists": "created"
+        },
+        {
+          "tap": "dayView.calendarExportButton"
+        },
+        {
+          "assert_exists": "updated"
+        }
+      ]
+    },
+    {
+      "name": "Widget/Live Activity honest degradation on an active trip",
+      "steps": [
+        {
+          "tap": "settings.demoTripToggle"
+        },
+        {
+          "assert_exists": "DEMO"
+        },
+        {
+          "tap": "settings.demoTripToggle"
+        },
+        {
+          "assert_exists": "No active trip"
+        }
+      ]
+    }
+  ]
+}

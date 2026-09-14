@@ -1,0 +1,277 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "Record through a simulated interruption to a finalized, honestly-stated entry",
+      "steps": [
+        "Open Record screen",
+        "Start recording, observe live waveform",
+        "Trigger a simulated interruption",
+        "Observe the ink-color/glyph interruption visual and VoiceOver announcement, not a spinner",
+        "Resume or finalize",
+        "Return to Timeline and see the entry with an honest transcribing/unavailable/ready badge, never a false 'ready'"
+      ]
+    },
+    {
+      "name": "Tap-to-seek survives a transcript edit",
+      "steps": [
+        "Open an entry with a ready transcript",
+        "Tap a mid-transcript sentence, confirm audio seeks to that point within tolerance",
+        "Edit the text of that sentence",
+        "Tap the same region again, confirm it still seeks correctly (via anchor ID, including nearest-surviving-anchor fallback if the anchor was spanned by the edit)"
+      ]
+    },
+    {
+      "name": "Accept and dismiss tag/mood suggestions",
+      "steps": [
+        "Open an entry with suggested tags and a suggested mood",
+        "Dismiss one suggested tag, confirm it disappears without being silently reapplied",
+        "Accept the mood suggestion, confirm it now reads as user-confirmed, not just AI-guessed"
+      ]
+    },
+    {
+      "name": "Mention another entry and see a live backlink; delete and confirm no dangling link",
+      "steps": [
+        "In an entry's transcript, @-mention a second existing entry via autocomplete",
+        "Open the mentioned entry, confirm a live backlink now appears",
+        "Delete the mentioning entry",
+        "Return to the mentioned entry, confirm the backlink is gone with no dangling or duplicate reference"
+      ]
+    },
+    {
+      "name": "Search returns ranked, explained results",
+      "steps": [
+        "Open Search tab",
+        "Enter a query matching both transcript content and a tag on different entries",
+        "Confirm results are ordered by the documented relevance score, not insertion or alphabetical order",
+        "Confirm each result shows a visible match-reason hint"
+      ]
+    },
+    {
+      "name": "Demo entries toggle: seed, verify honest edge states, reverse cleanly",
+      "steps": [
+        "In Settings, enable the demo-entries toggle",
+        "Confirm Timeline populates with seeded entries including a demo/real ribbon marker",
+        "Locate the seeded HealthKit-correlated day and the seeded broken-link example",
+        "Disable the toggle, confirm all demo entries and their mentions are fully removed with no orphaned backlinks"
+      ]
+    },
+    {
+      "name": "Attach a PencilKit sketch to an entry",
+      "steps": [
+        "Open an entry, add a sketch",
+        "Draw with finger or Pencil input",
+        "Save, confirm a thumbnail appears on the entry",
+        "Reopen the entry, confirm the sketch persists and reloads correctly"
+      ]
+    },
+    {
+      "name": "HealthKit honest degradation when not authorized",
+      "steps": [
+        "In Settings, view the permission matrix with HealthKit not yet granted",
+        "Open an entry from today",
+        "Confirm the HealthKit correlation card shows a hedged 'no data available' state, not a false 'not connected' claim, and does not block viewing or editing the entry"
+      ]
+    },
+    {
+      "name": "record_new_voice_entry",
+      "steps": [
+        {
+          "tap": "timeline.recordButton"
+        },
+        {
+          "tap": "record.recordButton"
+        },
+        {
+          "tap": "record.recordButton"
+        },
+        {
+          "tap": "record.doneButton"
+        },
+        {
+          "assert_exists": "Unavailable",
+          "timeout": 20
+        }
+      ]
+    },
+    {
+      "name": "enable_demo_data",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "tap": "settings.demoToggle"
+        },
+        {
+          "tap": "Timeline"
+        },
+        {
+          "assert_exists": "Morning walk by the harbor"
+        }
+      ]
+    },
+    {
+      "name": "tap_to_seek_survives_transcript_edit",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "tap": "settings.demoToggle"
+        },
+        {
+          "tap": "Timeline"
+        },
+        {
+          "tap": "timeline.entryCard"
+        },
+        {
+          "tap": "entryDetail.transcriptSentence"
+        },
+        {
+          "tap": "entryDetail.editTranscriptButton"
+        },
+        {
+          "type": "morning fog",
+          "into": "entryDetail.transcriptEditField"
+        },
+        {
+          "tap": "entryDetail.saveTranscriptButton"
+        },
+        {
+          "assert_exists": "morning fog"
+        }
+      ]
+    },
+    {
+      "name": "accept_and_dismiss_tag_mood_suggestions",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "tap": "settings.demoToggle"
+        },
+        {
+          "tap": "Timeline"
+        },
+        {
+          "tap": "timeline.entryCard"
+        },
+        {
+          "tap": "entryDetail.tagChip.dismiss"
+        },
+        {
+          "tap": "entryDetail.moodChip.accept"
+        },
+        {
+          "assert_exists": "Confirmed"
+        }
+      ]
+    },
+    {
+      "name": "mention_creates_live_backlink",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "tap": "settings.demoToggle"
+        },
+        {
+          "tap": "Timeline"
+        },
+        {
+          "tap": "timeline.entryCard"
+        },
+        {
+          "tap": "entryDetail.editTranscriptButton"
+        },
+        {
+          "type": "@",
+          "into": "entryDetail.transcriptEditField"
+        },
+        {
+          "tap": "entryDetail.mentionSuggestionRow"
+        },
+        {
+          "tap": "entryDetail.saveTranscriptButton"
+        },
+        {
+          "assert_exists": "Linked from"
+        }
+      ]
+    },
+    {
+      "name": "search_returns_ranked_results_with_match_reason",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "tap": "settings.demoToggle"
+        },
+        {
+          "tap": "Search"
+        },
+        {
+          "type": "beach",
+          "into": "search.queryField"
+        },
+        {
+          "assert_exists": "search.resultRow"
+        },
+        {
+          "assert_exists": "Matched"
+        }
+      ]
+    },
+    {
+      "name": "healthkit_shows_honest_not_connected_state",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "tap": "settings.demoToggle"
+        },
+        {
+          "tap": "Timeline"
+        },
+        {
+          "tap": "timeline.entryCard"
+        },
+        {
+          "assert_exists": "No data available"
+        }
+      ]
+    },
+    {
+      "name": "attach_sketch_to_entry",
+      "steps": [
+        {
+          "tap": "Settings"
+        },
+        {
+          "tap": "settings.demoToggle"
+        },
+        {
+          "tap": "Timeline"
+        },
+        {
+          "tap": "timeline.entryCard"
+        },
+        {
+          "tap": "entryDetail.addSketchButton"
+        },
+        {
+          "tap": "sketch.doneButton"
+        },
+        {
+          "assert_exists": "entryDetail.sketchThumbnail"
+        }
+      ]
+    }
+  ]
+}

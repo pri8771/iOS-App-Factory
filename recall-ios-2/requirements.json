@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "App functions fully offline; all core flows (create/edit/review/summary) work in airplane mode with no network-dependent waiting or error states",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "SM-2 scheduling ships as a pure, standalone module with no SwiftData/SwiftUI imports, implementing the fully-locked grade formula (initial ease 2.5, interval steps 1\u21926\u2192ease-driven, Again reset, Hard fixed \u00d71.2, Good \u00d7ease, Easy \u00d7ease\u00d71.3), with mandatory unit tests for first-review, lapse-reset, ease-floor (1.3), calendar-day/DST boundary, and the Hard-vs-Good-at-ease-2.8/interval-20 pathology check",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "Deck create/rename/archive and card create/edit (front, back, optional note) with fast keyboard-driven input and inline validation blocking blank front/back",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "A single shared due-computation function (`dueCards(scope: Set<Deck>)`) is the only source of due-ness, used identically by deck badges, review scope selection, and any inline/stats due-count display",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "Review session supports both a single chosen deck and all decks, preserving per-card deck identity in mixed sessions; the queue is snapshotted once at scope-selection time and never re-queried mid-session",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "Every grade (Again/Hard/Good/Easy) persists synchronously to SwiftData before advancing to the next card",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "Force-quitting mid-session and relaunching preserves every already-graded card's new schedule while ungraded cards remain due",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "Session summary reports accurate reviewed count, again-rate, and elapsed time, with honest per-deck attribution when reviewing across decks",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "Stats screen (per-deck and overall) shows a real 30-day due-forecast bar chart, daily review-count history, and retention rate using Swift Charts, handling empty/sparse data gracefully with no fabricated values, and excluding demo-flagged events from aggregate views",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "CSV export produces a valid two-column (front, back) file via the standard share/Files flow; CSV import shows a preview before commit, uses RFC4180-compliant parsing, reports every malformed row individually with a reason, skips exact-duplicate rows (whitespace-trimmed, case-sensitive) with a visible reason rather than importing them, and reconciles post-import count exactly with preview minus flagged rows",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "One optional daily local reminder at a user-chosen time, with a generic non-numeric notification body, a toggle that reflects true OS notification-authorization state, and a clear re-enable path on denial",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "A demo-data toggle in Settings seeds two visibly-badged decks with realistic multi-day review history; disabling it fully deletes (not hides) all demo-flagged records, verifiable by count; demo decks/cards are excluded from the free-tier deck cap in both directions",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "Archive and permanent delete are distinct actions: archive is reversible and keeps a deck editable/exportable/unarchivable and out of default review scope only; delete is a separately confirmed, cascading destructive action",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "Designed empty states (icon + reason + action) for zero decks, zero due cards in a single deck, and zero due cards across all decks \u2014 the all-decks case explicitly distinguishes 'nothing due here' from 'nothing due anywhere' with a scope-appropriate action; never a blank screen",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "Cloud sync, shared/community decks, and a deck marketplace are never faked or stubbed; each appears as an honestly documented gap with a concrete note on what building it for real would take",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "StoreKit 2 subscription/paywall: free tier capped at 3 active non-demo decks with full SM-2/review/editing/CSV-export/basic stats; paid tier unlocks unlimited decks, both charts, CSV import, and the reminder; entitlement checked on-device with no network dependency after purchase; lapsed subscriptions retain but lock over-cap decks (never delete, never freeze scheduling)",
+      "core": false
+    },
+    {
+      "id": "R-017",
+      "text": "Every requirement marked core:true must be implemented as fully real, working functionality \u2014 never a placeholder, inline-text stand-in, or shim substituting for the specified feature",
+      "core": true
+    }
+  ]
+}

@@ -1,0 +1,286 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "MoodID",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MoodID: String, Codable, CaseIterable, Hashable { case radiant, calm, wistful, restless, tender, fierce, hazy, hopeful }",
+      "owning_lane": "data_domain",
+      "notes": "Fixed 8-value vocabulary, radial wheel ordering used for palette hue mapping."
+    },
+    {
+      "name": "ChipID",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct ChipID: RawRepresentable, Codable, Hashable { let rawValue: String } // 24 curated values across 4 families (texture/weather/pace/company), 6 each",
+      "owning_lane": "data_domain",
+      "notes": "User selects 1-2 per check-in; family grouping only affects curation, not selection logic."
+    },
+    {
+      "name": "TimeOfDayBucket",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TimeOfDayBucket: String, Codable { case dawn, day, dusk, night }",
+      "owning_lane": "data_domain",
+      "notes": "Resolved and frozen once at generation time per DEC-product_research-003; never recomputed."
+    },
+    {
+      "name": "EntitlementSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct EntitlementSnapshot: Codable, Hashable { let isAuraPlus: Bool; let unlockedPaletteTier: PaletteTier; let capturedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Snapshotted onto each DayEntry at generation; never recomputed live per DEC-detailed_discussion-011."
+    },
+    {
+      "name": "AuraRecipe",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct AuraRecipe: Codable, Hashable { let dateKey: String; let mood: MoodID; let chips: [ChipID]; let timeOfDay: TimeOfDayBucket; let entitlement: EntitlementSnapshot; let regenerationNonce: Int; let compositionFamily: CompositionFamily; let paletteIndex: Int; let flowFieldSeed: UInt64; let warpAngleBias: Double; let densityValue: Double; let colorGradeCurveID: Int; let captionFragmentIndices: [CaptionSlot: Int] }",
+      "owning_lane": "data_domain",
+      "notes": "The pure GPU-free determinism contract per DEC-ios_architecture_review-002; nonce>0 recipes are produced via RegenerationDivergenceEngine, not a fresh independent draw."
+    },
+    {
+      "name": "SeedEngine.generateRecipe",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func generateRecipe(dateKey: String, mood: MoodID, chips: [ChipID], timeOfDay: TimeOfDayBucket, entitlement: EntitlementSnapshot, regenerationNonce: Int, captionHistory: CaptionEligibilityQuery) -> AuraRecipe",
+      "owning_lane": "data_domain",
+      "notes": "For nonce==0, pure hash-derived draw. For nonce>0, computes the nonce==0 base recipe then applies RegenerationDivergenceEngine.perturb."
+    },
+    {
+      "name": "CaptionEligibilityQuery",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol CaptionEligibilityQuery { func recentlyUsedFragmentIndices(mood: MoodID, slot: CaptionSlot, withinDays: Int) -> Set<Int> }",
+      "owning_lane": "data_domain",
+      "notes": "Backed by a SwiftData query over DayEntry in the app; a fake/in-memory conformer used in AuraKit unit tests."
+    },
+    {
+      "name": "DayEntry",
+      "kind": "struct",
+      "language": "swift (SwiftData @Model)",
+      "signature": "@Model final class DayEntry { @Attribute(.unique) var dateKey: String; var mood: MoodID; var chips: [ChipID]; var recipe: AuraRecipe; var fullResImagePath: String; var thumbnailImagePath: String; var bloomIntermediatePaths: [String]; var captionText: String; var isDemo: Bool; var regenerationNonce: Int; var timeZoneIdentifierAtCompletion: String; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Canonical identity is dateKey, never array index/UUID; regeneration replaces this record's fields in place per DEC-initial_discussion-006."
+    },
+    {
+      "name": "MonthlyWrapped",
+      "kind": "struct",
+      "language": "swift (SwiftData @Model)",
+      "signature": "@Model final class MonthlyWrapped { @Attribute(.unique) var monthKey: String; var posterImagePath: String; var dominantPaletteIndex: Int; var moodDistribution: [MoodID: Int]; var isPartial: Bool; var generatedAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "isPartial distinguishes the on-demand mini-recap from a real month-end Wrapped."
+    },
+    {
+      "name": "SchemaV1 / AuraMigrationPlan",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [DayEntry.self, MonthlyWrapped.self] } }; enum AuraMigrationPlan: SchemaMigrationPlan { static var schemas: [any VersionedSchema.Type] { [SchemaV1.self] }; static var stages: [MigrationStage] { [] } }",
+      "owning_lane": "data_domain",
+      "notes": "Per DEC-ios_architecture_review-003; empty stage list at v1, extend when v2 lands."
+    },
+    {
+      "name": "ModelContainerFactory.makeContainer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func makeContainer(inMemory: Bool = false) throws -> ModelContainer // must configure cloudKitDatabase: .none",
+      "owning_lane": "data_domain",
+      "notes": "Build-time audit point for DEC-per_app_product_brief-005; store lives in default app container, NOT the App Group."
+    },
+    {
+      "name": "AuraClock",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AuraClock { func now() -> Date; func currentTimeZone() -> TimeZone }",
+      "owning_lane": "services_utilities",
+      "notes": "SystemClock (live) and TestClock (XCTest, settable now/timezone) both conform; injected into AuraStore and DayStateResolver."
+    },
+    {
+      "name": "DayStateResolver",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DayStateResolver { let clock: AuraClock; func canonicalDayKey() -> String; func isLocked(against entries: [DayEntry]) -> Bool; func canRegenerate(against entries: [DayEntry], entitlement: EntitlementSnapshot) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "Single source of truth for both daily lock and regeneration credit per DEC-detailed_discussion-002; derives from persisted DayEntry query per DEC-ios_architecture_review-004, never a cached scalar."
+    },
+    {
+      "name": "AuraRenderer",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol AuraRenderer { func renderBloomIntermediates(recipe: AuraRecipe) async -> [CIImage]; func renderThumbnail(recipe: AuraRecipe) async -> CGImage; func renderFullExport(recipe: AuraRecipe, watermarked: Bool) async -> CGImage; func renderWrappedPoster(month: MonthlyWrapped, entries: [DayEntry]) async -> CGImage }",
+      "owning_lane": "services_utilities",
+      "notes": "Single CIContext-backed implementation per DEC-ios_architecture_review-001, with 3 internal composition-family branches (paintBloom/particleField/flowLines) sharing the same context/filter infrastructure. renderBloomIntermediates MUST return exactly 4 CIImages for every family per DEC-tech_specs-014 \u2014 family differences live inside each of the 4 stages, never by changing stage count."
+    },
+    {
+      "name": "AuraStore",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@MainActor @Observable final class AuraStore { var pendingDeepLink: PendingDeepLink?; var demoModeEnabled: Bool; private(set) var entitlement: EntitlementSnapshot; func canonicalDayKey() -> String; func todayEntry() -> DayEntry? }",
+      "owning_lane": "primary_ui",
+      "notes": "Sole owner of day-state/entitlement/demo-mode per DEC-design_handoff-001; wraps DayStateResolver, never queried around."
+    },
+    {
+      "name": "PendingDeepLink / TodayRoute / ArchiveRoute / WrappedRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PendingDeepLink { case today(TodayRoute); case archive(ArchiveRoute); case wrapped(WrappedRoute) }; enum TodayRoute { case checkIn; case revealed }; enum ArchiveRoute { case detail(dateKey: String) }; enum WrappedRoute { case poster(monthKey: String) }",
+      "owning_lane": "primary_ui",
+      "notes": "Consumed once via .onChange per DEC-design_handoff-002 for widget-tap navigation."
+    },
+    {
+      "name": "StoreKitManager",
+      "kind": "struct",
+      "language": "swift (actor)",
+      "signature": "actor StoreKitManager { func purchaseAuraPlus() async throws -> EntitlementSnapshot; func restorePurchases() async throws -> EntitlementSnapshot?; func startEntitlementListener(onChange: @escaping @Sendable (EntitlementSnapshot) -> Void) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Backed by live Transaction.updates listener per DEC-detailed_discussion-006; restorePurchases returns nil for honest 'nothing to restore'."
+    },
+    {
+      "name": "WidgetReloadCoordinator.reload",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func reload() // calls WidgetCenter.shared.reloadAllTimelines()",
+      "owning_lane": "polish_resilience",
+      "notes": "Called at two distinct sites: check-in completion and successful regeneration, per DEC-detailed_discussion-013."
+    },
+    {
+      "name": "NotificationScheduler",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NotificationScheduler { func scheduleReminderIfNeeded(dayState: DayStateResolver) async; func cancelPendingReminder() async; func requestPermissionIfNeeded() async -> UNAuthorizationStatus }",
+      "owning_lane": "polish_resilience",
+      "notes": "Cancellation is part of the check-in completion transaction per DEC-detailed_discussion-004."
+    },
+    {
+      "name": "ExportPipeline.makeShareableImage",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func makeShareableImage(entry: DayEntry, watermarked: Bool) -> Transferable & Sendable // 1080x1920, EXIF-stripped, bundled watermark asset",
+      "owning_lane": "polish_resilience",
+      "notes": "Feeds SwiftUI ShareLink(item:) per DEC-ios_architecture_review-006; watermark composited by AuraRenderer, never a live UI screenshot."
+    },
+    {
+      "name": "CachedCardMetadata",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CachedCardMetadata: Codable { let dateKey: String; let hasCheckedInToday: Bool; let thumbnailFileName: String?; let dominantPaletteHex: String? }",
+      "owning_lane": "data_domain",
+      "notes": "Written to the App Group shared container by the app after generation/regeneration; the only thing AuraWidget ever reads."
+    },
+    {
+      "name": "AccessibilityDescriptionBuilder.describe",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func describe(entry: DayEntry) -> String // e.g. \"a warm, calm morning aura\"",
+      "owning_lane": "polish_resilience",
+      "notes": "Metadata-based per DEC-detailed_discussion-008, never pixel/visual description."
+    },
+    {
+      "name": "PaletteTier",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum PaletteTier: String, Codable { case freeBase, auraPlusExpanded }",
+      "owning_lane": "data_domain",
+      "notes": "freeBase draws paletteIndex mod 16; auraPlusExpanded draws mod 32 (full library)."
+    },
+    {
+      "name": "DemoHistoryAnchor.dateRange",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func dateRange(installDate: Date, calendar: Calendar) -> ClosedRange<Date> // fixed range strictly before installDate",
+      "owning_lane": "data_domain",
+      "notes": "OPEN: stub signature only; concrete anchoring rule per DEC-detailed_discussion-005 still needs to be written out next round."
+    },
+    {
+      "name": "MoodTrendAggregator.distribution",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func distribution(entries: [DayEntry], range: DateInterval) -> [MoodID: Int]",
+      "owning_lane": "data_domain",
+      "notes": "OPEN: stub only. Feeds the Swift Charts mood-distribution trend view nested in Archive (DEC-initial_discussion-002); real chart-data-point interface still needed next round."
+    },
+    {
+      "name": "CompositionFamily",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CompositionFamily: String, Codable, CaseIterable { case paintBloom, particleField, flowLines }",
+      "owning_lane": "data_domain",
+      "notes": "Maps directly to the 3 visual languages named in the original prompt; drawn from its own hash lane for the base recipe, forced to a different family on regeneration."
+    },
+    {
+      "name": "PaletteLibrary.paletteCount / resolvePalette",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func paletteCount(for tier: PaletteTier) -> Int; static func resolvePalette(index: Int, tier: PaletteTier) -> Palette",
+      "owning_lane": "data_domain",
+      "notes": "32 total curated palettes; free tier sees the first 16, Aura+ sees all 32."
+    },
+    {
+      "name": "RegenerationDivergenceEngine.perturb",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func perturb(base: AuraRecipe, nonce: Int, paletteTier: PaletteTier) -> AuraRecipe",
+      "owning_lane": "data_domain",
+      "notes": "Structurally forces compositionFamily, paletteIndex, and flowFieldSeed to differ from base via nonzero modular offset / nonzero XOR mask (never probabilistic); satisfies DEC-per_app_product_brief-002's >=2-of-3 bar by algebraic construction, verifiable in a single deterministic unit test across many seeds."
+    },
+    {
+      "name": "DemoHistoryAnchor.resolveAndPersist",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func resolveAndPersist(existingRealEntries: [DayEntry], today: Date, calendar: Calendar, store: DemoAnchorStore) -> ClosedRange<Date>",
+      "owning_lane": "data_domain",
+      "notes": "Computed exactly once on first demo-mode enable (34-day range ending 1 day before earliest real entry or today), then persisted via DemoAnchorStore so later toggles never recompute or drift; per DEC-detailed_discussion-005."
+    },
+    {
+      "name": "DemoAnchorStore",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "protocol DemoAnchorStore { func loadPersistedAnchor() -> ClosedRange<Date>?; func persist(_ range: ClosedRange<Date>) }",
+      "owning_lane": "data_domain",
+      "notes": "UserDefaults-backed in the app target; in-memory fake in AuraKit tests."
+    },
+    {
+      "name": "TrendGranularity",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TrendGranularity: String, CaseIterable { case daily, weekly, monthly }",
+      "owning_lane": "data_domain",
+      "notes": "Archive's segmented trend control per DEC-initial_discussion-002; weekly is the default for a ~30 day window."
+    },
+    {
+      "name": "MoodTrendDataPoint",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct MoodTrendDataPoint: Identifiable, Hashable { var id: String { \"\\(bucketDate)-\\(mood.rawValue)\" }; let bucketDate: Date; let mood: MoodID; let count: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Feeds Swift Charts directly, e.g. BarMark(x: .value(\"Week\", bucketDate), y: .value(\"Count\", count)).foregroundStyle(by: .value(\"Mood\", mood))."
+    },
+    {
+      "name": "MoodTrendAggregator.chartData",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func chartData(entries: [DayEntry], range: DateInterval, granularity: TrendGranularity) -> [MoodTrendDataPoint]",
+      "owning_lane": "data_domain",
+      "notes": "Includes isDemo entries identically to real ones (demo-vs-real distinction is handled visually at the archive/banner level, not by excluding data from the aggregate)."
+    },
+    {
+      "name": "Palette",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Palette: Codable, Hashable, Identifiable { let id: Int; let primaryHex: String; let secondaryHex: String; let accentHex: String; let backgroundWashHex: String }",
+      "owning_lane": "data_domain",
+      "notes": "One of 32 curated entries resolved by PaletteLibrary; consumed by AuraRenderer's color-grade stage."
+    },
+    {
+      "name": "CaptionSlot",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CaptionSlot: String, Codable, CaseIterable { case opener, moodCore, closer }",
+      "owning_lane": "data_domain",
+      "notes": "The 3 independently-tracked fragment slots per DEC-tech_specs-004; each has its own 30-day no-repeat window via CaptionEligibilityQuery."
+    }
+  ],
+  "errors": []
+}

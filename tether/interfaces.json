@@ -1,0 +1,406 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "CitySeed",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CitySeed: Identifiable, Codable, Hashable { let id: UUID; let city: String; let country: String; let lat: Double; let lon: Double; let timezoneIdentifier: String }",
+      "owning_lane": "data_domain",
+      "notes": "Bundled seed list row for onboarding city search."
+    },
+    {
+      "name": "DistanceUnit",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum DistanceUnit: String, Codable { case km, mi }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "OnboardingPhase",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum OnboardingPhase { case nameAndCode, samplePartnerPreview, waitingForPartner, redeemCode, paired }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "AppSheet",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum AppSheet: String, Codable { case answerSheet, composeShare, timeline, reunion, settings, paywall, redeemCode, samplePreview }",
+      "owning_lane": "primary_ui",
+      "notes": "Root-managed sheet routes; no freeform sheet strings."
+    },
+    {
+      "name": "ConnectionState",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ConnectionState { case none, sampleOnly, awaitingJoin, paired, activeReunion }",
+      "owning_lane": "data_domain",
+      "notes": "Derived navigation/state helper for Today and guard rails around pairing transitions."
+    },
+    {
+      "name": "Person",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Person { var id: UUID; var name: String; var avatarTintHex: String; var homeCity: String; var homeLat: Double; var homeLon: Double; var timezoneIdentifier: String }",
+      "owning_lane": "data_domain",
+      "notes": "City-seed-selected only; no CoreLocation anywhere."
+    },
+    {
+      "name": "Connection",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Connection { var id: UUID; var createdAt: Date; @Relationship var personMe: Person; @Relationship var personThem: Person; var isSample: Bool; var skin: Skin; var streakCount: Int; @Relationship(deleteRule: .cascade) var cards: [Card] }",
+      "owning_lane": "data_domain",
+      "notes": "personThem is non-optional: this build always synthesizes both people locally at creation (sample or redeem-code), never models a networked pre-join gap. 'Primary' connection is derived from createdAt, never a stored field."
+    },
+    {
+      "name": "Card",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Card { var id: UUID; @Relationship var connection: Connection; var dayIndex: Int; var promptID: UUID; var myAnswer: String?; var theirAnswer: String?; var myAnswerDraft: String?; var myAnsweredAt: Date?; var theirAnsweredAt: Date?; var simulatedPartnerAnswerDueAt: Date?; var distanceSnapshotKm: Double; var completedAt: Date? }",
+      "owning_lane": "data_domain",
+      "notes": "dayIndex is connection-relative (DayBoundary.canonicalDayIndex), unifying UTC-day-boundary math with the 60-day prompt-cycle modulo. myAnswerDraft is debounce-persisted (~2s) while the Answer sheet is open, cleared on submit/dismiss, to survive a force-quit."
+    },
+    {
+      "name": "Prompt",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Prompt { var id: UUID; var text: String; var dayIndex: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Bundled 60-day seed; Prompt for a Card is prompts[card.dayIndex % 60]."
+    },
+    {
+      "name": "Reunion",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class Reunion { var id: UUID; @Relationship var connection: Connection; var targetDate: Date; var title: String }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "AppSettings",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@Model final class AppSettings { var id: UUID; var activeConnectionID: UUID?; var units: DistanceUnit; var notificationCadence: NotificationCadence; var hasOnboarded: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Singleton row."
+    },
+    {
+      "name": "CardDisplayState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CardDisplayState { let phase: CardPhase; let myAnswer: String?; let theirAnswer: String?; let distanceKm: Double; let promptText: String; let isRepeatPrompt: Bool; let streakBreakCause: StreakBreakCause? }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "StreakSummary",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct StreakSummary { let totalCompletionStreak: Int; let personalCompletionStreak: Int; let brokenByYou: Bool; let brokenByThem: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Separate attribution to avoid silent ambiguity on streak resets."
+    },
+    {
+      "name": "SyncService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol SyncService { func todaysCard(for connectionID: UUID, now: Date) async throws -> Card; func submitAnswer(_ text: String, for cardID: UUID, now: Date) async throws -> Card; func startSimulatedPartnerTimer(for cardID: UUID, now: Date) async throws; func evaluateSimulatedPartnerDueCards(now: Date) async throws -> [Card]; func createSampleConnection(myName: String, city: CitySeed) async throws -> Connection; func createPairedConnectionViaRedeemCode(code: String, myName: String, theirName: String, theirCity: CitySeed) async throws -> Connection; func discardSampleConnection(sampleID: UUID, keeping keptID: UUID) async throws; func canCreateAdditionalConnection() async -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": "LocalSyncService is the only active conformer; FirebaseSyncService remains doc-only."
+    },
+    {
+      "name": "PromptProvider",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol PromptProvider { func prompt(forDayIndex: Int) -> Prompt; func isRepeat(dayIndex: Int) -> Bool }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "GlobeDataService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol GlobeDataService { func coastlinePolylines() -> [[LatLon]]; func cities() -> [CitySeed]; func terminatorOffset(date: Date) -> CGFloat }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "EntitlementService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol EntitlementService { var isEntitled: Bool { get }; func refresh() async; func purchase(_ productID: String) async throws; func restore() async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKitEntitlementStore backed by Transaction.currentEntitlements/updates; never a cached boolean."
+    },
+    {
+      "name": "HapticsService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol HapticsService { func fireHeartbeat(); func fireTick(); func fireSuccess() }",
+      "owning_lane": "services_utilities",
+      "notes": "UIImpactFeedbackGenerator/UINotificationFeedbackGenerator backed; safely no-ops without hardware haptics."
+    },
+    {
+      "name": "MotionAttitudeService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol MotionAttitudeService { func start(); func stop(); var orientationStream: AsyncStream<(yaw: Double, pitch: Double)> { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Only ever consumed from within GlobeView's own state, never injected into AppRouter."
+    },
+    {
+      "name": "CardExporter",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol CardExporter { var supportedFormats: Set<ExportFormat> { get }; func export(scene: CardScene, skin: Skin) async throws -> ExportResult }",
+      "owning_lane": "services_utilities",
+      "notes": "StaticPNGExporter (ImageRenderer-based) is the sole conformer this build; Compose & Share queries registration to decide the animated-toggle state."
+    },
+    {
+      "name": "DateClock",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "protocol DateClock { func now() -> Date }",
+      "owning_lane": "services_utilities",
+      "notes": "Injectable for SyncService checkpoints needing repeated fetches; one-shot pure functions take now: Date directly instead."
+    },
+    {
+      "name": "ThemeSpec",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ThemeSpec { let colors: ColorTokens; let typography: TypographyTokens; let spacing: SpacingTokens; let cornerRadius: CornerRadiusTokens }",
+      "owning_lane": "polish_resilience",
+      "notes": "Single token root; no inline Color/UIColor/.font(.system(size:) literals anywhere else."
+    },
+    {
+      "name": "AppRouter",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "@MainActor @Observable final class AppRouter { var activeConnectionID: UUID?; var presentedSheet: PresentedSheet?; var onboardingPhase: OnboardingPhase; func hydrate() async; func present(_ sheet: PresentedSheet?); func dismissSheet(); func redeemJoinCode(_ code: String) async throws; func onSceneBecameActive() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Sole owner of cross-screen navigation state; redeemJoinCode no-ops/throws while presentedSheet != nil."
+    },
+    {
+      "name": "computeCanonicalDayID",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func computeCanonicalDayID(for date: Date, utcCalendar: Calendar = Calendar(identifier: .gregorian)) -> String",
+      "owning_lane": "data_domain",
+      "notes": "Canonical UTC day token used for card issuance and streak reset logic."
+    },
+    {
+      "name": "resolveCardDisplayState",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func resolveCardDisplayState(card: Card, connection: Connection, now: Date, clock: DateClock) -> CardDisplayState",
+      "owning_lane": "data_domain",
+      "notes": "Pure first-frame state function with no SwiftUI dependency."
+    },
+    {
+      "name": "resolveDistanceKm",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func resolveDistanceKm(from: (lat: Double, lon: Double), to: (lat: Double, lon: Double)) -> Double",
+      "owning_lane": "data_domain",
+      "notes": "Deterministic haversine distance for card snapshots."
+    },
+    {
+      "name": "makeModelContainer",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func makeModelContainer(inMemory: Bool, seedDemoData: Bool) throws -> ModelContainer",
+      "owning_lane": "services_utilities",
+      "notes": "Built from SchemaV1; cloudKitDatabase: .none explicit."
+    },
+    {
+      "name": "runDesignLint",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func runDesignLint(in directory: String) throws -> [String]",
+      "owning_lane": "polish_resilience",
+      "notes": "CI gate script, not a new tool dependency."
+    },
+    {
+      "name": "Skin",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum Skin: String, Codable, CaseIterable { case classicIndigo, aurora, blueprint, filmGrain, solstice }",
+      "owning_lane": "data_domain",
+      "notes": "Only classicIndigo unlocked pre-Tether+."
+    },
+    {
+      "name": "NotificationCadence",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum NotificationCadence: String, Codable { case off, gentle, frequent }",
+      "owning_lane": "data_domain",
+      "notes": "In-app/foreground only; copy discloses this."
+    },
+    {
+      "name": "LatLon",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct LatLon { let lat: Double; let lon: Double }",
+      "owning_lane": "data_domain",
+      "notes": "Deliberately not CLLocationCoordinate2D \u2014 no CoreLocation import anywhere."
+    },
+    {
+      "name": "GlobeProjection",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum GlobeProjection { static func project(_ p: LatLon, center: LatLon) -> CGPoint?; static func isFrontFacing(_ p: LatLon, center: LatLon) -> Bool; static func greatCircleArc(from: LatLon, to: LatLon, samples: Int) -> [LatLon]; static func haversineKm(_ a: LatLon, _ b: LatLon) -> Double }",
+      "owning_lane": "data_domain",
+      "notes": "Pure geometry, CoreGraphics/Foundation only, no SwiftUI/SwiftData import."
+    },
+    {
+      "name": "DayBoundary",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum DayBoundary { static func canonicalDayIndex(for date: Date, connectionCreatedAt: Date) -> Int }",
+      "owning_lane": "data_domain",
+      "notes": "UTC canonical day boundary at the Connection level; single source for Card.dayIndex."
+    },
+    {
+      "name": "StreakCalculator",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum StreakCalculator { static func currentStreak(cards: [Card], asOfDayIndex: Int) -> StreakResult }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "StreakResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct StreakResult { let personalStreak: Int; let connectionStreak: Int; let brokenBy: StreakBreakCause? }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "StreakBreakCause",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum StreakBreakCause { case me, them, both }",
+      "owning_lane": "data_domain",
+      "notes": "Must be surfaced in UI, never silently applied."
+    },
+    {
+      "name": "EntitlementPolicy",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum EntitlementPolicy { static func canWrite(to connection: Connection, allConnections: [Connection], isEntitled: Bool) -> Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Single domain policy point; derives 'primary' from earliest createdAt, never a stored flag. All Card/Connection mutation paths route through this."
+    },
+    {
+      "name": "CardPhase",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum CardPhase: String { case samplePartnerWaiting, awaitingYou, awaitingThem, complete, streakBrokenAttributed }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "cardDisplayState",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func cardDisplayState(card: Card, connection: Connection, prompt: Prompt, now: Date) -> CardDisplayState",
+      "owning_lane": "data_domain",
+      "notes": "Pure, SwiftUI-free, injectable now; the core first-frame-legibility seam."
+    },
+    {
+      "name": "CardScene",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct CardScene { let displayState: CardDisplayState; let projectedTetherPoints: [CGPoint]; let endpointMe: CGPoint?; let endpointThem: CGPoint?; let accessibilitySummary: String }",
+      "owning_lane": "primary_ui",
+      "notes": "Single source read by the live globe draw, the VoiceOver label, and StaticPNGExporter \u2014 the on-screen and exported card can never visually diverge."
+    },
+    {
+      "name": "buildCardScene",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func buildCardScene(displayState: CardDisplayState, connection: Connection, viewportSize: CGSize, parallax: GlobeParallax) -> CardScene",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "GlobeParallax",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct GlobeParallax { var yawDegrees: Double; var pitchDegrees: Double }",
+      "owning_lane": "primary_ui",
+      "notes": "Lives only in GlobeView's private @State \u2014 never in AppRouter or anything @Query-observed."
+    },
+    {
+      "name": "PresentedSheet",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PresentedSheet: Identifiable { case answer(UUID); case composeShare(UUID); case timeline; case reunion; case connectionsSettings; case paywall(PaywallTrigger); case redeemCode }",
+      "owning_lane": "primary_ui",
+      "notes": null
+    },
+    {
+      "name": "PaywallTrigger",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum PaywallTrigger { case animatedExport, addConnection, openReunion }",
+      "owning_lane": "primary_ui",
+      "notes": "The exact three locked triggers."
+    },
+    {
+      "name": "ExportResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ExportResult { let pngData: Data; let suggestedFilename: String }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "AccessibilitySummaryBuilder",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "enum AccessibilitySummaryBuilder { static func summary(for scene: CardScene, connection: Connection) -> String }",
+      "owning_lane": "polish_resilience",
+      "notes": "e.g. 'You are 2,847 km from Sam. Card complete.' Feeds CardScene.accessibilitySummary."
+    },
+    {
+      "name": "DraftPersistence",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func persistDraft(_ text: String, on card: Card, debounce: Duration) async",
+      "owning_lane": "polish_resilience",
+      "notes": "debounce-writes Card.myAnswerDraft every ~2s while Answer sheet is open; closes the force-quit-loses-draft gap"
+    },
+    {
+      "name": "SchemaV1",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "enum SchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Person.self, Connection.self, Card.self, Prompt.self, Reunion.self, AppSettings.self] } }",
+      "owning_lane": "data_domain",
+      "notes": "Declared now so the first real migration is additive."
+    },
+    {
+      "name": "persistDraft",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func persistDraft(_ text: String, on card: Card, debounce: Duration) async",
+      "owning_lane": "polish_resilience",
+      "notes": "Debounce-writes Card.myAnswerDraft every ~2s while the Answer sheet is open; closes the force-quit-loses-draft gap."
+    },
+    {
+      "name": "ExportFormat",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "enum ExportFormat { case staticPNG, animatedMP4, livePhoto }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    }
+  ],
+  "errors": []
+}

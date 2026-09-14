@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "Create deck and add cards via keyboard-first editor",
+      "steps": [
+        {
+          "tap": "study.addDeckButton"
+        },
+        {
+          "type": "New Deck",
+          "into": "deckEditor.nameField"
+        },
+        {
+          "tap": "deckEditor.saveButton"
+        },
+        {
+          "tap": "deckDetail.addCardButton"
+        },
+        {
+          "type": "Front text",
+          "into": "cardEditor.frontField"
+        },
+        {
+          "type": "Back text",
+          "into": "cardEditor.backField"
+        },
+        {
+          "tap": "cardEditor.saveButton"
+        },
+        {
+          "assert_exists": "Front text"
+        }
+      ]
+    },
+    {
+      "name": "Complete a review session end to end",
+      "steps": [
+        {
+          "tap": "study.deckCell_0"
+        },
+        {
+          "tap": "deckDetail.studyButton"
+        },
+        {
+          "tap": "review.revealButton"
+        },
+        {
+          "tap": "review.gradeGood"
+        },
+        {
+          "assert_exists": "session.summaryView"
+        }
+      ]
+    },
+    {
+      "name": "Force-quit mid-session recovers with zero data loss",
+      "steps": [
+        "Start a review session",
+        "Grade 2 of 5 cards",
+        "Force-quit the app (SIGKILL)",
+        "Relaunch and confirm graded cards are off the due stack, ungraded cards still due, no summary shown"
+      ]
+    },
+    {
+      "name": "View stats overview and per-deck drill-down",
+      "steps": [
+        "Open Stats tab with sparse/empty data",
+        "Confirm honest empty/sparse copy, no fabricated chart data",
+        "Add reviews then revisit Stats",
+        "Confirm forecast/history/retention reflect real data"
+      ]
+    },
+    {
+      "name": "Export a deck to CSV then re-import it losslessly",
+      "steps": [
+        "Export a deck with notes to CSV",
+        "Delete the deck",
+        "Import the exported file",
+        "Confirm every card including notes round-trips exactly"
+      ]
+    },
+    {
+      "name": "Import a malformed CSV and see per-row errors",
+      "steps": [
+        "Pick a CSV with empty fronts, wrong column counts, duplicates, and bad encoding",
+        "View the import preview",
+        "Confirm every bad row shows a distinct, visible reason, none silently dropped"
+      ]
+    },
+    {
+      "name": "Enable daily reminder and observe honest due-count behavior",
+      "steps": [
+        "Enable Reminders from Settings",
+        "Grant notification permission",
+        "Reduce due count to zero",
+        "Confirm no notification is scheduled/fires on a zero-due day"
+      ]
+    },
+    {
+      "name": "Toggle demo data on and fully off with zero residue",
+      "steps": [
+        "Enable demo data in Settings",
+        "Confirm two demo decks with realistic history appear, tagged everywhere, excluded from real aggregate stats",
+        "Disable demo data",
+        "Confirm zero residue in stats, streaks, or deck list"
+      ]
+    },
+    {
+      "name": "View stats overview with honest empty/sparse states",
+      "steps": [
+        {
+          "tap": "tabBar.statsTab"
+        },
+        {
+          "assert_exists": "stats.overviewView"
+        }
+      ]
+    },
+    {
+      "name": "Export a deck to CSV",
+      "steps": [
+        {
+          "tap": "tabBar.settingsTab"
+        },
+        {
+          "tap": "settings.csvExportRow"
+        },
+        {
+          "tap": "csvExport.deckPicker_0"
+        },
+        {
+          "tap": "csvExport.exportButton"
+        },
+        {
+          "assert_exists": "csvExport.shareSheet"
+        }
+      ]
+    },
+    {
+      "name": "Enable daily reminder",
+      "steps": [
+        {
+          "tap": "tabBar.settingsTab"
+        },
+        {
+          "tap": "settings.remindersRow"
+        },
+        {
+          "tap": "reminders.enableToggle"
+        },
+        {
+          "assert_exists": "reminders.timePicker"
+        }
+      ]
+    },
+    {
+      "name": "Toggle demo data on and view seeded content",
+      "steps": [
+        {
+          "tap": "tabBar.settingsTab"
+        },
+        {
+          "tap": "settings.demoDataRow"
+        },
+        {
+          "tap": "demoData.enableToggle"
+        },
+        {
+          "tap": "tabBar.studyTab"
+        },
+        {
+          "assert_exists": "demoData.tag"
+        }
+      ]
+    },
+    {
+      "name": "View Gap & Limitations register",
+      "steps": [
+        {
+          "tap": "tabBar.settingsTab"
+        },
+        {
+          "tap": "settings.gapLimitationsRow"
+        },
+        {
+          "assert_exists": "gapLimitations.screen"
+        }
+      ]
+    }
+  ]
+}

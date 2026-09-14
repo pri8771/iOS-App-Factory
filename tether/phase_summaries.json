@@ -1,0 +1,401 @@
+{
+  "schema_version": 1,
+  "summaries": [
+    {
+      "phase": "prompt_contract",
+      "one_paragraph_summary": "The group converged on a single detailed execution contract for Tether, a local-first iOS 17+ SwiftUI app centered on a daily, two-sided gated-reveal 'distance card.' Nineteen numbered hard requirements were locked, covering: offline Simulator traversability via a sample-partner path that must ride the real SyncService protocol (not a faked shortcut); mandatory pairing before any card exists; the native Canvas orthographic globe and great-circle amber tether with no map tiles or 3D engine; the gated-reveal state machine (awaitingBoth -> awaitingThem/awaitingMe -> complete) with explicit test coverage including races; haptics scoped to what's actually testable offline (heartbeat only fires for foregrounded simulated-partner answers, not background push); the DesignSystem.swift single-source-of-truth for colors/fonts enforced by an automated lint gate rather than review discretion; the amber accent restricted to exactly three UI elements; StoreKit 2 monetization gated at exactly three paywall triggers; and full dark mode/Dynamic Type/empty-loading-error-state coverage per the global app-build rules. Key ambiguities in the original prompt were resolved with explicit decision rules rather than left open: card 'today' is anchored to a canonical UTC day boundary at the Connection level (not either person's local day) to avoid timezone-boundary bugs; streak resets to 0 after a missed day and must be visibly surfaced; Tether+ entitlement is modeled on Connection (not Person) with simulated-partner inheritance, flagged as a simplification the production Firebase-style adapter must revisit; and a free user who ends up with multiple connections after a downgrade never loses data \u2014 new connections are blocked and non-primary ones go read-only. Non-goals (chat, photo attachments, group chat, Android, watchOS, live location, in-app calling, more than four skins, real backend/push/production purchase flows) were reaffirmed unanimously. No contributor contradicted these rules; convergence was genuine rather than assumed.",
+      "key_decisions": [
+        "DEC-prompt_contract-001",
+        "DEC-prompt_contract-002",
+        "DEC-prompt_contract-003",
+        "DEC-prompt_contract-004",
+        "DEC-prompt_contract-005",
+        "DEC-prompt_contract-006",
+        "DEC-prompt_contract-007",
+        "DEC-prompt_contract-008",
+        "DEC-prompt_contract-009"
+      ],
+      "open_risks": [
+        "Amber-bleed is an easy, low-visibility violation for later UI phases to introduce accidentally (e.g., on a paywall CTA 'because it needs to pop') \u2014 needs active policing in design/review phases, not just this contract.",
+        "The design-lint automated gate is specified as a requirement here but not yet implemented; a later build phase must actually create the script/rule, or the requirement silently reverts to review-only enforcement.",
+        "Cross-account real entitlement sharing for Tether+ remains a genuinely unresolved question for the production Firebase-style adapter \u2014 this phase only bounded it for the local build, not solved it.",
+        "CoreMotion graceful-degradation and Reduce-Motion cross-fade behavior need concrete verification during the build/test phases since Simulator masks real hardware failure modes."
+      ]
+    },
+    {
+      "phase": "product_research",
+      "one_paragraph_summary": "Only one contributor (Claude, QA/Risk hat) produced substantive output this round \u2014 Codex, Gemini, and all three local models failed or were unavailable \u2014 but the contribution fully satisfies the phase's required output shape and acceptance checks, and nothing contradicted it. Key findings, all explicitly labeled as assumptions rather than researched fact: the real audience for this category is long-distance couples even though the prompt widens scope to friends/family/parent-child, so default copy should stay relationship-neutral ('your person') while design tone skews couple-first; comparable patterns are simple ad-heavy distance-counter apps (low craft bar to clear), Between-style paired relationship apps (validating locked-pairing/no-group-chat/gated daily interaction), and Locket-style widget-first virality (the closest precedent for pairing-as-growth-mechanic, notably built on a Home Screen widget this app's V1 lacks); the single biggest platform opportunity \u2014 a Home Screen widget or Live Activity for live distance/streak \u2014 is confirmed out of scope for V1 but flagged as the obvious V1.1 addition; and the cold-start problem inherent to paired apps (first installer gets no value until their invitee joins) means 'Preview with a sample partner' should be treated as a real pre-invite persuasion screen, not just QA scaffolding. Additional risks named: prompt-list exhaustion after the bundled 60-day list has no defined behavior yet, and the gated-reveal test suite needs deterministic seeded fixtures to avoid flaky tests masking regressions in the app's core correctness invariant.",
+      "key_decisions": [
+        "DEC-product_research-001",
+        "DEC-product_research-002",
+        "DEC-product_research-003",
+        "DEC-product_research-004",
+        "DEC-product_research-005"
+      ],
+      "open_risks": [
+        "Audience-framing risk (couple-coded tone vs. broader relationship-type claim) needs active policing in design/copy phases, or 'your person' quietly becomes 'your partner' by default.",
+        "The widget/Live Activity retention lever is confirmed deferred, but if no later phase revisits it as V1.1, the app's best daily-return mechanic never gets built at all.",
+        "Prompt-list exhaustion at day 60 has no owner yet; if a later content phase doesn't address it, the app will visibly break or repeat awkwardly for any user who reaches day 61.",
+        "This phase's competitive/audience claims are all ASSUMPTION-labeled, not live-researched \u2014 if the user has real market data or wants competitor names verified, that should happen before final positioning/marketing copy is written."
+      ]
+    },
+    {
+      "phase": "portfolio_selection",
+      "one_paragraph_summary": "Only one contributor (Claude) produced substantive output \u2014 Codex, Gemini, and all three local models were unavailable again \u2014 but the conclusion is unambiguous and uncontested: Tether is a single app, not a portfolio parent, and no portfolio-json manifest is produced. The prompt's own framing ('The one thing' / 'Everything else serves it') rules out a category split \u2014 onboarding, today-card, answer sheet, compose & share, timeline, reunion, connections & settings, and paywall are all facets of one hero surface (the daily distance card), not competing product ideas, and the prompt never requested multiple apps or a category count. The selected single app is slug 'tether', category long-distance relationship/daily ritual, promise 'the one gorgeous co-created daily distance card', target user long-distance couples primarily with relationship-neutral mechanic and copy (per product_research's 'your person' guidance), build=true. A guardrail was carried into later build phases: single Xcode project/target, single DesignSystem.swift, single SyncService seam, no companion widget/watch targets, and a minimal Settings screen (notification cadence, units, subscription, sign-out only) with no screen beyond the eight named in the prompt contract, to prevent shell-padding scope creep around the narrow hero card.",
+      "key_decisions": [
+        "DEC-portfolio_selection-001",
+        "DEC-portfolio_selection-002",
+        "DEC-portfolio_selection-003"
+      ],
+      "open_risks": [
+        "Only one model actually participated across this and the prior two phases (Codex/Gemini/local models all down) \u2014 if the tooling outage persists, later phases may keep landing single-voice 'consensus' by default rather than genuine multi-model convergence; worth checking model availability before phases that most need adversarial pushback (e.g. UI/design and build-verification phases).",
+        "The minimal-Settings and no-extra-screens guardrail is stated here but has no enforcement mechanism (unlike the amber/design-lint rule, which got an automated-gate requirement) \u2014 a later build phase could still add screens unless a reviewer actively holds this line."
+      ]
+    },
+    {
+      "phase": "initial_discussion",
+      "one_paragraph_summary": "Two contributors (Claude and Gemini; Codex and all three local models were unavailable) converged on a precise shared understanding of Tether without disagreement. The product promise was locked to one sentence: a daily two-sided distance card that only completes when both people answer. Primary user is long-distance pairs, couple-primary in tone but copy-neutral ('your person'), who check the app once or twice daily and need card state (waiting-on-them/waiting-on-you/complete) legible instantly. The core loop was restated as a state-based journey (pair once, then daily: land on Today, know your state immediately, answer if it's your turn, watch it complete when both have answered, archive to Timeline, extend streak, optionally share) rather than a feature list. Two new hard scope boundaries were locked beyond what prior phases had already fixed: the Answer sheet is the only free-text entry surface in the entire app (guarding against messaging/chat creep), and once a card is complete both answers are permanently final and uneditable, with that finality made visible at submission time rather than silently enforced. Four measurable, independently-checkable success criteria were adopted: full offline traversability of all eight screens via sample-partner mode, deterministic test coverage of the gated-reveal state machine's race conditions, zero non-sanctioned amber pixels via the lint gate, and truthful zero-tap state legibility on Today's very first rendered frame (important for both daily-use speed and Reduce Motion users). Gemini's contribution reinforced the same conclusions from a technical-risk angle, additionally flagging AVAssetWriter memory-leak risk for animated export and the need for autorelease-pool-constrained offscreen rendering contexts, without disputing anything Claude proposed.",
+      "key_decisions": [
+        "DEC-initial_discussion-001",
+        "DEC-initial_discussion-002",
+        "DEC-initial_discussion-003",
+        "DEC-initial_discussion-004",
+        "DEC-initial_discussion-005"
+      ],
+      "open_risks": [
+        "Genuine open tension, not resolved: should the full ~1.1s tether draw-on/minting animation replay on every casual daily reopen of the app, or only on first pairing and card completion, with instant state-legible display otherwise? Claude proposed the latter for a daily-use ritual app, but no second voice confirmed or contested it \u2014 the design/motion phase needs to explicitly settle this rather than let it default silently either way.",
+        "AVAssetWriter-based animated export (globe rotation + tether draw-on rendered via Canvas snapshot loop) carries real memory-leak/simulator-stability risk per Gemini's technical read; the build phase implementing Tether+ animated export should budget explicit verification time for this, not treat it as a routine feature.",
+        "Model availability remains thin (only 2 of 6 configured contributors responded this round, and only 1 in the two phases before it) \u2014 later phases most needing adversarial pushback (UI/design, build verification) should have model availability checked before treating a single or double voice as full consensus."
+      ]
+    },
+    {
+      "phase": "per_app_product_brief",
+      "one_paragraph_summary": "Two contributors (Claude and Gemini; Codex and all three local models unavailable) produced a fully aligned production-grade brief for Tether with no contradictions. Target user: one half of a long-distance pair (skewed 22-34, couple-primary framing, relationship-neutral copy/mechanic) who wants a ten-second daily ritual, not a messaging app. Paid value is functional, not cosmetic: free delivers the complete emotional loop (pairing, globe, daily prompt, gated reveal, streak, Timeline, one static export/day); Tether+ ($4.99/mo or $29.99/yr, 7-day trial) unlocks animated export, additional connections, premium skins, and the Reunion module plus annual Year Tethered retrospective. Core loop, competitive wedge (single-moment craft plus a structurally-forced invite mechanic guaranteeing K\u22651 growth by construction), and the local-first-now/Firebase-adapter-later plan all restate and sharpen prior-phase decisions without conflict. Three previously-open risks got resolved this round rather than just restated: prompt-list exhaustion now has a concrete answer (repeat the 60-day list from day 1 with a 'you've answered this before' badge); the cold-start gap before a partner joins now defaults Today to a labeled 'Preview with a sample partner' experience rather than an empty state, making that mode a real product surface and not just QA scaffolding; and the tether draw-on animation is now confirmed (by two independent contributors) to play only on first pairing and card completion, with ordinary reopens showing an instantly state-legible first frame. The brief is concrete enough to hand directly to a design phase with no further ideation needed.",
+      "key_decisions": [
+        "DEC-per_app_product_brief-001",
+        "DEC-per_app_product_brief-002",
+        "DEC-per_app_product_brief-003",
+        "DEC-per_app_product_brief-004",
+        "DEC-per_app_product_brief-005",
+        "DEC-per_app_product_brief-006"
+      ],
+      "open_risks": [
+        "Retention math is still a real bet, not proven: the app charges $4.99/mo for a subscription whose most tangible daily payoff (animated export) most users may not trigger most days, so free-tier habit strength has to carry users all the way to a Reunion or anniversary moment before the paywall ever earns its keep \u2014 this needs to be watched in design/UX phases, not assumed solved by this brief.",
+        "Model availability is still thin (2 of 6 configured contributors across this and the prior several phases) \u2014 design and build-verification phases especially benefit from adversarial pushback and should have model availability checked rather than treating a two-voice agreement as exhaustively stress-tested.",
+        "The Firebase-style adapter is now explicitly named as the real production target rather than optional polish, but it remains entirely undesigned in this local-first build \u2014 a later phase (or a genuinely separate cloud-build effort) needs to own turning that documented seam into actual server-side behavior."
+      ]
+    },
+    {
+      "phase": "next_steps_small",
+      "one_paragraph_summary": "Two contributors (Claude and Gemini; Codex and all three local models unavailable) genuinely disagreed this round rather than converging by default, and the disagreement was resolved by applying already-locked cross-phase decisions rather than inventing new consensus. Claude proposed the MVP slice be the full core loop end-to-end \u2014 real onboarding/pairing via the sample-partner path, city search, the full native globe/tether with ignite and draw-on, Today, the Answer sheet, the complete gated-reveal state machine on LocalSyncService with a timer-driven simulated partner, the signature haptics, streak, and Timeline \u2014 cutting only animated export, extra skins, Reunion, and multi-connection. Gemini instead argued for cutting onboarding, pairing, invite-code generation, and city search entirely, launching directly into a hardcoded pre-paired mock relationship to concentrate engineering risk-reduction on globe rendering performance and state-machine concurrency. The resolution favored Claude's fuller slice, because Gemini's cut directly conflicted with two already-locked decisions: pairing is the non-negotiable structurally-forced growth mechanic (no feature may ever allow solo use), and 'Preview with a sample partner' was already decided to be a dual-purpose, shipped product screen (QA scaffold plus real pre-invite persuasion), not omittable scaffolding. Gemini's underlying technical concerns were preserved rather than discarded: two new validation requirements were adopted \u2014 the globe must not stutter in the Simulator under CoreMotion parallax with the simplified coastline dataset, and the gated-reveal state machine must have explicit test coverage for the simulated partner's timer firing while the Answer sheet is open/mid-edit. Five concrete validation criteria and an explicit cut list (deferred, not deleted) were locked for the build phase to implement without further product debate.",
+      "key_decisions": [
+        "DEC-next_steps_small-001",
+        "DEC-next_steps_small-002",
+        "DEC-next_steps_small-003",
+        "DEC-next_steps_small-004"
+      ],
+      "open_risks": [
+        "Gemini's sequencing instinct (prove the riskiest native rendering/concurrency code before polishing onboarding UI) wasn't adopted as build order, only as added test requirements \u2014 if the build phase instead builds onboarding UI first and only discovers a globe performance problem late, that's a real schedule risk worth the build phase actively managing.",
+        "Model availability remains thin (2 of 6 configured contributors, consistent with every phase so far) \u2014 this phase's resolution of a real disagreement rested on only two voices plus the decisions log as tie-breaker; a build-verification phase with more adversarial pushback would strengthen confidence that this was the right call.",
+        "The cut list (animated export, extra skins, Reunion, multi-connection) still needs an explicit owner in a later phase to confirm none of it silently becomes 'done' by omission or silently expands back into this slice without justification."
+      ]
+    },
+    {
+      "phase": "detailed_discussion",
+      "one_paragraph_summary": "Only one contributor (Claude) produced substantive output \u2014 Gemini failed with an auth/tier error and the three local models stayed in cooldown \u2014 but the single pass thoroughly resolved edge cases and open questions without contradicting any prior decision, satisfying this phase's acceptance checks. Key resolutions: sample-partner mode's data (cards, streak, Timeline) must live on a separate, disposable Connection that is discarded rather than merged the moment a real partner joins, with a distinct visible transition beat; onboarding UI must be explicit that this offline build's join-link share action cannot actually deliver an invite, and that 'Preview with a sample partner' is the only way to experience the paired state locally; streak UI must distinguish a user's personal answer streak from the connection's shared completion streak and legibly attribute the cause of any reset (them vs. you), since only-completed-cards-extend-streak otherwise reads as punishing a faithful answerer; the free-tier downgrade rule's 'primary connection' is now deterministically defined as the earliest-created Connection, with the read-only-on-lapse behavior required to be actually exercised via a StoreKit-Testing-simulated expired-subscription test rather than left unverified; backgrounded simulated-partner timer firing (no felt heartbeat) is named as an accepted limitation rather than a surprise bug; a failed SwiftData save on answer submission must preserve the user's draft and show retry/error UI rather than silently losing the app's one free-text entry point; the one-line answer gets an explicit enforced character cap; the Canvas-drawn globe needs an explicit VoiceOver accessibility summary since Canvas provides no default accessibility; the notification-cadence Settings control must not imply working push notifications this offline build can't deliver; and three final assumptions were locked \u2014 English-only/unlocalized v1, no defense against device-clock manipulation (accepted low-priority self-deception-only risk), and home location disclosed plainly at onboarding as city-level precision only, never GPS-precise or tracked.",
+      "key_decisions": [
+        "DEC-detailed_discussion-001",
+        "DEC-detailed_discussion-002",
+        "DEC-detailed_discussion-003",
+        "DEC-detailed_discussion-004",
+        "DEC-detailed_discussion-005",
+        "DEC-detailed_discussion-006",
+        "DEC-detailed_discussion-007",
+        "DEC-detailed_discussion-008",
+        "DEC-detailed_discussion-009",
+        "DEC-detailed_discussion-010",
+        "DEC-detailed_discussion-011"
+      ],
+      "open_risks": [
+        "Model participation remains thin (effectively one voice again, consistent with nearly every phase in this project) \u2014 a build-verification or final-review phase should apply real adversarial scrutiny to this edge-case list rather than treating single-voice coverage as exhaustive.",
+        "The sample-partner-to-real-connection transition (discard fake data, show a distinct beat) is now a concrete requirement but adds real state-management complexity to an already-complex gated-reveal system; the build phase should treat it as a first-class part of the state machine, not an afterthought bolted on.",
+        "The StoreKit-Testing-simulated lapsed-subscription test is now required but not yet implemented anywhere; if a build phase skips it, DEC-prompt_contract-007's downgrade rule silently reverts to an unverified claim exactly as flagged as a risk in that earlier phase."
+      ]
+    },
+    {
+      "phase": "app_features",
+      "one_paragraph_summary": "Only Claude produced substantive output again (Codex, Gemini, and all three local models were unavailable), but the round did real work rather than just restating next_steps_small: it found and resolved two genuine contradictions buried in the existing decisions log. First, the requirement that sample-partner data be discarded 'the moment a real partner joins' had no way to ever fire in a networkless build, so a new, honestly-labeled 'redeem your own join code' affordance (distinct from sample-partner preview) was added as the only mechanism that triggers that transition, making the discard-and-beat requirement testable rather than aspirational. Second, the free-tier downgrade rule required a StoreKit-Testing-simulated lapse to prove a non-primary connection goes read-only, but next_steps_small had deferred all multi-connection capability out of the build \u2014 resolved by making the bare capability to create a second connection (not full connection-management UI) must-have, solely to make that downgrade path provable. Reunion was split so the screen itself and its paywall-gating remain must-have (protecting the locked 'all eight screens reachable' success criterion) while a real countdown becomes should-have and the Year Tethered reel stays out. The animated-export toggle stays visible for paywall-gating correctness but resolves to an honest 'coming soon' state for entitled users instead of a dead end. The round also converted several previously-qualitative acceptance criteria (first-frame legibility, globe performance, CoreMotion degradation, Reduce Motion, the three named state-machine races, the design-lint gate, the downgrade test) into specific, independently testable unit/integration tests, and the full must/should/won't lists plus a 50-item numbered requirements-json were locked as the build's adherence-gate contract.",
+      "key_decisions": [
+        "DEC-app_features-001",
+        "DEC-app_features-002",
+        "DEC-app_features-003",
+        "DEC-app_features-004",
+        "DEC-app_features-005"
+      ],
+      "open_risks": [
+        "Model participation has now been effectively one voice for five consecutive phases; the requirements-json and MoSCoW split in this phase carry real weight for the build/adherence gates and have had no adversarial second opinion \u2014 a build-verification or final-review phase should scrutinize this list hard rather than trust it by default.",
+        "The new 'redeem your own join code' affordance and the bare 'add connection' capability are both net-new UI surfaces invented this round to make previously-unimplementable rules testable; the build phase needs to treat them as first-class, not bolt them on awkwardly since they touch the same state machine as the primary sample-partner flow.",
+        "The globe performance criterion was deliberately downgraded from 'an automated Simulator perf gate' to 'vertex budget + throttled updates + manual verification note' because the group judged a reliable automated perf gate infeasible \u2014 if a later phase disagrees and wants real automated perf testing, that tradeoff needs to be revisited explicitly, not silently reversed."
+      ]
+    },
+    {
+      "phase": "design_discussion",
+      "one_paragraph_summary": "Only Claude produced substantive output this phase \u2014 Codex, Gemini, and all three local models were unavailable, continuing the project's near-constant single-voice pattern \u2014 but the contribution fully satisfies the phase's required output shape (named design language, emotional target, signature interaction, rejected default with concrete differences, screen/state inventory, accessibility notes) without contradicting anything previously locked. The design language was named 'Night Instrument Panel': a dark console aesthetic built directly on already-locked constraints (amber rationed to exactly three elements, a separate monospaced 'instrument' type voice for clock/coordinates), targeting an emotional register of quiet held-breath anticipation resolving into a small real thrill on card completion, explicitly distinct from feed-scroll dopamine design. The signature interaction was made concrete as persistent visual grammar rather than pure animation: a dim/thin half-lit tether with a dashed-placeholder answer slot before completion, versus a glowing/taut tether with both answers cross-dissolved in after completion \u2014 chosen specifically because it stays legible on ordinary reopens with no animation replay, satisfying the already-locked first-frame-legibility requirement. The stock TabView/List/system-tint default was explicitly rejected with four named differences: no bottom tab bar (Today as chrome-free root with corner-icon navigation to Timeline/Reunion/Settings, with an explicit discoverability-risk fallback to a minimal desaturated tab bar if corner icons test poorly), zero system tint outside the three sanctioned amber elements, Timeline as stacked miniature hero cards rather than List rows, and instrument type reserved exclusively for clock/distance/coordinates. A full per-screen state inventory was locked across all eight screens (onboarding's three distinct entry actions including a confirmation beat on the irreversible redeem-code discard action; Today's five states; Answer sheet's four states; Compose & Share's non-amber locked/coming-soon treatment; Timeline's designed empty state; Reunion's four states; Settings' visually distinct read-only-vs-active subscription row; Paywall's contextual plus transactional states), and one previously-uncaught accessibility gap was named: the compressed/tightly-tracked instrument font risks clipping or overflow on the hero distance readout and dual clock at maximum Dynamic Type accessibility sizes, requiring an explicit fallback decision (size floor or two-line wrap) from the build phase.",
+      "key_decisions": [
+        "DEC-design_discussion-001",
+        "DEC-design_discussion-002",
+        "DEC-design_discussion-003",
+        "DEC-design_discussion-004",
+        "DEC-design_discussion-005",
+        "DEC-design_discussion-006",
+        "DEC-design_discussion-007",
+        "DEC-design_discussion-008",
+        "DEC-design_discussion-009"
+      ],
+      "open_risks": [
+        "Model participation has now been effectively one voice for six consecutive phases; a design phase especially benefits from adversarial pushback on subjective calls (corner-icon navigation, 'coming soon' treatment, empty-state content) that a build-verification or final-review phase should scrutinize rather than accept by default.",
+        "The corner-icon-instead-of-tab-bar navigation choice is self-identified as a discoverability bet with a named fallback, but no phase has actually tested it yet \u2014 if a later build/verification phase skips the informal discoverability check, this could ship as a real usability problem.",
+        "The Dynamic-Type accessibility-size fallback for the hero readout/dual clock is now a named requirement but not yet a decided implementation (size floor vs. two-line wrap) \u2014 the build phase must pick one explicitly rather than let it default silently to whichever behaves best by accident."
+      ]
+    },
+    {
+      "phase": "design_handoff",
+      "one_paragraph_summary": "Two contributors produced substantive, overlapping-but-conflicting design specs this round: Codex delivered a complete structured DESIGN SPEC across every required heading (type scale, 8pt spacing, a full light+dark semantic color palette, corner radii, component inventory, navigation map, per-screen states, motion/haptics, accessibility, MoSCoW, and an external Claude Design handoff prompt), while Claude followed with concrete Theme.swift-ready values plus real architecture guidance (an @Observable AppRouter, a pure SwiftUI-free Card->CardDisplayState function for testable first-frame legibility, throttled CoreMotion kept separate from SwiftData queries, and a race-prevention rule for the redeem-code/sample-data-discard transition) but diverged on three points: whether to force dark-mode-only versus support both appearances, which Dynamic-Type fallback strategy (size-floor-clamp vs. two-line-wrap) resolves the hero readout/dual-clock accessibility gap left open by design_discussion, and whether an external Claude Design pass should be used at all. The coordinator resolved all three rather than deferring to another round: light and dark appearances are both required with full explicit hex values per the phase's own acceptance check and the global dark-mode rule (dark stays the default/primary 'dark-first' experience, not the only one); the Dynamic Type fallback is split by component fit (Display readout clamps to a 54pt floor with minimumScaleFactor 0.74 and stays single-line; the dual clock adaptively stacks vertically instead of wrapping), finalizing the previously-open DEC-design_discussion-009; and no external design pass is used \u2014 this merged spec plus the resulting Theme.swift is the direct handoff to the build phase, since the spec is already fully numeric and an imported mockup would fight the design-lint gate. A single canonical, non-conflicting design-token spec (colors including a new bgElevated sheet tier, type scale, spacing, radii, components, navigation/sheet architecture, per-screen states, motion/haptics, accessibility, MoSCoW) was locked as the authoritative source for the build phase, along with Claude's architecture guidance carried forward as concrete build requirements rather than optional style notes.",
+      "key_decisions": [
+        "DEC-design_handoff-001",
+        "DEC-design_handoff-002",
+        "DEC-design_handoff-003",
+        "DEC-design_handoff-004",
+        "DEC-design_handoff-005"
+      ],
+      "open_risks": [
+        "The merged color palette pulls bgElevated and the success/warning/error hues from Claude's proposal layered onto Codex's base palette rather than either contributor validating the merged set directly \u2014 a build-verification pass should do a visual spot-check that bgElevated actually reads as 'lifted' above bgPanel in both appearances before treating this as final.",
+        "The Display-clamp vs. DualClockRow-stack split is a reasoned synthesis, not something either contributor proposed or endorsed directly \u2014 the build phase should treat this as the settled answer but a design-review pass could still push back on whether a 54pt floor is too small for the app's most important readout at max accessibility sizes.",
+        "As in nearly every phase of this project, only two voices participated (Codex and Claude) and Gemini plus all three local models were unavailable; the design-token reconciliation done here by the coordinator has had no independent second opinion and would benefit from adversarial review in build-verification or final-review."
+      ]
+    },
+    {
+      "phase": "ios_architecture_review",
+      "one_paragraph_summary": "Codex and Claude produced two full, complementary architecture passes across two rounds (Gemini and all three local models stayed unavailable throughout, and Claude's round-2 message was lost to a mid-response connection error, though nothing in what did land contradicted round 1). The backbone: a SyncService protocol with LocalSyncService (SwiftData-backed) as the only active implementation and a documented, unbuilt FirebaseSyncService adapter; five domain service protocols (SyncService, PromptProvider, GlobeDataService, EntitlementService, HapticsService) injected into a single @Observable AppRouter that exclusively owns cross-screen navigation state; and a pure, SwiftUI-free, clock-injectable Card->CardDisplayState function for testable first-frame legibility. The single most important correctness fix this phase surfaced: the simulated partner's answer timing must be a persisted due-date on Card resolved at deterministic checkpoints (onAppear, scenePhase-active, foreground timer), not an in-memory sleeping Task, because iOS suspends backgrounded apps and would otherwise silently break the already-locked 'no heartbeat if backgrounded' behavior. Persistence uses SwiftData (Person/Connection/Card/Prompt/Reunion/AppSettings) with UUID keys throughout and sample-partner data on a separate isSample-flagged disposable Connection for a clean atomic discard on redeem-code. Permissions/privacy were locked tight: no location (city-seed-list only), no push permission (nothing background-deliverable exists in this build), no CoreMotion usage-description key (only device-motion attitude is used, not activity/pedometer APIs \u2014 resolving the one real round-2 disagreement in favor of the technically accurate answer over Codex's 'add it defensively' suggestion), and no Photos-library permission (share-sheet export only, Save-to-Photos deferred). StoreKit centralizes entitlement truth in an EntitlementStore backed by Transaction.currentEntitlements/updates rather than a cached boolean, requires a Restore Purchases action on the paywall, and requires the .storekit config be attached to the shared Xcode scheme so headless CI can actually simulate purchases. Testing splits into a pure-logic unit target (covering a newly-named fourth race: redeem-code swap racing an unresolved simulated-answer due-date) plus one thin XCUITest eight-screen crawl and one StoreKit-Testing entitlement-lapse scenario; the design-lint gate is a standalone grep script, not a new tool dependency. The one-line answer cap is fixed at 80 characters, hard-enforced at the input binding, and entitlement-gated writes are rejected from a single domain policy point rather than only hidden in UI.",
+      "key_decisions": [
+        "DEC-ios_architecture_review-001",
+        "DEC-ios_architecture_review-002",
+        "DEC-ios_architecture_review-003",
+        "DEC-ios_architecture_review-004",
+        "DEC-ios_architecture_review-005",
+        "DEC-ios_architecture_review-006",
+        "DEC-ios_architecture_review-007",
+        "DEC-ios_architecture_review-008",
+        "DEC-ios_architecture_review-009",
+        "DEC-ios_architecture_review-010",
+        "DEC-ios_architecture_review-011",
+        "DEC-ios_architecture_review-012",
+        "DEC-ios_architecture_review-013",
+        "DEC-ios_architecture_review-014",
+        "DEC-ios_architecture_review-015",
+        "DEC-ios_architecture_review-016",
+        "DEC-ios_architecture_review-017"
+      ],
+      "open_risks": [
+        "Claude's round-2 message was dropped by a connection error before it could add or contest anything Codex proposed in round 2 \u2014 tech_specs or build-verification should treat the round-2 architecture additions (five-service split, NSMotionUsageDescription question) as reviewed only against round-1 content, not independently re-checked by a second voice.",
+        "Model participation remains effectively two voices for this entire project; the domain-service split (five protocols) and the fourth named race are new this phase and haven't had adversarial pushback beyond the two contributors who proposed them.",
+        "The persisted-due-date simulated-partner mechanism is now an architectural hard requirement but not yet implemented anywhere; if a build phase reverts to a simpler in-memory timer under time pressure, the backgrounding correctness bug this phase exists to prevent will resurface silently."
+      ]
+    },
+    {
+      "phase": "tech_specs",
+      "one_paragraph_summary": "Round one produced two substantive, largely complementary architecture passes (Codex and Claude; Gemini and two of three local models unavailable, Deepseek's contribution generic and non-conflicting) that together locked Tether's concrete technical spec. Domain entities (Person, Connection, Card, Prompt, Reunion, AppSettings) are SwiftData @Model classes \u2014 the single definition each build lane codes against, resolving a same-name collision where one contributor had proposed parallel Codable struct duplicates. A pure, SwiftUI-free domain layer (cardDisplayState, CardScene/buildCardScene, GlobeProjection, DayBoundary, StreakCalculator, EntitlementPolicy) takes these model instances plus an injected clock/now and produces deterministic output testable without booting a live ModelContainer. CardScene was adopted as a genuine architectural improvement: it is the single source the live globe draw, the VoiceOver accessibility summary, and the static PNG exporter all read from, so the on-screen and exported card can never visually diverge, and CardExporter now takes a CardScene rather than a raw Card. The Red Team requirement was satisfied by naming and fixing a real gap: a force-quit while the Answer sheet is open previously lost the typed draft silently, now closed by a debounced Card.myAnswerDraft field cleared on submit/dismiss. A SchemaV1 versioned schema is declared now for painless future migration. CoreMotion parallax is locked to live exclusively in GlobeView's own leaf state, never in AppRouter or anything @Query-observed, protecting against the already-flagged globe-stutter risk. Card.dayIndex was unified into a single connection-relative integer (via DayBoundary.canonicalDayIndex) driving both UTC-day-boundary streak logic and 60-day prompt-cycle modulo arithmetic, replacing two parallel day representations, and 'primary connection' is derived from createdAt at read time rather than stored as a separate ordering field. Connection.personThem was made non-optional since this offline build always synthesizes both people locally at creation (sample-preview or redeem-code), with no networked pre-join gap to model \u2014 explicitly flagged as something the future Firebase adapter must revisit. The five-service split, SyncService/LocalSyncService seam, StoreKit/CoreMotion/permissions decisions, and testing-tier split from ios_architecture_review all carried forward unchanged and integrate cleanly with this round's additions.",
+      "key_decisions": [
+        "DEC-tech_specs-001",
+        "DEC-tech_specs-002",
+        "DEC-tech_specs-003",
+        "DEC-tech_specs-004",
+        "DEC-tech_specs-005",
+        "DEC-tech_specs-006",
+        "DEC-tech_specs-007",
+        "DEC-tech_specs-008"
+      ],
+      "open_risks": [
+        "The @Model-vs-struct conflict and the CardScene/draft-persistence/SchemaV1 additions were reconciled by the coordinator's technical judgment rather than a live round-2 rebuttal between Codex and Claude \u2014 a build-verification pass should confirm this synthesis holds up once actual Swift code is written, not just on paper.",
+        "Model participation remains thin (effectively two substantive voices, Deepseek generic, Gemini and two local models unavailable) across this entire project; the newly-unified dayIndex scheme and the non-optional personThem relationship are new this round and haven't had adversarial pushback beyond the two contributors whose proposals were merged.",
+        "The myAnswerDraft debounce-persistence fix is now a locked requirement but not yet implemented anywhere; if a build phase skips the debounce wiring under time pressure, the force-quit data-loss gap this decision exists to close will reopen silently."
+      ]
+    },
+    {
+      "phase": "project_plan",
+      "one_paragraph_summary": "Three contributors (Codex, Claude, Gemini; Deepseek's contribution was generic delivery-process advice with no new content, and both Qwen local models stayed unavailable) produced three independently-shaped but complementary delivery plans, reconciled by the coordinator into one merged seven-milestone sequence rather than left as competing options. All three agreed on the core shape: pure domain logic first, screens last, verification threaded throughout rather than end-loaded. The synthesis locks: M0 scaffold+theme+lint (design-lint runnable from commit one, not retrofitted); M1 pure domain layer bundled explicitly with Connection/Card lifecycle hardening \u2014 persisted simulated-partner due-dates, atomic sample-to-real redeem discard, AND a restored startup/scene-activation reconciliation pass for an interrupted redeem transition that Codex had proposed in tech_specs round 1 but which never made it into that phase's locked decisions, now covered by a fifth named seeded race alongside the four already locked, plus an early spike validating that the CardScene interface (adopted last phase without adversarial pushback) actually works for both live Canvas drawing and PNG export before later milestones build against it; M2 services/persistence with a StoreKit smoke test (product fetch, sandbox purchase, entitlement check, scheme-attachment verification) pulled forward here instead of deferred to the Paywall milestone; M3 globe rendering with a concrete <1,500-vertex coastline budget and threshold-gated CGPoint caching; M4 router/onboarding/Today/Answer/Compose as one slice; M5 Timeline/Reunion/Settings/Paywall; M6 as the sole whole-app verification milestone (eight-screen crawl, StoreKit entitlement-lapse scenario, light/dark spot check, Dynamic Type extremes, full lint). Total estimate ~16.5-17 engineering days. A task-assignment constraint was also locked: Connection/Card lifecycle and CardScene work in M1 gets single ownership rather than parallel lanes, because tech_specs already produced a real type-definition collision when two contributors worked that exact area simultaneously; parallelism is fine from M2 onward.",
+      "key_decisions": [
+        "DEC-project_plan-001",
+        "DEC-project_plan-002",
+        "DEC-project_plan-003",
+        "DEC-project_plan-004",
+        "DEC-project_plan-005",
+        "DEC-project_plan-006",
+        "DEC-project_plan-007",
+        "DEC-project_plan-008",
+        "DEC-project_plan-009"
+      ],
+      "open_risks": [
+        "The merged milestone plan and day estimate are a coordinator synthesis of three non-identical proposals rather than something all three contributors explicitly co-signed in a round 2 rebuttal; a build-verification pass should confirm the M1 bundling (due-date + discard + reconciliation + CardScene spike) doesn't overload that milestone's timebox once real Swift code is written.",
+        "The single-ownership constraint on M1 (Connection/Card lifecycle, CardScene) is a new process rule for the task assignment phase and hasn't been tested against how that phase actually structures lanes \u2014 if task assignment splits this work anyway under schedule pressure, the same class of type-collision bug that occurred in tech_specs could recur.",
+        "Model participation was healthier this round (three substantive voices: Codex, Claude, Gemini) after many prior phases with effectively one, which strengthens confidence in this plan relative to earlier phases, but Deepseek and both Qwen local models remained unavailable/generic, so the plan still has no fourth or fifth independent check."
+      ]
+    },
+    {
+      "phase": "task_assignments",
+      "one_paragraph_summary": "Codex and Claude both produced substantive, complementary task-assignment plans this round (Gemini, Deepseek, and both Qwen local models were unavailable, consistent with nearly every phase in this project). Codex delivered the full required shape first: lane-by-lane responsibilities, a 16-task backlog with requirement traceability to DEC-* ids, and a seven-journey flows draft. Claude then added a genuine structural contribution rather than a restatement: identifying that four lanes committing concurrently against one Xcode project's .pbxproj is the single biggest coordination risk in this phase, and fixing it with file-system-synchronized groups per lane directory, a scaffold-only .pbxproj edit, TetherApp.swift as integrator-owned, and a branch-per-lane merge strategy where data_domain merges first and alone. The coordinator synthesized both into one final plan: a 27-task backlog (T-001 through T-027) across the four fixed lanes (data_domain, services_utilities, primary_ui, polish_resilience) using Claude's finer-grained, scaffold-aware breakdown as the base with every task's requirement_ids re-derived from the authoritative decisions log; a seven-flow flows-json rewritten into the tap/type/assert_exists/back primitive schema the UI-crawl gate actually executes, with explicit accessibilityIdentifiers, covering onboarding/sample-partner, the redeem/sample-to-real transition, the gated-reveal answer flow, compose&share's animated-export paywall trigger, timeline, reunion's paywall trigger, and settings' add-connection paywall trigger. Handoffs and forbidden zones were locked explicitly: no lane edits another lane's directory, TetherApp.swift is integrator-only, data_domain's M1 scope (models, pure domain, CardScene, Connection/Card lifecycle hardening) stays single-owner per the already-locked DEC-project_plan-007 and must pass all five seeded races before the other three lanes branch off updated main.",
+      "key_decisions": [
+        "DEC-task_assignments-001",
+        "DEC-task_assignments-002",
+        "DEC-task_assignments-003",
+        "DEC-task_assignments-004",
+        "DEC-task_assignments-005",
+        "DEC-task_assignments-006",
+        "DEC-task_assignments-007",
+        "DEC-task_assignments-008"
+      ],
+      "open_risks": [
+        "The requirement_ids on all 27 tasks are mapped from the DEC-* decisions log rather than the literal requirements.json produced in app_features (which wasn't available verbatim to this phase) \u2014 a build-verification pass should cross-check that every CORE requirement in that file actually has a task naming it, not just every DEC id.",
+        "The accessibilityIdentifiers named in the seven locked flows are inventions of this phase, not yet validated against any real SwiftUI code \u2014 primary_ui tasks T-018 through T-023 must treat exposing these exact strings as a hard acceptance criterion, or the UI-crawl gate will fail on a naming mismatch rather than a real defect.",
+        "The branch-per-lane merge strategy and single-owner-for-M1 constraint are new process rules that haven't been exercised in practice yet \u2014 if build workers under schedule pressure start services_utilities or primary_ui work before the data_domain gate is actually green, the same class of type-collision risk this plan exists to prevent could resurface."
+      ]
+    },
+    {
+      "phase": "implementation_readiness_gate",
+      "one_paragraph_summary": "Codex and Claude both produced substantive, non-contradictory readiness reviews (Gemini and both Qwen local models unavailable; Deepseek's contribution was generic lane-ownership advice with no new content). Both independently concluded the cross-phase spec is coherent and buildable with no product/architecture contradictions, but each found concrete, fixable gaps in the task_assignments artifact itself rather than in earlier product/design decisions. Six blockers were locked as required fixes to the canonical T-001-T-027 backlog rather than left as open questions: (1) the gated-reveal UI-crawl flow must explicitly advance the simulated partner's due-date checkpoint before asserting completion, since asserting immediately after the user's own answer is untestable/flaky given the persisted-due-date design; (2) two abandoned R-0XX-keyed draft task lists still visible in phase history are explicitly declared discarded and non-canonical, guarding against a build agent picking one up and recreating the tech_specs domain-model collision; (3) T-022 (Connections & Settings) acceptance criteria are extended to require a visible add-connection affordance and a visible primary-vs-read-only indicator, since as originally scoped the StoreKit downgrade/lapse test would be unfalsifiable from the UI even with a passing data-layer test; (4) the bundled .storekit config must encode the real $4.99/mo and $29.99/yr products with 7-day trial rather than placeholders; (5) the design-lint script must catch both .font(.system(size: and Font.system(size: forms plus a new companion check for any third-party SPM dependency, since the no-third-party-package rule had no mechanical enforcement; (6) T-018's onboarding copy for sample-partner-preview vs. redeem-join-code must be written out and sanity-checked against first-time-user misreading risk rather than left as an implied acceptance criterion. A process clarification was also locked: the branch-per-lane/PR mechanics from task_assignments are downgraded to optional process flavor given this factory's actual single-tree autonomous-agent execution pattern, while the underlying ordering dependency (data_domain's M1 gate and five seeded races green before downstream lanes start) remains a hard requirement regardless of git mechanics. With these fixes pinned, the gate issues a conditional pass: build may proceed.",
+      "key_decisions": [
+        "DEC-implementation_readiness_gate-001",
+        "DEC-implementation_readiness_gate-002",
+        "DEC-implementation_readiness_gate-003",
+        "DEC-implementation_readiness_gate-004",
+        "DEC-implementation_readiness_gate-005",
+        "DEC-implementation_readiness_gate-006",
+        "DEC-implementation_readiness_gate-007",
+        "DEC-implementation_readiness_gate-008"
+      ],
+      "open_risks": [
+        "Model participation was again thin (two substantive voices, one generic, three unavailable) for the single most consequential gate in the whole project \u2014 a build-verification phase should treat these eight fixes as hard requirements to check for, not optional suggestions that could get silently dropped under implementation time pressure.",
+        "Fix #2 (discarding the R-0XX drafts) is a documentation/hygiene fix with no mechanical enforcement of its own \u2014 if a build agent is given raw phase transcripts instead of just this gate's final decision, the risk it's meant to close isn't actually closed, only labeled.",
+        "The process clarification about branch-per-lane being optional (fix #7) assumes single-tree autonomous execution; if the actual build execution does use separate agent sessions per lane with real git branches, the original branch-per-lane mechanics from task_assignments remain valid and this clarification would need to be revisited rather than assumed to apply."
+      ]
+    },
+    {
+      "phase": "build_coordination",
+      "one_paragraph_summary": "This is the final build_coordination iteration. The prior round's compile failure (a SwiftData #Predicate macro crash from `#Predicate { $0.id == resolution.connectionID }` accessing a struct member inline inside createPairedConnectionViaRedeemCode) was fixed by both Codex A and Codex B independently touching the same lines in LocalSyncService.swift; Codex B's more complete edit -- which also fixed the data-integrity bug flagged two rounds ago (createPairedConnectionViaRedeemCode now creates a fresh Connection instead of mutating the sample in place, so fabricated sample-preview partner answers no longer leak into a real partner's identity) -- is what's live on disk, confirmed by direct source read rather than trusting either agent's self-report (Codex A's own report describing the mutation bug as 'still unresolved' was stale relative to the merged result). AppRouter.redeemJoinCode/hydrate/onSceneBecameActive are wired for real now: RootTabView injects modelContext, calls hydrate() on launch and onSceneBecameActive() on scene activation, and .onOpenURL is wired for the deep-link path -- the app's core pairing loop (name yourself, preview with a sample partner, generate and redeem a join code, land paired) is functionally connected end-to-end for the first time this build arc. RedeemJoinCodeView's stale placeholder error string was replaced with real error surfacing, and TimelineView now embeds an actual GlobeView thumbnail per archived card (motion forced off per-instance) instead of plain text, extending the native globe/tether hero visual (shipped two rounds ago) into the archive. A new LocalSyncServiceTests.swift directly tests the redeem-preserves-sample-until-discard invariant. As integrator, the concrete wiring work this round was adding LocalSyncServiceTests.swift's four required pbxproj entries (PBXBuildFile, PBXFileReference, Tests group membership, TetherTests target Sources build phase) -- the same class of gap as GlobeView.swift two rounds prior, since this project uses explicit file references rather than synchronized groups. A fresh full-tree design-lint sweep found zero violations. Known, disclosed gaps carried forward: TodayView still owns local sample-seeding/checkpoint logic because AnswerSubmissionService never calls LocalSyncService.startSimulatedPartnerTimer (confirmed load-bearing, correctly not retired); canCreateAdditionalConnection() is hardcoded true, not yet entitlement-gated; GlobeView uses file-private projection types instead of the originally-envisioned LatLon/GlobeProjection contract; and animated export, premium skins, and the Year Tethered retrospective were not built in this arc. Most significantly, xcodebuild build/test never successfully ran in this entire five-iteration session -- every attempt was blocked from approval -- so every compile/test verification claim across the whole build arc, including this final round's, is hand-verified by direct source reading rather than compiler-confirmed.",
+      "key_decisions": [],
+      "open_risks": [
+        "xcodebuild build/test has never actually executed in this session across five consecutive iterations -- all verification is hand-read, not compiler-confirmed; this must be the first thing run before treating any part of this build as proven to work.",
+        "TodayView's local sample-seeding and simulated-partner checkpoint logic duplicates what LocalSyncService now provides for real, kept only because AnswerSubmissionService doesn't yet call LocalSyncService.startSimulatedPartnerTimer -- retiring one without the other would break the simulated-partner flow.",
+        "canCreateAdditionalConnection() is hardcoded true and not routed through EntitlementPolicy -- the free-tier one-connection cap is not actually enforced at the service layer.",
+        "GlobeView's projection math and coastline data are file-private and intentionally not reconciled with any shared/locked geometry types -- fine as shipped, but a future globe-related feature (e.g. animated export rendering the same visual) would need to either reuse GlobeView directly or duplicate its math again.",
+        "Animated export, premium skins beyond the classic globe, and the Year Tethered retrospective reel were not built in this arc and remain outstanding against the original product spec."
+      ]
+    },
+    {
+      "phase": "write_tests",
+      "one_paragraph_summary": "Round 2 closed the compile failure build_verification found against round 1's output: ShareSkin.swift's `extension Skin: ShareSkinMetadata {}` was empty (a pre-existing bug from the original data_domain lane that the integrator's round-1 Equatable fix didn't catch), so Skin never actually satisfied the ShareSkinMetadata protocol's four requirements. Two lanes (Codex A and Codex B) independently fixed it identically -- Skin now implements isUnlockedByDefault/isPremiumOnly/displayName/subtitle by forwarding to Skin.metadata(for: self) -- and the integrator confirmed exactly one clean implementation landed with no merge duplication. The integrator then independently re-traced every other production change this round (Card.phase's new .awaitingBoth/.awaitingMe state cases and restructured branching, PromptCatalog.requiredCount centralizing the 60-day constant that Card.isRepeatPrompt now references, Connection+DayBoundary.swift's UTC calendar reorganization plus a new Connection.canonicalDayIndex(at:) convenience method, and CardView's new default-valued isRepeatPrompt badge parameter) against the actual test suite from round 1 (GatedRevealStateMachineTests.swift, PromptCatalogCycleTests.swift, DayBoundaryAndStreakTests.swift, ResilienceDomainLogicTests.swift) by hand, confirming none of it changes behavior the 47 existing test methods depend on. The test suite itself (8 files wired into TetherTests) is unchanged from round 1 and still correctly registered in project.pbxproj. Two non-blocking gaps remain flagged but unfixed: ComposeShareView's skin picker still doesn't filter by entitlement (a UI/product gap, not a test-target compile risk), and Card.phase has one dead unreachable branch (cosmetic).",
+      "key_decisions": [],
+      "open_risks": [
+        "This is the second consecutive round where a real compile blocker escaped the integrator's manual verification (round 1 fixed ShareSkin's missing Equatable but missed the empty ShareSkinMetadata conformance sitting a few lines away in the same file) -- with no xcodebuild access in this sandbox at any point, manual tracing remains the only verification method, and build_verification's actual compiler run is the sole ground truth check this project has had so far.",
+        "ComposeShareView.swift still enumerates Skin.allSkins() rather than an entitlement-filtered list, so premium skins remain visible/selectable in the UI to free users even though the underlying EntitlementPolicy/Skin.isUnlocked logic is correct and tested -- flagged twice now across two rounds by different lanes, still unfixed, and now explicitly not this phase's job to fix.",
+        "The previously-documented StreakCalculator non-recovery bug (connectionStreak never resumes after a single historical missed day) remains unfixed in production code, still only pinned down by a regression test -- unchanged status from round 1, still owned by data_domain whenever that lane is next active.",
+        "Card.phase's final `.streakBrokenAttributed` case is unreachable dead code (flagged, not fixed, not a compile risk) -- worth a cleanup pass whenever Card.swift is next touched substantively."
+      ]
+    },
+    {
+      "phase": "build_verification",
+      "one_paragraph_summary": "The authoritative tooling result stands: Tether compiles cleanly for the iOS Simulator (xcodebuild), and the prior round's real compile blocker (Skin not conforming to ShareSkinMetadata) is confirmed fixed with no duplication. A fresh re-verification attempt this round could not get a clean local xcodebuild run due to sandbox/tooling environment failures (non-writable DerivedData, CoreSimulator access errors, code-signing requirements, sandboxed EmitSwiftModule permission denial) rather than any code-level error, so it doesn't contradict the authoritative VERIFIED status but also couldn't independently reconfirm it. Separately, a direct code-tree audit this round established that 'compiles cleanly' is a narrow and potentially misleading signal here: DesignSystem.swift is still the untouched M0 placeholder (system blue/system background, no amber, no indigo, no instrument type ramp, no light/dark hex pairs -- none of the ~15 locked design_discussion/design_handoff decisions were implemented), there is no globe/Canvas/orthographic-projection/great-circle-tether rendering anywhere in the codebase (CardView represents the two people as two plain Circle shapes), SyncService still does not exist anywhere (so AppRouter.enterSamplePartnerPreview() still only flips an enum rather than creating a real reachable Connection, exactly as build_coordination flagged six iterations earlier), there is no Reunion screen (one of the eight required screens), no .storekit configuration file on disk, and no standalone lint-gate script (runDesignLint is a buried Swift function exercised by one XCTest, not the required CI-runnable script). No new feature work was introduced this round per phase rules. The domain/test layer (state machine, day boundary, streak logic, entitlement policy, 47 XCTest methods) remains genuinely solid. The phase's honest conclusion is that the app compiles but is far from functionally complete against its own locked validation criteria, and that distinction must be carried forward explicitly rather than allowing a bare pass label to imply the product is built.",
+      "key_decisions": [],
+      "open_risks": [
+        "It has not been confirmed in this session whether xcodebuild test was actually executed (running the 47 XCTest methods) versus only xcodebuild build -- this should be verified explicitly before treating the test suite as a passing gate rather than just compiled code.",
+        "DesignSystem.swift never received the design_handoff token spec -- the entire visual identity (amber rationing, Night Instrument Panel palette, instrument type ramp, light/dark hex pairs) is unbuilt, and the amber-lint rule is only trivially passing because there is no amber anywhere yet to violate it with.",
+        "The signature hero surface -- the orthographic Canvas globe, the great-circle amber tether, live distance, dual clock -- does not exist in any form; CardView is two Circle shapes, not the app's central feature.",
+        "SyncService, the core architectural seam this entire project was built around, still does not exist; sample-partner preview cannot produce a real Connection, so most gated-reveal states remain unreachable by tapping through the app.",
+        "No Reunion screen, no .storekit configuration, and no standalone/CI-runnable lint script exist on disk -- three requirements locked as must-have or must-exist as far back as prompt_contract, project_plan, and app_features remain unbuilt.",
+        "This project has run with effectively one or two participating model voices for nearly every phase (Gemini and all local models unavailable again this round) -- the final review phase should treat this build_verification finding as needing real scrutiny rather than assuming prior single-voice sign-offs already covered it."
+      ]
+    },
+    {
+      "phase": "human_qa_checklist",
+      "one_paragraph_summary": "Two substantive, complementary contributors (Codex and Claude; Gemini and both Qwen local models unavailable, Deepseek's contribution generic and non-conflicting) converged on a single manual QA checklist for Tether, deliberately written against what actually got built rather than the original prompt in the abstract. The checklist covers all fifteen areas required by the phase (preflight, onboarding/pairing, Today screen, Answer sheet, Compose & Share, Timeline, Reunion, Settings/Connections, Paywall, offline behavior, persistence/state recovery, permissions/hardware, accessibility, a test-suite-execution blocking check, and a known-gaps section) with explicit tap/expect steps, not vague journey prose. Its defining structural choice is bucketing every step that touches a feature build_verification already found missing -- the orthographic Canvas globe/great-circle tether, SyncService (so sample-partner preview cannot create a real Connection), the Reunion screen, the .storekit configuration, and the standalone lint script -- as [BLOCKED -- feature not built], so a tester grades these as unmet requirements rather than hunting for bugs in nonexistent code or mistaking incompleteness for breakage. Concrete new requirements locked this round: onboarding's two look-alike-but-different-consequence actions (sample preview vs. irreversible redeem) must have their literal copy checked for adequate warning language; the entitlement-lapse test must attempt an actual write against a read-only connection and confirm policy-layer rejection, not just check a UI badge; Reunion's absence is graded a hard fail against a locked must-have, not filed as an accepted limitation; and no sign-off on this app should proceed until someone confirms xcodebuild test (not just build) was actually executed against the 47-method test suite, since that was never independently confirmed in build_verification.",
+      "key_decisions": [
+        "DEC-human_qa_checklist-001",
+        "DEC-human_qa_checklist-002",
+        "DEC-human_qa_checklist-003",
+        "DEC-human_qa_checklist-004",
+        "DEC-human_qa_checklist-005",
+        "DEC-human_qa_checklist-006"
+      ],
+      "open_risks": [
+        "This checklist cannot itself close the gaps it documents -- the globe, SyncService, Reunion screen, .storekit config, and lint script all remain unbuilt, so a large fraction of this QA script will report BLOCKED rather than PASS/FAIL until a future build phase actually implements those features.",
+        "Whether xcodebuild test has ever actually been run against the 47-method suite is still unconfirmed as of this phase -- this checklist names it as a blocking prerequisite but does not itself resolve it.",
+        "Model participation remains thin (two substantive voices, consistent with nearly every phase in this project) -- a final review pass would benefit from independently confirming this checklist's known-gaps list matches the actual current state of the codebase rather than trusting this phase's read of build_verification's transcript.",
+        "The StoreKit-dependent test lanes (animated-export coming-soon state, add-a-connection, entitlement-lapse) are written assuming a .storekit config might exist; if it genuinely does not exist on disk as build_verification suggested, an entire section of this checklist is unexecutable as written and should be reported as blocked in bulk rather than attempted piecemeal."
+      ]
+    },
+    {
+      "phase": "app_store_readiness",
+      "one_paragraph_summary": "Two substantive contributors (Codex and Claude; Gemini and all local models unavailable again) independently reached the same hard verdict: Tether is not launch-ready and must not be submitted to App Store review in its current state, because the paid Tether+ tier sells features that don't exist (Reunion screen entirely absent from disk, animated export permanently stuck at 'coming soon' even for paying subscribers, no .storekit configuration on disk so the purchase/restore/cancellation flow has never been exercised even in sandbox) while the free tier's signature visual -- the globe/tether hero card -- is currently two placeholder circles with no design tokens implemented. Both agree the seven-shot screenshot/storyboard plan (onboarding ignite, completed hero card, answer sheet, compose & share, timeline, reunion countdown, paywall) is well-defined but unexecutable today since the app can't render most of what it would depict, and that publishing screenshots against the intended vision rather than real running behavior is both dishonest and a concrete Guideline 2.3.3 rejection risk. The privacy label is a genuine bright spot: 'Data Not Collected' is the honest, defensible label for this build given zero network layer and purely local city-level location storage, though this must be explicitly revisited the day a real Firebase-style sync adapter ships. Permission copy is nearly trivial (no location/notification/photos permissions requested anywhere), with the only real requirement being that the notification-cadence Settings control explicitly reads as foreground/in-app-only. A previously unnamed release blocker was surfaced this round: no live privacy-policy URL or support email/URL exists yet for App Store Connect metadata, which is mandatory regardless of code state. Both contributors converge on the same bottom line -- don't submit as-is -- with Claude adding an explicit fork for how to close the gap: finish the real blockers (hero card, real SyncService pairing, Reunion, working StoreKit config, actual design tokens) or cut hard and ship a smaller, fully honest free-tier-only release with Reunion and animated export pulled from marketing and the paywall entirely, deferred as a fast-follow.",
+      "key_decisions": [
+        "DEC-app_store_readiness-001",
+        "DEC-app_store_readiness-002",
+        "DEC-app_store_readiness-003",
+        "DEC-app_store_readiness-004",
+        "DEC-app_store_readiness-005",
+        "DEC-app_store_readiness-006",
+        "DEC-app_store_readiness-007"
+      ],
+      "open_risks": [
+        "The two-path fork (finish vs. cut) was proposed by only one contributor (Claude) and not independently co-signed by a second voice choosing between them -- whoever owns the next phase needs to make this call explicitly rather than assume either path was already decided.",
+        "Support/legal infrastructure (privacy policy URL, support email) is now a named blocker but has no owner or timeline yet -- it needs to be picked up as a concrete task, not left to be rediscovered at actual submission time.",
+        "If the 'cut hard' path is chosen, someone must audit ALL existing marketing/UI copy and paywall trigger wiring to ensure Reunion and animated export are fully removed, not just hidden -- a partial removal could re-create the same 'selling what doesn't exist' risk this phase exists to prevent.",
+        "Model participation remains thin (two voices) for this launch-critical phase; given the severity of the verdict (do not submit), a final review pass should sanity-check this conclusion against the actual current codebase state rather than trust the transcript alone."
+      ]
+    },
+    {
+      "phase": "final_review",
+      "one_paragraph_summary": "This final_review iteration judged the design-lint gate fix requested at the start of this build arc: it is confirmed done and compiler-verified (xcodebuild build compiles cleanly for the iOS Simulator after one repair cycle for an unrelated read-only accessibilityReduceMotion environment-key bug in TimelineView, and a fresh full-tree sweep found zero design-lint violations outside DesignSystem.swift, no new third-party dependency). Beyond that narrow scope, the four-iteration build arc that ran alongside it substantially advanced the app: AppRouter.redeemJoinCode/hydrate/onSceneBecameActive are now genuinely wired to LocalSyncService (no longer stubs), the sample-to-real connection transition creates a fresh Connection instead of mutating the sample in place (closing a data-integrity bug), and the native globe/tether Canvas hero visual is built and wired into both Today and Timeline -- the two most-repeated blockers from final_review-1 are both now real. Despite this, the council reached consensus that Tether's overall status remains NO-GO, reaffirming rather than reopening final_review-1's verdict, for two convergent reasons: (1) only xcodebuild build was verified this round -- there is no confirmation that xcodebuild test actually executed and passed, leaving the gated-reveal state machine (the app's one designated correctness invariant) unconfirmed by anything other than hand-reading; (2) the Tether+ paywall still sells at least two features that don't exist (animated export remains an explicit 'coming soon' placeholder, no lane built the Year Tethered retrospective reel) and one unenforced entitlement (canCreateAdditionalConnection() is hardcoded true, so the free-tier one-connection cap that's supposed to make 'add a second connection' a real paywall trigger doesn't actually gate anything) -- a hard release blocker first named in app_store_readiness and carried through final_review-1 unchanged. TodayView's local sample-seeding/simulated-partner-due-date logic remains a confirmed, load-bearing architectural split from LocalSyncService (AnswerSubmissionService never calls startSimulatedPartnerTimer), correctly left alone rather than half-retired. Follow-ups with clear next steps: run and report xcodebuild test results before trusting any correctness claim; route canCreateAdditionalConnection() through EntitlementPolicy; either finish or explicitly cut animated export and the Year Tethered reel from the paywall/marketing copy per the still-unresolved two-path fork from app_store_readiness; reconcile TodayView's local simulation logic with LocalSyncService ownership.",
+      "key_decisions": [
+        "DEC-final_review_3-001",
+        "DEC-final_review_3-002",
+        "DEC-final_review_3-003"
+      ],
+      "open_risks": [
+        "xcodebuild test has never been confirmed to run and pass in this project's entire history -- only xcodebuild build has been verified; the gated-reveal state machine correctness invariant remains unconfirmed by compiler-backed evidence.",
+        "Tether+ paywall sells animated export and the Year Tethered reel, neither of which exist, and the free-tier one-connection cap is not enforced at the service layer (canCreateAdditionalConnection() hardcoded true) -- a hard App Store review and user-trust blocker, unresolved since app_store_readiness.",
+        "TodayView's local sample-seeding/simulated-partner checkpoint logic remains architecturally split from LocalSyncService because AnswerSubmissionService never calls startSimulatedPartnerTimer -- confirmed load-bearing, needs an explicit reconciliation pass.",
+        "The two-path fork from app_store_readiness (finish all real blockers vs. cut hard to a free-tier-only release) remains unresolved across three consecutive final_review-labeled phases now -- whoever resumes this project must make this choice explicitly."
+      ]
+    },
+    {
+      "phase": "portfolio_audit",
+      "one_paragraph_summary": "Portfolio audit was marked not applicable for Tether, confirmed independently by both substantive contributors (Codex and Claude; Gemini and both Qwen local models unavailable; Deepseek's contribution was off-topic, re-litigating final_review's test-failure discussion rather than addressing portfolio shape). This is a locked single-app run from portfolio_selection with no category split ever requested, one Xcode project/target (Tether/Tether.xcodeproj), zero sibling app folders, zero children, and no portfolio-json manifest was ever produced because there was nothing to manifest -- expected app count (1) matches actual (1) with no collapsed or skipped categories. Claude's contribution added the one substantive caveat: this phase certifies folder/project shape only, not functional completeness, and its clean 'not applicable' result must not be misread by any downstream automation as overriding final_review's separate NO-GO verdict (missing hero globe/tether, SyncService pairing, Reunion screen, .storekit config, and an unresolved test failure in the authoritative build). Any Jira/Notion backfill from this phase should log a single app record for tether with final_review's NO-GO status carried forward, not a standalone 'portfolio complete' signal.",
+      "key_decisions": [
+        "DEC-portfolio_audit-001",
+        "DEC-portfolio_audit-002"
+      ],
+      "open_risks": [
+        "If downstream tooling or a future phase keys off 'portfolio_audit: no issues found' without also checking final_review's status, it could misrepresent this project as ready when it is explicitly NO-GO on functional completeness.",
+        "Codex could not independently verify the filesystem/project layout from its shell session (empty working directory in that context) -- this is a tooling/session limitation, not a finding, but a future phase with real repo access should do a live filesystem spot-check if this project resumes.",
+        "Model participation remains thin (two on-topic voices) consistent with nearly every phase in this project; this phase's low stakes (single-app shape confirmation) make that less consequential than in launch-critical phases, but it's part of the same pattern worth noting for the project as a whole."
+      ]
+    },
+    {
+      "phase": "iterate_scope",
+      "one_paragraph_summary": "This phase scoped a narrow, single-purpose fix for Tether's failing design-lint gate. The freshly-checked docs/design_lint.json currently reports exactly one hard error: a self-referential false positive at Tether/Resilience/ResilienceHelpers.swift:69, where the lint-detection helper's own source contains the literal '.font(.system(size:' pattern it searches for in other files, causing it to flag itself. The agreed fix is to restructure that probe-string construction (e.g. build it from concatenated pieces) so the helper stops self-matching while its real detection coverage of inline color/font literals elsewhere in the app is fully preserved \u2014 no lint exemptions, no regex softening. Before patching, the file's liveness must be confirmed (delete instead of patch if it's dead scaffold). If the freshly regenerated JSON turns out to contain further entries beyond this one, each is fixed by substituting an existing DesignSystem/Theme type-ramp token, adding a new token only if none fits, kept minimal. Scope is explicitly bounded away from AppRouter, Views, Models, Services, Tests, Connection/Card lifecycle, SyncService, globe rendering, StoreKit, and Reunion. Acceptance is a fresh (not cached) zero-error lint run, a successful xcodebuild build, an actually-executed passing xcodebuild test, no new third-party dependency, and a diff limited to files the fresh lint output names \u2014 with an explicit note that passing this gate does not change the app's standing NO-GO verdict from final_review.",
+      "key_decisions": [
+        "DEC-iterate_scope-001",
+        "DEC-iterate_scope-002",
+        "DEC-iterate_scope-003",
+        "DEC-iterate_scope-004",
+        "DEC-iterate_scope-005"
+      ],
+      "open_risks": [
+        "The self-matching-regex fix is a brittle string-detection workaround; if the lint mechanism later moves to AST-aware parsing, this pattern-concatenation approach should be replaced cleanly rather than extended with more regex hacks.",
+        "ResilienceHelpers.swift's actual role/liveness was not independently verified in this discussion \u2014 the build phase must check it before assuming patch-in-place is correct.",
+        "docs/design_lint.json was read as of this discussion; if the tree has changed since, the error list must be regenerated fresh before executing the fix.",
+        "This fix does not touch any of the app's substantive missing features (globe/tether, SyncService, Reunion, .storekit config) already flagged NO-GO by final_review \u2014 those remain fully open."
+      ]
+    }
+  ]
+}

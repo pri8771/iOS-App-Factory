@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "App makes zero network calls and includes no third-party SDKs (including analytics/crash reporting); SwiftData ModelContainer is audited for cloudKitDatabase: .none.",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "Native stack only: SwiftUI, SwiftData, Core Image/Metal, Swift Charts, StoreKit 2, targeting iOS 17+.",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "Daily check-in (mood pick, 1-2 chip taps) completes with a haptic+spring reveal ceremony; cold launch to revealed card takes under 10 seconds of active interaction with zero forced tutorial.",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "Check-in is non-committing until its final step: a force-quit mid-flow restarts cleanly on relaunch with no daily-lock consequence.",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "Daily lock is keyed to the last-completed calendar day in the timezone active at completion; verified by changing the Simulator's date/timezone forward, backward, and across a DST boundary without producing a duplicate or skipped day.",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "International date-line/transoceanic travel may legitimately produce a same-trip double check-in or an apparent one-day streak gap \u2014 documented as an accepted limitation, not treated as a bug.",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "Generative engine is deterministic: identical (date + mood + chips [+ frozen time-of-day]) inputs on the same simulated day always render byte-identical output.",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "Different day/mood/chip combinations render meaningfully different compositions (palette, shape-field topology, particle/line density); verified by generating and visually inspecting 8-10+ combinations side by side, not just confirming they render.",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "Generative output reads as genuinely beautiful abstract art (painterly gradient blooms / particle fields / flow-field lines), not a literal illustration or a gradient-picker demo; Simulator-only visual review is explicitly noted as not equivalent to on-device review.",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "Caption engine selects deterministically from a curated local phrase bank with a 30-day no-repeat window per mood.",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "Aura+ regeneration uses an added seed nonce layered on the base seed and must differ from the original in at least 2 of {palette, shape-field topology, particle/line density} for identical date/mood/chip inputs.",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "Regeneration credit and the daily lock share one canonical 'last completed calendar day' state; free tier gets 0 regenerations/day, Aura+ gets 1/day; rolling the device clock cannot grant extra regenerations.",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "A mid-day Aura+ purchase never retroactively mutates an already-persisted card's render; entitlement state is snapshotted at generation time.",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "Each card is rendered once and persisted via SwiftData as an image+recipe record; widget, archive, and export all read this cached render and never re-invoke the generative engine live.",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "A SwiftData store load failure (corruption, disk full, migration failure) is detected and surfaced as an explicit, distinguishable error state, never silently presented as a fresh empty store.",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "Scrollable archive grid of past cards (real + demo) is present and populated.",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "Streak counter is derived from the same canonical day-state as the daily lock.",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "30+ days of clearly-labeled demo history are seeded, anchored to a fixed historical date range strictly before real usage, structurally unable to collide with real check-in dates; demo mode is opt-in and off by default on a genuine fresh install; disabling it shows an explicit streak-reset confirmation.",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "Demo-seeded and freshly-generated cards from equivalent inputs are visually indistinguishable except for an explicit demo label.",
+      "core": true
+    },
+    {
+      "id": "R-020",
+      "text": "Every card and the monthly Wrapped export produce a real high-resolution static image at 1080x1920, exported via the native share sheet, verifiably not a raw UI screenshot (no chrome, correct pixel dimensions).",
+      "core": true
+    },
+    {
+      "id": "R-021",
+      "text": "Free-tier exports carry a small, tasteful, fully-bundled (never remotely fetched) watermark that never overlaps the card's focal art or caption; Aura+ removes it.",
+      "core": true
+    },
+    {
+      "id": "R-022",
+      "text": "Exported images have EXIF/device metadata stripped.",
+      "core": true
+    },
+    {
+      "id": "R-023",
+      "text": "StoreKit 2 non-consumable 'Aura+' IAP bundles exactly three unlocks: watermark-free export, expanded palette library, one regeneration per day.",
+      "core": true
+    },
+    {
+      "id": "R-024",
+      "text": "Purchase and restore-purchases flows use the real StoreKit 2 API (never a faked success state); Simulator testing uses a local StoreKit configuration file with explicit, honest disclosure that Simulator can confirm purchase initiation and local config/restore logic but not full real transaction completion.",
+      "core": true
+    },
+    {
+      "id": "R-025",
+      "text": "A live Transaction.updates listener keeps entitlement state current beyond a one-time launch check.",
+      "core": true
+    },
+    {
+      "id": "R-026",
+      "text": "Restore-purchases success confirmation explicitly states that card history/streak stays device-local and is not restored/backed up, distinct from the entitlement itself.",
+      "core": true
+    },
+    {
+      "id": "R-027",
+      "text": "Navigation has exactly four destinations: Today, Archive, Wrapped, Settings.",
+      "core": true
+    },
+    {
+      "id": "R-028",
+      "text": "No editing or undoing a locked day's check-in is possible.",
+      "core": true
+    },
+    {
+      "id": "R-029",
+      "text": "At most one canonical card exists per calendar day; regeneration replaces the existing record in place and never creates a second archive entry.",
+      "core": true
+    },
+    {
+      "id": "R-030",
+      "text": "No cross-device/reinstall data-continuity promise: card history/streak does not sync or survive reinstall without restore, and restore only returns the IAP entitlement.",
+      "core": true
+    },
+    {
+      "id": "R-031",
+      "text": "Card accessibility descriptions are generated from mood/chip/caption metadata (not attempted pixel description), applied consistently in card detail, archive grid, and widget.",
+      "core": true
+    },
+    {
+      "id": "R-032",
+      "text": "Mood/chip pickers are distinguishable by non-color means (shape/icon/label) for color-blind users.",
+      "core": true
+    },
+    {
+      "id": "R-033",
+      "text": "Mood-distribution trend view (Swift Charts) is nested inside Archive as a segmented control, not a separate navigation tab.",
+      "core": false
+    },
+    {
+      "id": "R-034",
+      "text": "Monthly Wrapped recap generates after each calendar month: a shareable composite poster/sequence of that month's dominant palette/mood story, portrait 9:16.",
+      "core": false
+    },
+    {
+      "id": "R-035",
+      "text": "An on-demand 'so far this month' mini-recap unlocks once a user has 5-7+ real cards banked, reusing the Wrapped static export pipeline at smaller scope.",
+      "core": false
+    },
+    {
+      "id": "R-036",
+      "text": "Home-screen widget shows today's card once generated, or an inviting 'your Aura is waiting' state pre-check-in; tapping the waiting state deep-links directly into the check-in flow.",
+      "core": false
+    },
+    {
+      "id": "R-037",
+      "text": "Widget timeline explicitly reloads on both check-in completion and successful regeneration, as two distinct trigger call sites.",
+      "core": false
+    },
+    {
+      "id": "R-038",
+      "text": "A local, opt-in daily reminder notification is offered; permission is requested contextually (not at first launch); a denied permission gets a deep link to Settings.app; a pending notification is cancelled/rescheduled immediately on successful check-in.",
+      "core": false
+    },
+    {
+      "id": "R-039",
+      "text": "Video/Live Photo-style animated export is out of scope for v1 and must never block completion of the static export requirement.",
+      "core": false
+    },
+    {
+      "id": "R-040",
+      "text": "No social/feed layer (no following, comments, or viewing other users' cards) exists anywhere in the app.",
+      "core": false
+    }
+  ]
+}

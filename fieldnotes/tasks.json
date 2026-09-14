@@ -1,0 +1,596 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Core entry schema & local persistence store",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/data/entryStore.ts",
+        "src/data/entrySchema.ts"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Entry has persistent UUID, created/updated timestamps, transcript field, tags array, mood field, sketch ref",
+        "Store persists locally and survives reload"
+      ],
+      "requirement_ids": [
+        "R-001",
+        "R-002",
+        "R-005"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-002",
+      "title": "Demo/real entry flag & seeded demo dataset",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/data/demoSeed.ts"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Every entry carries an isDemo flag",
+        "Demo seed data loads only in demo mode and is clearly separable from real entries"
+      ],
+      "requirement_ids": [
+        "R-009"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-003",
+      "title": "Entry timeline/list view",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/EntryTimeline.tsx"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "Entries render reverse-chronologically",
+        "Demo entries are visually distinguished from real entries"
+      ],
+      "requirement_ids": [
+        "R-006",
+        "R-010"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-004",
+      "title": "Entry create/edit view (transcript + sketch)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/EntryEditor.tsx"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "User can type/paste a transcript",
+        "User can attach a freehand sketch",
+        "Editing an existing entry loads and saves correctly"
+      ],
+      "requirement_ids": [
+        "R-003",
+        "R-004",
+        "R-007"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-005",
+      "title": "Entry deletion with confirmation",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/EntryEditor.tsx",
+        "src/ui/ConfirmDialog.tsx"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Deleting an entry requires explicit confirmation",
+        "Deleted entry is removed from the store and all views"
+      ],
+      "requirement_ids": [
+        "R-008"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-006",
+      "title": "Tag data model",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/data/tagStore.ts"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Tags are first-class entities linked to entries by id, not free strings duplicated per entry"
+      ],
+      "requirement_ids": [
+        "R-011"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-007",
+      "title": "Manual tag add/remove UI on entry",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/TagEditor.tsx"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "User can add an existing or new tag to an entry",
+        "User can remove a tag from an entry"
+      ],
+      "requirement_ids": [
+        "R-012"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-008",
+      "title": "On-device NLP pipeline scaffold",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/services/nlp/pipeline.ts"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Pipeline runs fully on-device with no network calls",
+        "Transcript text never leaves the local process"
+      ],
+      "requirement_ids": [
+        "R-015"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-009",
+      "title": "Tag suggestion generation from transcript",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/services/nlp/tagSuggest.ts"
+      ],
+      "depends_on": [
+        "T-008",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Saving a transcript produces a candidate tag list",
+        "Suggestions are stored separately from confirmed tags"
+      ],
+      "requirement_ids": [
+        "R-013"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-010",
+      "title": "Mood/sentiment scoring from transcript",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/services/nlp/moodScore.ts"
+      ],
+      "depends_on": [
+        "T-008"
+      ],
+      "acceptance_criteria": [
+        "Saving a transcript produces a mood/polarity score object",
+        "Score output includes a confidence/hedge indicator, not a bare number"
+      ],
+      "requirement_ids": [
+        "R-014",
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-011",
+      "title": "Suggested-tag UI: editable & dismissible",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/TagSuggestions.tsx"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-007"
+      ],
+      "acceptance_criteria": [
+        "Suggested tags render visually distinct from confirmed tags",
+        "User can accept, edit, or dismiss a suggestion",
+        "Dismissed/edited suggestions are never silently written as confirmed tags"
+      ],
+      "requirement_ids": [
+        "R-018",
+        "R-019"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-012",
+      "title": "Mood score display with hedged framing",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/MoodBadge.tsx"
+      ],
+      "depends_on": [
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Mood is presented as a rough/approximate signal (e.g. 'seems mostly upbeat')",
+        "Copy avoids clinical/diagnostic language anywhere in the UI",
+        "User can edit or dismiss the shown mood"
+      ],
+      "requirement_ids": [
+        "R-017",
+        "R-018"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-013",
+      "title": "Recompute suggestions/mood on transcript edit",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/services/nlp/recompute.ts"
+      ],
+      "depends_on": [
+        "T-009",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "Editing a saved transcript triggers a fresh tag-suggestion and mood pass",
+        "User's prior manual edits/dismissals are not silently overwritten by the recompute"
+      ],
+      "requirement_ids": [
+        "R-020"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-014",
+      "title": "Manual tag-entry autocomplete",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/TagAutocomplete.tsx"
+      ],
+      "depends_on": [
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Typing in the manual tag field suggests existing tag names",
+        "Selecting a suggestion inserts the existing tag rather than creating a duplicate"
+      ],
+      "requirement_ids": [
+        "R-021"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-015",
+      "title": "Settings screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/Settings.tsx"
+      ],
+      "depends_on": [
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "User can toggle demo mode",
+        "User can clear local data"
+      ],
+      "requirement_ids": [
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-016",
+      "title": "Mention/backlink data model (UUID-based)",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/data/mentionModel.ts"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "A mention stored in a transcript references the target entry's persistent UUID, never its display title",
+        "Schema supports zero or more mentions per transcript"
+      ],
+      "requirement_ids": [
+        "R-023"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-017",
+      "title": "@-mention autocomplete in transcript editor",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/MentionAutocomplete.tsx"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Typing '@' in the transcript editor opens an entry-search autocomplete",
+        "Selecting a result inserts a UUID-backed mention rendered with the entry's current title"
+      ],
+      "requirement_ids": [
+        "R-022"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-018",
+      "title": "Autocomplete filtering: no self-mentions, no demo/real crossing",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/data/mentionModel.ts",
+        "src/ui/MentionAutocomplete.tsx"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-002"
+      ],
+      "acceptance_criteria": [
+        "The entry currently being edited never appears in its own @-mention results",
+        "Demo entries never appear as mention candidates from a real entry and vice versa"
+      ],
+      "requirement_ids": [
+        "R-029",
+        "R-030"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-019",
+      "title": "Live backlink resolver",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/services/backlinks/resolve.ts"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "'Linked from' list for an entry is computed by scanning current mention references at view time",
+        "No separate backlink table is persisted or kept in sync"
+      ],
+      "requirement_ids": [
+        "R-025"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-020",
+      "title": "Rename-safe mentions",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "src/services/backlinks/resolve.ts",
+        "src/ui/EntryEditor.tsx"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Renaming an entry's title updates its rendered mention text everywhere without altering the underlying UUID reference",
+        "No existing mention is broken or misdirected by a rename"
+      ],
+      "requirement_ids": [
+        "R-024"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-021",
+      "title": "Deletion cleanup for backlinks",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "src/services/backlinks/resolve.ts",
+        "src/data/entryStore.ts"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Deleting an entry results in zero dangling backlink rows in any live backlink query",
+        "Deleting an entry results in zero duplicate backlink rows in any live backlink query"
+      ],
+      "requirement_ids": [
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-022",
+      "title": "Broken-link indicator for deleted mention targets",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/ui/MentionChip.tsx"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "A mention whose target entry was deleted renders as a visually distinct broken-link chip",
+        "The mention never silently degrades to plain, unstyled text"
+      ],
+      "requirement_ids": [
+        "R-027"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-023",
+      "title": "De-duplicate repeated mentions within one transcript",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/services/backlinks/resolve.ts"
+      ],
+      "depends_on": [
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Mentioning the same target entry multiple times in one transcript produces exactly one backlink entry on the target's 'linked from' list"
+      ],
+      "requirement_ids": [
+        "R-028"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-024",
+      "title": "Full-text search across transcripts, tags, and mood",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/services/search/index.ts"
+      ],
+      "depends_on": [
+        "T-001",
+        "T-006",
+        "T-010"
+      ],
+      "acceptance_criteria": [
+        "A single search query matches against transcript text, tag names, and mood labels/values",
+        "Results include entries matched purely on tag or mood with no transcript match"
+      ],
+      "requirement_ids": [
+        "R-031"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-025",
+      "title": "Documented deterministic relevance ranking formula",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/services/search/rank.ts",
+        "docs/search-relevance.md"
+      ],
+      "depends_on": [
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "Ranking formula is written down in docs and implemented as a pure function of documented inputs",
+        "Given the same inputs, ranking order is always identical (no reliance on insertion/substring-match order)"
+      ],
+      "requirement_ids": [
+        "R-032"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-026",
+      "title": "Fixed two-entry relevance test case",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "src/services/search/rank.test.ts"
+      ],
+      "depends_on": [
+        "T-025"
+      ],
+      "acceptance_criteria": [
+        "A hardcoded two-entry fixture is checked into tests",
+        "Test asserts the exact documented ordering the relevance formula produces for that fixture"
+      ],
+      "requirement_ids": [
+        "R-033"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-027",
+      "title": "Findability of transcript-less entries",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "src/services/search/index.ts",
+        "src/services/search/rank.test.ts"
+      ],
+      "depends_on": [
+        "T-024"
+      ],
+      "acceptance_criteria": [
+        "An entry with only tags/mood/sketch metadata (no transcript yet) is returned by a matching search query",
+        "Behavior is documented as expected, not filed as a defect"
+      ],
+      "requirement_ids": [
+        "R-034"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 4
+    }
+  ],
+  "errors": []
+}

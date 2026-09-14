@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "flows": [
+    {
+      "name": "Cold launch, fresh install, first deal",
+      "steps": [
+        {
+          "assert_exists": "game.tableau.column0"
+        },
+        {
+          "tap": "game.stockPile"
+        },
+        {
+          "assert_exists": "game.wastePile.topCard"
+        }
+      ]
+    },
+    {
+      "name": "Resume in-progress game, no replay",
+      "steps": [
+        "Kill and relaunch app mid-game",
+        "App resumes directly into the saved board with no deal/flip replay",
+        "Undo history and elapsed time are exactly as left off"
+      ]
+    },
+    {
+      "name": "Play to a win",
+      "steps": [
+        {
+          "tap": "game.tableau.column0.topCard"
+        },
+        {
+          "tap": "game.foundation.hearts"
+        },
+        {
+          "assert_exists": "game.winOverlay.title"
+        },
+        {
+          "tap": "game.winOverlay.newGameButton"
+        }
+      ]
+    },
+    {
+      "name": "Reach a stuck board",
+      "steps": [
+        "Reach a board state with zero legal moves in draw-1",
+        "StuckOverlay appears distinctly from WinOverlay",
+        "New Game available; game is not silently treated as won or ignored"
+      ]
+    },
+    {
+      "name": "Change draw mode mid-game via Settings",
+      "steps": [
+        {
+          "tap": "settings.tabButton"
+        },
+        {
+          "tap": "settings.drawModeSetting.drawThreeOption"
+        },
+        {
+          "assert_exists": "settings.drawModeConfirmSheet.confirmButton"
+        },
+        {
+          "tap": "settings.drawModeConfirmSheet.confirmButton"
+        },
+        {
+          "tap": "game.tabButton"
+        },
+        {
+          "assert_exists": "game.tableau.column0"
+        }
+      ]
+    },
+    {
+      "name": "First-launch Stats empty state, then real data",
+      "steps": [
+        {
+          "tap": "stats.tabButton"
+        },
+        {
+          "assert_exists": "stats.emptyState.drawOne.message"
+        },
+        {
+          "tap": "game.tabButton"
+        },
+        {
+          "tap": "game.stockPile"
+        }
+      ]
+    },
+    {
+      "name": "Simulated corrupt save recovery",
+      "steps": [
+        "Force GameSave.json into a semantically-invalid state",
+        "Relaunch app",
+        "App deals a fresh game exactly as on first install, then layers a dismissible RecoveryBanner after the deal settles"
+      ]
+    },
+    {
+      "name": "Reach a stuck board and confirm New Game",
+      "steps": [
+        {
+          "assert_exists": "game.stuckOverlay.title"
+        },
+        {
+          "tap": "game.stuckOverlay.newGameButton"
+        },
+        {
+          "assert_exists": "game.tableau.column0"
+        }
+      ]
+    },
+    {
+      "name": "Switch card back live in Settings",
+      "steps": [
+        {
+          "tap": "settings.tabButton"
+        },
+        {
+          "tap": "settings.cardBackPicker.vellumSealOption"
+        },
+        {
+          "tap": "game.tabButton"
+        },
+        {
+          "assert_exists": "game.tableau.column0"
+        }
+      ]
+    },
+    {
+      "name": "Undo a move",
+      "steps": [
+        {
+          "tap": "game.stockPile"
+        },
+        {
+          "tap": "game.undoButton"
+        },
+        {
+          "assert_exists": "game.wastePile"
+        }
+      ]
+    },
+    {
+      "name": "Toggle timer off in Settings",
+      "steps": [
+        {
+          "tap": "settings.tabButton"
+        },
+        {
+          "tap": "settings.timerToggle"
+        },
+        {
+          "tap": "stats.tabButton"
+        },
+        {
+          "assert_exists": "stats.emptyState.drawOne.message"
+        }
+      ]
+    }
+  ]
+}

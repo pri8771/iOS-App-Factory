@@ -1,0 +1,199 @@
+{
+  "score": 74,
+  "verdict": "FAIL",
+  "reason": "Deep, well-tested Klondike engine and persistence layer, but the app explicitly fails its own release gate (21 hardcoded-color lint violations bypassing the DesignSystem token file), directly violating the single-Theme-token CORE requirement, plus gaps in share sheet, drag gestures, and in-app rules docs.",
+  "requirements": [
+    {
+      "text": "R-001: Native SwiftUI iOS, 100% local, zero network/accounts/analytics/backend",
+      "grade": "MET"
+    },
+    {
+      "text": "R-002: All state persists on-device only, no iCloud/CloudKit",
+      "grade": "MET"
+    },
+    {
+      "text": "R-003: Fully correct single-deck Klondike rules engine",
+      "grade": "MET"
+    },
+    {
+      "text": "R-004: Tap-to-move via one shared validation/mutation function",
+      "grade": "MET"
+    },
+    {
+      "text": "R-005: Tap-based relocation of a validly-stacked tableau run as atomic unit",
+      "grade": "MET"
+    },
+    {
+      "text": "R-006: No illegal move can mutate game state",
+      "grade": "MET"
+    },
+    {
+      "text": "R-007: True win detection only when all 4 foundations complete",
+      "grade": "MET"
+    },
+    {
+      "text": "R-008: Explicit stuck-board detection distinct from win, per draw mode",
+      "grade": "MET"
+    },
+    {
+      "text": "R-009: Full multi-step undo with exact prior-state restoration",
+      "grade": "MET"
+    },
+    {
+      "text": "R-010: New Game requires confirmation when game unfinished",
+      "grade": "MET"
+    },
+    {
+      "text": "R-011: Stock/waste/foundation/tableau layout for both draw modes",
+      "grade": "MET"
+    },
+    {
+      "text": "R-012: Unlimited stock redeal, documented in-app wherever rules/help appears",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "R-013: Bespoke original card face system, legible at ~45-50pt",
+      "grade": "MET"
+    },
+    {
+      "text": "R-014: Real card-stock texture, shadow, lighting",
+      "grade": "MET"
+    },
+    {
+      "text": "R-015: Spring-based deal/flip animation, fresh-deal-only",
+      "grade": "MET"
+    },
+    {
+      "text": "R-016: Fully art-directed light/dark mode via one shared Theme token file, no literal colors/fonts elsewhere",
+      "grade": "UNMET"
+    },
+    {
+      "text": "R-017: One clear original signature visual/interaction hook",
+      "grade": "MET"
+    },
+    {
+      "text": "R-018: Haptic feedback on move accepted/rejected/win",
+      "grade": "MET"
+    },
+    {
+      "text": "R-019: Stats screen tracked per draw mode with real empty states",
+      "grade": "MET"
+    },
+    {
+      "text": "R-020: Best time shows N/A when timer disabled",
+      "grade": "MET"
+    },
+    {
+      "text": "R-021: Settings with draw-mode confirm, live card-back, timer toggle",
+      "grade": "MET"
+    },
+    {
+      "text": "R-022: Timer starts on first mutating action, pauses backgrounded",
+      "grade": "MET"
+    },
+    {
+      "text": "R-023: Local silent game-event recording feeding Stats",
+      "grade": "MET"
+    },
+    {
+      "text": "R-024: Persisted state settled-only, atomic writes, survives force-quit",
+      "grade": "MET"
+    },
+    {
+      "text": "R-025: No encryption layer for persistence",
+      "grade": "MET"
+    },
+    {
+      "text": "R-026: VoiceOver labels, non-color suit differentiation, Reduce Motion fallback",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "R-027: LaunchScreen themed to card-table background",
+      "grade": "MET"
+    },
+    {
+      "text": "R-028: Locked portrait-only orientation",
+      "grade": "MET"
+    },
+    {
+      "text": "R-029: Launches directly into resumed/fresh game, no interstitial screen",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "R-030: Settings disclosure line that stats are device-local only",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "R-031: No monetization surface",
+      "grade": "MET"
+    },
+    {
+      "text": "R-032: No multiplayer/social/Game Center/achievements",
+      "grade": "MET"
+    },
+    {
+      "text": "R-033: Zero placeholder screens among Game, Stats, Settings",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "R-034: Win-screen native share sheet with rendered board + solve-time caption",
+      "grade": "UNMET"
+    },
+    {
+      "text": "R-035: Live interactive drag gestures (single and multi-card)",
+      "grade": "UNMET"
+    },
+    {
+      "text": "DoD-1: Every core feature functionally implemented, not just visual",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "DoD-2: Primary workflow works end-to-end with real data",
+      "grade": "MET"
+    },
+    {
+      "text": "DoD-3: App launches to a real screen, not a placeholder",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "DoD-4: No crash on primary workflow",
+      "grade": "MET"
+    },
+    {
+      "text": "DoD-5: Every screen has empty/loading/error states",
+      "grade": "MET"
+    },
+    {
+      "text": "DoD-6: Dark mode styled, both palettes readable",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "DoD-7: Self-explanatory first screen / onboarding",
+      "grade": "MET"
+    },
+    {
+      "text": "DoD-8: All views style through DesignSystem tokens, no inline colors/fonts",
+      "grade": "UNMET"
+    },
+    {
+      "text": "DoD-9: Every interactive element has accessibilityIdentifier",
+      "grade": "MET"
+    },
+    {
+      "text": "DoD-10: All declared user flows (flows.json) pass",
+      "grade": "PARTIAL"
+    },
+    {
+      "text": "DoD-11: No TODO/FIXME markers left in source",
+      "grade": "MET"
+    },
+    {
+      "text": "DoD-12: Settings/preferences screen exists",
+      "grade": "MET"
+    },
+    {
+      "text": "DoD-13: App icon and display name set",
+      "grade": "PARTIAL"
+    }
+  ]
+}

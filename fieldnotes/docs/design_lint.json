@@ -1,0 +1,53 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "rule": "empty_action",
+      "file": "Fieldnotes/Features/Record/RecordButton.swift",
+      "line": 59,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (VStack { RecordButton(state: .idle) {}; Text(\"idle\").font(.c)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "Fieldnotes/Features/Record/RecordButton.swift",
+      "line": 60,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (VStack { RecordButton(state: .arming) {}; Text(\"arming\").fon)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "Fieldnotes/Features/Record/RecordButton.swift",
+      "line": 61,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (VStack { RecordButton(state: .recording) {}; Text(\"recording)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "Fieldnotes/Features/Record/RecordButton.swift",
+      "line": 62,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (VStack { RecordButton(state: .interrupted) {}; Text(\"interru)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "Fieldnotes/Features/Record/RecordButton.swift",
+      "line": 65,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (VStack { RecordButton(state: .finalizing) {}; Text(\"finalizi)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "Fieldnotes/Features/Record/RecordButton.swift",
+      "line": 66,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (VStack { RecordButton(state: .finalized) {}; Text(\"finalized)"
+    },
+    {
+      "rule": "empty_action",
+      "file": "Fieldnotes/Features/Record/RecordButton.swift",
+      "line": 67,
+      "detail": "control with an empty action \u2014 implement it or visibly disable it with a reason (VStack { RecordButton(state: .error) {}; Text(\"error\").font()"
+    },
+    {
+      "rule": "missing_design_system",
+      "file": "app_build/",
+      "line": 0,
+      "detail": "no DesignSystem*.swift \u2014 the design handoff's token spec was never realized"
+    }
+  ]
+}

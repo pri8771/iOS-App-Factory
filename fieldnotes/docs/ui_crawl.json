@@ -1,0 +1,218 @@
+{
+  "bundle_id": "com.fieldnotes.app",
+  "screens": 26,
+  "edges": 19,
+  "crashes": [],
+  "dead_taps": [
+    {
+      "screen": "42f9b0de8bef60a5",
+      "tapped": {
+        "id": "",
+        "kind": "tab",
+        "label": "Timeline"
+      }
+    },
+    {
+      "screen": "42f9b0de8bef60a5",
+      "tapped": {
+        "id": "",
+        "kind": "button",
+        "label": "Timeline"
+      }
+    }
+  ],
+  "back_violations": [
+    {
+      "after_visiting": "9898ef6c966c7f3",
+      "expected": "71e026128db5cafd",
+      "got": "-1c89610c225f9170",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Start recording"
+      }
+    },
+    {
+      "after_visiting": "753f25c64b3d98cd",
+      "expected": "-1c89610c225f9170",
+      "got": "44bbe86556022a91",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording, tap to stop"
+      }
+    },
+    {
+      "after_visiting": "-4a936d4a27116450",
+      "expected": "44bbe86556022a91",
+      "got": "-232878d196f4bd1e",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    },
+    {
+      "after_visiting": "-3d37e7f770c53084",
+      "expected": "-232878d196f4bd1e",
+      "got": "3d7c94c4689e500f",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    },
+    {
+      "after_visiting": "-72b276929c84a0e9",
+      "expected": "3d7c94c4689e500f",
+      "got": "-10dba723483fc4eb",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    },
+    {
+      "after_visiting": "28201fef53a64498",
+      "expected": "-10dba723483fc4eb",
+      "got": "693565b2238edffe",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    },
+    {
+      "after_visiting": "302dc55770071521",
+      "expected": "693565b2238edffe",
+      "got": "648096e7f81e5017",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    },
+    {
+      "after_visiting": "576b91592052e46d",
+      "expected": "648096e7f81e5017",
+      "got": "27a391e9f445e0e1",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    },
+    {
+      "after_visiting": "-372779a1518ff5e5",
+      "expected": "27a391e9f445e0e1",
+      "got": "40e651f937da679f",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    },
+    {
+      "after_visiting": "-3534cc9b63bcc7ee",
+      "expected": "40e651f937da679f",
+      "got": "742ef3e3489714c3",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    },
+    {
+      "after_visiting": "-3c7d9446d463eadc",
+      "expected": "742ef3e3489714c3",
+      "got": "215fa45a65844e08",
+      "via": {
+        "id": "record.recordButton",
+        "kind": "button",
+        "label": "Recording saved"
+      }
+    }
+  ],
+  "flows": [
+    {
+      "failure": "",
+      "name": "Record through a simulated interruption to a finalized, honestly-stated entry",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Tap-to-seek survives a transcript edit",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Accept and dismiss tag/mood suggestions",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Mention another entry and see a live backlink; delete and confirm no dangling link",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Search returns ranked, explained results",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Demo entries toggle: seed, verify honest edge states, reverse cleanly",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Attach a PencilKit sketch to an entry",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "HealthKit honest degradation when not authorized",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "record_new_voice_entry",
+      "passed": true
+    },
+    {
+      "failure": "step 4: expected \u2018Morning walk by the harbor\u2019 on screen",
+      "name": "enable_demo_data",
+      "passed": false
+    },
+    {
+      "failure": "step 4: no tappable element \u2018timeline.entryCard\u2019",
+      "name": "tap_to_seek_survives_transcript_edit",
+      "passed": false
+    },
+    {
+      "failure": "step 4: no tappable element \u2018timeline.entryCard\u2019",
+      "name": "accept_and_dismiss_tag_mood_suggestions",
+      "passed": false
+    },
+    {
+      "failure": "step 4: no tappable element \u2018timeline.entryCard\u2019",
+      "name": "mention_creates_live_backlink",
+      "passed": false
+    },
+    {
+      "failure": "step 5: expected \u2018search.resultRow\u2019 on screen",
+      "name": "search_returns_ranked_results_with_match_reason",
+      "passed": false
+    },
+    {
+      "failure": "step 4: no tappable element \u2018timeline.entryCard\u2019",
+      "name": "healthkit_shows_honest_not_connected_state",
+      "passed": false
+    },
+    {
+      "failure": "step 4: no tappable element \u2018timeline.entryCard\u2019",
+      "name": "attach_sketch_to_entry",
+      "passed": false
+    }
+  ]
+}

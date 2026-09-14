@@ -1,1 +1,0 @@
-Design a warm, editorial reading-journal app: a paper-textured home timeline of books and quotes, a distraction-free quote-capture camera view with OCR crop confirmation, and a small private circle view that reads like shared marginalia rather than a chat app.

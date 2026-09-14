@@ -1,0 +1,247 @@
+{
+  "a11y_issues" : [
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "26267e6020bc4b5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "26267e6020bc4b5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "26267e6020bc4b5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "26267e6020bc4b5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "26267e6020bc4b5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "26267e6020bc4b5c",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-605ce6c8b78efe37",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-605ce6c8b78efe37",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast failed",
+      "screen" : "-605ce6c8b78efe37",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast failed",
+      "screen" : "-605ce6c8b78efe37",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast failed",
+      "screen" : "-605ce6c8b78efe37",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "57ca436790c1c45b",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "57ca436790c1c45b",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast failed",
+      "screen" : "57ca436790c1c45b",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast failed",
+      "screen" : "57ca436790c1c45b",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast failed",
+      "screen" : "57ca436790c1c45b",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    }
+  ],
+  "back_violations" : [
+
+  ],
+  "bounded" : {
+    "screens" : false,
+    "time" : false
+  },
+  "crashes" : [
+
+  ],
+  "dead_taps" : [
+    {
+      "screen" : "33123d408da000a",
+      "tapped" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Home"
+      }
+    },
+    {
+      "screen" : "33123d408da000a",
+      "tapped" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Home"
+      }
+    }
+  ],
+  "edges" : [
+    {
+      "from" : "33123d408da000a",
+      "to" : "-1e93256f8ad45a34",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "History"
+      }
+    },
+    {
+      "from" : "33123d408da000a",
+      "to" : "26267e6020bc4b5c",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "33123d408da000a",
+      "to" : "-605ce6c8b78efe37",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Known Limits"
+      }
+    },
+    {
+      "from" : "33123d408da000a",
+      "to" : "-1e93256f8ad45a34",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "History"
+      }
+    },
+    {
+      "from" : "-1e93256f8ad45a34",
+      "to" : "33123d408da000a",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Home"
+      }
+    },
+    {
+      "from" : "33123d408da000a",
+      "to" : "26267e6020bc4b5c",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "26267e6020bc4b5c",
+      "to" : "33123d408da000a",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Home"
+      }
+    },
+    {
+      "from" : "33123d408da000a",
+      "to" : "57ca436790c1c45b",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Known Limits"
+      }
+    }
+  ],
+  "flows" : [
+    {
+      "failure" : "step 2: expected ‘knownLimits.healthKitEntitlementGapRow’ on screen",
+      "name" : "Known Limits is a first-class destination",
+      "passed" : false
+    }
+  ],
+  "screens" : [
+    {
+      "path" : [
+        {
+          "id" : "",
+          "kind" : "tab",
+          "label" : "Settings"
+        }
+      ],
+      "screenshot" : "03_screen_26267e6020bc4b5c.png",
+      "sig" : "26267e6020bc4b5c"
+    },
+    {
+      "path" : [
+        {
+          "id" : "",
+          "kind" : "tab",
+          "label" : "History"
+        }
+      ],
+      "screenshot" : "02_screen_-1e93256f8ad45a34.png",
+      "sig" : "-1e93256f8ad45a34"
+    },
+    {
+      "path" : [
+
+      ],
+      "screenshot" : "01_screen_33123d408da000a.png",
+      "sig" : "33123d408da000a"
+    },
+    {
+      "path" : [
+        {
+          "id" : "",
+          "kind" : "tab",
+          "label" : "Known Limits"
+        }
+      ],
+      "screenshot" : "04_screen_-605ce6c8b78efe37.png",
+      "sig" : "-605ce6c8b78efe37"
+    },
+    {
+      "path" : [
+        {
+          "id" : "",
+          "kind" : "button",
+          "label" : "Known Limits"
+        }
+      ],
+      "screenshot" : "05_screen_57ca436790c1c45b.png",
+      "sig" : "57ca436790c1c45b"
+    }
+  ],
+  "target" : "com.formcheck.app"
+}

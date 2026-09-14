@@ -1,0 +1,414 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-016",
+      "title": "Compute daily review-count history and retention-rate metrics",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/stats/metrics.ts",
+        "src/stats/dailyHistory.ts",
+        "src/stats/retention.ts"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Given a range of past review-log entries, returns per-day counts of reviews performed, including days with zero reviews",
+        "Retention rate = (# graded Good or Easy) / (# graded total) over the selected window, exposed as a percentage",
+        "Functions are pure and independently unit-testable without a UI"
+      ],
+      "requirement_ids": [
+        "R-016",
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-017",
+      "title": "Exclude demo-seeded decks/cards from aggregate stats and streak calculations",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/stats/metrics.ts",
+        "src/decks/demoSeed.ts",
+        "src/stats/streak.ts"
+      ],
+      "depends_on": [
+        "T-016"
+      ],
+      "acceptance_criteria": [
+        "Decks/cards flagged as demo-seeded are filtered out before any aggregate/overall stats computation by default",
+        "Streak calculation ignores review activity tied to demo-seeded cards",
+        "A user-created deck named similarly to demo content is still included (filter is by seed flag, not name/heuristic)"
+      ],
+      "requirement_ids": [
+        "R-019"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-018",
+      "title": "Daily review-count history chart screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/screens/stats/DailyHistoryScreen.tsx",
+        "src/screens/stats/components/DailyHistoryChart.tsx"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Renders a chart/list of review counts per day sourced from T-016 output",
+        "Respects demo-seed exclusion from T-017 by default",
+        "Screen has a loading state distinct from its empty state"
+      ],
+      "requirement_ids": [
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "claude",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-019",
+      "title": "Retention rate stats screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/screens/stats/RetentionScreen.tsx"
+      ],
+      "depends_on": [
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Displays retention rate (% Good/Easy) sourced from T-016 output",
+        "Respects demo-seed exclusion from T-017 by default",
+        "Value updates when the stats window/filter changes"
+      ],
+      "requirement_ids": [
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "claude",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-020",
+      "title": "Designed empty/sparse-data states for all stats screens",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "src/screens/stats/DailyHistoryScreen.tsx",
+        "src/screens/stats/RetentionScreen.tsx",
+        "src/screens/stats/components/EmptyState.tsx"
+      ],
+      "depends_on": [
+        "T-018",
+        "T-019"
+      ],
+      "acceptance_criteria": [
+        "Zero-data case (no reviews ever) shows a designed empty state, not a blank chart or crash",
+        "Sparse-data case (e.g. 1-2 data points) renders without div-by-zero or misleading 100%/0% placeholders",
+        "No stats screen throws or shows a raw error when the underlying dataset is empty"
+      ],
+      "requirement_ids": [
+        "R-018"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-021",
+      "title": "CSV export generator (front, back, note)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/csv/exportCsv.ts"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Produces a CSV with header front,back,note",
+        "Note column is emitted empty (not omitted) when a card has no note",
+        "Fields containing commas, quotes, or newlines are properly quoted/escaped per RFC 4180"
+      ],
+      "requirement_ids": [
+        "R-020"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-022",
+      "title": "CSV import parser with malformed-row error taxonomy",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/csv/importCsv.ts",
+        "src/csv/rowErrors.ts"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Accepts front (required), back (required), note (optional) columns",
+        "Handles CRLF and LF line endings and strips a UTF-8 BOM if present without corrupting the first field",
+        "Produces a distinct, named error reason per malformed row: empty front, empty back, wrong column count, embedded-comma/quote parse failure, bad encoding/BOM \u2014 no row is ever silently dropped, each maps to exactly one reason code"
+      ],
+      "requirement_ids": [
+        "R-021",
+        "R-022"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-023",
+      "title": "Duplicate detection for CSV import",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/csv/duplicateDetection.ts"
+      ],
+      "depends_on": [
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Flags rows as duplicates on case-sensitive exact front+back match against other rows within the same import file",
+        "Flags rows as duplicates against existing non-archived cards in the target deck (archived cards are not considered)",
+        "Duplicate is reported as its own distinct reason, separate from the malformed-row reasons in T-022"
+      ],
+      "requirement_ids": [
+        "R-023"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-024",
+      "title": "CSV import screen with preview-before-commit step",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/screens/import/CsvImportScreen.tsx",
+        "src/screens/import/ImportPreviewTable.tsx"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "User selects a CSV file, sees a preview listing every row's outcome (import / error reason / duplicate reason) before anything is written",
+        "No card is created in the target deck until the user explicitly confirms the preview",
+        "Confirming only commits rows that passed validation and were not flagged as duplicates (or duplicates the user explicitly chose to include, if that affordance exists)"
+      ],
+      "requirement_ids": [
+        "R-021"
+      ],
+      "status": "pending",
+      "claimed_by": "claude",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-025",
+      "title": "CSV export screen/entry point",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/screens/export/CsvExportScreen.tsx"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "User can trigger export of a deck's cards to a CSV file via T-021's generator",
+        "Exported file is accessible/shareable through the platform's standard file-save or share flow"
+      ],
+      "requirement_ids": [
+        "R-020"
+      ],
+      "status": "pending",
+      "claimed_by": "claude",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-026",
+      "title": "Lossless export/re-import round-trip test suite",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "src/csv/__tests__/roundTrip.test.ts"
+      ],
+      "depends_on": [
+        "T-021",
+        "T-022",
+        "T-024",
+        "T-025"
+      ],
+      "acceptance_criteria": [
+        "Exporting a deck then re-importing the resulting CSV reproduces identical front/back/note content for every card",
+        "Cards with no note round-trip without introducing a spurious note value",
+        "Cards containing commas, quotes, and newlines in their fields round-trip byte-for-byte on the text content"
+      ],
+      "requirement_ids": [
+        "R-024"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-027",
+      "title": "CSV import fixtures: real-world export plus hand-crafted edge cases",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "src/csv/__fixtures__/real-world-export.csv",
+        "src/csv/__fixtures__/edge-cases/*.csv",
+        "src/csv/__tests__/importFixtures.test.ts"
+      ],
+      "depends_on": [
+        "T-022",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Test fixtures include at least one CSV actually produced by exporting from this app (or another real tool) unmodified by hand, exercising realistic quoting/encoding",
+        "Additional hand-crafted fixtures cover each malformed-row reason from T-022 and the duplicate case from T-023 individually",
+        "Test suite asserts the exact error/duplicate reason produced for each fixture row, not just pass/fail"
+      ],
+      "requirement_ids": [
+        "R-025"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-028",
+      "title": "Due-count computation recomputed at refresh points",
+      "owner_lane": "data_domain",
+      "files": [
+        "src/notifications/dueCount.ts"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Exposes a function computing the current due-card count from live data, with no cached/stale value returned",
+        "Called at app foreground, app background transition, immediately after a review session ends, and on day rollover",
+        "Two calls made on either side of a day-rollover boundary (with no other data change) can yield different counts, proving it's not fixed at a single computed-once value"
+      ],
+      "requirement_ids": [
+        "R-029"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-029",
+      "title": "Local daily reminder notification scheduling service",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/notifications/scheduler.ts",
+        "src/notifications/notificationService.ts"
+      ],
+      "depends_on": [
+        "T-028"
+      ],
+      "acceptance_criteria": [
+        "User can pick one time of day; exactly one local notification is scheduled for that time, replacing any prior schedule (not stacking)",
+        "Scheduling re-reads the current due count from T-028 at fire time rather than baking in a count computed when the user set the time",
+        "Turning the feature off cancels the pending scheduled notification"
+      ],
+      "requirement_ids": [
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "gemini",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-030",
+      "title": "Notification body contains only numeric due-count",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/notifications/notificationService.ts"
+      ],
+      "depends_on": [
+        "T-029"
+      ],
+      "acceptance_criteria": [
+        "Notification body text is limited to a number (e.g. '12 cards due') with no card content, deck name, or subject-matter text interpolated in",
+        "Code review/test asserts no deck title, card front/back, or tag text ever reaches the notification payload"
+      ],
+      "requirement_ids": [
+        "R-027"
+      ],
+      "status": "pending",
+      "claimed_by": "gemini",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-031",
+      "title": "Suppress notification when due count is zero",
+      "owner_lane": "services_utilities",
+      "files": [
+        "src/notifications/scheduler.ts"
+      ],
+      "depends_on": [
+        "T-028",
+        "T-029"
+      ],
+      "acceptance_criteria": [
+        "At scheduled fire time, if the freshly recomputed due count is 0, no notification is shown",
+        "If due count later becomes 0 before the scheduled time (e.g. user already reviewed everything), the pending notification is cancelled rather than firing with '0 cards due'"
+      ],
+      "requirement_ids": [
+        "R-028"
+      ],
+      "status": "pending",
+      "claimed_by": "gemini",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-032",
+      "title": "Notification settings UI: time picker and permission request",
+      "owner_lane": "primary_ui",
+      "files": [
+        "src/screens/settings/NotificationSettingsScreen.tsx"
+      ],
+      "depends_on": [
+        "T-029"
+      ],
+      "acceptance_criteria": [
+        "Settings screen lets the user enable/disable the daily reminder and pick its time",
+        "Enabling for the first time triggers the OS permission prompt via the platform notification API"
+      ],
+      "requirement_ids": [
+        "R-026"
+      ],
+      "status": "pending",
+      "claimed_by": "claude",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-033",
+      "title": "Graceful handling of notification permission denial",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "src/screens/settings/NotificationSettingsScreen.tsx",
+        "src/notifications/notificationService.ts"
+      ],
+      "depends_on": [
+        "T-032"
+      ],
+      "acceptance_criteria": [
+        "If the user denies the OS permission prompt, the app does not crash and the toggle reflects the denied state instead of appearing silently enabled",
+        "Screen shows a clear message and a path to opt in later (e.g. a button that deep-links to OS notification settings)",
+        "Re-checking permission status on screen focus updates the UI if the user grants permission from OS settings afterward"
+      ],
+      "requirement_ids": [
+        "R-030"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 4
+    }
+  ],
+  "errors": []
+}

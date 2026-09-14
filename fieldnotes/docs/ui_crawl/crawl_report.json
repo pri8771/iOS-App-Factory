@@ -1,0 +1,996 @@
+{
+  "a11y_issues" : [
+    {
+      "detail" : "Text clipped",
+      "screen" : "3054421fe4c6be19",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 131072)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Text clipped",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 131072)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "1de5c36d2c627d58",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "44bbe86556022a91",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "44bbe86556022a91",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "44bbe86556022a91",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-4a936d4a27116450",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-4a936d4a27116450",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-4a936d4a27116450",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-232878d196f4bd1e",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-232878d196f4bd1e",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-232878d196f4bd1e",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-3d37e7f770c53084",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-3d37e7f770c53084",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-3d37e7f770c53084",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "3d7c94c4689e500f",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "3d7c94c4689e500f",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "3d7c94c4689e500f",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-72b276929c84a0e9",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-72b276929c84a0e9",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-72b276929c84a0e9",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-10dba723483fc4eb",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-10dba723483fc4eb",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-10dba723483fc4eb",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "28201fef53a64498",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "28201fef53a64498",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "28201fef53a64498",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "693565b2238edffe",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "693565b2238edffe",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "693565b2238edffe",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "302dc55770071521",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "302dc55770071521",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "302dc55770071521",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "648096e7f81e5017",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "648096e7f81e5017",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "648096e7f81e5017",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "576b91592052e46d",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "576b91592052e46d",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "576b91592052e46d",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "27a391e9f445e0e1",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "27a391e9f445e0e1",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "27a391e9f445e0e1",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-372779a1518ff5e5",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-372779a1518ff5e5",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-372779a1518ff5e5",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "40e651f937da679f",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "40e651f937da679f",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "40e651f937da679f",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-3534cc9b63bcc7ee",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-3534cc9b63bcc7ee",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-3534cc9b63bcc7ee",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "742ef3e3489714c3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "742ef3e3489714c3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "742ef3e3489714c3",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-3c7d9446d463eadc",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "-3c7d9446d463eadc",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "-3c7d9446d463eadc",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "215fa45a65844e08",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Dynamic Type font sizes are partially unsupported",
+      "screen" : "215fa45a65844e08",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 65536)"
+    },
+    {
+      "detail" : "Contrast nearly passed",
+      "screen" : "215fa45a65844e08",
+      "type" : "XCUIAccessibilityAuditType(rawValue: 1)"
+    }
+  ],
+  "back_violations" : [
+    {
+      "after_visiting" : "9898ef6c966c7f3",
+      "expected" : "71e026128db5cafd",
+      "got" : "-1c89610c225f9170",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Start recording"
+      }
+    },
+    {
+      "after_visiting" : "753f25c64b3d98cd",
+      "expected" : "-1c89610c225f9170",
+      "got" : "44bbe86556022a91",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording, tap to stop"
+      }
+    },
+    {
+      "after_visiting" : "-4a936d4a27116450",
+      "expected" : "44bbe86556022a91",
+      "got" : "-232878d196f4bd1e",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "after_visiting" : "-3d37e7f770c53084",
+      "expected" : "-232878d196f4bd1e",
+      "got" : "3d7c94c4689e500f",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "after_visiting" : "-72b276929c84a0e9",
+      "expected" : "3d7c94c4689e500f",
+      "got" : "-10dba723483fc4eb",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "after_visiting" : "28201fef53a64498",
+      "expected" : "-10dba723483fc4eb",
+      "got" : "693565b2238edffe",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "after_visiting" : "302dc55770071521",
+      "expected" : "693565b2238edffe",
+      "got" : "648096e7f81e5017",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "after_visiting" : "576b91592052e46d",
+      "expected" : "648096e7f81e5017",
+      "got" : "27a391e9f445e0e1",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "after_visiting" : "-372779a1518ff5e5",
+      "expected" : "27a391e9f445e0e1",
+      "got" : "40e651f937da679f",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "after_visiting" : "-3534cc9b63bcc7ee",
+      "expected" : "40e651f937da679f",
+      "got" : "742ef3e3489714c3",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "after_visiting" : "-3c7d9446d463eadc",
+      "expected" : "742ef3e3489714c3",
+      "got" : "215fa45a65844e08",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    }
+  ],
+  "bounded" : {
+    "screens" : true,
+    "time" : false
+  },
+  "crashes" : [
+
+  ],
+  "dead_taps" : [
+    {
+      "screen" : "42f9b0de8bef60a5",
+      "tapped" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Timeline"
+      }
+    },
+    {
+      "screen" : "42f9b0de8bef60a5",
+      "tapped" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Timeline"
+      }
+    }
+  ],
+  "edges" : [
+    {
+      "from" : "42f9b0de8bef60a5",
+      "to" : "3054421fe4c6be19",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Search"
+      }
+    },
+    {
+      "from" : "42f9b0de8bef60a5",
+      "to" : "1de5c36d2c627d58",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "42f9b0de8bef60a5",
+      "to" : "3054421fe4c6be19",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Search"
+      }
+    },
+    {
+      "from" : "3054421fe4c6be19",
+      "to" : "42f9b0de8bef60a5",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Timeline"
+      }
+    },
+    {
+      "from" : "42f9b0de8bef60a5",
+      "to" : "1de5c36d2c627d58",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Settings"
+      }
+    },
+    {
+      "from" : "1de5c36d2c627d58",
+      "to" : "42f9b0de8bef60a5",
+      "via" : {
+        "id" : "",
+        "kind" : "tab",
+        "label" : "Timeline"
+      }
+    },
+    {
+      "from" : "42f9b0de8bef60a5",
+      "to" : "71e026128db5cafd",
+      "via" : {
+        "id" : "timeline.recordButton",
+        "kind" : "button",
+        "label" : "Record a new voice entry"
+      }
+    },
+    {
+      "from" : "42f9b0de8bef60a5",
+      "to" : "71e026128db5cafd",
+      "via" : {
+        "id" : "",
+        "kind" : "button",
+        "label" : "Your journal is quiet, Record your first voice entry — Fieldnotes transcribes and tags it on-device, automatically."
+      }
+    },
+    {
+      "from" : "71e026128db5cafd",
+      "to" : "9898ef6c966c7f3",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Start recording"
+      }
+    },
+    {
+      "from" : "-1c89610c225f9170",
+      "to" : "753f25c64b3d98cd",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording, tap to stop"
+      }
+    },
+    {
+      "from" : "44bbe86556022a91",
+      "to" : "-4a936d4a27116450",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "from" : "-232878d196f4bd1e",
+      "to" : "-3d37e7f770c53084",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "from" : "3d7c94c4689e500f",
+      "to" : "-72b276929c84a0e9",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "from" : "-10dba723483fc4eb",
+      "to" : "28201fef53a64498",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "from" : "693565b2238edffe",
+      "to" : "302dc55770071521",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "from" : "648096e7f81e5017",
+      "to" : "576b91592052e46d",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "from" : "27a391e9f445e0e1",
+      "to" : "-372779a1518ff5e5",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "from" : "40e651f937da679f",
+      "to" : "-3534cc9b63bcc7ee",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    },
+    {
+      "from" : "742ef3e3489714c3",
+      "to" : "-3c7d9446d463eadc",
+      "via" : {
+        "id" : "record.recordButton",
+        "kind" : "button",
+        "label" : "Recording saved"
+      }
+    }
+  ],
+  "flows" : [
+    {
+      "failure" : "step 4: no tappable element ‘timeline.entryCard’",
+      "name" : "attach_sketch_to_entry",
+      "passed" : false
+    }
+  ],
+  "screens" : [
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "14_screen_-10dba723483fc4eb.png",
+      "sig" : "-10dba723483fc4eb"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "17_screen_302dc55770071521.png",
+      "sig" : "302dc55770071521"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "09_screen_-4a936d4a27116450.png",
+      "sig" : "-4a936d4a27116450"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "13_screen_-72b276929c84a0e9.png",
+      "sig" : "-72b276929c84a0e9"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "24_screen_742ef3e3489714c3.png",
+      "sig" : "742ef3e3489714c3"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "08_screen_44bbe86556022a91.png",
+      "sig" : "44bbe86556022a91"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "18_screen_648096e7f81e5017.png",
+      "sig" : "648096e7f81e5017"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "12_screen_3d7c94c4689e500f.png",
+      "sig" : "3d7c94c4689e500f"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "19_screen_576b91592052e46d.png",
+      "sig" : "576b91592052e46d"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "06_screen_-1c89610c225f9170.png",
+      "sig" : "-1c89610c225f9170"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording, tap to stop"
+        }
+      ],
+      "screenshot" : "07_screen_753f25c64b3d98cd.png",
+      "sig" : "753f25c64b3d98cd"
+    },
+    {
+      "path" : [
+        {
+          "id" : "",
+          "kind" : "tab",
+          "label" : "Settings"
+        }
+      ],
+      "screenshot" : "03_screen_1de5c36d2c627d58.png",
+      "sig" : "1de5c36d2c627d58"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "11_screen_-3d37e7f770c53084.png",
+      "sig" : "-3d37e7f770c53084"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "25_screen_-3c7d9446d463eadc.png",
+      "sig" : "-3c7d9446d463eadc"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "23_screen_-3534cc9b63bcc7ee.png",
+      "sig" : "-3534cc9b63bcc7ee"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "22_screen_40e651f937da679f.png",
+      "sig" : "40e651f937da679f"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "10_screen_-232878d196f4bd1e.png",
+      "sig" : "-232878d196f4bd1e"
+    },
+    {
+      "path" : [
+        {
+          "id" : "",
+          "kind" : "tab",
+          "label" : "Search"
+        }
+      ],
+      "screenshot" : "02_screen_3054421fe4c6be19.png",
+      "sig" : "3054421fe4c6be19"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Start recording"
+        }
+      ],
+      "screenshot" : "05_screen_9898ef6c966c7f3.png",
+      "sig" : "9898ef6c966c7f3"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "04_screen_71e026128db5cafd.png",
+      "sig" : "71e026128db5cafd"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "15_screen_28201fef53a64498.png",
+      "sig" : "28201fef53a64498"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        },
+        {
+          "id" : "record.recordButton",
+          "kind" : "button",
+          "label" : "Recording saved"
+        }
+      ],
+      "screenshot" : "21_screen_-372779a1518ff5e5.png",
+      "sig" : "-372779a1518ff5e5"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "26_screen_215fa45a65844e08.png",
+      "sig" : "215fa45a65844e08"
+    },
+    {
+      "path" : [
+
+      ],
+      "screenshot" : "01_screen_42f9b0de8bef60a5.png",
+      "sig" : "42f9b0de8bef60a5"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "16_screen_693565b2238edffe.png",
+      "sig" : "693565b2238edffe"
+    },
+    {
+      "path" : [
+        {
+          "id" : "timeline.recordButton",
+          "kind" : "button",
+          "label" : "Record a new voice entry"
+        }
+      ],
+      "screenshot" : "20_screen_27a391e9f445e0e1.png",
+      "sig" : "27a391e9f445e0e1"
+    }
+  ],
+  "target" : "com.fieldnotes.app"
+}

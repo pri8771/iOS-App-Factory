@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "R-001",
+      "text": "Homepage loads a real, populated seed listing (description, status) \u2014 not lorem ipsum, not blank.",
+      "core": true
+    },
+    {
+      "id": "R-002",
+      "text": "The non-binding/novelty disclaimer is woven into the homepage hero headline copy itself.",
+      "core": true
+    },
+    {
+      "id": "R-003",
+      "text": "The public offers list is sorted by amount descending, with ties broken by earliest submission using a server-assigned persistence timestamp, not client-submitted time.",
+      "core": true
+    },
+    {
+      "id": "R-004",
+      "text": "The offer form rejects negative, zero, and non-numeric amounts and enforces a maximum around $10,000,000.",
+      "core": true
+    },
+    {
+      "id": "R-005",
+      "text": "The offer form enforces explicit character caps on the alias and story fields.",
+      "core": true
+    },
+    {
+      "id": "R-006",
+      "text": "A submission-time content filter rejects clearly abusive input while accepting legitimate playful submissions.",
+      "core": true
+    },
+    {
+      "id": "R-007",
+      "text": "Content-filter rejections show an actionable, specific reason, never a generic 'rejected' message.",
+      "core": true
+    },
+    {
+      "id": "R-008",
+      "text": "A clear, visible non-binding disclaimer appears before any offer or payment submission step (in addition to the hero headline).",
+      "core": true
+    },
+    {
+      "id": "R-009",
+      "text": "The demo checkout has no field capable of accepting a real payment card number or CVV \u2014 every field is decorative, pre-filled fake, or structurally incapable of accepting a real PAN.",
+      "core": true
+    },
+    {
+      "id": "R-010",
+      "text": "The checkout/payment step is explicitly labeled demo/simulated, and no flow claims a real charge succeeded.",
+      "core": true
+    },
+    {
+      "id": "R-011",
+      "text": "A 'submitted' confirmation state appears only after the offer is actually persisted \u2014 never shown optimistically before persistence completes.",
+      "core": true
+    },
+    {
+      "id": "R-012",
+      "text": "If the checkout animation completes visually but the backend persistence write fails, a distinct, tested error state appears with a clear retry action \u2014 the success/reorder spectacle never completes and then reveals failure afterward.",
+      "core": true
+    },
+    {
+      "id": "R-013",
+      "text": "A newly submitted offer appears in the sorted public list with a visible animated reorder transition, not a generic success toast.",
+      "core": true
+    },
+    {
+      "id": "R-014",
+      "text": "The leaderboard reorder includes an aria-live announcement of the rank/position change alongside the visual transition.",
+      "core": true
+    },
+    {
+      "id": "R-015",
+      "text": "The listing has a visible report/flag control that gives instant client-facing confirmation when used.",
+      "core": true
+    },
+    {
+      "id": "R-016",
+      "text": "Every individual offer has a visible report/flag control that gives instant client-facing confirmation when used.",
+      "core": true
+    },
+    {
+      "id": "R-017",
+      "text": "The report/flag control enforces a per-device cap of one report per item.",
+      "core": true
+    },
+    {
+      "id": "R-018",
+      "text": "An offer that crosses 3 reports is automatically hidden from the public list (soft-removed, recoverable in the data store, never hard-deleted).",
+      "core": true
+    },
+    {
+      "id": "R-019",
+      "text": "Repeat offer submissions from the same visitor are soft-rate-limited (device-local) without permanently blocking legitimate repeat submissions.",
+      "core": true
+    },
+    {
+      "id": "R-020",
+      "text": "A freshly created/zero-offer listing shows a designed empty state (icon, copy, CTA), never a blank or 'no data' view.",
+      "core": true
+    },
+    {
+      "id": "R-021",
+      "text": "No screen requires real personal data about an actual minor \u2014 only placeholder-safe fields (due month/year, alias, short story) are collected, on the seed listing and any offer.",
+      "core": true
+    },
+    {
+      "id": "R-022",
+      "text": "No passively-collected visitor data (IP address, user agent, or similar) is ever logged, displayed, or exported anywhere in the product.",
+      "core": true
+    },
+    {
+      "id": "R-023",
+      "text": "All primary screens fully support light and dark mode.",
+      "core": true
+    },
+    {
+      "id": "R-024",
+      "text": "All primary screens render correctly on mobile and desktop with no overlapping or clipped text.",
+      "core": true
+    },
+    {
+      "id": "R-025",
+      "text": "The offers/leaderboard view is verified against adversarial-length data \u2014 a 60-character alias, three offers tied at the same amount, and a $9,999,999 offer \u2014 with no text collision, in both light and dark mode.",
+      "core": true
+    },
+    {
+      "id": "R-026",
+      "text": "No screen gates core functionality behind sign-in; there is no account/login system anywhere in the app.",
+      "core": true
+    },
+    {
+      "id": "R-027",
+      "text": "After submitting an offer, the visitor sees a personal shareable result card (rank + brag line) summarizing their submission.",
+      "core": false
+    },
+    {
+      "id": "R-028",
+      "text": "There is no multi-user marketplace (create-your-own-listing or browse/discovery page) \u2014 the app ships as a single personal listing only.",
+      "core": false
+    }
+  ]
+}

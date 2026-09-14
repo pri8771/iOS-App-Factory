@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Trip",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Trip { var id: UUID; var name: String; var startDate: Date; var endDate: Date; var isDemo: Bool; var createdAt: Date; @Relationship(deleteRule: .cascade, inverse: \\Day.trip) var days: [Day]; @Relationship(deleteRule: .cascade, inverse: \\Traveler.trip) var travelers: [Traveler]; @Relationship(deleteRule: .cascade, inverse: \\Expense.trip) var expenses: [Expense]; @Relationship(deleteRule: .cascade, inverse: \\PackingItem.trip) var packingItems: [PackingItem] }",
+      "owning_lane": "data_domain",
+      "notes": "isDemo drives DemoStampBadge everywhere; cloudKitDatabase is .none on the container, never set per-model."
+    },
+    {
+      "name": "Day",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Day { var id: UUID; var date: Date; var trip: Trip?; @Relationship(deleteRule: .cascade, inverse: \\Stop.day) var stops: [Stop] }",
+      "owning_lane": "data_domain",
+      "notes": "Real persisted row per calendar day, never a computed grouping; created eagerly on trip create/range-extend, removable only via the shrink-guard when empty."
+    },
+    {
+      "name": "Stop",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Stop { var id: UUID; var day: Day; var sortIndex: Int; var name: String; var address: String; var latitude: Double?; var longitude: Double?; var startTime: Date?; var endTime: Date?; var notes: String; var category: StopCategory; var isCheckedOff: Bool; var calendarEventIdentifier: String? }",
+      "owning_lane": "data_domain",
+      "notes": "day is non-optional by design: a Stop existing with no day, or in two days, is the core invariant nothing may violate."
+    },
+    {
+      "name": "StopCategory",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum StopCategory: String, Codable, CaseIterable { case food, lodging, activity, transit, sight, other }",
+      "owning_lane": "data_domain",
+      "notes": "Drives CategoryPin symbol + accessibility label."
+    },
+    {
+      "name": "Traveler",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Traveler { var id: UUID; var trip: Trip?; var name: String }",
+      "owning_lane": "data_domain",
+      "notes": "Deletion must be blocked while referenced by any Expense.payer or ExpenseSplit.traveler \u2014 see TravelerDeletionGuard."
+    },
+    {
+      "name": "Expense",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Expense { var id: UUID; var trip: Trip?; var amountCents: Int; var payer: Traveler; var date: Date; var splitMethod: SplitMethod; var notes: String?; @Relationship(deleteRule: .cascade, inverse: \\ExpenseSplit.expense) var splits: [ExpenseSplit]; var amount: Decimal { Decimal(amountCents) / 100 } }",
+      "owning_lane": "data_domain",
+      "notes": "amountCents is the stored source of truth; amount is a computed Decimal accessor for entry/display only, per DEC-ios_architecture_review-005."
+    },
+    {
+      "name": "ExpenseSplit",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ExpenseSplit { var id: UUID; var expense: Expense?; var traveler: Traveler; var shareCents: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Sum of shareCents across an expense's splits must equal amountCents exactly; enforced by SettlementEngine, asserted in tests."
+    },
+    {
+      "name": "SplitMethod",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SplitMethod: String, Codable { case equal, exact, percentage }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "PackingItem",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PackingItem { var id: UUID; var trip: Trip?; var name: String; var isPacked: Bool; var sortIndex: Int }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "PackingTemplate",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PackingTemplate { var id: UUID; var name: String; @Relationship(deleteRule: .cascade, inverse: \\PackingTemplateItem.template) var items: [PackingTemplateItem] }",
+      "owning_lane": "data_domain",
+      "notes": "Should-have per DEC-app_features-003; safe to omit from an early build slice without touching other models."
+    },
+    {
+      "name": "PackingTemplateItem",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class PackingTemplateItem { var id: UUID; var template: PackingTemplate?; var name: String; var sortIndex: Int }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "StopReorderService.moveStop",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func moveStop(_ stop: Stop, to destinationDay: Day, at index: Int, context: ModelContext) throws",
+      "owning_lane": "services_utilities",
+      "notes": "The single atomic function called by both the drag gesture and the 'Move to...' menu; reassigns stop.day, reindexes sortIndex on both source and destination days, saves once, context.rollback() on thrown save."
+    },
+    {
+      "name": "SettlementEngine.computeBalances",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func computeBalances(expenses: [Expense], travelers: [Traveler]) -> [UUID: Int]",
+      "owning_lane": "services_utilities",
+      "notes": "Returns net balance in cents keyed by Traveler.id; must satisfy sum(balances) == 0 exactly as an assertable invariant."
+    },
+    {
+      "name": "SettlementEngine.minimumTransactions",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func minimumTransactions(balances: [UUID: Int]) -> [Payment]",
+      "owning_lane": "services_utilities",
+      "notes": "Greedy max-debtor/max-creditor debt simplification; must be tested at 5+ travelers, an excluded-payer case, and a non-100%-summing percentage entry (rejected at input, per DEC-detailed_discussion-002, not reaching this function), and at stress scale (8 travelers, 40 expenses)."
+    },
+    {
+      "name": "Payment",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct Payment: Identifiable, Hashable { let id: UUID; let fromTravelerID: UUID; let toTravelerID: UUID; let amountCents: Int }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "TravelerDeletionGuard.blockingExpenses",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func blockingExpenses(for traveler: Traveler) -> [Expense]",
+      "owning_lane": "services_utilities",
+      "notes": "New this phase: mirrors the day-shrink-guard pattern for travelers. Non-empty result blocks deletion and the UI must list the returned expenses, per the same honesty principle as DEC-detailed_discussion-001."
+    },
+    {
+      "name": "DayRangeGuard.affectedStops",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func affectedStops(trip: Trip, newStartDate: Date, newEndDate: Date) -> [Stop]",
+      "owning_lane": "services_utilities",
+      "notes": "Implements DEC-detailed_discussion-001's shrink-guard; non-empty result blocks the date-range edit."
+    },
+    {
+      "name": "CalendarExportService.exportDay",
+      "kind": "function",
+      "language": "swift",
+      "signature": "func exportDay(_ day: Day, context: ModelContext) async throws -> CalendarExportResult",
+      "owning_lane": "services_utilities",
+      "notes": "Uses requestFullAccessToEvents; extracts Sendable stop DTOs before the async EventKit calls, writes calendarEventIdentifier back on the main actor afterward."
+    },
+    {
+      "name": "CalendarExportResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CalendarExportResult { let created: Int; let updated: Int; let outcome: CalendarExportOutcome }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "CalendarExportOutcome",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum CalendarExportOutcome { case success, permissionDenied, permissionRestricted, externallyDeletedEventsDetected(count: Int) }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs the four distinct confirmation-sheet states from DEC-design_handoff-007."
+    },
+    {
+      "name": "DemoSeeder",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum DemoSeeder { static let demoTripID: UUID; static func seedIfNeeded(context: ModelContext); static func remove(context: ModelContext) }",
+      "owning_lane": "services_utilities",
+      "notes": "Singleton keyed by demoTripID per DEC-detailed_discussion-004; must seed at least one Stop with structurally unroutable (open-ocean) coordinates per DEC-ios_architecture_review-012."
+    },
+    {
+      "name": "ActiveTripResolver.activeTrip",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func activeTrip(in trips: [Trip], now: Date) -> Trip?",
+      "owning_lane": "services_utilities",
+      "notes": "Used identically by the app, the widget timeline provider, and the Live Activity \u2014 the only 'is this trip active' logic in the app."
+    },
+    {
+      "name": "CurrentDateProvider.now",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum CurrentDateProvider { static func now() -> Date }",
+      "owning_lane": "services_utilities",
+      "notes": "#if DEBUG reads AppGroupConstants.debugDateOverride from the shared UserDefaults suite; physically compiled out of release builds per DEC-detailed_discussion-006."
+    },
+    {
+      "name": "AppGroupConstants",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum AppGroupConstants { static let identifier: String; static let debugDateOverrideKey: String }",
+      "owning_lane": "services_utilities",
+      "notes": "Backs both ModelConfiguration(groupContainer:) and the debug date hook's UserDefaults suite."
+    },
+    {
+      "name": "TripGateChecker.canCreateTrip",
+      "kind": "function",
+      "language": "swift",
+      "signature": "static func canCreateTrip(existingTripCount: Int, isPro: Bool) -> Bool",
+      "owning_lane": "services_utilities",
+      "notes": "Free tier gate is current trip count at creation time, no isLocked flag on Trip, per DEC-ios_architecture_review-013."
+    },
+    {
+      "name": "TripActivityAttributes",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct TripActivityAttributes: ActivityAttributes { struct ContentState: Codable, Hashable { var nextStopName: String; var nextStopTime: Date; var isDemo: Bool }; var tripID: UUID }",
+      "owning_lane": "polish_resilience",
+      "notes": "ContentState rendered via Text(timerInterval:); isDemo drives DemoStampBadge inside the Live Activity."
+    },
+    {
+      "name": "LiveActivityController",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum LiveActivityController { static func start(for trip: Trip) async; static func update(for trip: Trip) async; static func end() async }",
+      "owning_lane": "polish_resilience",
+      "notes": "Every request checks ActivityAuthorizationInfo().areActivitiesEnabled first and uses pushType: nil, per DEC-ios_architecture_review-009."
+    },
+    {
+      "name": "NextStopWidgetEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct NextStopWidgetEntry: TimelineEntry { let date: Date; let tripName: String?; let nextStopName: String?; let isDemo: Bool; let deepLinkURL: URL? }",
+      "owning_lane": "polish_resilience",
+      "notes": "nextStopName == nil renders the honest 'no active trip' state; deepLinkURL opens the app to that day via widgetURL."
+    },
+    {
+      "name": "Theme",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum Theme { enum Color; enum Spacing; enum Radius; enum Font }",
+      "owning_lane": "primary_ui",
+      "notes": "Single source for all tokens from design_handoff; imported by both the app target and the widget extension via WaypointKit."
+    },
+    {
+      "name": "DemoStampBadge",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct DemoStampBadge: View { init() }",
+      "owning_lane": "primary_ui",
+      "notes": "Rendered identically by TripSwitcher, DayView, the widget, and the Live Activity \u2014 one implementation shared via WaypointKit."
+    },
+    {
+      "name": "CategoryPin",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct CategoryPin: View { let category: StopCategory; let isSelected: Bool }",
+      "owning_lane": "primary_ui",
+      "notes": "Custom Annotation content; carries .accessibilityLabel naming category + stop name at the call site."
+    },
+    {
+      "name": "WaypointSchemaV1",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum WaypointSchemaV1: VersionedSchema { static var models: [any PersistentModel.Type] { [Trip.self, Day.self, Stop.self, Traveler.self, Expense.self, ExpenseSplit.self, PackingItem.self, PackingTemplate.self, PackingTemplateItem.self] } }",
+      "owning_lane": "data_domain",
+      "notes": "First entry in a SchemaMigrationPlan set up from day one, so later slices can add fields/models without a destructive reinstall."
+    }
+  ],
+  "errors": []
+}

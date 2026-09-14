@@ -1,0 +1,446 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "RecallClock",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "public protocol RecallClock { func now() -> Date }",
+      "owning_lane": "services_utilities",
+      "notes": "Inject into domain scheduling/time-boundary functions and parsers to make day-boundary and timezone tests deterministic."
+    },
+    {
+      "name": "DayBoundaryCalculator",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "public protocol DayBoundaryCalculator { func startOfTomorrow(relativeTo instant: Date, calendar: Calendar) -> Date }",
+      "owning_lane": "data_domain",
+      "notes": "Single point of truth for calendar-day computation used by due checks and reminder windows."
+    },
+    {
+      "name": "SM2Quality",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "public enum SM2Quality: Int, Codable { case again = 2, hard = 3, good = 4, easy = 5 }",
+      "owning_lane": "data_domain",
+      "notes": "Explicitly locks grade mapping to quality values."
+    },
+    {
+      "name": "SM2CardState",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "public struct SM2CardState: Codable { public let cardID: UUID; public let easeFactor: Double; public let intervalDays: Int; public let repetitionCount: Int; public let dueDate: Date }",
+      "owning_lane": "data_domain",
+      "notes": "Pure domain input/output for transition math, independent of SwiftData."
+    },
+    {
+      "name": "SM2TransitionResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "public struct SM2TransitionResult { public let next: SM2CardState; public let grade: SM2Quality; public let elapsedDays: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Returned after each grade; include enough state for persistence and audit trail."
+    },
+    {
+      "name": "SM2Engine",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum SM2Engine { public static func schedule(current: SchedulingState, grade: Grade) -> SchedulingState; public static func isDue(dueDate: Date, now: Date, calendar: Calendar) -> Bool; public static func startOfTomorrow(now: Date, calendar: Calendar) -> Date }",
+      "owning_lane": "data_domain",
+      "notes": "Namespace of pure static functions. Literal SuperMemo-2 arithmetic, EF floor 1.3, lapse (q<3) resets repetitionCount to 0 / intervalDays to 1. startOfTomorrow is the single shared calendar-day-boundary definition used by isDue, forecast bucketing, and history bucketing."
+    },
+    {
+      "name": "CSVRowStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum CSVRowStatus: Equatable, Sendable { case ok(front: String, back: String, note: String?); case emptyFront; case emptyBack; case wrongColumnCount(Int); case malformedQuoting; case invalidEncoding; case duplicateInFile; case duplicateInDeck; case capBlocked }",
+      "owning_lane": "data_domain",
+      "notes": "One case per enumerated malformed/duplicate/cap-blocked reason from prior phases; capBlocked and duplicate* are distinct from malformed per DEC-per_app_product_brief-005 and DEC-detailed_discussion-006."
+    },
+    {
+      "name": "ParsedCSVRow",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "public struct ParsedCSVRow { public let sourceLine: Int; public let front: String; public let back: String; public let note: String?; public let status: CSVRowStatus; public let normalizedKey: String }",
+      "owning_lane": "data_domain",
+      "notes": "Normalized key is case-sensitive exact front+back concatenation for deterministic duplicate detection."
+    },
+    {
+      "name": "CSVParseOptions",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "public struct CSVParseOptions { public let expectedColumns: Int = 3; public let acceptNoteColumn: Bool = true; public let allowBom: Bool = true }",
+      "owning_lane": "data_domain",
+      "notes": "Parser can accept front/back and optional note while rejecting malformed structural cases explicitly."
+    },
+    {
+      "name": "CSVParseResult",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "public struct CSVParseResult { public let rows: [ParsedCSVRow]; public let totalOk: Int; public let totalRejected: Int; public let canImportCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Never drop silently; importer always drives preview from this complete result."
+    },
+    {
+      "name": "CSVParser",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public enum CSVParser { public static func parseImportPreview(data: Data, existingCards: [(front: String, back: String)], remainingCapacity: Int?) -> [CSVRowStatus]; public static func exportCSV(cards: [(front: String, back: String, note: String?)]) -> Data }",
+      "owning_lane": "data_domain",
+      "notes": "Pure, no I/O. Case-sensitive exact front+back duplicate matching. remainingCapacity nil means uncapped (Plus). Round-trips losslessly with export."
+    },
+    {
+      "name": "CardRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "public protocol CardRepository { func create(deckID: UUID, front: String, back: String, note: String?) async throws -> Card; func cardsDue(at instant: Date, calendar: Calendar, forDeck: UUID?, includeArchived: Bool) async throws -> [Card]; func card(forID id: UUID) async throws -> Card? }",
+      "owning_lane": "services_utilities",
+      "notes": "Single source of due-card queries; never return mutable due booleans."
+    },
+    {
+      "name": "DeckRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol DeckRepository { func fetchAllDecks(includeArchived: Bool) throws -> [Deck]; func createDeck(name: String) throws -> Deck; func archiveDeck(id: UUID) throws; func deleteDeck(id: UUID) throws }",
+      "owning_lane": "data_domain",
+      "notes": "Backed by the single app-wide ModelContext; runs on the main actor."
+    },
+    {
+      "name": "ReviewLogRepository",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "public protocol ReviewLogRepository { func append(_ entry: ReviewLogEntry) async throws; func history(for cardID: UUID) async throws -> [ReviewLogEntry]; func deleteByCardID(_ cardID: UUID) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Append-only writes only; no update API exposed to enforce immutability."
+    },
+    {
+      "name": "ModelContainerManager",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "public protocol ModelContainerManager { func start() throws -> ModelContainer; var container: ModelContainer? { get } var isRecoveredState: Bool { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "Single container owner for app lifetime, with explicit open-failure recovery path."
+    },
+    {
+      "name": "ReviewSessionPlan",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct ReviewSessionPlan { public let sessionID: UUID; public let scope: SessionScope; public let dueCardIDs: [UUID]; public let startedAt: Date }",
+      "owning_lane": "services_utilities",
+      "notes": "Snapshotted once at session start via ReviewRepository.fetchDueCards; never re-fetched mid-session (DEC-design_handoff-004)."
+    },
+    {
+      "name": "ReviewSessionService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol ReviewSessionService { func start(scope: SessionScope, now: Date) throws -> ReviewSessionPlan; func gradeCard(sessionID: UUID, cardID: UUID, grade: Grade, now: Date) throws -> GradeOutcome }",
+      "owning_lane": "services_utilities",
+      "notes": "If cardID in the plan no longer resolves to a live Card (deleted/cascaded between snapshot and grading), the caller must skip it and increment a stale-skip counter \u2014 never crash, never fabricate a grade or silently shrink the visible summary without recording the skip."
+    },
+    {
+      "name": "SessionScope",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum SessionScope: Sendable { case singleDeck(UUID); case allDecks }",
+      "owning_lane": "services_utilities",
+      "notes": "Matches Study-deck-specific and Study-All entry points."
+    },
+    {
+      "name": "StatsService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "public protocol StatsService { func forecastNext30Days(deckID: UUID?) async throws -> [DailyForecastPoint]; func dailyHistory(deckID: UUID?, days: Int) async throws -> [ReviewCountPoint]; func retentionRate(deckID: UUID?, from: Date, to: Date) async throws -> Double }",
+      "owning_lane": "services_utilities",
+      "notes": "Computed against persistent logs with demo-data exclusion filter applied in one central place."
+    },
+    {
+      "name": "ReminderService",
+      "kind": "protocol",
+      "language": "Swift",
+      "signature": "public protocol ReminderService { func refreshNotifications(now: Date) async throws; func requestPermissionIfNeeded() async throws -> Bool; func setReminder(enabled: Bool, atComponents: DateComponents?, deckID: UUID?) async throws }",
+      "owning_lane": "services_utilities",
+      "notes": "Use non-repeating schedule semantics and avoid notifications with stale due-count text."
+    },
+    {
+      "name": "SubscriptionService",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol SubscriptionService { func currentPlan() async throws -> PlanStatus; func purchasePlus() async throws; func restorePurchases() async throws -> PlanStatus }",
+      "owning_lane": "services_utilities",
+      "notes": "StoreKit 2 backed; purchase/restore is the one sanctioned network touch. Offline purchase attempt must return a bounded error, not hang."
+    },
+    {
+      "name": "RecallPersistenceError",
+      "kind": "enum",
+      "language": "Swift",
+      "signature": "public enum RecallPersistenceError: Error { case containerOpenFailed; case saveFailed; case deleteFailed; case migrationNeeded }",
+      "owning_lane": "services_utilities",
+      "notes": "Errors must surface in UI as honest states; never hidden in background."
+    },
+    {
+      "name": "DeckListViewState",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct DeckListViewState { public let isLoading: Bool; public let isEmpty: Bool; public let allCaughtUp: Bool; public let decks: [DeckCellVM]; public let hasError: Bool; public let errorMessage: String? }",
+      "owning_lane": "primary_ui",
+      "notes": "Explicit distinct all-caught-up vs true-empty semantics per DEC-design_discussion-005."
+    },
+    {
+      "name": "ReviewSessionViewModel",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor public final class ReviewSessionViewModel { public private(set) var queue: [UUID]; public private(set) var currentIndex: Int; public private(set) var isRevealed: Bool; public private(set) var capHit: Bool; public private(set) var gradedCount: Int; public private(set) var againCount: Int; public private(set) var staleSkippedCount: Int; func reveal(); func grade(_ grade: Grade) async; func endSessionEarly() }",
+      "owning_lane": "primary_ui",
+      "notes": "queue is the ReviewSessionPlan.dueCardIDs snapshot, stepped by index only. staleSkippedCount surfaces the stale-ID-skip edge case in the session summary rather than hiding it. Supports both GradeStaircase taps and optional keyboard shortcuts (space/return=reveal, 1-4/arrows=grade) as two input paths to the same grade(_:) call \u2014 keyboard is additive, VoiceOver/staircase labels remain the accessibility path of record."
+    },
+    {
+      "name": "Clock",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol Clock: Sendable { func now() -> Date }",
+      "owning_lane": "data_domain",
+      "notes": "Injected everywhere in RecallScheduling/RecallCSV; SystemClock is the only production conformer. No domain code calls Date()/Calendar.current directly."
+    },
+    {
+      "name": "Grade",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum Grade: Int, Codable, CaseIterable, Sendable { case again = 2, hard = 3, good = 4, easy = 5 }",
+      "owning_lane": "data_domain",
+      "notes": "Raw value is the SM-2 quality score q, per DEC-detailed_discussion-001."
+    },
+    {
+      "name": "SchedulingState",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct SchedulingState: Equatable, Sendable { public var easeFactor: Double; public var intervalDays: Int; public var repetitionCount: Int }",
+      "owning_lane": "data_domain",
+      "notes": "Pure value type; no cardID/dueDate \u2014 those live in GradeOutcome so this stays a minimal SM2Engine input/output."
+    },
+    {
+      "name": "SM2Engine.schedule",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public static func schedule(current: SchedulingState, grade: Grade) -> SchedulingState",
+      "owning_lane": "data_domain",
+      "notes": "Literal SuperMemo-2 arithmetic per DEC-detailed_discussion-001; EF floor 1.3; lapse (q<3) resets repetitionCount to 0 and intervalDays to 1."
+    },
+    {
+      "name": "SM2Engine.isDue",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public static func isDue(dueDate: Date, now: Date, calendar: Calendar) -> Bool",
+      "owning_lane": "data_domain",
+      "notes": "due iff dueDate < startOfTomorrow(now, calendar); recomputed at query time, never stored as a boolean."
+    },
+    {
+      "name": "SM2Engine.startOfTomorrow",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public static func startOfTomorrow(now: Date, calendar: Calendar) -> Date",
+      "owning_lane": "data_domain",
+      "notes": "Single shared definition of calendar-day boundary used by isDue, forecast bucketing, and history bucketing."
+    },
+    {
+      "name": "CSVParser.parseImportPreview",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public static func parseImportPreview(data: Data, existingCards: [(front: String, back: String)], remainingCapacity: Int?) -> [CSVRowStatus]",
+      "owning_lane": "data_domain",
+      "notes": "Pure, no I/O. Case-sensitive exact front+back duplicate matching per DEC-detailed_discussion-006. remainingCapacity nil means uncapped (Plus)."
+    },
+    {
+      "name": "CSVParser.exportCSV",
+      "kind": "function",
+      "language": "swift",
+      "signature": "public static func exportCSV(cards: [(front: String, back: String, note: String?)]) -> Data",
+      "owning_lane": "data_domain",
+      "notes": "Three-column front/back/note export; round-trips losslessly with parseImportPreview."
+    },
+    {
+      "name": "Deck",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Deck { var id: UUID; var name: String; var createdAt: Date; var archivedAt: Date?; var isDemo: Bool; var reminderHour: Int?; var reminderMinute: Int?; @Relationship(deleteRule: .cascade, inverse: \\Card.deck) var cards: [Card] }",
+      "owning_lane": "data_domain",
+      "notes": "archivedAt != nil means archived, not deleted; archived decks still count toward Free caps. reminderHour/Minute implement per-deck Plus reminder override."
+    },
+    {
+      "name": "Card",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Card { var id: UUID; var front: String; var back: String; var note: String?; var easeFactor: Double; var intervalDays: Int; var repetitionCount: Int; var dueDate: Date; var lastReviewedAt: Date?; var isDemo: Bool; var createdAt: Date; var deck: Deck?; @Relationship(deleteRule: .cascade, inverse: \\ReviewLog.card) var logs: [ReviewLog] }",
+      "owning_lane": "data_domain",
+      "notes": "isDemo denormalized from parent Deck at creation, never derived via join. dueDate is authoritative storage but due-ness is always computed via SM2Engine.isDue at query time."
+    },
+    {
+      "name": "ReviewLog",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class ReviewLog { var id: UUID; var timestamp: Date; var grade: Int; var easeFactorBefore: Double; var easeFactorAfter: Double; var intervalBefore: Int; var intervalAfter: Int; var repetitionBefore: Int; var repetitionAfter: Int; var card: Card? }",
+      "owning_lane": "data_domain",
+      "notes": "Append-only: repository exposes insert only, no update method exists anywhere. Cascade-deleted when its Card is deleted."
+    },
+    {
+      "name": "RecallDataError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum RecallDataError: Error, Sendable { case containerUnavailable(underlying: String); case saveFailed(underlying: String); case notFound }",
+      "owning_lane": "data_domain",
+      "notes": "Thrown by repositories; view models map these to ErrorBlock states, never force-try. containerUnavailable drives the app-root recovery screen."
+    },
+    {
+      "name": "ModelContainerFactory",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public enum ModelContainerFactory { public static func makeContainer() -> Result<ModelContainer, RecallDataError> }",
+      "owning_lane": "data_domain",
+      "notes": "No try!. Includes VersionedSchema/SchemaMigrationPlan scaffolding from v1. Failure result drives AppRootState.recoveryNeeded, offering retry or explicit start-fresh."
+    },
+    {
+      "name": "ReviewRepository",
+      "kind": "protocol",
+      "language": "swift",
+      "signature": "public protocol ReviewRepository { func fetchDueCards(deckIDs: [UUID]?, now: Date) throws -> [Card]; func recordGrade(cardID: UUID, grade: Grade, now: Date) throws -> GradeOutcome; func createCard(front: String, back: String, note: String?, deckID: UUID) throws -> Card; func deleteCard(id: UUID) throws }",
+      "owning_lane": "data_domain",
+      "notes": "recordGrade performs a synchronous context.save() before returning, per DEC-detailed_discussion-004. deckIDs nil means Study All. Uses UUID (not PersistentIdentifier) so this contract stays usable from primary_ui without importing SwiftData."
+    },
+    {
+      "name": "StatsSnapshot",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct StatsSnapshot: Equatable, Sendable { public var forecast: [ForecastBucket]; public var history: [HistoryPoint]; public var retentionRate: Double?; public var sampleSize: Int }",
+      "owning_lane": "services_utilities",
+      "notes": "retentionRate is nil (not 0) when sampleSize == 0, to distinguish empty from 0% retention."
+    },
+    {
+      "name": "ForecastBucket",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct ForecastBucket: Equatable, Sendable, Identifiable { public var id: Date; public var dayOffset: Int; public var dueCount: Int }",
+      "owning_lane": "services_utilities",
+      "notes": "30 entries, dayOffset 0...29; day 0 is 'today', rendered in accentAmber per design_handoff."
+    },
+    {
+      "name": "HistoryPoint",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct HistoryPoint: Equatable, Sendable, Identifiable { public var id: Date; public var reviewCount: Int; public var againCount: Int }",
+      "owning_lane": "services_utilities",
+      "notes": "Daily review history; demo data excluded by default."
+    },
+    {
+      "name": "StatsComputationActor",
+      "kind": "function",
+      "language": "swift",
+      "signature": "@ModelActor public actor StatsComputationActor { func computeOverview(excludeDemo: Bool, now: Date) -> StatsSnapshot; func computeDeckStats(deckID: UUID, now: Date) -> StatsSnapshot }",
+      "owning_lane": "services_utilities",
+      "notes": "Owns its own read-only ModelContext against the same single container; triggered by ModelContext.didSave notifications and post-session completion \u2014 a concurrency domain fully separate from the main-actor write path. Must never be inlined into a SwiftUI view body."
+    },
+    {
+      "name": "StatsCache",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor public final class StatsCache { public private(set) var overview: StatsSnapshot?; public private(set) var perDeck: [UUID: StatsSnapshot]; func refresh() async }",
+      "owning_lane": "primary_ui",
+      "notes": "Single source stats views read from; the demo-exclusion filter lives here exactly once, not reimplemented per chart."
+    },
+    {
+      "name": "PlanGate",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Observable @MainActor public final class PlanGate { public private(set) var isPlus: Bool; public private(set) var deckCount: Int; public private(set) var nonDemoCardCount: Int; func canCreateDeck() -> Bool; func canCreateCard(in deckID: UUID) -> Bool; func refreshEntitlement() async }",
+      "owning_lane": "services_utilities",
+      "notes": "Single injected instance; card editor, CSV import preview, and deck creation all read this rather than three independently-maintained cap counters."
+    },
+    {
+      "name": "ReminderScheduler",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct ReminderScheduler { func requestAuthorizationIfNeeded() async -> Bool; func rescheduleForTomorrow(dueCount: Int, at time: DateComponents) async; func cancelPending() async }",
+      "owning_lane": "services_utilities",
+      "notes": "repeats:false, remove-then-readd at the four refresh points (foreground/background/post-session/day-rollover); never schedules when dueCount == 0."
+    },
+    {
+      "name": "GapRegisterEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct GapRegisterEntry: Identifiable, Sendable { public var id: String; public var title: String; public var body: String }",
+      "owning_lane": "polish_resilience",
+      "notes": "Static content array; asserted by an automated test to contain each required disclosure string (StoreKit exception, notification never-created framing, timezone-crossing due flips, iCloud backup divergence, full non-goals list)."
+    },
+    {
+      "name": "StudyRoute",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum StudyRoute: Hashable { case deckDetail(UUID); case reviewSession(scope: SessionScope) }",
+      "owning_lane": "primary_ui",
+      "notes": "Typed route array per tab (StudyRoute/StatsRoute/SettingsRoute) instead of a type-erased NavigationPath, for compile-time-checked navigation across parallel build lanes."
+    },
+    {
+      "name": "DemoDataSeeder",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct DemoDataSeeder { func seed() throws; func removeAll() throws }",
+      "owning_lane": "polish_resilience",
+      "notes": "removeAll leaves zero residue in StatsCache/PlanGate counts, per DEC-initial_discussion-005."
+    },
+    {
+      "name": "ReviewLogEntry",
+      "kind": "struct",
+      "language": "Swift",
+      "signature": "struct ReviewLogEntry {\n    var id: UUID\n    var cardId: UUID\n    var grade: Int\n    var timestamp: Date\n}",
+      "owning_lane": "data_domain",
+      "notes": "Records each user interaction during a review session."
+    },
+    {
+      "name": "saveDeck",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func saveDeck(_ deck: Deck) async throws -> UUID",
+      "owning_lane": "services_utilities",
+      "notes": "Saves a new or updated deck to the database."
+    },
+    {
+      "name": "deleteDeck",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func deleteDeck(withId deckId: UUID) async throws -> Void",
+      "owning_lane": "services_utilities",
+      "notes": "Deletes a deck and all associated cards from the database."
+    },
+    {
+      "name": "fetchCardsForDeck",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func fetchCardsForDeck(withId deckId: UUID) async throws -> [Card]",
+      "owning_lane": "services_utilities",
+      "notes": "Retrieves all cards associated with a given deck."
+    },
+    {
+      "name": "recordReviewGrade",
+      "kind": "function",
+      "language": "Swift",
+      "signature": "func recordReviewGrade(cardId: UUID, grade: Int) async throws -> Void",
+      "owning_lane": "services_utilities",
+      "notes": "Records a user's review grade for a specific card."
+    },
+    {
+      "name": "GradeOutcome",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "public struct GradeOutcome: Equatable, Sendable { public let state: SchedulingState; public let dueDate: Date; public let wasLapse: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "Returned by ReviewRepository.recordGrade; wasLapse true iff grade == .again, for ReviewLog before/after logging and again-rate stats."
+    },
+    {
+      "name": "AppRootState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "public enum AppRootState { case loading; case ready(ModelContainer); case recoveryNeeded(RecallDataError) }",
+      "owning_lane": "primary_ui",
+      "notes": "Drives the app-launch recovery screen instead of a crash when the store fails to open."
+    }
+  ],
+  "errors": []
+}

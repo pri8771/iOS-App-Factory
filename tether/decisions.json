@@ -1,0 +1,1761 @@
+{
+  "schema_version": 1,
+  "decisions": [
+    {
+      "id": "DEC-prompt_contract-001",
+      "decision": "The 'Preview with a sample partner' path must drive the real SyncService protocol on a delay timer, not a hardcoded pre-completed card.",
+      "rationale": "Offline-only build must still genuinely exercise the gated-reveal state machine, including races (both answer same second, edit-after-submit, kill mid-submit); a faked shortcut would make the core invariant untested.",
+      "rejected_alternatives": [
+        "Hardcoded 'already complete' sample card for demo purposes"
+      ],
+      "constraints": [
+        "Sample partner answers arrive via a timer through LocalSyncService, not a static fixture"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-002",
+      "decision": "The DesignSystem.swift no-inline-color/font rule is enforced by an automated lint/grep gate, not by code review discretion.",
+      "rationale": "An unenforced style promise rots as velocity increases; the gate must be a checkable, running artifact.",
+      "rejected_alternatives": [
+        "Rely on PR review to catch violations"
+      ],
+      "constraints": [
+        "A script/lint rule scanning for inline Color()/UIColor()/.font(.system(size:)) must exist and run"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-003",
+      "decision": "Amber is restricted strictly to the tether arc, the two glowing endpoints, and the single 'light the tether' primary action \u2014 nowhere else in the UI.",
+      "rationale": "Amber is the one accent; without a bright-line rule it creeps onto streak badges, tabs, sliders, CTAs and dilutes the premium feel.",
+      "rejected_alternatives": [
+        "Allow amber on secondary emphasis elements like streak flames or record badges"
+      ],
+      "constraints": [
+        "Any later-phase amber usage outside these three elements is a violation to flag, not a judgment call"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-004",
+      "decision": "Card.date / 'today' is anchored to a canonical UTC day boundary computed at the Connection level, never to either individual's local calendar day.",
+      "rationale": "The two people are by definition in different timezones; local-day anchoring creates ambiguity about whose midnight defines 'today's card' and is exactly where long-distance apps break.",
+      "rejected_alternatives": [
+        "Anchor to Person A's local day",
+        "Anchor to whichever person opens the app first each day"
+      ],
+      "constraints": [
+        "All day-boundary logic (prompt issuance, streak evaluation) must reference this canonical boundary"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-005",
+      "decision": "A missed calendar day resets the streak counter to 0 the following day, and this rule must be visibly surfaced in the UI (e.g., Timeline or streak badge), not silently applied.",
+      "rationale": "Streaks are a stated success/retention mechanic; silent resets would confuse users and can't be verified without a visible rule.",
+      "rejected_alternatives": [
+        "Silent streak reset with no UI indication",
+        "Grace-period streak freeze"
+      ],
+      "constraints": [
+        "Streak-break state must be discoverable somewhere in the UI"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-006",
+      "decision": "Tether+ entitlement is modeled on the Connection record, not the Person record, in this local-first build; the simulated partner inherits it automatically.",
+      "rationale": "The prompt states billing is 'to one person for the pair' but the data model has no cross-account entitlement concept; scoping entitlement to Connection is the simplest offline-correct approximation.",
+      "rejected_alternatives": [
+        "Model entitlement per-Person and require both to independently subscribe",
+        "Defer entitlement modeling entirely to production"
+      ],
+      "constraints": [
+        "This is flagged as a simplification; the production Firebase-style adapter must revisit real cross-account entitlement sharing \u2014 not resolved by this build"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-007",
+      "decision": "A free user who ends up with more than one connection (e.g., after a Tether+ lapse) never loses data: new-connection creation is blocked, and all non-primary connections become read-only until re-subscribed.",
+      "rationale": "The prompt doesn't specify downgrade behavior; silent data loss is unacceptable and must be ruled out explicitly now rather than invented ad hoc by a later phase.",
+      "rejected_alternatives": [
+        "Delete or hide extra connections on downgrade",
+        "Leave downgrade behavior undefined"
+      ],
+      "constraints": [
+        "No destructive deletion of Connection/Card data on entitlement lapse"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-008",
+      "decision": "CoreMotion-driven globe parallax must degrade gracefully to a static/neutral angle with no crash when device motion is unavailable, which is the default in Simulator.",
+      "rationale": "The entire build is staked on being traversable in Simulator offline; an unguarded CoreMotion dependency would crash the very environment the gates run in.",
+      "rejected_alternatives": [
+        "Require a physical device for full gate verification"
+      ],
+      "constraints": [
+        "Missing CMDeviceMotion must no-op, not throw or crash"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-prompt_contract-009",
+      "decision": "The two-beat heartbeat haptic requirement is scoped, for this offline build, to firing when the simulated partner's timed answer lands while the app is foregrounded \u2014 not to background/push-triggered delivery.",
+      "rationale": "There is no real second device in local-first testing, so background-push-triggered haptics are untestable here and belong to the production sync-seam scope, not this build's gates.",
+      "rejected_alternatives": [
+        "Treat background push haptic as a testable requirement for this phase"
+      ],
+      "constraints": [
+        "Background/push haptic behavior is explicitly deferred to the production Firebase-style adapter"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-001",
+      "decision": "Design and default copy target long-distance couples as the primary audience, while keeping the underlying mechanic and neutral labels (e.g., 'your person') usable for other relationship types.",
+      "rationale": "The visual/verbal language in the prompt (tether, ignite, minting ritual) reads romantic-coded even though the prompt explicitly widens scope to friends/family; naming this now prevents copy from silently drifting toward 'partner'-only language.",
+      "rejected_alternatives": [
+        "Design tone equally for all relationship types with no primary framing",
+        "Force romantic framing exclusively and drop the broader relationship-type claim from the prompt"
+      ],
+      "constraints": [
+        "Default onboarding and system copy must never hardcode 'partner' as the label for the other person; keep 'your person' or equivalent neutral phrasing"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-002",
+      "decision": "Home Screen widget / Lock Screen / Live Activity support is explicitly deferred to V1.1 and stays out of this build's scope.",
+      "rationale": "WidgetKit adds real complexity (timeline providers, shared app-group storage, a second design-system render target) that isn't justified for the local-first V1, but it's the single most natural retention mechanic for a once-a-day ritual app and should be named now rather than silently dropped.",
+      "rejected_alternatives": [
+        "Add a basic widget to V1 given how central it is to the retention story"
+      ],
+      "constraints": [
+        "Do not add WidgetKit targets in this build; flag it as the natural next-version feature in any roadmap output"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-003",
+      "decision": "'Preview with a sample partner' is treated as dual-purpose: both the QA/crawler scaffold required by the build contract and the realistic pre-invite persuasion screen a real user would want before sending their join link.",
+      "rationale": "The paired-app cold-start problem means the first installer gets no value until their invitee joins; showing them a realistic preview before they commit to inviting someone is the honest product answer within an offline-only build.",
+      "rejected_alternatives": [
+        "Treat sample-partner mode purely as internal test scaffolding with no product-facing framing"
+      ],
+      "constraints": [
+        "UI copy/design phases should consider surfacing this path as an explicit 'see what you're inviting them into' option, not just a hidden debug/test entry point"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-product_research-004",
+      "decision": "Prompt-list exhaustion (the bundled 60-day list running out) is flagged as an open question for a later content-focused phase rather than solved or ignored in this phase.",
+      "rationale": "The prompt doesn't specify post-day-60 behavior; a thin app that goes silent or breaks after 60 days undermines the daily-ritual premise, but solving it now is out of scope for research.",
+      "rejected_alternatives": [
+        "Silently assume infinite unique prompts exist",
+        "Solve prompt rotation logic in this phase"
+      ],
+      "constraints": [
+        "A later phase (design or build) must give an explicit answer, minimally: repeat prompts with a 'you've answered this before' indicator"
+      ],
+      "supersedes": null,
+      "superseded": true,
+      "superseded_by": "DEC-per_app_product_brief-001"
+    },
+    {
+      "id": "DEC-product_research-005",
+      "decision": "The gated-reveal state machine's test suite must use deterministic seeded fixtures (fixed simulated-partner delay timing, fixed prompt id) rather than real timers/randomness.",
+      "rationale": "This state machine is the app's core correctness invariant per the prompt contract; non-deterministic test timing risks flaky tests that mask real regressions.",
+      "rejected_alternatives": [
+        "Allow real-time delays and randomized prompt selection in tests for realism"
+      ],
+      "constraints": [
+        "Build/test phases must seed simulated-partner delay and prompt selection for deterministic, repeatable test runs"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_selection-001",
+      "decision": "Tether is built as a single app, not split into a portfolio of sibling projects.",
+      "rationale": "The prompt is explicitly scoped to one hero surface (the daily distance card); every named screen (onboarding, today, answer sheet, compose & share, timeline, reunion, connections & settings, paywall) is a facet of that one card, not a distinct product. No explicit multi-app or per-category count was requested.",
+      "rejected_alternatives": [
+        "Split into sibling apps by relationship type (couples vs. friends/family)",
+        "Split Reunion/Timeline into standalone companion apps"
+      ],
+      "constraints": [
+        "No portfolio-json manifest is produced",
+        "Single Xcode project/target, single DesignSystem.swift, single SyncService seam",
+        "No WidgetKit/watchOS companion targets in this build (already deferred to V1.1)"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_selection-002",
+      "decision": "The selected single app is slug 'tether', category long-distance relationship/daily ritual, target user long-distance couples primarily with relationship-neutral mechanic/copy, build=true.",
+      "rationale": "Matches the original prompt and carries forward the product_research audience framing without hardcoding romantic-only language.",
+      "rejected_alternatives": [],
+      "constraints": [
+        "Default copy must keep 'your person' neutral phrasing, never default to 'your partner'"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_selection-003",
+      "decision": "Settings/Connections screen stays minimal \u2014 notification cadence, units, subscription, sign-out only \u2014 and no screen beyond the eight named in the prompt contract gets built.",
+      "rationale": "Guards against shell-padding scope creep (extra stats screens, settings sprawl) on a build already carrying 19 hard requirements plus StoreKit/CoreMotion/AVAssetWriter/design-lint work.",
+      "rejected_alternatives": [
+        "Allow later phases to add convenience screens as needed"
+      ],
+      "constraints": [
+        "Any new screen proposed later must justify itself against 'does it make the card more beautiful, emotional, or shareable'"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-001",
+      "decision": "Lock the one-sentence product promise: Tether is a daily two-sided distance card that only completes when both people answer.",
+      "rationale": "Gives every later phase a single, unambiguous test for scope creep \u2014 if a feature doesn't serve this gated-reveal moment, it's out.",
+      "rejected_alternatives": [
+        "Describing Tether as a broader long-distance relationship toolkit/super-app"
+      ],
+      "constraints": [
+        "Later phases must be able to explain the app in this one sentence"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-002",
+      "decision": "The Answer sheet is the only free-text entry surface in the entire app.",
+      "rationale": "Keeps the app from creeping toward messaging/chat, which is explicitly out of scope.",
+      "rejected_alternatives": [
+        "Allowing comments or free text elsewhere (e.g. on Timeline cards)"
+      ],
+      "constraints": [
+        "No text input control may be added outside the Answer sheet in any future phase"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-003",
+      "decision": "Once both answers exist and a card is complete, both answers are final and uneditable, and this finality must be visibly communicated at submission time.",
+      "rationale": "Avoids an ambiguous 'can I edit after they've seen it' state that would otherwise be discovered as a bug later; matches the two-sided gated-reveal being the emotional core of the app.",
+      "rejected_alternatives": [
+        "Allow silent post-reveal edits",
+        "Allow edits only before the other person has answered, with no UI signal of the cutoff"
+      ],
+      "constraints": [
+        "UI must make answer finality legible at the moment of submission, not just disable an edit control invisibly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-004",
+      "decision": "The Today screen's very first rendered frame must truthfully convey card state (waiting-on-them / waiting-on-you / complete) with zero required taps and before any animation completes.",
+      "rationale": "This is a daily-use ritual app; users open it specifically to check status, and Reduce Motion users need the same information without relying on animation.",
+      "rejected_alternatives": [
+        "Requiring the full draw-on/reveal animation to finish before state is legible"
+      ],
+      "constraints": [
+        "Motion/design phases must treat first-frame legibility as a hard requirement, not a nice-to-have"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-initial_discussion-005",
+      "decision": "Adopt four concrete, checkable success criteria for this build: full offline traversability of all eight screens via sample-partner mode, deterministic race-condition test coverage of the gated-reveal state machine, zero non-sanctioned amber pixels verified by lint, and instant truthful state legibility on Today's first frame.",
+      "rationale": "The phase playbook requires measurable success criteria, not vibes; these four are each independently verifiable by a script or test rather than subjective review.",
+      "rejected_alternatives": [
+        "Leaving success criteria as qualitative/descriptive only"
+      ],
+      "constraints": [
+        "Build-verification phases should check against these four criteria explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-001",
+      "decision": "After the bundled 60-day prompt list is exhausted, the schedule repeats from day 1, with a small badge on the prompt indicating 'you've answered this before \u2014 has anything changed?'",
+      "rationale": "A daily-ritual app cannot go silent or repeat unlabeled after two months; this is a correctness requirement, not a content nice-to-have, and doubles as a low-cost emotional callback feature (comparing today's answer to a year-ago answer).",
+      "rejected_alternatives": [
+        "Leaving post-day-60 behavior undefined",
+        "Silently repeating prompts with no indication they've been seen before"
+      ],
+      "constraints": [
+        "Prompt-repeat logic and the 'answered before' badge must be implemented as part of the daily prompt issuance flow, not deferred further"
+      ],
+      "supersedes": "DEC-product_research-004"
+    },
+    {
+      "id": "DEC-per_app_product_brief-002",
+      "decision": "Until a connection is actually joined by the invited partner, the Today screen defaults to the clearly-labeled 'Preview with a sample partner' experience (one tap to dismiss into an explicit 'waiting for [name] to join' state), rather than an empty/spinner state.",
+      "rationale": "The cold-start gap between install and partner-join is the single most fragile retention window this product has and is outside the product's control to shorten; showing a labeled preview keeps the app alive rather than dead during that gap.",
+      "rejected_alternatives": [
+        "Showing a bare empty state or spinner until the partner joins"
+      ],
+      "constraints": [
+        "This makes 'Preview with a sample partner' a shipped product surface with real default-visibility, not just a hidden QA/debug entry point, extending DEC-product_research-003"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-003",
+      "decision": "The full tether draw-on/minting animation (~1.1s) plays only on first pairing and on card completion; on ordinary app reopens, the Today screen's first frame is instantly state-legible with no animation delay.",
+      "rationale": "A daily-use app reopened many times a day cannot force a 1.1s animation on every visit without damaging retention; the ritual animation belongs to genuinely special moments, not routine status checks.",
+      "rejected_alternatives": [
+        "Replaying the full draw-on animation on every app open"
+      ],
+      "constraints": [
+        "Resolves the open risk carried from initial_discussion; motion/design phases must implement 'reopen' as a distinct, instantly-legible state from 'first pairing' and 'completion'"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-004",
+      "decision": "Lock the exact free vs. Tether+ value split: free tier delivers the complete emotional loop (pairing, globe, daily prompt, gated reveal, streak, Timeline, one static export/day); Tether+ unlocks animated export, additional connections, premium skins, and the Reunion module plus annual Year Tethered retrospective \u2014 genuine capability differences, not cosmetic gating.",
+      "rationale": "Matches the prompt_contract monetization spec exactly and satisfies this phase's acceptance check that subscription value be functional, not cosmetic.",
+      "rejected_alternatives": [
+        "Gating any part of the core daily card loop behind Tether+"
+      ],
+      "constraints": [
+        "No future phase may move any part of the daily card loop behind the paywall"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-005",
+      "decision": "The competitive wedge is defined as uncompromising craft on a single moment (the two-sided gated reveal) combined with a structurally-forced invite growth mechanic (a card cannot be created solo, so K\u22651 by construction); no future feature may introduce a way to use Tether solo.",
+      "rationale": "This is what differentiates Tether from commodity distance-counter apps and from messaging-heavy paired apps like Between; the forced-invite mechanic is rare and must be protected as a hard constraint, not a soft preference.",
+      "rejected_alternatives": [
+        "Allowing an eventual solo/single-user mode for convenience"
+      ],
+      "constraints": [
+        "Any later phase proposing solo card creation or optional pairing must be rejected outright"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-per_app_product_brief-006",
+      "decision": "The documented Firebase-style SyncService adapter is the designated production target, not a stretch goal \u2014 it is the only path to real background-push heartbeat haptics and honest per-person/cross-account Tether+ entitlement, both of which the local-first build explicitly cannot deliver.",
+      "rationale": "Keeps the brief honest that the local build is a complete, shippable v1 but not a permanent feature ceiling; prevents a later phase from treating the Connection-scoped entitlement simplification as a final design decision.",
+      "rejected_alternatives": [
+        "Treating cloud sync as optional/future polish with no explicit commitment"
+      ],
+      "constraints": [
+        "Any roadmap output must state cloud adapter work as the defined next step, not an open-ended maybe"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-001",
+      "decision": "The MVP slice is the full core loop end-to-end, including real onboarding/pairing via the sample-partner path and city search \u2014 not a stripped, hardcoded pre-paired mock.",
+      "rationale": "Pairing is the locked, non-negotiable structurally-forced growth mechanic, and 'Preview with a sample partner' was already decided to be a dual-purpose, load-bearing product screen (QA scaffold + pre-invite persuasion), not omittable scaffolding; cutting it would validate a generic globe/reveal tech demo instead of this app's actual concept.",
+      "rejected_alternatives": [
+        "Gemini's proposal to launch directly into a hardcoded pre-paired mock relationship, cutting onboarding, pairing, invite-code generation, and city search from this slice to focus purely on globe-rendering and state-machine engineering risk"
+      ],
+      "constraints": [
+        "The later build phase must implement the full slice described here, not a thinned demo version"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-002",
+      "decision": "This slice explicitly defers (not deletes): animated MP4/Live Photo export (ship static PNG-with-watermark only), premium skins beyond classic indigo (architect the extension point, populate one), the Reunion module and Year Tethered retrospective, multi-connection management, and fine parallax tuning beyond the required static fallback.",
+      "rationale": "Sequences the riskiest native-media code (AVAssetWriter) and secondary emotional payoffs after the core daily-card loop has proven itself, per this phase's goal of the smallest slice that proves the concept.",
+      "rejected_alternatives": [
+        "Cutting into globe fidelity, gated-reveal correctness, or the signature haptics to save build time"
+      ],
+      "constraints": [
+        "The skin/export architecture must still exist as a real extension point so later phases aren't rewrites, even though only one skin and no animated export ship in this slice"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-003",
+      "decision": "Adopt two additional technical validation requirements raised by the skeptic pass: coastline-polyline globe rendering must not stutter in the Simulator with CoreMotion parallax active, and the gated-reveal state machine must have explicit test coverage for the simulated partner's timer firing while the Answer sheet is open/mid-edit.",
+      "rationale": "These are two concrete, previously-unnamed failure modes that are cheap to specify now and expensive to discover late, given the state machine is already locked as the app's core correctness invariant.",
+      "rejected_alternatives": [
+        "Leaving globe performance and this specific race condition unspecified, relying on general test coverage language from earlier phases"
+      ],
+      "constraints": [
+        "Build/test phases must add both as explicit, checkable test cases, not just general performance/race awareness"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-next_steps_small-004",
+      "decision": "Lock five validation criteria for this slice: full offline zero-state-to-archived-card traversal with no placeholders, deterministic seeded state-machine coverage including the newly named timer/keyboard race, zero-tap truthful first-frame legibility on Today, zero non-sanctioned amber pixels via lint, and stutter-free globe rendering under parallax.",
+      "rationale": "Gives the build-verification phase concrete, independently-checkable pass/fail criteria rather than a qualitative description of the slice.",
+      "rejected_alternatives": [
+        "Leaving validation criteria qualitative/descriptive only"
+      ],
+      "constraints": [
+        "Build-verification phases should check against these five criteria explicitly, in addition to the four already adopted in initial_discussion"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-001",
+      "decision": "Sample-partner mode data (cards, streak, Timeline) lives on a separate, disposable Connection that is discarded \u2014 not merged \u2014 the moment a real partner joins, and that transition gets its own distinct visible beat.",
+      "rationale": "Sample-partner mode is now a shipped, default-visible product surface, so a real user could accumulate days of fake activity against it; silently merging that into the real Connection once a partner joins would be a data-integrity bug baked into the product's own design.",
+      "rejected_alternatives": [
+        "Merging sample-partner cards/streak into the real Connection once a partner joins",
+        "Silently swapping the underlying data with no visible transition moment"
+      ],
+      "constraints": [
+        "Build phase must model the sample-partner Connection as a distinct, clearly-flagged entity that does not persist forward into the real pairing"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-002",
+      "decision": "The join-link/code share action is honest that it generates a real link string, but onboarding UI must make explicit that experiencing the paired state in this offline build is only possible via 'Preview with a sample partner' \u2014 never implying working peer-to-peer invite delivery.",
+      "rationale": "This build has no networking, so a share sheet that appears to send an invite with no possible receipt on the other end is a dishonest affordance, not just a limitation.",
+      "rejected_alternatives": [
+        "Letting onboarding copy/UI imply that sending the join link actually delivers a working invite in this build"
+      ],
+      "constraints": [
+        "Onboarding copy phase must state this scoping explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-003",
+      "decision": "Streak UI must visibly distinguish 'your personal answer streak' from 'the connection's completion streak,' and a broken completion streak must legibly communicate whether the break was caused by the user or by their partner not answering.",
+      "rationale": "Only completed cards extend the streak, so a user who answers faithfully every day can still see their streak hit zero because their partner went quiet; an opaque single number reads as the app punishing the wrong person.",
+      "rejected_alternatives": [
+        "Showing only a single aggregate streak number with no attribution of why it reset"
+      ],
+      "constraints": [
+        "Timeline/streak badge design must carry per-person answered-state, not just the aggregate streak count"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-004",
+      "decision": "'Primary connection' for the free-tier downgrade rule (DEC-prompt_contract-007) is deterministically defined as the earliest-created Connection; every connection created after it becomes read-only on a Tether+ lapse.",
+      "rationale": "The existing downgrade rule is unimplementable without a deterministic tiebreaker; earliest-created matches the free tier's own 'one connection' framing.",
+      "rejected_alternatives": [
+        "Leaving 'primary' undefined for a later phase to invent ad hoc",
+        "Making primary user-selectable, which adds unrequested complexity"
+      ],
+      "constraints": [
+        "Build phase must implement this exact ordering rule"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-005",
+      "decision": "The build must include a way to simulate an expired/lapsed Tether+ subscription against the bundled .storekit config (StoreKit Testing supports simulating renewal failure/expiration) so the downgrade/read-only rule is actually exercised by a test, not just specified on paper.",
+      "rationale": "An untested downgrade rule is unverified; StoreKit Testing natively supports simulating this scenario, so there's no excuse to leave it unexercised.",
+      "rejected_alternatives": [
+        "Leaving the downgrade/read-only path unverified in offline gates"
+      ],
+      "constraints": [
+        "Test suite must include a lapsed-entitlement scenario exercising the read-only-connection behavior"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-006",
+      "decision": "It is an accepted, explicitly named limitation that if the simulated partner's answer timer fires while the app is backgrounded, the user feels no heartbeat haptic and simply finds the card already complete on return.",
+      "rationale": "This follows directly from the already-locked foreground-only haptic scoping (DEC-prompt_contract-009); naming it now prevents it from being discovered later as an unexplained bug.",
+      "rejected_alternatives": [
+        "Building a foreground-return catch-up haptic to simulate a felt moment retroactively"
+      ],
+      "constraints": [
+        "No new feature required; documented as a known limitation only"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-007",
+      "decision": "If a SwiftData save fails when submitting an answer, the Answer sheet retains the typed draft and shows a retry/error state rather than silently discarding the user's input.",
+      "rationale": "The Answer sheet is the only free-text entry surface in the entire app, so silently losing that one input is a much higher-stakes failure than in an app with redundant entry points.",
+      "rejected_alternatives": [
+        "Silently dropping the draft on a save failure"
+      ],
+      "constraints": [
+        "Answer sheet must implement an explicit error/retry UI state"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-008",
+      "decision": "The one-line answer has an explicit, enforced character cap rather than 'one line' being merely a design intention.",
+      "rationale": "The card is a fixed hero layout; without an enforced input-level cap, an unusually long answer is a layout bug waiting to happen.",
+      "rejected_alternatives": [
+        "Relying on visual wrapping/truncation with no input-level enforcement"
+      ],
+      "constraints": [
+        "Design/build phase must pick and enforce a specific maximum character count"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-009",
+      "decision": "The hand-drawn Canvas globe must expose an explicit accessibility label/value summarizing card and distance state (e.g. 'You are 2,847 km from [name]. Card complete.') for VoiceOver.",
+      "rationale": "A fully custom-drawn Canvas view has zero default accessibility elements; per the global rule that accessibility is a product requirement, not polish, this needs an explicit fix.",
+      "rejected_alternatives": [
+        "Leaving the globe as a purely visual, VoiceOver-invisible element"
+      ],
+      "constraints": [
+        "Build phase must attach an accessibility summary to the globe view"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-010",
+      "decision": "The Settings notification-cadence control must not imply working push notifications in this offline build \u2014 its copy is either explicitly scoped to foreground/in-app alerts only, or the control is disabled with an honest explanation.",
+      "rationale": "Per DEC-prompt_contract-009, background/push delivery is out of scope for this build; an unscoped toggle that quietly does nothing would be a dishonest affordance.",
+      "rejected_alternatives": [
+        "Shipping a notification-cadence toggle with no functional effect and no explanatory copy"
+      ],
+      "constraints": [
+        "Settings screen copy must state this scoping explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-detailed_discussion-011",
+      "decision": "Lock three final build assumptions: the app is English-only/unlocalized with a functional but untranslated km/mi toggle; device-clock manipulation to fake streaks or force a Reunion countdown to zero is an accepted, low-priority risk not defended against in v1; and home location is stored/displayed at city-level precision only (never GPS-precise or continuously tracked), disclosed plainly in onboarding copy.",
+      "rationale": "Converts three previously-unaddressed open questions into explicit, scoped assumptions rather than leaving them for a later phase to discover or resolve inconsistently.",
+      "rejected_alternatives": [
+        "Leaving localization, clock-tampering defense, and location-precision disclosure unaddressed"
+      ],
+      "constraints": [
+        "Onboarding copy must include the city-level-precision disclosure",
+        "No anti-tampering/clock-defense engineering work is in scope for v1"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-001",
+      "decision": "Add a distinct 'redeem your own join code on a second simulated identity' affordance, separate from 'Preview with a sample partner,' as the only mechanism that triggers the sample-data-discard transition.",
+      "rationale": "DEC-detailed_discussion-001 requires discarding sample-partner data 'the moment a real partner joins,' but DEC-detailed_discussion-002 already established this offline build has no networking and can never receive a real invite \u2014 without this affordance, the discard/transition requirement is unimplementable and untestable.",
+      "rejected_alternatives": [
+        "Leaving the sample-to-real transition as an unimplementable rule on paper",
+        "Overloading 'Preview with a sample partner' itself as the trigger, conflating persuasion-preview and real-pairing-simulation into one ambiguous mode"
+      ],
+      "constraints": [
+        "This affordance must be clearly labeled as distinct from sample-partner preview mode",
+        "Its sole purpose is enabling a real, testable 'partner joined' transition"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-002",
+      "decision": "The bare capability to create a second Connection when Tether+-entitled is must-have in this build, even though full Connections list management/reordering stays deferred.",
+      "rationale": "DEC-detailed_discussion-005 requires the free-tier downgrade/read-only rule to be exercised by a real StoreKit-Testing-simulated lapse, but that is impossible without first being able to create a second connection, which DEC-next_steps_small-002 had deferred entirely \u2014 the two decisions were in direct tension.",
+      "rejected_alternatives": [
+        "Leaving multi-connection creation fully deferred and treating the downgrade rule as unverified in this build"
+      ],
+      "constraints": [
+        "Only a bare 'add connection' action is required, not a polished management UI",
+        "This exists solely to make the downgrade/read-only rule testable"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-003",
+      "decision": "Split Reunion into a must-have reachable screen with correct paywall-gating for free users, and a should-have real countdown for entitled users; the Year Tethered retrospective reel stays won't-build.",
+      "rationale": "Reunion is one of the eight named screens, and 'all eight screens reachable' is a locked success criterion (DEC-initial_discussion-005); bucketing all of Reunion into deferred would silently violate that criterion, but the full retrospective reel is genuinely expensive and not needed to satisfy reachability/paywall correctness.",
+      "rejected_alternatives": [
+        "Deferring Reunion entirely as part of the same lump as the Year Tethered reel"
+      ],
+      "constraints": [
+        "Reunion screen + its paywall trigger is must-have; real countdown is should-have; retrospective reel remains won't-build"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-004",
+      "decision": "The animated-export toggle remains visible in Compose & Share for correct paywall-gating, but resolves to an explicit 'coming soon' state for entitled Tether+ users rather than crashing, silently no-opping, or faking a file.",
+      "rationale": "Since StoreKit purchases must genuinely succeed in this build for entitlement testing, a real entitled user could reach this toggle and hit a dead end; an honest 'coming soon' state avoids a dishonest or broken-looking affordance while still deferring the actual AVAssetWriter work.",
+      "rejected_alternatives": [
+        "Hiding the toggle entirely for entitled users (breaks demonstrable paywall-gating for free users)",
+        "Letting the toggle silently no-op or crash for entitled users"
+      ],
+      "constraints": [
+        "No AVAssetWriter/animated export work is implemented in this build"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_features-005",
+      "decision": "Locked concrete, individually testable acceptance criteria replacing vague prior phrasing: first-frame legibility as a pure Card\u2192CardDisplayState unit test; globe performance as vertex-count budget + throttled parallax updates rather than an automated perf gate; CoreMotion degradation and Reduce Motion each as dedicated unit tests; the three named races as three distinct seeded-fixture tests; the design-lint gate as an actual failing script; and the downgrade rule as one explicit end-to-end StoreKit-Testing scenario.",
+      "rationale": "Several previously-locked requirements (globe doesn't stutter, first-frame is legible, race coverage exists) were specified qualitatively enough that a build phase could satisfy them with weak or unverifiable tests; this phase converts each into something an adherence gate can actually check.",
+      "rejected_alternatives": [
+        "Leaving these requirements as qualitative descriptions for the build phase to interpret",
+        "Promising an automated Simulator performance gate that can't reliably be built"
+      ],
+      "constraints": [
+        "Build-verification must check each of these as a discrete, named test, not a general performance/race awareness claim"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-001",
+      "decision": "Name the design language 'Night Instrument Panel': a dark console aesthetic where amber is rationed to the tether/endpoints/primary action and everything else reads in desaturated ivory-on-indigo, including all navigation chrome.",
+      "rationale": "Directly extends already-locked constraints (amber restricted to three elements, a separate monospaced 'instrument' type voice) into a coherent, app-specific visual identity rather than a generic 'clean and modern' non-answer.",
+      "rejected_alternatives": [
+        "A diary/journal-coded aesthetic",
+        "A generic romance-coded visual language"
+      ],
+      "constraints": [
+        "All future screen/component design must read as 'instrument panel', not app-chrome-with-accent-color"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-002",
+      "decision": "Lock the emotional target: the user should feel the quiet, held-breath anticipation of checking a shared vital sign, resolving into a small real thrill when the card completes \u2014 explicitly not a feed-scroll dopamine feeling.",
+      "rationale": "Gives later design/motion/copy phases a concrete emotional bar to design toward rather than leaving tone undefined.",
+      "rejected_alternatives": [
+        "Designing for generic 'delight' or feed-like engagement"
+      ],
+      "constraints": [
+        "Motion, haptics, and copy phases should be checked against this one-sentence target"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-003",
+      "decision": "The signature interaction is the gated reveal expressed as persistent visual grammar (a visibly dim/thin tether with one dashed-placeholder answer slot before completion, versus a glowing/taut tether with both answers cross-dissolved in after completion) \u2014 not just a one-time animation.",
+      "rationale": "Card state must be legible from static layout alone given the already-locked requirement that reopens are instantly state-legible with no animation replay; a purely motion-based signature interaction would fail that requirement on ordinary reopens.",
+      "rejected_alternatives": [
+        "Treating the ~1.1s draw-on animation itself as the sole signature interaction with no persistent half-lit visual state"
+      ],
+      "constraints": [
+        "Build phase must implement a distinct 'half-lit/dim-thin tether' visual state, not just an animation timeline"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-004",
+      "decision": "Reject the stock TabView/List/system-tint default explicitly: no bottom tab bar (Today is the chrome-free root; Timeline/Reunion/Settings are small corner affordances on Today), zero system tint anywhere outside the three sanctioned amber uses, Timeline renders as stacked miniature hero cards rather than List rows, and the instrument monospaced type family is reserved exclusively for clock/distance/coordinates.",
+      "rationale": "Concrete, named differences are required by this phase rather than vague adjectives; each difference is directly justified by an already-locked constraint (amber rationing, instrument type voice, narrow eight-screen surface).",
+      "rejected_alternatives": [
+        "A standard TabView-based navigation shell with system accent color and List-row Timeline"
+      ],
+      "constraints": [
+        "No bottom tab bar in the default build; no system tint color used anywhere outside the three sanctioned amber elements"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-005",
+      "decision": "Corner-icon navigation to Timeline/Reunion/Settings is accepted as the default, but is an explicit discoverability bet: if a new user cannot find all three within a couple of taps, the fallback is a minimal, still-desaturated tab bar rather than shipping an app that feels smaller than its real screen count.",
+      "rationale": "Ties an unconventional navigation choice to a concrete, checkable usability bar instead of asserting it works by design intuition alone.",
+      "rejected_alternatives": [
+        "Committing to corner-icon navigation unconditionally with no discoverability check or fallback plan"
+      ],
+      "constraints": [
+        "Build/verification phases should informally check first-time discoverability of Timeline/Reunion/Settings before treating corner-icon navigation as final"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-006",
+      "decision": "Locked/premium/'coming soon' UI states (locked skins, the animated-export toggle) use a neutral dimmed/lock-glyph treatment and must never use amber.",
+      "rationale": "Extends the existing hard rule that amber is restricted to exactly three elements with a concrete corollary the build phase could otherwise get wrong by reaching for amber as a natural 'this is special/premium' signal.",
+      "rejected_alternatives": [
+        "Using amber or a variant of it to indicate premium/locked content"
+      ],
+      "constraints": [
+        "Design-lint/amber audits must treat locked/coming-soon indicators as a checked case, not just the three sanctioned elements"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-007",
+      "decision": "Lock a full per-screen state inventory: onboarding's three visually distinct entry actions (name+code generation, soft sample-partner preview, redeem-code with a confirmation beat since it irreversibly discards sample data); Today's five states (awaiting-you, awaiting-them, complete, streak-broken-and-attributed, sample-partner-waiting); Answer sheet's four states (empty, typing-with-counter, error-retry, locked-after-completion); Compose & Share's locked-skin/coming-soon states; Timeline's designed empty state; Reunion's four states (free-gated, entitled-no-date, active-countdown, milestone-zero); Settings' visually distinct read-only-vs-active subscription row; Paywall's contextual entry copy plus purchase-in-progress/success/error.",
+      "rationale": "The phase playbook requires real screens/states, not vague UX language; this converts every screen into an implementable state machine a SwiftUI developer can build directly from.",
+      "rejected_alternatives": [
+        "Leaving screen states as qualitative descriptions for the build phase to invent"
+      ],
+      "constraints": [
+        "Build phase must implement each named state explicitly, not merge them into a single generic view"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-008",
+      "decision": "The redeem-join-code action (which triggers irreversible discard of sample-partner data per DEC-app_features-001) must present a confirmation beat before executing, not a bare tap-through.",
+      "rationale": "This is the one action in onboarding with a permanent, irreversible side effect (discarding sample data); a silent tap-through risks accidental data loss the user didn't intend.",
+      "rejected_alternatives": [
+        "Executing the redeem-code discard transition on a single unconfirmed tap"
+      ],
+      "constraints": [
+        "Build phase must add an explicit confirmation step to the redeem-code flow"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_discussion-009",
+      "decision": "An explicit fallback (either a controlled minimum font-size floor while other text keeps scaling, or allowing the readout to wrap to two lines) must be decided for the instrument-type hero distance readout and dual clock at the largest Dynamic Type accessibility sizes, where the compressed/tightly-tracked font risks clipping or overflow.",
+      "rationale": "Dynamic Type scaling is already a hard requirement, but no prior phase specified what the ~80pt hero readout and dual clock actually do at maximum accessibility text sizes; without an explicit rule this becomes a layout bug discovered late rather than a decided design behavior.",
+      "rejected_alternatives": [
+        "Leaving the hero readout's behavior at maximum Dynamic Type sizes unspecified"
+      ],
+      "constraints": [
+        "Build phase must pick and implement one explicit fallback strategy for the display/meta type styles at accessibility sizes"
+      ],
+      "supersedes": null,
+      "superseded": true,
+      "superseded_by": "DEC-design_handoff-002"
+    },
+    {
+      "id": "DEC-design_handoff-001",
+      "decision": "Tether supports both a real light appearance and a real dark (default/primary) appearance with explicit hex values for every semantic color role, rather than forcing dark-only via .preferredColorScheme(.dark).",
+      "rationale": "The phase's own acceptance check requires every color role to have both a light and dark hex value, and the global build rule requires both appearances to be verified; the original prompt says 'dark-first' not 'dark-only', so dark stays the primary designed experience while light remains a fully defined, non-stub appearance.",
+      "rejected_alternatives": [
+        "Forcing .preferredColorScheme(.dark) app-wide and shipping only one appearance"
+      ],
+      "constraints": [
+        "Every DesignSystem color token must carry both a light and dark hex value",
+        "Build-verification must check both appearances, not just dark"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-002",
+      "decision": "The Dynamic Type accessibility-size fallback is resolved per-component: the Display distance readout uses a clamped minimum size (54pt floor) with minimumScaleFactor(0.74) and stays single-line; the DualClockRow instead adaptively stacks the two clocks vertically past the .accessibility1 category rather than wrapping.",
+      "rationale": "Finalizes the open question from DEC-design_discussion-009 by applying each of the two proposed strategies to the component it actually fits: a single continuous numeral ('2,847 km') breaks visually if wrapped mid-unit, while two independent clock values can cleanly restack.",
+      "rejected_alternatives": [
+        "Applying one single strategy (either clamp-only or wrap-only) to both the Display readout and the dual clock"
+      ],
+      "constraints": [
+        "Build phase must implement Display with a hard 54pt/0.74 floor, single-line only",
+        "Build phase must implement DualClockRow with a vertical-stack breakpoint, not text wrapping"
+      ],
+      "supersedes": "DEC-design_discussion-009"
+    },
+    {
+      "id": "DEC-design_handoff-003",
+      "decision": "No external Claude Design pass is used; this phase's DESIGN SPEC plus the resulting Theme.swift is the complete, direct handoff to the build phase.",
+      "rationale": "The spec is already fully numeric (exact hex, point sizes, spacing, radii, a hand-specified Canvas signature element, a three-color lint rule); importing an externally generated mockup risks reintroducing arbitrary colors/fonts that the lint gate would then have to fight.",
+      "rejected_alternatives": [
+        "Using the drafted Claude Design prompt to generate an external mockup for import"
+      ],
+      "constraints": [
+        "Build phase proceeds directly from this document, no external design import step"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-004",
+      "decision": "Lock the full canonical design-token spec (type scale, 8pt spacing grid, semantic color palette including a new bgElevated sheet tier, corner radii, component inventory, navigation/sheet map, per-screen states, motion/haptics, accessibility) synthesizing both contributors' input into one non-conflicting source of truth.",
+      "rationale": "Two independently-produced specs this round overlapped heavily but used different exact values in several places (spacing scale, radii, color tokens, type fallback); the build phase needs exactly one authoritative numeric spec, not two to reconcile itself.",
+      "rejected_alternatives": [
+        "Handing the build phase both raw contributions and letting it pick"
+      ],
+      "constraints": [
+        "Theme.swift must be written from this merged spec, not from either individual contributor's numbers where they conflicted"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-design_handoff-005",
+      "decision": "Carry forward non-visual architecture guidance as build-phase requirements: an @Observable AppRouter owning activeConnectionID/presentedSheet/onboarding phase; the gated-reveal display logic implemented as a pure, SwiftUI-free Card\u2192CardDisplayState function; CoreMotion attitude throttled into ephemeral view state that never triggers a SwiftData @Query refetch; and the redeem-code action disabled whenever any sheet is presented to prevent an atomic Connection-swap race against an open Answer-sheet draft.",
+      "rationale": "These are concrete, previously-unspecified implementation requirements that directly protect already-locked correctness/performance requirements (R-012 first-frame legibility as a pure unit test, the globe-stutter risk named in next_steps_small, and the sample-to-real transition race named in detailed_discussion) rather than being optional style preferences.",
+      "rejected_alternatives": [
+        "Leaving these as implicit implementation details for the build phase to invent"
+      ],
+      "constraints": [
+        "Build phase must implement the gated-reveal display state as a pure function with no SwiftUI import",
+        "Build phase must disable the redeem-code action while any sheet is presented"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-001",
+      "decision": "Adopt a SyncService protocol with LocalSyncService (SwiftData-backed) as the active implementation and a documented, unbuilt FirebaseSyncService as the production adapter.",
+      "rationale": "Matches the already-locked production seam requirement while keeping the local build's only real implementation simple and testable.",
+      "rejected_alternatives": [
+        "Building a partial/stubbed cloud adapter now"
+      ],
+      "constraints": [
+        "FirebaseSyncService remains documentation-only in this build"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-002",
+      "decision": "The simulated partner's answer timing must be persisted as a due-date on Card and resolved via deterministic checkpoint evaluation (onAppear, scenePhase .active, foreground timer tick) rather than an in-memory sleeping Task/Timer.",
+      "rationale": "iOS suspends backgrounded apps; a live sleeping Task will die mid-wait and silently break the already-locked 'no heartbeat if backgrounded, card just appears complete' behavior instead of implementing it correctly.",
+      "rejected_alternatives": [
+        "Task.sleep-based simulated delay running only while foregrounded",
+        "Wall-clock Timer scheduled at answer-start with no persisted due-date"
+      ],
+      "constraints": [
+        "Card model must carry a persisted simulatedPartnerAnswerDueAt (or equivalent structured state)",
+        "Completion must be evaluated opportunistically at named checkpoints, not assumed from a running timer"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-003",
+      "decision": "Structure the domain layer as five explicit service protocols \u2014 SyncService, PromptProvider, GlobeDataService, EntitlementService, HapticsService \u2014 each with a local default implementation, injected into an @Observable AppRouter that is the sole owner of cross-screen navigation state.",
+      "rationale": "Prevents views from independently mutating activeConnectionID/presentedSheet, which is exactly how sheet-presentation and connection-swap races get introduced.",
+      "rejected_alternatives": [
+        "Letting individual views own their own navigation/state transition logic"
+      ],
+      "constraints": [
+        "No view may mutate AppRouter's core state except through router-owned methods"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-004",
+      "decision": "The gated-reveal display logic is implemented as a pure, SwiftUI-free function (Card, Connection, now) -> CardDisplayState with an injectable clock for deterministic testing.",
+      "rationale": "Extends design_handoff's pure-function requirement with the clock-injection needed to make the state machine and its races testable in milliseconds without flaky real-time waits.",
+      "rejected_alternatives": [
+        "Testing state transitions only via UI/XCUITest with real timers"
+      ],
+      "constraints": [
+        "Function must accept an injected 'now' rather than calling Date() directly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-005",
+      "decision": "SwiftData persistence covers Person, Connection, Card, Prompt, Reunion, and a lightweight AppSettings record; all primary keys are UUIDs; sample-partner data lives on a separate isSample-flagged, disposable Connection row.",
+      "rationale": "UUIDs avoid a later migration when reconciling with the documented Firebase-style adapter's client-generated IDs; the isSample Connection row makes the already-locked atomic discard-on-redeem-code transition (DEC-app_features-001, DEC-detailed_discussion-001) a real, testable write rather than an ad hoc flag check.",
+      "rejected_alternatives": [
+        "Auto-incrementing integer IDs",
+        "Flagging sample-partner data on the same Connection row as real pairing data"
+      ],
+      "constraints": [
+        "ModelContainer must be configured with cloudKitDatabase: .none explicitly",
+        "SwiftUI Previews use a separate in-memory ModelContainer seeded with fixture data"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-006",
+      "decision": "No CoreLocation/location permission is used anywhere in the app; home location is selected only from the bundled city seed list.",
+      "rationale": "Matches the already-locked city-level-precision-only decision (DEC-detailed_discussion-011); adding CoreLocation for 'faster city search' would be permission scope creep the product explicitly promised not to need.",
+      "rejected_alternatives": [
+        "Using CLLocationManager to suggest a default city"
+      ],
+      "constraints": [
+        "No location usage-description keys or CoreLocation imports in this build"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-007",
+      "decision": "No push/UNUserNotificationCenter permission is requested in this build; the Settings notification-cadence control persists a preference value for the future cloud adapter without triggering a system permission prompt, and its copy honestly states it governs foreground/in-app alerts only.",
+      "rationale": "There is structurally nothing to notify about in an offline, foreground-only simulated-partner build; requesting a permission for a feature that cannot fire is a dishonest affordance and an avoidable App Review flag.",
+      "rejected_alternatives": [
+        "Requesting notification permission preemptively for future cloud sync"
+      ],
+      "constraints": [
+        "Extends DEC-detailed_discussion-010's scoped-copy requirement to also mean no permission prompt is triggered"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-008",
+      "decision": "CoreMotion device-motion (attitude/parallax) usage requires no Info.plist usage-description key, since only CMMotionManager.deviceMotion is used, not CMMotionActivityManager/CMPedometer; the code must still guard isDeviceMotionAvailable and stop updates on backgrounding.",
+      "rationale": "This is the technically accurate Apple platform behavior; adding an unused usage-description key for a permission dialog that never appears is confusing rather than a safety margin, and the real risk (crashing/draining battery) is already covered by the availability guard and backgrounding stop.",
+      "rejected_alternatives": [
+        "Adding NSMotionUsageDescription defensively even though it's not required for the APIs actually used"
+      ],
+      "constraints": [
+        "Must call stopDeviceMotionUpdates on scene backgrounding",
+        "Must check isDeviceMotionAvailable before starting updates (already locked by DEC-prompt_contract-008)"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-009",
+      "decision": "Photos-library-read permission is never requested; export uses ShareLink/share-sheet only in this build, with any future explicit 'Save to Photos' action deferred to when it's actually built, using add-only authorization at that time.",
+      "rationale": "The current export scope (static PNG, share sheet) doesn't need Photos access at all; requesting it preemptively would be an unused, unjustifiable permission.",
+      "rejected_alternatives": [
+        "Requesting full or add-only Photos access now for a feature not yet built"
+      ],
+      "constraints": [
+        "No PHPhotoLibrary imports/usage in this slice"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-010",
+      "decision": "Entitlement truth is centralized in a single @Observable EntitlementStore backed by StoreKit 2's Transaction.currentEntitlements and Transaction.updates; Connection-scoped business rules (primary connection, read-only lapse behavior) are derived rules layered on top of that one signal, never independently persisted booleans.",
+      "rationale": "A boolean cached on the Connection model can drift out of sync with what StoreKit actually grants; centralizing avoids the exact class of bug where UI and entitlement truth disagree.",
+      "rejected_alternatives": [
+        "Persisting an entitlement boolean directly on Connection as the source of truth"
+      ],
+      "constraints": [
+        "All free/paid gating and downgrade logic must read through EntitlementStore, not a cached field"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-011",
+      "decision": "The Paywall must include a 'Restore Purchases' action, and the bundled .storekit configuration file must be attached to the shared Xcode scheme so headless xcodebuild test can simulate purchases in CI/gates.",
+      "rationale": "Restore Purchases is a real App Store requirement for subscription products, not optional polish; the StoreKit-configuration-must-be-in-the-scheme requirement is a known 'works in Xcode, silently fails headless' trap worth writing down before the build phase hits it blind.",
+      "rejected_alternatives": [
+        "Treating Restore Purchases as a should-have",
+        "Leaving StoreKit config scheme-attachment undocumented and discovering the CI failure later"
+      ],
+      "constraints": [
+        "Scheme \u2192 Options \u2192 StoreKit Configuration must reference the .storekit file explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-012",
+      "decision": "Haptics use UIImpactFeedbackGenerator (.soft/.rigid) and UINotificationFeedbackGenerator, not CoreHaptics; generators are instantiated once and .prepare()'d ahead of the triggering gesture.",
+      "rationale": "CoreHaptics is built for custom .ahap pattern authoring; the two documented feedback styles (heartbeat, crisp tick) don't need that complexity or file format.",
+      "rejected_alternatives": [
+        "Authoring custom CoreHaptics patterns for the heartbeat/tick"
+      ],
+      "constraints": [
+        "Generators must no-op safely on Simulator/hardware without haptics, per already-locked graceful-degradation expectations"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-013",
+      "decision": "Export uses a CardExporter protocol (export(card:skin:) async throws -> ExportResult) with a single StaticPNGExporter conformer (ImageRenderer-based) shipping now; Compose & Share's animated toggle checks for a registered animated exporter rather than a hardcoded boolean.",
+      "rationale": "Makes the already-locked 'coming soon' animated-export state (DEC-app_features-004) and the deferred AVAssetWriter work additive later rather than a refactor of Compose & Share's gating logic.",
+      "rejected_alternatives": [
+        "Hardcoding a boolean 'animated export available' flag that a later phase has to rewire"
+      ],
+      "constraints": [
+        "Compose & Share must query exporter registration, not a static flag"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-014",
+      "decision": "Testing splits into a pure-logic unit target (state machine, day boundary, streak attribution, prompt-repeat indexing, and four seeded races) and a thin XCUITest layer limited to one eight-screen sample-partner crawl, plus one StoreKit-Testing entitlement-expiry scenario.",
+      "rationale": "Keeps correctness testing fast and deterministic in the pure-logic layer while reserving the flakiest tool (XCUITest) for exactly one job it's suited to: proving all eight screens are reachable and state-legible.",
+      "rejected_alternatives": [
+        "Testing business logic primarily through XCUITest",
+        "A single mixed test target with no layering"
+      ],
+      "constraints": [
+        "The fourth race \u2014 redeem-code atomic swap firing while an unresolved simulated-answer due-date is pending on the connection being discarded \u2014 must be an explicit seeded test alongside the three already-locked races",
+        "All race/timing tests use an injected clock, never real sleeps"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-015",
+      "decision": "The design-lint gate is a standalone shell/Python script (not a new tool dependency) grepping *.swift outside Theme.swift for inline Color(/UIColor(/.font(.system(size: patterns, run as a CI/gate step.",
+      "rationale": "Satisfies the already-locked automated-lint requirement (DEC-prompt_contract-002) without introducing a linter package that would itself need a dependency justification.",
+      "rejected_alternatives": [
+        "Adopting a third-party SwiftLint-style tool for this single rule"
+      ],
+      "constraints": [
+        "Script must run as part of the build-verification gate, not be optional"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-016",
+      "decision": "The one-line answer character cap is set to 80 characters, enforced at the TextField binding with a hard truncating constraint, not merely a UI counter label.",
+      "rationale": "Closes the DEC-detailed_discussion-008 requirement for an enforced (not just displayed) cap with a concrete, reasonable number so tech_specs doesn't stall re-litigating it.",
+      "rejected_alternatives": [
+        "Leaving the cap as a soft/visual-only counter",
+        "Deferring the exact number to tech_specs"
+      ],
+      "constraints": [
+        "Enforcement happens at the binding/input layer, not just in submit validation"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-ios_architecture_review-017",
+      "decision": "Entitlement-gated writes (e.g. answering/creating cards on a non-primary, non-entitled connection) are rejected from a single domain policy point, not only hidden via UI visibility.",
+      "rationale": "Gating only at the UI layer leaves the underlying data layer able to silently accept writes it shouldn't, undermining the already-locked no-data-loss downgrade rule (DEC-prompt_contract-007).",
+      "rejected_alternatives": [
+        "Relying solely on disabling/hiding UI controls for read-only connections"
+      ],
+      "constraints": [
+        "All Card/Connection mutation paths must route through this single policy check"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-001",
+      "decision": "Person, Connection, Card, Prompt, Reunion, and AppSettings are implemented exactly once, as SwiftData @Model classes \u2014 not as parallel Codable struct duplicates of the same names returned by a service layer.",
+      "rationale": "Two contributors independently defined 'Card'/'Connection' with different kinds (Codable struct vs @Model class) in the same round; parallel build lanes cannot code against two competing definitions of the same entity, and @Model instances can be constructed unattached to a live ModelContext, so pure-function unit tests lose nothing by skipping a separate DTO layer.",
+      "rejected_alternatives": [
+        "Maintaining parallel plain-struct domain types alongside @Model persistence types"
+      ],
+      "constraints": [
+        "Exactly one type per named domain entity",
+        "SyncService methods that return e.g. Card return the @Model instance directly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-002",
+      "decision": "Adopt a single CardScene value type (built by buildCardScene) as the one source the live globe draw, the VoiceOver accessibility summary, and the static PNG exporter all read from, rather than each independently re-deriving projection/geometry.",
+      "rationale": "Eliminates a whole class of 'the exported card doesn't match what I saw on screen' bugs and duplicate geometry logic across three consumers.",
+      "rejected_alternatives": [
+        "Letting GlobeView, StaticPNGExporter, and the accessibility label each independently call GlobeProjection/cardDisplayState"
+      ],
+      "constraints": [
+        "CardExporter.export(scene:skin:) takes CardScene, not a raw Card"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-003",
+      "decision": "Add a debounced Card.myAnswerDraft field, persisted every ~2s while the Answer sheet is open and cleared on submit/dismiss, to protect a typed-but-unsubmitted answer from being silently lost if the process is killed outright rather than merely backgrounded.",
+      "rationale": "Named as the Red Team edge case this round: DEC-detailed_discussion-007 only covers save failures after submit is attempted, not process death before submit is ever attempted, and the Answer sheet is the app's only free-text entry surface.",
+      "rejected_alternatives": [
+        "Leaving typed drafts in local @State only, unprotected against force-quit/memory reclamation"
+      ],
+      "constraints": [
+        "Debounce write must clear the field on both successful submit and sheet dismiss"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-004",
+      "decision": "Declare a SchemaV1: VersionedSchema now, even with only one schema version in existence.",
+      "rationale": "Costs nothing today and removes a foreseeable later-phase migration scramble when a second schema version is actually needed.",
+      "rejected_alternatives": [
+        "Deferring versioned-schema adoption until an actual second schema version is needed"
+      ],
+      "constraints": [
+        "makeModelContainer must reference SchemaV1 explicitly"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-005",
+      "decision": "CoreMotion-derived parallax (GlobeParallax) is held exclusively in GlobeView's own private/ephemeral state, never in AppRouter or any type observed by a SwiftData @Query.",
+      "rationale": "Extends design_handoff's CoreMotion/SwiftData-isolation requirement into a concrete, enforceable rule so throttled ~20-30Hz attitude updates can never trigger a full Today-screen re-render, directly protecting against the globe-stutter risk already flagged in next_steps_small.",
+      "rejected_alternatives": [
+        "Piping motion updates through AppRouter or a shared observable object other views also read"
+      ],
+      "constraints": [
+        "MotionAttitudeService is only ever consumed from within GlobeView's own state, not injected into AppRouter"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-006",
+      "decision": "Card.dayIndex is a connection-relative integer offset computed by DayBoundary.canonicalDayIndex(for:connectionCreatedAt:) against the UTC calendar, and Prompt selection is prompts[dayIndex % 60] \u2014 one integer index unifying the UTC-day-boundary requirement and the 60-day prompt-repeat requirement, replacing a separate date-string dayID.",
+      "rationale": "A single integer already accounting for UTC-day-boundary math directly drives both contiguous streak counting and modulo-60 prompt cycling without reconciling two parallel day representations.",
+      "rejected_alternatives": [
+        "Card.dayID as a freeform date string requiring separate modulo logic against a connection-start date elsewhere"
+      ],
+      "constraints": [
+        "DayBoundary.canonicalDayIndex is the single function that produces this index"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-007",
+      "decision": "Connection.personThem is a required (non-optional) relationship, since every Connection in this offline build \u2014 sample-preview or redeem-code \u2014 synthesizes both people locally at creation time; there is no networked pre-join waiting state to model.",
+      "rationale": "Removes an impossible-in-this-build nil state from the type system rather than defensively coding around a case that structurally can't occur offline.",
+      "rejected_alternatives": [
+        "Modeling personThem as optional to represent a pre-join waiting state this offline build can never actually produce"
+      ],
+      "constraints": [
+        "Any future FirebaseSyncService adapter that reintroduces a genuine pre-join gap must revisit this field as optional/async-loaded \u2014 explicitly not solved here"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-tech_specs-008",
+      "decision": "The 'primary connection' (DEC-detailed_discussion-004) is derived at read time from Connection.createdAt (earliest non-sample connection), never stored as a separate primaryOrder or isPrimary field.",
+      "rationale": "A stored ordering field is a second source of truth that could drift from actual creation order; deriving it avoids that entirely.",
+      "rejected_alternatives": [
+        "A stored primaryOrder: Int field set at creation time"
+      ],
+      "constraints": [
+        "EntitlementPolicy.canWrite must compare createdAt across allConnections, not read a cached flag"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-001",
+      "decision": "Restore the atomic startup/scene-activation reconciliation pass for an interrupted sample-to-real redeem transition as a must-build requirement with its own seeded test, sequenced inside the domain milestone (M1) as a fifth named race alongside the four already locked.",
+      "rationale": "This was proposed in tech_specs round 1 by Codex as a real correctness gap but was crowded out of the final DEC-tech_specs-* decision set; without it, a killed process mid-redeem can leave activeConnectionID pointing at a discarded sample connection with no recovery path.",
+      "rejected_alternatives": [
+        "Leaving the reconciliation pass as an unimplemented idea from an earlier phase",
+        "Treating it as optional polish rather than a correctness invariant"
+      ],
+      "constraints": [
+        "Must be covered by a fifth seeded race test alongside the four already locked",
+        "Cold start and scene-activation must both run the reconciliation check before routing UI"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-002",
+      "decision": "Bundle persisted-due-date simulated-partner resolution, atomic sample-to-real redeem discard, and the startup reconciliation pass into a single hardened milestone (M1) completed before any UI work begins, rather than spreading them across separate later milestones.",
+      "rationale": "All three touch the same Connection/Card lifecycle that every downstream screen (Today, Answer sheet, Timeline) reads as ground truth; if this wobbles, rework is expensive because it's spread across five services rather than contained in one view.",
+      "rejected_alternatives": [
+        "Building these three mechanisms opportunistically as their consuming screens are built"
+      ],
+      "constraints": [
+        "M1 gate requires all five seeded races green before M2 can start"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-003",
+      "decision": "Insert an early validation spike for CardScene inside M1 \u2014 rendering one CardScene through both a throwaway Canvas view and ImageRenderer and diffing the output \u2014 before GlobeView and StaticPNGExporter are built against it as a committed interface.",
+      "rationale": "CardScene was adopted last phase on a single contributor's proposal with no adversarial pushback; if its plain CGPoint-array shape doesn't cleanly support real Canvas drawing needs (paths, gradients, blend modes), that mismatch is far cheaper to catch now than during the Compose & Share milestone.",
+      "rejected_alternatives": [
+        "Committing GlobeView and StaticPNGExporter to the CardScene interface without validating it first, discovering any mismatch only when export is wired up late"
+      ],
+      "constraints": [
+        "Spike must complete inside M1, not deferred to M3 or M5"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-004",
+      "decision": "Run a headless StoreKit smoke test (fetch products, complete a sandbox purchase, confirm Transaction.currentEntitlements, confirm the .storekit config is attached to the shared scheme) inside the services milestone (M2), well before any Paywall UI exists.",
+      "rationale": "The .storekit-config-in-scheme trap is already a named known failure mode; discovering it only in a late Paywall milestone leaves no slack to fix a scheme misconfiguration.",
+      "rejected_alternatives": [
+        "Deferring all StoreKit verification to the Paywall milestone near the end of the build"
+      ],
+      "constraints": [
+        "Smoke test must run in CI/headless xcodebuild test, not only inside Xcode interactively"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-005",
+      "decision": "Adopt a concrete globe-rendering performance budget: coastline data capped under 1,500 vertex points, with projected CGPoint paths cached and only recomputed when CoreMotion yaw/pitch crosses a minor threshold.",
+      "rationale": "Converts the previously qualitative 'globe must not stutter under parallax' requirement into a concrete, implementable engineering constraint rather than leaving it to be discovered as a performance bug.",
+      "rejected_alternatives": [
+        "Leaving the vertex/recompute budget unspecified and tuning reactively if stutter is observed"
+      ],
+      "constraints": [
+        "Enforced inside M3; verified by manual/smoke check in Simulator with parallax active"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-006",
+      "decision": "The design-lint script must exist and be runnable from M0 (commit one), scanning an even near-empty tree, rather than being added after screen work has started.",
+      "rationale": "An unenforced style promise rots as velocity increases; retrofitting the lint gate after eight screens exist turns it into a cleanup project instead of a running gate, undermining the already-locked automated-lint requirement.",
+      "rejected_alternatives": [
+        "Adding the lint script during the verification milestone (M6) once all screens exist"
+      ],
+      "constraints": [
+        "Script must be part of M0's deliverables, not M6's"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-007",
+      "decision": "Connection/Card lifecycle work and CardScene (M1's scope) are assigned to a single owner rather than split across parallel agents; parallel task assignment reopens from M2 onward once the domain contracts are locked and tested.",
+      "rationale": "tech_specs itself produced a real type-definition collision (parallel Codable struct vs SwiftData @Model class for the same entities) when two contributors worked this exact area simultaneously; the same risk applies to task assignment for the build phase.",
+      "rejected_alternatives": [
+        "Splitting M1's domain/lifecycle work across multiple parallel agents for speed"
+      ],
+      "constraints": [
+        "Task assignment phase must not split M1 into parallel lanes covering Connection/Card lifecycle or CardScene"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-008",
+      "decision": "Verification is distributed per-milestone (each milestone's own risk is tested inside that milestone) rather than end-loaded into one final testing phase; M6 is reserved only for checks that require the whole app to exist.",
+      "rationale": "End-loading verification means a late-discovered failure in an early subsystem is maximally expensive to fix; failing fast inside the milestone that created the risk keeps rework local.",
+      "rejected_alternatives": [
+        "A single large verification milestone at the end covering all test types"
+      ],
+      "constraints": [
+        "M6 is limited to: eight-screen XCUITest crawl, StoreKit-Testing entitlement-lapse scenario, light/dark appearance spot check, Dynamic Type extremes check, full lint run"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-project_plan-009",
+      "decision": "Lock the seven-milestone sequence (M0 scaffold/lint, M1 domain+lifecycle hardening, M2 services+StoreKit smoke test, M3 globe performance, M4 router+Today/Answer/Compose, M5 Timeline/Reunion/Settings/Paywall, M6 final verification) at an estimated 16.5\u201317 engineering days as the synthesis of the three independently proposed plans.",
+      "rationale": "Codex's dependency-first structure, Gemini's concrete globe-performance numbers, and Claude's sequencing corrections (restored reconciliation pass, early CardScene spike, earlier StoreKit smoke test, distributed verification) are complementary rather than conflicting; merging them avoids re-litigating milestone order in a later phase.",
+      "rejected_alternatives": [
+        "Adopting Codex's plan unmodified at 13-15 days (omits the reconciliation/spike additions)",
+        "Adopting Gemini's plan unmodified at 12 days (too compressed once hardening work is included)"
+      ],
+      "constraints": [
+        "Task assignment phase should size lanes against this milestone list and day estimate"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-001",
+      "decision": "Adopt a single Xcode project at Tether/Tether.xcodeproj with one app target and three test targets, using Xcode's file-system-synchronized groups per lane directory so new files auto-join the target without further .pbxproj edits.",
+      "rationale": "Four lanes committing concurrently against one .pbxproj is the single biggest structural risk to this phase \u2014 not bad Swift, but merge conflicts over target-membership XML; synchronized groups remove that risk almost entirely.",
+      "rejected_alternatives": [
+        "A workspace of multiple sub-projects",
+        "Manual .pbxproj edits per lane without synchronized groups, relying on review discipline alone"
+      ],
+      "constraints": [
+        "The only hand-edit to .pbxproj happens once, in the scaffold task",
+        "Every lane's owned directory is its own synchronized group"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-002",
+      "decision": "data_domain (models, pure domain functions, CardScene, Connection/Card lifecycle hardening) remains single-owner through the M1 gate, per DEC-project_plan-007, and merges into main alone before the other three lanes branch off.",
+      "rationale": "tech_specs already produced a real type-definition collision when two contributors worked this exact area in parallel; carrying that lesson into task assignment prevents a repeat during actual implementation.",
+      "rejected_alternatives": [
+        "Splitting Connection/Card lifecycle or CardScene work across parallel data_domain tasks for speed"
+      ],
+      "constraints": [
+        "T-004 through T-008 (all data_domain M1 tasks) must merge and pass all five seeded races before services_utilities/primary_ui/polish_resilience branches are cut"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-003",
+      "decision": "TetherApp.swift, the composition root that wires concrete service implementations into the environment, is integrator-owned and not part of any single lane's task backlog; it is edited once at the M2->M4 handoff.",
+      "rationale": "Without a single owner, multiple lanes finishing their own service around the same time would race to add their service registration to the same init block, producing avoidable merge conflicts in the one file every lane touches.",
+      "rejected_alternatives": [
+        "Letting each lane's final task include wiring its own service into TetherApp.swift"
+      ],
+      "constraints": [
+        "No task in the backlog lists TetherApp.swift as an owned file"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-004",
+      "decision": "Adopt a one-branch-per-lane merge strategy (tether/data-domain, tether/services, tether/primary-ui, tether/polish); data-domain merges first and alone, the other three branch off the updated main afterward and merge independently via PR with no shared integration branch.",
+      "rationale": "With synchronized groups removing the structural need for a big-bang merge, there's no reason to force the three downstream lanes through a single integration branch once the domain contracts are locked and tested.",
+      "rejected_alternatives": [
+        "A single shared integration branch all four lanes merge into before anything reaches main"
+      ],
+      "constraints": [
+        "services_utilities, primary_ui, polish_resilience branches must be cut only after the data_domain M1 gate (five seeded races) is green"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-005",
+      "decision": "Every task's requirement_ids field is drawn directly from the authoritative DEC-* decisions log rather than from a separately-numbered requirements.json, since the literal requirements.json text produced during app_features was not available verbatim to this phase.",
+      "rationale": "Traceability to a real, quotable decision is more valuable than traceability to a placeholder number nobody can verify; the decisions log is the one artifact both this phase and all future phases can actually check tasks against.",
+      "rejected_alternatives": [
+        "Inventing sequential R-0xx placeholder ids not tied to any verifiable source"
+      ],
+      "constraints": [
+        "A future phase with the literal requirements.json in hand should cross-check this mapping rather than assume it's exhaustive"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-006",
+      "decision": "Lock a 27-task backlog (T-001 through T-027) across the four fixed lanes, using Claude's scaffold-aware, finer-grained task breakdown as the base rather than Codex's coarser 16-task version.",
+      "rationale": "Claude's version resolves a real structural risk (the .pbxproj merge-conflict problem) that Codex's plan didn't address at all; the finer granularity also gives each build worker a smaller, more independently verifiable unit of work.",
+      "rejected_alternatives": [
+        "Using Codex's 16-task version unmodified",
+        "Running both task lists in parallel and letting build workers pick"
+      ],
+      "constraints": [
+        "Every task has exactly one owner_lane, an acyclic dependency graph, and no ownerless task"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-007",
+      "decision": "Lock seven UI-crawl flows (onboarding+sample-partner-preview, redeem/sample-to-real transition, answer+gated-reveal completion, compose&share with the animated-export paywall trigger, timeline archive, reunion paywall trigger, settings+add-connection paywall trigger), expressed in the tap/type/assert_exists/back primitive schema with explicit accessibilityIdentifiers, replacing Codex's earlier prose-journey format.",
+      "rationale": "The UI-crawl gate executes against exact stable identifiers, not free-text journey descriptions; a flow written as prose can't actually be run against the built app.",
+      "rejected_alternatives": [
+        "Keeping Codex's prose-journey flows-json as-is"
+      ],
+      "constraints": [
+        "primary_ui tasks (T-018 through T-023) must expose every accessibilityIdentifier named in these seven flows on the corresponding control"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-task_assignments-008",
+      "decision": "services_utilities may never import SwiftUI; any services task that begins importing SwiftUI is a boundary violation to flag during review, not a judgment call.",
+      "rationale": "Keeps the I/O-facing service layer cleanly separable from the presentation layer, which is what makes the domain/services split (already locked in ios_architecture_review) actually enforceable rather than aspirational.",
+      "rejected_alternatives": [
+        "Allowing services to import SwiftUI for convenience (e.g. Color-typed skin metadata)"
+      ],
+      "constraints": [
+        "Code review for services_utilities tasks must check for SwiftUI imports"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-001",
+      "decision": "Grant a conditional readiness pass: the cross-phase spec is coherent and buildable, contingent on six concrete fixes being folded into the canonical backlog/gate criteria rather than left as implicit decisions-log claims.",
+      "rationale": "Thirteen phases of decisions converge cleanly on one narrow app surface with no real contradictions, but several gate-level details in task_assignments would silently produce untestable or under-specified acceptance criteria if build started as-is.",
+      "rejected_alternatives": [
+        "Unconditional pass with no fixes named",
+        "Sending the plan back for another full discussion round"
+      ],
+      "constraints": [
+        "All six fixes below must be applied to their named tasks before those tasks are considered done"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-002",
+      "decision": "The gated-reveal UI-crawl flow must include an explicit step that advances the simulated partner's due-date/checkpoint before asserting card completion, rather than asserting completion immediately after the user's own answer submission.",
+      "rationale": "The persisted-due-date/checkpoint design (DEC-ios_architecture_review-002) means completion is not guaranteed immediately after one side answers; the crawl as drafted would be flaky or falsely pass/fail.",
+      "rejected_alternatives": [
+        "Leaving the flow as-is and discovering the flakiness during T-026/T-027 execution"
+      ],
+      "constraints": [
+        "Applies to the flows-json 'answer + gated-reveal complete' journey and tasks T-026/T-027"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-003",
+      "decision": "The only canonical task backlog for build is T-001 through T-027 keyed to DEC-* requirement_ids; any earlier R-0XX-keyed draft task list in this project's history is a discarded artifact and must not be used to derive models, tasks, or requirement mappings.",
+      "rationale": "Two abandoned draft backlogs using R-0XX ids tied to a requirements.json that never existed are still visible in phase transcripts; a build agent reading raw history instead of the final decision could pick one up and build a second, incompatible domain model set, repeating the exact collision tech_specs already had once.",
+      "rejected_alternatives": [
+        "Leaving the dead drafts unlabeled and trusting future readers to infer which list is authoritative"
+      ],
+      "constraints": [
+        "Any future phase or build agent must treat T-001-T-027 (task_assignments final output) as the sole source of truth for tasks"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-004",
+      "decision": "T-022's acceptance criteria are extended to require a visible add-connection affordance and a visible primary-vs-read-only indicator per connection within the single flat Settings list.",
+      "rationale": "DEC-app_features-002 made add-a-connection must-have specifically so the free-tier downgrade/read-only rule (DEC-prompt_contract-007) is provable; as originally scoped, T-022 could be completed with no way to add a second connection and no visible read-only signal, making the StoreKit lapse test (T-027) unfalsifiable from the UI even if the data-layer test passes.",
+      "rejected_alternatives": [
+        "Leaving T-022's criteria as originally scoped (notification cadence, units, subscription row, sign-out only) and treating the read-only distinction as implied"
+      ],
+      "constraints": [
+        "Must remain a single flat list per DEC-portfolio_selection-003, no sub-screen"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-005",
+      "decision": "The bundled .storekit configuration must encode the real product tiers ($4.99/mo, $29.99/yr, 7-day trial) rather than placeholder products.",
+      "rationale": "The StoreKit smoke test and entitlement-lapse test are only meaningful if they exercise the actual monetization spec; placeholder SKUs would let the tests pass while proving nothing about the real pricing/trial configuration.",
+      "rejected_alternatives": [
+        "Using placeholder product identifiers and deferring real product configuration to a later phase"
+      ],
+      "constraints": [
+        "Applies to T-012's .storekit file and its headless smoke test"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-006",
+      "decision": "The design-lint script must match both the .font(.system(size: modifier form and the Font.system(size: type-initializer form (plus both Color( and UIColor( forms), and a companion check must scan for any third-party SPM dependency and fail the gate if found.",
+      "rationale": "The lint pattern as originally specified only named the modifier form, which is a one-character rewrite away from a silent bypass; the no-third-party-package rule (DEC-prompt_contract build constraint) had no mechanical enforcement anywhere in the plan.",
+      "rejected_alternatives": [
+        "Relying on code review alone to catch the type-initializer bypass and stray SPM dependencies"
+      ],
+      "constraints": [
+        "Applies to T-003's lint_design_system.sh"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-007",
+      "decision": "The branch-per-lane/PR merge choreography in task_assignments is reclassified as optional process flavor, not a build requirement; the hard requirement that must be preserved regardless of execution mechanics is the ordering dependency that all data_domain M1 tasks (T-004-T-008) and their five seeded races must be green before services_utilities/primary_ui/polish_resilience work begins.",
+      "rationale": "This factory's actual execution pattern is autonomous agent passes writing into one working tree, not a multi-day human team with independent branches and review cycles; literal branch/PR instructions could stall or produce busywork, while the sequencing gate is what actually protects against the tech_specs-style collision risk.",
+      "rejected_alternatives": [
+        "Keeping branch-per-lane as a literal required step regardless of how the build is actually executed"
+      ],
+      "constraints": [
+        "Whatever executes the build must still enforce the M1-gate-before-downstream-lanes ordering, by whatever mechanism fits the actual execution model"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-implementation_readiness_gate-008",
+      "decision": "T-018's acceptance criteria are extended to require the literal button labels and confirmation-sheet copy for 'Preview with a sample partner' vs. 'Redeem a join code' to be written out and sanity-checked against first-time-user misreading risk, not merely asserted as 'copy is explicit.'",
+      "rationale": "These two onboarding affordances look similar but have very different consequences (one harmless/reversible, one irreversibly discards sample data and can only ever redeem a self-generated code in this offline build); the existing acceptance criteria had no accountable check that the actual copy achieves the intended clarity.",
+      "rejected_alternatives": [
+        "Leaving copy quality as an unverified implication of 'copy is explicit that...' in the acceptance criteria"
+      ],
+      "constraints": [
+        "Applies to T-018"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-001",
+      "decision": "The QA checklist is structured 'state-first': every test step touching a feature the build_verification record already found missing (globe/Canvas/tether, SyncService, Reunion screen, .storekit config, standalone lint script) is explicitly labeled [BLOCKED \u2014 feature not built] rather than silently tested, skipped, or graded as tester error.",
+      "rationale": "A checklist written against the original prompt rather than against what actually got built would waste QA time hunting for bugs in code that doesn't exist and could produce a false 'app is broken' diagnosis when the real diagnosis is 'app was never finished' \u2014 these require completely different follow-up actions.",
+      "rejected_alternatives": [
+        "Writing a generic checklist against the original prompt with no acknowledgment of build_verification's findings",
+        "Silently skipping untestable steps with no note in the final report"
+      ],
+      "constraints": [
+        "Any future QA pass on this app must re-check whether each [BLOCKED] item has since been built before treating it as still blocked"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-002",
+      "decision": "Missing Reunion screen is graded as a hard fail against a locked must-have requirement (DEC-app_features-003), not filed as a 'known limitation.'",
+      "rationale": "Reunion-the-screen-plus-paywall-gating was explicitly locked must-have, never downgraded anywhere in the decision log; treating its absence as an acceptable limitation would misrepresent an unmet hard requirement as a scoped-out one.",
+      "rejected_alternatives": [
+        "Treating Reunion's absence as an accepted limitation alongside genuinely accepted ones (e.g. backgrounded-heartbeat)"
+      ],
+      "constraints": [
+        "Final review must carry this forward as an unmet must-have, not a soft gap"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-003",
+      "decision": "Confirming that xcodebuild test (not just xcodebuild build) actually executed the 47-method TetherTests suite is a blocking prerequisite before anyone treats that suite as a passing gate.",
+      "rationale": "build_verification explicitly flagged this was never independently confirmed in this project; a QA process that inherits that gap silently would let 'compiled cleanly' get conflated with 'tests passed' a second time.",
+      "rejected_alternatives": [
+        "Assuming the test suite passed because it was 'wired in correctly' per write_tests' hand-verification"
+      ],
+      "constraints": [
+        "This check must happen before final sign-off on this app"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-004",
+      "decision": "The onboarding QA script requires recording the literal button labels and sheet copy for 'Preview with a sample partner' vs. 'Redeem a join code,' and flags a failure if neither clearly signals the redeem action's irreversible, data-discarding consequence.",
+      "rationale": "These two actions look similar but have very different consequences (one harmless/reversible, one irreversible); implementation_readiness_gate already required this copy be written out and sanity-checked (T-018), and this is the first point in the project that actually exercises that requirement against the built app rather than trusting it was done.",
+      "rejected_alternatives": [
+        "Treating copy clarity as implied/passed without an explicit tester check"
+      ],
+      "constraints": [
+        "Applies to the onboarding section of this checklist"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-005",
+      "decision": "The StoreKit entitlement-lapse test requires actively attempting a write (answering a card) on a read-only, non-primary connection and confirming it is rejected, not just confirming the UI shows a read-only indicator.",
+      "rationale": "DEC-ios_architecture_review-017 requires entitlement-gated writes be rejected from a single domain policy point, not merely hidden via UI visibility; a QA pass that only checks the visible indicator would not actually verify the underlying no-data-loss guarantee.",
+      "rejected_alternatives": [
+        "Treating a visible read-only badge as sufficient evidence the rule is enforced"
+      ],
+      "constraints": [
+        "Applies to the Settings/Connections section of this checklist"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-human_qa_checklist-006",
+      "decision": "Offline/Airplane Mode testing is scoped to a negative check (behavior must be identical to normal launch) rather than a positive feature test, since this is a fully local app with no network dependency to exercise.",
+      "rationale": "The app has no real network calls in this build; the meaningful offline test is confirming nothing unexpectedly tries to hit a network path, not verifying degraded-but-functional offline behavior as in a networked app.",
+      "rejected_alternatives": [
+        "Writing offline-mode test steps as if the app had real network-dependent features to degrade gracefully"
+      ],
+      "constraints": [
+        "Applies to the offline-behavior section of this checklist"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-001",
+      "decision": "Tether is graded NOT launch-ready and must not be submitted to App Store review in its current state.",
+      "rationale": "The paid tier (Reunion, animated export) sells features that don't exist on disk, the free tier's signature hero visual (globe/tether) is two placeholder circles, and no .storekit configuration exists to even exercise the purchase flow \u2014 this is a functional-completeness and trust risk, not a cosmetic one.",
+      "rejected_alternatives": [
+        "Submitting with marketing copy written against the intended vision rather than the built app",
+        "Treating this as launch-ready with cosmetic caveats"
+      ],
+      "constraints": [
+        "No public App Store metadata, screenshots, or submission should proceed until the blockers below are resolved or explicitly scoped out"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-002",
+      "decision": "The intended one-sentence App Store promise and neutral audience framing are locked now for future use, but all screenshot/storyboard production is blocked until the app actually renders the depicted UI.",
+      "rationale": "Apple rejects listings whose screenshots don't reflect real running behavior (Guideline 2.3.3); writing copy/screenshots against the vision rather than the build would be fiction and a rejection risk.",
+      "rejected_alternatives": [
+        "Producing screenshots now against mocked or design-spec renders instead of the real app"
+      ],
+      "constraints": [
+        "Promise copy must keep 'your person' neutral language, never default to 'partner'",
+        "The seven-shot storyboard plan (onboarding, hero card, answer sheet, compose&share, timeline, reunion, paywall) is preserved as a plan but marked not-ready"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-003",
+      "decision": "The honest Apple privacy nutrition label for this local-first build is 'Data Not Collected' \u2014 no location, photos, contacts, analytics, or ad-network data leaves the device, since there is no network layer at all.",
+      "rationale": "City-level home location is picked from a bundled list and stored purely locally with nothing to transmit it anywhere; this is a real, defensible, and appealing privacy claim as long as it stays true to the current architecture.",
+      "rejected_alternatives": [
+        "Pre-emptively labeling for the future Firebase adapter's data model"
+      ],
+      "constraints": [
+        "This label must be revisited and rewritten the day a real cloud sync adapter ships (linked identity, connection data, push tokens) \u2014 that revision is a required task for whoever builds that adapter, not an afterthought"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-004",
+      "decision": "No permission prompts (location, notifications, photos) are requested anywhere in this build, and the only permission-adjacent copy needed is the Settings notification-cadence control, which must explicitly state it governs foreground/in-app alerts only.",
+      "rationale": "There is structurally nothing to push in a fully offline, foreground-only build; implying background delivery would be a dishonest affordance.",
+      "rejected_alternatives": [
+        "Requesting notification permission preemptively for a future cloud adapter"
+      ],
+      "constraints": [
+        "Settings copy must state this scoping explicitly, extending the already-locked DEC-detailed_discussion-010/DEC-ios_architecture_review-007 requirements"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-005",
+      "decision": "Four concrete subscription/paywall review risks are named as release blockers: animated export permanently 'coming soon' for paying subscribers (Guideline 2.1 risk), Reunion missing entirely despite being a paid paywall trigger, no .storekit config existing to exercise purchase/restore/cancellation, and standard subscription disclosure copy (price/duration, auto-renewal language, Terms/Privacy links, Restore Purchases) not yet written/reviewed.",
+      "rationale": "Selling a subscription tier whose flagship features don't exist is both an App Review rejection risk and a real user-trust risk if it somehow passed review; these are functional gaps, not copy nitpicks.",
+      "rejected_alternatives": [
+        "Treating these as minor polish items to fix post-submission"
+      ],
+      "constraints": [
+        "None of these four may be waved through as 'fix later' before any submission attempt"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-006",
+      "decision": "A live privacy-policy URL and a monitored support email/URL are required App Store Connect metadata that must exist before submission, independent of any code-level blockers.",
+      "rationale": "This is mandatory subscription-app metadata that nobody in this project had named yet; it's a logistics task, not a build task, but it blocks submission just as hard as the code gaps.",
+      "rejected_alternatives": [
+        "Deferring support/legal setup until code blockers are resolved, treating it as lower priority"
+      ],
+      "constraints": [
+        "Must be set up as an explicit, ownable task separate from the build backlog"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-app_store_readiness-007",
+      "decision": "Two honest paths forward are offered for closing the gap: fully finish the real blockers (hero card, real SyncService pairing, Reunion, working .storekit config, actual DesignSystem tokens), or cut scope hard and ship a free-tier-only app with Reunion and animated export pulled from both the paywall and all marketing copy as a fast-follow.",
+      "rationale": "Consistent with the standing rule to prefer a smaller finished app over a larger half-built one; submitting today's build with today's paywall is the one combination that risks a real complaint, not just a review rejection.",
+      "rejected_alternatives": [
+        "Submitting the current build with the current paywall and marketing copy unchanged"
+      ],
+      "constraints": [
+        "Whichever path is chosen, no paywall trigger may advertise an entitlement the app cannot currently deliver"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-001",
+      "decision": "Tether receives a final verdict of NO-GO: the app is not complete against its own locked contract and is not ready to be treated as done or shipped.",
+      "rationale": "The app's central hero surface (globe, tether, live distance, dual clock) does not exist, SyncService/Reunion/.storekit/DesignSystem tokens are all missing against locked must-haves, and the authoritative build now reports a test failure on top of the missing features.",
+      "rejected_alternatives": [
+        "Grading this a conditional pass on the strength of the compiling domain layer",
+        "Treating the test failure as a minor footnote given prior hand-verification claims"
+      ],
+      "constraints": [
+        "No downstream phase or user-facing claim should describe this build as feature-complete or launch-ready"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-002",
+      "decision": "Identifying and root-causing the newly-surfaced test failure (compiled cleanly + TESTS FAILED) is the mandatory first follow-up, ahead of any new feature work.",
+      "rationale": "This project's manual hand-verification track record has now missed two real compile bugs and failed to predict this test failure; no claim about the domain layer's correctness (including the gated-reveal state machine, the app's one designated correctness invariant) can be trusted until the actual failing tests are read directly.",
+      "rejected_alternatives": [
+        "Proceeding with new feature work (globe, SyncService, Reunion) while the test failure remains uninvestigated",
+        "Continuing to rely on hand-traced 'no breakage' claims as sufficient verification"
+      ],
+      "constraints": [
+        "Any future phase must report which specific tests failed and why before claiming the domain/test layer is solid"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-003",
+      "decision": "app_store_readiness's 'do not submit' verdict is reaffirmed and treated as reinforced, not reopened, by this phase's findings.",
+      "rationale": "The missing-feature list (globe/tether, SyncService, Reunion, .storekit, DesignSystem tokens) that justified the earlier do-not-submit call is unchanged, and the new test failure adds an additional reason rather than any reason to reconsider.",
+      "rejected_alternatives": [
+        "Treating final_review as a fresh, independent readiness assessment that could reach a different launch conclusion"
+      ],
+      "constraints": [
+        "Any future submission attempt must resolve both the app_store_readiness blockers and the test failure named here"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review-004",
+      "decision": "The two-path fork from app_store_readiness (finish the real blockers vs. cut hard to a smaller free-tier-only release) remains explicitly unresolved and is handed off as a scoping decision for whoever resumes work, not decided by this phase.",
+      "rationale": "All three contributors this round named the same follow-ups but none picked a path; forcing a choice without a resourcing/timeline owner present would be arbitrary.",
+      "rejected_alternatives": [
+        "This phase unilaterally choosing 'finish' or 'cut' on the group's behalf"
+      ],
+      "constraints": [
+        "Whoever resumes this project must make this choice explicitly before further UI/feature work proceeds"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_audit-001",
+      "decision": "Portfolio audit is marked not applicable for Tether \u2014 this is a confirmed single-app run with one project folder, one Xcode project/target, and no sibling apps or children.",
+      "rationale": "portfolio_selection already locked this as a single app with no category split requested in the original prompt; task_assignments and build_coordination confirm exactly one project folder exists with no portfolio manifest ever produced.",
+      "rejected_alternatives": [
+        "Inventing portfolio-shape work or a manifest audit where none was ever requested or produced"
+      ],
+      "constraints": [
+        "Expected app count = 1 (tether); no child folder/workflow checks apply"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-portfolio_audit-002",
+      "decision": "This phase's 'not applicable / no issues' result must not be interpreted downstream as project readiness \u2014 it certifies folder/project shape only, and final_review's NO-GO verdict on functional completeness stands unchanged.",
+      "rationale": "portfolio_audit and final_review answer different questions (shape vs. completeness); running portfolio_audit after a NO-GO final_review creates a risk that a later automated step could misread this phase's clean pass as an all-clear signal.",
+      "rejected_alternatives": [
+        "Leaving this distinction implicit and letting downstream tooling infer it"
+      ],
+      "constraints": [
+        "Any Jira/Notion backfill from this phase must carry final_review's NO-GO status forward, not a standalone 'portfolio audit passed' status"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-001",
+      "decision": "Fix scope is exactly the design-lint gate: resolve every error entry in a freshly regenerated docs/design_lint.json, starting from the one currently-known hard error (self-referential raw_font_size match inside ResilienceHelpers.swift's own lint-detection helper at line 69), not a broader app change.",
+      "rationale": "Codex confirmed only one hard error currently exists; Claude's caveat that the JSON (not the prompt's 'e.g.' example) is the authoritative list is a condition on the same scope, not a competing scope.",
+      "rejected_alternatives": [
+        "Treating the single named example in the prompt as the complete fix target",
+        "Expanding scope to any other subsystem"
+      ],
+      "constraints": [
+        "Must re-run the lint script fresh (not reuse stale docs/design_lint.json) before declaring done",
+        "Diff limited to files the fresh lint output actually names"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-002",
+      "decision": "The ResilienceHelpers.swift:69 false positive is fixed by restructuring the probe-string construction inside containsInlineFontOrColor(_:) (e.g. building the search token from concatenated pieces) so the helper's own source no longer self-matches, without reducing its detection coverage of real violations elsewhere.",
+      "rationale": "The helper's own source literally contains the raw-font-size pattern it searches for in other files, causing a self-referential false positive; the fix must remove the self-match without weakening the check.",
+      "rejected_alternatives": [
+        "Adding a blanket exemption for ResilienceHelpers.swift or lint-helper files in general beyond what's already exempted",
+        "Softening the regex/pattern match to stop catching this case at the cost of catching fewer real violations"
+      ],
+      "constraints": [
+        "No new per-file exemption added to the lint script",
+        "Lint script must still flag inline font/color usage in all non-exempt files after the change"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-003",
+      "decision": "Before patching ResilienceHelpers.swift, confirm it is live, referenced code; if it is unreferenced dead scaffold, deletion is the preferred minimal fix over patching it to be lint-clean.",
+      "rationale": "The file doesn't correspond to any named component in the locked architecture (Theme.swift, GlobeView, CardScene, SyncService, EntitlementStore), raising the possibility it's orphaned scaffold from an earlier lane.",
+      "rejected_alternatives": [
+        "Assuming the file is live and patching without checking references"
+      ],
+      "constraints": [
+        "Verify at least one real call site/reference exists before treating patch-in-place as the answer"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-004",
+      "decision": "Any additional real design-lint violations found in the freshly regenerated JSON are fixed by substituting an existing DesignSystem/Theme type-ramp token (display/title/headline/body/caption/meta); a new token is added only if nothing in the existing ramp fits, and must be a single narrow addition.",
+      "rationale": "Keeps the fix consistent with the already-locked single-source-of-truth type ramp rather than inventing per-callsite styling.",
+      "rejected_alternatives": [
+        "Inlining a fixed point size directly to silence the lint without going through the token system"
+      ],
+      "constraints": [
+        "No ramp redesign; additions must be minimal and justified by an unmet use case"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-iterate_scope-005",
+      "decision": "This phase's fix is scoped strictly away from Connection/Card lifecycle, SyncService, globe rendering, StoreKit, and Reunion, and passing the lint gate does not change or imply anything about the app's overall NO-GO status from final_review.",
+      "rationale": "Those are separate, already-tracked, much larger gaps with no mandate opened by this narrow gate-fix request; conflating 'lint passes' with 'app is done' would misrepresent status given this project's history of overclaiming completeness.",
+      "rejected_alternatives": [
+        "Treating a passing lint gate as evidence the app is closer to launch-ready"
+      ],
+      "constraints": [
+        "No downstream claim may describe this fix as resolving final_review's NO-GO verdict"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review_2-001",
+      "decision": "The design-lint gate fix requested for this iteration is confirmed closed: xcodebuild reports a clean compile for the iOS Simulator, and no inline Color(/UIColor(/raw font-size violations remain outside DesignSystem.swift, with no new third-party dependency introduced.",
+      "rationale": "This is the first phase in the project's history with an actual compiler-confirmed (not hand-verified) build result, directly satisfying the phase's acceptance criteria for the lint gate.",
+      "rejected_alternatives": [
+        "Treating hand-verification alone as sufficient, as prior rounds had to"
+      ],
+      "constraints": [
+        "xcodebuild test still needs to be run and confirmed passing before the test suite (including the gated-reveal state machine) can be trusted as correct, not just compiling"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review_2-002",
+      "decision": "Tether's overall status remains NO-GO; the app is not ready to submit or be treated as feature-complete against its own locked contract.",
+      "rationale": "The two highest-impact locked must-haves \u2014 the native globe/tether Canvas hero visual and a working .storekit configuration for the now-fully-wired purchase flow \u2014 are both still missing, and xcodebuild test has not been confirmed to pass.",
+      "rejected_alternatives": [
+        "Treating the successful compile and the real Reunion/onboarding/streak work as sufficient to move to a conditional-go or go verdict"
+      ],
+      "constraints": [
+        "No downstream claim may describe this app as launch-ready or feature-complete until the globe/tether visual exists, a real .storekit config is attached to the scheme, and xcodebuild test is confirmed passing"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review_2-003",
+      "decision": "The process record is corrected: despite being chartered as a narrow lint-only fix walled off from Connection/Card lifecycle, SyncService, globe rendering, StoreKit, and Reunion, the actual four-iteration build_coordination arc substantially built out all of those areas (Today hero screen, full Reunion screen, PairingService/PaywallGate/NotificationScheduler, EntitlementService wiring, StoreKit gating, streak algorithm rewrite).",
+      "rationale": "The prior phase's decisions log claims a diff 'limited to files the fresh lint output names,' which is factually false against what was actually built; letting that framing stand uncorrected would misrepresent this project's process discipline to future phases.",
+      "rejected_alternatives": [
+        "Leaving the narrow-scope framing unchallenged since the resulting functional progress was net positive"
+      ],
+      "constraints": [
+        "Future 'small scoped fix' requests in this project should not be assumed to stay scoped just because they are labeled that way; scope adherence should be independently checked against the actual diff, not the stated intent"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review_3-001",
+      "decision": "The requested design-lint gate fix is confirmed closed and compiler-verified: xcodebuild build compiles cleanly for the iOS Simulator (after one repair for an unrelated read-only accessibilityReduceMotion environment-key bug), and a fresh full-tree sweep shows zero hits on all four forbidden design-lint tokens outside DesignSystem.swift, with no new third-party dependency introduced.",
+      "rationale": "This is the narrow scope this iteration was chartered to fix, and it is now backed by an actual compiler-confirmed build result rather than hand-verification alone.",
+      "rejected_alternatives": [
+        "Treating the build failure at the start of this arc as evidence the lint fix itself was incomplete"
+      ],
+      "constraints": [
+        "No downstream claim may describe this as evidence the app overall is closer to launch-ready than final_review-1 found"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review_3-002",
+      "decision": "Tether's overall status remains NO-GO, reaffirming rather than reopening final_review-1's verdict, despite substantial real progress this build arc (working pairing loop, native globe/tether hero visual now wired into the build).",
+      "rationale": "Two independent council members converged on the same blocking reasons: xcodebuild test has never been confirmed to actually run and pass (only xcodebuild build was verified this round), and the Tether+ paywall still sells at least two undelivered features (animated export, Year Tethered retrospective reel) plus one unenforced entitlement (the free-tier one-connection cap, since canCreateAdditionalConnection() is hardcoded true) -- a hard App Store/user-trust blocker that predates and survives this round unchanged.",
+      "rejected_alternatives": [
+        "Grading this a conditional-go or go verdict on the strength of the compiling build and the newly-real pairing/globe work",
+        "Scoping final_review narrowly to only the lint-fix objective and staying silent on overall app readiness"
+      ],
+      "constraints": [
+        "No downstream claim may describe this app as launch-ready or feature-complete until xcodebuild test is confirmed passing (including the gated-reveal state machine), animated export + Year Tethered reel are either built or removed from the paywall/marketing copy, and canCreateAdditionalConnection() is routed through EntitlementPolicy"
+      ],
+      "supersedes": null
+    },
+    {
+      "id": "DEC-final_review_3-003",
+      "decision": "The pairing loop (AppRouter.redeemJoinCode/hydrate/onSceneBecameActive wired to real LocalSyncService calls, sample-to-real transition creating a fresh Connection instead of mutating in place) and the native globe/tether Canvas hero visual (wired into Today and Timeline, present in the Xcode project) are recognized as genuine, substantive progress against final_review-1's two biggest named gaps.",
+      "rationale": "These were the two most-repeated blockers across four prior build_coordination iterations; both are now real, wired, and part of the compiling build, not placeholder or unreferenced code.",
+      "rejected_alternatives": [
+        "Treating this progress as immaterial because the app overall remains NO-GO"
+      ],
+      "constraints": [
+        "This progress must be stated plainly in any future status summary, not buried under the NO-GO headline"
+      ],
+      "supersedes": null
+    }
+  ]
+}

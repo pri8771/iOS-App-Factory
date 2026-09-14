@@ -1,0 +1,89 @@
+{
+  "bundle_id": "com.pulserelay.app",
+  "screens": 1,
+  "edges": 0,
+  "crashes": [],
+  "dead_taps": [
+    {
+      "screen": "7ed2f64bff8866ef",
+      "tapped": {
+        "id": "authGate.signInWithAppleButton",
+        "kind": "button",
+        "label": "Sign in with Apple"
+      }
+    }
+  ],
+  "back_violations": [],
+  "flows": [
+    {
+      "failure": "step 2: expected \u2018podOnboarding.createPodButton\u2019 on screen",
+      "name": "Cold start, sign in, create a pod",
+      "passed": false
+    },
+    {
+      "failure": "step 2: no tappable element \u2018podOnboarding.joinPodButton\u2019",
+      "name": "Cold start, sign in, join an existing pod",
+      "passed": false
+    },
+    {
+      "failure": "",
+      "name": "Post a request and pod visibility",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Two-account concurrent accept race",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Release and reopen",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Requester withdraws an unclaimed request",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Unfulfilled request ages and is re-broadcast",
+      "passed": true
+    },
+    {
+      "failure": "",
+      "name": "Completion produces a shared receipt",
+      "passed": true
+    },
+    {
+      "failure": "step 1: no tappable element \u2018relayBoard.postRequestButton\u2019",
+      "name": "Post a request and see honest delivery copy",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018relayBoard.firstRequestCard\u2019",
+      "name": "Accept an open request",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018relayBoard.firstRequestCard\u2019",
+      "name": "Release an accepted request",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018relayBoard.firstRequestCard\u2019",
+      "name": "Withdraw an unclaimed own request",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018relayBoard.firstRequestCard\u2019",
+      "name": "Re-broadcast a still-open request",
+      "passed": false
+    },
+    {
+      "failure": "step 1: no tappable element \u2018relayBoard.firstRequestCard\u2019",
+      "name": "Complete a claimed request and view the receipt",
+      "passed": false
+    }
+  ]
+}

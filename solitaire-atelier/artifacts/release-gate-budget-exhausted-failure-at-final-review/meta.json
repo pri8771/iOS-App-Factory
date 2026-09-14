@@ -1,0 +1,48 @@
+{
+  "branch": "",
+  "content_hash": "6d0cb4a94070aba3e016b7a52d7701024477a2b73b6068ba5b66378fd1c03fe1",
+  "depth": 0,
+  "doc_slots": [],
+  "fields": {
+    "cost_spent": {
+      "cost_micro_usd": 0,
+      "metered_turns": 0,
+      "unmetered_turns": 207,
+      "unpriced_turns": 0
+    },
+    "error_class": "release_gate_budget_exhausted",
+    "events_cursor": 205377,
+    "last_checkpoint": {
+      "completed_phases_count": 3,
+      "phase": "final_review",
+      "round": 0
+    },
+    "message": "Design-lint repair budget exhausted in phase final_review; inspect docs/design_lint.json.",
+    "source_session": "solitaire-atelier"
+  },
+  "hop_count": 0,
+  "id": "release-gate-budget-exhausted-failure-at-final-review",
+  "keywords": [],
+  "lineage": [],
+  "schema_version": 1,
+  "sensitivity": "normal",
+  "source": {
+    "phase": "final_review",
+    "section": "execution",
+    "session": "solitaire-atelier",
+    "turn": ""
+  },
+  "status": "final",
+  "status_history": [
+    {
+      "at": "2026-07-29T13:42:53-04:00",
+      "by": "solitaire-atelier",
+      "status": "final"
+    }
+  ],
+  "supersedes": null,
+  "title": "Release Gate Budget Exhausted failure at final_review",
+  "ts": "2026-07-29T13:42:53-04:00",
+  "type": "failure",
+  "version": 1
+}

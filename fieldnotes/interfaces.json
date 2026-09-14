@@ -1,0 +1,294 @@
+{
+  "schema_version": 1,
+  "interfaces": [
+    {
+      "name": "Entry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Entry { var id: UUID; var title: String; var createdAt: Date; var updatedAt: Date; var audioRelativePath: String; var durationSeconds: TimeInterval; var recordingStatus: RecordingPersistedStatus; var transcriptionStatus: TranscriptionStatus; var cachedTranscriptText: String; var moodScore: Double?; var moodLabel: String?; var moodStatus: SuggestionStatus; var waveformSummary: [Float]; var isDemo: Bool; @Relationship(deleteRule: .cascade, inverse: \\Anchor.entry) var anchors: [Anchor]; @Relationship(deleteRule: .cascade, inverse: \\Tag.entry) var tags: [Tag]; @Relationship(deleteRule: .cascade, inverse: \\Sketch.entry) var sketches: [Sketch]; @Relationship(deleteRule: .cascade, inverse: \\Mention.sourceEntry) var outgoingMentions: [Mention] }",
+      "owning_lane": "data_domain",
+      "notes": "Single source of truth; every field is read live via @Query, never cached in a view model."
+    },
+    {
+      "name": "RecordingPersistedStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecordingPersistedStatus: String, Codable { case finalized, interrupted, recoveredAfterUnexpectedExit }",
+      "owning_lane": "data_domain",
+      "notes": "Coarse disk-truth status stored on Entry; distinct from the richer in-memory RecordingState used live by RecordingController."
+    },
+    {
+      "name": "TranscriptionStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TranscriptionStatus: String, Codable { case notStarted, modelDownloading, transcribing, ready, unavailable }",
+      "owning_lane": "data_domain",
+      "notes": "Three-plus-state model per DEC-detailed_discussion-002; drives Timeline badge and Entry Detail copy."
+    },
+    {
+      "name": "SuggestionStatus",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SuggestionStatus: String, Codable { case suggested, accepted, dismissed, userAdded }",
+      "owning_lane": "data_domain",
+      "notes": "Shared by Tag and Entry.moodStatus so accept/dismiss UI is one code path."
+    },
+    {
+      "name": "Anchor",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Anchor { var id: UUID; var entry: Entry?; var startTime: TimeInterval; var endTime: TimeInterval; var sequenceIndex: Int; var text: String; var isDeleted: Bool }",
+      "owning_lane": "data_domain",
+      "notes": "id/startTime/endTime/sequenceIndex are immutable once created; text and isDeleted are the only mutable overlay fields (DEC-prompt_contract-015)."
+    },
+    {
+      "name": "Tag",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Tag { var id: UUID; var entry: Entry?; var name: String; var source: TagSource; var status: SuggestionStatus }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "TagSource",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum TagSource: String, Codable { case aiSuggested, userAdded }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "Mention",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Mention { var id: UUID; var sourceEntry: Entry?; var targetEntryID: UUID; var anchorID: UUID?; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": "targetEntryID is a raw UUID, not a SwiftData relationship, so a deleted target is detectable (broken link) instead of silently cascading."
+    },
+    {
+      "name": "Sketch",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "@Model final class Sketch { var id: UUID; var entry: Entry?; @Attribute(.externalStorage) var drawingData: Data; var createdAt: Date }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "ModelContainerFactory",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ModelContainerFactory { static func make(cloudKitEnabled: Bool) throws -> ModelContainer }",
+      "owning_lane": "data_domain",
+      "notes": "Single construction point used identically by app, widget, Share Extension, and CarPlay code path; App Group container id lives in AppGroupConfig."
+    },
+    {
+      "name": "AppGroupConfig",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum AppGroupConfig { static let identifier: String; static var containerURL: URL { get } }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "FileProtectionHelper",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum FileProtectionHelper { static func applyCompleteUntilFirstAuth(to url: URL) throws }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "SearchRelevanceScorer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum SearchRelevanceScorer { static func score(entry: Entry, queryTokens: [String], now: Date) -> SearchScoreResult; static func search(query: String, in entries: [Entry], now: Date) -> [SearchScoreResult] }",
+      "owning_lane": "data_domain",
+      "notes": "Deterministic, pure, documented formula (transcript 3pt/word +5 phrase, tag 5pt exact, mood 4pt, recency up to 2pt gated on nonzero content match). Sorted desc, zero-score entries excluded."
+    },
+    {
+      "name": "SearchScoreResult",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SearchScoreResult: Identifiable, Sendable { let id: UUID; let entryID: UUID; let total: Double; let transcriptScore: Double; let tagScore: Double; let moodScore: Double; let recencyBonus: Double; let matchReasons: [MatchReason] }",
+      "owning_lane": "data_domain",
+      "notes": null
+    },
+    {
+      "name": "MatchReason",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum MatchReason: String, Codable { case transcript, tag, mood }",
+      "owning_lane": "data_domain",
+      "notes": "Feeds the SearchResultRow match-reason hint."
+    },
+    {
+      "name": "BacklinkQuery",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum BacklinkQuery { static func backlinks(for entryID: UUID, in context: ModelContext) -> [Entry]; static func isBroken(_ mention: Mention, in context: ModelContext) -> Bool; static func resolveSeekTarget(tappedAnchorID: UUID, in anchors: [Anchor]) -> TimeInterval }",
+      "owning_lane": "data_domain",
+      "notes": "backlinks() dedupes by sourceEntry.id; resolveSeekTarget implements the nearest-surviving-anchor fallback (DEC-detailed_discussion-004)."
+    },
+    {
+      "name": "MentionAutocompleteQuery",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum MentionAutocompleteQuery { static func candidates(matching text: String, excluding currentEntryID: UUID, demoScope: Bool, in context: ModelContext) -> [Entry] }",
+      "owning_lane": "data_domain",
+      "notes": "Filters by isDemo == demoScope and excludes self, enforcing DEC-detailed_discussion-009 and self-mention rejection."
+    },
+    {
+      "name": "DemoDataSeeder",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum DemoDataSeeder { static func seed(in context: ModelContext) throws; static func removeAll(in context: ModelContext) throws }",
+      "owning_lane": "data_domain",
+      "notes": "Must guarantee one HealthKit-correlated day and one broken-link example; idempotent on repeat seed calls."
+    },
+    {
+      "name": "Theme",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum Theme { enum Color { static let background, surface, textPrimary, textSecondary, accent, border, moodPositive, moodNeutral, moodNegative: SwiftUI.Color }; enum Spacing { static let xs=4.0, sm=8.0, md=12.0, lg=16.0, xl=24.0, xxl=32.0, xxxl=48.0 }; enum Radius { static let small=8.0, medium=14.0, large=20.0, full=999.0 }; enum Font { static let display, title, headline, body, callout, caption, micro: SwiftUI.Font } }",
+      "owning_lane": "primary_ui",
+      "notes": "Every view references this; no scattered literals."
+    },
+    {
+      "name": "RecordingState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecordingState: Equatable { case idle, arming, recording, interrupted(resumable: Bool), finalizing, finalized, error(RecordingError) }",
+      "owning_lane": "services_utilities",
+      "notes": "Transient in-memory state driving RecordButton/InterruptionBanner; distinct from Entry.recordingStatus."
+    },
+    {
+      "name": "RecordingController",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "actor RecordingController { func start() async throws; func stop() async; func handleInterruption(type: AVAudioSession.InterruptionType, options: AVAudioSession.InterruptionOptions) async; func handleRouteChange(reason: AVAudioSession.RouteChangeReason) async; var state: RecordingState { get async }; var amplitudeStream: AsyncStream<Float> { get } }",
+      "owning_lane": "services_utilities",
+      "notes": "NotificationCenter observers are a thin adapter forwarding into these two handle methods, per DEC-ios_architecture_review-005, so CI can call them directly."
+    },
+    {
+      "name": "RecordingError",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum RecordingError: Error, Equatable { case sessionActivationFailed, diskWriteFailed, insufficientStorage }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "RecordingReconciler",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum RecordingReconciler { static func reconcileOnLaunch(in context: ModelContext) throws }",
+      "owning_lane": "polish_resilience",
+      "notes": "Scans for entries stuck in .interrupted with no finalize and marks them .recoveredAfterUnexpectedExit from whatever was flushed to disk."
+    },
+    {
+      "name": "TranscriptionCoordinator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class TranscriptionCoordinator { func transcribe(entryID: UUID) -> Task<Void, Never>; static func availability(for locale: Locale) -> SpeechAvailabilityState }",
+      "owning_lane": "services_utilities",
+      "notes": "One Task per entry, never a shared serializing actor (DEC-design_handoff-003)."
+    },
+    {
+      "name": "SpeechAvailabilityState",
+      "kind": "enum",
+      "language": "swift",
+      "signature": "enum SpeechAvailabilityState { case ready, modelDownloading, unavailable }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "AutoTagger",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum AutoTagger { static func suggestTags(from text: String) -> [String]; static func moodScore(from text: String) -> Double }",
+      "owning_lane": "services_utilities",
+      "notes": "NLTagger/NLTagger(.sentimentScore) wrapper; output is always presented as dismissible/acceptable, never auto-applied."
+    },
+    {
+      "name": "HealthContextProvider",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class HealthContextProvider { func requestAuthorization() async throws; func dailySummary(for date: Date) async -> HealthDaySummary? }",
+      "owning_lane": "services_utilities",
+      "notes": "Live query only; return value is nil for both denial and genuine no-data, matching DEC-detailed_discussion-006's hedged copy."
+    },
+    {
+      "name": "HealthDaySummary",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct HealthDaySummary { let date: Date; let sleepHours: Double?; let stepCount: Int? }",
+      "owning_lane": "services_utilities",
+      "notes": null
+    },
+    {
+      "name": "SubscriptionManager",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class SubscriptionManager { func purchase(_ product: Product) async throws -> Bool; func isProActive() async -> Bool; func observeTransactions() -> Task<Void, Never> }",
+      "owning_lane": "services_utilities",
+      "notes": "Entitlement checks always via Transaction.currentEntitlements locally; one network round-trip only at purchase time."
+    },
+    {
+      "name": "RecordingActivityAttributes",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct RecordingActivityAttributes: ActivityAttributes { struct ContentState: Codable, Hashable { var elapsedSeconds: TimeInterval; var amplitudeSample: Float }; var startedAt: Date }",
+      "owning_lane": "polish_resilience",
+      "notes": "Lives in Core so both the app (starts it) and widget extension (renders it) share the identical type."
+    },
+    {
+      "name": "LiveActivityController",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "enum LiveActivityController { static func start(for entryID: UUID) throws; static func update(elapsed: TimeInterval, amplitude: Float); static func end(finalState: RecordingActivityAttributes.ContentState) async }",
+      "owning_lane": "polish_resilience",
+      "notes": "Uses staleDate plus RecordingReconciler-driven relaunch cleanup per the documented residual-window caveat."
+    },
+    {
+      "name": "FieldnotesWidgetEntry",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct FieldnotesWidgetEntry: TimelineEntry { let date: Date; let latestEntrySnippet: String?; let moodLabel: String? }",
+      "owning_lane": "polish_resilience",
+      "notes": "WidgetCenter.reloadTimelines() called only on confirmed entry save."
+    },
+    {
+      "name": "ShareEntryComposer",
+      "kind": "function",
+      "language": "swift",
+      "signature": "enum ShareEntryComposer { static func makeEntry(from itemProviders: [NSItemProvider], in context: ModelContext) async throws -> UUID }",
+      "owning_lane": "polish_resilience",
+      "notes": "One-way import only (text or photo), never outbound sharing to people."
+    },
+    {
+      "name": "CarPlayRecordCoordinator",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "final class CarPlayRecordCoordinator { func templateApplicationScene(_ scene: CPTemplateApplicationScene, didConnect interfaceController: CPInterfaceController) }",
+      "owning_lane": "polish_resilience",
+      "notes": "Compiles and is wired correctly but is a named Gap: requires the CarPlay audio-app entitlement unavailable on a free personal developer account."
+    },
+    {
+      "name": "StartVoiceEntryIntent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct StartVoiceEntryIntent: AppIntent { static var title: LocalizedStringResource; func perform() async throws -> some IntentResult }",
+      "owning_lane": "polish_resilience",
+      "notes": null
+    },
+    {
+      "name": "SearchJournalIntent",
+      "kind": "struct",
+      "language": "swift",
+      "signature": "struct SearchJournalIntent: AppIntent { @Parameter var query: String; func perform() async throws -> some IntentResult & ReturnsValue<[String]> }",
+      "owning_lane": "polish_resilience",
+      "notes": null
+    }
+  ],
+  "errors": []
+}

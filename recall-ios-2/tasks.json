@@ -1,0 +1,738 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "RecallCore package scaffold: Clock, Grade, CardSchedule",
+      "owner_lane": "data_domain",
+      "files": [
+        "RecallCore/Package.swift",
+        "RecallCore/Sources/RecallCore/Clock.swift",
+        "RecallCore/Sources/RecallCore/Grade.swift",
+        "RecallCore/Sources/RecallCore/CardSchedule.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Package builds standalone with zero SwiftData/SwiftUI imports anywhere in the target",
+        "Clock protocol + SystemClock + TestClock all present matching the locked interface signatures",
+        "Grade is Int-backed CaseIterable enum, CardSchedule is an Equatable/Sendable value type"
+      ],
+      "requirement_ids": [
+        "R-004"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-002",
+      "title": "SM2Engine.schedule + previewOutcomes",
+      "owner_lane": "data_domain",
+      "files": [
+        "RecallCore/Sources/RecallCore/SM2Engine.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Implements exact locked formula: ease floor 1.3, Again resets reps/interval and ease-=0.20, Hard is a fixed x1.2 interval multiplier (not ease-scaled) with ease-=0.15, Good is interval*ease, Easy is interval*ease*1.3 with ease+=0.15",
+        "previewOutcomes returns all four grade outcomes without mutating the input"
+      ],
+      "requirement_ids": [
+        "R-004"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-003",
+      "title": "RecallCoreTests: SM2Engine full suite",
+      "owner_lane": "data_domain",
+      "files": [
+        "RecallCore/Tests/RecallCoreTests/SM2EngineTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-004"
+      ],
+      "acceptance_criteria": [
+        "Passing tests for first-review, lapse-reset, ease-floor under repeated Again",
+        "Passing test proving Hard produces a strictly smaller interval than Good from ease 2.8/interval 20",
+        "Passing spring-forward and fall-back DST transition tests using TestClock",
+        "Passing backward-clock-jump test: rewinding system time cannot make an already-graded-today card appear due again"
+      ],
+      "requirement_ids": [
+        "R-004"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-004",
+      "title": "DueComputation.isDue shared predicate",
+      "owner_lane": "data_domain",
+      "files": [
+        "RecallCore/Sources/RecallCore/DueComputation.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Single pure function comparing calendar.startOfDay(nextReviewDate) <= calendar.startOfDay(now)",
+        "No other file in the project reimplements this comparison"
+      ],
+      "requirement_ids": [
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-005",
+      "title": "CSVParser / CSVWriter (RFC4180)",
+      "owner_lane": "data_domain",
+      "files": [
+        "RecallCore/Sources/RecallCore/CSVParser.swift",
+        "RecallCore/Sources/RecallCore/CSVWriter.swift",
+        "RecallCore/Sources/RecallCore/CSVModels.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "RFC4180-compliant quote/comma/newline handling, not naive split(separator:)",
+        "Non-UTF8 input throws a single top-level error, no fallback-encoding guessing",
+        "Files over 10,000 rows throw a plain-language over-cap error",
+        "Duplicate detection is whitespace-trimmed, case-sensitive exact match on front+back within target deck",
+        "CSVWriter emits exactly two columns (front, back); note is never included"
+      ],
+      "requirement_ids": [
+        "R-011",
+        "R-010"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-006",
+      "title": "RecallCoreTests: CSV edge cases",
+      "owner_lane": "data_domain",
+      "files": [
+        "RecallCore/Tests/RecallCoreTests/CSVParserTests.swift"
+      ],
+      "depends_on": [
+        "T-005"
+      ],
+      "acceptance_criteria": [
+        "Covers quoted commas/newlines/escaped quotes, header-only file, empty file, non-UTF8 rejection, >10,000-row rejection, duplicate-skip-with-reason, and legitimate near-duplicate (different case) preserved as distinct"
+      ],
+      "requirement_ids": [
+        "R-011"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 3
+    },
+    {
+      "id": "T-007",
+      "title": "SwiftData schema: Deck, Card, ReviewLogEntry, ModelContainer",
+      "owner_lane": "data_domain",
+      "files": [
+        "RecallApp/Models/Deck.swift",
+        "RecallApp/Models/Card.swift",
+        "RecallApp/Models/ReviewLogEntry.swift",
+        "RecallApp/Models/RecallSchema.swift",
+        "RecallApp/Models/ModelContainer+Recall.swift",
+        "RecallApp/Models/SchemaMigrationPlan.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "No @Attribute(.unique) anywhere",
+        "Every relationship Optional, every non-optional attribute has a default value (CloudKit-shape check)",
+        "Grade and isDemo stored as raw Int/Bool, never enums",
+        "Card and ReviewLogEntry both denormalize deckID/isDemo",
+        "No moveCard function exists anywhere",
+        "SchemaMigrationPlan is a minimal single-version stub"
+      ],
+      "requirement_ids": [
+        "R-002",
+        "R-003"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-a",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-008",
+      "title": "Theme.swift token implementation",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "RecallApp/Theme/Theme.swift"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "4pt spacing grid s1-s10, four-tier corner radii, corrected divider hex (#E3DDD5), violet/plum demoBadge (not amber)",
+        "System Dynamic Type styles only, .monospacedDigit() on every numeral role, no custom font",
+        "No other file in the project defines a font/spacing/color literal"
+      ],
+      "requirement_ids": [
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-009",
+      "title": "Adversarial review gate on RecallCore",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "REVIEW_RECALLCORE.md"
+      ],
+      "depends_on": [
+        "T-003",
+        "T-006"
+      ],
+      "acceptance_criteria": [
+        "Documented line-by-line check of SM2Engine against the locked formula table, DueComputation against calendar-day semantics, and CSVParser against the adversarial case list",
+        "Any defect found is filed and fixed in RecallCore before this task closes"
+      ],
+      "requirement_ids": [
+        "R-004"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 4
+    },
+    {
+      "id": "T-010",
+      "title": "PrivacyInfo.xcprivacy + target capability lockdown",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "RecallApp/Support/PrivacyInfo.xcprivacy"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Manifest declares zero data collection",
+        "Background Modes capability confirmed unchecked in the target",
+        "No network entitlement or URLSession usage anywhere in the app"
+      ],
+      "requirement_ids": [
+        "R-001",
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-011",
+      "title": "DebugClockOverride (DEBUG-only)",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "RecallApp/Support/DebugClockOverride.swift"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "acceptance_criteria": [
+        "Parses -RecallClockOffsetDays N into an offset Clock",
+        "Wrapped entirely in #if DEBUG, verified absent from a Release build"
+      ],
+      "requirement_ids": [
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 2
+    },
+    {
+      "id": "T-012",
+      "title": "GAPS.md - honest non-goal documentation",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "GAPS.md"
+      ],
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Cloud sync, shared/community decks, and a deck marketplace each documented with a concrete note on what real implementation would require",
+        "No UI anywhere in the app implies any of these three work"
+      ],
+      "requirement_ids": [
+        "R-014"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-b",
+      "claimed_at": 1
+    },
+    {
+      "id": "T-013",
+      "title": "DueQueryService",
+      "owner_lane": "services_utilities",
+      "files": [
+        "RecallApp/Services/DueQueryService.swift",
+        "RecallAppTests/DueQueryServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-004",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "dueCounts is one grouped FetchDescriptor per call, never one query per deck row",
+        "dueCards builds a synchronous local-array session snapshot for both .deck(_) and .allDecks scopes",
+        "In-memory ModelContainer test proves counts match a hand-constructed fixture"
+      ],
+      "requirement_ids": [
+        "R-005",
+        "R-016"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-014",
+      "title": "GradeRecorder",
+      "owner_lane": "services_utilities",
+      "files": [
+        "RecallApp/Services/GradeRecorder.swift",
+        "RecallAppTests/GradeRecorderTests.swift"
+      ],
+      "depends_on": [
+        "T-002",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Single call site: mutates Card via SM2Engine, inserts a ReviewLogEntry, calls context.save() synchronously",
+        "Test proves persisted Card state after record() matches SM2Engine.schedule's pure output for every grade",
+        "No other file in the project mutates Card schedule fields directly"
+      ],
+      "requirement_ids": [
+        "R-006",
+        "R-007"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-015",
+      "title": "SessionEngine",
+      "owner_lane": "services_utilities",
+      "files": [
+        "RecallApp/Services/SessionEngine.swift",
+        "RecallAppTests/SessionEngineTests.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-014"
+      ],
+      "acceptance_criteria": [
+        "Owns a captured plain-array snapshot; never wraps or re-queries via @Query",
+        "Again-graded cards are not requeued within the same session",
+        "summary() returns accurate reviewedCount/againRate/elapsed/perDeck attribution for mixed all-decks sessions"
+      ],
+      "requirement_ids": [
+        "R-008"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-016",
+      "title": "EntitlementGate (unlimited-only provider)",
+      "owner_lane": "services_utilities",
+      "files": [
+        "RecallApp/Services/EntitlementGate.swift",
+        "RecallAppTests/EntitlementGateTests.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "Single EntitlementProviding protocol with UnlimitedEntitlementProvider as the only conformer this pass",
+        "No cap-check or entitlement logic exists outside this file anywhere in the app"
+      ],
+      "requirement_ids": [
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-017",
+      "title": "NotificationScheduler",
+      "owner_lane": "services_utilities",
+      "files": [
+        "RecallApp/Services/NotificationScheduler.swift",
+        "RecallAppTests/NotificationSchedulerTests.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "authorizationStatus re-polled on every scenePhase == .active transition, never cached from request time",
+        "scheduleDailyReminder uses fixed generic non-numeric body text",
+        "cancelReminder verifiably removes the pending request"
+      ],
+      "requirement_ids": [
+        "R-012"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-018",
+      "title": "DemoDataService",
+      "owner_lane": "services_utilities",
+      "files": [
+        "RecallApp/Services/DemoDataService.swift",
+        "RecallAppTests/DemoDataServiceTests.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-013",
+        "T-014",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "seed() creates exactly two isDemo=true decks with a backdated, non-degenerate ReviewLogEntry distribution across 30+ days",
+        "seed() guarantees at least several cards land due today (not purely historical), so entering review immediately after seeding never hits the empty state",
+        "purge() deletes every isDemo=true Deck/Card/ReviewLogEntry, verified by a zero-count fetch immediately after"
+      ],
+      "requirement_ids": [
+        "R-013"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-019",
+      "title": "CSVImportCoordinator",
+      "owner_lane": "services_utilities",
+      "files": [
+        "RecallApp/Services/CSVImportCoordinator.swift",
+        "RecallAppTests/CSVImportCoordinatorTests.swift"
+      ],
+      "depends_on": [
+        "T-005",
+        "T-006",
+        "T-007",
+        "T-009"
+      ],
+      "acceptance_criteria": [
+        "loadPreview runs CSVParser off the main actor and returns CSVParseResult without touching ModelContext",
+        "commit is the only function that writes to ModelContext",
+        "Post-commit count reconciles exactly with preview minus errors and duplicates"
+      ],
+      "requirement_ids": [
+        "R-011"
+      ],
+      "status": "pending",
+      "claimed_by": "codex-b",
+      "claimed_at": 5
+    },
+    {
+      "id": "T-020",
+      "title": "App entry + RootTabView composition (integrator-owned)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "RecallApp/RecallApp.swift",
+        "RecallApp/RootTabView.swift"
+      ],
+      "depends_on": [
+        "T-007",
+        "T-008",
+        "T-016",
+        "T-017"
+      ],
+      "acceptance_criteria": [
+        "Three persistent tabs (Decks, Stats, Settings) only - Review is never a tab",
+        "ModelContainer and all services injected via environment",
+        "Exactly one on-screen surface computes/displays a live due-count",
+        "Tab bar items carry accessibilityIdentifiers rootTab.decksTab / rootTab.statsTab / rootTab.settingsTab"
+      ],
+      "requirement_ids": [
+        "R-017"
+      ],
+      "status": "pending",
+      "claimed_by": "claude-a",
+      "claimed_at": 6
+    },
+    {
+      "id": "T-021",
+      "title": "Decks screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "RecallApp/Screens/Decks/DecksScreen.swift",
+        "RecallApp/Components/DeckRow.swift",
+        "RecallApp/Screens/Decks/DeckFormSheet.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Create/rename deck present with keyboard-fast form (deckForm.nameField, deckForm.saveButton)",
+        "Per-deck due counts come from T-013's single batched fetch, not per-row queries",
+        "Demo decks show an unmistakable diagonal DEMO stamp",
+        "Designed empty state for zero decks with a one-tap create action (decks.emptyStateCreateButton)",
+        "Deck rows and a header all-decks review action carry stable accessibilityIdentifiers (decks.firstDeckRow, decks.reviewAllButton)"
+      ],
+      "requirement_ids": [
+        "R-002",
+        "R-016"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-022",
+      "title": "Deck detail: card list, archive, delete, export",
+      "owner_lane": "primary_ui",
+      "files": [
+        "RecallApp/Screens/Decks/DeckDetailScreen.swift",
+        "RecallApp/Screens/Decks/CardFormSheet.swift",
+        "RecallApp/Screens/Decks/ArchiveConfirmSheet.swift",
+        "RecallApp/Screens/Decks/DeleteConfirmSheet.swift",
+        "RecallApp/Screens/Decks/CSVExportShareSheet.swift"
+      ],
+      "depends_on": [
+        "T-021"
+      ],
+      "acceptance_criteria": [
+        "DeckDetailScreen is a navigation push destination within the Decks tab, not a new top-level screen",
+        "Card add/edit with front/back/note, Tab/Return keyboard flow, no forced pointer-only interaction",
+        "Archive is reversible (deckDetail.archiveButton / deckDetail.unarchiveButton) and shown as a distinct action from permanent delete (deckDetail.deleteButton), each separately confirmed",
+        "Export uses the standard share sheet plus a confirmation toast, reachable via deckDetail.exportButton",
+        "Per-deck review entry (deckDetail.reviewButton) starts a single-deck session"
+      ],
+      "requirement_ids": [
+        "R-003",
+        "R-010",
+        "R-015"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-023",
+      "title": "Review flow (single-deck and all-decks)",
+      "owner_lane": "primary_ui",
+      "files": [
+        "RecallApp/Screens/Review/ReviewFlowView.swift",
+        "RecallApp/Components/ReviewCardView.swift",
+        "RecallApp/Components/ReviewGradeRow.swift",
+        "RecallApp/Components/ReviewProgressView.swift",
+        "RecallApp/Screens/Review/ReviewEmptyStateView.swift"
+      ],
+      "depends_on": [
+        "T-015",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Presented as fullScreenCover, tab bar hidden, no interstitial screen between tap and card one",
+        "Real 3D flip under 300ms with a same-speed Reduce Motion crossfade fallback, reveal area identified as review.revealArea",
+        "Grade buttons carry review.gradeAgainButton/gradeHardButton/gradeGoodButton/gradeEasyButton identifiers and each shows a previewOutcomes-derived interval caption plus VoiceOver consequence label from the same source",
+        "Empty state text differs for 'nothing due in this deck' vs 'nothing due across all decks' with a scope-appropriate action",
+        "Demo cards visibly stamped"
+      ],
+      "requirement_ids": [
+        "R-005",
+        "R-006"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-024",
+      "title": "Session summary sheet",
+      "owner_lane": "primary_ui",
+      "files": [
+        "RecallApp/Screens/Review/SessionSummaryView.swift"
+      ],
+      "depends_on": [
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Shows reviewed count, again-rate, elapsed time with accessibilityIdentifier summary.doneButton on its dismiss action",
+        "Shows a real per-deck breakdown when the session scope was all-decks, not just an aggregate"
+      ],
+      "requirement_ids": [
+        "R-008"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-025",
+      "title": "Stats screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "RecallApp/Screens/Stats/StatsScreen.swift",
+        "RecallApp/Components/DueForecastChart.swift",
+        "RecallApp/Components/DailyHistoryChart.swift",
+        "RecallApp/Components/RetentionRateView.swift"
+      ],
+      "depends_on": [
+        "T-013",
+        "T-018",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Real Swift Charts views for 30-day forecast and daily history, not text stand-ins",
+        "Retention rate computed as %Good+Easy",
+        "Demo data excluded from aggregate views via an isDemo == false fetch predicate, not a post-fetch filter",
+        "Empty and sparse data render designed states, never fabricated values",
+        "No label collision at maximum Dynamic Type size"
+      ],
+      "requirement_ids": [
+        "R-009"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-026",
+      "title": "CSV import UI",
+      "owner_lane": "primary_ui",
+      "files": [
+        "RecallApp/Screens/Decks/CSVImportSheet.swift",
+        "RecallApp/Components/CSVRowStatusList.swift"
+      ],
+      "depends_on": [
+        "T-019",
+        "T-022"
+      ],
+      "acceptance_criteria": [
+        "Import flow is file picker -> live per-row-status preview -> commit -> result, every row's status individually visible, nothing silently skipped",
+        "Post-import count reconciles exactly with preview minus flagged errors/duplicates",
+        "Not covered by the automated UI-crawl gate (system document picker is out of scope for scripted flows); correctness is proven by T-019's RecallAppTests plus manual simulator verification, documented in README"
+      ],
+      "requirement_ids": [
+        "R-010",
+        "R-011"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-027",
+      "title": "Settings screen",
+      "owner_lane": "primary_ui",
+      "files": [
+        "RecallApp/Screens/Settings/SettingsScreen.swift",
+        "RecallApp/Screens/Settings/ReminderTimePickerSheet.swift",
+        "RecallApp/Screens/Settings/PermissionExplainerSheet.swift",
+        "RecallApp/Components/DemoDataToggleRow.swift"
+      ],
+      "depends_on": [
+        "T-017",
+        "T-018",
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Reminder toggle (settings.reminderToggle) reflects true OS authorization status live, never optimistic intent; denial shows a concrete re-enable path",
+        "Demo data toggle (settings.demoDataToggle) disabling shows a confirmation sheet (demoDataConfirm.confirmButton) before purge runs"
+      ],
+      "requirement_ids": [
+        "R-012",
+        "R-013"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-028",
+      "title": "Force-quit persistence XCUITest",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "RecallAppUITests/ForceQuitPersistenceUITests.swift"
+      ],
+      "depends_on": [
+        "T-014",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Automated test grades cards, calls XCUIApplication().terminate(), relaunches, and asserts graded cards kept their new schedule while ungraded cards remain due",
+        "Passes three consecutive clean local runs before this task is marked closed"
+      ],
+      "requirement_ids": [
+        "R-007"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-029",
+      "title": "Day-boundary DebugClockOverride XCUITest",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "RecallAppUITests/DayBoundaryUITests.swift"
+      ],
+      "depends_on": [
+        "T-011",
+        "T-013",
+        "T-023"
+      ],
+      "acceptance_criteria": [
+        "Launches with -RecallClockOffsetDays N and asserts the app's actual DueQueryService wiring reflects the new day, not just the pure module",
+        "Passes three consecutive clean local runs before this task is marked closed"
+      ],
+      "requirement_ids": [
+        "R-016"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-030",
+      "title": "Dark mode, accessibility, and collision pass",
+      "owner_lane": "polish_resilience",
+      "files": [],
+      "depends_on": [
+        "T-021",
+        "T-022",
+        "T-023",
+        "T-025",
+        "T-026",
+        "T-027"
+      ],
+      "acceptance_criteria": [
+        "Every screen verified correct in both light and dark appearance",
+        "All tap targets at least 44x44, VoiceOver announces grade consequences, no truncation or label collision at maximum Dynamic Type",
+        "Color is never the sole signal for state (e.g. demo badging, grade buttons)",
+        "Any defect found is filed against the owning primary_ui task and fixed before this task closes"
+      ],
+      "requirement_ids": [
+        "R-017"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T-031",
+      "title": "README run instructions",
+      "owner_lane": "polish_resilience",
+      "files": [
+        "README.md"
+      ],
+      "depends_on": [
+        "T-020"
+      ],
+      "acceptance_criteria": [
+        "Clear steps to open and run the app in the iOS Simulator via Xcode",
+        "Documents how to run RecallCoreTests, RecallAppTests, and RecallAppUITests independently",
+        "Documents the demo-data toggle and the -RecallClockOffsetDays debug flag",
+        "Documents that CSV import is manually verified rather than covered by the automated UI-crawl gate, and why"
+      ],
+      "requirement_ids": [
+        "R-017"
+      ],
+      "status": "pending"
+    }
+  ],
+  "errors": []
+}
